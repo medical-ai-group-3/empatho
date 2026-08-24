@@ -1,0 +1,29 @@
+name: deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, empatho-gpu]
+    timeout-minutes: 15
+    steps:
+      - name: git pull 및 재시작
+        run: |
+          set -e
+          cd /home/wsuser/app
+          git pull --ff-only
+          pip3 install --user -q -r requirements.txt
+          supervisorctl -c supervisord.conf restart inference
+
+      - name: 헬스체크
+        run: |
+          for i in $(seq 1 20); do
+            curl -fsS http://127.0.0.1:8001/healthz && exit 0
+            sleep 3
+          done
+          echo "헬스체크 실패"
+          cat /home/wsuser/app/inference.err.log
+          exit 1
