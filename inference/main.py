@@ -47,7 +47,6 @@ def thresholds_version():
 
 @app.get("/healthz")
 def healthz():
-    raise RuntimeError("일부러 고장냄")
     return {
         "status": "ok",
         "weights_version": os.getenv("WEIGHTS_VERSION", "none"),
