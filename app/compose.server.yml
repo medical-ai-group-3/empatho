@@ -1,0 +1,30 @@
+name: empatho-server
+
+services:
+  garage:
+    image: dxflrs/garage:v2.3.0
+    container_name: garage
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3900:3900"
+      - "127.0.0.1:3903:3903"
+    volumes:
+      - garage-meta:/var/lib/garage/meta
+      - ./garage-data:/var/lib/garage/data
+      - ./conf/garage.toml:/etc/garage.toml:ro
+
+  orthanc:
+    image: orthancteam/orthanc:26.8.1
+    container_name: orthanc
+    restart: unless-stopped
+    env_file:
+      - ./conf/orthanc.env
+    ports:
+      - "127.0.0.1:8042:8042"
+    volumes:
+      - orthanc-index:/var/lib/orthanc/index
+      - ./orthanc-storage:/var/lib/orthanc/storage
+
+volumes:
+  garage-meta:
+  orthanc-index:
