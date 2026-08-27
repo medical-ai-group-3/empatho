@@ -22,8 +22,12 @@ jobs:
           set -e
           cd /home/wsuser/app
           git pull --ff-only
-          /home/wsuser/workspace/breast/.venv/bin/python3 -m py_compile main.py
-          /home/wsuser/workspace/breast/.venv/bin/python3 -m pip install -q -r requirements.txt
+          /usr/local/bin/python3.12 -m py_compile main.py
+          /usr/local/bin/python3.12 -m pip install --user -q -r requirements.txt
+          # restart 만으로는 supervisord.conf 변경이 반영되지 않는다.
+          # reread 로 파일을 다시 읽고 update 로 바뀐 프로그램에 적용한다.
+          supervisorctl -c supervisord.conf reread
+          supervisorctl -c supervisord.conf update
           supervisorctl -c supervisord.conf restart inference
 
       - name: 헬스체크
@@ -47,7 +51,11 @@ jobs:
           fi
           echo "이전 커밋으로 롤백: $PREV_SHA"
           git reset --hard "$PREV_SHA"
-          /home/wsuser/workspace/breast/.venv/bin/python3 -m pip install -q -r requirements.txt
+          /usr/local/bin/python3.12 -m pip install --user -q -r requirements.txt
+          # restart 만으로는 supervisord.conf 변경이 반영되지 않는다.
+          # reread 로 파일을 다시 읽고 update 로 바뀐 프로그램에 적용한다.
+          supervisorctl -c supervisord.conf reread
+          supervisorctl -c supervisord.conf update
           supervisorctl -c supervisord.conf restart inference
           sleep 5
           curl -fsS http://127.0.0.1:8001/healthz \
