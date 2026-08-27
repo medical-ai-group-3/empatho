@@ -1,7 +1,10 @@
 import os
 import pathlib
+
 import yaml
 from fastapi import FastAPI
+
+# 로컬 push 테스트
 
 MODEL_ROOT = pathlib.Path(os.getenv("MODEL_ROOT", "/models"))
 BASE_ROOT = MODEL_ROOT / "base"
