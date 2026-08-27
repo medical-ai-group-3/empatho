@@ -22,8 +22,8 @@ jobs:
           set -e
           cd /home/wsuser/app
           git pull --ff-only
-          python3 -m py_compile main.py
-          pip3 install --user -q -r requirements.txt
+          /home/wsuser/workspace/breast/.venv/bin/python3 -m py_compile main.py
+          /home/wsuser/workspace/breast/.venv/bin/python3 -m pip install -q -r requirements.txt
           supervisorctl -c supervisord.conf restart inference
 
       - name: 헬스체크
@@ -47,7 +47,7 @@ jobs:
           fi
           echo "이전 커밋으로 롤백: $PREV_SHA"
           git reset --hard "$PREV_SHA"
-          pip3 install --user -q -r requirements.txt
+          /home/wsuser/workspace/breast/.venv/bin/python3 -m pip install -q -r requirements.txt
           supervisorctl -c supervisord.conf restart inference
           sleep 5
           curl -fsS http://127.0.0.1:8001/healthz \
