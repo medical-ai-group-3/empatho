@@ -25,7 +25,9 @@ def socket_state(base_dir: str, prefix: str | None) -> str:
         return "abstain_only"
     if not (BASE_ROOT / base_dir).exists():
         return "abstain_only:no_base"
-    if not list(MODEL_ROOT.glob(f"{prefix}*")):
+    # glob 은 이름만 센다. 대상이 사라진 바로가기도 목록에 남아
+    # 파일이 없는데 ready 가 되므로, 실제로 열 수 있는지까지 본다.
+    if not any(p.exists() for p in MODEL_ROOT.glob(f"{prefix}*")):
         return "abstain_only:no_weights"
     return "ready"
 
