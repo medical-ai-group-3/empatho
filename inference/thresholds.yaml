@@ -1,0 +1,27 @@
+# 임계값 — 운영자가 조정하는 값.
+#
+# 여기 안 적은 항목은 번들 기본값을 쓴다
+# (models/us/code/infer_us.py 의 DEFAULTS + configs/us_lora.yaml 의 inference:).
+# 적은 항목만 요청마다 predict() 에 넘겨 덮어쓴다.
+#
+# 값을 하나라도 바꾸면 version 도 반드시 바꿀 것.
+# 같은 사진의 결과가 왜 달라졌는지 추적할 수 있는 유일한 단서다.
+
+version: "2026-08-28.a"
+
+# 초음파 (소켓 4·5) — 한 번의 predict 가 마스크와 등급을 함께 낸다.
+us: {}
+
+# 번들의 현재 기본값 (참고용 — 바꾸려면 위 us: 에 적는다)
+#
+#   threshold        0.5    어느 쿼리를 병변으로 볼지
+#   mask_threshold   0.5    어느 화소를 병변으로 볼지
+#   polygon_epsilon  0.5    폴리곤 단순화 허용 오차(px)
+#   single_query     true   마스크도 argmax 쿼리 하나만
+#   t2 0.50   t3 0.50   t4 0.45      CORAL 등급 경계
+#   conf_lo 0.10   conf_hi 0.30      확신도 3단계 경계
+#
+# t4 는 정확도와 안전이 맞바꿔지는 지점이다 (models/us/README.md 6절).
+#   0.45 (기본)  정확도 0.532 · BI-RADS 5 재현율 0.889
+#   0.95         정확도 0.591 · BI-RADS 5 재현율 0.389
+# 정확도가 가장 높은 지점이 임상적으로 가장 위험하다. 근거 없이 올리지 말 것.

@@ -61,16 +61,22 @@ def socket_state(base_dir: str, required: list[str]) -> str:
         return "abstain_only:no_weights"
     return "ready"
 
-
-def thresholds_version():
-    path = MODEL_ROOT / "thresholds.yaml"
-    if not path.exists():
-        return None
-    try:
-        return yaml.safe_load(path.read_text()).get("version")
+# 임계값은 레포에 둔다. 값이 바뀐 시점과 이유가 git 에 남아야
+# threshold_version 으로 결과 차이를 추적할 수 있다
+THRESHOLDS_PATH = pathlib.Path(__file__).resolve().parent/'thresholds.yaml'
+def load_thresholds() -> dict: # 타입지정 
+    if not THRESHOLDS_PATH.exists():
+        return {}
+    try: 
+        return yaml.safe_load(THRESHOLDS_PATH.read_text(encoding='utf-8')) or {}
     except Exception:
-        return "parse_error"
+        return {"version": "parse_error"}
 
+# 시작할 때 한 번 읽는다. 고치면 재시작해야 반영된다 - 배포가 곧 재시작이다
+THRESHOLDS = load_thresholds() 
+
+def thresholds_version() : 
+    return THRESHOLDS.get('version')
 
 def _load_us():
     """초음파 번들을 올린다. 약 10초 · VRAM 3.9GB, 추론 peak 6.5GB.
@@ -148,8 +154,9 @@ async def analyze(socket_id: str, image: UploadFile = File(...)):
 
     # GPU 는 직렬이고 워커도 1개라, 여기서 이벤트 루프를 잡고 있는 것이
     # 그대로 요청 큐가 된다. 한 장에 약 420ms.
-    result = LOADED["us"]["predict"](
-        LOADED["us"]["bundle"], Image.open(io.BytesIO(data))
+    over = THRESHOLDS.get("us") or {} 
+    result = LOADED["us"]["predict"] (
+        LOADED["us"]["bundle"], Image.open(io.BytesIO(data)), **over 
     )
     result.pop("_mask", None)   # numpy 배열 — JSON 으로 못 나간다
 
@@ -157,6 +164,7 @@ async def analyze(socket_id: str, image: UploadFile = File(...)):
         "socket_id": socket_id,
         "abstained": False,
         "reason": None,
+        "threshold_version": thresholds_version(),
         "image": info,
         "result": result,
     }
