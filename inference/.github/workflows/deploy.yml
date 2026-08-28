@@ -41,6 +41,11 @@ jobs:
           tail -50 inference.err.log
           exit 1
 
+      - name: /analyze 점검
+        run: |
+          cd /home/wsuser/app
+          /usr/local/bin/python3.12 smoke.py
+
       - name: 실패 시 자동 롤백
         if: failure()
         run: |
