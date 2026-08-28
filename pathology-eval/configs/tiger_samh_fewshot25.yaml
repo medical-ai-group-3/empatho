@@ -1,0 +1,40 @@
+logging:
+  mode: offline
+  project: empatho-pathology
+  notes: tiger-til-fewshot25
+  log_comment: tiger-til-fewshot25
+  wandb_dir: ./logs_local
+  log_dir: ./logs_local
+  level: Debug
+random_seed: 19
+gpu: 0
+data:
+  dataset: DetectionDataset
+  dataset_path: /home/wsuser/data/tiger/cellvit_detection_v2
+  input_shape: [512, 512]
+  normalize_stains_train: false
+  normalize_stains_val: false
+  num_classes: 2
+  train_filelist: /home/wsuser/data/tiger/cellvit_detection_v2/splits/fold_0/train_fewshot25.csv
+  val_filelist: /home/wsuser/data/tiger/cellvit_detection_v2/splits/fold_0/val.csv
+  label_map:
+    0: nonTIL
+    1: TIL
+cellvit_path: /home/wsuser/models/cellvitpp/checkpoints/CellViT-SAM-H-x40-AMP.pth
+model:
+  hidden_dim: 256
+training:
+  cache_cell_dataset: true
+  batch_size: 16
+  epochs: 20
+  drop_rate: 0.1
+  optimizer: AdamW
+  optimizer_hyperparameter:
+    betas: [0.85, 0.9]
+    lr: 0.0002609902875925979
+    weight_decay: 1.8529312539791538e-05
+  early_stopping_patience: 5
+  mixed_precision: true
+  eval_every: 1
+  scheduler:
+    scheduler_type: exponential

@@ -1,0 +1,10 @@
+__pycache__/
+.venv/
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+candidates/
+data/
+cache/
+*.log
