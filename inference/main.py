@@ -180,11 +180,26 @@ async def analyze(socket_id: str, image: UploadFile = File(...)):
 
     # GPU 는 직렬이고 워커도 1개라, 여기서 이벤트 루프를 잡고 있는 것이
     # 그대로 요청 큐가 된다. 한 장에 약 420ms.
-    over = THRESHOLDS.get("us") or {} 
-    result = LOADED["us"]["predict"] (
-        LOADED["us"]["bundle"], Image.open(io.BytesIO(data)), **over 
+    #
+    # 전처리·추론·후처리가 전부 predict() 안에서 일어난다. 여기서 따로 하지
+    # 않는 이유는 학습 때와 같은 함수를 써야 하기 때문이다. 복사해 두면
+    # 학습 코드가 바뀔 때 조용히 갈라지고, 학습에서 나온 성능이 재현되지 않는다.
+    #
+    #   전처리   1008x1008 리사이즈 → mean/std 0.5 정규화
+    #            (바꾸려면 재학습해야 한다 — models/us/README.md)
+    #   추론     MedSAM3 + LoRA. 쿼리별 점수와 마스크가 나온다
+    #   후처리   임계값으로 쿼리 선별 → 마스크 → CORAL 등급 → 폴리곤·형태지표
+    #
+    # over 는 thresholds.yaml 이 덮어쓰는 값. 비어 있으면 번들 기본값을 쓴다.
+    over = THRESHOLDS.get("us") or {}
+    result = LOADED["us"]["predict"](
+        LOADED["us"]["bundle"], Image.open(io.BytesIO(data)), **over
     )
-    result.pop("_mask", None)   # numpy 배열 — JSON 으로 못 나간다
+
+    # result 안에 마스크·폴리곤·BI-RADS 등급·형태지표가 들어 있다.
+    # _mask 만 numpy 배열이라 JSON 으로 못 나간다. 화면에 그릴 좌표는
+    # result["polygons"] 에 따로 있어서 버려도 정보가 줄지 않는다.
+    result.pop("_mask", None)
 
     return {
         "socket_id": socket_id,
