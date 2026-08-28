@@ -1,0 +1,35 @@
+diff --git a/cellvit/training/experiments/experiment_cell_classifier.py b/cellvit/training/experiments/experiment_cell_classifier.py
+index a1f6cfc..7bfd466 100644
+--- a/cellvit/training/experiments/experiment_cell_classifier.py
++++ b/cellvit/training/experiments/experiment_cell_classifier.py
+@@ -283,7 +283,7 @@ class ExperimentCellVitClassifier(BaseExperiment):
+         train_dataloader = DataLoader(
+             train_dataset,
+             batch_size=8,  # TODO: shift back
+-            num_workers=8,
++            num_workers=0,
+             shuffle=False,
+             pin_memory=False,
+             worker_init_fn=self.seed_worker,
+@@ -293,7 +293,7 @@ class ExperimentCellVitClassifier(BaseExperiment):
+         val_dataloader = DataLoader(
+             val_dataset,
+             batch_size=8,  # TODO: shift back
+-            num_workers=8,
++            num_workers=0,
+             pin_memory=True,
+             worker_init_fn=self.seed_worker,
+             collate_fn=val_dataset.collate_batch,
+diff --git a/requirements.txt b/requirements.txt
+index b75719f..3381448 100644
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -14,7 +14,7 @@ flatbuffers==24.3.7
+ fonttools==4.50.0
+ future==0.18.2
+ genbadge==1.1.0
+-geojson==3.0.0
++geojson==3.1.0
+ h5py==3.9.0
+ huggingface-hub==0.22.2
+ ipykernel==6.29.3
