@@ -5,6 +5,8 @@
 경로가 끊기면 앱 서버 쪽에서 오류로 처리되기 때문이다.
 """
 
+import hashlib
+import json
 import io
 import os
 import pathlib
@@ -78,6 +80,30 @@ THRESHOLDS = load_thresholds()
 def thresholds_version() : 
     return THRESHOLDS.get('version')
 
+def _us_versions() -> dict :
+    """적재한 가중치의 식별자. 응답에 실어 결과를 재현 가능하게 한다.
+
+    파일 이름만으로는 부족하다 — 학습이 같은 이름으로 덮어쓰기 때문이다.
+    LoRA 는 해시까지 찍는다. 백본은 3.2GB 라 이름만 쓴다.
+    """
+    ck = US_DIR / "ckpt"
+    try : 
+        manifest = json.loads((ck/"us_best_manifest.json").read_text(encoding='utf-8'))
+    except Exception:
+        manifest = {}
+    
+    lora = ck / "us_lora_best.pt"
+    digest = hashlib.sha256(lora.read_bytes()).hexdigest()[:12] if lora.exists() else "none"
+    
+    cfg = yaml.safe_load((US_DIR / "configs" / "us_lora.yaml").read_text(encoding='utf-8'))
+    backbone = pathlib.Path(cfg["model"]["checkpoint"]).name
+    
+    return {
+        "model_name": "medsam3",
+        "model_version": backbone,
+        "lora_version": f"{manifest.get('run', '?')}@ep{manifest.get('epoch', '?')}+{digest}"
+    }
+        
 def _load_us():
     """초음파 번들을 올린다. 약 10초 · VRAM 3.9GB, 추론 peak 6.5GB.
 
@@ -91,7 +117,7 @@ def _load_us():
         str(US_DIR / "configs" / "us_lora.yaml"),
         heads=str(US_DIR / "ckpt" / "us_heads_ensemble.pt"),
     )
-    return {"bundle": bundle, "predict": predict}
+    return {"bundle": bundle, "predict": predict, "versions": _us_versions()}
 
 
 @asynccontextmanager
@@ -164,6 +190,7 @@ async def analyze(socket_id: str, image: UploadFile = File(...)):
         "socket_id": socket_id,
         "abstained": False,
         "reason": None,
+        **LOADED["us"]["versions"],
         "threshold_version": thresholds_version(),
         "image": info,
         "result": result,
