@@ -1,40 +1,67 @@
+"""워크스테이션 추론 서버.
+
+모델은 서버가 켜질 때 한 번 올리고 (lifespan), 요청마다 추론만 한다.
+적재에 실패해도 서버는 살아 있어야 한다 — 기권은 실패가 아니고,
+경로가 끊기면 앱 서버 쪽에서 오류로 처리되기 때문이다.
+"""
+
+import io
 import os
 import pathlib
+import sys
+from contextlib import asynccontextmanager
 
 import yaml
 from fastapi import FastAPI, File, UploadFile
+from PIL import Image
 
-# 환경 변수 설정
 MODEL_ROOT = pathlib.Path(os.getenv("MODEL_ROOT", "/models"))
 BASE_ROOT = MODEL_ROOT / "base"
 
-# 서버
-app = FastAPI(title="inference")
+# 초음파 서빙 번들. breast/us/serving 을 통째로 복사해 둔 것.
+# 출처와 갱신 방법은 models/us/PROVENANCE.txt 참조.
+US_DIR = MODEL_ROOT / "us"
 
-# 소켓 세팅 표
+# 모델 적재는 기본으로 꺼 둔다. GPU 를 학습과 공유하므로 켤 시점을 사람이 고른다.
+# supervisord.conf 의 environment 에 LOAD_US="1" 을 넣으면 켜진다.
+LOAD_US = os.getenv("LOAD_US", "0") == "1"
+
+# 소켓별로 있어야 하는 파일 — MODEL_ROOT 기준 상대경로.
+# 셋이 짝이어야 하는 초음파처럼, 필요한 것을 전부 적는다.
+# 이름 앞글자로 훑지 않는 이유는 그러면 짝이 맞는지 알 수 없기 때문이다.
 SOCKETS = {
-    # 소켓 ID : 베이스 폴더, 파일 앞글자(가중치), 설명
-    "1":  ("virchow2", "path_seg",  "병리 분할 (Virchow2)"),
-    "2":  ("cellvit",  "path_cell", "병리 세포검출 (CellViT++)"),
-    "3":  ("medsam3",  "mri_seg",   "MRI 병변 분할"),
-    "4":  ("medsam3",  "us_seg",    "초음파 분할"),
-    "5":  ("medsam3",  "us_coral",  "초음파 등급 (CORAL 헤드)"),
-    "4b": ("medsam3",  "mammo",     "유방 엑스레이 서술어 (경로 A)"),
+    "1":  ("virchow2", ["path_seg_head.pth"],  "병리 분할 (Virchow2 + Efficient-UNet)"),
+    "2":  ("cellvit",  ["path_cell_head.pth"], "병리 세포검출 (CellViT++)"),
+    "3":  ("medsam3",  ["mri/ckpt/mri_lora_best.pt"], "MRI 병변 분할"),
+    "4":  ("medsam3",  ["us/ckpt/us_lora_best.pt",
+                        "us/ckpt/us_pd_best.pt"], "초음파 분할"),
+    "5":  ("medsam3",  ["us/ckpt/us_lora_best.pt",
+                        "us/ckpt/us_pd_best.pt",
+                        "us/ckpt/us_heads_ensemble.pt"], "초음파 등급 (CORAL 헤드)"),
+    "4b": ("medsam3",  ["mammo_mass_lora.pt",
+                        "mammo_mass_head.pt"], "유방 엑스레이 서술어 (경로 A)"),
 }
 
-# 모델 확인
-def socket_state(base_dir: str, prefix: str | None) -> str:
-    if prefix is None:
-        return "abstain_only" # 안쓰는 소켓
-    if not (BASE_ROOT / base_dir).exists():
-        return "abstain_only:no_base" # 베이스 모델 없음
-    # glob 은 이름만 센다. 대상이 사라진 바로가기도 목록에 남아
-    # 파일이 없는데 ready 가 되므로, 실제로 열 수 있는지까지 본다.
-    if not any(p.exists() for p in MODEL_ROOT.glob(f"{prefix}*")):
-        return "abstain_only:no_weights" # 가중치 없음
-    return "ready" # 작동 준비
+# 초음파 번들 하나가 소켓 4·5 를 함께 담당한다 (분할 + 등급 헤드).
+US_SOCKETS = {"4", "5"}
 
-# 임계값 버전 확인
+# 올라간 모델. 비어 있으면 아직 적재 전이거나 적재에 실패한 것.
+LOADED = {}
+LOAD_ERROR = {}
+
+
+def socket_state(base_dir: str, required: list[str]) -> str:
+    """ready / abstain_only:no_base / abstain_only:no_weights.
+
+    exists() 는 심볼릭 링크를 따라가므로, 대상이 사라진 바로가기는 없는 것으로 센다.
+    """
+    if not (BASE_ROOT / base_dir).exists():
+        return "abstain_only:no_base"
+    if any(not (MODEL_ROOT / f).exists() for f in required):
+        return "abstain_only:no_weights"
+    return "ready"
+
+
 def thresholds_version():
     path = MODEL_ROOT / "thresholds.yaml"
     if not path.exists():
@@ -44,38 +71,92 @@ def thresholds_version():
     except Exception:
         return "parse_error"
 
-#
-@app.get("/healthz") # => 누가 GET 으로 healthz 부르면 실행해라
+
+def _load_us():
+    """초음파 번들을 올린다. 약 10초 · VRAM 3.9GB, 추론 peak 6.5GB.
+
+    heads 를 명시적으로 넘긴다 — infer_us 의 기본값은 us_heads_best.pt 인데
+    번들에 들어 있는 것은 앙상블이고, 없으면 등급 없이 분할만 조용히 돌아간다.
+    """
+    sys.path.insert(0, str(US_DIR / "code"))
+    from infer_us import load_model, predict
+
+    bundle = load_model(
+        str(US_DIR / "configs" / "us_lora.yaml"),
+        heads=str(US_DIR / "ckpt" / "us_heads_ensemble.pt"),
+    )
+    return {"bundle": bundle, "predict": predict}
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    if LOAD_US and socket_state(*SOCKETS["4"][:2]) == "ready":
+        try:
+            LOADED["us"] = _load_us()
+        except Exception as exc:
+            # 여기서 예외를 흘려보내면 서버가 아예 안 켜지고 healthz 도 죽는다.
+            LOAD_ERROR["us"] = f"{type(exc).__name__}: {exc}"
+    yield
+    LOADED.clear()
+
+
+app = FastAPI(title="inference", lifespan=lifespan)
+
+
+@app.get("/healthz")
 def healthz():
     return {
         "status": "ok",
         "weights_version": os.getenv("WEIGHTS_VERSION", "none"),
         "thresholds_version": thresholds_version(),
+        "load_us": LOAD_US,
+        "loaded": sorted(LOADED),
+        "load_errors": LOAD_ERROR,
         "sockets": {
-            sid: {"state": socket_state(b, p), "desc": d}
-            for sid, (b, p, d) in SOCKETS.items()
+            sid: {"state": socket_state(b, req), "desc": d}
+            for sid, (b, req, d) in SOCKETS.items()
         },
     }
 
+
 @app.post("/analyze/{socket_id}")
-async def analyze(socket_id:str, image: UploadFile = File(...)):
-    known=  SOCKETS.get(socket_id)
-    if known is None :
-        return {
-            "socket_id" : socket_id,
-            "abstained" : True,
-            "reason": "unknown_socket",
-        }
-    # 데이터 받는 비동기 처리
+async def analyze(socket_id: str, image: UploadFile = File(...)):
+    known = SOCKETS.get(socket_id)
+    if known is None:
+        return {"socket_id": socket_id, "abstained": True, "reason": "unknown_socket"}
+
+    base_dir, required, _ = known
+    state = socket_state(base_dir, required)
     data = await image.read()
+    info = {
+        "filename": image.filename,
+        "content_type": image.content_type,
+        "bytes": len(data),
+    }
+
+    if socket_id not in US_SOCKETS or "us" not in LOADED:
+        # 아직 모델이 없다. 왜 없는지를 그대로 돌려준다.
+        if state != "ready":
+            reason = state
+        elif LOAD_ERROR.get("us"):
+            reason = f"load_failed: {LOAD_ERROR['us']}"
+        elif not LOAD_US:
+            reason = "not_loaded:disabled"
+        else:
+            reason = "not_implemented"
+        return {"socket_id": socket_id, "abstained": True, "reason": reason, "image": info}
+
+    # GPU 는 직렬이고 워커도 1개라, 여기서 이벤트 루프를 잡고 있는 것이
+    # 그대로 요청 큐가 된다. 한 장에 약 420ms.
+    result = LOADED["us"]["predict"](
+        LOADED["us"]["bundle"], Image.open(io.BytesIO(data))
+    )
+    result.pop("_mask", None)   # numpy 배열 — JSON 으로 못 나간다
 
     return {
         "socket_id": socket_id,
-        "abstained": True,
-        "reason" : socket_state(known[0], known[1]),
-        "image": {
-            "filename": image.filename,
-            "content_type" : image.content_type,
-            "bytes": len(data),
-        },
+        "abstained": False,
+        "reason": None,
+        "image": info,
+        "result": result,
     }
