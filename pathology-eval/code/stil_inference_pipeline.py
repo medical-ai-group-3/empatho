@@ -4,7 +4,11 @@ sTIL 계산 데모 파이프라인.
 확정_사양서 정의: stil_percent = 면역세포 ÷ (면역세포 + 사이조직)
 
 이 스크립트는:
-  1. 조직분할 모델(Virchow2+Linear, 가중치판)로 이미지의 간질(사이조직) 영역을 예측
+  1. 조직분할 모델(Virchow2+Linear, TAND 논문 사양 = 온도 스케일링 + CE/Dice/BCE)로
+     이미지의 간질(사이조직) 영역을 예측
+     (2026-08-30 확정: 6개 후보 비교 검증 결과 linear_tand 채택. "기타" 클래스
+      3배 가중판(linear_tand_weighted)은 기타 Dice 개선폭이 +0.002로 미미했고
+      sTIL 분모인 간질 Dice는 오히려 linear 계열 중 최저라 제외.)
   2. 이미 만들어둔 TIL 좌표 라벨(0/1)에서 TIL(면역세포) 개수를 집계
   3. 위 공식으로 이미지별 sTIL%를 계산
 
@@ -107,12 +111,12 @@ def main():
     parser.add_argument(
         "--tissue_checkpoint",
         type=str,
-        default=os.path.expanduser("~/models/cellvitpp/logs_local/virchow2_linear_tand_weighted/best_head.pth"),
+        default=os.path.expanduser("~/models/cellvitpp/logs_local/virchow2_linear_tand/best_head.pth"),
     )
     parser.add_argument(
         "--images_dir",
         type=str,
-        default=os.path.expanduser("~/data/tiger/tissue_segmentation_v2/val/images"),
+        default=os.path.expanduser("~/data/tiger/tissue_segmentation/val/images"),
     )
     parser.add_argument(
         "--cell_labels_dir",
