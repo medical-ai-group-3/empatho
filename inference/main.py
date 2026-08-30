@@ -1,17 +1,18 @@
 """워크스테이션 추론 서버.
 
-모델은 서버가 켜질 때 한 번 올리고 (lifespan), 요청마다 추론만 한다.
+모델은 첫 판독 요청 때 올리고 이후 상주한다. 서버가 떠 있다는 이유만으로
+GPU 를 잡지 않는다 — 학습과 나눠 쓰는 자원이다.
 적재에 실패해도 서버는 살아 있어야 한다 — 기권은 실패가 아니고,
 경로가 끊기면 앱 서버 쪽에서 오류로 처리되기 때문이다.
 """
 
 import hashlib
-import json
 import io
+import json
 import os
 import pathlib
 import sys
-from contextlib import asynccontextmanager
+import threading
 
 import yaml
 from fastapi import FastAPI, File, UploadFile
@@ -120,20 +121,26 @@ def _load_us():
     return {"bundle": bundle, "predict": predict, "versions": _us_versions()}
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    if LOAD_US and socket_state(*SOCKETS["4"][:2]) == "ready":
-        try:
-            LOADED["us"] = _load_us()
-        except Exception as exc:
-            # 여기서 예외를 흘려보내면 서버가 아예 안 켜지고 healthz 도 죽는다.
+_LOAD_LOCK = threading.Lock() 
+
+def _ensure_us() :
+    """첫 요청 때 올린다. 한 번 올리면 프로세스가 살아 있는 동안 상주한다.
+
+    내려놓지 않는 이유 — PyTorch 는 GPU 메모리를 깨끗하게 반환하지 못한다.
+    반복하면 회수 안 된 파편이 쌓인다. 내릴 때는 프로세스를 재시작한다.
+    """
+    if "us" in LOADED or "us" in LOAD_ERROR : 
+        return 
+    with _LOAD_LOCK :
+        # 락을 기다리는 동안 다른 요청이 이미 올렸을 수 있다 
+        if "us" in LOADED or "us" in LOAD_ERROR: 
+            return 
+        try: 
+            LOADED["us"] = _load_us() 
+        except Exception as exc: 
             LOAD_ERROR["us"] = f"{type(exc).__name__}: {exc}"
-    yield
-    LOADED.clear()
-
-
-app = FastAPI(title="inference", lifespan=lifespan)
-
+            
+app = FastAPI(title="inference")
 
 @app.get("/healthz")
 def healthz():
@@ -165,6 +172,8 @@ async def analyze(socket_id: str, image: UploadFile = File(...)):
         "content_type": image.content_type,
         "bytes": len(data),
     }
+    if socket_id in US_SOCKETS and LOAD_US and state == "ready" :
+        _ensure_us() 
 
     if socket_id not in US_SOCKETS or "us" not in LOADED:
         # 아직 모델이 없다. 왜 없는지를 그대로 돌려준다.
