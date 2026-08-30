@@ -49,7 +49,7 @@ def _versions() -> dict :
     digest = hashlib.sha256(lora.read_bytes()).hexdigest()[:12] if lora.exists() else "none"
     
     cfg = yaml.safe_load((US_DIR / "configs" / "us_lora.yaml").read_text(encoding="utf-8"))
-    backbone = pathlib.Path(cfg["model"]["checkporint"]).name 
+    backbone = pathlib.Path(cfg["model"]["checkpoint"]).name 
     
     return {
         "model_name": "medsam3",
@@ -70,7 +70,7 @@ def _load() -> dict:
         str(US_DIR / "configs" / "us_lora.yaml"),
         heads = str(US_DIR / "ckpt" / "us_heads_ensemble.pt"),
     )
-    return {"bundle": bundle, "predict": _predict, "version": _versions()}
+    return {"bundle": bundle, "predict": _predict, "versions": _versions()}
 
 def ensure() -> None: 
     """첫 요청 때 올린다. 한 번 올리면 프로세스가 살아 있는 동안 상주한다.
@@ -101,7 +101,7 @@ def error() :
     return _ERROR.get("msg")
 
 def versions() -> dict:
-    return _STATE.get("version", {})
+    return _STATE.get("versions", {})
 
 def predict(image, **over) -> dict:
     """영상 한 장 → 결과. 전처리·추론·후처리가 전부 이 안에서 일어난다.
