@@ -75,17 +75,22 @@ def _load() -> dict:
 def ensure() -> None: 
     """첫 요청 때 올린다. 한 번 올리면 프로세스가 살아 있는 동안 상주한다.
 
+    실패하면 기록만 하고 다음 요청에서 다시 시도한다. GPU 를 학습과 나눠 쓰므로
+    적재 실패는 대개 일시적이다 — 학습이 끝나면 저절로 풀린다. 여기서 포기하면
+    사람이 재시작할 때까지 그 소켓이 죽어 있게 된다.
+
     내려놓지 않는 이유 — PyTorch 는 GPU 메모리를 깨끗하게 반환하지 못한다.
     반복하면 회수 안 된 파편이 쌓인다. 내릴 때는 프로세스를 재시작한다.
     """
-    if _STATE or _ERROR: 
+    if _STATE: 
         return 
     with _LOCK:
         # 락을 기다리는 동안 다른 요청이 이미 올렸을 수 있다 
-        if _STATE or _ERROR: 
+        if _STATE: 
             return 
         try: 
             _STATE.update(_load())
+            _ERROR.clear()
         except Exception as exc: 
             _ERROR["msg"] = f"{type(exc).__name__}: {exc}"
             
