@@ -58,7 +58,7 @@ def report(socket_id: str, result: dict):
     if p is None:
         return {"socket_id": socket_id, "abstained": True, "reason":"unkonwn_socket"}
     try:
-        out = _ask(p.SYSTEM, p.buil(result), p.SCHEMA)
+        out = _ask(p.SYSTEM, p.build(result), p.SCHEMA)
     except Exception as exc:
         return {
             "socket_id": socket_id, 
