@@ -28,7 +28,7 @@ jobs:
           # reread 로 파일을 다시 읽고 update 로 바뀐 프로그램에 적용한다.
           supervisorctl -c supervisord.conf reread
           supervisorctl -c supervisord.conf update
-          supervisorctl -c supervisord.conf restart inference
+          supervisorctl -c supervisord.conf restart inference report
 
       - name: 헬스체크
         run: |
@@ -61,7 +61,7 @@ jobs:
           # reread 로 파일을 다시 읽고 update 로 바뀐 프로그램에 적용한다.
           supervisorctl -c supervisord.conf reread
           supervisorctl -c supervisord.conf update
-          supervisorctl -c supervisord.conf restart inference
+          supervisorctl -c supervisord.conf restart inference report 
           sleep 5
           curl -fsS http://127.0.0.1:8001/healthz \
             && echo "롤백 후 정상 동작 확인" \
