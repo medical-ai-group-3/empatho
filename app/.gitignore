@@ -8,3 +8,4 @@ orthanc-storage/
 
 __pycache__/
 *.pyc
+*.env
