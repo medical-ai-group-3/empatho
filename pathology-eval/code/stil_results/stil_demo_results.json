@@ -1,1955 +1,1969 @@
 [
   {
-    "stem": "136B_[55424, 17753, 56685, 18932]",
-    "til_count": 0,
-    "total_cells": 1,
-    "stroma_pixels_16x16grid": 48,
-    "stil_percent": 0.0
-  },
-  {
-    "stem": "136B_[64379, 16227, 65677, 17403]",
-    "til_count": 0,
-    "total_cells": 19,
-    "stroma_pixels_16x16grid": 178,
-    "stil_percent": 0.0
+    "stem": "114S_[41017, 24190, 42161, 25327]",
+    "til_count": 395,
+    "total_cells": 1034,
+    "stroma_pixels_16x16grid": 126,
+    "stil_percent": 75.82
   },
   {
     "stem": "136B_[73791, 8482, 75066, 9666]",
-    "til_count": 0,
-    "total_cells": 25,
+    "til_count": 38,
+    "total_cells": 784,
     "stroma_pixels_16x16grid": 0,
-    "stil_percent": null
+    "stil_percent": 100.0
   },
   {
     "stem": "154B_[2199, 20514, 3357, 21703]",
-    "til_count": 1,
-    "total_cells": 21,
-    "stroma_pixels_16x16grid": 233,
-    "stil_percent": 0.43
+    "til_count": 257,
+    "total_cells": 1232,
+    "stroma_pixels_16x16grid": 238,
+    "stil_percent": 51.92
   },
   {
-    "stem": "154B_[4337, 30407, 5756, 31626]",
-    "til_count": 0,
-    "total_cells": 3,
-    "stroma_pixels_16x16grid": 8,
-    "stil_percent": 0.0
+    "stem": "196S_[23694, 15365, 24939, 16538]",
+    "til_count": 48,
+    "total_cells": 546,
+    "stroma_pixels_16x16grid": 56,
+    "stil_percent": 46.15
   },
   {
-    "stem": "154B_[4824, 25958, 6083, 27166]",
-    "til_count": 5,
-    "total_cells": 21,
-    "stroma_pixels_16x16grid": 189,
-    "stil_percent": 2.58
+    "stem": "198B_[19017, 3481, 20279, 4695]",
+    "til_count": 93,
+    "total_cells": 2118,
+    "stroma_pixels_16x16grid": 86,
+    "stil_percent": 51.96
   },
   {
-    "stem": "231S_[16115, 21334, 17314, 22502]",
-    "til_count": 0,
-    "total_cells": 0,
-    "stroma_pixels_16x16grid": 142,
-    "stil_percent": 0.0
-  },
-  {
-    "stem": "231S_[28124, 36253, 29320, 37434]",
-    "til_count": 1,
-    "total_cells": 1,
-    "stroma_pixels_16x16grid": 118,
-    "stil_percent": 0.84
-  },
-  {
-    "stem": "231S_[51893, 17063, 53106, 18221]",
-    "til_count": 0,
-    "total_cells": 0,
+    "stem": "198B_[6510, 2478, 7759, 3691]",
+    "til_count": 133,
+    "total_cells": 1624,
     "stroma_pixels_16x16grid": 0,
-    "stil_percent": null
+    "stil_percent": 100.0
   },
   {
-    "stem": "TCGA-A1-A0SP-01Z-00-DX1.20D689C6-EFA5-4694-BE76-24475A89ACC0_[3526, 26983, 3655, 27115]",
-    "til_count": 6,
-    "total_cells": 15,
-    "stroma_pixels_16x16grid": 256,
-    "stil_percent": 2.29
+    "stem": "234B_[11212, 22952, 12503, 24148]",
+    "til_count": 408,
+    "total_cells": 1009,
+    "stroma_pixels_16x16grid": 89,
+    "stil_percent": 82.09
   },
   {
-    "stem": "TCGA-A1-A0SP-01Z-00-DX1.20D689C6-EFA5-4694-BE76-24475A89ACC0_[3903, 26980, 4044, 27124]",
-    "til_count": 71,
-    "total_cells": 77,
-    "stroma_pixels_16x16grid": 256,
-    "stil_percent": 21.71
-  },
-  {
-    "stem": "TCGA-A1-A0SP-01Z-00-DX1.20D689C6-EFA5-4694-BE76-24475A89ACC0_[4020, 27743, 4172, 27899]",
-    "til_count": 19,
-    "total_cells": 38,
-    "stroma_pixels_16x16grid": 203,
-    "stil_percent": 8.56
-  },
-  {
-    "stem": "TCGA-A1-A0SP-01Z-00-DX1.20D689C6-EFA5-4694-BE76-24475A89ACC0_[4033, 27999, 4169, 28141]",
-    "til_count": 1,
-    "total_cells": 27,
-    "stroma_pixels_16x16grid": 191,
-    "stil_percent": 0.52
-  },
-  {
-    "stem": "TCGA-A1-A0SP-01Z-00-DX1.20D689C6-EFA5-4694-BE76-24475A89ACC0_[4033, 28518, 4167, 28651]",
-    "til_count": 28,
-    "total_cells": 35,
-    "stroma_pixels_16x16grid": 256,
-    "stil_percent": 9.86
-  },
-  {
-    "stem": "TCGA-A1-A0SP-01Z-00-DX1.20D689C6-EFA5-4694-BE76-24475A89ACC0_[4036, 26978, 4176, 27123]",
-    "til_count": 70,
-    "total_cells": 74,
-    "stroma_pixels_16x16grid": 256,
-    "stil_percent": 21.47
+    "stem": "240S_[24479, 20283, 25702, 21462]",
+    "til_count": 1024,
+    "total_cells": 1649,
+    "stroma_pixels_16x16grid": 176,
+    "stil_percent": 85.33
   },
   {
     "stem": "TCGA-A1-A0SP-01Z-00-DX1.20D689C6-EFA5-4694-BE76-24475A89ACC0_[4162, 28514, 4300, 28655]",
-    "til_count": 23,
-    "total_cells": 39,
-    "stroma_pixels_16x16grid": 248,
-    "stil_percent": 8.49
-  },
-  {
-    "stem": "TCGA-A1-A0SP-01Z-00-DX1.20D689C6-EFA5-4694-BE76-24475A89ACC0_[4286, 27107, 4438, 27252]",
-    "til_count": 42,
-    "total_cells": 53,
-    "stroma_pixels_16x16grid": 195,
-    "stil_percent": 17.72
-  },
-  {
-    "stem": "TCGA-A1-A0SP-01Z-00-DX1.20D689C6-EFA5-4694-BE76-24475A89ACC0_[4412, 27358, 4563, 27499]",
-    "til_count": 0,
-    "total_cells": 21,
-    "stroma_pixels_16x16grid": 0,
-    "stil_percent": null
-  },
-  {
-    "stem": "TCGA-A1-A0SP-01Z-00-DX1.20D689C6-EFA5-4694-BE76-24475A89ACC0_[4413, 27995, 4561, 28149]",
-    "til_count": 16,
-    "total_cells": 37,
-    "stroma_pixels_16x16grid": 143,
-    "stil_percent": 10.06
-  },
-  {
-    "stem": "TCGA-A1-A0SP-01Z-00-DX1.20D689C6-EFA5-4694-BE76-24475A89ACC0_[4540, 27343, 4691, 27501]",
-    "til_count": 0,
-    "total_cells": 26,
-    "stroma_pixels_16x16grid": 0,
-    "stil_percent": null
-  },
-  {
-    "stem": "TCGA-A1-A0SP-01Z-00-DX1.20D689C6-EFA5-4694-BE76-24475A89ACC0_[4547, 28517, 4680, 28652]",
-    "til_count": 11,
-    "total_cells": 32,
-    "stroma_pixels_16x16grid": 209,
-    "stil_percent": 5.0
-  },
-  {
-    "stem": "TCGA-A1-A0SP-01Z-00-DX1.20D689C6-EFA5-4694-BE76-24475A89ACC0_[4548, 27879, 4684, 28045]",
-    "til_count": 0,
-    "total_cells": 21,
-    "stroma_pixels_16x16grid": 4,
-    "stil_percent": 0.0
-  },
-  {
-    "stem": "TCGA-A1-A0SP-01Z-00-DX1.20D689C6-EFA5-4694-BE76-24475A89ACC0_[4671, 27859, 4821, 28011]",
-    "til_count": 0,
-    "total_cells": 28,
-    "stroma_pixels_16x16grid": 0,
-    "stil_percent": null
+    "til_count": 13,
+    "total_cells": 25,
+    "stroma_pixels_16x16grid": 250,
+    "stil_percent": 4.94
   },
   {
     "stem": "TCGA-A1-A0SP-01Z-00-DX1.20D689C6-EFA5-4694-BE76-24475A89ACC0_[4801, 28648, 4962, 28789]",
     "til_count": 0,
-    "total_cells": 29,
-    "stroma_pixels_16x16grid": 38,
+    "total_cells": 18,
+    "stroma_pixels_16x16grid": 44,
     "stil_percent": 0.0
   },
   {
     "stem": "TCGA-A1-A0SP-01Z-00-DX1.20D689C6-EFA5-4694-BE76-24475A89ACC0_[4806, 28523, 4935, 28660]",
-    "til_count": 2,
-    "total_cells": 29,
-    "stroma_pixels_16x16grid": 68,
-    "stil_percent": 2.86
+    "til_count": 0,
+    "total_cells": 12,
+    "stroma_pixels_16x16grid": 74,
+    "stil_percent": 0.0
   },
   {
-    "stem": "TCGA-A1-A0SP-01Z-00-DX1.20D689C6-EFA5-4694-BE76-24475A89ACC0_[5685, 27234, 5835, 27380]",
-    "til_count": 0,
+    "stem": "TCGA-A2-A04Q-01Z-00-DX1.DF7ED6B6-7701-486D-9007-F26B6F0682C4_[10686, 9285, 10830, 9422]",
+    "til_count": 10,
     "total_cells": 28,
-    "stroma_pixels_16x16grid": 0,
-    "stil_percent": null
+    "stroma_pixels_16x16grid": 45,
+    "stil_percent": 18.18
   },
   {
-    "stem": "TCGA-A1-A0SP-01Z-00-DX1.20D689C6-EFA5-4694-BE76-24475A89ACC0_[5695, 26977, 5844, 27118]",
-    "til_count": 26,
-    "total_cells": 45,
-    "stroma_pixels_16x16grid": 238,
-    "stil_percent": 9.85
-  },
-  {
-    "stem": "TCGA-A1-A0SP-01Z-00-DX1.20D689C6-EFA5-4694-BE76-24475A89ACC0_[5826, 27234, 5970, 27388]",
-    "til_count": 1,
-    "total_cells": 24,
-    "stroma_pixels_16x16grid": 32,
-    "stil_percent": 3.03
-  },
-  {
-    "stem": "TCGA-A1-A0SP-01Z-00-DX1.20D689C6-EFA5-4694-BE76-24475A89ACC0_[5920, 28591, 6102, 28762]",
-    "til_count": 0,
-    "total_cells": 28,
-    "stroma_pixels_16x16grid": 7,
-    "stil_percent": 0.0
-  },
-  {
-    "stem": "TCGA-A1-A0SP-01Z-00-DX1.20D689C6-EFA5-4694-BE76-24475A89ACC0_[5934, 26978, 6091, 27121]",
-    "til_count": 0,
-    "total_cells": 26,
-    "stroma_pixels_16x16grid": 19,
-    "stil_percent": 0.0
-  },
-  {
-    "stem": "TCGA-A1-A0SP-01Z-00-DX1.20D689C6-EFA5-4694-BE76-24475A89ACC0_[5948, 27106, 6105, 27256]",
-    "til_count": 0,
-    "total_cells": 20,
-    "stroma_pixels_16x16grid": 3,
-    "stil_percent": 0.0
-  },
-  {
-    "stem": "TCGA-A1-A0SP-01Z-00-DX1.20D689C6-EFA5-4694-BE76-24475A89ACC0_[5958, 27366, 6099, 27499]",
-    "til_count": 2,
-    "total_cells": 24,
-    "stroma_pixels_16x16grid": 256,
-    "stil_percent": 0.78
-  },
-  {
-    "stem": "TCGA-A2-A0ST-01Z-00-DX1.AE05A5DB-4861-40DE-B0F5-7955FC903A96_[54969, 10661, 55113, 10809]",
-    "til_count": 20,
-    "total_cells": 65,
-    "stroma_pixels_16x16grid": 256,
-    "stil_percent": 7.25
-  },
-  {
-    "stem": "TCGA-A2-A0ST-01Z-00-DX1.AE05A5DB-4861-40DE-B0F5-7955FC903A96_[56064, 10238, 56285, 10485]",
-    "til_count": 19,
-    "total_cells": 74,
-    "stroma_pixels_16x16grid": 1,
-    "stil_percent": 95.0
-  },
-  {
-    "stem": "TCGA-A2-A0ST-01Z-00-DX1.AE05A5DB-4861-40DE-B0F5-7955FC903A96_[56897, 9514, 57026, 9655]",
-    "til_count": 25,
-    "total_cells": 43,
-    "stroma_pixels_16x16grid": 256,
-    "stil_percent": 8.9
-  },
-  {
-    "stem": "TCGA-A2-A3XU-01Z-00-DX1.174A92D4-50B2-4A59-AD31-D5EC5BBF2F65_[16780, 13974, 16926, 14106]",
-    "til_count": 1,
-    "total_cells": 19,
-    "stroma_pixels_16x16grid": 0,
-    "stil_percent": 100.0
-  },
-  {
-    "stem": "TCGA-A2-A3XU-01Z-00-DX1.174A92D4-50B2-4A59-AD31-D5EC5BBF2F65_[17540, 14091, 17700, 14230]",
-    "til_count": 0,
-    "total_cells": 24,
-    "stroma_pixels_16x16grid": 0,
-    "stil_percent": null
-  },
-  {
-    "stem": "TCGA-A2-A3XU-01Z-00-DX1.174A92D4-50B2-4A59-AD31-D5EC5BBF2F65_[17804, 14091, 17957, 14237]",
-    "til_count": 0,
-    "total_cells": 25,
-    "stroma_pixels_16x16grid": 0,
-    "stil_percent": null
-  },
-  {
-    "stem": "TCGA-A2-A3XU-01Z-00-DX1.174A92D4-50B2-4A59-AD31-D5EC5BBF2F65_[18192, 13842, 18332, 13984]",
-    "til_count": 0,
-    "total_cells": 18,
-    "stroma_pixels_16x16grid": 1,
-    "stil_percent": 0.0
-  },
-  {
-    "stem": "TCGA-A2-A3XU-01Z-00-DX1.174A92D4-50B2-4A59-AD31-D5EC5BBF2F65_[18442, 13582, 18593, 13729]",
-    "til_count": 0,
-    "total_cells": 24,
-    "stroma_pixels_16x16grid": 0,
-    "stil_percent": null
-  },
-  {
-    "stem": "TCGA-A2-A3XU-01Z-00-DX1.174A92D4-50B2-4A59-AD31-D5EC5BBF2F65_[18456, 14600, 18593, 14744]",
-    "til_count": 0,
-    "total_cells": 18,
-    "stroma_pixels_16x16grid": 91,
-    "stil_percent": 0.0
-  },
-  {
-    "stem": "TCGA-A2-A3XU-01Z-00-DX1.174A92D4-50B2-4A59-AD31-D5EC5BBF2F65_[18570, 13836, 18722, 13974]",
-    "til_count": 0,
-    "total_cells": 16,
-    "stroma_pixels_16x16grid": 34,
-    "stil_percent": 0.0
-  },
-  {
-    "stem": "TCGA-A2-A3XU-01Z-00-DX1.174A92D4-50B2-4A59-AD31-D5EC5BBF2F65_[18712, 13324, 18849, 13462]",
+    "stem": "TCGA-A2-A04T-01Z-00-DX1.71444266-BD56-4183-9603-C7AC20C9DA1E_[36187, 20040, 36335, 20179]",
     "til_count": 0,
     "total_cells": 11,
-    "stroma_pixels_16x16grid": 196,
+    "stroma_pixels_16x16grid": 88,
     "stil_percent": 0.0
   },
   {
-    "stem": "TCGA-A2-A3XU-01Z-00-DX1.174A92D4-50B2-4A59-AD31-D5EC5BBF2F65_[18840, 13317, 18976, 13470]",
-    "til_count": 0,
-    "total_cells": 6,
-    "stroma_pixels_16x16grid": 227,
-    "stil_percent": 0.0
-  },
-  {
-    "stem": "TCGA-A7-A0CE-01Z-00-DX1.E67322FB-ED25-4B85-B3B0-2B8BD277BB4A_[29474, 9618, 29624, 9766]",
-    "til_count": 49,
-    "total_cells": 54,
-    "stroma_pixels_16x16grid": 256,
-    "stil_percent": 16.07
-  },
-  {
-    "stem": "TCGA-A7-A0CE-01Z-00-DX1.E67322FB-ED25-4B85-B3B0-2B8BD277BB4A_[29482, 9755, 29614, 9895]",
-    "til_count": 36,
-    "total_cells": 39,
-    "stroma_pixels_16x16grid": 255,
-    "stil_percent": 12.37
-  },
-  {
-    "stem": "TCGA-A7-A0CE-01Z-00-DX1.E67322FB-ED25-4B85-B3B0-2B8BD277BB4A_[29614, 11399, 29743, 11562]",
-    "til_count": 5,
-    "total_cells": 21,
-    "stroma_pixels_16x16grid": 256,
-    "stil_percent": 1.92
-  },
-  {
-    "stem": "TCGA-A7-A0CE-01Z-00-DX1.E67322FB-ED25-4B85-B3B0-2B8BD277BB4A_[29740, 10131, 29874, 10287]",
-    "til_count": 12,
-    "total_cells": 37,
-    "stroma_pixels_16x16grid": 238,
-    "stil_percent": 4.8
-  },
-  {
-    "stem": "TCGA-A7-A0CE-01Z-00-DX1.E67322FB-ED25-4B85-B3B0-2B8BD277BB4A_[29866, 10516, 30007, 10656]",
-    "til_count": 14,
-    "total_cells": 30,
-    "stroma_pixels_16x16grid": 256,
-    "stil_percent": 5.19
-  },
-  {
-    "stem": "TCGA-A7-A0CE-01Z-00-DX1.E67322FB-ED25-4B85-B3B0-2B8BD277BB4A_[29870, 9878, 29998, 10024]",
-    "til_count": 17,
-    "total_cells": 34,
-    "stroma_pixels_16x16grid": 249,
-    "stil_percent": 6.39
-  },
-  {
-    "stem": "TCGA-A7-A0CE-01Z-00-DX1.E67322FB-ED25-4B85-B3B0-2B8BD277BB4A_[30116, 10006, 30263, 10160]",
-    "til_count": 19,
-    "total_cells": 40,
-    "stroma_pixels_16x16grid": 253,
-    "stil_percent": 6.99
-  },
-  {
-    "stem": "TCGA-A7-A0CE-01Z-00-DX1.E67322FB-ED25-4B85-B3B0-2B8BD277BB4A_[30118, 10769, 30264, 10915]",
-    "til_count": 25,
-    "total_cells": 41,
-    "stroma_pixels_16x16grid": 256,
-    "stil_percent": 8.9
-  },
-  {
-    "stem": "TCGA-A7-A0CE-01Z-00-DX1.E67322FB-ED25-4B85-B3B0-2B8BD277BB4A_[30247, 10647, 30388, 10801]",
-    "til_count": 19,
-    "total_cells": 47,
-    "stroma_pixels_16x16grid": 255,
-    "stil_percent": 6.93
-  },
-  {
-    "stem": "TCGA-A7-A0CE-01Z-00-DX1.E67322FB-ED25-4B85-B3B0-2B8BD277BB4A_[30369, 10012, 30516, 10162]",
-    "til_count": 25,
-    "total_cells": 41,
-    "stroma_pixels_16x16grid": 256,
-    "stil_percent": 8.9
-  },
-  {
-    "stem": "TCGA-A7-A0CE-01Z-00-DX1.E67322FB-ED25-4B85-B3B0-2B8BD277BB4A_[30379, 10641, 30521, 10788]",
-    "til_count": 16,
-    "total_cells": 38,
-    "stroma_pixels_16x16grid": 256,
-    "stil_percent": 5.88
-  },
-  {
-    "stem": "TCGA-A7-A0CE-01Z-00-DX1.E67322FB-ED25-4B85-B3B0-2B8BD277BB4A_[30379, 11294, 30522, 11434]",
+    "stem": "TCGA-A2-A04T-01Z-00-DX1.71444266-BD56-4183-9603-C7AC20C9DA1E_[37845, 19657, 38000, 19799]",
     "til_count": 0,
     "total_cells": 13,
-    "stroma_pixels_16x16grid": 98,
+    "stroma_pixels_16x16grid": 103,
     "stil_percent": 0.0
   },
   {
-    "stem": "TCGA-A7-A0CE-01Z-00-DX1.E67322FB-ED25-4B85-B3B0-2B8BD277BB4A_[30485, 10776, 30656, 10927]",
-    "til_count": 4,
-    "total_cells": 36,
-    "stroma_pixels_16x16grid": 70,
-    "stil_percent": 5.41
-  },
-  {
-    "stem": "TCGA-A7-A0CE-01Z-00-DX1.E67322FB-ED25-4B85-B3B0-2B8BD277BB4A_[30507, 10389, 30643, 10527]",
+    "stem": "TCGA-A2-A04T-01Z-00-DX1.71444266-BD56-4183-9603-C7AC20C9DA1E_[39525, 20940, 39664, 21091]",
     "til_count": 0,
-    "total_cells": 19,
-    "stroma_pixels_16x16grid": 72,
-    "stil_percent": 0.0
-  },
-  {
-    "stem": "TCGA-A7-A0CE-01Z-00-DX1.E67322FB-ED25-4B85-B3B0-2B8BD277BB4A_[30756, 10900, 30897, 11043]",
-    "til_count": 1,
-    "total_cells": 21,
-    "stroma_pixels_16x16grid": 46,
-    "stil_percent": 2.13
-  },
-  {
-    "stem": "TCGA-A7-A0CE-01Z-00-DX1.E67322FB-ED25-4B85-B3B0-2B8BD277BB4A_[30756, 11159, 30902, 11300]",
-    "til_count": 0,
-    "total_cells": 16,
-    "stroma_pixels_16x16grid": 0,
-    "stil_percent": null
-  },
-  {
-    "stem": "TCGA-A7-A0CE-01Z-00-DX1.E67322FB-ED25-4B85-B3B0-2B8BD277BB4A_[31261, 11022, 31409, 11180]",
-    "til_count": 0,
-    "total_cells": 30,
-    "stroma_pixels_16x16grid": 0,
-    "stil_percent": null
-  },
-  {
-    "stem": "TCGA-A7-A0CE-01Z-00-DX1.E67322FB-ED25-4B85-B3B0-2B8BD277BB4A_[31399, 11020, 31554, 11181]",
-    "til_count": 0,
-    "total_cells": 30,
-    "stroma_pixels_16x16grid": 0,
-    "stil_percent": null
-  },
-  {
-    "stem": "TCGA-A7-A0CE-01Z-00-DX1.E67322FB-ED25-4B85-B3B0-2B8BD277BB4A_[31514, 11545, 31678, 11687]",
-    "til_count": 0,
-    "total_cells": 18,
-    "stroma_pixels_16x16grid": 0,
-    "stil_percent": null
-  },
-  {
-    "stem": "TCGA-A7-A0CE-01Z-00-DX1.E67322FB-ED25-4B85-B3B0-2B8BD277BB4A_[31775, 9873, 31934, 10028]",
-    "til_count": 0,
-    "total_cells": 35,
-    "stroma_pixels_16x16grid": 0,
-    "stil_percent": null
-  },
-  {
-    "stem": "TCGA-A7-A0CE-01Z-00-DX1.E67322FB-ED25-4B85-B3B0-2B8BD277BB4A_[32416, 11166, 32573, 11300]",
-    "til_count": 0,
-    "total_cells": 20,
-    "stroma_pixels_16x16grid": 213,
-    "stil_percent": 0.0
-  },
-  {
-    "stem": "TCGA-A7-A0CE-01Z-00-DX1.E67322FB-ED25-4B85-B3B0-2B8BD277BB4A_[32417, 10649, 32568, 10791]",
-    "til_count": 0,
-    "total_cells": 25,
-    "stroma_pixels_16x16grid": 0,
-    "stil_percent": null
-  },
-  {
-    "stem": "TCGA-A7-A6VY-01Z-00-DX1.38D4EBD7-40B0-4EE3-960A-1F00E8F83ADB_[5179, 15346, 5322, 15489]",
-    "til_count": 2,
-    "total_cells": 24,
-    "stroma_pixels_16x16grid": 13,
-    "stil_percent": 13.33
-  },
-  {
-    "stem": "TCGA-BH-A0AV-01Z-00-DX1.5A686DA4-A29D-4BA7-9BCA-B707F8755E83_[39082, 29350, 39238, 29493]",
-    "til_count": 2,
-    "total_cells": 36,
-    "stroma_pixels_16x16grid": 50,
-    "stil_percent": 3.85
-  },
-  {
-    "stem": "TCGA-BH-A0AV-01Z-00-DX1.5A686DA4-A29D-4BA7-9BCA-B707F8755E83_[39209, 29088, 39369, 29233]",
-    "til_count": 0,
-    "total_cells": 25,
-    "stroma_pixels_16x16grid": 48,
-    "stil_percent": 0.0
-  },
-  {
-    "stem": "TCGA-BH-A0AV-01Z-00-DX1.5A686DA4-A29D-4BA7-9BCA-B707F8755E83_[39216, 29222, 39361, 29359]",
-    "til_count": 0,
-    "total_cells": 28,
-    "stroma_pixels_16x16grid": 177,
-    "stil_percent": 0.0
-  },
-  {
-    "stem": "TCGA-BH-A0AV-01Z-00-DX1.5A686DA4-A29D-4BA7-9BCA-B707F8755E83_[39217, 29860, 39352, 30002]",
-    "til_count": 13,
-    "total_cells": 34,
-    "stroma_pixels_16x16grid": 256,
-    "stil_percent": 4.83
-  },
-  {
-    "stem": "TCGA-BH-A0AV-01Z-00-DX1.5A686DA4-A29D-4BA7-9BCA-B707F8755E83_[39348, 28810, 39484, 28976]",
-    "til_count": 1,
-    "total_cells": 30,
-    "stroma_pixels_16x16grid": 48,
-    "stil_percent": 2.04
-  },
-  {
-    "stem": "TCGA-BH-A0AV-01Z-00-DX1.5A686DA4-A29D-4BA7-9BCA-B707F8755E83_[39352, 28963, 39486, 29096]",
-    "til_count": 1,
-    "total_cells": 22,
-    "stroma_pixels_16x16grid": 220,
-    "stil_percent": 0.45
-  },
-  {
-    "stem": "TCGA-BH-A0AV-01Z-00-DX1.5A686DA4-A29D-4BA7-9BCA-B707F8755E83_[39468, 28827, 39646, 28999]",
-    "til_count": 3,
-    "total_cells": 36,
-    "stroma_pixels_16x16grid": 207,
-    "stil_percent": 1.43
-  },
-  {
-    "stem": "TCGA-BH-A0AV-01Z-00-DX1.5A686DA4-A29D-4BA7-9BCA-B707F8755E83_[39471, 29463, 39622, 29618]",
-    "til_count": 0,
-    "total_cells": 28,
-    "stroma_pixels_16x16grid": 144,
-    "stil_percent": 0.0
-  },
-  {
-    "stem": "TCGA-BH-A0AV-01Z-00-DX1.5A686DA4-A29D-4BA7-9BCA-B707F8755E83_[39857, 28825, 40010, 28976]",
-    "til_count": 1,
-    "total_cells": 34,
-    "stroma_pixels_16x16grid": 46,
-    "stil_percent": 2.13
-  },
-  {
-    "stem": "TCGA-BH-A0AV-01Z-00-DX1.5A686DA4-A29D-4BA7-9BCA-B707F8755E83_[40734, 29725, 40900, 29876]",
-    "til_count": 0,
-    "total_cells": 14,
-    "stroma_pixels_16x16grid": 190,
-    "stil_percent": 0.0
-  },
-  {
-    "stem": "TCGA-BH-A0AV-01Z-00-DX1.5A686DA4-A29D-4BA7-9BCA-B707F8755E83_[40985, 29855, 41158, 30013]",
-    "til_count": 0,
-    "total_cells": 15,
-    "stroma_pixels_16x16grid": 150,
-    "stil_percent": 0.0
-  },
-  {
-    "stem": "TCGA-BH-A0AV-01Z-00-DX1.5A686DA4-A29D-4BA7-9BCA-B707F8755E83_[41006, 29347, 41151, 29490]",
-    "til_count": 52,
-    "total_cells": 64,
-    "stroma_pixels_16x16grid": 251,
-    "stil_percent": 17.16
-  },
-  {
-    "stem": "TCGA-BH-A0AV-01Z-00-DX1.5A686DA4-A29D-4BA7-9BCA-B707F8755E83_[41008, 29219, 41153, 29357]",
-    "til_count": 76,
-    "total_cells": 87,
-    "stroma_pixels_16x16grid": 256,
-    "stil_percent": 22.89
-  },
-  {
-    "stem": "TCGA-BH-A18V-01Z-00-DX1.7797760A-05CD-436E-97DA-31D6201F943B_[25265, 25359, 25411, 25514]",
-    "til_count": 0,
-    "total_cells": 38,
-    "stroma_pixels_16x16grid": 0,
-    "stil_percent": null
-  },
-  {
-    "stem": "TCGA-BH-A18V-01Z-00-DX1.7797760A-05CD-436E-97DA-31D6201F943B_[27556, 26011, 27704, 26153]",
-    "til_count": 9,
-    "total_cells": 40,
-    "stroma_pixels_16x16grid": 194,
-    "stil_percent": 4.43
-  },
-  {
-    "stem": "TCGA-BH-A18V-01Z-00-DX1.7797760A-05CD-436E-97DA-31D6201F943B_[27568, 24721, 27708, 24872]",
-    "til_count": 0,
-    "total_cells": 22,
-    "stroma_pixels_16x16grid": 0,
-    "stil_percent": null
-  },
-  {
-    "stem": "TCGA-BH-A18V-01Z-00-DX1.7797760A-05CD-436E-97DA-31D6201F943B_[27829, 24866, 27959, 24994]",
-    "til_count": 34,
-    "total_cells": 46,
-    "stroma_pixels_16x16grid": 256,
-    "stil_percent": 11.72
-  },
-  {
-    "stem": "TCGA-D8-A1XK-01Z-00-DX1.41EB1BBC-F230-4E3F-8C4E-CE331CAF1935_[13083, 26695, 13291, 26914]",
-    "til_count": 0,
-    "total_cells": 59,
-    "stroma_pixels_16x16grid": 19,
-    "stil_percent": 0.0
-  },
-  {
-    "stem": "TCGA-D8-A1XK-01Z-00-DX1.41EB1BBC-F230-4E3F-8C4E-CE331CAF1935_[13367, 26136, 13605, 26407]",
-    "til_count": 9,
-    "total_cells": 58,
-    "stroma_pixels_16x16grid": 62,
-    "stil_percent": 12.68
-  },
-  {
-    "stem": "TCGA-D8-A1XK-01Z-00-DX1.41EB1BBC-F230-4E3F-8C4E-CE331CAF1935_[13670, 26153, 13817, 26292]",
-    "til_count": 17,
-    "total_cells": 46,
-    "stroma_pixels_16x16grid": 256,
-    "stil_percent": 6.23
-  },
-  {
-    "stem": "TCGA-D8-A1XK-01Z-00-DX1.41EB1BBC-F230-4E3F-8C4E-CE331CAF1935_[13929, 25247, 14067, 25400]",
-    "til_count": 16,
-    "total_cells": 24,
-    "stroma_pixels_16x16grid": 246,
-    "stil_percent": 6.11
-  },
-  {
-    "stem": "TCGA-D8-A1XK-01Z-00-DX1.41EB1BBC-F230-4E3F-8C4E-CE331CAF1935_[14040, 27571, 14246, 27776]",
-    "til_count": 1,
-    "total_cells": 11,
-    "stroma_pixels_16x16grid": 232,
-    "stil_percent": 0.43
-  },
-  {
-    "stem": "TCGA-D8-A27H-01Z-00-DX1.BE9DFDD4-97C5-4327-B1DA-4B34A6F267C5_[4746, 4663, 4885, 4806]",
-    "til_count": 74,
-    "total_cells": 80,
-    "stroma_pixels_16x16grid": 256,
-    "stil_percent": 22.42
-  },
-  {
-    "stem": "TCGA-D8-A27H-01Z-00-DX1.BE9DFDD4-97C5-4327-B1DA-4B34A6F267C5_[4872, 4790, 5026, 4930]",
-    "til_count": 14,
-    "total_cells": 32,
-    "stroma_pixels_16x16grid": 158,
-    "stil_percent": 8.14
-  },
-  {
-    "stem": "TCGA-D8-A27H-01Z-00-DX1.BE9DFDD4-97C5-4327-B1DA-4B34A6F267C5_[4991, 5049, 5154, 5197]",
-    "til_count": 0,
-    "total_cells": 22,
-    "stroma_pixels_16x16grid": 62,
-    "stil_percent": 0.0
-  },
-  {
-    "stem": "TCGA-D8-A27H-01Z-00-DX1.BE9DFDD4-97C5-4327-B1DA-4B34A6F267C5_[5125, 5432, 5272, 5580]",
-    "til_count": 0,
-    "total_cells": 26,
-    "stroma_pixels_16x16grid": 33,
-    "stil_percent": 0.0
-  },
-  {
-    "stem": "TCGA-D8-A27H-01Z-00-DX1.BE9DFDD4-97C5-4327-B1DA-4B34A6F267C5_[5127, 5179, 5275, 5311]",
-    "til_count": 0,
-    "total_cells": 21,
-    "stroma_pixels_16x16grid": 2,
-    "stil_percent": 0.0
-  },
-  {
-    "stem": "TCGA-E2-A14R-01Z-00-DX1.DDE62ED5-1FC0-4B3B-A874-95C08B33AB20_[3996, 30161, 4142, 30299]",
-    "til_count": 11,
-    "total_cells": 41,
-    "stroma_pixels_16x16grid": 146,
-    "stil_percent": 7.01
-  },
-  {
-    "stem": "TCGA-E2-A14R-01Z-00-DX1.DDE62ED5-1FC0-4B3B-A874-95C08B33AB20_[4120, 30407, 4259, 30573]",
-    "til_count": 0,
-    "total_cells": 42,
-    "stroma_pixels_16x16grid": 0,
-    "stil_percent": null
-  },
-  {
-    "stem": "TCGA-E2-A14R-01Z-00-DX1.DDE62ED5-1FC0-4B3B-A874-95C08B33AB20_[4248, 30291, 4398, 30434]",
-    "til_count": 0,
-    "total_cells": 43,
-    "stroma_pixels_16x16grid": 0,
-    "stil_percent": null
-  },
-  {
-    "stem": "TCGA-E2-A14R-01Z-00-DX1.DDE62ED5-1FC0-4B3B-A874-95C08B33AB20_[4257, 30029, 4396, 30174]",
-    "til_count": 0,
-    "total_cells": 33,
-    "stroma_pixels_16x16grid": 45,
-    "stil_percent": 0.0
-  },
-  {
-    "stem": "TCGA-E2-A14R-01Z-00-DX1.DDE62ED5-1FC0-4B3B-A874-95C08B33AB20_[4498, 30286, 4645, 30435]",
-    "til_count": 0,
-    "total_cells": 37,
-    "stroma_pixels_16x16grid": 0,
-    "stil_percent": null
-  },
-  {
-    "stem": "TCGA-E2-A14R-01Z-00-DX1.DDE62ED5-1FC0-4B3B-A874-95C08B33AB20_[4503, 30533, 4647, 30682]",
-    "til_count": 17,
-    "total_cells": 43,
-    "stroma_pixels_16x16grid": 104,
-    "stil_percent": 14.05
-  },
-  {
-    "stem": "TCGA-E2-A14R-01Z-00-DX1.DDE62ED5-1FC0-4B3B-A874-95C08B33AB20_[4506, 29774, 4643, 29913]",
-    "til_count": 33,
-    "total_cells": 51,
-    "stroma_pixels_16x16grid": 256,
-    "stil_percent": 11.42
-  },
-  {
-    "stem": "TCGA-E2-A14R-01Z-00-DX1.DDE62ED5-1FC0-4B3B-A874-95C08B33AB20_[4640, 30538, 4778, 30687]",
-    "til_count": 48,
-    "total_cells": 67,
-    "stroma_pixels_16x16grid": 256,
-    "stil_percent": 15.79
-  },
-  {
-    "stem": "TCGA-E2-A14R-01Z-00-DX1.DDE62ED5-1FC0-4B3B-A874-95C08B33AB20_[4763, 30415, 4903, 30559]",
-    "til_count": 44,
-    "total_cells": 60,
-    "stroma_pixels_16x16grid": 256,
-    "stil_percent": 14.67
-  },
-  {
-    "stem": "TCGA-E2-A14R-01Z-00-DX1.DDE62ED5-1FC0-4B3B-A874-95C08B33AB20_[4887, 29772, 5037, 29926]",
-    "til_count": 0,
-    "total_cells": 40,
-    "stroma_pixels_16x16grid": 29,
-    "stil_percent": 0.0
-  },
-  {
-    "stem": "TCGA-E2-A14R-01Z-00-DX1.DDE62ED5-1FC0-4B3B-A874-95C08B33AB20_[5017, 29894, 5165, 30048]",
-    "til_count": 0,
-    "total_cells": 39,
-    "stroma_pixels_16x16grid": 0,
-    "stil_percent": null
-  },
-  {
-    "stem": "TCGA-E2-A14R-01Z-00-DX1.DDE62ED5-1FC0-4B3B-A874-95C08B33AB20_[5017, 30419, 5172, 30554]",
-    "til_count": 0,
-    "total_cells": 33,
-    "stroma_pixels_16x16grid": 64,
-    "stil_percent": 0.0
-  },
-  {
-    "stem": "TCGA-E2-A150-01Z-00-DX1.55643D23-83E6-4058-8EA5-18AAA8547839_[22061, 32208, 22208, 32339]",
-    "til_count": 9,
-    "total_cells": 22,
-    "stroma_pixels_16x16grid": 256,
-    "stil_percent": 3.4
-  },
-  {
-    "stem": "TCGA-E2-A150-01Z-00-DX1.55643D23-83E6-4058-8EA5-18AAA8547839_[22952, 32461, 23099, 32598]",
-    "til_count": 35,
-    "total_cells": 48,
-    "stroma_pixels_16x16grid": 256,
-    "stil_percent": 12.03
-  },
-  {
-    "stem": "TCGA-E2-A150-01Z-00-DX1.55643D23-83E6-4058-8EA5-18AAA8547839_[23217, 32592, 23368, 32726]",
-    "til_count": 19,
-    "total_cells": 26,
-    "stroma_pixels_16x16grid": 254,
-    "stil_percent": 6.96
-  },
-  {
-    "stem": "TCGA-E2-A1B6-01Z-00-DX1.8CD458BE-C4F9-4AF3-A927-18C042E9B4B7_[10164, 27093, 10323, 27247]",
-    "til_count": 0,
-    "total_cells": 27,
-    "stroma_pixels_16x16grid": 0,
-    "stil_percent": null
-  },
-  {
-    "stem": "TCGA-E2-A1B6-01Z-00-DX1.8CD458BE-C4F9-4AF3-A927-18C042E9B4B7_[10170, 26843, 10313, 26995]",
-    "til_count": 0,
-    "total_cells": 19,
-    "stroma_pixels_16x16grid": 90,
-    "stil_percent": 0.0
-  },
-  {
-    "stem": "TCGA-E2-A1B6-01Z-00-DX1.8CD458BE-C4F9-4AF3-A927-18C042E9B4B7_[10548, 26976, 10704, 27109]",
-    "til_count": 0,
-    "total_cells": 27,
-    "stroma_pixels_16x16grid": 70,
-    "stil_percent": 0.0
-  },
-  {
-    "stem": "TCGA-E2-A1B6-01Z-00-DX1.8CD458BE-C4F9-4AF3-A927-18C042E9B4B7_[8502, 26964, 8656, 27120]",
-    "til_count": 0,
-    "total_cells": 30,
-    "stroma_pixels_16x16grid": 0,
-    "stil_percent": null
-  },
-  {
-    "stem": "TCGA-E2-A1B6-01Z-00-DX1.8CD458BE-C4F9-4AF3-A927-18C042E9B4B7_[9022, 27492, 9163, 27633]",
-    "til_count": 27,
-    "total_cells": 50,
-    "stroma_pixels_16x16grid": 256,
-    "stil_percent": 9.54
-  },
-  {
-    "stem": "TCGA-E2-A1B6-01Z-00-DX1.8CD458BE-C4F9-4AF3-A927-18C042E9B4B7_[9145, 27364, 9298, 27506]",
-    "til_count": 5,
-    "total_cells": 27,
-    "stroma_pixels_16x16grid": 135,
-    "stil_percent": 3.57
-  },
-  {
-    "stem": "TCGA-E2-A1B6-01Z-00-DX1.8CD458BE-C4F9-4AF3-A927-18C042E9B4B7_[9148, 26459, 9285, 26607]",
-    "til_count": 15,
-    "total_cells": 28,
-    "stroma_pixels_16x16grid": 177,
-    "stil_percent": 7.81
-  },
-  {
-    "stem": "TCGA-E2-A1B6-01Z-00-DX1.8CD458BE-C4F9-4AF3-A927-18C042E9B4B7_[9279, 28129, 9414, 28261]",
-    "til_count": 9,
-    "total_cells": 19,
-    "stroma_pixels_16x16grid": 256,
-    "stil_percent": 3.4
-  },
-  {
-    "stem": "TCGA-E2-A1B6-01Z-00-DX1.8CD458BE-C4F9-4AF3-A927-18C042E9B4B7_[9412, 28132, 9546, 28261]",
-    "til_count": 5,
-    "total_cells": 11,
-    "stroma_pixels_16x16grid": 256,
-    "stil_percent": 1.92
-  },
-  {
-    "stem": "TCGA-E2-A1B6-01Z-00-DX1.8CD458BE-C4F9-4AF3-A927-18C042E9B4B7_[9531, 27225, 9678, 27373]",
-    "til_count": 15,
-    "total_cells": 40,
-    "stroma_pixels_16x16grid": 149,
-    "stil_percent": 9.15
-  },
-  {
-    "stem": "TCGA-E2-A1B6-01Z-00-DX1.8CD458BE-C4F9-4AF3-A927-18C042E9B4B7_[9533, 25817, 9672, 25969]",
-    "til_count": 0,
-    "total_cells": 26,
-    "stroma_pixels_16x16grid": 15,
-    "stil_percent": 0.0
-  },
-  {
-    "stem": "TCGA-E2-A1B6-01Z-00-DX1.8CD458BE-C4F9-4AF3-A927-18C042E9B4B7_[9664, 25822, 9798, 25964]",
-    "til_count": 0,
-    "total_cells": 27,
-    "stroma_pixels_16x16grid": 0,
-    "stil_percent": null
-  },
-  {
-    "stem": "TCGA-E2-A1B6-01Z-00-DX1.8CD458BE-C4F9-4AF3-A927-18C042E9B4B7_[9668, 26310, 9812, 26486]",
-    "til_count": 0,
-    "total_cells": 30,
-    "stroma_pixels_16x16grid": 52,
-    "stil_percent": 0.0
-  },
-  {
-    "stem": "TCGA-E2-A1B6-01Z-00-DX1.8CD458BE-C4F9-4AF3-A927-18C042E9B4B7_[9776, 27112, 9936, 27261]",
-    "til_count": 2,
-    "total_cells": 34,
-    "stroma_pixels_16x16grid": 119,
-    "stil_percent": 1.65
-  },
-  {
-    "stem": "TCGA-E2-A574-01Z-00-DX1.60341091-B118-4F20-9ADB-FB2886790B0E_[27727, 24362, 27878, 24513]",
-    "til_count": 0,
-    "total_cells": 28,
-    "stroma_pixels_16x16grid": 13,
-    "stil_percent": 0.0
-  },
-  {
-    "stem": "TCGA-E2-A574-01Z-00-DX1.60341091-B118-4F20-9ADB-FB2886790B0E_[27992, 24112, 28134, 24261]",
-    "til_count": 0,
-    "total_cells": 24,
+    "total_cells": 12,
     "stroma_pixels_16x16grid": 51,
     "stil_percent": 0.0
   },
   {
-    "stem": "TCGA-E2-A574-01Z-00-DX1.60341091-B118-4F20-9ADB-FB2886790B0E_[28233, 24758, 28378, 24901]",
-    "til_count": 0,
-    "total_cells": 31,
-    "stroma_pixels_16x16grid": 8,
-    "stil_percent": 0.0
+    "stem": "TCGA-A2-A0CM-01Z-00-DX1.AC4901DE-4B6D-4185-BB9F-156033839828_[10048, 28544, 10182, 28683]",
+    "til_count": 13,
+    "total_cells": 17,
+    "stroma_pixels_16x16grid": 256,
+    "stil_percent": 4.83
   },
   {
-    "stem": "TCGA-E2-A574-01Z-00-DX1.60341091-B118-4F20-9ADB-FB2886790B0E_[28248, 25007, 28386, 25148]",
+    "stem": "TCGA-A2-A0D0-01Z-00-DX1.4FF6B8E5-703B-400F-920A-104F56E0F874_[36791, 22214, 36935, 22355]",
+    "til_count": 36,
+    "total_cells": 37,
+    "stroma_pixels_16x16grid": 256,
+    "stil_percent": 12.33
+  },
+  {
+    "stem": "TCGA-A2-A0D0-01Z-00-DX1.4FF6B8E5-703B-400F-920A-104F56E0F874_[36924, 23362, 37073, 23511]",
+    "til_count": 0,
+    "total_cells": 19,
+    "stroma_pixels_16x16grid": 0,
+    "stil_percent": null
+  },
+  {
+    "stem": "TCGA-A2-A0D0-01Z-00-DX1.4FF6B8E5-703B-400F-920A-104F56E0F874_[37814, 22478, 37963, 22607]",
+    "til_count": 0,
+    "total_cells": 11,
+    "stroma_pixels_16x16grid": 0,
+    "stil_percent": null
+  },
+  {
+    "stem": "TCGA-A2-A0D2-01Z-00-DX1.ECD890F5-BA01-4998-B472-7B683BD6D7B1_[49334, 12286, 49507, 12430]",
     "til_count": 0,
     "total_cells": 21,
-    "stroma_pixels_16x16grid": 52,
+    "stroma_pixels_16x16grid": 89,
     "stil_percent": 0.0
   },
   {
-    "stem": "TCGA-E2-A574-01Z-00-DX1.60341091-B118-4F20-9ADB-FB2886790B0E_[28365, 24249, 28507, 24384]",
+    "stem": "TCGA-A2-A0D2-01Z-00-DX1.ECD890F5-BA01-4998-B472-7B683BD6D7B1_[49338, 11661, 49469, 11801]",
     "til_count": 0,
-    "total_cells": 24,
-    "stroma_pixels_16x16grid": 100,
-    "stil_percent": 0.0
-  },
-  {
-    "stem": "TCGA-E2-A574-01Z-00-DX1.60341091-B118-4F20-9ADB-FB2886790B0E_[29131, 26036, 29280, 26173]",
-    "til_count": 46,
-    "total_cells": 58,
-    "stroma_pixels_16x16grid": 256,
-    "stil_percent": 15.23
-  },
-  {
-    "stem": "TCGA-E2-A574-01Z-00-DX1.60341091-B118-4F20-9ADB-FB2886790B0E_[29138, 26166, 29276, 26303]",
-    "til_count": 57,
-    "total_cells": 62,
-    "stroma_pixels_16x16grid": 256,
-    "stil_percent": 18.21
-  },
-  {
-    "stem": "TCGA-E2-A574-01Z-00-DX1.60341091-B118-4F20-9ADB-FB2886790B0E_[29268, 25785, 29407, 25917]",
-    "til_count": 15,
-    "total_cells": 35,
-    "stroma_pixels_16x16grid": 222,
-    "stil_percent": 6.33
-  },
-  {
-    "stem": "TCGA-E2-A574-01Z-00-DX1.60341091-B118-4F20-9ADB-FB2886790B0E_[29396, 26034, 29535, 26174]",
-    "til_count": 59,
-    "total_cells": 63,
-    "stroma_pixels_16x16grid": 256,
-    "stil_percent": 18.73
-  },
-  {
-    "stem": "TCGA-E2-A574-01Z-00-DX1.60341091-B118-4F20-9ADB-FB2886790B0E_[29399, 26166, 29540, 26308]",
-    "til_count": 53,
-    "total_cells": 59,
-    "stroma_pixels_16x16grid": 228,
-    "stil_percent": 18.86
-  },
-  {
-    "stem": "TCGA-EW-A3U0-01Z-00-DX1.526F60F9-D1EB-4613-B428-18A1FC0BAAE2_[56881, 24793, 57011, 24923]",
-    "til_count": 0,
-    "total_cells": 15,
-    "stroma_pixels_16x16grid": 97,
-    "stil_percent": 0.0
-  },
-  {
-    "stem": "TCGA-EW-A3U0-01Z-00-DX1.526F60F9-D1EB-4613-B428-18A1FC0BAAE2_[57523, 25162, 57654, 25314]",
-    "til_count": 0,
-    "total_cells": 16,
-    "stroma_pixels_16x16grid": 99,
-    "stil_percent": 0.0
-  },
-  {
-    "stem": "TCGA-EW-A6SB-01Z-00-DX1.D56E1922-01A9-4AEE-AB95-D69447DD13EE_[17690, 29305, 17830, 29445]",
-    "til_count": 45,
-    "total_cells": 51,
-    "stroma_pixels_16x16grid": 245,
-    "stil_percent": 15.52
-  },
-  {
-    "stem": "TCGA-EW-A6SB-01Z-00-DX1.D56E1922-01A9-4AEE-AB95-D69447DD13EE_[17821, 28793, 17953, 28947]",
-    "til_count": 11,
-    "total_cells": 33,
-    "stroma_pixels_16x16grid": 53,
-    "stil_percent": 17.19
-  },
-  {
-    "stem": "TCGA-EW-A6SB-01Z-00-DX1.D56E1922-01A9-4AEE-AB95-D69447DD13EE_[17926, 29173, 18086, 29322]",
-    "til_count": 43,
-    "total_cells": 55,
-    "stroma_pixels_16x16grid": 215,
-    "stil_percent": 16.67
-  },
-  {
-    "stem": "TCGA-EW-A6SB-01Z-00-DX1.D56E1922-01A9-4AEE-AB95-D69447DD13EE_[17942, 28665, 18082, 28804]",
-    "til_count": 15,
-    "total_cells": 35,
-    "stroma_pixels_16x16grid": 78,
-    "stil_percent": 16.13
-  },
-  {
-    "stem": "TCGA-EW-A6SB-01Z-00-DX1.D56E1922-01A9-4AEE-AB95-D69447DD13EE_[17943, 29686, 18095, 29828]",
-    "til_count": 34,
-    "total_cells": 44,
-    "stroma_pixels_16x16grid": 128,
-    "stil_percent": 20.99
-  },
-  {
-    "stem": "TCGA-EW-A6SB-01Z-00-DX1.D56E1922-01A9-4AEE-AB95-D69447DD13EE_[17946, 29820, 18109, 29968]",
-    "til_count": 9,
-    "total_cells": 31,
-    "stroma_pixels_16x16grid": 37,
-    "stil_percent": 19.57
-  },
-  {
-    "stem": "TCGA-EW-A6SB-01Z-00-DX1.D56E1922-01A9-4AEE-AB95-D69447DD13EE_[17949, 28800, 18092, 28945]",
-    "til_count": 2,
-    "total_cells": 29,
-    "stroma_pixels_16x16grid": 0,
-    "stil_percent": 100.0
-  },
-  {
-    "stem": "TCGA-EW-A6SB-01Z-00-DX1.D56E1922-01A9-4AEE-AB95-D69447DD13EE_[18043, 30080, 18219, 30220]",
-    "til_count": 11,
-    "total_cells": 35,
-    "stroma_pixels_16x16grid": 65,
-    "stil_percent": 14.47
-  },
-  {
-    "stem": "TCGA-EW-A6SB-01Z-00-DX1.D56E1922-01A9-4AEE-AB95-D69447DD13EE_[18054, 29047, 18228, 29199]",
-    "til_count": 2,
-    "total_cells": 40,
-    "stroma_pixels_16x16grid": 2,
-    "stil_percent": 50.0
-  },
-  {
-    "stem": "TCGA-EW-A6SB-01Z-00-DX1.D56E1922-01A9-4AEE-AB95-D69447DD13EE_[18064, 29944, 18227, 30086]",
-    "til_count": 0,
-    "total_cells": 29,
-    "stroma_pixels_16x16grid": 8,
-    "stil_percent": 0.0
-  },
-  {
-    "stem": "TCGA-EW-A6SB-01Z-00-DX1.D56E1922-01A9-4AEE-AB95-D69447DD13EE_[18069, 29568, 18214, 29705]",
-    "til_count": 33,
-    "total_cells": 42,
-    "stroma_pixels_16x16grid": 256,
-    "stil_percent": 11.42
-  },
-  {
-    "stem": "TCGA-EW-A6SB-01Z-00-DX1.D56E1922-01A9-4AEE-AB95-D69447DD13EE_[18080, 28795, 18208, 28928]",
-    "til_count": 9,
-    "total_cells": 25,
-    "stroma_pixels_16x16grid": 102,
-    "stil_percent": 8.11
-  },
-  {
-    "stem": "TCGA-EW-A6SB-01Z-00-DX1.D56E1922-01A9-4AEE-AB95-D69447DD13EE_[18200, 29685, 18347, 29835]",
-    "til_count": 55,
-    "total_cells": 61,
-    "stroma_pixels_16x16grid": 252,
-    "stil_percent": 17.92
-  },
-  {
-    "stem": "TCGA-EW-A6SB-01Z-00-DX1.D56E1922-01A9-4AEE-AB95-D69447DD13EE_[18202, 28796, 18341, 28940]",
-    "til_count": 36,
-    "total_cells": 47,
-    "stroma_pixels_16x16grid": 220,
-    "stil_percent": 14.06
-  },
-  {
-    "stem": "TCGA-EW-A6SB-01Z-00-DX1.D56E1922-01A9-4AEE-AB95-D69447DD13EE_[18208, 30073, 18351, 30216]",
-    "til_count": 2,
-    "total_cells": 31,
-    "stroma_pixels_16x16grid": 60,
-    "stil_percent": 3.23
-  },
-  {
-    "stem": "TCGA-EW-A6SB-01Z-00-DX1.D56E1922-01A9-4AEE-AB95-D69447DD13EE_[18324, 30716, 18472, 30856]",
-    "til_count": 36,
-    "total_cells": 39,
-    "stroma_pixels_16x16grid": 255,
-    "stil_percent": 12.37
-  },
-  {
-    "stem": "TCGA-EW-A6SB-01Z-00-DX1.D56E1922-01A9-4AEE-AB95-D69447DD13EE_[18326, 30574, 18471, 30722]",
-    "til_count": 18,
-    "total_cells": 38,
-    "stroma_pixels_16x16grid": 129,
-    "stil_percent": 12.24
-  },
-  {
-    "stem": "TCGA-EW-A6SB-01Z-00-DX1.D56E1922-01A9-4AEE-AB95-D69447DD13EE_[18331, 29808, 18464, 29972]",
-    "til_count": 16,
-    "total_cells": 32,
-    "stroma_pixels_16x16grid": 99,
-    "stil_percent": 13.91
-  },
-  {
-    "stem": "TCGA-EW-A6SB-01Z-00-DX1.D56E1922-01A9-4AEE-AB95-D69447DD13EE_[18333, 28795, 18476, 28940]",
-    "til_count": 47,
-    "total_cells": 50,
-    "stroma_pixels_16x16grid": 256,
-    "stil_percent": 15.51
-  },
-  {
-    "stem": "TCGA-EW-A6SB-01Z-00-DX1.D56E1922-01A9-4AEE-AB95-D69447DD13EE_[18454, 28920, 18603, 29069]",
-    "til_count": 1,
-    "total_cells": 16,
-    "stroma_pixels_16x16grid": 52,
-    "stil_percent": 1.89
-  },
-  {
-    "stem": "TCGA-EW-A6SB-01Z-00-DX1.D56E1922-01A9-4AEE-AB95-D69447DD13EE_[18457, 30592, 18609, 30722]",
-    "til_count": 3,
-    "total_cells": 36,
-    "stroma_pixels_16x16grid": 122,
-    "stil_percent": 2.4
-  },
-  {
-    "stem": "TCGA-EW-A6SB-01Z-00-DX1.D56E1922-01A9-4AEE-AB95-D69447DD13EE_[18458, 28542, 18617, 28691]",
-    "til_count": 17,
-    "total_cells": 40,
-    "stroma_pixels_16x16grid": 46,
-    "stil_percent": 26.98
-  },
-  {
-    "stem": "TCGA-EW-A6SB-01Z-00-DX1.D56E1922-01A9-4AEE-AB95-D69447DD13EE_[18461, 29824, 18592, 29962]",
-    "til_count": 12,
-    "total_cells": 31,
-    "stroma_pixels_16x16grid": 85,
-    "stil_percent": 12.37
-  },
-  {
-    "stem": "TCGA-EW-A6SB-01Z-00-DX1.D56E1922-01A9-4AEE-AB95-D69447DD13EE_[18581, 29814, 18724, 29965]",
-    "til_count": 17,
-    "total_cells": 38,
-    "stroma_pixels_16x16grid": 92,
-    "stil_percent": 15.6
-  },
-  {
-    "stem": "TCGA-EW-A6SB-01Z-00-DX1.D56E1922-01A9-4AEE-AB95-D69447DD13EE_[18581, 30840, 18730, 30976]",
-    "til_count": 1,
-    "total_cells": 9,
-    "stroma_pixels_16x16grid": 255,
-    "stil_percent": 0.39
-  },
-  {
-    "stem": "TCGA-EW-A6SB-01Z-00-DX1.D56E1922-01A9-4AEE-AB95-D69447DD13EE_[18582, 29304, 18720, 29450]",
-    "til_count": 1,
-    "total_cells": 29,
-    "stroma_pixels_16x16grid": 13,
-    "stil_percent": 7.14
-  },
-  {
-    "stem": "TCGA-EW-A6SB-01Z-00-DX1.D56E1922-01A9-4AEE-AB95-D69447DD13EE_[18585, 30335, 18720, 30465]",
-    "til_count": 0,
-    "total_cells": 22,
-    "stroma_pixels_16x16grid": 0,
-    "stil_percent": null
-  },
-  {
-    "stem": "TCGA-EW-A6SB-01Z-00-DX1.D56E1922-01A9-4AEE-AB95-D69447DD13EE_[18592, 29044, 18732, 29189]",
-    "til_count": 22,
-    "total_cells": 33,
-    "stroma_pixels_16x16grid": 180,
-    "stil_percent": 10.89
-  },
-  {
-    "stem": "TCGA-EW-A6SB-01Z-00-DX1.D56E1922-01A9-4AEE-AB95-D69447DD13EE_[18694, 30208, 18867, 30348]",
-    "til_count": 3,
-    "total_cells": 31,
-    "stroma_pixels_16x16grid": 4,
-    "stil_percent": 42.86
-  },
-  {
-    "stem": "TCGA-EW-A6SB-01Z-00-DX1.D56E1922-01A9-4AEE-AB95-D69447DD13EE_[18698, 28786, 18854, 28936]",
-    "til_count": 3,
-    "total_cells": 35,
-    "stroma_pixels_16x16grid": 26,
-    "stil_percent": 10.34
-  },
-  {
-    "stem": "TCGA-EW-A6SB-01Z-00-DX1.D56E1922-01A9-4AEE-AB95-D69447DD13EE_[18709, 30445, 18859, 30603]",
-    "til_count": 21,
-    "total_cells": 38,
-    "stroma_pixels_16x16grid": 131,
-    "stil_percent": 13.82
-  },
-  {
-    "stem": "TCGA-EW-A6SB-01Z-00-DX1.D56E1922-01A9-4AEE-AB95-D69447DD13EE_[18713, 29810, 18852, 29957]",
-    "til_count": 14,
-    "total_cells": 35,
-    "stroma_pixels_16x16grid": 75,
-    "stil_percent": 15.73
-  },
-  {
-    "stem": "TCGA-EW-A6SB-01Z-00-DX1.D56E1922-01A9-4AEE-AB95-D69447DD13EE_[18837, 28659, 18985, 28802]",
-    "til_count": 0,
-    "total_cells": 46,
-    "stroma_pixels_16x16grid": 240,
-    "stil_percent": 0.0
-  },
-  {
-    "stem": "TCGA-EW-A6SB-01Z-00-DX1.D56E1922-01A9-4AEE-AB95-D69447DD13EE_[18840, 28923, 18988, 29071]",
-    "til_count": 1,
-    "total_cells": 27,
-    "stroma_pixels_16x16grid": 0,
-    "stil_percent": 100.0
-  },
-  {
-    "stem": "TCGA-EW-A6SB-01Z-00-DX1.D56E1922-01A9-4AEE-AB95-D69447DD13EE_[18843, 28796, 18982, 28931]",
-    "til_count": 2,
-    "total_cells": 36,
-    "stroma_pixels_16x16grid": 11,
-    "stil_percent": 15.38
-  },
-  {
-    "stem": "TCGA-EW-A6SB-01Z-00-DX1.D56E1922-01A9-4AEE-AB95-D69447DD13EE_[18847, 29817, 18976, 29963]",
-    "til_count": 14,
-    "total_cells": 25,
-    "stroma_pixels_16x16grid": 94,
-    "stil_percent": 12.96
-  },
-  {
-    "stem": "TCGA-EW-A6SB-01Z-00-DX1.D56E1922-01A9-4AEE-AB95-D69447DD13EE_[18848, 30075, 18995, 30211]",
-    "til_count": 10,
-    "total_cells": 29,
-    "stroma_pixels_16x16grid": 73,
-    "stil_percent": 12.05
-  },
-  {
-    "stem": "TCGA-EW-A6SB-01Z-00-DX1.D56E1922-01A9-4AEE-AB95-D69447DD13EE_[18848, 31353, 18986, 31490]",
-    "til_count": 78,
-    "total_cells": 89,
-    "stroma_pixels_16x16grid": 256,
-    "stil_percent": 23.35
-  },
-  {
-    "stem": "TCGA-EW-A6SB-01Z-00-DX1.D56E1922-01A9-4AEE-AB95-D69447DD13EE_[18960, 30972, 19111, 31113]",
-    "til_count": 34,
-    "total_cells": 58,
-    "stroma_pixels_16x16grid": 201,
-    "stil_percent": 14.47
-  },
-  {
-    "stem": "TCGA-EW-A6SB-01Z-00-DX1.D56E1922-01A9-4AEE-AB95-D69447DD13EE_[18966, 29040, 19120, 29197]",
-    "til_count": 0,
-    "total_cells": 24,
-    "stroma_pixels_16x16grid": 10,
-    "stil_percent": 0.0
-  },
-  {
-    "stem": "TCGA-EW-A6SB-01Z-00-DX1.D56E1922-01A9-4AEE-AB95-D69447DD13EE_[18968, 30840, 19109, 30978]",
-    "til_count": 34,
-    "total_cells": 41,
-    "stroma_pixels_16x16grid": 256,
-    "stil_percent": 11.72
-  },
-  {
-    "stem": "TCGA-EW-A6SB-01Z-00-DX1.D56E1922-01A9-4AEE-AB95-D69447DD13EE_[18971, 29813, 19112, 29964]",
-    "til_count": 0,
-    "total_cells": 56,
-    "stroma_pixels_16x16grid": 212,
-    "stil_percent": 0.0
-  },
-  {
-    "stem": "TCGA-EW-A6SB-01Z-00-DX1.D56E1922-01A9-4AEE-AB95-D69447DD13EE_[18972, 28788, 19120, 28928]",
-    "til_count": 0,
-    "total_cells": 29,
-    "stroma_pixels_16x16grid": 41,
-    "stil_percent": 0.0
-  },
-  {
-    "stem": "TCGA-EW-A6SB-01Z-00-DX1.D56E1922-01A9-4AEE-AB95-D69447DD13EE_[19093, 30456, 19240, 30598]",
-    "til_count": 35,
-    "total_cells": 40,
-    "stroma_pixels_16x16grid": 256,
-    "stil_percent": 12.03
-  },
-  {
-    "stem": "TCGA-EW-A6SB-01Z-00-DX1.D56E1922-01A9-4AEE-AB95-D69447DD13EE_[19097, 30969, 19232, 31113]",
-    "til_count": 40,
-    "total_cells": 44,
-    "stroma_pixels_16x16grid": 236,
-    "stil_percent": 14.49
-  },
-  {
-    "stem": "TCGA-EW-A6SB-01Z-00-DX1.D56E1922-01A9-4AEE-AB95-D69447DD13EE_[19101, 30839, 19237, 30983]",
-    "til_count": 56,
-    "total_cells": 60,
-    "stroma_pixels_16x16grid": 256,
-    "stil_percent": 17.95
-  },
-  {
-    "stem": "TCGA-EW-A6SB-01Z-00-DX1.D56E1922-01A9-4AEE-AB95-D69447DD13EE_[19210, 30188, 19367, 30337]",
-    "til_count": 1,
-    "total_cells": 30,
-    "stroma_pixels_16x16grid": 2,
-    "stil_percent": 33.33
-  },
-  {
-    "stem": "TCGA-EW-A6SB-01Z-00-DX1.D56E1922-01A9-4AEE-AB95-D69447DD13EE_[19216, 30324, 19372, 30473]",
-    "til_count": 30,
-    "total_cells": 48,
-    "stroma_pixels_16x16grid": 228,
-    "stil_percent": 11.63
-  },
-  {
-    "stem": "TCGA-EW-A6SB-01Z-00-DX1.D56E1922-01A9-4AEE-AB95-D69447DD13EE_[19225, 30842, 19366, 30982]",
-    "til_count": 45,
-    "total_cells": 60,
-    "stroma_pixels_16x16grid": 196,
-    "stil_percent": 18.67
-  },
-  {
-    "stem": "TCGA-EW-A6SB-01Z-00-DX1.D56E1922-01A9-4AEE-AB95-D69447DD13EE_[19229, 30972, 19368, 31111]",
-    "til_count": 41,
-    "total_cells": 54,
-    "stroma_pixels_16x16grid": 200,
-    "stil_percent": 17.01
-  },
-  {
-    "stem": "TCGA-EW-A6SB-01Z-00-DX1.D56E1922-01A9-4AEE-AB95-D69447DD13EE_[19346, 31104, 19495, 31243]",
-    "til_count": 52,
-    "total_cells": 60,
-    "stroma_pixels_16x16grid": 256,
-    "stil_percent": 16.88
-  },
-  {
-    "stem": "TCGA-EW-A6SB-01Z-00-DX1.D56E1922-01A9-4AEE-AB95-D69447DD13EE_[19356, 30845, 19496, 30987]",
-    "til_count": 52,
-    "total_cells": 57,
-    "stroma_pixels_16x16grid": 235,
-    "stil_percent": 18.12
-  },
-  {
-    "stem": "TCGA-EW-A6SB-01Z-00-DX1.D56E1922-01A9-4AEE-AB95-D69447DD13EE_[19482, 30838, 19623, 30984]",
-    "til_count": 31,
-    "total_cells": 39,
-    "stroma_pixels_16x16grid": 244,
-    "stil_percent": 11.27
-  },
-  {
-    "stem": "TCGA-EW-A6SB-01Z-00-DX1.D56E1922-01A9-4AEE-AB95-D69447DD13EE_[19605, 29939, 19755, 30088]",
-    "til_count": 2,
-    "total_cells": 32,
-    "stroma_pixels_16x16grid": 48,
-    "stil_percent": 4.0
-  },
-  {
-    "stem": "TCGA-EW-A6SB-01Z-00-DX1.D56E1922-01A9-4AEE-AB95-D69447DD13EE_[19739, 30464, 19872, 30601]",
-    "til_count": 4,
-    "total_cells": 9,
-    "stroma_pixels_16x16grid": 256,
-    "stil_percent": 1.54
-  },
-  {
-    "stem": "TCGA-EW-A6SB-01Z-00-DX1.D56E1922-01A9-4AEE-AB95-D69447DD13EE_[19740, 30838, 19877, 30985]",
-    "til_count": 10,
-    "total_cells": 29,
-    "stroma_pixels_16x16grid": 256,
-    "stil_percent": 3.76
-  },
-  {
-    "stem": "TCGA-LL-A740-01Z-00-DX1.757D94A5-EF0F-4A0E-99A9-8809B66438DA_[19840, 12159, 19979, 12304]",
-    "til_count": 81,
-    "total_cells": 88,
-    "stroma_pixels_16x16grid": 255,
-    "stil_percent": 24.11
-  },
-  {
-    "stem": "TCGA-LL-A740-01Z-00-DX1.757D94A5-EF0F-4A0E-99A9-8809B66438DA_[19957, 13299, 20105, 13469]",
-    "til_count": 0,
-    "total_cells": 28,
-    "stroma_pixels_16x16grid": 9,
-    "stil_percent": 0.0
-  },
-  {
-    "stem": "TCGA-LL-A740-01Z-00-DX1.757D94A5-EF0F-4A0E-99A9-8809B66438DA_[19968, 12288, 20107, 12425]",
-    "til_count": 38,
-    "total_cells": 45,
-    "stroma_pixels_16x16grid": 256,
-    "stil_percent": 12.93
-  },
-  {
-    "stem": "TCGA-LL-A740-01Z-00-DX1.757D94A5-EF0F-4A0E-99A9-8809B66438DA_[20091, 13297, 20236, 13462]",
-    "til_count": 0,
-    "total_cells": 25,
-    "stroma_pixels_16x16grid": 0,
-    "stil_percent": null
-  },
-  {
-    "stem": "TCGA-LL-A740-01Z-00-DX1.757D94A5-EF0F-4A0E-99A9-8809B66438DA_[20357, 12928, 20486, 13063]",
-    "til_count": 3,
     "total_cells": 7,
-    "stroma_pixels_16x16grid": 251,
-    "stil_percent": 1.18
-  },
-  {
-    "stem": "TCGA-LL-A740-01Z-00-DX1.757D94A5-EF0F-4A0E-99A9-8809B66438DA_[20483, 13442, 20629, 13583]",
-    "til_count": 0,
-    "total_cells": 28,
-    "stroma_pixels_16x16grid": 167,
+    "stroma_pixels_16x16grid": 197,
     "stil_percent": 0.0
   },
   {
-    "stem": "TCGA-LL-A740-01Z-00-DX1.757D94A5-EF0F-4A0E-99A9-8809B66438DA_[20860, 13054, 21007, 13197]",
+    "stem": "TCGA-A2-A0D2-01Z-00-DX1.ECD890F5-BA01-4998-B472-7B683BD6D7B1_[49851, 11400, 49988, 11553]",
     "til_count": 0,
-    "total_cells": 12,
-    "stroma_pixels_16x16grid": 234,
-    "stil_percent": 0.0
-  },
-  {
-    "stem": "TCGA-LL-A740-01Z-00-DX1.757D94A5-EF0F-4A0E-99A9-8809B66438DA_[20981, 12295, 21126, 12424]",
-    "til_count": 0,
-    "total_cells": 12,
-    "stroma_pixels_16x16grid": 224,
-    "stil_percent": 0.0
-  },
-  {
-    "stem": "TCGA-LL-A740-01Z-00-DX1.757D94A5-EF0F-4A0E-99A9-8809B66438DA_[20997, 13057, 21126, 13192]",
-    "til_count": 0,
-    "total_cells": 10,
-    "stroma_pixels_16x16grid": 237,
-    "stil_percent": 0.0
-  },
-  {
-    "stem": "TCGA-LL-A740-01Z-00-DX1.757D94A5-EF0F-4A0E-99A9-8809B66438DA_[21115, 12167, 21262, 12298]",
-    "til_count": 0,
-    "total_cells": 4,
-    "stroma_pixels_16x16grid": 256,
-    "stil_percent": 0.0
-  },
-  {
-    "stem": "TCGA-OL-A5D7-01Z-00-DX1.A4A45393-9AE1-4370-8B92-CB85CDB04934_[57723, 14042, 57867, 14212]",
-    "til_count": 0,
-    "total_cells": 24,
-    "stroma_pixels_16x16grid": 1,
-    "stil_percent": 0.0
-  },
-  {
-    "stem": "TCGA-OL-A5D7-01Z-00-DX1.A4A45393-9AE1-4370-8B92-CB85CDB04934_[58105, 14572, 58251, 14705]",
-    "til_count": 6,
-    "total_cells": 29,
-    "stroma_pixels_16x16grid": 241,
-    "stil_percent": 2.43
-  },
-  {
-    "stem": "TCGA-OL-A5D7-01Z-00-DX1.A4A45393-9AE1-4370-8B92-CB85CDB04934_[58626, 14316, 58757, 14453]",
-    "til_count": 4,
-    "total_cells": 19,
-    "stroma_pixels_16x16grid": 191,
-    "stil_percent": 2.05
-  },
-  {
-    "stem": "TCGA-OL-A5D7-01Z-00-DX1.A4A45393-9AE1-4370-8B92-CB85CDB04934_[59004, 13027, 59150, 13172]",
-    "til_count": 5,
-    "total_cells": 22,
-    "stroma_pixels_16x16grid": 161,
-    "stil_percent": 3.01
-  },
-  {
-    "stem": "TCGA-OL-A5D7-01Z-00-DX1.A4A45393-9AE1-4370-8B92-CB85CDB04934_[59258, 11747, 59406, 11894]",
-    "til_count": 19,
-    "total_cells": 46,
-    "stroma_pixels_16x16grid": 256,
-    "stil_percent": 6.91
-  },
-  {
-    "stem": "TCGA-OL-A5D7-01Z-00-DX1.A4A45393-9AE1-4370-8B92-CB85CDB04934_[59388, 11491, 59529, 11628]",
-    "til_count": 38,
-    "total_cells": 50,
-    "stroma_pixels_16x16grid": 256,
-    "stil_percent": 12.93
-  },
-  {
-    "stem": "TCGA-OL-A5D7-01Z-00-DX1.A4A45393-9AE1-4370-8B92-CB85CDB04934_[59520, 11739, 59668, 11906]",
-    "til_count": 1,
-    "total_cells": 31,
-    "stroma_pixels_16x16grid": 82,
-    "stil_percent": 1.2
-  },
-  {
-    "stem": "TCGA-OL-A5D7-01Z-00-DX1.A4A45393-9AE1-4370-8B92-CB85CDB04934_[59777, 11738, 59924, 11904]",
-    "til_count": 0,
-    "total_cells": 28,
-    "stroma_pixels_16x16grid": 0,
-    "stil_percent": null
-  },
-  {
-    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[7655, 6094, 7737, 6171]",
-    "til_count": 0,
-    "total_cells": 12,
-    "stroma_pixels_16x16grid": 0,
-    "stil_percent": null
-  },
-  {
-    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[7784, 5710, 7869, 5792]",
-    "til_count": 0,
-    "total_cells": 17,
-    "stroma_pixels_16x16grid": 0,
-    "stil_percent": null
-  },
-  {
-    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[7851, 6354, 7920, 6421]",
-    "til_count": 10,
-    "total_cells": 16,
-    "stroma_pixels_16x16grid": 256,
-    "stil_percent": 3.76
-  },
-  {
-    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[7851, 6417, 7922, 6493]",
-    "til_count": 5,
-    "total_cells": 21,
-    "stroma_pixels_16x16grid": 228,
-    "stil_percent": 2.15
-  },
-  {
-    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[7908, 6536, 7988, 6617]",
-    "til_count": 0,
-    "total_cells": 16,
-    "stroma_pixels_16x16grid": 256,
-    "stil_percent": 0.0
-  },
-  {
-    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[7918, 6293, 7991, 6360]",
-    "til_count": 8,
-    "total_cells": 13,
-    "stroma_pixels_16x16grid": 256,
-    "stil_percent": 3.03
-  },
-  {
-    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[7919, 6923, 7987, 7006]",
-    "til_count": 0,
-    "total_cells": 13,
-    "stroma_pixels_16x16grid": 2,
-    "stil_percent": 0.0
-  },
-  {
-    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[7978, 6216, 8054, 6300]",
-    "til_count": 7,
-    "total_cells": 16,
-    "stroma_pixels_16x16grid": 256,
-    "stil_percent": 2.66
-  },
-  {
-    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[7979, 6869, 8047, 6937]",
-    "til_count": 12,
     "total_cells": 18,
-    "stroma_pixels_16x16grid": 252,
-    "stil_percent": 4.55
-  },
-  {
-    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[7981, 6933, 8047, 6998]",
-    "til_count": 0,
-    "total_cells": 17,
-    "stroma_pixels_16x16grid": 256,
+    "stroma_pixels_16x16grid": 68,
     "stil_percent": 0.0
   },
   {
-    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[8037, 6613, 8123, 6682]",
-    "til_count": 5,
-    "total_cells": 13,
-    "stroma_pixels_16x16grid": 175,
-    "stil_percent": 2.78
+    "stem": "TCGA-A2-A0SX-01Z-00-DX1.219A994C-8974-4458-98FA-FB1F14868E04_[27384, 28464, 27541, 28607]",
+    "til_count": 6,
+    "total_cells": 24,
+    "stroma_pixels_16x16grid": 181,
+    "stil_percent": 3.21
   },
   {
-    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[8041, 6930, 8116, 7002]",
-    "til_count": 9,
-    "total_cells": 17,
-    "stroma_pixels_16x16grid": 171,
-    "stil_percent": 5.0
-  },
-  {
-    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[8043, 6853, 8117, 6935]",
-    "til_count": 15,
-    "total_cells": 19,
-    "stroma_pixels_16x16grid": 158,
-    "stil_percent": 8.67
-  },
-  {
-    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[8102, 6481, 8179, 6549]",
-    "til_count": 10,
-    "total_cells": 13,
-    "stroma_pixels_16x16grid": 256,
-    "stil_percent": 3.76
-  },
-  {
-    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[8106, 6665, 8181, 6741]",
+    "stem": "TCGA-A2-A0SX-01Z-00-DX1.219A994C-8974-4458-98FA-FB1F14868E04_[27396, 28587, 27541, 28734]",
     "til_count": 0,
-    "total_cells": 13,
+    "total_cells": 23,
+    "stroma_pixels_16x16grid": 38,
+    "stil_percent": 0.0
+  },
+  {
+    "stem": "TCGA-A2-A0SX-01Z-00-DX1.219A994C-8974-4458-98FA-FB1F14868E04_[27525, 30116, 27678, 30269]",
+    "til_count": 0,
+    "total_cells": 18,
     "stroma_pixels_16x16grid": 5,
     "stil_percent": 0.0
   },
   {
-    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[8159, 6087, 8241, 6165]",
-    "til_count": 6,
-    "total_cells": 15,
-    "stroma_pixels_16x16grid": 162,
-    "stil_percent": 3.57
-  },
-  {
-    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[8237, 6094, 8304, 6165]",
-    "til_count": 16,
-    "total_cells": 19,
-    "stroma_pixels_16x16grid": 226,
-    "stil_percent": 6.61
-  },
-  {
-    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[8293, 6531, 8372, 6615]",
-    "til_count": 0,
-    "total_cells": 14,
-    "stroma_pixels_16x16grid": 1,
-    "stil_percent": 0.0
-  },
-  {
-    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[8360, 6548, 8441, 6622]",
-    "til_count": 0,
-    "total_cells": 13,
-    "stroma_pixels_16x16grid": 3,
-    "stil_percent": 0.0
-  },
-  {
-    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[8367, 5702, 8437, 5785]",
-    "til_count": 0,
-    "total_cells": 8,
-    "stroma_pixels_16x16grid": 1,
-    "stil_percent": 0.0
-  },
-  {
-    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[8484, 5589, 8567, 5653]",
-    "til_count": 0,
-    "total_cells": 12,
-    "stroma_pixels_16x16grid": 67,
-    "stil_percent": 0.0
-  },
-  {
-    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[8553, 5710, 8630, 5788]",
-    "til_count": 17,
-    "total_cells": 24,
-    "stroma_pixels_16x16grid": 256,
-    "stil_percent": 6.23
-  },
-  {
-    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[8559, 6609, 8626, 6678]",
-    "til_count": 7,
-    "total_cells": 12,
-    "stroma_pixels_16x16grid": 187,
-    "stil_percent": 3.61
-  },
-  {
-    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[8621, 6034, 8692, 6109]",
-    "til_count": 16,
-    "total_cells": 21,
-    "stroma_pixels_16x16grid": 256,
-    "stil_percent": 5.88
-  },
-  {
-    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[8679, 5333, 8758, 5397]",
-    "til_count": 0,
-    "total_cells": 8,
-    "stroma_pixels_16x16grid": 3,
-    "stil_percent": 0.0
-  },
-  {
-    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[8744, 6669, 8824, 6744]",
-    "til_count": 25,
-    "total_cells": 33,
-    "stroma_pixels_16x16grid": 256,
-    "stil_percent": 8.9
-  },
-  {
-    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[8745, 6739, 8821, 6811]",
+    "stem": "TCGA-A2-A0SX-01Z-00-DX1.219A994C-8974-4458-98FA-FB1F14868E04_[28039, 30126, 28180, 30272]",
     "til_count": 24,
-    "total_cells": 31,
-    "stroma_pixels_16x16grid": 254,
-    "stil_percent": 8.63
-  },
-  {
-    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[8803, 5843, 8887, 5915]",
-    "til_count": 2,
-    "total_cells": 21,
+    "total_cells": 26,
     "stroma_pixels_16x16grid": 253,
-    "stil_percent": 0.78
+    "stil_percent": 8.66
   },
   {
-    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[8803, 6419, 8881, 6489]",
-    "til_count": 0,
-    "total_cells": 13,
-    "stroma_pixels_16x16grid": 2,
-    "stil_percent": 0.0
+    "stem": "TCGA-A2-A0SX-01Z-00-DX1.219A994C-8974-4458-98FA-FB1F14868E04_[28300, 29739, 28439, 29883]",
+    "til_count": 51,
+    "total_cells": 52,
+    "stroma_pixels_16x16grid": 256,
+    "stil_percent": 16.61
   },
   {
-    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[8808, 6607, 8884, 6683]",
+    "stem": "TCGA-A2-A0T0-01Z-00-DX1.51F904DA-A4B5-4451-8AEF-58E7EF7651DB_[36813, 30732, 36948, 30896]",
+    "til_count": 11,
+    "total_cells": 16,
+    "stroma_pixels_16x16grid": 255,
+    "stil_percent": 4.14
+  },
+  {
+    "stem": "TCGA-A2-A0T0-01Z-00-DX1.51F904DA-A4B5-4451-8AEF-58E7EF7651DB_[37573, 30096, 37715, 30242]",
+    "til_count": 5,
+    "total_cells": 17,
+    "stroma_pixels_16x16grid": 0,
+    "stil_percent": 100.0
+  },
+  {
+    "stem": "TCGA-A2-A0T0-01Z-00-DX1.51F904DA-A4B5-4451-8AEF-58E7EF7651DB_[38214, 30360, 38355, 30506]",
     "til_count": 26,
     "total_cells": 32,
     "stroma_pixels_16x16grid": 256,
     "stil_percent": 9.22
   },
   {
-    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[8812, 5459, 8879, 5532]",
-    "til_count": 11,
-    "total_cells": 22,
-    "stroma_pixels_16x16grid": 256,
-    "stil_percent": 4.12
-  },
-  {
-    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[8813, 5395, 8879, 5461]",
-    "til_count": 7,
-    "total_cells": 19,
-    "stroma_pixels_16x16grid": 253,
-    "stil_percent": 2.69
-  },
-  {
-    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[8815, 6480, 8890, 6563]",
-    "til_count": 0,
-    "total_cells": 11,
-    "stroma_pixels_16x16grid": 18,
-    "stil_percent": 0.0
-  },
-  {
-    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[8871, 6608, 8951, 6682]",
-    "til_count": 32,
-    "total_cells": 36,
-    "stroma_pixels_16x16grid": 255,
-    "stil_percent": 11.15
-  },
-  {
-    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[8872, 6405, 8952, 6495]",
-    "til_count": 0,
-    "total_cells": 15,
-    "stroma_pixels_16x16grid": 1,
-    "stil_percent": 0.0
-  },
-  {
-    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[8877, 5390, 8955, 5467]",
-    "til_count": 5,
-    "total_cells": 15,
-    "stroma_pixels_16x16grid": 9,
-    "stil_percent": 35.71
-  },
-  {
-    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[8933, 5321, 9012, 5401]",
-    "til_count": 0,
-    "total_cells": 8,
-    "stroma_pixels_16x16grid": 0,
-    "stil_percent": null
-  },
-  {
-    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[8934, 6354, 9012, 6424]",
-    "til_count": 0,
-    "total_cells": 12,
-    "stroma_pixels_16x16grid": 12,
-    "stil_percent": 0.0
-  },
-  {
-    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[8940, 6036, 9011, 6106]",
-    "til_count": 3,
-    "total_cells": 10,
-    "stroma_pixels_16x16grid": 217,
-    "stil_percent": 1.36
-  },
-  {
-    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[8997, 5394, 9078, 5469]",
-    "til_count": 10,
-    "total_cells": 14,
-    "stroma_pixels_16x16grid": 231,
-    "stil_percent": 4.15
-  },
-  {
-    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[9006, 6159, 9073, 6235]",
-    "til_count": 16,
-    "total_cells": 20,
-    "stroma_pixels_16x16grid": 232,
-    "stil_percent": 6.45
-  },
-  {
-    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[9058, 5333, 9135, 5397]",
-    "til_count": 0,
-    "total_cells": 7,
-    "stroma_pixels_16x16grid": 115,
-    "stil_percent": 0.0
-  },
-  {
-    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[9063, 6037, 9140, 6112]",
-    "til_count": 18,
-    "total_cells": 28,
-    "stroma_pixels_16x16grid": 236,
-    "stil_percent": 7.09
-  },
-  {
-    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[9067, 5264, 9138, 5334]",
-    "til_count": 0,
-    "total_cells": 10,
-    "stroma_pixels_16x16grid": 16,
-    "stil_percent": 0.0
-  },
-  {
-    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[9127, 6158, 9200, 6234]",
-    "til_count": 11,
-    "total_cells": 28,
-    "stroma_pixels_16x16grid": 234,
-    "stil_percent": 4.49
-  },
-  {
-    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[9133, 6029, 9206, 6101]",
+    "stem": "TCGA-A2-A0T0-01Z-00-DX1.51F904DA-A4B5-4451-8AEF-58E7EF7651DB_[38220, 30736, 38366, 30891]",
     "til_count": 8,
-    "total_cells": 22,
+    "total_cells": 16,
     "stroma_pixels_16x16grid": 256,
     "stil_percent": 3.03
   },
   {
-    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[9195, 6160, 9269, 6234]",
-    "til_count": 22,
+    "stem": "TCGA-A2-A0T0-01Z-00-DX1.51F904DA-A4B5-4451-8AEF-58E7EF7651DB_[38335, 29838, 38484, 29997]",
+    "til_count": 0,
     "total_cells": 27,
-    "stroma_pixels_16x16grid": 252,
-    "stil_percent": 8.03
+    "stroma_pixels_16x16grid": 0,
+    "stil_percent": null
   },
   {
-    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[9199, 6545, 9269, 6622]",
-    "til_count": 5,
-    "total_cells": 24,
-    "stroma_pixels_16x16grid": 256,
-    "stil_percent": 1.92
-  },
-  {
-    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[9256, 5968, 9335, 6044]",
-    "til_count": 12,
-    "total_cells": 30,
-    "stroma_pixels_16x16grid": 256,
-    "stil_percent": 4.48
-  },
-  {
-    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[9314, 6485, 9397, 6552]",
-    "til_count": 7,
-    "total_cells": 19,
-    "stroma_pixels_16x16grid": 256,
-    "stil_percent": 2.66
-  },
-  {
-    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[9321, 6228, 9395, 6293]",
+    "stem": "TCGA-A2-A0T0-01Z-00-DX1.51F904DA-A4B5-4451-8AEF-58E7EF7651DB_[38602, 29843, 38746, 29998]",
     "til_count": 0,
-    "total_cells": 17,
-    "stroma_pixels_16x16grid": 256,
-    "stil_percent": 0.0
+    "total_cells": 28,
+    "stroma_pixels_16x16grid": 0,
+    "stil_percent": null
   },
   {
-    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[9327, 6293, 9397, 6360]",
-    "til_count": 12,
-    "total_cells": 17,
-    "stroma_pixels_16x16grid": 222,
-    "stil_percent": 5.13
+    "stem": "TCGA-A2-A0T2-01Z-00-DX1.29A5C4C8-6AE8-44EE-98C2-ACBCBFBE9D60_[33559, 29526, 33708, 29665]",
+    "til_count": 1,
+    "total_cells": 11,
+    "stroma_pixels_16x16grid": 152,
+    "stil_percent": 0.65
   },
   {
-    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[9387, 6351, 9462, 6434]",
+    "stem": "TCGA-A2-A0YE-01Z-00-DX1.8A2E3094-5755-42BC-969D-7F0A2ECA0F39_[30615, 17514, 30761, 17652]",
+    "til_count": 1,
+    "total_cells": 25,
+    "stroma_pixels_16x16grid": 101,
+    "stil_percent": 0.98
+  },
+  {
+    "stem": "TCGA-A2-A0YE-01Z-00-DX1.8A2E3094-5755-42BC-969D-7F0A2ECA0F39_[30876, 17000, 31018, 17136]",
     "til_count": 8,
-    "total_cells": 19,
-    "stroma_pixels_16x16grid": 255,
-    "stil_percent": 3.04
+    "total_cells": 13,
+    "stroma_pixels_16x16grid": 237,
+    "stil_percent": 3.27
   },
   {
-    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[9391, 6221, 9458, 6303]",
-    "til_count": 0,
+    "stem": "TCGA-A2-A0YE-01Z-00-DX1.8A2E3094-5755-42BC-969D-7F0A2ECA0F39_[31008, 17259, 31145, 17402]",
+    "til_count": 20,
+    "total_cells": 25,
+    "stroma_pixels_16x16grid": 254,
+    "stil_percent": 7.3
+  },
+  {
+    "stem": "TCGA-A2-A0YE-01Z-00-DX1.8A2E3094-5755-42BC-969D-7F0A2ECA0F39_[31124, 16998, 31272, 17141]",
+    "til_count": 2,
     "total_cells": 18,
-    "stroma_pixels_16x16grid": 242,
-    "stil_percent": 0.0
+    "stroma_pixels_16x16grid": 120,
+    "stil_percent": 1.64
   },
   {
-    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[9512, 5650, 9585, 5724]",
+    "stem": "TCGA-A2-A0YM-01Z-00-DX1.A48B4C96-2CC5-464C-98B7-F0F92AE56533_[23394, 34479, 23563, 34616]",
+    "til_count": 10,
+    "total_cells": 24,
+    "stroma_pixels_16x16grid": 216,
+    "stil_percent": 4.42
+  },
+  {
+    "stem": "TCGA-A2-A0YM-01Z-00-DX1.A48B4C96-2CC5-464C-98B7-F0F92AE56533_[23517, 33702, 23673, 33853]",
+    "til_count": 20,
+    "total_cells": 35,
+    "stroma_pixels_16x16grid": 231,
+    "stil_percent": 7.97
+  },
+  {
+    "stem": "TCGA-A2-A0YM-01Z-00-DX1.A48B4C96-2CC5-464C-98B7-F0F92AE56533_[25561, 35109, 25721, 35254]",
+    "til_count": 0,
+    "total_cells": 29,
+    "stroma_pixels_16x16grid": 0,
+    "stil_percent": null
+  },
+  {
+    "stem": "TCGA-A2-A0YM-01Z-00-DX1.A48B4C96-2CC5-464C-98B7-F0F92AE56533_[25571, 33578, 25715, 33721]",
+    "til_count": 15,
+    "total_cells": 30,
+    "stroma_pixels_16x16grid": 145,
+    "stil_percent": 9.38
+  },
+  {
+    "stem": "TCGA-A2-A1G6-01Z-00-DX1.BCC3EC46-CEBF-4B37-BCF0-266D18170B54_[29096, 35638, 29245, 35791]",
+    "til_count": 61,
+    "total_cells": 66,
+    "stroma_pixels_16x16grid": 256,
+    "stil_percent": 19.24
+  },
+  {
+    "stem": "TCGA-A2-A3XS-01Z-00-DX1.867925C0-91D8-40A0-9FEA-25A635AC31E7_[11086, 19756, 11234, 19899]",
+    "til_count": 12,
+    "total_cells": 19,
+    "stroma_pixels_16x16grid": 214,
+    "stil_percent": 5.31
+  },
+  {
+    "stem": "TCGA-A2-A3XS-01Z-00-DX1.867925C0-91D8-40A0-9FEA-25A635AC31E7_[11213, 19250, 11357, 19393]",
+    "til_count": 20,
+    "total_cells": 22,
+    "stroma_pixels_16x16grid": 256,
+    "stil_percent": 7.25
+  },
+  {
+    "stem": "TCGA-A2-A3XS-01Z-00-DX1.867925C0-91D8-40A0-9FEA-25A635AC31E7_[11471, 20278, 11624, 20424]",
+    "til_count": 0,
+    "total_cells": 23,
+    "stroma_pixels_16x16grid": 0,
+    "stil_percent": null
+  },
+  {
+    "stem": "TCGA-A2-A3XS-01Z-00-DX1.867925C0-91D8-40A0-9FEA-25A635AC31E7_[11475, 19636, 11612, 19777]",
+    "til_count": 17,
+    "total_cells": 30,
+    "stroma_pixels_16x16grid": 203,
+    "stil_percent": 7.73
+  },
+  {
+    "stem": "TCGA-A2-A3XS-01Z-00-DX1.867925C0-91D8-40A0-9FEA-25A635AC31E7_[12620, 20398, 12762, 20540]",
+    "til_count": 22,
+    "total_cells": 23,
+    "stroma_pixels_16x16grid": 250,
+    "stil_percent": 8.09
+  },
+  {
+    "stem": "TCGA-A2-A3XS-01Z-00-DX1.867925C0-91D8-40A0-9FEA-25A635AC31E7_[13757, 19110, 13913, 19265]",
     "til_count": 1,
     "total_cells": 16,
-    "stroma_pixels_16x16grid": 256,
-    "stil_percent": 0.39
+    "stroma_pixels_16x16grid": 154,
+    "stil_percent": 0.65
   },
   {
-    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[9515, 5843, 9587, 5912]",
-    "til_count": 5,
-    "total_cells": 9,
-    "stroma_pixels_16x16grid": 256,
-    "stil_percent": 1.92
-  },
-  {
-    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[9577, 5780, 9653, 5845]",
-    "til_count": 3,
-    "total_cells": 9,
-    "stroma_pixels_16x16grid": 256,
-    "stil_percent": 1.16
-  },
-  {
-    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[9581, 5844, 9656, 5913]",
-    "til_count": 4,
+    "stem": "TCGA-A2-A3XT-01Z-00-DX1.336D6C78-576A-481B-8C83-F3A0FC4B182C_[42032, 15733, 42167, 15876]",
+    "til_count": 1,
     "total_cells": 15,
-    "stroma_pixels_16x16grid": 256,
-    "stil_percent": 1.54
+    "stroma_pixels_16x16grid": 9,
+    "stil_percent": 10.0
   },
   {
-    "stem": "TC_S01_P000015_C0001_B104_[50898, 85713, 52270, 86889]",
+    "stem": "TCGA-A2-A3XT-01Z-00-DX1.336D6C78-576A-481B-8C83-F3A0FC4B182C_[42151, 15473, 42305, 15626]",
+    "til_count": 7,
+    "total_cells": 21,
+    "stroma_pixels_16x16grid": 177,
+    "stil_percent": 3.8
+  },
+  {
+    "stem": "TCGA-A2-A3XT-01Z-00-DX1.336D6C78-576A-481B-8C83-F3A0FC4B182C_[44083, 15077, 44218, 15236]",
     "til_count": 0,
-    "total_cells": 0,
+    "total_cells": 15,
     "stroma_pixels_16x16grid": 0,
     "stil_percent": null
   },
   {
-    "stem": "TC_S01_P000015_C0001_B104_[63892, 85360, 65079, 86444]",
-    "til_count": 0,
-    "total_cells": 4,
-    "stroma_pixels_16x16grid": 179,
-    "stil_percent": 0.0
+    "stem": "TCGA-A2-A3XT-01Z-00-DX1.336D6C78-576A-481B-8C83-F3A0FC4B182C_[44206, 16238, 44348, 16380]",
+    "til_count": 28,
+    "total_cells": 39,
+    "stroma_pixels_16x16grid": 204,
+    "stil_percent": 12.07
   },
   {
-    "stem": "TC_S01_P000015_C0001_B104_[64395, 87751, 65649, 88824]",
+    "stem": "TCGA-A2-A3XT-01Z-00-DX1.336D6C78-576A-481B-8C83-F3A0FC4B182C_[44328, 15331, 44479, 15501]",
     "til_count": 0,
-    "total_cells": 4,
-    "stroma_pixels_16x16grid": 33,
-    "stil_percent": 0.0
-  },
-  {
-    "stem": "TC_S01_P000030_C0001_B208_[17547, 98572, 18830, 99713]",
-    "til_count": 0,
-    "total_cells": 0,
+    "total_cells": 23,
     "stroma_pixels_16x16grid": 0,
     "stil_percent": null
   },
   {
-    "stem": "TC_S01_P000030_C0001_B208_[23847, 79959, 25209, 81128]",
+    "stem": "TCGA-A2-A3XU-01Z-00-DX1.174A92D4-50B2-4A59-AD31-D5EC5BBF2F65_[16780, 13974, 16926, 14106]",
     "til_count": 0,
-    "total_cells": 6,
-    "stroma_pixels_16x16grid": 186,
-    "stil_percent": 0.0
+    "total_cells": 2,
+    "stroma_pixels_16x16grid": 0,
+    "stil_percent": null
   },
   {
-    "stem": "TC_S01_P000030_C0001_B208_[32772, 84782, 34072, 85924]",
+    "stem": "TCGA-A2-A3XU-01Z-00-DX1.174A92D4-50B2-4A59-AD31-D5EC5BBF2F65_[18192, 13842, 18332, 13984]",
     "til_count": 0,
-    "total_cells": 0,
-    "stroma_pixels_16x16grid": 119,
-    "stil_percent": 0.0
-  },
-  {
-    "stem": "TC_S01_P000046_C0001_B101_[112560, 54186, 113723, 55282]",
-    "til_count": 0,
-    "total_cells": 0,
-    "stroma_pixels_16x16grid": 77,
-    "stil_percent": 0.0
-  },
-  {
-    "stem": "TC_S01_P000046_C0001_B101_[118748, 59167, 119850, 60205]",
-    "til_count": 0,
-    "total_cells": 0,
+    "total_cells": 4,
     "stroma_pixels_16x16grid": 3,
     "stil_percent": 0.0
   },
   {
-    "stem": "TC_S01_P000046_C0001_B101_[119711, 55143, 120831, 56208]",
+    "stem": "TCGA-A2-A3XU-01Z-00-DX1.174A92D4-50B2-4A59-AD31-D5EC5BBF2F65_[18456, 14600, 18593, 14744]",
     "til_count": 0,
-    "total_cells": 23,
-    "stroma_pixels_16x16grid": 32,
+    "total_cells": 8,
+    "stroma_pixels_16x16grid": 96,
     "stil_percent": 0.0
   },
   {
-    "stem": "TC_S01_P000115_C0001_B105_[21731, 71869, 22834, 72898]",
+    "stem": "TCGA-A2-A3XU-01Z-00-DX1.174A92D4-50B2-4A59-AD31-D5EC5BBF2F65_[18570, 13836, 18722, 13974]",
     "til_count": 0,
-    "total_cells": 10,
-    "stroma_pixels_16x16grid": 206,
+    "total_cells": 7,
+    "stroma_pixels_16x16grid": 36,
     "stil_percent": 0.0
   },
   {
-    "stem": "TC_S01_P000115_C0001_B105_[23101, 71330, 24258, 72371]",
-    "til_count": 0,
-    "total_cells": 1,
-    "stroma_pixels_16x16grid": 73,
-    "stil_percent": 0.0
-  },
-  {
-    "stem": "TC_S01_P000115_C0001_B105_[7189, 66369, 8309, 67480]",
+    "stem": "TCGA-A2-A3XU-01Z-00-DX1.174A92D4-50B2-4A59-AD31-D5EC5BBF2F65_[18840, 13317, 18976, 13470]",
     "til_count": 0,
     "total_cells": 0,
+    "stroma_pixels_16x16grid": 237,
+    "stil_percent": 0.0
+  },
+  {
+    "stem": "TCGA-A2-A3XX-01Z-00-DX1.03C6D70F-2833-4E97-91B7-DE70CD083D92_[35089, 22056, 35241, 22193]",
+    "til_count": 0,
+    "total_cells": 23,
     "stroma_pixels_16x16grid": 0,
     "stil_percent": null
+  },
+  {
+    "stem": "TCGA-A2-A3XX-01Z-00-DX1.03C6D70F-2833-4E97-91B7-DE70CD083D92_[35217, 21916, 35354, 22067]",
+    "til_count": 1,
+    "total_cells": 7,
+    "stroma_pixels_16x16grid": 53,
+    "stil_percent": 1.85
+  },
+  {
+    "stem": "TCGA-A2-A3XX-01Z-00-DX1.03C6D70F-2833-4E97-91B7-DE70CD083D92_[35350, 20890, 35490, 21044]",
+    "til_count": 0,
+    "total_cells": 27,
+    "stroma_pixels_16x16grid": 61,
+    "stil_percent": 0.0
+  },
+  {
+    "stem": "TCGA-A2-A3XX-01Z-00-DX1.03C6D70F-2833-4E97-91B7-DE70CD083D92_[35607, 21151, 35742, 21306]",
+    "til_count": 0,
+    "total_cells": 22,
+    "stroma_pixels_16x16grid": 98,
+    "stil_percent": 0.0
+  },
+  {
+    "stem": "TCGA-A2-A3XX-01Z-00-DX1.03C6D70F-2833-4E97-91B7-DE70CD083D92_[35985, 22055, 36132, 22192]",
+    "til_count": 28,
+    "total_cells": 31,
+    "stroma_pixels_16x16grid": 256,
+    "stil_percent": 9.86
+  },
+  {
+    "stem": "TCGA-A2-A3XX-01Z-00-DX1.03C6D70F-2833-4E97-91B7-DE70CD083D92_[36250, 22054, 36378, 22194]",
+    "til_count": 1,
+    "total_cells": 7,
+    "stroma_pixels_16x16grid": 215,
+    "stil_percent": 0.46
+  },
+  {
+    "stem": "TCGA-A2-A3XX-01Z-00-DX1.03C6D70F-2833-4E97-91B7-DE70CD083D92_[36374, 21788, 36514, 21940]",
+    "til_count": 4,
+    "total_cells": 12,
+    "stroma_pixels_16x16grid": 203,
+    "stil_percent": 1.93
+  },
+  {
+    "stem": "TCGA-A2-A3XX-01Z-00-DX1.03C6D70F-2833-4E97-91B7-DE70CD083D92_[36503, 21661, 36653, 21811]",
+    "til_count": 0,
+    "total_cells": 27,
+    "stroma_pixels_16x16grid": 22,
+    "stil_percent": 0.0
+  },
+  {
+    "stem": "TCGA-A2-A3XY-01Z-00-DX1.E57FC9BF-411E-4028-AC10-8BCA5D0C8472_[39421, 18138, 39556, 18271]",
+    "til_count": 25,
+    "total_cells": 27,
+    "stroma_pixels_16x16grid": 241,
+    "stil_percent": 9.4
+  },
+  {
+    "stem": "TCGA-A2-A3XY-01Z-00-DX1.E57FC9BF-411E-4028-AC10-8BCA5D0C8472_[40196, 19674, 40330, 19803]",
+    "til_count": 2,
+    "total_cells": 8,
+    "stroma_pixels_16x16grid": 216,
+    "stil_percent": 0.92
+  },
+  {
+    "stem": "TCGA-A7-A0CE-01Z-00-DX1.E67322FB-ED25-4B85-B3B0-2B8BD277BB4A_[29482, 9755, 29614, 9895]",
+    "til_count": 27,
+    "total_cells": 27,
+    "stroma_pixels_16x16grid": 255,
+    "stil_percent": 9.57
+  },
+  {
+    "stem": "TCGA-A7-A0CE-01Z-00-DX1.E67322FB-ED25-4B85-B3B0-2B8BD277BB4A_[29614, 11399, 29743, 11562]",
+    "til_count": 8,
+    "total_cells": 16,
+    "stroma_pixels_16x16grid": 256,
+    "stil_percent": 3.03
+  },
+  {
+    "stem": "TCGA-A7-A0CE-01Z-00-DX1.E67322FB-ED25-4B85-B3B0-2B8BD277BB4A_[30369, 10012, 30516, 10162]",
+    "til_count": 15,
+    "total_cells": 27,
+    "stroma_pixels_16x16grid": 256,
+    "stil_percent": 5.54
+  },
+  {
+    "stem": "TCGA-A7-A26I-01Z-00-DX1.0077D012-BC14-4E96-84F7-A1A6A3A778DF_[5984, 13721, 6146, 13857]",
+    "til_count": 0,
+    "total_cells": 20,
+    "stroma_pixels_16x16grid": 168,
+    "stil_percent": 0.0
+  },
+  {
+    "stem": "TCGA-A7-A4SD-01Z-00-DX1.677152B3-17B2-42DB-AEEC-C9509ACCE831_[27785, 6438, 27939, 6593]",
+    "til_count": 0,
+    "total_cells": 22,
+    "stroma_pixels_16x16grid": 6,
+    "stil_percent": 0.0
+  },
+  {
+    "stem": "TCGA-A7-A4SD-01Z-00-DX1.677152B3-17B2-42DB-AEEC-C9509ACCE831_[27921, 6183, 28064, 6327]",
+    "til_count": 27,
+    "total_cells": 27,
+    "stroma_pixels_16x16grid": 256,
+    "stil_percent": 9.54
+  },
+  {
+    "stem": "TCGA-A7-A6VV-01Z-00-DX1.07AE0E16-A883-4C86-BC74-4E13081175F2_[25741, 19761, 25881, 19898]",
+    "til_count": 0,
+    "total_cells": 17,
+    "stroma_pixels_16x16grid": 132,
+    "stil_percent": 0.0
+  },
+  {
+    "stem": "TCGA-A7-A6VV-01Z-00-DX1.07AE0E16-A883-4C86-BC74-4E13081175F2_[25985, 19747, 26144, 19894]",
+    "til_count": 0,
+    "total_cells": 25,
+    "stroma_pixels_16x16grid": 249,
+    "stil_percent": 0.0
+  },
+  {
+    "stem": "TCGA-A7-A6VV-01Z-00-DX1.07AE0E16-A883-4C86-BC74-4E13081175F2_[26122, 20268, 26272, 20417]",
+    "til_count": 1,
+    "total_cells": 22,
+    "stroma_pixels_16x16grid": 210,
+    "stil_percent": 0.47
+  },
+  {
+    "stem": "TCGA-A7-A6VV-01Z-00-DX1.07AE0E16-A883-4C86-BC74-4E13081175F2_[26375, 19118, 26528, 19262]",
+    "til_count": 22,
+    "total_cells": 27,
+    "stroma_pixels_16x16grid": 256,
+    "stil_percent": 7.91
+  },
+  {
+    "stem": "TCGA-A7-A6VV-01Z-00-DX1.07AE0E16-A883-4C86-BC74-4E13081175F2_[26377, 18982, 26518, 19126]",
+    "til_count": 22,
+    "total_cells": 30,
+    "stroma_pixels_16x16grid": 256,
+    "stil_percent": 7.91
+  },
+  {
+    "stem": "TCGA-A7-A6VW-01Z-00-DX1.1BC4790C-DB45-4A3D-9C97-92C92C03FF60_[35954, 8239, 36092, 8369]",
+    "til_count": 0,
+    "total_cells": 13,
+    "stroma_pixels_16x16grid": 151,
+    "stil_percent": 0.0
+  },
+  {
+    "stem": "TCGA-AC-A2BK-01Z-00-DX1.A3A1F275-9CDC-48BA-BB81-BCA6F02ACA94_[7833, 4296, 7970, 4429]",
+    "til_count": 23,
+    "total_cells": 23,
+    "stroma_pixels_16x16grid": 252,
+    "stil_percent": 8.36
+  },
+  {
+    "stem": "TCGA-AC-A2BK-01Z-00-DX1.A3A1F275-9CDC-48BA-BB81-BCA6F02ACA94_[8335, 4549, 8491, 4698]",
+    "til_count": 17,
+    "total_cells": 45,
+    "stroma_pixels_16x16grid": 98,
+    "stil_percent": 14.78
+  },
+  {
+    "stem": "TCGA-AC-A2BK-01Z-00-DX1.A3A1F275-9CDC-48BA-BB81-BCA6F02ACA94_[9371, 4543, 9510, 4687]",
+    "til_count": 1,
+    "total_cells": 30,
+    "stroma_pixels_16x16grid": 0,
+    "stil_percent": 100.0
+  },
+  {
+    "stem": "TCGA-AN-A0AR-01Z-00-DX1.0CF1267E-C61B-4928-875E-59032F838F07_[4479, 12758, 4636, 12900]",
+    "til_count": 0,
+    "total_cells": 19,
+    "stroma_pixels_16x16grid": 0,
+    "stil_percent": null
+  },
+  {
+    "stem": "TCGA-AN-A0AT-01Z-00-DX1.DFD68CD2-C25E-47BE-BC06-8CE3C657B9FD_[15700, 18640, 15841, 18783]",
+    "til_count": 0,
+    "total_cells": 18,
+    "stroma_pixels_16x16grid": 143,
+    "stil_percent": 0.0
+  },
+  {
+    "stem": "TCGA-AN-A0AT-01Z-00-DX1.DFD68CD2-C25E-47BE-BC06-8CE3C657B9FD_[15964, 19276, 16103, 19420]",
+    "til_count": 35,
+    "total_cells": 35,
+    "stroma_pixels_16x16grid": 256,
+    "stil_percent": 12.03
+  },
+  {
+    "stem": "TCGA-AN-A0AT-01Z-00-DX1.DFD68CD2-C25E-47BE-BC06-8CE3C657B9FD_[16087, 19405, 16230, 19550]",
+    "til_count": 29,
+    "total_cells": 29,
+    "stroma_pixels_16x16grid": 256,
+    "stil_percent": 10.18
+  },
+  {
+    "stem": "TCGA-AN-A0AT-01Z-00-DX1.DFD68CD2-C25E-47BE-BC06-8CE3C657B9FD_[16212, 18245, 16371, 18395]",
+    "til_count": 1,
+    "total_cells": 16,
+    "stroma_pixels_16x16grid": 35,
+    "stil_percent": 2.78
+  },
+  {
+    "stem": "TCGA-AN-A0AT-01Z-00-DX1.DFD68CD2-C25E-47BE-BC06-8CE3C657B9FD_[17109, 19405, 17249, 19555]",
+    "til_count": 0,
+    "total_cells": 17,
+    "stroma_pixels_16x16grid": 61,
+    "stil_percent": 0.0
+  },
+  {
+    "stem": "TCGA-AN-A0AT-01Z-00-DX1.DFD68CD2-C25E-47BE-BC06-8CE3C657B9FD_[17249, 18005, 17386, 18144]",
+    "til_count": 4,
+    "total_cells": 6,
+    "stroma_pixels_16x16grid": 2,
+    "stil_percent": 66.67
+  },
+  {
+    "stem": "TCGA-AN-A0XU-01Z-00-DX1.6B0DD0FF-A20D-4BA2-8D48-FC357BA5313F_[13179, 10746, 13319, 10887]",
+    "til_count": 29,
+    "total_cells": 29,
+    "stroma_pixels_16x16grid": 256,
+    "stil_percent": 10.18
+  },
+  {
+    "stem": "TCGA-AN-A0XU-01Z-00-DX1.6B0DD0FF-A20D-4BA2-8D48-FC357BA5313F_[13439, 10363, 13571, 10500]",
+    "til_count": 3,
+    "total_cells": 14,
+    "stroma_pixels_16x16grid": 181,
+    "stil_percent": 1.63
+  },
+  {
+    "stem": "TCGA-AN-A0XU-01Z-00-DX1.6B0DD0FF-A20D-4BA2-8D48-FC357BA5313F_[14848, 9475, 14981, 9609]",
+    "til_count": 5,
+    "total_cells": 20,
+    "stroma_pixels_16x16grid": 154,
+    "stil_percent": 3.14
+  },
+  {
+    "stem": "TCGA-AN-A0XU-01Z-00-DX1.6B0DD0FF-A20D-4BA2-8D48-FC357BA5313F_[15356, 11007, 15496, 11145]",
+    "til_count": 26,
+    "total_cells": 27,
+    "stroma_pixels_16x16grid": 256,
+    "stil_percent": 9.22
+  },
+  {
+    "stem": "TCGA-AN-A0XU-01Z-00-DX1.6B0DD0FF-A20D-4BA2-8D48-FC357BA5313F_[15481, 9589, 15631, 9737]",
+    "til_count": 0,
+    "total_cells": 35,
+    "stroma_pixels_16x16grid": 1,
+    "stil_percent": 0.0
+  },
+  {
+    "stem": "TCGA-AN-A0XU-01Z-00-DX1.6B0DD0FF-A20D-4BA2-8D48-FC357BA5313F_[16248, 10237, 16395, 10376]",
+    "til_count": 3,
+    "total_cells": 29,
+    "stroma_pixels_16x16grid": 1,
+    "stil_percent": 75.0
+  },
+  {
+    "stem": "TCGA-AO-A0J2-01Z-00-DX1.7C9FEC7B-6040-4C58-9563-D10C0D7AC72E_[34825, 15019, 35111, 15313]",
+    "til_count": 0,
+    "total_cells": 7,
+    "stroma_pixels_16x16grid": 67,
+    "stil_percent": 0.0
+  },
+  {
+    "stem": "TCGA-AO-A0J4-01Z-00-DX1.2EFC978E-8DF5-4254-9598-C0910B17C5C8_[19230, 11137, 19503, 11412]",
+    "til_count": 14,
+    "total_cells": 14,
+    "stroma_pixels_16x16grid": 256,
+    "stil_percent": 5.19
+  },
+  {
+    "stem": "TCGA-AO-A0J4-01Z-00-DX1.2EFC978E-8DF5-4254-9598-C0910B17C5C8_[19739, 11386, 20009, 11662]",
+    "til_count": 5,
+    "total_cells": 5,
+    "stroma_pixels_16x16grid": 223,
+    "stil_percent": 2.19
+  },
+  {
+    "stem": "TCGA-AO-A129-01Z-00-DX1.BF485416-BF57-4F39-866B-4B1E201876FA_[39794, 13411, 40017, 13656]",
+    "til_count": 0,
+    "total_cells": 0,
+    "stroma_pixels_16x16grid": 228,
+    "stil_percent": 0.0
+  },
+  {
+    "stem": "TCGA-AO-A12F-01Z-00-DX1.847C8E4F-3F37-4B1D-8E6E-ACD14391AD89_[16990, 29868, 17277, 30146]",
+    "til_count": 2,
+    "total_cells": 58,
+    "stroma_pixels_16x16grid": 186,
+    "stil_percent": 1.06
+  },
+  {
+    "stem": "TCGA-AO-A1KR-01Z-00-DX1.BFB2E69B-E23C-4542-9CBF-EDD040B985AC_[20340, 37909, 20615, 38193]",
+    "til_count": 0,
+    "total_cells": 44,
+    "stroma_pixels_16x16grid": 0,
+    "stil_percent": null
+  },
+  {
+    "stem": "TCGA-AO-A1KR-01Z-00-DX1.BFB2E69B-E23C-4542-9CBF-EDD040B985AC_[20358, 38431, 20619, 38697]",
+    "til_count": 57,
+    "total_cells": 91,
+    "stroma_pixels_16x16grid": 236,
+    "stil_percent": 19.45
+  },
+  {
+    "stem": "TCGA-AO-A1KR-01Z-00-DX1.BFB2E69B-E23C-4542-9CBF-EDD040B985AC_[22129, 38924, 22430, 39224]",
+    "til_count": 0,
+    "total_cells": 42,
+    "stroma_pixels_16x16grid": 0,
+    "stil_percent": null
+  },
+  {
+    "stem": "TCGA-AO-A1KR-01Z-00-DX1.BFB2E69B-E23C-4542-9CBF-EDD040B985AC_[22640, 38662, 22928, 38959]",
+    "til_count": 0,
+    "total_cells": 57,
+    "stroma_pixels_16x16grid": 0,
+    "stil_percent": null
+  },
+  {
+    "stem": "TCGA-AQ-A04J-01Z-00-DX1.6A4E16D4-2696-4E5F-BCA8-708556FC3A8C_[32945, 7052, 33083, 7188]",
+    "til_count": 10,
+    "total_cells": 11,
+    "stroma_pixels_16x16grid": 256,
+    "stil_percent": 3.76
+  },
+  {
+    "stem": "TCGA-AQ-A54N-01Z-00-DX1.E53271E9-AFD2-4071-9B1E-CD05F63B8136_[16455, 13641, 16608, 13797]",
+    "til_count": 0,
+    "total_cells": 26,
+    "stroma_pixels_16x16grid": 0,
+    "stil_percent": null
+  },
+  {
+    "stem": "TCGA-AQ-A54N-01Z-00-DX1.E53271E9-AFD2-4071-9B1E-CD05F63B8136_[17607, 13520, 17773, 13666]",
+    "til_count": 31,
+    "total_cells": 38,
+    "stroma_pixels_16x16grid": 233,
+    "stil_percent": 11.74
+  },
+  {
+    "stem": "TCGA-AR-A0TS-01Z-00-DX1.2DB81A2E-16C1-4EE0-8175-65FA46768277_[59668, 11913, 59805, 12051]",
+    "til_count": 26,
+    "total_cells": 28,
+    "stroma_pixels_16x16grid": 247,
+    "stil_percent": 9.52
+  },
+  {
+    "stem": "TCGA-AR-A0TS-01Z-00-DX1.2DB81A2E-16C1-4EE0-8175-65FA46768277_[59677, 11789, 59805, 11922]",
+    "til_count": 1,
+    "total_cells": 7,
+    "stroma_pixels_16x16grid": 242,
+    "stil_percent": 0.41
+  },
+  {
+    "stem": "TCGA-AR-A0TS-01Z-00-DX1.2DB81A2E-16C1-4EE0-8175-65FA46768277_[60439, 11777, 60578, 11926]",
+    "til_count": 7,
+    "total_cells": 16,
+    "stroma_pixels_16x16grid": 199,
+    "stil_percent": 3.4
+  },
+  {
+    "stem": "TCGA-AR-A0TS-01Z-00-DX1.2DB81A2E-16C1-4EE0-8175-65FA46768277_[60697, 11789, 60832, 11918]",
+    "til_count": 7,
+    "total_cells": 12,
+    "stroma_pixels_16x16grid": 256,
+    "stil_percent": 2.66
+  },
+  {
+    "stem": "TCGA-AR-A0TS-01Z-00-DX1.2DB81A2E-16C1-4EE0-8175-65FA46768277_[60700, 11663, 60828, 11794]",
+    "til_count": 3,
+    "total_cells": 12,
+    "stroma_pixels_16x16grid": 253,
+    "stil_percent": 1.17
+  },
+  {
+    "stem": "TCGA-AR-A0TS-01Z-00-DX1.2DB81A2E-16C1-4EE0-8175-65FA46768277_[61715, 11651, 61853, 11821]",
+    "til_count": 0,
+    "total_cells": 24,
+    "stroma_pixels_16x16grid": 28,
+    "stil_percent": 0.0
+  },
+  {
+    "stem": "TCGA-AR-A0TS-01Z-00-DX1.2DB81A2E-16C1-4EE0-8175-65FA46768277_[61846, 12301, 61981, 12431]",
+    "til_count": 6,
+    "total_cells": 9,
+    "stroma_pixels_16x16grid": 256,
+    "stil_percent": 2.29
+  },
+  {
+    "stem": "TCGA-AR-A0TU-01Z-00-DX1.2CBBDDAB-C1DD-4205-A555-431542F9C069_[45067, 12186, 45199, 12333]",
+    "til_count": 1,
+    "total_cells": 12,
+    "stroma_pixels_16x16grid": 209,
+    "stil_percent": 0.48
+  },
+  {
+    "stem": "TCGA-AR-A0TU-01Z-00-DX1.2CBBDDAB-C1DD-4205-A555-431542F9C069_[45316, 12305, 45460, 12445]",
+    "til_count": 1,
+    "total_cells": 15,
+    "stroma_pixels_16x16grid": 171,
+    "stil_percent": 0.58
+  },
+  {
+    "stem": "TCGA-AR-A0U1-01Z-00-DX1.276433E7-E841-42D2-AF21-762F2FEA3B9B_[33236, 13219, 33382, 13368]",
+    "til_count": 16,
+    "total_cells": 18,
+    "stroma_pixels_16x16grid": 198,
+    "stil_percent": 7.48
+  },
+  {
+    "stem": "TCGA-AR-A0U4-01Z-00-DX1.DE722DC5-859D-4866-ADCC-ED98EDBFB588_[21202, 35392, 21342, 35533]",
+    "til_count": 0,
+    "total_cells": 17,
+    "stroma_pixels_16x16grid": 0,
+    "stil_percent": null
+  },
+  {
+    "stem": "TCGA-AR-A0U4-01Z-00-DX1.DE722DC5-859D-4866-ADCC-ED98EDBFB588_[22991, 35781, 23146, 35932]",
+    "til_count": 0,
+    "total_cells": 31,
+    "stroma_pixels_16x16grid": 0,
+    "stil_percent": null
+  },
+  {
+    "stem": "TCGA-AR-A1AQ-01Z-00-DX1.09D5D7FC-0FA8-4176-94B2-995F44D8ED4C_[10229, 20423, 10381, 20562]",
+    "til_count": 25,
+    "total_cells": 25,
+    "stroma_pixels_16x16grid": 256,
+    "stil_percent": 8.9
+  },
+  {
+    "stem": "TCGA-AR-A1AQ-01Z-00-DX1.09D5D7FC-0FA8-4176-94B2-995F44D8ED4C_[9853, 19527, 9987, 19665]",
+    "til_count": 31,
+    "total_cells": 35,
+    "stroma_pixels_16x16grid": 255,
+    "stil_percent": 10.84
+  },
+  {
+    "stem": "TCGA-AR-A1AR-01Z-00-DX1.E7B7F6F0-9CC0-4D4F-8C9F-443A74D2BE40_[7112, 15954, 7253, 16098]",
+    "til_count": 15,
+    "total_cells": 18,
+    "stroma_pixels_16x16grid": 241,
+    "stil_percent": 5.86
+  },
+  {
+    "stem": "TCGA-AR-A256-01Z-00-DX1.950D4546-4BF4-4380-9877-51D86A93D755_[21673, 9419, 21813, 9570]",
+    "til_count": 2,
+    "total_cells": 7,
+    "stroma_pixels_16x16grid": 99,
+    "stil_percent": 1.98
+  },
+  {
+    "stem": "TCGA-BH-A0AV-01Z-00-DX1.5A686DA4-A29D-4BA7-9BCA-B707F8755E83_[39209, 29088, 39369, 29233]",
+    "til_count": 0,
+    "total_cells": 20,
+    "stroma_pixels_16x16grid": 50,
+    "stil_percent": 0.0
+  },
+  {
+    "stem": "TCGA-BH-A0AV-01Z-00-DX1.5A686DA4-A29D-4BA7-9BCA-B707F8755E83_[39471, 29463, 39622, 29618]",
+    "til_count": 0,
+    "total_cells": 23,
+    "stroma_pixels_16x16grid": 148,
+    "stil_percent": 0.0
+  },
+  {
+    "stem": "TCGA-BH-A0AV-01Z-00-DX1.5A686DA4-A29D-4BA7-9BCA-B707F8755E83_[41006, 29347, 41151, 29490]",
+    "til_count": 31,
+    "total_cells": 40,
+    "stroma_pixels_16x16grid": 253,
+    "stil_percent": 10.92
+  },
+  {
+    "stem": "TCGA-BH-A0B9-01Z-00-DX1.c23adb4c-52d4-4dfd-b8e3-156e43f0e645_[32126, 31286, 32261, 31429]",
+    "til_count": 2,
+    "total_cells": 2,
+    "stroma_pixels_16x16grid": 247,
+    "stil_percent": 0.8
+  },
+  {
+    "stem": "TCGA-BH-A0B9-01Z-00-DX1.c23adb4c-52d4-4dfd-b8e3-156e43f0e645_[32865, 29227, 33031, 29378]",
+    "til_count": 0,
+    "total_cells": 12,
+    "stroma_pixels_16x16grid": 0,
+    "stil_percent": null
+  },
+  {
+    "stem": "TCGA-BH-A0BG-01Z-00-DX1.0838FB7F-8C85-4687-9F70-D136A1063383_[32517, 14913, 32658, 15049]",
+    "til_count": 37,
+    "total_cells": 37,
+    "stroma_pixels_16x16grid": 256,
+    "stil_percent": 12.63
+  },
+  {
+    "stem": "TCGA-BH-A0BG-01Z-00-DX1.0838FB7F-8C85-4687-9F70-D136A1063383_[32900, 14663, 33052, 14794]",
+    "til_count": 22,
+    "total_cells": 30,
+    "stroma_pixels_16x16grid": 254,
+    "stil_percent": 7.97
+  },
+  {
+    "stem": "TCGA-BH-A0E6-01Z-00-DX1.44DFEFB4-FA05-4246-8D6B-55BA8C3275DB_[29952, 10888, 30086, 11033]",
+    "til_count": 2,
+    "total_cells": 2,
+    "stroma_pixels_16x16grid": 158,
+    "stil_percent": 1.25
+  },
+  {
+    "stem": "TCGA-BH-A0WA-01Z-00-DX1.C0EB7B73-5529-49EC-B660-3F849B041963_[30970, 15708, 31111, 15854]",
+    "til_count": 57,
+    "total_cells": 57,
+    "stroma_pixels_16x16grid": 255,
+    "stil_percent": 18.27
+  },
+  {
+    "stem": "TCGA-BH-A0WA-01Z-00-DX1.C0EB7B73-5529-49EC-B660-3F849B041963_[31352, 15705, 31490, 15852]",
+    "til_count": 20,
+    "total_cells": 20,
+    "stroma_pixels_16x16grid": 256,
+    "stil_percent": 7.25
+  },
+  {
+    "stem": "TCGA-BH-A18G-01Z-00-DX1.DB2B5819-CE83-4E07-BD03-2CD9CF2E246C_[8656, 1908, 8813, 2046]",
+    "til_count": 5,
+    "total_cells": 27,
+    "stroma_pixels_16x16grid": 125,
+    "stil_percent": 3.85
+  },
+  {
+    "stem": "TCGA-BH-A18G-01Z-00-DX1.DB2B5819-CE83-4E07-BD03-2CD9CF2E246C_[8664, 1008, 8819, 1144]",
+    "til_count": 0,
+    "total_cells": 19,
+    "stroma_pixels_16x16grid": 66,
+    "stil_percent": 0.0
+  },
+  {
+    "stem": "TCGA-BH-A18V-01Z-00-DX1.7797760A-05CD-436E-97DA-31D6201F943B_[25265, 25359, 25411, 25514]",
+    "til_count": 0,
+    "total_cells": 29,
+    "stroma_pixels_16x16grid": 0,
+    "stil_percent": null
+  },
+  {
+    "stem": "TCGA-BH-A18V-01Z-00-DX1.7797760A-05CD-436E-97DA-31D6201F943B_[27829, 24866, 27959, 24994]",
+    "til_count": 28,
+    "total_cells": 30,
+    "stroma_pixels_16x16grid": 256,
+    "stil_percent": 9.86
+  },
+  {
+    "stem": "TCGA-BH-A1EW-01Z-00-DX1.A6A5F9C5-FB97-4DA3-A1EA-1F84BC006681_[33880, 21600, 34016, 21751]",
+    "til_count": 0,
+    "total_cells": 4,
+    "stroma_pixels_16x16grid": 215,
+    "stil_percent": 0.0
+  },
+  {
+    "stem": "TCGA-BH-A1F6-01Z-00-DX1.E83F0DC0-EA2C-4641-81B0-8702B9C5D579_[29462, 26602, 29610, 26765]",
+    "til_count": 0,
+    "total_cells": 26,
+    "stroma_pixels_16x16grid": 64,
+    "stil_percent": 0.0
+  },
+  {
+    "stem": "TCGA-C8-A1HJ-01Z-00-DX1.745159F1-85E7-4CC0-B088-E1CA91916FB8_[25629, 9472, 25776, 9621]",
+    "til_count": 35,
+    "total_cells": 38,
+    "stroma_pixels_16x16grid": 256,
+    "stil_percent": 12.03
+  },
+  {
+    "stem": "TCGA-C8-A27B-01Z-00-DX1.5A8A14E8-6430-4147-9C71-805024E098CB_[30403, 6436, 30542, 6584]",
+    "til_count": 0,
+    "total_cells": 11,
+    "stroma_pixels_16x16grid": 0,
+    "stil_percent": null
+  },
+  {
+    "stem": "TCGA-D8-A13Z-01Z-00-DX1.517140BB-D34C-42F8-952C-340EF16D382F_[17400, 25431, 17544, 25569]",
+    "til_count": 26,
+    "total_cells": 28,
+    "stroma_pixels_16x16grid": 256,
+    "stil_percent": 9.22
+  },
+  {
+    "stem": "TCGA-D8-A142-01Z-00-DX1.F6D58989-9120-40C9-918D-6B1650C1A8E8_[33620, 23092, 33771, 23253]",
+    "til_count": 0,
+    "total_cells": 11,
+    "stroma_pixels_16x16grid": 0,
+    "stil_percent": null
+  },
+  {
+    "stem": "TCGA-D8-A142-01Z-00-DX1.F6D58989-9120-40C9-918D-6B1650C1A8E8_[34137, 22460, 34276, 22588]",
+    "til_count": 10,
+    "total_cells": 11,
+    "stroma_pixels_16x16grid": 256,
+    "stil_percent": 3.76
+  },
+  {
+    "stem": "TCGA-D8-A142-01Z-00-DX1.F6D58989-9120-40C9-918D-6B1650C1A8E8_[34530, 21563, 34674, 21701]",
+    "til_count": 26,
+    "total_cells": 26,
+    "stroma_pixels_16x16grid": 256,
+    "stil_percent": 9.22
+  },
+  {
+    "stem": "TCGA-D8-A142-01Z-00-DX1.F6D58989-9120-40C9-918D-6B1650C1A8E8_[34778, 24622, 34917, 24771]",
+    "til_count": 3,
+    "total_cells": 6,
+    "stroma_pixels_16x16grid": 256,
+    "stil_percent": 1.16
+  },
+  {
+    "stem": "TCGA-D8-A142-01Z-00-DX1.F6D58989-9120-40C9-918D-6B1650C1A8E8_[35027, 23206, 35171, 23373]",
+    "til_count": 4,
+    "total_cells": 16,
+    "stroma_pixels_16x16grid": 226,
+    "stil_percent": 1.74
+  },
+  {
+    "stem": "TCGA-D8-A142-01Z-00-DX1.F6D58989-9120-40C9-918D-6B1650C1A8E8_[35162, 24253, 35315, 24392]",
+    "til_count": 0,
+    "total_cells": 9,
+    "stroma_pixels_16x16grid": 248,
+    "stil_percent": 0.0
+  },
+  {
+    "stem": "TCGA-D8-A147-01Z-00-DX1.159094F2-BB78-4910-B7AE-3D7CAAB1DAD9_[33575, 10544, 33718, 10673]",
+    "til_count": 19,
+    "total_cells": 23,
+    "stroma_pixels_16x16grid": 194,
+    "stil_percent": 8.92
+  },
+  {
+    "stem": "TCGA-D8-A147-01Z-00-DX1.159094F2-BB78-4910-B7AE-3D7CAAB1DAD9_[33704, 10406, 33836, 10548]",
+    "til_count": 30,
+    "total_cells": 31,
+    "stroma_pixels_16x16grid": 238,
+    "stil_percent": 11.19
+  },
+  {
+    "stem": "TCGA-D8-A1JF-01Z-00-DX1.224EDA43-F822-4A88-814A-BA7D4C60F8CC_[12944, 26684, 13072, 26812]",
+    "til_count": 1,
+    "total_cells": 2,
+    "stroma_pixels_16x16grid": 201,
+    "stil_percent": 0.5
+  },
+  {
+    "stem": "TCGA-D8-A1JF-01Z-00-DX1.224EDA43-F822-4A88-814A-BA7D4C60F8CC_[13456, 27577, 13584, 27717]",
+    "til_count": 2,
+    "total_cells": 7,
+    "stroma_pixels_16x16grid": 246,
+    "stil_percent": 0.81
+  },
+  {
+    "stem": "TCGA-D8-A1JF-01Z-00-DX1.224EDA43-F822-4A88-814A-BA7D4C60F8CC_[13833, 27196, 13968, 27324]",
+    "til_count": 0,
+    "total_cells": 6,
+    "stroma_pixels_16x16grid": 108,
+    "stil_percent": 0.0
+  },
+  {
+    "stem": "TCGA-D8-A1JF-01Z-00-DX1.224EDA43-F822-4A88-814A-BA7D4C60F8CC_[14224, 27324, 14352, 27463]",
+    "til_count": 2,
+    "total_cells": 8,
+    "stroma_pixels_16x16grid": 1,
+    "stil_percent": 66.67
+  },
+  {
+    "stem": "TCGA-D8-A1JL-01Z-00-DX1.FE3F0C6B-F98A-4036-BF9A-25A8CC66B1FD_[20638, 13299, 20782, 13457]",
+    "til_count": 0,
+    "total_cells": 12,
+    "stroma_pixels_16x16grid": 0,
+    "stil_percent": null
+  },
+  {
+    "stem": "TCGA-D8-A1JL-01Z-00-DX1.FE3F0C6B-F98A-4036-BF9A-25A8CC66B1FD_[21669, 14201, 21811, 14340]",
+    "til_count": 23,
+    "total_cells": 26,
+    "stroma_pixels_16x16grid": 256,
+    "stil_percent": 8.24
+  },
+  {
+    "stem": "TCGA-D8-A1JL-01Z-00-DX1.FE3F0C6B-F98A-4036-BF9A-25A8CC66B1FD_[22045, 14073, 22200, 14211]",
+    "til_count": 0,
+    "total_cells": 12,
+    "stroma_pixels_16x16grid": 0,
+    "stil_percent": null
+  },
+  {
+    "stem": "TCGA-D8-A1JL-01Z-00-DX1.FE3F0C6B-F98A-4036-BF9A-25A8CC66B1FD_[25130, 14081, 25266, 14209]",
+    "til_count": 2,
+    "total_cells": 4,
+    "stroma_pixels_16x16grid": 256,
+    "stil_percent": 0.78
+  },
+  {
+    "stem": "TCGA-D8-A1JL-01Z-00-DX1.FE3F0C6B-F98A-4036-BF9A-25A8CC66B1FD_[25510, 14586, 25651, 14726]",
+    "til_count": 19,
+    "total_cells": 21,
+    "stroma_pixels_16x16grid": 256,
+    "stil_percent": 6.91
+  },
+  {
+    "stem": "TCGA-D8-A1XQ-01Z-00-DX1.1A17A5C7-F14B-4AD2-AD5F-D3400D86A366_[32288, 17679, 32433, 17825]",
+    "til_count": 0,
+    "total_cells": 25,
+    "stroma_pixels_16x16grid": 21,
+    "stil_percent": 0.0
+  },
+  {
+    "stem": "TCGA-D8-A27F-01Z-00-DX1.C1A87F27-49F1-46BA-B2E2-A89293F7FD0C_[50403, 5653, 50552, 5806]",
+    "til_count": 0,
+    "total_cells": 25,
+    "stroma_pixels_16x16grid": 35,
+    "stil_percent": 0.0
+  },
+  {
+    "stem": "TCGA-D8-A27M-01Z-00-DX1.3020D223-2400-4A2D-8BFE-08A5B78FE13B_[28385, 10350, 28522, 10486]",
+    "til_count": 0,
+    "total_cells": 27,
+    "stroma_pixels_16x16grid": 98,
+    "stil_percent": 0.0
+  },
+  {
+    "stem": "TCGA-E2-A14X-01Z-00-DX1.24ADDA43-F127-4A6B-9AAD-2FAD982A853D_[44665, 34588, 44804, 34734]",
+    "til_count": 23,
+    "total_cells": 25,
+    "stroma_pixels_16x16grid": 179,
+    "stil_percent": 11.39
+  },
+  {
+    "stem": "TCGA-E2-A14X-01Z-00-DX1.24ADDA43-F127-4A6B-9AAD-2FAD982A853D_[45304, 35479, 45459, 35634]",
+    "til_count": 3,
+    "total_cells": 33,
+    "stroma_pixels_16x16grid": 0,
+    "stil_percent": 100.0
+  },
+  {
+    "stem": "TCGA-E2-A14X-01Z-00-DX1.24ADDA43-F127-4A6B-9AAD-2FAD982A853D_[45813, 33940, 45969, 34114]",
+    "til_count": 0,
+    "total_cells": 22,
+    "stroma_pixels_16x16grid": 0,
+    "stil_percent": null
+  },
+  {
+    "stem": "TCGA-E2-A14X-01Z-00-DX1.24ADDA43-F127-4A6B-9AAD-2FAD982A853D_[46327, 33826, 46478, 33977]",
+    "til_count": 0,
+    "total_cells": 21,
+    "stroma_pixels_16x16grid": 0,
+    "stil_percent": null
+  },
+  {
+    "stem": "TCGA-E2-A14X-01Z-00-DX1.24ADDA43-F127-4A6B-9AAD-2FAD982A853D_[46461, 35108, 46593, 35247]",
+    "til_count": 5,
+    "total_cells": 16,
+    "stroma_pixels_16x16grid": 223,
+    "stil_percent": 2.19
+  },
+  {
+    "stem": "TCGA-E2-A150-01Z-00-DX1.55643D23-83E6-4058-8EA5-18AAA8547839_[22952, 32461, 23099, 32598]",
+    "til_count": 27,
+    "total_cells": 27,
+    "stroma_pixels_16x16grid": 256,
+    "stil_percent": 9.54
+  },
+  {
+    "stem": "TCGA-E2-A158-01Z-00-DX1.994C60FE-E651-4224-95E7-4669834F2338_[28162, 13959, 28306, 14093]",
+    "til_count": 31,
+    "total_cells": 31,
+    "stroma_pixels_16x16grid": 256,
+    "stil_percent": 10.8
+  },
+  {
+    "stem": "TCGA-E2-A159-01Z-00-DX1.C8DC3356-CAE9-4E7A-AEFF-ABB4BE38192B_[19820, 16125, 19962, 16275]",
+    "til_count": 0,
+    "total_cells": 17,
+    "stroma_pixels_16x16grid": 0,
+    "stil_percent": null
+  },
+  {
+    "stem": "TCGA-E2-A159-01Z-00-DX1.C8DC3356-CAE9-4E7A-AEFF-ABB4BE38192B_[20453, 15354, 20601, 15511]",
+    "til_count": 0,
+    "total_cells": 24,
+    "stroma_pixels_16x16grid": 0,
+    "stil_percent": null
+  },
+  {
+    "stem": "TCGA-E2-A159-01Z-00-DX1.C8DC3356-CAE9-4E7A-AEFF-ABB4BE38192B_[20958, 14988, 21106, 15131]",
+    "til_count": 0,
+    "total_cells": 13,
+    "stroma_pixels_16x16grid": 0,
+    "stil_percent": null
+  },
+  {
+    "stem": "TCGA-E2-A1AZ-01Z-00-DX1.FE769F5F-385B-4DCF-819A-735C98D84FA8_[25654, 10070, 25787, 10201]",
+    "til_count": 4,
+    "total_cells": 11,
+    "stroma_pixels_16x16grid": 135,
+    "stil_percent": 2.88
+  },
+  {
+    "stem": "TCGA-E2-A1B6-01Z-00-DX1.8CD458BE-C4F9-4AF3-A927-18C042E9B4B7_[9531, 27225, 9678, 27373]",
+    "til_count": 12,
+    "total_cells": 24,
+    "stroma_pixels_16x16grid": 154,
+    "stil_percent": 7.23
+  },
+  {
+    "stem": "TCGA-E2-A1B6-01Z-00-DX1.8CD458BE-C4F9-4AF3-A927-18C042E9B4B7_[9776, 27112, 9936, 27261]",
+    "til_count": 8,
+    "total_cells": 23,
+    "stroma_pixels_16x16grid": 126,
+    "stil_percent": 5.97
+  },
+  {
+    "stem": "TCGA-E2-A1L7-01Z-00-DX1.BE796CD2-2E81-44E8-8CA2-85B4D2A31B64_[27172, 8735, 27315, 8884]",
+    "til_count": 5,
+    "total_cells": 15,
+    "stroma_pixels_16x16grid": 256,
+    "stil_percent": 1.92
+  },
+  {
+    "stem": "TCGA-E2-A1L7-01Z-00-DX1.BE796CD2-2E81-44E8-8CA2-85B4D2A31B64_[28458, 8600, 28595, 8738]",
+    "til_count": 20,
+    "total_cells": 21,
+    "stroma_pixels_16x16grid": 177,
+    "stil_percent": 10.15
+  },
+  {
+    "stem": "TCGA-E2-A1L7-01Z-00-DX1.BE796CD2-2E81-44E8-8CA2-85B4D2A31B64_[28710, 7960, 28857, 8110]",
+    "til_count": 24,
+    "total_cells": 30,
+    "stroma_pixels_16x16grid": 165,
+    "stil_percent": 12.7
+  },
+  {
+    "stem": "TCGA-E2-A1LH-01Z-00-DX1.F85384B7-1EBF-4F57-A45B-4A668B68E535_[11634, 12330, 11772, 12461]",
+    "til_count": 37,
+    "total_cells": 37,
+    "stroma_pixels_16x16grid": 256,
+    "stil_percent": 12.63
+  },
+  {
+    "stem": "TCGA-E2-A1LH-01Z-00-DX1.F85384B7-1EBF-4F57-A45B-4A668B68E535_[12148, 13722, 12292, 13884]",
+    "til_count": 4,
+    "total_cells": 23,
+    "stroma_pixels_16x16grid": 158,
+    "stil_percent": 2.47
+  },
+  {
+    "stem": "TCGA-E2-A1LH-01Z-00-DX1.F85384B7-1EBF-4F57-A45B-4A668B68E535_[12404, 13226, 12537, 13358]",
+    "til_count": 8,
+    "total_cells": 13,
+    "stroma_pixels_16x16grid": 253,
+    "stil_percent": 3.07
+  },
+  {
+    "stem": "TCGA-E2-A1LH-01Z-00-DX1.F85384B7-1EBF-4F57-A45B-4A668B68E535_[12525, 13350, 12680, 13496]",
+    "til_count": 7,
+    "total_cells": 16,
+    "stroma_pixels_16x16grid": 150,
+    "stil_percent": 4.46
+  },
+  {
+    "stem": "TCGA-E2-A1LI-01Z-00-DX1.503dd2fa-23ef-4b11-8aab-301e069eaa88_[24410, 9713, 24632, 9939]",
+    "til_count": 27,
+    "total_cells": 40,
+    "stroma_pixels_16x16grid": 145,
+    "stil_percent": 15.7
+  },
+  {
+    "stem": "TCGA-E2-A1LI-01Z-00-DX1.503dd2fa-23ef-4b11-8aab-301e069eaa88_[24499, 11246, 24677, 11423]",
+    "til_count": 1,
+    "total_cells": 28,
+    "stroma_pixels_16x16grid": 251,
+    "stil_percent": 0.4
+  },
+  {
+    "stem": "TCGA-E2-A1LI-01Z-00-DX1.503dd2fa-23ef-4b11-8aab-301e069eaa88_[25815, 9320, 26150, 9628]",
+    "til_count": 15,
+    "total_cells": 50,
+    "stroma_pixels_16x16grid": 175,
+    "stil_percent": 7.89
+  },
+  {
+    "stem": "TCGA-E2-A573-01Z-00-DX1.D6633BC2-524D-4153-952F-6B1D8D067370_[30464, 28570, 30610, 28713]",
+    "til_count": 22,
+    "total_cells": 23,
+    "stroma_pixels_16x16grid": 256,
+    "stil_percent": 7.91
+  },
+  {
+    "stem": "TCGA-E2-A573-01Z-00-DX1.D6633BC2-524D-4153-952F-6B1D8D067370_[31752, 28434, 31900, 28591]",
+    "til_count": 0,
+    "total_cells": 16,
+    "stroma_pixels_16x16grid": 0,
+    "stil_percent": null
+  },
+  {
+    "stem": "TCGA-E2-A574-01Z-00-DX1.60341091-B118-4F20-9ADB-FB2886790B0E_[29138, 26166, 29276, 26303]",
+    "til_count": 35,
+    "total_cells": 35,
+    "stroma_pixels_16x16grid": 256,
+    "stil_percent": 12.03
+  },
+  {
+    "stem": "TCGA-EW-A1P1-01Z-00-DX1.4B670029-4B3B-4D76-8EA4-F4F29EEF9E37_[25411, 20372, 25547, 20539]",
+    "til_count": 0,
+    "total_cells": 6,
+    "stroma_pixels_16x16grid": 139,
+    "stil_percent": 0.0
+  },
+  {
+    "stem": "TCGA-EW-A1P1-01Z-00-DX1.4B670029-4B3B-4D76-8EA4-F4F29EEF9E37_[25539, 20517, 25679, 20654]",
+    "til_count": 0,
+    "total_cells": 5,
+    "stroma_pixels_16x16grid": 189,
+    "stil_percent": 0.0
+  },
+  {
+    "stem": "TCGA-EW-A1P1-01Z-00-DX1.4B670029-4B3B-4D76-8EA4-F4F29EEF9E37_[25923, 20517, 26055, 20657]",
+    "til_count": 0,
+    "total_cells": 10,
+    "stroma_pixels_16x16grid": 253,
+    "stil_percent": 0.0
+  },
+  {
+    "stem": "TCGA-EW-A1P1-01Z-00-DX1.4B670029-4B3B-4D76-8EA4-F4F29EEF9E37_[26296, 19609, 26440, 19755]",
+    "til_count": 45,
+    "total_cells": 47,
+    "stroma_pixels_16x16grid": 256,
+    "stil_percent": 14.95
+  },
+  {
+    "stem": "TCGA-EW-A1P1-01Z-00-DX1.4B670029-4B3B-4D76-8EA4-F4F29EEF9E37_[26307, 19747, 26440, 19889]",
+    "til_count": 42,
+    "total_cells": 43,
+    "stroma_pixels_16x16grid": 256,
+    "stil_percent": 14.09
+  },
+  {
+    "stem": "TCGA-EW-A1P1-01Z-00-DX1.4B670029-4B3B-4D76-8EA4-F4F29EEF9E37_[26688, 20133, 26819, 20273]",
+    "til_count": 2,
+    "total_cells": 7,
+    "stroma_pixels_16x16grid": 256,
+    "stil_percent": 0.78
+  },
+  {
+    "stem": "TCGA-EW-A1P1-01Z-00-DX1.4B670029-4B3B-4D76-8EA4-F4F29EEF9E37_[26811, 21278, 26947, 21429]",
+    "til_count": 0,
+    "total_cells": 1,
+    "stroma_pixels_16x16grid": 256,
+    "stil_percent": 0.0
+  },
+  {
+    "stem": "TCGA-EW-A1P1-01Z-00-DX1.4B670029-4B3B-4D76-8EA4-F4F29EEF9E37_[26942, 19742, 27083, 19893]",
+    "til_count": 7,
+    "total_cells": 13,
+    "stroma_pixels_16x16grid": 256,
+    "stil_percent": 2.66
+  },
+  {
+    "stem": "TCGA-EW-A1P1-01Z-00-DX1.4B670029-4B3B-4D76-8EA4-F4F29EEF9E37_[26947, 19609, 27075, 19754]",
+    "til_count": 11,
+    "total_cells": 23,
+    "stroma_pixels_16x16grid": 256,
+    "stil_percent": 4.12
+  },
+  {
+    "stem": "TCGA-EW-A1P8-01Z-00-DX1.E9852193-8CDD-49EF-B49B-DA6931198F0D_[8510, 14570, 8664, 14739]",
+    "til_count": 13,
+    "total_cells": 37,
+    "stroma_pixels_16x16grid": 111,
+    "stil_percent": 10.48
+  },
+  {
+    "stem": "TCGA-EW-A1P8-01Z-00-DX1.E9852193-8CDD-49EF-B49B-DA6931198F0D_[8521, 14329, 8662, 14482]",
+    "til_count": 0,
+    "total_cells": 21,
+    "stroma_pixels_16x16grid": 184,
+    "stil_percent": 0.0
+  },
+  {
+    "stem": "TCGA-EW-A1P8-01Z-00-DX1.E9852193-8CDD-49EF-B49B-DA6931198F0D_[8648, 14320, 8784, 14480]",
+    "til_count": 6,
+    "total_cells": 18,
+    "stroma_pixels_16x16grid": 235,
+    "stil_percent": 2.49
+  },
+  {
+    "stem": "TCGA-EW-A1P8-01Z-00-DX1.E9852193-8CDD-49EF-B49B-DA6931198F0D_[9030, 13696, 9172, 13836]",
+    "til_count": 0,
+    "total_cells": 17,
+    "stroma_pixels_16x16grid": 65,
+    "stil_percent": 0.0
+  },
+  {
+    "stem": "TCGA-EW-A1P8-01Z-00-DX1.E9852193-8CDD-49EF-B49B-DA6931198F0D_[9672, 14455, 9821, 14613]",
+    "til_count": 1,
+    "total_cells": 28,
+    "stroma_pixels_16x16grid": 85,
+    "stil_percent": 1.16
+  },
+  {
+    "stem": "TCGA-EW-A1PB-01Z-00-DX1.B2E9B88F-C371-4821-9B7B-8A63BB120D95_[29241, 13860, 29377, 14000]",
+    "til_count": 61,
+    "total_cells": 61,
+    "stroma_pixels_16x16grid": 256,
+    "stil_percent": 19.24
+  },
+  {
+    "stem": "TCGA-EW-A1PB-01Z-00-DX1.B2E9B88F-C371-4821-9B7B-8A63BB120D95_[29241, 14999, 29375, 15156]",
+    "til_count": 1,
+    "total_cells": 27,
+    "stroma_pixels_16x16grid": 8,
+    "stil_percent": 11.11
+  },
+  {
+    "stem": "TCGA-EW-A1PB-01Z-00-DX1.B2E9B88F-C371-4821-9B7B-8A63BB120D95_[30005, 15011, 30142, 15146]",
+    "til_count": 5,
+    "total_cells": 11,
+    "stroma_pixels_16x16grid": 110,
+    "stil_percent": 4.35
+  },
+  {
+    "stem": "TCGA-EW-A1PH-01Z-00-DX1.77e0f907-fe59-4dc2-b582-6f10330a9c01_[2486, 28318, 2631, 28465]",
+    "til_count": 30,
+    "total_cells": 30,
+    "stroma_pixels_16x16grid": 256,
+    "stil_percent": 10.49
+  },
+  {
+    "stem": "TCGA-EW-A1PH-01Z-00-DX1.77e0f907-fe59-4dc2-b582-6f10330a9c01_[2747, 28325, 2885, 28461]",
+    "til_count": 28,
+    "total_cells": 28,
+    "stroma_pixels_16x16grid": 256,
+    "stil_percent": 9.86
+  },
+  {
+    "stem": "TCGA-EW-A1PH-01Z-00-DX1.77e0f907-fe59-4dc2-b582-6f10330a9c01_[3512, 28447, 3647, 28586]",
+    "til_count": 0,
+    "total_cells": 16,
+    "stroma_pixels_16x16grid": 25,
+    "stil_percent": 0.0
+  },
+  {
+    "stem": "TCGA-EW-A1PH-01Z-00-DX1.77e0f907-fe59-4dc2-b582-6f10330a9c01_[3773, 26536, 3903, 26673]",
+    "til_count": 0,
+    "total_cells": 13,
+    "stroma_pixels_16x16grid": 11,
+    "stil_percent": 0.0
+  },
+  {
+    "stem": "TCGA-EW-A6SB-01Z-00-DX1.D56E1922-01A9-4AEE-AB95-D69447DD13EE_[18454, 28920, 18603, 29069]",
+    "til_count": 4,
+    "total_cells": 9,
+    "stroma_pixels_16x16grid": 65,
+    "stil_percent": 5.8
+  },
+  {
+    "stem": "TCGA-EW-A6SB-01Z-00-DX1.D56E1922-01A9-4AEE-AB95-D69447DD13EE_[18457, 30592, 18609, 30722]",
+    "til_count": 7,
+    "total_cells": 11,
+    "stroma_pixels_16x16grid": 138,
+    "stil_percent": 4.83
+  },
+  {
+    "stem": "TCGA-EW-A6SB-01Z-00-DX1.D56E1922-01A9-4AEE-AB95-D69447DD13EE_[18461, 29824, 18592, 29962]",
+    "til_count": 14,
+    "total_cells": 17,
+    "stroma_pixels_16x16grid": 86,
+    "stil_percent": 14.0
+  },
+  {
+    "stem": "TCGA-EW-A6SB-01Z-00-DX1.D56E1922-01A9-4AEE-AB95-D69447DD13EE_[18694, 30208, 18867, 30348]",
+    "til_count": 9,
+    "total_cells": 10,
+    "stroma_pixels_16x16grid": 4,
+    "stil_percent": 69.23
+  },
+  {
+    "stem": "TCGA-EW-A6SB-01Z-00-DX1.D56E1922-01A9-4AEE-AB95-D69447DD13EE_[19605, 29939, 19755, 30088]",
+    "til_count": 9,
+    "total_cells": 22,
+    "stroma_pixels_16x16grid": 55,
+    "stil_percent": 14.06
+  },
+  {
+    "stem": "TCGA-GI-A2C9-01Z-00-DX1.90181423-51ED-41FE-9B8F-973A67793D4F_[12116, 6815, 12245, 6947]",
+    "til_count": 0,
+    "total_cells": 18,
+    "stroma_pixels_16x16grid": 115,
+    "stil_percent": 0.0
+  },
+  {
+    "stem": "TCGA-GM-A2DD-01Z-00-DX1.01332FF3-7488-41B7-A515-7841715DE92B_[24525, 11715, 24662, 11849]",
+    "til_count": 4,
+    "total_cells": 6,
+    "stroma_pixels_16x16grid": 256,
+    "stil_percent": 1.54
+  },
+  {
+    "stem": "TCGA-GM-A2DD-01Z-00-DX1.01332FF3-7488-41B7-A515-7841715DE92B_[24772, 12733, 24909, 12868]",
+    "til_count": 0,
+    "total_cells": 14,
+    "stroma_pixels_16x16grid": 125,
+    "stil_percent": 0.0
+  },
+  {
+    "stem": "TCGA-GM-A2DD-01Z-00-DX1.01332FF3-7488-41B7-A515-7841715DE92B_[25165, 12341, 25297, 12483]",
+    "til_count": 3,
+    "total_cells": 6,
+    "stroma_pixels_16x16grid": 232,
+    "stil_percent": 1.28
+  },
+  {
+    "stem": "TCGA-GM-A2DD-01Z-00-DX1.01332FF3-7488-41B7-A515-7841715DE92B_[25545, 12355, 25678, 12492]",
+    "til_count": 4,
+    "total_cells": 8,
+    "stroma_pixels_16x16grid": 256,
+    "stil_percent": 1.54
+  },
+  {
+    "stem": "TCGA-GM-A2DD-01Z-00-DX1.01332FF3-7488-41B7-A515-7841715DE92B_[25677, 11587, 25806, 11719]",
+    "til_count": 8,
+    "total_cells": 12,
+    "stroma_pixels_16x16grid": 256,
+    "stil_percent": 3.03
+  },
+  {
+    "stem": "TCGA-GM-A2DD-01Z-00-DX1.01332FF3-7488-41B7-A515-7841715DE92B_[25920, 12099, 26062, 12242]",
+    "til_count": 2,
+    "total_cells": 13,
+    "stroma_pixels_16x16grid": 256,
+    "stil_percent": 0.78
+  },
+  {
+    "stem": "TCGA-GM-A2DD-01Z-00-DX1.01332FF3-7488-41B7-A515-7841715DE92B_[26701, 11956, 26839, 12127]",
+    "til_count": 0,
+    "total_cells": 16,
+    "stroma_pixels_16x16grid": 0,
+    "stil_percent": null
+  },
+  {
+    "stem": "TCGA-GM-A2DD-01Z-00-DX1.01332FF3-7488-41B7-A515-7841715DE92B_[27597, 13120, 27734, 13255]",
+    "til_count": 1,
+    "total_cells": 16,
+    "stroma_pixels_16x16grid": 0,
+    "stil_percent": 100.0
+  },
+  {
+    "stem": "TCGA-GM-A2DF-01Z-00-DX1.CD0BE6D7-2DB3-4193-84CC-F9BE7BF18CC2_[25822, 22634, 25982, 22789]",
+    "til_count": 2,
+    "total_cells": 18,
+    "stroma_pixels_16x16grid": 59,
+    "stil_percent": 3.28
+  },
+  {
+    "stem": "TCGA-GM-A2DF-01Z-00-DX1.CD0BE6D7-2DB3-4193-84CC-F9BE7BF18CC2_[25939, 22897, 26086, 23047]",
+    "til_count": 0,
+    "total_cells": 21,
+    "stroma_pixels_16x16grid": 19,
+    "stil_percent": 0.0
+  },
+  {
+    "stem": "TCGA-GM-A2DH-01Z-00-DX1.5790F15F-2A0F-4929-8FE4-18A557007989_[25982, 29287, 26124, 29444]",
+    "til_count": 0,
+    "total_cells": 27,
+    "stroma_pixels_16x16grid": 0,
+    "stil_percent": null
+  },
+  {
+    "stem": "TCGA-GM-A2DH-01Z-00-DX1.5790F15F-2A0F-4929-8FE4-18A557007989_[26228, 29549, 26390, 29697]",
+    "til_count": 4,
+    "total_cells": 38,
+    "stroma_pixels_16x16grid": 1,
+    "stil_percent": 80.0
+  },
+  {
+    "stem": "TCGA-GM-A2DH-01Z-00-DX1.5790F15F-2A0F-4929-8FE4-18A557007989_[26496, 29932, 26648, 30084]",
+    "til_count": 3,
+    "total_cells": 30,
+    "stroma_pixels_16x16grid": 48,
+    "stil_percent": 5.88
+  },
+  {
+    "stem": "TCGA-GM-A2DH-01Z-00-DX1.5790F15F-2A0F-4929-8FE4-18A557007989_[27399, 29170, 27533, 29306]",
+    "til_count": 26,
+    "total_cells": 31,
+    "stroma_pixels_16x16grid": 248,
+    "stil_percent": 9.49
+  },
+  {
+    "stem": "TCGA-GM-A2DH-01Z-00-DX1.5790F15F-2A0F-4929-8FE4-18A557007989_[28034, 29303, 28184, 29449]",
+    "til_count": 31,
+    "total_cells": 32,
+    "stroma_pixels_16x16grid": 245,
+    "stil_percent": 11.23
+  },
+  {
+    "stem": "TCGA-GM-A3XL-01Z-00-DX1.CCE8AA1D-9194-4E49-9546-DBF25A35847C_[17121, 8290, 17270, 8436]",
+    "til_count": 9,
+    "total_cells": 22,
+    "stroma_pixels_16x16grid": 234,
+    "stil_percent": 3.7
+  },
+  {
+    "stem": "TCGA-GM-A3XL-01Z-00-DX1.CCE8AA1D-9194-4E49-9546-DBF25A35847C_[17745, 8930, 17904, 9065]",
+    "til_count": 3,
+    "total_cells": 9,
+    "stroma_pixels_16x16grid": 221,
+    "stil_percent": 1.34
+  },
+  {
+    "stem": "TCGA-LL-A441-01Z-00-DX1.33B13078-BB14-4C42-88A6-7460AD2BCD00_[41632, 22057, 41779, 22209]",
+    "til_count": 0,
+    "total_cells": 22,
+    "stroma_pixels_16x16grid": 6,
+    "stil_percent": 0.0
+  },
+  {
+    "stem": "TCGA-LL-A441-01Z-00-DX1.33B13078-BB14-4C42-88A6-7460AD2BCD00_[41758, 22064, 41919, 22212]",
+    "til_count": 0,
+    "total_cells": 23,
+    "stroma_pixels_16x16grid": 0,
+    "stil_percent": null
+  },
+  {
+    "stem": "TCGA-LL-A740-01Z-00-DX1.757D94A5-EF0F-4A0E-99A9-8809B66438DA_[20091, 13297, 20236, 13462]",
+    "til_count": 0,
+    "total_cells": 26,
+    "stroma_pixels_16x16grid": 0,
+    "stil_percent": null
+  },
+  {
+    "stem": "TCGA-OL-A5D6-01Z-00-DX1.6B11331B-4A0D-4E13-B054-A5C7A6FC3AAC_[58314, 20778, 58450, 20930]",
+    "til_count": 0,
+    "total_cells": 5,
+    "stroma_pixels_16x16grid": 0,
+    "stil_percent": null
+  },
+  {
+    "stem": "TCGA-OL-A66I-01Z-00-DX1.8CE9DCAB-98D3-4163-94AC-1557D86C1E25_[10306, 6246, 10381, 6317]",
+    "til_count": 2,
+    "total_cells": 2,
+    "stroma_pixels_16x16grid": 256,
+    "stil_percent": 0.78
+  },
+  {
+    "stem": "TCGA-OL-A66I-01Z-00-DX1.8CE9DCAB-98D3-4163-94AC-1557D86C1E25_[10433, 6050, 10505, 6146]",
+    "til_count": 0,
+    "total_cells": 11,
+    "stroma_pixels_16x16grid": 1,
+    "stil_percent": 0.0
+  },
+  {
+    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[7784, 5710, 7869, 5792]",
+    "til_count": 2,
+    "total_cells": 11,
+    "stroma_pixels_16x16grid": 0,
+    "stil_percent": 100.0
+  },
+  {
+    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[8159, 6087, 8241, 6165]",
+    "til_count": 1,
+    "total_cells": 2,
+    "stroma_pixels_16x16grid": 179,
+    "stil_percent": 0.56
+  },
+  {
+    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[8237, 6094, 8304, 6165]",
+    "til_count": 7,
+    "total_cells": 7,
+    "stroma_pixels_16x16grid": 241,
+    "stil_percent": 2.82
+  },
+  {
+    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[8367, 5702, 8437, 5785]",
+    "til_count": 0,
+    "total_cells": 7,
+    "stroma_pixels_16x16grid": 2,
+    "stil_percent": 0.0
+  },
+  {
+    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[8559, 6609, 8626, 6678]",
+    "til_count": 5,
+    "total_cells": 5,
+    "stroma_pixels_16x16grid": 225,
+    "stil_percent": 2.17
+  },
+  {
+    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[8808, 6607, 8884, 6683]",
+    "til_count": 4,
+    "total_cells": 4,
+    "stroma_pixels_16x16grid": 256,
+    "stil_percent": 1.54
+  },
+  {
+    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[8812, 5459, 8879, 5532]",
+    "til_count": 7,
+    "total_cells": 7,
+    "stroma_pixels_16x16grid": 256,
+    "stil_percent": 2.66
+  },
+  {
+    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[9006, 6159, 9073, 6235]",
+    "til_count": 10,
+    "total_cells": 10,
+    "stroma_pixels_16x16grid": 253,
+    "stil_percent": 3.8
+  },
+  {
+    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[9127, 6158, 9200, 6234]",
+    "til_count": 8,
+    "total_cells": 8,
+    "stroma_pixels_16x16grid": 254,
+    "stil_percent": 3.05
+  },
+  {
+    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[9133, 6029, 9206, 6101]",
+    "til_count": 6,
+    "total_cells": 7,
+    "stroma_pixels_16x16grid": 256,
+    "stil_percent": 2.29
+  },
+  {
+    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[9512, 5650, 9585, 5724]",
+    "til_count": 1,
+    "total_cells": 2,
+    "stroma_pixels_16x16grid": 256,
+    "stil_percent": 0.39
+  },
+  {
+    "stem": "TCGA-OL-A66P-01Z-00-DX1.5ADD0D6D-37C6-4BC9-8C2B-64DB18BE99B3_[9581, 5844, 9656, 5913]",
+    "til_count": 2,
+    "total_cells": 3,
+    "stroma_pixels_16x16grid": 256,
+    "stil_percent": 0.78
+  },
+  {
+    "stem": "TCGA-OL-A6VO-01Z-00-DX1.291D54D6-EBAF-4622-BD42-97AA5997F014_[22281, 48145, 22365, 48216]",
+    "til_count": 2,
+    "total_cells": 2,
+    "stroma_pixels_16x16grid": 256,
+    "stil_percent": 0.78
+  },
+  {
+    "stem": "TCGA-OL-A6VO-01Z-00-DX1.291D54D6-EBAF-4622-BD42-97AA5997F014_[22351, 47756, 22436, 47830]",
+    "til_count": 0,
+    "total_cells": 4,
+    "stroma_pixels_16x16grid": 92,
+    "stil_percent": 0.0
+  },
+  {
+    "stem": "TCGA-OL-A6VO-01Z-00-DX1.291D54D6-EBAF-4622-BD42-97AA5997F014_[22611, 48136, 22683, 48209]",
+    "til_count": 1,
+    "total_cells": 2,
+    "stroma_pixels_16x16grid": 117,
+    "stil_percent": 0.85
+  },
+  {
+    "stem": "TCGA-OL-A6VO-01Z-00-DX1.291D54D6-EBAF-4622-BD42-97AA5997F014_[22616, 47936, 22684, 48024]",
+    "til_count": 3,
+    "total_cells": 5,
+    "stroma_pixels_16x16grid": 256,
+    "stil_percent": 1.16
+  },
+  {
+    "stem": "TCGA-OL-A6VO-01Z-00-DX1.291D54D6-EBAF-4622-BD42-97AA5997F014_[22671, 47499, 22751, 47582]",
+    "til_count": 0,
+    "total_cells": 12,
+    "stroma_pixels_16x16grid": 26,
+    "stil_percent": 0.0
+  },
+  {
+    "stem": "TCGA-OL-A6VO-01Z-00-DX1.291D54D6-EBAF-4622-BD42-97AA5997F014_[22675, 48333, 22750, 48403]",
+    "til_count": 1,
+    "total_cells": 1,
+    "stroma_pixels_16x16grid": 242,
+    "stil_percent": 0.41
+  },
+  {
+    "stem": "TCGA-OL-A6VO-01Z-00-DX1.291D54D6-EBAF-4622-BD42-97AA5997F014_[22851, 47500, 22943, 47577]",
+    "til_count": 0,
+    "total_cells": 10,
+    "stroma_pixels_16x16grid": 45,
+    "stil_percent": 0.0
+  },
+  {
+    "stem": "TCGA-OL-A6VO-01Z-00-DX1.291D54D6-EBAF-4622-BD42-97AA5997F014_[22865, 47879, 22936, 47959]",
+    "til_count": 6,
+    "total_cells": 6,
+    "stroma_pixels_16x16grid": 224,
+    "stil_percent": 2.61
+  },
+  {
+    "stem": "TCGA-OL-A6VO-01Z-00-DX1.291D54D6-EBAF-4622-BD42-97AA5997F014_[23123, 47818, 23196, 47893]",
+    "til_count": 2,
+    "total_cells": 2,
+    "stroma_pixels_16x16grid": 256,
+    "stil_percent": 0.78
+  },
+  {
+    "stem": "TCGA-OL-A6VO-01Z-00-DX1.291D54D6-EBAF-4622-BD42-97AA5997F014_[23241, 47619, 23320, 47697]",
+    "til_count": 7,
+    "total_cells": 7,
+    "stroma_pixels_16x16grid": 245,
+    "stil_percent": 2.78
+  },
+  {
+    "stem": "TCGA-OL-A6VO-01Z-00-DX1.291D54D6-EBAF-4622-BD42-97AA5997F014_[23251, 47498, 23326, 47573]",
+    "til_count": 4,
+    "total_cells": 4,
+    "stroma_pixels_16x16grid": 256,
+    "stil_percent": 1.54
+  },
+  {
+    "stem": "TCGA-OL-A6VO-01Z-00-DX1.291D54D6-EBAF-4622-BD42-97AA5997F014_[23319, 47563, 23386, 47635]",
+    "til_count": 3,
+    "total_cells": 4,
+    "stroma_pixels_16x16grid": 256,
+    "stil_percent": 1.16
+  },
+  {
+    "stem": "TCGA-S3-AA10-01Z-00-DX1.C0468882-0DD8-4FC5-8C2F-E18BE8000F69_[22031, 13016, 22174, 13158]",
+    "til_count": 18,
+    "total_cells": 19,
+    "stroma_pixels_16x16grid": 256,
+    "stil_percent": 6.57
+  },
+  {
+    "stem": "TCGA-S3-AA10-01Z-00-DX1.C0468882-0DD8-4FC5-8C2F-E18BE8000F69_[22146, 12245, 22295, 12377]",
+    "til_count": 6,
+    "total_cells": 7,
+    "stroma_pixels_16x16grid": 66,
+    "stil_percent": 8.33
+  },
+  {
+    "stem": "TCGA-S3-AA10-01Z-00-DX1.C0468882-0DD8-4FC5-8C2F-E18BE8000F69_[22280, 12630, 22415, 12765]",
+    "til_count": 15,
+    "total_cells": 19,
+    "stroma_pixels_16x16grid": 199,
+    "stil_percent": 7.01
+  },
+  {
+    "stem": "TCGA-S3-AA10-01Z-00-DX1.C0468882-0DD8-4FC5-8C2F-E18BE8000F69_[22410, 12499, 22549, 12637]",
+    "til_count": 0,
+    "total_cells": 13,
+    "stroma_pixels_16x16grid": 58,
+    "stil_percent": 0.0
+  },
+  {
+    "stem": "TCGA-S3-AA10-01Z-00-DX1.C0468882-0DD8-4FC5-8C2F-E18BE8000F69_[22927, 12489, 23062, 12643]",
+    "til_count": 1,
+    "total_cells": 16,
+    "stroma_pixels_16x16grid": 0,
+    "stil_percent": 100.0
+  },
+  {
+    "stem": "TCGA-S3-AA15-01Z-00-DX1.A2456A4A-E6E8-4429-8F09-B997AA497BB0_[27998, 14711, 28133, 14865]",
+    "til_count": 8,
+    "total_cells": 13,
+    "stroma_pixels_16x16grid": 34,
+    "stil_percent": 19.05
+  },
+  {
+    "stem": "TCGA-S3-AA15-01Z-00-DX1.A2456A4A-E6E8-4429-8F09-B997AA497BB0_[28117, 14843, 28260, 14991]",
+    "til_count": 3,
+    "total_cells": 17,
+    "stroma_pixels_16x16grid": 28,
+    "stil_percent": 9.68
+  },
+  {
+    "stem": "TCGA-S3-AA15-01Z-00-DX1.A2456A4A-E6E8-4429-8F09-B997AA497BB0_[28372, 14968, 28525, 15111]",
+    "til_count": 5,
+    "total_cells": 30,
+    "stroma_pixels_16x16grid": 141,
+    "stil_percent": 3.42
+  },
+  {
+    "stem": "TCGA-S3-AA15-01Z-00-DX1.A2456A4A-E6E8-4429-8F09-B997AA497BB0_[28629, 14972, 28772, 15114]",
+    "til_count": 1,
+    "total_cells": 15,
+    "stroma_pixels_16x16grid": 91,
+    "stil_percent": 1.09
+  },
+  {
+    "stem": "TC_S01_P000013_C0001_B204_[70375, 112538, 71362, 113525]",
+    "til_count": 18,
+    "total_cells": 811,
+    "stroma_pixels_16x16grid": 131,
+    "stil_percent": 12.08
+  },
+  {
+    "stem": "TC_S01_P000016_C0001_B205_[72650, 17557, 73724, 18522]",
+    "til_count": 6,
+    "total_cells": 103,
+    "stroma_pixels_16x16grid": 15,
+    "stil_percent": 28.57
+  },
+  {
+    "stem": "TC_S01_P000046_C0001_B101_[112560, 54186, 113723, 55282]",
+    "til_count": 12,
+    "total_cells": 1088,
+    "stroma_pixels_16x16grid": 82,
+    "stil_percent": 12.77
+  },
+  {
+    "stem": "TC_S01_P000147_C0001_B104_[23485, 67614, 24676, 68722]",
+    "til_count": 6,
+    "total_cells": 1255,
+    "stroma_pixels_16x16grid": 96,
+    "stil_percent": 5.88
+  },
+  {
+    "stem": "TC_S01_P000158_C0001_B101_[102793, 79018, 104054, 80142]",
+    "til_count": 39,
+    "total_cells": 477,
+    "stroma_pixels_16x16grid": 0,
+    "stil_percent": 100.0
+  },
+  {
+    "stem": "TC_S01_P000158_C0001_B101_[103602, 82756, 104838, 83891]",
+    "til_count": 29,
+    "total_cells": 1854,
+    "stroma_pixels_16x16grid": 130,
+    "stil_percent": 18.24
+  },
+  {
+    "stem": "TC_S01_P000183_C0001_B101_[102763, 86656, 104059, 87868]",
+    "til_count": 15,
+    "total_cells": 1379,
+    "stroma_pixels_16x16grid": 146,
+    "stil_percent": 9.32
+  },
+  {
+    "stem": "TC_S01_P000183_C0001_B101_[112201, 88004, 113409, 89133]",
+    "til_count": 32,
+    "total_cells": 1044,
+    "stroma_pixels_16x16grid": 107,
+    "stil_percent": 23.02
   }
 ]
