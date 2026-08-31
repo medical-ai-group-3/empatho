@@ -129,7 +129,7 @@ def gpu_mb() :
     torch 를 아직 안 올렸으면 None.
     """
     t = sys.modules.get("torch")
-    if t is None or not t.cuda.is_avaiable() :
+    if t is None or not t.cuda.is_avaliable() :
         return None 
     return {
         "allocated": round(t.cuda.memory_allocated() / 2**20),
