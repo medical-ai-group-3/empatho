@@ -154,6 +154,10 @@ def main():
                     default=os.path.expanduser("~/data/tiger/tissue_segmentation/val/images"))
     ap.add_argument("--til_threshold", type=float, default=0.5)
     ap.add_argument("--mpp", type=float, default=0.5, help="µm/px (TIGER tissue-cells crop ≈ 0.5)")
+    ap.add_argument("--nc_ratio", type=float, default=1.5,
+                    help="핵→세포 면적 보정계수 (세포면적 / 핵면적). CellViT 는 핵을 분할하지만 "
+                         "WG sTIL 은 세포가 차지하는 면적 기준. 소림프구 세포지름≈8µm / 핵지름≈6.5µm "
+                         "(표준 조직학 참고치) -> (8/6.5)^2 ≈ 1.5. 형질세포 비중이 크면 상향(~2.0).")
     ap.add_argument("--batch_size", type=int, default=4)
     ap.add_argument("--outdir", type=str,
                     default=os.path.join(os.path.dirname(os.path.abspath(__file__)), "stil_results"))
@@ -192,12 +196,14 @@ def main():
         immune = [c for c in cells if c["p_til"] >= args.til_threshold]
         intra = [c for c in immune
                  if mask[min(int(c["cy"]), H - 1), min(int(c["cx"]), W - 1)] == STROMA_CLASS_IDX]
-        immune_area_px = float(sum(c["area_px"] for c in intra))
+        immune_nuc_px = float(sum(c["area_px"] for c in intra))   # 핵 면적 합
+        immune_cell_px = immune_nuc_px * args.nc_ratio            # 세포 면적 보정
 
         all_areas_px += [c["area_px"] for c in cells]
         all_areas_px_til += [c["area_px"] for c in immune]
 
-        stil_std = (immune_area_px / stroma_area_px * 100) if stroma_area_px > 0 else None
+        stroma_ok = stroma_area_px > 0
+        stil_std = (immune_cell_px / stroma_area_px * 100) if stroma_ok else None
         legacy = (len(immune) / (len(immune) + stroma_16grid) * 100) if (len(immune) + stroma_16grid) > 0 else None
 
         results.append({
@@ -206,10 +212,13 @@ def main():
             "n_cells": len(cells),
             "til_count": len(immune),
             "til_count_stromal": len(intra),
+            "stroma_status": "ok" if stroma_ok else "absent",
             "stroma_area_px": stroma_area_px,
             "stroma_area_um2": round(stroma_area_px * args.mpp ** 2, 1),
-            "immune_area_px": round(immune_area_px, 1),
-            "immune_area_um2": round(immune_area_px * args.mpp ** 2, 1),
+            "immune_nucleus_area_px": round(immune_nuc_px, 1),
+            "immune_cell_area_px": round(immune_cell_px, 1),
+            "immune_cell_area_um2": round(immune_cell_px * args.mpp ** 2, 1),
+            "nc_ratio": args.nc_ratio,
             "stil_percent": round(stil_std, 2) if stil_std is not None else None,
             "legacy_stil_percent": round(legacy, 2) if legacy is not None else None,
         })
@@ -221,6 +230,11 @@ def main():
 
     out_path = Path(args.outdir) / "stil_demo_results.json"
     json.dump(results, open(out_path, "w"), ensure_ascii=False, indent=2)
+
+    n_absent = sum(1 for r in results if r["stroma_status"] == "absent")
+    print(f"\n간질 미검출(stroma_status=absent, sTIL 산출 불가): {n_absent}/{len(results)} "
+          f"({n_absent / len(results) * 100:.0f}%)  -- 슬라이드 단위 집계 시 분자·분모 모두에서 제외")
+    print(f"보정계수 nc_ratio = {args.nc_ratio} (핵면적 -> 세포면적)")
 
     # ---- contour 면적 sanity check ----
     a = np.array([x for x in all_areas_px if x > 0])
