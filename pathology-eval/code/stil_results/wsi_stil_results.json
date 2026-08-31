@@ -1,0 +1,257 @@
+[
+  {
+    "stem": "108S",
+    "level0_wh": [
+      41664,
+      42752
+    ],
+    "mpp": 0.4567,
+    "n_tissue_tiles": 2736,
+    "n_sampled": 600,
+    "n_stroma_tiles": 592,
+    "n_intra_stromal_immune": 8547,
+    "sum_stroma_px": 89147392,
+    "sum_immune_nucleus_px": 834068.5,
+    "slide_stil_nucleus": 0.936,
+    "slide_stil": 1.403,
+    "gt_tils_score": 30
+  },
+  {
+    "stem": "121S",
+    "level0_wh": [
+      35712,
+      36224
+    ],
+    "mpp": 0.4567,
+    "n_tissue_tiles": 760,
+    "n_sampled": 600,
+    "n_stroma_tiles": 546,
+    "n_intra_stromal_immune": 10802,
+    "sum_stroma_px": 71378944,
+    "sum_immune_nucleus_px": 1071887.0,
+    "slide_stil_nucleus": 1.502,
+    "slide_stil": 2.253,
+    "gt_tils_score": 5
+  },
+  {
+    "stem": "123S",
+    "level0_wh": [
+      33728,
+      26240
+    ],
+    "mpp": 0.4567,
+    "n_tissue_tiles": 656,
+    "n_sampled": 600,
+    "n_stroma_tiles": 435,
+    "n_intra_stromal_immune": 12226,
+    "sum_stroma_px": 53616640,
+    "sum_immune_nucleus_px": 1055454.0,
+    "slide_stil_nucleus": 1.969,
+    "slide_stil": 2.953,
+    "gt_tils_score": 60
+  },
+  {
+    "stem": "126B",
+    "level0_wh": [
+      101184,
+      35584
+    ],
+    "mpp": 0.4567,
+    "n_tissue_tiles": 1245,
+    "n_sampled": 600,
+    "n_stroma_tiles": 415,
+    "n_intra_stromal_immune": 10950,
+    "sum_stroma_px": 39177216,
+    "sum_immune_nucleus_px": 929955.5,
+    "slide_stil_nucleus": 2.374,
+    "slide_stil": 3.561,
+    "gt_tils_score": 10
+  },
+  {
+    "stem": "139B",
+    "level0_wh": [
+      77376,
+      28800
+    ],
+    "mpp": 0.4567,
+    "n_tissue_tiles": 941,
+    "n_sampled": 600,
+    "n_stroma_tiles": 492,
+    "n_intra_stromal_immune": 33402,
+    "sum_stroma_px": 47915008,
+    "sum_immune_nucleus_px": 3114508.0,
+    "slide_stil_nucleus": 6.5,
+    "slide_stil": 9.75,
+    "gt_tils_score": 40
+  },
+  {
+    "stem": "155B",
+    "level0_wh": [
+      79360,
+      42880
+    ],
+    "mpp": 0.4567,
+    "n_tissue_tiles": 1820,
+    "n_sampled": 600,
+    "n_stroma_tiles": 572,
+    "n_intra_stromal_immune": 5950,
+    "sum_stroma_px": 101266432,
+    "sum_immune_nucleus_px": 626138.5,
+    "slide_stil_nucleus": 0.618,
+    "slide_stil": 0.927,
+    "gt_tils_score": 3
+  },
+  {
+    "stem": "160B",
+    "level0_wh": [
+      87296,
+      36352
+    ],
+    "mpp": 0.4567,
+    "n_tissue_tiles": 2747,
+    "n_sampled": 600,
+    "n_stroma_tiles": 553,
+    "n_intra_stromal_immune": 23675,
+    "sum_stroma_px": 74144768,
+    "sum_immune_nucleus_px": 2489493.5,
+    "slide_stil_nucleus": 3.358,
+    "slide_stil": 5.036,
+    "gt_tils_score": 75
+  },
+  {
+    "stem": "162S",
+    "level0_wh": [
+      43648,
+      35840
+    ],
+    "mpp": 0.4567,
+    "n_tissue_tiles": 862,
+    "n_sampled": 600,
+    "n_stroma_tiles": 586,
+    "n_intra_stromal_immune": 26922,
+    "sum_stroma_px": 81540096,
+    "sum_immune_nucleus_px": 2400972.5,
+    "slide_stil_nucleus": 2.945,
+    "slide_stil": 4.417,
+    "gt_tils_score": 50
+  },
+  {
+    "stem": "174S",
+    "level0_wh": [
+      57536,
+      45184
+    ],
+    "mpp": 0.4567,
+    "n_tissue_tiles": 2194,
+    "n_sampled": 600,
+    "n_stroma_tiles": 572,
+    "n_intra_stromal_immune": 48425,
+    "sum_stroma_px": 80204800,
+    "sum_immune_nucleus_px": 4444311.5,
+    "slide_stil_nucleus": 5.541,
+    "slide_stil": 8.312,
+    "gt_tils_score": 85
+  },
+  {
+    "stem": "208B",
+    "level0_wh": [
+      75392,
+      20992
+    ],
+    "mpp": 0.4567,
+    "n_tissue_tiles": 637,
+    "n_sampled": 600,
+    "n_stroma_tiles": 532,
+    "n_intra_stromal_immune": 2720,
+    "sum_stroma_px": 74435584,
+    "sum_immune_nucleus_px": 264080.5,
+    "slide_stil_nucleus": 0.355,
+    "slide_stil": 0.532,
+    "gt_tils_score": 1
+  },
+  {
+    "stem": "211B",
+    "level0_wh": [
+      71424,
+      40192
+    ],
+    "mpp": 0.4567,
+    "n_tissue_tiles": 1633,
+    "n_sampled": 600,
+    "n_stroma_tiles": 570,
+    "n_intra_stromal_immune": 30079,
+    "sum_stroma_px": 87373824,
+    "sum_immune_nucleus_px": 3482315.0,
+    "slide_stil_nucleus": 3.986,
+    "slide_stil": 5.978,
+    "gt_tils_score": 20
+  },
+  {
+    "stem": "224B",
+    "level0_wh": [
+      95232,
+      30848
+    ],
+    "mpp": 0.4567,
+    "n_tissue_tiles": 2735,
+    "n_sampled": 600,
+    "n_stroma_tiles": 584,
+    "n_intra_stromal_immune": 11336,
+    "sum_stroma_px": 83671040,
+    "sum_immune_nucleus_px": 1121161.5,
+    "slide_stil_nucleus": 1.34,
+    "slide_stil": 2.01,
+    "gt_tils_score": 40
+  },
+  {
+    "stem": "227S",
+    "level0_wh": [
+      65472,
+      43648
+    ],
+    "mpp": 0.4567,
+    "n_tissue_tiles": 2137,
+    "n_sampled": 600,
+    "n_stroma_tiles": 576,
+    "n_intra_stromal_immune": 62654,
+    "sum_stroma_px": 78636032,
+    "sum_immune_nucleus_px": 6441104.5,
+    "slide_stil_nucleus": 8.191,
+    "slide_stil": 12.287,
+    "gt_tils_score": 95
+  },
+  {
+    "stem": "244B",
+    "level0_wh": [
+      21824,
+      20096
+    ],
+    "mpp": 0.4567,
+    "n_tissue_tiles": 18,
+    "n_sampled": 18,
+    "n_stroma_tiles": 18,
+    "n_intra_stromal_immune": 90,
+    "sum_stroma_px": 2400256,
+    "sum_immune_nucleus_px": 7071.0,
+    "slide_stil_nucleus": 0.295,
+    "slide_stil": 0.442,
+    "gt_tils_score": 1
+  },
+  {
+    "stem": "247B",
+    "level0_wh": [
+      99200,
+      32000
+    ],
+    "mpp": 0.4567,
+    "n_tissue_tiles": 2225,
+    "n_sampled": 600,
+    "n_stroma_tiles": 527,
+    "n_intra_stromal_immune": 10933,
+    "sum_stroma_px": 65776640,
+    "sum_immune_nucleus_px": 1122738.0,
+    "slide_stil_nucleus": 1.707,
+    "slide_stil": 2.56,
+    "gt_tils_score": 10
+  }
+]
