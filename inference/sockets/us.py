@@ -115,13 +115,22 @@ def _unload() -> None :
     torch.cude.empty_cache() 
     
 def _reaper() -> None:
-    """유휴 시간이 지나면 자동으로 모델을 내림, 판독 중에는 락을 들고있기 때문에 기다림"""
-    while True :
+    """유휴 시간이 지나면 프로세스를 끝낸다. supervisor 의 autorestart 가 다시 띄운다.
+
+    프로세스 안에서 내리는 것으로는 GPU 메모리가 돌아오지 않는다 — 실측에서
+    empty_cache() 후에도 reserved 6,156 MiB 가 남았다. PyTorch 캐싱 할당자가
+    OS 에 반환하지 않기 때문이다. 프로세스가 죽으면 전부 회수된다.
+
+    락을 쥐고 확인하므로 판독 도중에는 끝나지 않는다. 유휴 상태이므로
+    끊길 요청도 없다. healthz 가 재시작 몇 초간 끊긴다.
+    """
+    while True : 
         time.sleep(_REAP_EVERY)
-        with _LOCK: 
+        with _LOCK:
             if _STATE and time.time() - _LAST["t"] > KEEP_ALIVE:
-                _unload() 
-                
+                os._exit(0)
+            
+        
 def gpu_mb() :
     """이 프로세스가 잡고 있는 GPU 메모리(MiB). 언로드가 실제로 회수하는지 재는 계기다.
 
