@@ -69,6 +69,7 @@ def healthz():
         "thresholds_version": thresholds_version(),
         "load_us": us.ENABLED,
         "loaded": ["us"] if us.is_loaded() else [],
+        "us_gpu": us.gpu_mb(), 
         "load_errors": {"us": us.error()} if us.error() else {},
         "sockets": {
             sid: {"state": socket_state(b, req), "desc": d}
@@ -113,8 +114,18 @@ async def analyze(socket_id: str, image: UploadFile = File(...)):
         
     # GPU 는 직렬이고 워커도 1개라, 여기서 이벤트 루프를 잡고 있는 것이
     # 그대로 요청 큐가 된다. 한 장에 약 420ms.
-    # over 는 thresholds.yaml 이 덮어쓰는 값. 비어 있으면 번들 기본값을 쓴다.
-    result = us.predict(Image.open(io.BytesIO(data)), **(THRESHOLDS.get("us") or {}))
+    # over 는 thresholds.yaml 이 덮어쓰는 값. 비어 있으면 번들 기본값을 쓴다.    
+    try: 
+        result = us.predict(Image.open(io.BytesIO(data)), **(THRESHOLDS.get("us") or {}))
+    # 판독 실패도 기권이다. GPU 가 모자라면 지금 못 할 뿐 코드가 틀린 게 아니고,
+    # 500 을 내면 앱 서버가 판독을 오류로 처리하고 배포까지 롤백된다.
+    except Exception as exc :
+        return {
+            "socket_id": socket_id,
+            "abstained": True, 
+            "reason": f"predict_failed : {type(exc).__name__}: {exc}",
+            "image": info, 
+        }
     
     return {
         "socket_id": socket_id,

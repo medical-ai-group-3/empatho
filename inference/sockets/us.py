@@ -12,6 +12,8 @@ import sys
 import threading
 
 import yaml
+import gc 
+import time 
 
 MODEL_ROOT = pathlib.Path(os.getenv("MODEL_ROOT", "/models"))
 US_DIR = MODEL_ROOT / "us"
@@ -21,6 +23,12 @@ SOCKET_IDS = {"4", "5"}
 
 # 적재 허용 스위치, 켜져 있어도 첫 요청이 올 때까지는 gpu를 쓰지 않는다 
 ENABLED = os.getenv("LOAD_US", "0") == "1"
+
+# 유휴 시 모델을 내린다. Ollama 의 KEEP_ALIVE 와 같은 취지 — 공유 GPU 라
+# 안 쓰는 동안 물고 있으면 안 된다. 0 이면 내리지 않는다.
+KEEP_ALIVE = int(os.getenv("US_KEEP_ALIVE", "300"))
+_REAP_EVERY = 30
+_LAST = {"t": 0.0}
 
 # 있어야 하는 파일 - MODEL_ROOT 기준, 셋은 같은 학습 회차에서 나온 짝이어야한다 
 REQUIRED_SEG = [
@@ -90,10 +98,46 @@ def ensure() -> None:
             return 
         try: 
             _STATE.update(_load())
+            _LAST["t"] = time.time() # 올리자마자 자동으로 수거되지 않게 추가
             _ERROR.clear()
         except Exception as exc: 
             _ERROR["msg"] = f"{type(exc).__name__}: {exc}"
-            
+
+def _unload() -> None :
+    """모델을 내린다. 호출부가 _LOCK 을 쥐고 있어야 한다.
+
+    PyTorch 가 캐시에 파편을 남길 수 있다. 완전히 회수되는지는 실측해야
+    알 수 있어서 gpu_mb() 로 확인할 수 있게 해 뒀다.
+    """
+    import torch 
+    _STATE.clear() 
+    gc.collect() 
+    torch.cude.empty_cache() 
+    
+def _reaper() -> None:
+    """유휴 시간이 지나면 자동으로 모델을 내림, 판독 중에는 락을 들고있기 때문에 기다림"""
+    while True :
+        time.sleep(_REAP_EVERY)
+        with _LOCK: 
+            if _STATE and time.time() - _LAST["t"] > KEEP_ALIVE:
+                _unload() 
+                
+def gpu_mb() :
+    """이 프로세스가 잡고 있는 GPU 메모리(MiB). 언로드가 실제로 회수하는지 재는 계기다.
+
+    reserved 가 PyTorch 캐시까지 포함한 값이라 이쪽을 봐야 한다.
+    torch 를 아직 안 올렸으면 None.
+    """
+    t = sys.modules.get("torch")
+    if t is None or not t.cuda.is_avaiable() :
+        return None 
+    return {
+        "allocated": round(t.cuda.memory_allocated() / 2**20),
+        "reserved": round(t.cuda.memory_reserved() / 2**20),
+    }
+if KEEP_ALIVE:
+    threading.Thread(target=_reaper, daemon=True).start() 
+
 def is_loaded() -> bool :
     return bool(_STATE)
 
@@ -117,6 +161,10 @@ def predict(image, **over) -> dict:
     _mask 는 numpy 배열이라 JSON 으로 못 나간다. 화면에 그릴 좌표는
     result["polygons"] 에 따로 있어서 버려도 정보가 줄지 않는다.
     """
-    result = _STATE["predict"](_STATE["bundle"], image, **over)
+    with _LOCK:
+        if not _STATE: 
+            raise RuntimeError('모델이 내려감')
+        _LAST["t"] = time.time() 
+        result = _STATE["predict"](_STATE["bundle"], image, **over)
     result.pop("_mask", None)
     return result
