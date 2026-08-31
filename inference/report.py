@@ -38,6 +38,18 @@ def _ask(system: str, prompt:str, schema:dict, timeout:int = 100) -> dict:
     with urllib.request.urlopen(req, timeout=timeout) as r:
         return json.loads(json.loads(r.read())["response"])
     
+def _done(socket_id: str, p, text:str, fallback): 
+    """fallback 이 None 이면 모델이 쓴 것, 아니면 코드가 만든 뼈대"""
+    return {
+        "socket_id": socket_id, 
+        "abstained": False, 
+        "소견": text, 
+        "model_name": None if fallback else MODEL, 
+        "prompt_version": p.VERSION, 
+        "fallback": fallback,
+    }
+    
+    
 @app.get("/healthz")
 def healthz() :
     try : 
@@ -57,18 +69,21 @@ def report(socket_id: str, result: dict):
     p = PROMPTS.get(socket_id)
     if p is None:
         return {"socket_id": socket_id, "abstained": True, "reason":"unkonwn_socket"}
+    
+    fact_lines = p.facts(result) 
+    note_lines = p.notes(result)
+    skeleton = " ".join(fact_lines + note_lines)
+    
     try:
         out = _ask(p.SYSTEM, p.build(result), p.SCHEMA)
+        text = (out.get("소견") or "").strip()
     except Exception as exc:
-        return {
-            "socket_id": socket_id, 
-            "abstained": True,
-            "reason": f"llm_failed: {type(exc).__name__}: {exc}",
-        }
-    return {
-        "socket_id": socket_id,
-        "abstained": False,
-        "model_name": MODEL,
-        "prompt_version": p.VERSION,
-        **out,
-    }
+        # 모델이 없어도 리포트는 나간다. 뼈대는 완성된 문장이다 
+        return _done(socket_id, p, skeleton, f"llm_failed: {type(exc).__name__}")
+    
+    missing = [n for n in p.numbers(result) if n not in text]
+    if missing: 
+        # 모델이 수치를 바꿨다. 그 출력은 버린다. 
+        return  _done(socket_id, p, skeleton, "numbers_changed: "+",".join(missing))
+    
+    return _done(socket_id, p, text, None)

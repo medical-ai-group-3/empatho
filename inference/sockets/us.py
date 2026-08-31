@@ -26,7 +26,7 @@ ENABLED = os.getenv("LOAD_US", "0") == "1"
 
 # 유휴 시 모델을 내린다. Ollama 의 KEEP_ALIVE 와 같은 취지 — 공유 GPU 라
 # 안 쓰는 동안 물고 있으면 안 된다. 0 이면 내리지 않는다.
-KEEP_ALIVE = int(os.getenv("US_KEEP_ALIVE", "300"))
+KEEP_ALIVE = int(os.getenv("US_KEEP_ALIVE", "60"))
 _REAP_EVERY = 30
 _LAST = {"t": 0.0}
 

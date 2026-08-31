@@ -1,60 +1,87 @@
-"""초음파(소켓 4·5) 판독 결과 → 소견 문장.
+"""초음파(소켓 4·5) 판독 결과 → 소견문.
 
-용어와 표기 규칙은 models/us/README.md 의 「화면 표기 규칙」에서 가져왔다.
-생성 모델은 막지 않으면 근거 없는 해석을 덧붙인다 — 시험에서 solidity 를
-'밀도'로, '가로로 긴 병변'을 '세로로 긴'으로 옮기는 것을 확인했다.
+수치와 판단은 코드가 문장으로 만든다. 모델은 그것을 읽기 좋게 엮기만 한다.
+모델에게 수치를 맡겼더니 볼록성 0.914 를 97% 로, 63.9px 를 81.3mm 로
+바꿔 쓰는 것을 확인했다. 오류가 아니라 그럴듯한 문장으로 나오므로 위험하다.
+
+AI 의 판단은 이미 판독 결과 안에 있다 — 등급·확신도·마스크 신뢰도가 그것이다.
+MedGemma 가 따로 소견을 내면 이 영상을 보지 않은 두 번째 의견이 된다.
 """
-import json 
 
-VERSION = "us-2026-08-31.a"
+VERSION = "us-2026-08-31.b"
 
 SOCKET_IDS = {"4", "5"}
 
-# 레포트 작성규칙
-SYSTEM = """유방 초음파 판독 결과를 의사가 읽을 소견문으로 옮긴다.
 
-용어는 아래를 그대로 쓴다. 다르게 바꾸지 않는다.
-  max_diameter_px        최대 직경
-  height_width_ratio     종횡비
-  solidity               볼록성
-  boundary_irregularity  경계 요철도
-  circularity            원형도
+def facts(r: dict) -> list[str]:
+    """수치와 판단을 사실 문장으로. 여기서 나온 숫자는 틀릴 수 없다."""
+    if not r.get("lesion_found"):
+        return ["병변이 검출되지 않았습니다."]
+
+    s = r.get("shape") or {}
+    g = r.get("grade") or {}
+    return [
+        "병변이 검출되었습니다.",
+        f"최대 직경 {s.get('max_diameter_px')}px, 면적 {s.get('area_px')}px 입니다.",
+        f"종횡비 {s.get('height_width_ratio')}, 볼록성 {s.get('solidity')}, "
+        f"경계 요철도 {s.get('boundary_irregularity')}, "
+        f"원형도 {s.get('circularity')} 입니다.",
+        f"{r.get('orientation_label')}입니다.",
+        f"BI-RADS {g.get('display')} 이며 등급 확신도는 {g.get('confidence')} 입니다.",
+        f"마스크 신뢰도는 {(r.get('mask_reliability') or {}).get('level')} 입니다.",
+    ]
+
+
+def notes(r: dict) -> list[str]:
+    """주의사항. 학습 쪽 문서에 근거가 있는 것만 넣는다."""
+    g = r.get("grade") or {}
+    mr = r.get("mask_reliability") or {}
+    poly = r.get("polygons") or {}
+    out = []
+
+    if g.get("value") in (3, 4):
+        out.append("중간 등급에서는 등급 확신도가 '높음'으로 나오지 않습니다. "
+                   "CORAL 구조상 그러하며 판정 오류가 아닙니다.")
+    if g.get("is_range"):
+        out.append("등급은 구간으로 표기됩니다. 단일 등급으로 좁히지 마십시오.")
+    if mr.get("dim_shape_metrics"):
+        out.append("마스크가 부정확할 수 있어 형태 지표는 참고용으로만 보십시오.")
+    if (poly.get("n_components") or 1) > 1:
+        out.append(f"마스크가 {poly['n_components']}조각으로 나뉘었습니다.")
+
+    out.append("크기는 픽셀 단위이며 밀리미터가 아닙니다.")
+    out.append("최종 판정은 의사가 합니다.")
+    return out
+
+
+def numbers(r: dict) -> list[str]:
+    """소견에 그대로 남아 있어야 하는 값. 하나라도 없으면 모델 출력을 버린다."""
+    s = r.get("shape") or {}
+    g = r.get("grade") or {}
+    vals = [g.get("display")]
+    if r.get("lesion_found"):
+        vals += [s.get("max_diameter_px"), s.get("area_px"),
+                 s.get("height_width_ratio"), s.get("solidity"),
+                 s.get("boundary_irregularity"), s.get("circularity")]
+    return [str(v) for v in vals if v is not None]
+
+
+SYSTEM = """아래 문장들을 하나의 자연스러운 소견문으로 엮는다.
 
 지킬 것
-  주어진 수치만 쓴다. 없는 소견을 만들지 않는다.
-  등급은 grade.display 를 그대로 쓴다. 구간 표기를 단일 등급으로 바꾸지 않는다.
-  크기 뒤에 px 를 붙인다. mm 로 환산하지 않는다.
-  orientation_label 은 주어진 문구를 그대로 쓴다.
-  수치를 해석하지 않는다. '불규칙한 경계' 같은 서술어를 만들지 않는다.
-  악성 여부를 단정하지 않는다. 최종 판정은 의사가 한다."""
-  
-# 출력을 JSON 으로 강제한다. 이 모델은 그냥 두면 추론 과정을 본문으로 길게
-# 뱉는다 — 시험에서 1,746 토큰 중 대부분이 그것이었다. 스키마를 주면 사라진다.
-# 등급을 별도 필드로 둔 이유는, 소견 하나만 요구했더니 등급이 빠졌기 때문이다.
+  문장에 있는 숫자를 그대로 옮긴다. 바꾸거나 단위를 환산하지 않는다.
+  주어진 문장에 없는 내용을 보태지 않는다.
+  수치가 무엇을 뜻하는지 해석하지 않는다.
+  악성 여부를 말하지 않는다.
+  존댓말로 쓴다."""
+
 SCHEMA = {
     "type": "object",
-    "properties": {
-        "소견": {"type": "string"},
-        "등급": {"type": "string"},
-    },
-    "required": ["소견", "등급"],
+    "properties": {"소견": {"type": "string"}},
+    "required": ["소견"],
 }
 
-def build(result: dict) -> str: 
-    """모델에 넘길 부분만 추린다.
-    malignancy 는 아예 빼서 보낸다. 절대값을 신뢰할 수 없는 값이라
-    화면에 노출하지 않기로 되어 있고, 안 보내면 쓸 수가 없다.
-    쓰지 말라고 말로 막는 것보다 확실하다.
-    """
-    grade = dict(result.get("grade") or {}) 
-    grade.pop("malignancy", None)
-    grade.pop("boundary_p", None)
-    
-    trimmed = {
-        "lesion_found": result.get("lesion_found"),
-        "grade": grade,
-        "shape": result.get("shape"),
-        "orientation_label": result.get("orientation_label"),
-        "mask_reliability": result.get("mask_reliability"),
-    }
-    return json.dumps(trimmed, ensure_ascii=False, indent=2)
+
+def build(fact_lines: list[str], note_lines: list[str]) -> str:
+    return ("[사실]\n" + "\n".join(fact_lines)
+            + "\n\n[주의사항]\n" + "\n".join(note_lines))
