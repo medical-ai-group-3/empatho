@@ -97,3 +97,34 @@ cp conf/postgres.env.example conf/postgres.env
 
 **따옴표를 쓰지 않는다.** `env_file` 은 따옴표를 값의 일부로 읽을 수 있고,
 postgres 는 볼륨을 처음 만들 때의 비밀번호로 고정되므로 나중에 고치기 번거롭다.
+
+---
+
+## 데이터가 어디에 있나
+
+세 서비스의 데이터는 전부 **Docker 이름 볼륨**에 들어간다. 레포 폴더에는 쌓이지 않는다.
+배포가 폴더를 통째로 갈아도 데이터는 남는다.
+
+```bash
+docker volume ls --filter name=empatho-server
+```
+
+`down` 은 볼륨을 건드리지 않는다. **`down -v` 는 지운다.**
+
+### garage 가 마커 파일을 못 찾을 때
+
+`garage-data` 볼륨만 새로 만들면 garage 가 뜨지 않고 이 말을 남긴다.
+
+```
+Could not find expected marker file `garage-marker` in data directory
+```
+
+엉뚱한 디렉토리에 붙은 게 아닌지 확인하는 안전장치다. 값을 다시 넣어 준다.
+
+```bash
+docker run --rm --entrypoint sh -v empatho-server_garage-data:/d postgres:17 \
+  -c "printf '%s' 'ef5b0238fd779162bcd18a0e6be2b65dde1e22d71c8fe139c1c66dc4009f8388' > /d/garage-marker"
+```
+
+`garage-meta` 까지 새것이면 이 값은 필요 없다 — garage 가 직접 만든다.
+메타는 남고 데이터만 새것일 때만 쓰인다.

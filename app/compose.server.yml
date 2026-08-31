@@ -10,7 +10,7 @@ services:
       - "127.0.0.1:3903:3903"
     volumes:
       - garage-meta:/var/lib/garage/meta
-      - ./garage-data:/var/lib/garage/data
+      - garage-data:/var/lib/garage/data
       - ./conf/garage.toml:/etc/garage.toml:ro
 
   orthanc:
@@ -23,7 +23,7 @@ services:
       - "127.0.0.1:8042:8042"
     volumes:
       - orthanc-index:/var/lib/orthanc/index
-      - ./orthanc-storage:/var/lib/orthanc/storage
+      - orthanc-storage:/var/lib/orthanc/storage
 
   postgres: 
     image: postgres:17
@@ -43,5 +43,7 @@ services:
 
 volumes:
   garage-meta:
+  garage-data:
   orthanc-index:
+  orthanc-storage:
   postgres-data: 

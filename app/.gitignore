@@ -2,10 +2,6 @@
 conf/garage.toml
 conf/orthanc.env
 
-# 데이터는 git 에 올리지 않는다
-garage-data/
-orthanc-storage/
-
 __pycache__/
 *.pyc
 *.env
