@@ -148,12 +148,14 @@ def infer(model, postproc, batch, device):
 
 
 def detect_cells_small(img_np, model, postproc, device):
-    """<=512 경로: 검출된 모든 셀의 (좌표[512공간], 토큰) 반환. GT 페어링 없음."""
+    """<=512 경로: 검출된 모든 셀의 (좌표[512공간], 토큰, contour[512공간]) 반환.
+    GT 페어링 없음. 좌표·contour 는 pad+centercrop 된 512 공간 기준 (원본 아님)."""
     img_t = SMALL_TF_IMG(image=img_np)["image"].unsqueeze(0)
     cell_dicts, toks = infer(model, postproc, img_t, device)
     cd = cell_dicts[0]
     coords = np.array([v["centroid"] for v in cd.values()], dtype=np.float64).reshape(-1, 2)
-    return coords, tokens_for_cells(cd, toks[0])
+    contours = [np.asarray(v["contour"], dtype=np.float64).reshape(-1, 2) for v in cd.values()]
+    return coords, tokens_for_cells(cd, toks[0]), contours
 
 
 def process_small(img_np, gt_xy, gt_types, model, postproc, device):
@@ -161,7 +163,7 @@ def process_small(img_np, gt_xy, gt_types, model, postproc, device):
     t = SMALL_TF(image=img_np, keypoints=kp, kp_types=list(gt_types))
     true_c = np.array(t["keypoints"], dtype=np.float64).reshape(-1, 2)
     true_types = list(t["kp_types"])
-    pred_c, cell_tokens = detect_cells_small(img_np, model, postproc, device)
+    pred_c, cell_tokens, _ = detect_cells_small(img_np, model, postproc, device)
     return _pair(true_c, true_types, pred_c, cell_tokens)
 
 
@@ -176,7 +178,8 @@ def _tile_starts(length, tile, overlap):
 
 
 def detect_cells_large(img_np, model, postproc, device, batch_size):
-    """>512 경로: 원본 해상도 타일링 -> 검출된 모든 셀의 (좌표[원본공간], 토큰) 반환."""
+    """>512 경로: 원본 해상도 타일링 -> (좌표[원본공간], 토큰, contour[원본공간]) 반환.
+    타일링은 스케일 변환이 없으므로 contour 픽셀 면적 == 원본 픽셀 면적."""
     H, W = img_np.shape[:2]
     xs = _tile_starts(W, TILE, OVERLAP)
     ys = _tile_starts(H, TILE, OVERLAP)
@@ -189,7 +192,7 @@ def detect_cells_large(img_np, model, postproc, device, batch_size):
             tensors.append(TILE_TF(image=crop)["image"])
             metas.append((x0, y0, cw, ch))
 
-    raw = []  # (gx, gy, edge_margin, token)
+    raw = []  # (gx, gy, edge_margin, token, contour_global)
     for i in range(0, len(tensors), batch_size):
         chunk = tensors[i : i + batch_size]
         try:
@@ -219,19 +222,21 @@ def detect_cells_large(img_np, model, postproc, device, batch_size):
                 if t_int: m.append(cy)
                 if r_int: m.append(cw - cx)
                 if b_int: m.append(ch - cy)
-                raw.append((gx, gy, min(m), tok))
+                cont = np.asarray(cell["contour"], dtype=np.float64).reshape(-1, 2) + [x0, y0]
+                raw.append((gx, gy, min(m), tok, cont))
 
     raw.sort(key=lambda r: -r[2])
-    kept_xy, kept_tok = [], []
-    for gx, gy, _, tok in raw:
+    kept_xy, kept_tok, kept_cont = [], [], []
+    for gx, gy, _, tok, cont in raw:
         if all(math.hypot(gx - kx, gy - ky) > DEDUP_RADIUS for kx, ky in kept_xy):
             kept_xy.append((gx, gy))
             kept_tok.append(tok)
-    return np.array(kept_xy, dtype=np.float64).reshape(-1, 2), kept_tok
+            kept_cont.append(cont)
+    return np.array(kept_xy, dtype=np.float64).reshape(-1, 2), kept_tok, kept_cont
 
 
 def process_large(img_np, gt_xy, gt_types, model, postproc, device, batch_size):
-    pred_c, kept_tok = detect_cells_large(img_np, model, postproc, device, batch_size)
+    pred_c, kept_tok, _ = detect_cells_large(img_np, model, postproc, device, batch_size)
     true_c = np.array([(float(x), float(y)) for x, y in gt_xy], dtype=np.float64).reshape(-1, 2)
     return _pair(true_c, list(gt_types), pred_c, kept_tok)
 

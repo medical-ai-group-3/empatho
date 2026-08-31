@@ -1,23 +1,23 @@
 """
-sTIL 계산 데모 파이프라인.
+sTIL 계산 파이프라인 (표준 정의).
 
-확정_사양서 정의: stil_percent = 면역세포 ÷ (면역세포 + 사이조직)
+국제 TIL Working Group 표준:
+    stil_percent = (간질 내 면역세포 면적) / (전체 간질 면적) * 100
 
-이 스크립트는:
-  1. 조직분할 모델(Virchow2+Linear, TAND 논문 사양 = 온도 스케일링 + CE/Dice/BCE)로
-     이미지의 간질(사이조직) 영역을 예측 (16x16 격자, 확정: linear_tand)
-  2. 세포검출·분류 모델(CellViT-SAM-H 검출 + weighted LinearClassifier 헤드)로
-     이미지의 모든 세포를 검출하고 각 세포를 TIL/nonTIL 로 분류, P(TIL) >= 임계값
-     인 세포를 면역세포로 카운트
-     (2026-08-31 확정: 큰 이미지 타일링 재추출 + 가중 CE 재학습 모델.
-      candidates/socket2/model_best.pth, val AUROC 0.9656)
-  3. 아래 공식으로 이미지별 sTIL% 계산
+구현:
+  1. 조직분할 모델(Virchow2+Linear TAND, linear_tand 확정)로 16x16 격자 예측
+     -> 원본 해상도로 nearest 업샘플 -> 간질(class 2) 이진 마스크 (H,W)
+  2. 세포검출·분류 모델(CellViT-SAM-H 검출 + weighted LinearClassifier 헤드,
+     candidates/socket2/model_best.pth)로 모든 세포 검출:
+       - 큰 이미지(>512px): 원본 해상도 512 타일링
+       - 작은 이미지(<=512px): 512 pad+centercrop 단일 추론 (좌표는 원본으로 역변환)
+     각 세포: centroid(원본좌표), P(TIL), contour 면적(원본 픽셀^2)
+  3. 공간 게이팅: centroid 가 간질 마스크 안에 있는 P(TIL)>=임계값 세포만 분자에 포함
+  4. stil% = sum(간질내 면역세포 contour 면적) / (간질 마스크 픽셀 수) * 100
+     -> 분자·분모 모두 "원본 이미지 픽셀^2" 단위이므로 비율은 mpp 무관.
+        mpp 는 면적을 µm^2 로 환산해 보고/검증할 때만 사용 (--mpp, TIGER 기본 0.5).
 
-주의(⚑):
-  - 현재 공식은 "면역세포 개수 ÷ (면역세포 개수 + 간질 격자칸 수)" 로, 분자·분모의
-    단위(개수 vs 16x16 격자칸)가 불일치. 표준(면역세포 면적 ÷ 간질 면적 × 100)으로
-    고치는 작업이 별도 예정. 이 버전은 검출/분류 개선 효과만 보기 위한 것.
-  - 큰 이미지(>512px)는 타일링으로 검출. 작은 이미지는 512 pad+centercrop 단일 추론.
+레거시(차원 불일치) 값도 함께 기록: legacy_stil = til / (til + stroma_16x16칸) * 100
 """
 import argparse
 import json
@@ -25,6 +25,7 @@ import os
 import sys
 from pathlib import Path
 
+import cv2
 import numpy as np
 import timm
 import torch
@@ -69,8 +70,7 @@ class VirchowLinearHeadTAND(nn.Module):
         logits = self.head(patch_tokens)
         B = logits.shape[0]
         logits = logits.permute(0, 2, 1).reshape(B, NUM_CLASSES, PATCH_GRID, PATCH_GRID)
-        temperature = torch.exp(self.log_temperature)
-        return logits / temperature
+        return logits / torch.exp(self.log_temperature)
 
 
 def build_virchow2():
@@ -79,8 +79,8 @@ def build_virchow2():
         mlp_layer=timm.layers.SwiGLUPacked, act_layer=torch.nn.SiLU,
     )
     model.eval()
-    data_cfg = timm.data.resolve_model_data_config(model)
-    return model, data_cfg["mean"], data_cfg["std"], data_cfg["input_size"][-1]
+    cfg = timm.data.resolve_model_data_config(model)
+    return model, cfg["mean"], cfg["std"], cfg["input_size"][-1]
 
 
 def load_tissue_model(checkpoint_path, device):
@@ -101,61 +101,65 @@ def load_cell_classifier(head_path, device):
     return head
 
 
-def predict_tissue_mask(model, img, mean, std, image_size, device):
+@torch.inference_mode()
+def tissue_stroma_mask(model, img, mean, std, image_size, device, W, H):
+    """16x16 예측 -> 원본 해상도(H,W) nearest 업샘플. 반환: (H,W) uint8, 값 0/1/2."""
     img_resized = img.resize((image_size, image_size), Image.BILINEAR)
-    img_t = torch.from_numpy(np.array(img_resized)).permute(2, 0, 1).float() / 255.0
-    mean_t = torch.tensor(mean).view(3, 1, 1)
-    std_t = torch.tensor(std).view(3, 1, 1)
-    img_t = ((img_t - mean_t) / std_t).unsqueeze(0).to(device)
-    with torch.no_grad():
-        logits = model(img_t)
-        pred = logits.argmax(dim=1).squeeze(0).cpu().numpy()  # (16, 16)
-    return pred
+    t = torch.from_numpy(np.array(img_resized)).permute(2, 0, 1).float() / 255.0
+    t = ((t - torch.tensor(mean).view(3, 1, 1)) / torch.tensor(std).view(3, 1, 1)).unsqueeze(0).to(device)
+    pred16 = model(t).argmax(dim=1).squeeze(0).cpu().numpy().astype(np.uint8)  # (16,16)
+    mask = cv2.resize(pred16, (W, H), interpolation=cv2.INTER_NEAREST)  # (H,W)
+    return mask, pred16
+
+
+def _contour_area(cont):
+    c = np.asarray(cont, dtype=np.float32).reshape(-1, 2)
+    return float(cv2.contourArea(c)) if c.shape[0] >= 3 else 0.0
 
 
 @torch.inference_mode()
-def classify_til_cells(img_np, cellvit, postproc, head, device, threshold, batch_size):
-    """모든 세포 검출 -> 토큰 -> 헤드 분류. P(TIL) >= threshold 인 세포 수 반환."""
+def detect_and_classify(img_np, cellvit, postproc, head, device, batch_size):
+    """반환: list[{cx, cy (원본좌표), p_til, area_px (원본 픽셀^2)}]  (이미지 밖 세포는 제외)"""
     H, W = img_np.shape[:2]
     if max(H, W) <= INPUT_SHAPE:
-        _, tokens = detect_cells_small(img_np, cellvit, postproc, device)
+        coords, tokens, contours = detect_cells_small(img_np, cellvit, postproc, device)
+        dx, dy = (INPUT_SHAPE - W) // 2, (INPUT_SHAPE - H) // 2  # PadIfNeeded(center) 오프셋
+        coords = coords - np.array([dx, dy])
+        contours = [c - np.array([dx, dy]) for c in contours]
     else:
-        _, tokens = detect_cells_large(img_np, cellvit, postproc, device, batch_size)
+        coords, tokens, contours = detect_cells_large(img_np, cellvit, postproc, device, batch_size)
+
     if len(tokens) == 0:
-        return 0, 0
+        return []
     T = torch.tensor(np.stack(tokens), dtype=torch.float32, device=device)
     p_til = torch.softmax(head(T), dim=1)[:, 1].cpu().numpy()
-    return int((p_til >= threshold).sum()), len(tokens)
+
+    cells = []
+    for (cx, cy), p, cont in zip(coords, p_til, contours):
+        if not (0 <= cx < W and 0 <= cy < H):
+            continue
+        cells.append({"cx": float(cx), "cy": float(cy), "p_til": float(p), "area_px": _contour_area(cont)})
+    return cells
 
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--tissue_checkpoint", type=str,
-        default=os.path.expanduser("~/models/cellvitpp/logs_local/virchow2_linear_tand/best_head.pth"),
-    )
-    parser.add_argument(
-        "--cell_head", type=str,
-        default=os.path.expanduser("~/pathology-eval/candidates/socket2/model_best.pth"),
-        help="weighted LinearClassifier 헤드 체크포인트",
-    )
-    parser.add_argument(
-        "--cellvit_path", type=str,
-        default=os.path.join(REPO_ROOT, "checkpoints", "CellViT-SAM-H-x40-AMP.pth"),
-    )
-    parser.add_argument(
-        "--images_dir", type=str,
-        default=os.path.expanduser("~/data/tiger/tissue_segmentation/val/images"),
-    )
-    parser.add_argument("--til_threshold", type=float, default=0.5)
-    parser.add_argument("--batch_size", type=int, default=4)
-    parser.add_argument(
-        "--outdir", type=str,
-        default=os.path.join(os.path.dirname(os.path.abspath(__file__)), "stil_results"),
-    )
-    parser.add_argument("--gpu", type=int, default=0)
-    parser.add_argument("--limit", type=int, default=0, help="처리할 이미지 수 (0이면 전체)")
-    args = parser.parse_args()
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--tissue_checkpoint", type=str,
+                    default=os.path.expanduser("~/models/cellvitpp/logs_local/virchow2_linear_tand/best_head.pth"))
+    ap.add_argument("--cell_head", type=str,
+                    default=os.path.expanduser("~/pathology-eval/candidates/socket2/model_best.pth"))
+    ap.add_argument("--cellvit_path", type=str,
+                    default=os.path.join(REPO_ROOT, "checkpoints", "CellViT-SAM-H-x40-AMP.pth"))
+    ap.add_argument("--images_dir", type=str,
+                    default=os.path.expanduser("~/data/tiger/tissue_segmentation/val/images"))
+    ap.add_argument("--til_threshold", type=float, default=0.5)
+    ap.add_argument("--mpp", type=float, default=0.5, help="µm/px (TIGER tissue-cells crop ≈ 0.5)")
+    ap.add_argument("--batch_size", type=int, default=4)
+    ap.add_argument("--outdir", type=str,
+                    default=os.path.join(os.path.dirname(os.path.abspath(__file__)), "stil_results"))
+    ap.add_argument("--gpu", type=int, default=0)
+    ap.add_argument("--limit", type=int, default=0)
+    args = ap.parse_args()
 
     device = f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu"
     os.makedirs(args.outdir, exist_ok=True)
@@ -167,51 +171,89 @@ def main():
     postproc = DetectionCellPostProcessorCupy(wsi=None, nr_types=NR_TYPES)
     head = load_cell_classifier(args.cell_head, device)
 
-    image_files = sorted(Path(args.images_dir).glob("*.png"))
+    files = sorted(Path(args.images_dir).glob("*.png"))
     if args.limit > 0:
-        image_files = image_files[: args.limit]
-    print(f"이미지 {len(image_files)}장, TIL 임계값 {args.til_threshold}")
+        files = files[: args.limit]
+    print(f"이미지 {len(files)}장, TIL 임계값 {args.til_threshold}, mpp {args.mpp} µm/px")
 
     results = []
-    for i, img_path in enumerate(image_files):
-        img = Image.open(img_path).convert("RGB")
+    all_areas_px = []       # 검출된 모든 세포
+    all_areas_px_til = []    # P(TIL)>=임계값 세포
+    for i, fp in enumerate(files):
+        img = Image.open(fp).convert("RGB")
         img_np = np.array(img).astype(np.uint8)
+        H, W = img_np.shape[:2]
 
-        tissue_pred = predict_tissue_mask(tissue_model, img, mean, std, image_size, device)
-        stroma_pixels = int((tissue_pred == STROMA_CLASS_IDX).sum())
+        mask, pred16 = tissue_stroma_mask(tissue_model, img, mean, std, image_size, device, W, H)
+        stroma_area_px = int((mask == STROMA_CLASS_IDX).sum())
+        stroma_16grid = int((pred16 == STROMA_CLASS_IDX).sum())
 
-        til_count, total_cells = classify_til_cells(
-            img_np, cellvit, postproc, head, device, args.til_threshold, args.batch_size
-        )
+        cells = detect_and_classify(img_np, cellvit, postproc, head, device, args.batch_size)
+        immune = [c for c in cells if c["p_til"] >= args.til_threshold]
+        intra = [c for c in immune
+                 if mask[min(int(c["cy"]), H - 1), min(int(c["cx"]), W - 1)] == STROMA_CLASS_IDX]
+        immune_area_px = float(sum(c["area_px"] for c in intra))
 
-        denom = til_count + stroma_pixels
-        stil_percent = (til_count / denom * 100) if denom > 0 else None
+        all_areas_px += [c["area_px"] for c in cells]
+        all_areas_px_til += [c["area_px"] for c in immune]
+
+        stil_std = (immune_area_px / stroma_area_px * 100) if stroma_area_px > 0 else None
+        legacy = (len(immune) / (len(immune) + stroma_16grid) * 100) if (len(immune) + stroma_16grid) > 0 else None
 
         results.append({
-            "stem": img_path.stem,
-            "til_count": til_count,
-            "total_cells": total_cells,
-            "stroma_pixels_16x16grid": stroma_pixels,
-            "stil_percent": round(stil_percent, 2) if stil_percent is not None else None,
+            "stem": fp.stem,
+            "img_w": W, "img_h": H,
+            "n_cells": len(cells),
+            "til_count": len(immune),
+            "til_count_stromal": len(intra),
+            "stroma_area_px": stroma_area_px,
+            "stroma_area_um2": round(stroma_area_px * args.mpp ** 2, 1),
+            "immune_area_px": round(immune_area_px, 1),
+            "immune_area_um2": round(immune_area_px * args.mpp ** 2, 1),
+            "stil_percent": round(stil_std, 2) if stil_std is not None else None,
+            "legacy_stil_percent": round(legacy, 2) if legacy is not None else None,
         })
         if (i + 1) % 25 == 0 or i == 0:
-            print(f"  [{i+1}/{len(image_files)}] {img_path.stem[:36]:36s} "
-                  f"TIL={til_count}/{total_cells}  간질칸={stroma_pixels}  sTIL%={results[-1]['stil_percent']}")
+            r = results[-1]
+            print(f"  [{i+1}/{len(files)}] {fp.stem[:32]:32s} {W}x{H}  "
+                  f"면역세포 {r['til_count_stromal']}/{r['til_count']}(간질내/전체)  "
+                  f"stil={r['stil_percent']}  legacy={r['legacy_stil_percent']}")
 
     out_path = Path(args.outdir) / "stil_demo_results.json"
-    with open(out_path, "w") as f:
-        json.dump(results, f, ensure_ascii=False, indent=2)
+    json.dump(results, open(out_path, "w"), ensure_ascii=False, indent=2)
 
-    vals = [r["stil_percent"] for r in results if r["stil_percent"] is not None]
-    print(f"\n결과 저장: {out_path}  (처리 {len(results)}장, sTIL 유효 {len(vals)}장)")
-    if vals:
-        v = np.array(vals)
-        print(f"sTIL% 분포: min={v.min():.2f}  mean={v.mean():.2f}  median={np.median(v):.2f}  max={v.max():.2f}")
-        edges = [0, 1, 2, 5, 10, 20, 30, 50, 100.01]
+    # ---- contour 면적 sanity check ----
+    a = np.array([x for x in all_areas_px if x > 0])
+    mpp2 = args.mpp ** 2
+    print(f"\n=== contour 면적 sanity (검출 세포 {len(a)}개) ===")
+    for lab, arr in [("전체 세포", a), ("P(TIL)>=임계값 세포", np.array([x for x in all_areas_px_til if x > 0]))]:
+        if len(arr) == 0:
+            continue
+        um2 = arr * mpp2
+        dia_um = 2 * np.sqrt(um2 / np.pi)
+        print(f"  {lab}: n={len(arr)}")
+        print(f"    면적 px^2   p10/median/p90 = {np.percentile(arr,10):.0f} / {np.median(arr):.0f} / {np.percentile(arr,90):.0f}")
+        print(f"    면적 µm^2   p10/median/p90 = {np.percentile(um2,10):.1f} / {np.median(um2):.1f} / {np.percentile(um2,90):.1f}")
+        print(f"    등가지름 µm p10/median/p90 = {np.percentile(dia_um,10):.1f} / {np.median(dia_um):.1f} / {np.percentile(dia_um,90):.1f}")
+    print("  (림프구 핵 ≈ 5~7µm, 상피/종양 핵 ≈ 10~15µm 예상)")
+
+    # ---- sTIL 분포 ----
+    for key, name in [("stil_percent", "표준 sTIL%"), ("legacy_stil_percent", "레거시 sTIL%")]:
+        v = np.array([r[key] for r in results if r[key] is not None])
+        big = np.array([r[key] for r in results if r[key] is not None and max(r["img_w"], r["img_h"]) > 512])
+        small = np.array([r[key] for r in results if r[key] is not None and max(r["img_w"], r["img_h"]) <= 512])
+        print(f"\n=== {name}  (유효 {len(v)}/{len(results)}) ===")
+        print(f"  전체       min/mean/median/max = {v.min():.2f} / {v.mean():.2f} / {np.median(v):.2f} / {v.max():.2f}")
+        if len(small):
+            print(f"  작은(<=512) mean/median = {small.mean():.2f} / {np.median(small):.2f}  (n={len(small)})")
+        if len(big):
+            print(f"  큰(>512)    mean/median = {big.mean():.2f} / {np.median(big):.2f}  (n={len(big)})")
+        edges = [0, 5, 10, 20, 30, 40, 50, 60, 100.01]
         hist, _ = np.histogram(v, bins=edges)
         for lo, hi, c in zip(edges[:-1], edges[1:], hist):
-            bar = "#" * int(c / max(hist.max(), 1) * 40)
-            print(f"  [{lo:5.0f}, {hi:5.0f}) {c:4d}  {bar}")
+            print(f"    [{lo:5.0f}, {hi:5.0f}) {c:4d}  {'#' * int(c / max(hist.max(), 1) * 40)}")
+
+    print(f"\n결과 저장: {out_path}")
 
 
 if __name__ == "__main__":
