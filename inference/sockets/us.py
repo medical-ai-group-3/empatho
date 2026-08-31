@@ -10,9 +10,9 @@ import os
 import pathlib
 import sys
 import threading
+import time
 
 import yaml
-import time 
 
 MODEL_ROOT = pathlib.Path(os.getenv("MODEL_ROOT", "/models"))
 US_DIR = MODEL_ROOT / "us"
@@ -71,7 +71,8 @@ def _load() -> dict:
     번들에 들어 있는 것은 앙상블이고, 없으면 등급 없이 분할만 조용히 돌아간다.
     """
     sys.path.insert(0, str(US_DIR / "code"))
-    from infer_us import load_model, predict as _predict
+    from infer_us import load_model
+    from infer_us import predict as _predict
     
     bundle = load_model(
         str(US_DIR / "configs" / "us_lora.yaml"),
@@ -130,6 +131,36 @@ def error() :
 
 def versions() -> dict:
     return _STATE.get("versions", {})
+
+def gpu_mb():
+    """이 프로세스가 잡고 있는 GPU 메모리(MiB). 언로드가 실제로 회수하는지 재는 계기다.
+
+    reserved 가 PyTorch 캐시까지 포함한 값이라 이쪽을 봐야 한다.
+    torch 를 아직 안 올렸으면 None.
+    """
+    t = sys.modules.get("torch")
+    if t is None or not t.cuda.is_available():
+        return None
+    return {
+        "allocated": round(t.cuda.memory_allocated() / 2**20),
+        "reserved": round(t.cuda.memory_reserved() / 2**20),
+    }
+
+def gpu_mb():
+    """이 프로세스가 잡고 있는 GPU 메모리(MiB). 회수가 실제로 되는지 재는 계기다.
+
+    reserved 가 PyTorch 캐시까지 포함한 값이라 이쪽을 봐야 한다. 프로세스 안에서
+    내리는 방식을 버린 근거가 이 값이었다 — allocated 32 MiB 인데 reserved 는
+    6,156 MiB 였다. torch 를 아직 안 올렸으면 None.
+    """
+    t = sys.modules.get("torch")
+    if t is None or not t.cuda.is_available():
+        return None
+    return {
+        "allocated": round(t.cuda.memory_allocated() / 2**20),
+        "reserved": round(t.cuda.memory_reserved() / 2**20),
+    }
+
 
 def predict(image, **over) -> dict:
     """영상 한 장 → 결과. 전처리·추론·후처리가 전부 이 안에서 일어난다.
