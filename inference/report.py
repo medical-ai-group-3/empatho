@@ -29,7 +29,7 @@ def _ask(system: str, prompt:str, schema:dict, timeout:int = 100) -> dict:
         "prompt": prompt,
         "format": schema, # 스키마 강제 - 추론 과정 출력 방지 
         "stream": False, 
-        "options": {"temperautre": 0.2},
+        "options": {"temperature": 0.2},
     }).encode() 
     req = urllib.request.Request(
         f"{OLLAMA}/api/generate", data=body,
@@ -68,14 +68,14 @@ def healthz() :
 def report(socket_id: str, result: dict):
     p = PROMPTS.get(socket_id)
     if p is None:
-        return {"socket_id": socket_id, "abstained": True, "reason":"unkonwn_socket"}
+        return {"socket_id": socket_id, "abstained": True, "reason":"unknown_socket"}
     
     fact_lines = p.facts(result) 
     note_lines = p.notes(result)
     skeleton = " ".join(fact_lines + note_lines)
     
     try:
-        out = _ask(p.SYSTEM, p.build(result), p.SCHEMA)
+        out = _ask(p.SYSTEM, p.build(fact_lines, note_lines), p.SCHEMA)
         text = (out.get("소견") or "").strip()
     except Exception as exc:
         # 모델이 없어도 리포트는 나간다. 뼈대는 완성된 문장이다 
