@@ -103,6 +103,16 @@ TILE_TF = A.Compose(
     ]
 )
 
+# 이미지 전용 (keypoint 없음) — 검출/분류 추론에 사용, SMALL_TF 와 이미지 처리 동일
+SMALL_TF_IMG = A.Compose(
+    [
+        A.PadIfNeeded(INPUT_SHAPE, INPUT_SHAPE, border_mode=cv2.BORDER_CONSTANT, value=(255, 255, 255)),
+        A.CenterCrop(INPUT_SHAPE, INPUT_SHAPE, always_apply=True),
+        A.Normalize(mean=MEAN, std=STD),
+        ToTensorV2(),
+    ]
+)
+
 
 def apply_softmax_reorder(pred):
     pred["nuclei_binary_map"] = F.softmax(pred["nuclei_binary_map"], dim=1).permute(0, 2, 3, 1)
@@ -137,17 +147,21 @@ def infer(model, postproc, batch, device):
     return cell_dicts, toks
 
 
+def detect_cells_small(img_np, model, postproc, device):
+    """<=512 경로: 검출된 모든 셀의 (좌표[512공간], 토큰) 반환. GT 페어링 없음."""
+    img_t = SMALL_TF_IMG(image=img_np)["image"].unsqueeze(0)
+    cell_dicts, toks = infer(model, postproc, img_t, device)
+    cd = cell_dicts[0]
+    coords = np.array([v["centroid"] for v in cd.values()], dtype=np.float64).reshape(-1, 2)
+    return coords, tokens_for_cells(cd, toks[0])
+
+
 def process_small(img_np, gt_xy, gt_types, model, postproc, device):
     kp = [(float(x), float(y)) for x, y in gt_xy]
     t = SMALL_TF(image=img_np, keypoints=kp, kp_types=list(gt_types))
-    img_t = t["image"].unsqueeze(0)
-    true_c = np.array(t["keypoints"], dtype=np.float64)
+    true_c = np.array(t["keypoints"], dtype=np.float64).reshape(-1, 2)
     true_types = list(t["kp_types"])
-
-    cell_dicts, toks = infer(model, postproc, img_t, device)
-    cd = cell_dicts[0]
-    pred_c = np.array([v["centroid"] for v in cd.values()], dtype=np.float64)
-    cell_tokens = tokens_for_cells(cd, toks[0])
+    pred_c, cell_tokens = detect_cells_small(img_np, model, postproc, device)
     return _pair(true_c, true_types, pred_c, cell_tokens)
 
 
@@ -161,7 +175,8 @@ def _tile_starts(length, tile, overlap):
     return s
 
 
-def process_large(img_np, gt_xy, gt_types, model, postproc, device, batch_size):
+def detect_cells_large(img_np, model, postproc, device, batch_size):
+    """>512 경로: 원본 해상도 타일링 -> 검출된 모든 셀의 (좌표[원본공간], 토큰) 반환."""
     H, W = img_np.shape[:2]
     xs = _tile_starts(W, TILE, OVERLAP)
     ys = _tile_starts(H, TILE, OVERLAP)
@@ -212,9 +227,12 @@ def process_large(img_np, gt_xy, gt_types, model, postproc, device, batch_size):
         if all(math.hypot(gx - kx, gy - ky) > DEDUP_RADIUS for kx, ky in kept_xy):
             kept_xy.append((gx, gy))
             kept_tok.append(tok)
+    return np.array(kept_xy, dtype=np.float64).reshape(-1, 2), kept_tok
 
-    true_c = np.array([(float(x), float(y)) for x, y in gt_xy], dtype=np.float64)
-    pred_c = np.array(kept_xy, dtype=np.float64)
+
+def process_large(img_np, gt_xy, gt_types, model, postproc, device, batch_size):
+    pred_c, kept_tok = detect_cells_large(img_np, model, postproc, device, batch_size)
+    true_c = np.array([(float(x), float(y)) for x, y in gt_xy], dtype=np.float64).reshape(-1, 2)
     return _pair(true_c, list(gt_types), pred_c, kept_tok)
 
 
