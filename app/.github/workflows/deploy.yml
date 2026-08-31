@@ -1,0 +1,24 @@
+name: deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+
+      # 비밀값은 git 에 없다. 러너 홈에 둔 것을 가져온다
+      - run: cp ~/empatho-conf/* conf/
+
+      - run: docker compose -f compose.server.yml up -d
+
+      # up -d 는 컨테이너가 재시작을 반복해도 0 으로 끝난다.
+      # 오늘 garage 가 그랬다 — 그래서 여기서 한 번 본다
+      - run: |
+          sleep 10
+          docker compose -f compose.server.yml ps
+          test -z "$(docker compose -f compose.server.yml ps --status restarting -q)"
