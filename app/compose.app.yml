@@ -1,0 +1,26 @@
+# 데이터 쪽과 이름이 같아야 한 네트워크에 들어간다.
+# 다르면 web 이 postgres 를 이름으로 못 찾는다.
+name: empatho-server
+
+services:
+  web:
+    build: ./services/web
+    container_name: web
+    restart: unless-stopped
+    env_file:
+      - ./conf/web.env
+    ports:
+      # 지금은 이 PC 안에서만. 터널로 본다.
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  gateway:
+    build: ./services/gateway
+    container_name: gateway
+    restart: unless-stopped
+    env_file:
+      - ./conf/gateway.env
+    ports:
+      - "127.0.0.1:8080:8080"
