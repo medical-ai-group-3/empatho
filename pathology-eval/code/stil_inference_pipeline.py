@@ -83,13 +83,15 @@ def build_virchow2():
     return model, cfg["mean"], cfg["std"], cfg["input_size"][-1]
 
 
-def load_tissue_model(checkpoint_path, device):
+def load_tissue_model(checkpoint_path, device, fp16=False):
     virchow_model, mean, std, image_size = build_virchow2()
     model = VirchowLinearHeadTAND(virchow_model).to(device)
     ckpt = torch.load(checkpoint_path, map_location=device, weights_only=False)
     model.head.load_state_dict(ckpt["head_state_dict"])
     model.log_temperature.data = ckpt["log_temperature"].data.to(device)
     model.eval()
+    if fp16:
+        model.half()  # 저VRAM 모드 (공유 GPU)
     return model, mean, std, image_size
 
 
@@ -107,6 +109,7 @@ def tissue_stroma_mask(model, img, mean, std, image_size, device, W, H):
     img_resized = img.resize((image_size, image_size), Image.BILINEAR)
     t = torch.from_numpy(np.array(img_resized)).permute(2, 0, 1).float() / 255.0
     t = ((t - torch.tensor(mean).view(3, 1, 1)) / torch.tensor(std).view(3, 1, 1)).unsqueeze(0).to(device)
+    t = t.to(next(model.parameters()).dtype)
     pred16 = model(t).argmax(dim=1).squeeze(0).cpu().numpy().astype(np.uint8)  # (16,16)
     mask = cv2.resize(pred16, (W, H), interpolation=cv2.INTER_NEAREST)  # (H,W)
     return mask, pred16

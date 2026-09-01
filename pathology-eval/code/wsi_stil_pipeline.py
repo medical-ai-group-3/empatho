@@ -133,14 +133,18 @@ def main():
     ap.add_argument("--outdir", default=os.path.join(os.path.dirname(os.path.abspath(__file__)), "stil_results"))
     ap.add_argument("--gpu", type=int, default=0)
     ap.add_argument("--slides", nargs="*", default=None, help="특정 stem 만 (기본: images_dir 전체)")
+    ap.add_argument("--append", action="store_true", help="기존 결과 JSON 유지, 미처리 슬라이드만 추가")
+    ap.add_argument("--fp16", type=int, default=1, help="1이면 모델 가중치 fp16 (공유 GPU 저VRAM)")
     args = ap.parse_args()
 
     device = f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu"
     os.makedirs(args.outdir, exist_ok=True)
 
-    print("모델 로딩...")
-    tissue_model, mean, std, image_size = load_tissue_model(args.tissue_checkpoint, device)
+    print(f"모델 로딩... (fp16={bool(args.fp16)})")
+    tissue_model, mean, std, image_size = load_tissue_model(args.tissue_checkpoint, device, fp16=bool(args.fp16))
     cellvit, _ = load_cellvit_sam(args.cellvit_path, args.gpu)
+    if args.fp16:
+        cellvit.half()
     postproc = DetectionCellPostProcessorCupy(wsi=None, nr_types=NR_TYPES)
     head = load_cell_classifier(args.cell_head, device)
     models = (tissue_model, cellvit, postproc, head, mean, std, image_size)
@@ -150,13 +154,21 @@ def main():
         for row in csv.DictReader(f):
             gt[row["image-id"]] = int(row["tils-score"])
 
+    out = Path(args.outdir) / "wsi_stil_results.json"
+    results = []
+    done = set()
+    if args.append and out.exists():
+        results = json.load(open(out))
+        done = {r["stem"] for r in results}
+        print(f"기존 결과 {len(done)}장 유지, 미처리분만 추가")
+
     paths = sorted(Path(args.images_dir).glob("*.tif"))
     if args.slides:
         paths = [p for p in paths if p.stem in set(args.slides)]
+    paths = [p for p in paths if p.stem not in done]
     print(f"WSI {len(paths)}장, 슬라이드당 최대 {args.n_tiles} 타일, "
           f"til_thr {args.til_threshold}, nc_ratio {args.nc_ratio}")
 
-    results = []
     for i, p in enumerate(paths):
         t0 = time.time()
         r = process_slide(p, models, args, device)
@@ -166,10 +178,11 @@ def main():
               f"slide_stil={r['slide_stil']}  (조직타일 {r['n_tissue_tiles']}, 간질타일 "
               f"{r['n_stroma_tiles']}/{r['n_sampled']}, 면역세포 {r['n_intra_stromal_immune']}, "
               f"{time.time()-t0:.0f}s)")
+        json.dump(results, open(out, "w"), ensure_ascii=False, indent=2)  # incremental
 
-    out = Path(args.outdir) / "wsi_stil_results.json"
+    results.sort(key=lambda r: (r.get("gt_tils_score") if r.get("gt_tils_score") is not None else -1, r["stem"]))
     json.dump(results, open(out, "w"), ensure_ascii=False, indent=2)
-    print(f"\n결과 저장: {out}")
+    print(f"\n결과 저장: {out}  (총 {len(results)}장)")
 
 
 if __name__ == "__main__":

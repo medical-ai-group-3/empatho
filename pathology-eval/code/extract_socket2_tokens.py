@@ -115,9 +115,9 @@ SMALL_TF_IMG = A.Compose(
 
 
 def apply_softmax_reorder(pred):
-    pred["nuclei_binary_map"] = F.softmax(pred["nuclei_binary_map"], dim=1).permute(0, 2, 3, 1)
-    pred["nuclei_type_map"] = F.softmax(pred["nuclei_type_map"], dim=1).permute(0, 2, 3, 1)
-    pred["hv_map"] = pred["hv_map"].permute(0, 2, 3, 1)
+    pred["nuclei_binary_map"] = F.softmax(pred["nuclei_binary_map"].float(), dim=1).permute(0, 2, 3, 1)
+    pred["nuclei_type_map"] = F.softmax(pred["nuclei_type_map"].float(), dim=1).permute(0, 2, 3, 1)
+    pred["hv_map"] = pred["hv_map"].float().permute(0, 2, 3, 1)
     return pred
 
 
@@ -139,11 +139,15 @@ def tokens_for_cells(cell_dict, tokens_chw):
 
 @torch.inference_mode()
 def infer(model, postproc, batch, device):
-    with torch.autocast(device_type="cuda", dtype=torch.float16):
-        pred = model.forward(batch.to(device), retrieve_tokens=True)
+    batch = batch.to(device)
+    if next(model.parameters()).dtype == torch.float16:
+        pred = model.forward(batch.half(), retrieve_tokens=True)  # fp16 weights (저VRAM 모드)
+    else:
+        with torch.autocast(device_type="cuda", dtype=torch.float16):
+            pred = model.forward(batch, retrieve_tokens=True)
+    toks = pred["tokens"].float()  # (B, D, H/16, W/16)
     pred = apply_softmax_reorder(pred)
     _, cell_dicts = postproc.post_process_batch(pred)
-    toks = pred["tokens"]  # (B, D, H/16, W/16)
     return cell_dicts, toks
 
 
