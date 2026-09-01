@@ -23,6 +23,10 @@
 package main
 
 import (
+	"cdss/gosvc/internal/callback"
+	"cdss/gosvc/internal/narrative"
+	"cdss/gosvc/internal/ollama"
+	"cdss/gosvc/internal/ticket"
 	"context"
 	"encoding/json"
 	"errors"
@@ -32,11 +36,6 @@ import (
 	"os"
 	"strings"
 	"time"
-
-	"cdss/gosvc/internal/callback"
-	"cdss/gosvc/internal/narrative"
-	"cdss/gosvc/internal/ollama"
-	"cdss/gosvc/internal/ticket"
 )
 
 const (
