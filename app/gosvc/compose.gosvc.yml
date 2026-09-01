@@ -1,0 +1,61 @@
+# Go 서비스 세 개. 기존 compose 에 합치거나 -f 로 같이 올린다.
+#
+#   docker compose -f compose.server -f compose.gosvc.yml up -d
+#
+# ⚠ 비밀값은 여기 적지 않는다. .env 로 뺀다.
+#    TICKET_KEY 와 CALLBACK_SECRET 은 Django 와 **같은 값**이어야 한다.
+
+x-gosvc-common: &gosvc-common
+  build:
+    context: ./gosvc
+  restart: unless-stopped
+  environment: &gosvc-env
+    TICKET_KEY: ${TICKET_KEY:?TICKET_KEY 를 .env 에 넣을 것}
+    CALLBACK_BASE: ${CALLBACK_BASE:-http://django:8000}
+    CALLBACK_SECRET: ${CALLBACK_SECRET:?CALLBACK_SECRET 을 .env 에 넣을 것}
+    # 운영에서는 반드시 채운다. 비어 있으면 콜백이 평문으로 나간다.
+    CALLBACK_CERT: ${CALLBACK_CERT:-}
+    CALLBACK_KEY: ${CALLBACK_KEY:-}
+    TZ: Asia/Seoul
+
+services:
+  file-gateway:
+    <<: *gosvc-common
+    entrypoint: /usr/local/bin/file-gateway
+    environment:
+      <<: *gosvc-env
+      GW_ADDR: ":8091"
+      GARAGE_ENDPOINT: ${GARAGE_ENDPOINT:-garage:3900}
+      GARAGE_ACCESS_KEY: ${GARAGE_ACCESS_KEY:-}
+      GARAGE_SECRET_KEY: ${GARAGE_SECRET_KEY:-}
+      GARAGE_BUCKET: ${GARAGE_BUCKET:-cdss}
+      ORTHANC_URL: ${ORTHANC_URL:-}
+      ORTHANC_USER: ${ORTHANC_USER:-}
+      ORTHANC_PASS: ${ORTHANC_PASS:-}
+    volumes:
+      # 청크 조각이 여기 쌓인다. 컨테이너가 죽으면 진행 중이던 업로드가
+      # 날아가므로 볼륨으로 뺀다. WSI 는 다시 올리는 데 수십 분이 든다.
+      - gw-spool:/var/tmp/gw-spool
+    ports: ["8091:8091"]
+
+  llm-proxy:
+    <<: *gosvc-common
+    entrypoint: /usr/local/bin/llm-proxy
+    environment:
+      <<: *gosvc-env
+      LLM_ADDR: ":8090"
+      OLLAMA_BASE: ${OLLAMA_BASE:-http://ollama:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-medgemma}
+    ports: ["8090:8090"]
+
+  notify:
+    <<: *gosvc-common
+    entrypoint: /usr/local/bin/notify
+    environment:
+      <<: *gosvc-env
+      NOTIFY_ADDR: ":8092"
+      NOTIFY_BUFFER: ${NOTIFY_BUFFER:-32}
+    ports: ["8092:8092"]
+
+volumes:
+  gw-spool:

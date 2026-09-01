@@ -15,6 +15,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -42,13 +43,15 @@ const (
 
 // ── 발판 ────────────────────────────────────────────────────────────
 
-// 받은 I-1 콜백 한 건
+// 받은 내부 콜백 한 건
 type i1 struct {
+	Path   string
 	Idem   string
 	TS     string
 	Sig    string
 	Body   []byte
 	Parsed callback.StorageObject
+	Dicom  callback.DicomMetadata
 }
 
 type rig struct {
@@ -59,6 +62,9 @@ type rig struct {
 	mu   sync.Mutex
 	got  []i1
 	code int // Django 가 낼 응답 코드
+
+	// failPath 에 들어온 콜백만 500 을 낸다. I-2 만 실패시킬 때 쓴다.
+	failPath string
 }
 
 func newRig(t *testing.T) *rig {
@@ -68,15 +74,21 @@ func newRig(t *testing.T) *rig {
 	dj := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		b, _ := io.ReadAll(req.Body)
 		var o callback.StorageObject
+		var d callback.DicomMetadata
 		json.Unmarshal(b, &o)
+		json.Unmarshal(b, &d)
 		r.mu.Lock()
 		r.got = append(r.got, i1{
+			Path: req.URL.Path,
 			Idem: req.Header.Get("Idempotency-Key"),
 			TS:   req.Header.Get("X-Timestamp"),
 			Sig:  req.Header.Get("X-Signature"),
-			Body: b, Parsed: o,
+			Body: b, Parsed: o, Dicom: d,
 		})
 		code := r.code
+		if r.failPath != "" && req.URL.Path == r.failPath {
+			code = 500
+		}
 		r.mu.Unlock()
 		w.WriteHeader(code)
 	}))
@@ -98,10 +110,20 @@ func newRig(t *testing.T) *rig {
 	return r
 }
 
-func (r *rig) callbacks() []i1 {
+// callbacks — I-1 만. I-2 는 dicoms() 로 따로 본다.
+func (r *rig) callbacks() []i1 { return r.pick("/internal/v1/storage-objects") }
+func (r *rig) dicoms() []i1    { return r.pick("/internal/v1/dicom-instances") }
+
+func (r *rig) pick(path string) []i1 {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return append([]i1(nil), r.got...)
+	var out []i1
+	for _, c := range r.got {
+		if c.Path == path {
+			out = append(out, c)
+		}
+	}
+	return out
 }
 
 func (r *rig) djangoReturns(code int) {
@@ -613,5 +635,227 @@ func TestCapReader(t *testing.T) {
 	no := &capReader{r: strings.NewReader(src), limit: 0}
 	if n, err := io.Copy(io.Discard, no); err != nil || n != 100 {
 		t.Errorf("무제한인데 막혔다: %d %v", n, err)
+	}
+}
+
+// ── G-F7  DICOM 파싱 → I-2 ──────────────────────────────────────────
+
+// 시험용 유방촬영 DICOM 을 바이트로 짓는다.
+// 실제 자료를 못 쓴다 — CBIS-DDSM 은 재배포 금지, EMBED 는 DUA 로 묶여 있다.
+func mgDICOM(sop, laterality, view, spacing string) []byte {
+	var b bytes.Buffer
+	b.Write(make([]byte, 128))
+	b.WriteString("DICM")
+	el := func(g, e uint16, vr, v string) {
+		if len(v)%2 == 1 {
+			v += "\x00"
+		}
+		binary.Write(&b, binary.LittleEndian, g)
+		binary.Write(&b, binary.LittleEndian, e)
+		b.WriteString(vr)
+		binary.Write(&b, binary.LittleEndian, uint16(len(v)))
+		b.WriteString(v)
+	}
+	us := func(g, e, n uint16) {
+		binary.Write(&b, binary.LittleEndian, g)
+		binary.Write(&b, binary.LittleEndian, e)
+		b.WriteString("US")
+		binary.Write(&b, binary.LittleEndian, uint16(2))
+		binary.Write(&b, binary.LittleEndian, n)
+	}
+	el(0x0002, 0x0010, "UI", "1.2.840.10008.1.2.1")
+	el(0x0008, 0x0018, "UI", sop)
+	el(0x0008, 0x0060, "CS", "MG")
+	el(0x0010, 0x0010, "PN", "홍^길동")
+	el(0x0010, 0x0020, "LO", "DCM-PID-1")
+	if spacing != "" {
+		el(0x0018, 0x1164, "DS", spacing)
+	}
+	el(0x0018, 0x5101, "CS", view)
+	el(0x0020, 0x000D, "UI", "1.2.3.STUDY")
+	el(0x0020, 0x000E, "UI", "1.2.3.SERIES")
+	el(0x0020, 0x0062, "CS", laterality)
+	us(0x0028, 0x0010, 4096)
+	us(0x0028, 0x0011, 3328)
+	// PixelData — 여기서 파서가 멈춰야 한다
+	binary.Write(&b, binary.LittleEndian, uint16(0x7FE0))
+	binary.Write(&b, binary.LittleEndian, uint16(0x0010))
+	b.WriteString("OW")
+	binary.Write(&b, binary.LittleEndian, uint16(0))
+	binary.Write(&b, binary.LittleEndian, uint32(2048))
+	b.Write(bytes.Repeat([]byte{0xAB}, 2048))
+	return b.Bytes()
+}
+
+func TestDicomSingleFileSendsI2(t *testing.T) {
+	r := newRig(t)
+	raw := mgDICOM("1.2.3.SOP", "R", "CC", `0.07\0.07`)
+
+	w := r.do(t, "POST", "/svc/v1/files", mint(t), bytes.NewReader(raw),
+		"X-Filename", "study.dcm")
+	if w.Code != 201 {
+		t.Fatalf("%d %s", w.Code, w.Body)
+	}
+	key := decode(t, w)["object_key"].(string)
+
+	// I-1 이 먼저, I-2 가 나중 — 명세 21장 순서 보장
+	all := r.pick("/internal/v1/storage-objects")
+	dc := r.dicoms()
+	if len(all) != 1 || len(dc) != 1 {
+		t.Fatalf("I-1 %d건 · I-2 %d건 (각 1건이어야 한다)", len(all), len(dc))
+	}
+	r.mu.Lock()
+	order := []string{r.got[0].Path, r.got[1].Path}
+	r.mu.Unlock()
+	if order[0] != "/internal/v1/storage-objects" {
+		t.Errorf("I-2 가 I-1 보다 먼저 갔다: %v", order)
+	}
+
+	m := dc[0].Dicom
+	if m.ObjectKey != key {
+		t.Errorf("I-2 의 object_key 가 I-1 과 다르다: %q vs %q", m.ObjectKey, key)
+	}
+	if dc[0].Idem != "dcm:"+key {
+		t.Errorf("I-2 멱등키: %q", dc[0].Idem)
+	}
+	if dc[0].Idem == all[0].Idem {
+		t.Errorf("I-1 과 I-2 가 같은 멱등키를 쓴다 — 서로 덮어쓴다")
+	}
+	if dc[0].Sig != callback.Sign([]byte(cbsec), dc[0].TS, dc[0].Body) {
+		t.Errorf("I-2 서명이 안 맞는다")
+	}
+	for _, c := range []struct{ name, got, want string }{
+		{"sop", m.SOPInstanceUID, "1.2.3.SOP"},
+		{"study", m.StudyInstanceUID, "1.2.3.STUDY"},
+		{"series", m.SeriesInstanceUID, "1.2.3.SERIES"},
+		{"modality", m.Modality, "MG"},
+		{"laterality", m.Laterality, "R"},
+		{"view", m.ViewPosition, "CC"},
+		{"dicom_patient_id", m.DicomPatientID, "DCM-PID-1"},
+		{"ticket patient_id", m.PatientID, "P-77"}, // 티켓 쪽 값
+	} {
+		if c.got != c.want {
+			t.Errorf("%s = %q (%q 여야 한다)", c.name, c.got, c.want)
+		}
+	}
+	if m.Rows != 4096 || m.Columns != 3328 {
+		t.Errorf("크기 %dx%d", m.Columns, m.Rows)
+	}
+	if len(m.PixelSpacing) != 2 || m.PixelSpacing[0] != 0.07 {
+		t.Errorf("화소 간격 = %v", m.PixelSpacing)
+	}
+}
+
+// 환자 이름은 I-2 본문에 절대 안 들어가야 한다. 가명화 정책 미정 상태다.
+func TestDicomCallbackHasNoPatientName(t *testing.T) {
+	r := newRig(t)
+	raw := mgDICOM("1.2.3.SOP", "L", "MLO", `0.07\0.07`)
+	if !bytes.Contains(raw, []byte("홍^길동")) {
+		t.Fatal("시험 자료에 이름이 없다 — 시험이 의미 없다")
+	}
+	r.do(t, "POST", "/svc/v1/files", mint(t), bytes.NewReader(raw), "X-Filename", "a.dcm")
+
+	dc := r.dicoms()
+	if len(dc) != 1 {
+		t.Fatalf("I-2 %d건", len(dc))
+	}
+	if bytes.Contains(dc[0].Body, []byte("홍")) {
+		t.Errorf("환자 이름이 I-2 본문에 실렸다: %s", dc[0].Body)
+	}
+}
+
+// 청크 업로드로 올려도 똑같이 I-2 가 가야 한다.
+// 조각을 이어 붙이며 앞부분을 따로 받는 경로가 따로라 별도로 확인한다.
+func TestDicomChunkedSendsI2(t *testing.T) {
+	r := newRig(t)
+	raw := mgDICOM("1.2.3.CHUNKED", "L", "MLO", `0.085\0.085`)
+
+	id := decode(t, r.do(t, "POST", "/svc/v1/upload/init", mint(t),
+		strings.NewReader(`{"filename":"a.dcm"}`)))["upload_id"].(string)
+	// 머리말 한가운데를 가르도록 조각을 나눈다
+	for i, chunk := range [][]byte{raw[:150], raw[150:400], raw[400:]} {
+		if w := r.do(t, "PUT", fmt.Sprintf("/svc/v1/upload/%s/part/%d", id, i+1),
+			mint(t), bytes.NewReader(chunk)); w.Code != 200 {
+			t.Fatalf("조각 %d: %d %s", i+1, w.Code, w.Body)
+		}
+	}
+	if w := r.do(t, "POST", "/svc/v1/upload/"+id+"/complete", mint(t), nil); w.Code != 201 {
+		t.Fatalf("complete: %d %s", w.Code, w.Body)
+	}
+	dc := r.dicoms()
+	if len(dc) != 1 {
+		t.Fatalf("청크 업로드에서 I-2 가 %d건", len(dc))
+	}
+	if dc[0].Dicom.SOPInstanceUID != "1.2.3.CHUNKED" {
+		t.Errorf("SOP = %q", dc[0].Dicom.SOPInstanceUID)
+	}
+	if len(dc[0].Dicom.PixelSpacing) != 2 || dc[0].Dicom.PixelSpacing[0] != 0.085 {
+		t.Errorf("간격 = %v", dc[0].Dicom.PixelSpacing)
+	}
+}
+
+// DICOM 이 아닌 것(PDF 등)에는 I-2 를 보내면 안 된다
+func TestNonDicomSendsNoI2(t *testing.T) {
+	r := newRig(t)
+	pdf := append([]byte("%PDF-1.7\n"), bytes.Repeat([]byte("x"), 500)...)
+	if w := r.do(t, "POST", "/svc/v1/files", mint(t), bytes.NewReader(pdf),
+		"X-Filename", "report.pdf"); w.Code != 201 {
+		t.Fatalf("%d %s", w.Code, w.Body)
+	}
+	if n := len(r.dicoms()); n != 0 {
+		t.Errorf("PDF 에 I-2 를 %d건 보냈다", n)
+	}
+	if n := len(r.callbacks()); n != 1 {
+		t.Errorf("I-1 은 갔어야 한다: %d건", n)
+	}
+}
+
+// 화소 간격이 없는 DICOM(CBIS-DDSM 같은 필름 스캔)도 받아야 한다.
+// 다만 간격을 **지어내면 안 된다** — 없으면 없다고 가야 한다.
+func TestDicomWithoutSpacing(t *testing.T) {
+	r := newRig(t)
+	raw := mgDICOM("1.2.3.NOSPACE", "R", "CC", "")
+	w := r.do(t, "POST", "/svc/v1/files", mint(t), bytes.NewReader(raw),
+		"X-Filename", "a.dcm")
+	if w.Code != 201 {
+		t.Fatalf("%d %s", w.Code, w.Body)
+	}
+	dc := r.dicoms()
+	if len(dc) != 1 {
+		t.Fatalf("I-2 %d건", len(dc))
+	}
+	if len(dc[0].Dicom.PixelSpacing) != 0 {
+		t.Errorf("없는 간격을 지어냈다: %v", dc[0].Dicom.PixelSpacing)
+	}
+	// 응답에 명시적으로 null 이 실려야 한다. 필드가 빠지면 호출부가
+	// "안 봤다" 와 "없다" 를 구별 못 한다.
+	d, ok := decode(t, w)["dicom"].(map[string]any)
+	if !ok {
+		t.Fatal("응답에 dicom 이 없다")
+	}
+	if v, present := d["pixel_spacing_mm"]; !present || v != nil {
+		t.Errorf("pixel_spacing_mm = %v (null 이어야 한다)", v)
+	}
+}
+
+// I-2 가 실패해도 **요청은 성공**이다. I-1 이 이미 끝나 객체가 등록됐으므로
+// 여기서 502 를 내면 클라이언트가 재업로드해서 같은 파일이 두 벌 생긴다.
+// 대신 응답에 실패를 표시해야 한다 — 조용히 삼키면 안 된다.
+func TestDicomMetadataFailureDoesNotFailRequest(t *testing.T) {
+	r := newRig(t)
+	r.failPath = "/internal/v1/dicom-instances"
+	raw := mgDICOM("1.2.3.SOP", "R", "CC", `0.07\0.07`)
+
+	w := r.do(t, "POST", "/svc/v1/files", mint(t), bytes.NewReader(raw),
+		"X-Filename", "a.dcm")
+	if w.Code != 201 {
+		t.Fatalf("I-2 실패가 요청을 죽였다: %d %s", w.Code, w.Body)
+	}
+	d, ok := decode(t, w)["dicom"].(map[string]any)
+	if !ok {
+		t.Fatal("응답에 dicom 이 없다")
+	}
+	if d["metadata_registered"] != false {
+		t.Errorf("실패를 표시 안 했다: %v", d)
 	}
 }

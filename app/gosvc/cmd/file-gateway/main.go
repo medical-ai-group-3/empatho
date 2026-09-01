@@ -5,6 +5,7 @@
 //	G-F3  POST /svc/v1/upload/{upload_id}/complete  병합 · sha256 · 커밋 → I-1
 //	G-F4  POST /svc/v1/files                        단일 파일 (DICOM 낱장 · PDF) → I-1
 //	G-F5  GET  /svc/v1/files/{object_key}           스트리밍 다운로드 (Range 지원)
+//	G-F7  (경로 없음) 커밋 직후 DICOM 머리말 파싱 → I-2, Orthanc 전송
 //
 // 지켜야 하는 것 (명세 19장)
 //
@@ -13,10 +14,12 @@
 //	· object_key 는 **티켓의 object_key_prefix 에서만** 만든다.
 //	  클라이언트가 준 이름을 그대로 쓰면 남의 자리에 쓸 수 있다.
 //
-// 아직 안 한 것 — G-F6(썸네일) · G-F7(DICOM 파싱 · Orthanc) · 19-5 피라미드
+// 아직 안 한 것 — G-F6(썸네일) · 19-5 피라미드(G-F8~G-F12)
 package main
 
 import (
+	"bytes"
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
@@ -32,6 +35,8 @@ import (
 	"time"
 
 	"cdss/gosvc/internal/callback"
+	"cdss/gosvc/internal/dicom"
+	"cdss/gosvc/internal/orthanc"
 	"cdss/gosvc/internal/storage"
 	"cdss/gosvc/internal/ticket"
 	"cdss/gosvc/internal/upload"
@@ -42,7 +47,8 @@ type gw struct {
 	up  *upload.Manager
 	cb  *callback.Client
 	tv  *ticket.Verifier
-	cls string // storage_class
+	or  *orthanc.Client // nil 이면 Orthanc 전송을 건너뛴다
+	cls string          // storage_class
 }
 
 func main() {
@@ -61,9 +67,15 @@ func main() {
 		log.Fatalf("스풀: %v", err)
 	}
 	g := &gw{st: st, up: um,
-		cb:  callback.New(cbBase, []byte(cbSec), os.Getenv("CALLBACK_CERT"), os.Getenv("CALLBACK_KEY"), 4),
-		tv:  ticket.NewVerifier([]byte(tkey)),
+		cb: callback.New(cbBase, []byte(cbSec), os.Getenv("CALLBACK_CERT"), os.Getenv("CALLBACK_KEY"), 4),
+		tv: ticket.NewVerifier([]byte(tkey)),
+		or: orthanc.New(os.Getenv("ORTHANC_URL"),
+			os.Getenv("ORTHANC_USER"), os.Getenv("ORTHANC_PASS")),
 		cls: env("GW_STORAGE_CLASS", "standard")}
+	if g.or == nil {
+		log.Printf("[gw] ORTHANC_URL 이 비어 있다 — DICOM 은 파싱해서 I-2 만 보내고 " +
+			"Orthanc 전송은 건너뛴다")
+	}
 
 	// 버려진 청크 세션 청소. 안 하면 스풀이 계속 찬다.
 	go func() {
@@ -220,14 +232,37 @@ func (g *gw) complete(w http.ResponseWriter, r *http.Request) {
 	// 성공하든 실패하든 조각은 지운다
 	defer g.up.Cleanup(s.ID)
 
+	// 흘려보내는 김에 앞부분만 따로 받아 둔다 — G-F7 이 이걸 파싱한다.
+	// 다 올리고 나서 저장소에서 다시 읽으면 왕복이 한 번 더 생긴다.
+	tap := &headTap{max: headBytes}
 	sum, total, err := g.up.Assemble(s, func(rd io.Reader, size int64, ct string) error {
-		return g.st.Put(r.Context(), s.ObjectKey, rd, size, ct)
+		return g.st.Put(r.Context(), s.ObjectKey, io.TeeReader(rd, tap), size, ct)
 	})
 	if err != nil {
 		fail(w, 400, "ASSEMBLE_FAILED", err.Error())
 		return
 	}
-	g.commit(w, r, s.ObjectKey, sum, total, s.ContentType, s.PatientID, s.ScopeID)
+	g.commit(w, r, s.ObjectKey, sum, total, s.ContentType, s.PatientID, s.ScopeID,
+		tap.b.Bytes())
+}
+
+// headTap — 앞 max 바이트만 모으고 나머지는 버린다.
+// DICOM 머리말은 수십 KB 면 충분하다. 수 GB 를 통째로 붙들 이유가 없다.
+const headBytes = 1 << 20
+
+type headTap struct {
+	b   bytes.Buffer
+	max int
+}
+
+func (h *headTap) Write(p []byte) (int, error) {
+	if room := h.max - h.b.Len(); room > 0 {
+		if len(p) < room {
+			room = len(p)
+		}
+		h.b.Write(p[:room])
+	}
+	return len(p), nil
 }
 
 // ── G-F4 ────────────────────────────────────────────────────────────
@@ -248,11 +283,13 @@ func (g *gw) putFile(w http.ResponseWriter, r *http.Request) {
 	h := sha256.New()
 	key := keyFor(cl, r.Header.Get("X-Filename"))
 	cr := &capReader{r: r.Body, limit: max}
+	tap := &headTap{max: headBytes}
 	ct := cl.ContentType
 	if ct == "" {
 		ct = r.Header.Get("Content-Type")
 	}
-	if err := g.st.Put(r.Context(), key, io.TeeReader(cr, h), -1, ct); err != nil {
+	if err := g.st.Put(r.Context(), key,
+		io.TeeReader(cr, io.MultiWriter(h, tap)), -1, ct); err != nil {
 		// 중단된 자리에 조각이 남았을 수 있다. 저장소 구현에 맡기지 않고 지운다.
 		g.st.Delete(r.Context(), key)
 		if errors.Is(err, upload.ErrTooBig) {
@@ -263,7 +300,7 @@ func (g *gw) putFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	g.commit(w, r, key, hex.EncodeToString(h.Sum(nil)), cr.read, ct,
-		cl.PatientID, cl.ScopeID)
+		cl.PatientID, cl.ScopeID, tap.b.Bytes())
 }
 
 // capReader — limit 바이트를 넘겨 읽는 순간 ErrTooBig 를 낸다.
@@ -289,7 +326,7 @@ func (c *capReader) Read(p []byte) (int, error) {
 // 콜백이 실패하면 Garage 에는 있는데 DB 에 없는 고아 객체가 된다.
 // 명세 21장이 그 상태를 정상으로 취급하지 말라고 못 박았으므로 502 로 알린다.
 func (g *gw) commit(w http.ResponseWriter, r *http.Request,
-	key, sum string, size int64, ct, patient, scope string) {
+	key, sum string, size int64, ct, patient, scope string, head []byte) {
 	obj := callback.StorageObject{
 		Bucket: g.st.Bucket(), ObjectKey: key, ChecksumSHA256: sum,
 		ByteSize: size, ContentType: ct, StorageClass: g.cls,
@@ -302,10 +339,109 @@ func (g *gw) commit(w http.ResponseWriter, r *http.Request,
 		return
 	}
 	log.Printf("[gw] 커밋 key=%s %d bytes sha=%s…", key, size, sum[:12])
-	writeJSON(w, 201, map[string]any{
+
+	res := map[string]any{
 		"object_key": key, "bucket": obj.Bucket, "byte_size": size,
 		"checksum_sha256": sum, "content_type": ct,
-	})
+	}
+	// G-F7 — I-1 이 성공한 뒤에만 부른다 (명세 21장 순서 보장)
+	if meta := g.ingestDICOM(r.Context(), key, patient, scope, head); meta != nil {
+		res["dicom"] = meta
+	}
+	writeJSON(w, 201, res)
+}
+
+// ── G-F7 ────────────────────────────────────────────────────────────
+//
+// DICOM 이면 머리말을 읽어 I-2 로 넘기고, Orthanc 가 설정돼 있으면 올린다.
+//
+// **실패해도 요청은 성공이다.** I-1 은 이미 끝났고 객체는 등록됐다.
+// 메타는 나중에 객체를 다시 읽어 복구할 수 있지만, 여기서 502 를 내면
+// 클라이언트가 재업로드를 해서 같은 파일이 두 벌 생긴다. 대신 응답에
+// 무엇이 안 됐는지 담고 로그에 남긴다 — 조용히 삼키지는 않는다.
+func (g *gw) ingestDICOM(ctx context.Context, key, patient, scope string,
+	head []byte) map[string]any {
+	if len(head) == 0 {
+		return nil
+	}
+	m, err := dicom.Parse(bytes.NewReader(head), 0)
+	if err != nil {
+		// DICOM 이 아닌 것(PDF 등)은 정상이다. 조용히 넘어간다.
+		return nil
+	}
+	out := map[string]any{
+		"sop_instance_uid":   m.SOPInstanceUID,
+		"study_instance_uid": m.StudyInstanceUID,
+		"modality":           m.Modality,
+	}
+	// 화소 간격이 없으면 표시한다. 미세석회 판독이 여기에 걸린다 —
+	// mm/px 를 모르면 해상도 보정을 할 수 없고 결과를 믿을 근거가 없다.
+	if m.HasSpacing() {
+		out["pixel_spacing_mm"] = m.PixelSpacing
+	} else {
+		out["pixel_spacing_mm"] = nil
+		log.Printf("[G-F7] ⚠ key=%s 화소 간격 없음 — 해상도 보정 불가", key)
+	}
+
+	cm := callback.DicomMetadata{
+		ObjectKey: key, Bucket: g.st.Bucket(),
+		StudyInstanceUID: m.StudyInstanceUID, SeriesInstanceUID: m.SeriesInstanceUID,
+		SOPInstanceUID: m.SOPInstanceUID, SOPClassUID: m.SOPClassUID,
+		DicomPatientID: m.PatientID,
+		Modality:       m.Modality, StudyDate: m.StudyDate, StudyTime: m.StudyTime,
+		BodyPart: m.BodyPart, Manufacturer: m.Manufacturer, ModelName: m.ModelName,
+		Laterality: m.Laterality, ViewPosition: m.ViewPosition,
+		Rows: m.Rows, Columns: m.Columns,
+		BitsAllocated: m.BitsAllocated, BitsStored: m.BitsStored,
+		NumberOfFrames: m.NumberOfFrames, PhotometricInterp: m.PhotometricInterp,
+		PixelSpacing: m.PixelSpacing, PixelSpacingTag: m.PixelSpacingTag,
+		TransferSyntaxUID:  m.TransferSyntaxUID,
+		BurnedInAnnotation: m.BurnedInAnnotation,
+		PatientID:          patient, ScopeID: scope,
+	}
+	if id, err := g.toOrthanc(ctx, key); err != nil {
+		log.Printf("[G-F7] Orthanc 전송 실패 key=%s: %v", key, err)
+		out["orthanc"] = "failed"
+	} else if id != "" {
+		cm.OrthancInstanceID = id
+		out["orthanc"] = id
+	}
+
+	if err := g.cb.PostDicomMetadata(ctx, cm); err != nil {
+		log.Printf("[G-F7] ✗ I-2 실패 key=%s sop=%s — 객체는 등록됐으나 "+
+			"메타가 없다. 객체를 다시 읽어 복구할 것: %v", key, m.SOPInstanceUID, err)
+		out["metadata_registered"] = false
+		return out
+	}
+	out["metadata_registered"] = true
+	log.Printf("[G-F7] I-2 key=%s %s %s%s %dx%d",
+		key, m.Modality, m.Laterality, m.ViewPosition, m.Columns, m.Rows)
+	return out
+}
+
+// toOrthanc — 커밋된 객체를 저장소에서 다시 읽어 Orthanc 로 보낸다.
+// 업로드 본문은 스트림으로 흘려보내서 메모리에 안 남는다.
+func (g *gw) toOrthanc(ctx context.Context, key string) (string, error) {
+	if g.or == nil {
+		return "", nil
+	}
+	rd, _, err := g.st.Open(ctx, key)
+	if err != nil {
+		return "", err
+	}
+	defer rd.Close()
+	res, err := g.or.Store(ctx, rd)
+	if errors.Is(err, orthanc.ErrDuplicate) {
+		// 재시도가 만든 중복이다. 실패가 아니다.
+		if res != nil {
+			return res.ID, nil
+		}
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	return res.ID, nil
 }
 
 // ── G-F5 ────────────────────────────────────────────────────────────

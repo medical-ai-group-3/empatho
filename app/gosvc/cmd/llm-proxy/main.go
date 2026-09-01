@@ -39,7 +39,17 @@ import (
 	"cdss/gosvc/internal/ticket"
 )
 
-const purposeNarrative = "report_narrative"
+const (
+	purposeNarrative = "report_narrative"
+	purposeChat      = "chat"
+)
+
+// 대화 상한. 없으면 앞선 대화가 계속 쌓여 컨텍스트 창을 넘기고,
+// 그러면 Ollama 가 **앞쪽을 조용히 잘라낸다** — 근거 목록이 먼저 잘린다.
+const (
+	maxTurns    = 24
+	maxCharsMsg = 4000
+)
 
 type server struct {
 	oll *ollama.Client
@@ -78,6 +88,7 @@ func main() {
 	}
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /svc/v1/llm/report-narrative", s.reportNarrative)
+	mux.HandleFunc("POST /svc/v1/llm/chat", s.chat)
 	mux.HandleFunc("GET /svc/v1/llm/models", s.models)
 	mux.HandleFunc("GET /svc/v1/llm/health", s.health)
 
@@ -232,6 +243,159 @@ func buildPrompt(req narrativeReq) []ollama.Message {
 			"주어진 근거 밖의 내용을 만들지 않는다."},
 		{Role: "user", Content: b.String()},
 	}
+}
+
+// ── G-L2  챗봇 ──────────────────────────────────────────────────────
+//
+// G-L1 과 다른 점 하나가 설계 전체를 가른다.
+//
+//	G-L1 은 **리포트에 저장되는 글**이다. 그래서 근거 없는 문장을 버리고
+//	I-4 로 DB 에 남긴다.
+//	G-L2 는 **화면에서 한 번 읽고 마는 대화**다. 여기에 같은 문장 필터를
+//	걸면 "그건 무슨 뜻인가요" 같은 질문에 아무 답도 못 한다 — 설명 문장은
+//	근거 표시를 달 자리가 없기 때문이다.
+//
+// 그래서 G-L2 는
+//
+//	· 문장을 버리지 않는다
+//	· **DB 에 안 남긴다** (콜백 없음). 대화는 진료 기록이 아니다
+//	· 대신 근거를 컨텍스트로 넣고, 근거 밖 임상 사실을 단정하지 말라고 못 박는다
+//	· 응답에 면책을 함께 내려보내 화면이 그대로 띄우게 한다
+//
+// ⚠ 팀과 맞출 것 — 대화를 진료 기록으로 남길지 여부. 남기기로 하면
+//
+//	명세 21장에 I-6 이 하나 더 필요하고, 그때는 문장 필터도 다시 봐야 한다.
+type chatReq struct {
+	SessionID string           `json:"session_id"`
+	Messages  []ollama.Message `json:"messages"`
+	Context   []Evidence       `json:"context,omitempty"`
+}
+
+func (s *server) chat(w http.ResponseWriter, r *http.Request) {
+	var req chatReq
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).
+		Decode(&req); err != nil {
+		fail(w, 400, "BAD_REQUEST", "본문을 못 읽었다: "+err.Error())
+		return
+	}
+	cl := s.verify(w, r, purposeChat, req.SessionID)
+	if cl == nil {
+		return
+	}
+	msgs, err := chatMessages(req)
+	if err != nil {
+		fail(w, 400, "BAD_REQUEST", err.Error())
+		return
+	}
+
+	fl, canStream := w.(http.Flusher)
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("X-Accel-Buffering", "no")
+	w.WriteHeader(http.StatusOK)
+
+	// G-L1 과 반대로 **요청 컨텍스트에 묶는다.**
+	// 저장할 것이 없으니 화면이 닫히면 계속 만들 이유가 없다. 그냥 GPU 낭비다.
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Minute)
+	defer cancel()
+
+	var n int
+	_, gerr := s.oll.Chat(ctx, msgs, func(chunk string) error {
+		n += len([]rune(chunk))
+		if _, err := fmt.Fprintf(w, "event: token\ndata: %s\n\n",
+			jsonStr(chunk)); err != nil {
+			return err
+		}
+		if canStream {
+			fl.Flush()
+		}
+		return nil
+	})
+	if gerr != nil {
+		if errors.Is(gerr, context.Canceled) {
+			return // 사용자가 창을 닫았다. 오류가 아니다
+		}
+		log.Printf("[G-L2] session=%s ollama 실패: %v", req.SessionID, gerr)
+		sse(w, fl, "error", map[string]any{
+			"code": "UPSTREAM_LLM_UNAVAILABLE", "detail": gerr.Error(),
+		})
+		return
+	}
+	log.Printf("[G-L2] session=%s %d자 · 근거 %d개", req.SessionID, n, len(req.Context))
+	sse(w, fl, "done", map[string]any{
+		"session_id": req.SessionID, "chars": n,
+		"persisted":  false,
+		"disclaimer": "판독 보조 설명이다. 진단이 아니며 진료 기록으로 저장되지 않는다.",
+	})
+}
+
+// chatMessages — 대화를 상한 안으로 자르고 근거를 앞에 붙인다.
+//
+// **오래된 쪽부터 자른다.** 최근 대화가 문맥상 더 중요하고, 시스템 지시와
+// 근거는 따로 앞에 다시 붙이므로 잘려도 잃지 않는다.
+func chatMessages(req chatReq) ([]ollama.Message, error) {
+	if len(req.Messages) == 0 {
+		return nil, errors.New("messages 가 비었다")
+	}
+	if req.SessionID == "" {
+		return nil, errors.New("session_id 가 없다")
+	}
+	turns := req.Messages
+	if len(turns) > maxTurns {
+		turns = turns[len(turns)-maxTurns:]
+	}
+
+	var sys strings.Builder
+	sys.WriteString("너는 유방영상 판독 결과를 설명하는 보조다.\n" +
+		"- 아래 근거 밖의 임상 사실을 새로 단정하지 않는다.\n" +
+		"- 모르면 모른다고 말한다. 지어내지 않는다.\n" +
+		"- 진단·치료를 지시하지 않는다. 판단은 의료진이 한다.\n" +
+		"- 한국어. 구어체를 쓰지 않는다.\n")
+	if len(req.Context) > 0 {
+		sys.WriteString("\n[이 환자에 대해 확인된 근거]\n")
+		for _, e := range req.Context {
+			fmt.Fprintf(&sys, "- (%s) %s\n", e.Kind, e.Text)
+		}
+	}
+
+	out := make([]ollama.Message, 0, len(turns)+1)
+	out = append(out, ollama.Message{Role: "system", Content: sys.String()})
+	for _, m := range turns {
+		if m.Role != "user" && m.Role != "assistant" {
+			return nil, fmt.Errorf("허용되지 않는 role: %q", m.Role)
+		}
+		c := []rune(m.Content)
+		if len(c) > maxCharsMsg {
+			c = c[:maxCharsMsg]
+		}
+		out = append(out, ollama.Message{Role: m.Role, Content: string(c)})
+	}
+	return out, nil
+}
+
+// verify — 티켓 검증. G-L1 과 G-L2 가 같은 판정을 쓰게 한다.
+func (s *server) verify(w http.ResponseWriter, r *http.Request,
+	purpose, scopeID string) *ticket.Claims {
+	cl, err := s.tv.Verify(bearer(r))
+	if err != nil {
+		code, status := 401, "TICKET_EXPIRED"
+		switch {
+		case errors.Is(err, ticket.ErrScope):
+			code, status = 403, "TICKET_SCOPE_MISMATCH"
+		case errors.Is(err, ticket.ErrReplayed):
+			status = "TICKET_REPLAYED"
+		case errors.Is(err, ticket.ErrSignature), errors.Is(err, ticket.ErrMalformed):
+			status = "TICKET_INVALID"
+		}
+		fail(w, code, status, err.Error())
+		return nil
+	}
+	if err := cl.RequireScope(purpose, scopeID); err != nil {
+		fail(w, 403, "TICKET_SCOPE_MISMATCH",
+			"티켓이 가리키는 대상과 요청이 다르다")
+		return nil
+	}
+	return cl
 }
 
 // ── G-L3 · health ───────────────────────────────────────────────────
