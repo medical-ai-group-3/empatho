@@ -4,7 +4,7 @@ name: empatho-server
 
 services:
   web:
-    build: ./services/web
+    build: ./backend
     container_name: web
     restart: unless-stopped
     env_file:

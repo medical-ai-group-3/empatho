@@ -1,0 +1,12 @@
+# 빌드 컨텍스트에 들어가면 안 되는 것.
+# .env 는 conf/web.env 로 대체됐지만, 로컬 개발용으로 만든 것이 섞여 들어가면
+# 이미지에 비밀값이 박힌다.
+.env
+venv/
+.venv/
+__pycache__/
+*.pyc
+staticfiles/
+media/
+*.log
+db.sqlite3

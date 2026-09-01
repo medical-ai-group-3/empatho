@@ -5,3 +5,14 @@ conf/orthanc.env
 __pycache__/
 *.pyc
 *.env
+
+# Django (backend)
+venv/
+.venv/
+db.sqlite3
+staticfiles/
+media/
+*.log
+
+# 스키마 덤프의 압축본만 제외한다. backend/db/cdss_schema.sql 은 올린다.
+backend/db/*.sql.gz
