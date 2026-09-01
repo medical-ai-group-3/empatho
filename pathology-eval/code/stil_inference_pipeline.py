@@ -49,6 +49,7 @@ from cellvit.models.classifier.linear_classifier import LinearClassifier
 NUM_CLASSES = 3
 PATCH_GRID = 16
 NUM_REGISTER_TOKENS = 4
+TUMOR_CLASS_IDX = 1   # 종양 (기타=0, 종양=1, 간질=2)
 STROMA_CLASS_IDX = 2  # 간질 (기타=0, 종양=1, 간질=2)
 TOKEN_DIM = 1280
 HIDDEN_DIM = 256
@@ -95,12 +96,28 @@ def load_tissue_model(checkpoint_path, device, fp16=False):
     return model, mean, std, image_size
 
 
-def load_cell_classifier(head_path, device):
-    head = LinearClassifier(embed_dim=TOKEN_DIM, hidden_dim=HIDDEN_DIM, num_classes=2, drop_rate=0)
+def load_cell_classifier(head_path, device, mc_dropout=False, drop_rate=0.5):
+    """소켓2 셀 분류 헤드. mc_dropout=True 면 dropout 모듈만 train 모드로 두어
+    MC Dropout(추론 시 확률적 forward) 활성화 — 나머지 레이어는 eval 유지.
+    학습이 drop_rate=0.5 로 됐으므로(체크포인트 config) 동일 값이 기본."""
+    dr = drop_rate if mc_dropout else 0
+    head = LinearClassifier(embed_dim=TOKEN_DIM, hidden_dim=HIDDEN_DIM, num_classes=2, drop_rate=dr)
     ckpt = torch.load(head_path, map_location=device, weights_only=False)
     head.load_state_dict(ckpt["model_state_dict"] if "model_state_dict" in ckpt else ckpt)
-    head.eval().to(device)
+    head.eval().to(device)  # dropout 은 파라미터가 없어 가중치 로드에 영향 없음
+    if mc_dropout:
+        head.dropout.train()  # dropout 모듈만 확률적으로
     return head
+
+
+@torch.inference_mode()
+def mc_ptil_samples(head, T, n_samples):
+    """dropout train 모드인 head 로 T(셀 토큰, (N,D))에 대해 P(TIL) 을 n_samples 회 샘플.
+    반환: (n_samples, N) float32.  토큰은 재사용, MLP 만 반복 -> 비용 거의 없음."""
+    out = np.empty((n_samples, T.shape[0]), dtype=np.float32)
+    for s in range(n_samples):
+        out[s] = torch.softmax(head(T), dim=1)[:, 1].float().cpu().numpy()
+    return out
 
 
 @torch.inference_mode()
@@ -121,8 +138,10 @@ def _contour_area(cont):
 
 
 @torch.inference_mode()
-def detect_and_classify(img_np, cellvit, postproc, head, device, batch_size):
-    """반환: list[{cx, cy (원본좌표), p_til, area_px (원본 픽셀^2)}]  (이미지 밖 세포는 제외)"""
+def detect_and_classify(img_np, cellvit, postproc, head, device, batch_size, return_tokens=False):
+    """반환: list[{cx, cy (원본좌표), p_til, area_px (원본 픽셀^2)}]  (이미지 밖 세포는 제외)
+    return_tokens=True 면 (cells, T_kept) 반환 — T_kept 은 cells 와 순서가 맞는 셀 토큰 (N,D).
+    MC Dropout 시 이 토큰을 재사용해 MLP 만 반복한다."""
     H, W = img_np.shape[:2]
     if max(H, W) <= INPUT_SHAPE:
         coords, tokens, contours = detect_cells_small(img_np, cellvit, postproc, device)
@@ -133,15 +152,19 @@ def detect_and_classify(img_np, cellvit, postproc, head, device, batch_size):
         coords, tokens, contours = detect_cells_large(img_np, cellvit, postproc, device, batch_size)
 
     if len(tokens) == 0:
-        return []
+        return ([], None) if return_tokens else []
     T = torch.tensor(np.stack(tokens), dtype=torch.float32, device=device)
     p_til = torch.softmax(head(T), dim=1)[:, 1].cpu().numpy()
 
-    cells = []
-    for (cx, cy), p, cont in zip(coords, p_til, contours):
+    cells, keep_idx = [], []
+    for i, ((cx, cy), p, cont) in enumerate(zip(coords, p_til, contours)):
         if not (0 <= cx < W and 0 <= cy < H):
             continue
         cells.append({"cx": float(cx), "cy": float(cy), "p_til": float(p), "area_px": _contour_area(cont)})
+        keep_idx.append(i)
+    if return_tokens:
+        T_kept = T[keep_idx] if keep_idx else None
+        return cells, T_kept
     return cells
 
 
@@ -166,7 +189,16 @@ def main():
                     default=os.path.join(os.path.dirname(os.path.abspath(__file__)), "stil_results"))
     ap.add_argument("--gpu", type=int, default=0)
     ap.add_argument("--limit", type=int, default=0)
+    ap.add_argument("--mc_samples", type=int, default=50,
+                    help="MC Dropout 반복 횟수 (소켓2 셀 분류 헤드). 0 이면 비활성. "
+                         "토큰 재사용·MLP만 반복이라 비용 거의 없음 -> 50~100 무방.")
+    ap.add_argument("--mc_drop_rate", type=float, default=0.5,
+                    help="MC Dropout rate. 소켓2 헤드가 drop_rate=0.5 로 학습됨(체크포인트 config).")
+    ap.add_argument("--mc_ci", type=float, default=95.0,
+                    help="신뢰구간 % (기본 95 -> 2.5/97.5 백분위수).")
     args = ap.parse_args()
+    do_mc = args.mc_samples > 0
+    ci_lo, ci_hi = (100 - args.mc_ci) / 2, 100 - (100 - args.mc_ci) / 2
 
     device = f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu"
     os.makedirs(args.outdir, exist_ok=True)
@@ -176,12 +208,16 @@ def main():
     print("세포검출(CellViT-SAM-H) + 분류 헤드 로딩...")
     cellvit, _ = load_cellvit_sam(args.cellvit_path, args.gpu)
     postproc = DetectionCellPostProcessorCupy(wsi=None, nr_types=NR_TYPES)
-    head = load_cell_classifier(args.cell_head, device)
+    head = load_cell_classifier(args.cell_head, device, mc_dropout=do_mc, drop_rate=args.mc_drop_rate)
 
     files = sorted(Path(args.images_dir).glob("*.png"))
     if args.limit > 0:
         files = files[: args.limit]
     print(f"이미지 {len(files)}장, TIL 임계값 {args.til_threshold}, mpp {args.mpp} µm/px")
+    if do_mc:
+        print(f"MC Dropout: 소켓2 헤드 dropout={args.mc_drop_rate}, {args.mc_samples}회 샘플 "
+              f"-> stil_interval [{ci_lo:.1f}, {ci_hi:.1f}] 백분위수 "
+              f"(주의: TIL 분류 불확실성만; 조직분할 불확실성 제외)")
 
     results = []
     all_areas_px = []       # 검출된 모든 세포
@@ -193,9 +229,19 @@ def main():
 
         mask, pred16 = tissue_stroma_mask(tissue_model, img, mean, std, image_size, device, W, H)
         stroma_area_px = int((mask == STROMA_CLASS_IDX).sum())
+        tumor_area_px = int((mask == TUMOR_CLASS_IDX).sum())
         stroma_16grid = int((pred16 == STROMA_CLASS_IDX).sum())
 
-        cells = detect_and_classify(img_np, cellvit, postproc, head, device, args.batch_size)
+        # TSR (Tumor-Stroma Ratio): 종양+간질 픽셀 중 각 비율. 사양서 Q6 미확정이라
+        # tumor/stroma 두 관점 다 반환 -> 팀이 나중에 선택. 분모 0 이면 None.
+        tsr_denom = tumor_area_px + stroma_area_px
+        tsr_tumor_percent = (tumor_area_px / tsr_denom * 100) if tsr_denom > 0 else None
+        tsr_stroma_percent = (stroma_area_px / tsr_denom * 100) if tsr_denom > 0 else None
+
+        if do_mc:
+            head.dropout.eval()  # 점추정(stil_percent)은 결정론적으로
+        cells, T_kept = detect_and_classify(img_np, cellvit, postproc, head, device,
+                                            args.batch_size, return_tokens=True)
         immune = [c for c in cells if c["p_til"] >= args.til_threshold]
         intra = [c for c in immune
                  if mask[min(int(c["cy"]), H - 1), min(int(c["cx"]), W - 1)] == STROMA_CLASS_IDX]
@@ -209,6 +255,21 @@ def main():
         stil_std = (immune_cell_px / stroma_area_px * 100) if stroma_ok else None
         legacy = (len(immune) / (len(immune) + stroma_16grid) * 100) if (len(immune) + stroma_16grid) > 0 else None
 
+        # ---- MC Dropout v1: 소켓2 셀 분류 불확실성 -> stil 구간 ----
+        stil_lo = stil_hi = stil_mc_mean = stil_mc_std = None
+        if do_mc and stroma_ok and T_kept is not None and len(cells) > 0:
+            head.dropout.train()
+            mc_p = mc_ptil_samples(head, T_kept, args.mc_samples)       # (S, N)
+            areas = np.array([c["area_px"] for c in cells], dtype=np.float64)
+            yy = np.clip([int(c["cy"]) for c in cells], 0, H - 1)
+            xx = np.clip([int(c["cx"]) for c in cells], 0, W - 1)
+            in_stroma = (mask[yy, xx] == STROMA_CLASS_IDX)             # (N,)
+            is_immune = mc_p >= args.til_threshold                     # (S, N)
+            num_px = (areas[None, :] * is_immune * in_stroma[None, :]).sum(axis=1)
+            stil_s = num_px * args.nc_ratio / stroma_area_px * 100     # (S,)
+            stil_lo, stil_hi = (float(x) for x in np.percentile(stil_s, [ci_lo, ci_hi]))
+            stil_mc_mean, stil_mc_std = float(stil_s.mean()), float(stil_s.std())
+
         results.append({
             "stem": fp.stem,
             "img_w": W, "img_h": H,
@@ -217,19 +278,30 @@ def main():
             "til_count_stromal": len(intra),
             "stroma_status": "ok" if stroma_ok else "absent",
             "stroma_area_px": stroma_area_px,
+            "tumor_area_px": tumor_area_px,
             "stroma_area_um2": round(stroma_area_px * args.mpp ** 2, 1),
+            "tsr_tumor_percent": round(tsr_tumor_percent, 2) if tsr_tumor_percent is not None else None,
+            "tsr_stroma_percent": round(tsr_stroma_percent, 2) if tsr_stroma_percent is not None else None,
             "immune_nucleus_area_px": round(immune_nuc_px, 1),
             "immune_cell_area_px": round(immune_cell_px, 1),
             "immune_cell_area_um2": round(immune_cell_px * args.mpp ** 2, 1),
             "nc_ratio": args.nc_ratio,
             "stil_percent": round(stil_std, 2) if stil_std is not None else None,
             "legacy_stil_percent": round(legacy, 2) if legacy is not None else None,
+            # MC Dropout v1 (소켓2 TIL 분류 불확실성만; 조직분할 불확실성 제외)
+            "mc_samples": args.mc_samples if do_mc else 0,
+            "stil_interval_low": round(stil_lo, 2) if stil_lo is not None else None,
+            "stil_interval_high": round(stil_hi, 2) if stil_hi is not None else None,
+            "stil_mc_mean": round(stil_mc_mean, 2) if stil_mc_mean is not None else None,
+            "stil_mc_std": round(stil_mc_std, 3) if stil_mc_std is not None else None,
         })
         if (i + 1) % 25 == 0 or i == 0:
             r = results[-1]
+            ci = (f"  CI[{r['stil_interval_low']}, {r['stil_interval_high']}]"
+                  if r['stil_interval_low'] is not None else "")
             print(f"  [{i+1}/{len(files)}] {fp.stem[:32]:32s} {W}x{H}  "
                   f"면역세포 {r['til_count_stromal']}/{r['til_count']}(간질내/전체)  "
-                  f"stil={r['stil_percent']}  legacy={r['legacy_stil_percent']}")
+                  f"stil={r['stil_percent']}{ci}  legacy={r['legacy_stil_percent']}")
 
     out_path = Path(args.outdir) / "stil_demo_results.json"
     json.dump(results, open(out_path, "w"), ensure_ascii=False, indent=2)
@@ -269,6 +341,26 @@ def main():
         hist, _ = np.histogram(v, bins=edges)
         for lo, hi, c in zip(edges[:-1], edges[1:], hist):
             print(f"    [{lo:5.0f}, {hi:5.0f}) {c:4d}  {'#' * int(c / max(hist.max(), 1) * 40)}")
+
+    # ---- MC Dropout 구간 폭 ----
+    if do_mc:
+        w = np.array([r["stil_interval_high"] - r["stil_interval_low"]
+                      for r in results if r["stil_interval_low"] is not None])
+        rel = np.array([(r["stil_interval_high"] - r["stil_interval_low"]) / r["stil_percent"] * 100
+                        for r in results
+                        if r["stil_interval_low"] is not None and r["stil_percent"]])
+        bias = np.array([r["stil_mc_mean"] - r["stil_percent"]
+                         for r in results if r["stil_mc_mean"] is not None])
+        print(f"\n=== MC Dropout {args.mc_samples}회 (소켓2 헤드 dropout={args.mc_drop_rate}) — {args.mc_ci:.0f}% 구간 ===")
+        print(f"  유효 {len(w)}/{len(results)} 장")
+        if len(w):
+            print(f"  절대 폭(%TIL point)  min/median/mean/max = "
+                  f"{w.min():.2f} / {np.median(w):.2f} / {w.mean():.2f} / {w.max():.2f}")
+            print(f"  상대 폭(폭/stil*100) min/median/mean/max = "
+                  f"{rel.min():.0f}% / {np.median(rel):.0f}% / {rel.mean():.0f}% / {rel.max():.0f}%")
+            print(f"  MC평균 - 점추정      median/mean = {np.median(bias):+.2f} / {bias.mean():+.2f}  "
+                  f"(0 에 가까우면 dropout 이 점추정을 편향 안 시킴)")
+            print("  주의: 이 구간은 소켓2 TIL 분류 불확실성만 반영. 조직분할(소켓1) 불확실성 제외 -> v2 후보.")
 
     print(f"\n결과 저장: {out_path}")
 

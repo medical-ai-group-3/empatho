@@ -1,0 +1,10 @@
+# sTIL 서빙 체크포인트 sha256 — `sha256sum -c checksums.sha256` 로 검증
+# (경로는 현재 개발 워크스테이션 기준. 서버 배치 후엔 실제 위치에서 검증할 것)
+eacbd8de14a1bbfe0c536597d41546c6b6f95c94ef1fdd565f7e136e60f9a730  /home/wsuser/models/cellvitpp/logs_local/virchow2_linear_tand/best_head.pth
+e54f5c8ec452bd5afd2ebf3490cf8775e304ba17e311f8c7441b3fb07e5e7bfe  /home/wsuser/pathology-eval/candidates/socket2/model_best.pth
+356418f19d9d478f164c7a31f85274584fefaa02355815c09f52346c658c8ec4  /home/wsuser/models/cellvitpp/checkpoints/CellViT-SAM-H-x40-AMP.pth
+
+# HuggingFace Virchow2 (timm 이 자동 다운로드, 파일 배치 불필요)
+#   repo       : paige-ai/Virchow2   (gated — HF 토큰 필요)
+#   revision   : 3158645804b69e3f3bc4439d4116edddf0840a72
+#   model.safetensors sha256 : 8d6cea947eb2418c3b0dff48cfb9b238e47744ab0dfca21b2b0637b140769b4b
