@@ -2,7 +2,6 @@
 -- PostgreSQL database dump
 --
 
-\restrict DPJ5OtO477nw7SkPr5K66gGsWWCj3xwPjVWIDAAWudzbzIptIK2Fyc0OEWefVJh
 
 -- Dumped from database version 17.11 (Debian 17.11-0+deb13u1)
 -- Dumped by pg_dump version 17.11 (Debian 17.11-0+deb13u1)
@@ -3212,5 +3211,4 @@ ALTER TABLE ONLY public.study
 -- PostgreSQL database dump complete
 --
 
-\unrestrict DPJ5OtO477nw7SkPr5K66gGsWWCj3xwPjVWIDAAWudzbzIptIK2Fyc0OEWefVJh
 
