@@ -25,7 +25,7 @@ ENABLED = os.getenv("LOAD_US", "0") == "1"
 
 # 유휴 시 모델을 내린다. Ollama 의 KEEP_ALIVE 와 같은 취지 — 공유 GPU 라
 # 안 쓰는 동안 물고 있으면 안 된다. 0 이면 내리지 않는다.
-KEEP_ALIVE = int(os.getenv("US_KEEP_ALIVE", "180"))
+KEEP_ALIVE = int(os.getenv("US_KEEP_ALIVE", "30"))
 _REAP_EVERY = 30
 _LAST = {"t": 0.0}
 
@@ -137,21 +137,6 @@ def gpu_mb():
 
     reserved 가 PyTorch 캐시까지 포함한 값이라 이쪽을 봐야 한다.
     torch 를 아직 안 올렸으면 None.
-    """
-    t = sys.modules.get("torch")
-    if t is None or not t.cuda.is_available():
-        return None
-    return {
-        "allocated": round(t.cuda.memory_allocated() / 2**20),
-        "reserved": round(t.cuda.memory_reserved() / 2**20),
-    }
-
-def gpu_mb():
-    """이 프로세스가 잡고 있는 GPU 메모리(MiB). 회수가 실제로 되는지 재는 계기다.
-
-    reserved 가 PyTorch 캐시까지 포함한 값이라 이쪽을 봐야 한다. 프로세스 안에서
-    내리는 방식을 버린 근거가 이 값이었다 — allocated 32 MiB 인데 reserved 는
-    6,156 MiB 였다. torch 를 아직 안 올렸으면 None.
     """
     t = sys.modules.get("torch")
     if t is None or not t.cuda.is_available():

@@ -20,16 +20,25 @@ def facts(r: dict) -> list[str]:
 
     s = r.get("shape") or {}
     g = r.get("grade") or {}
-    return [
-        "병변이 검출되었습니다.",
-        f"최대 직경 {s.get('max_diameter_px')}px, 면적 {s.get('area_px')}px 입니다.",
-        f"종횡비 {s.get('height_width_ratio')}, 볼록성 {s.get('solidity')}, "
-        f"경계 요철도 {s.get('boundary_irregularity')}, "
-        f"원형도 {s.get('circularity')} 입니다.",
-        f"{r.get('orientation_label')}입니다.",
-        f"BI-RADS {g.get('display')} 이며 등급 확신도는 {g.get('confidence')} 입니다.",
-        f"마스크 신뢰도는 {(r.get('mask_reliability') or {}).get('level')} 입니다.",
-    ]
+    out = ["병변이 검출되었습니다."]
+    
+    # 마스크가 불안정하면 판독이 shape 를 null 로 준다. 없는 값을 문장에 박으면 
+    # 최대 직경 nonepx 이 그래로 의사에게 전달된다.
+    if s :
+        out.append(f"최대 직경 {s.get('max_diameter_px')}px, "
+                   f"면적 {s.get('area_px')}px 입니다.")
+        out.append(f"종횡비 {s.get('height_width_ratio')}, 볼록성 {s.get('solidity')}, "
+                   f"경계 요철도 {s.get('boundary_irregularity')}, "
+                   f"원형도 {s.get('circularity')} 입니다.")
+        
+    if r.get("orientation_label") :
+        out.append(f"{r['orientation_label']}입니다.")
+        
+    out.append(f"BI-RADS {g.get('display')} 이며 "
+               f"등급 확신도는 {g.get('confidence')}입니다.")
+    out.append(f"마스크 신뢰도는 {(r.get('mask_reliability') or {}).get('level')}입니다.")
+    
+    return out
 
 
 def notes(r: dict) -> list[str]:

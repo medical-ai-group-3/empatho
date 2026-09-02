@@ -45,7 +45,7 @@ def check(name: str, cond: bool, detail: str = "") -> bool :
     return cond
 
 def main() -> int :
-    png = tiny_png() 
+    png = tiny_png()
     ok = True
     
     status, d = post_image("4", png)
@@ -70,6 +70,10 @@ def main() -> int :
                 status == 200 and d.get("reason") == "unknown_socket", 
                 f"HTTP {status} / {d.get('reason')}")
     
+        # /healthz 도 확인한다. 오늘 healthz 가 500 인 채로 배포가 두 번 통과했다 —
+    # /analyze 만 보면 healthz 안의 오류가 안 잡힌다.
+    with urllib.request.urlopen(f"{BASE}/healthz", timeout=15) as r:
+        ok &= check("healthz 가 200", r.status == 200)
     print(" ---")
     print(" 전부 통과" if ok else "   실패 있음")
     return 0 if ok else 1

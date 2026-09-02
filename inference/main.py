@@ -30,8 +30,10 @@ SOCKETS = {
                         "mammo_mass_head.pt"], "유방 엑스레이 서술어 (경로 A)"),
 }
 
+# 서빙 코드가 있는 소켓. 가중치가 있어도 여기 없으면 판독을 못 한다.
+IMPLEMENTED = us.SOCKET_IDS
 
-def socket_state(base_dir: str, required: list[str]) -> str:
+def socket_state(socket_id: str, base_dir: str, required: list[str]) -> str:
     """ready / abstain_only:no_base / abstain_only:no_weights.
 
     exists() 는 심볼릭 링크를 따라가므로, 대상이 사라진 바로가기는 없는 것으로 센다.
@@ -40,6 +42,8 @@ def socket_state(base_dir: str, required: list[str]) -> str:
         return "abstain_only:no_base"
     if any(not (MODEL_ROOT / f).exists() for f in required):
         return "abstain_only:no_weights"
+    if socket_id not in IMPLEMENTED:
+        return "abstain_only:not_implemented"
     return "ready"
 
 # 임계값은 레포에 둔다. 값이 바뀐 시점과 이유가 git 에 남아야
@@ -72,7 +76,7 @@ def healthz():
         "us_gpu": us.gpu_mb(), 
         "load_errors": {"us": us.error()} if us.error() else {},
         "sockets": {
-            sid: {"state": socket_state(b, req), "desc": d}
+            sid: {"state": socket_state(sid, b, req), "desc": d}
             for sid, (b, req, d) in SOCKETS.items()
         },
     }
@@ -85,7 +89,7 @@ async def analyze(socket_id: str, image: UploadFile = File(...)):
         return {"socket_id": socket_id, "abstained": True, "reason": "unknown_socket"}
 
     base_dir, required, _ = known
-    state = socket_state(base_dir, required)
+    state = socket_state(socket_id, base_dir, required)
     data = await image.read()
     info = {
         "filename": image.filename,
