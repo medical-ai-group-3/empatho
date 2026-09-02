@@ -33,9 +33,9 @@ CREATE TABLE public.ai_mask (
     image_instance_id bigint,
     mask_type character varying(30),
     storage_object_id bigint,
-    created_at timestamp without time zone DEFAULT now(),
+    created_at timestamp with time zone DEFAULT now(),
     created_by bigint,
-    updated_at timestamp without time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
     updated_by bigint,
     pathology_slide_id bigint
 );
@@ -75,12 +75,12 @@ CREATE TABLE public.ai_result (
     threshold_version character varying(50),
     abstained boolean,
     abstain_signals character varying(100),
-    analyzed_at timestamp without time zone,
+    analyzed_at timestamp with time zone,
     run_status character varying(20),
     requested_by_staff_id bigint,
-    created_at timestamp without time zone DEFAULT now(),
+    created_at timestamp with time zone DEFAULT now(),
     created_by bigint,
-    updated_at timestamp without time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
     updated_by bigint,
     pathology_slide_id bigint,
     CONSTRAINT ai_result_target_ck CHECK ((num_nonnulls(study_id, pathology_slide_id) <= 1))
@@ -126,13 +126,13 @@ CREATE TABLE public.assessment (
     recommendation_reason character varying(250),
     rule_table_version character varying(30),
     assessed_by_staff_id bigint,
-    finalized_at timestamp without time zone,
+    finalized_at timestamp with time zone,
     superseded_by_id bigint,
     finding_note text,
-    ai_revealed_at timestamp without time zone,
-    created_at timestamp without time zone DEFAULT now(),
+    ai_revealed_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now(),
     created_by bigint,
-    updated_at timestamp without time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
     updated_by bigint
 );
 
@@ -167,10 +167,10 @@ CREATE TABLE public.audit_metric (
     period_start date,
     period_end date,
     metric_value numeric(10,4),
-    computed_at timestamp without time zone,
-    created_at timestamp without time zone DEFAULT now(),
+    computed_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now(),
     created_by bigint,
-    updated_at timestamp without time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
     updated_by bigint
 );
 
@@ -363,9 +363,9 @@ CREATE TABLE public.breast_density (
     density_category character varying(10),
     is_near_boundary boolean,
     measured_by character varying(20),
-    created_at timestamp without time zone DEFAULT now(),
+    created_at timestamp with time zone DEFAULT now(),
     created_by bigint,
-    updated_at timestamp without time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
     updated_by bigint
 );
 
@@ -400,9 +400,9 @@ CREATE TABLE public.chat_message (
     content text,
     cited_report_id bigint,
     needs_human boolean,
-    created_at timestamp without time zone DEFAULT now(),
+    created_at timestamp with time zone DEFAULT now(),
     created_by bigint,
-    updated_at timestamp without time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
     updated_by bigint
 );
 
@@ -434,12 +434,12 @@ CREATE TABLE public.chat_session (
     chat_session_id bigint NOT NULL,
     patient_id bigint,
     channel character varying(20),
-    started_at timestamp without time zone,
-    ended_at timestamp without time zone,
+    started_at timestamp with time zone,
+    ended_at timestamp with time zone,
     escalated_to_staff_id bigint,
-    created_at timestamp without time zone DEFAULT now(),
+    created_at timestamp with time zone DEFAULT now(),
     created_by bigint,
-    updated_at timestamp without time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
     updated_by bigint
 );
 
@@ -477,10 +477,10 @@ CREATE TABLE public.clinical_decision (
     source_assessment_id bigint,
     source_discordance_id bigint,
     decided_by_staff_id bigint,
-    decided_at timestamp without time zone,
-    created_at timestamp without time zone DEFAULT now(),
+    decided_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now(),
     created_by bigint,
-    updated_at timestamp without time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
     updated_by bigint
 );
 
@@ -518,18 +518,18 @@ CREATE TABLE public.discordance_flag (
     violated_rule character varying(20),
     flag_status character varying(20),
     rule_table_version character varying(30),
-    flagged_at timestamp without time zone,
+    flagged_at timestamp with time zone,
     reviewed_by_staff_id bigint,
     review_opinion character varying(20),
     review_note character varying(250),
     disposition_type character varying(20),
     disposition_reason character varying(250),
     disposed_by_staff_id bigint,
-    closed_at timestamp without time zone,
+    closed_at timestamp with time zone,
     superseded_by_id bigint,
-    created_at timestamp without time zone DEFAULT now(),
+    created_at timestamp with time zone DEFAULT now(),
     created_by bigint,
-    updated_at timestamp without time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
     updated_by bigint
 );
 
@@ -660,11 +660,11 @@ CREATE TABLE public.exam_order (
     parent_order_id bigint,
     billing_class character varying(20),
     ordered_by_staff_id bigint,
-    ordered_at timestamp without time zone,
+    ordered_at timestamp with time zone,
     reservation_id bigint,
-    created_at timestamp without time zone DEFAULT now(),
+    created_at timestamp with time zone DEFAULT now(),
     created_by bigint,
-    updated_at timestamp without time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
     updated_by bigint,
     order_status character varying(20) DEFAULT 'ordered'::character varying NOT NULL,
     CONSTRAINT exam_order_order_status_ck CHECK (((order_status)::text = ANY ((ARRAY['ordered'::character varying, 'accepted'::character varying, 'in_progress'::character varying, 'completed'::character varying, 'cancelled'::character varying])::text[])))
@@ -698,17 +698,17 @@ CREATE TABLE public.followup_round (
     followup_round_id bigint NOT NULL,
     followup_track_id bigint,
     round_no integer,
-    scheduled_at timestamp without time zone,
-    visited_at timestamp without time zone,
+    scheduled_at timestamp with time zone,
+    visited_at timestamp with time zone,
     study_id bigint,
     round_result character varying(20),
     contact_method character varying(20),
-    contacted_at timestamp without time zone,
+    contacted_at timestamp with time zone,
     contacted_by_staff_id bigint,
     patient_response character varying(20),
-    created_at timestamp without time zone DEFAULT now(),
+    created_at timestamp with time zone DEFAULT now(),
     created_by bigint,
-    updated_at timestamp without time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
     updated_by bigint
 );
 
@@ -742,14 +742,14 @@ CREATE TABLE public.followup_track (
     assessment_id bigint,
     track_status character varying(20),
     current_round_no integer,
-    opened_at timestamp without time zone,
-    next_due_at timestamp without time zone,
-    closed_at timestamp without time zone,
+    opened_at timestamp with time zone,
+    next_due_at timestamp with time zone,
+    closed_at timestamp with time zone,
     close_reason character varying(250),
     assigned_staff_id bigint,
-    created_at timestamp without time zone DEFAULT now(),
+    created_at timestamp with time zone DEFAULT now(),
     created_by bigint,
-    updated_at timestamp without time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
     updated_by bigint
 );
 
@@ -785,9 +785,9 @@ CREATE TABLE public.image_instance (
     thumbnail_object_id bigint,
     width_pixel integer,
     height_pixel integer,
-    created_at timestamp without time zone DEFAULT now(),
+    created_at timestamp with time zone DEFAULT now(),
     created_by bigint,
-    updated_at timestamp without time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
     updated_by bigint
 );
 
@@ -828,10 +828,10 @@ CREATE TABLE public.image_pyramid (
     mpp_y numeric(6,4),
     object_key_prefix character varying(255),
     build_status character varying(20),
-    built_at timestamp without time zone,
-    created_at timestamp without time zone DEFAULT now(),
+    built_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now(),
     created_by bigint,
-    updated_at timestamp without time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
     updated_by bigint,
     CONSTRAINT image_pyramid_source_ck CHECK ((num_nonnulls(pathology_slide_id, image_instance_id) = 1))
 );
@@ -866,9 +866,9 @@ CREATE TABLE public.image_series (
     series_uid character varying(100) NOT NULL,
     pixel_spacing_mm numeric(6,4),
     slice_count integer,
-    created_at timestamp without time zone DEFAULT now(),
+    created_at timestamp with time zone DEFAULT now(),
     created_by bigint,
-    updated_at timestamp without time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
     updated_by bigint
 );
 
@@ -912,9 +912,9 @@ CREATE TABLE public.lesion (
     lesion_type character varying(30),
     needs_additional_view boolean,
     additional_view_reason character varying(250),
-    created_at timestamp without time zone DEFAULT now(),
+    created_at timestamp with time zone DEFAULT now(),
     created_by bigint,
-    updated_at timestamp without time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
     updated_by bigint
 );
 
@@ -931,9 +931,9 @@ CREATE TABLE public.lesion_descriptor (
     confidence numeric(4,3),
     suspicion_score integer,
     descriptor_source character varying(20),
-    created_at timestamp without time zone DEFAULT now(),
+    created_at timestamp with time zone DEFAULT now(),
     created_by bigint,
-    updated_at timestamp without time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
     updated_by bigint
 );
 
@@ -987,11 +987,11 @@ CREATE TABLE public.notification (
     notification_type character varying(30),
     severity character varying(20),
     channel character varying(20),
-    sent_at timestamp without time zone,
-    acknowledged_at timestamp without time zone,
-    created_at timestamp without time zone DEFAULT now(),
+    sent_at timestamp with time zone,
+    acknowledged_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now(),
     created_by bigint,
-    updated_at timestamp without time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
     updated_by bigint
 );
 
@@ -1039,11 +1039,11 @@ CREATE TABLE public.pathology_result (
     stil_source character varying(20),
     has_calcification boolean,
     reported_by_staff_id bigint,
-    finalized_at timestamp without time zone,
+    finalized_at timestamp with time zone,
     finding_note text,
-    created_at timestamp without time zone DEFAULT now(),
+    created_at timestamp with time zone DEFAULT now(),
     created_by bigint,
-    updated_at timestamp without time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
     updated_by bigint
 );
 
@@ -1078,9 +1078,9 @@ CREATE TABLE public.pathology_slide (
     stain_type character varying(20),
     scan_magnification character varying(20),
     mpp numeric(6,4),
-    created_at timestamp without time zone DEFAULT now(),
+    created_at timestamp with time zone DEFAULT now(),
     created_by bigint,
-    updated_at timestamp without time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
     updated_by bigint,
     specimen_id bigint
 );
@@ -1116,9 +1116,9 @@ CREATE TABLE public.patient (
     sex character varying(20),
     has_allergy boolean DEFAULT false,
     allergy_note character varying(250),
-    created_at timestamp without time zone DEFAULT now(),
+    created_at timestamp with time zone DEFAULT now(),
     created_by bigint,
-    updated_at timestamp without time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
     updated_by bigint
 );
 
@@ -1135,10 +1135,10 @@ CREATE TABLE public.patient_account (
     phone_verified boolean,
     push_token character varying(255),
     account_status character varying(20) DEFAULT 'active'::character varying,
-    last_login_at timestamp without time zone,
-    created_at timestamp without time zone DEFAULT now(),
+    last_login_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now(),
     created_by bigint,
-    updated_at timestamp without time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
     updated_by bigint
 );
 
@@ -1195,10 +1195,10 @@ CREATE TABLE public.pharmacy (
     longitude numeric(10,7),
     business_hours text,
     is_holiday_open boolean,
-    synced_at timestamp without time zone,
-    created_at timestamp without time zone DEFAULT now(),
+    synced_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now(),
     created_by bigint,
-    updated_at timestamp without time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
     updated_by bigint
 );
 
@@ -1230,14 +1230,14 @@ CREATE TABLE public.prescription (
     prescription_id bigint NOT NULL,
     patient_id bigint,
     prescribed_by_staff_id bigint,
-    prescribed_at timestamp without time zone NOT NULL,
+    prescribed_at timestamp with time zone NOT NULL,
     valid_until date,
     diagnosis_code character varying(30),
     prescription_status character varying(20),
     storage_object_id bigint,
-    created_at timestamp without time zone DEFAULT now(),
+    created_at timestamp with time zone DEFAULT now(),
     created_by bigint,
-    updated_at timestamp without time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
     updated_by bigint
 );
 
@@ -1258,9 +1258,9 @@ CREATE TABLE public.prescription_item (
     duration_days integer,
     route character varying(20),
     instruction character varying(250),
-    created_at timestamp without time zone DEFAULT now(),
+    created_at timestamp with time zone DEFAULT now(),
     created_by bigint,
-    updated_at timestamp without time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
     updated_by bigint
 );
 
@@ -1294,10 +1294,10 @@ CREATE TABLE public.prescription_pharmacy (
     pharmacy_id bigint,
     relation_type character varying(20),
     distance_meter integer,
-    occurred_at timestamp without time zone,
-    created_at timestamp without time zone DEFAULT now(),
+    occurred_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now(),
     created_by bigint,
-    updated_at timestamp without time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
     updated_by bigint
 );
 
@@ -1356,10 +1356,10 @@ CREATE TABLE public.questionnaire (
     risk_lifetime_percent numeric(5,2),
     risk_tier character varying(50),
     guideline_source character varying(100),
-    answered_at timestamp without time zone DEFAULT now(),
-    created_at timestamp without time zone DEFAULT now(),
+    answered_at timestamp with time zone DEFAULT now(),
+    created_at timestamp with time zone DEFAULT now(),
     created_by bigint,
-    updated_at timestamp without time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
     updated_by bigint
 );
 
@@ -1398,15 +1398,15 @@ CREATE TABLE public.report (
     dropped_sentence_log text,
     lock_status character varying(20) DEFAULT 'locked'::character varying,
     unlocked_by_staff_id bigint,
-    unlocked_at timestamp without time zone,
-    generated_at timestamp without time zone,
+    unlocked_at timestamp with time zone,
+    generated_at timestamp with time zone,
     doc_type character varying(20),
     issued_by_staff_id bigint,
     storage_object_id bigint,
     unlock_reason character varying(100),
-    created_at timestamp without time zone DEFAULT now(),
+    created_at timestamp with time zone DEFAULT now(),
     created_by bigint,
-    updated_at timestamp without time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
     updated_by bigint
 );
 
@@ -1422,11 +1422,11 @@ CREATE TABLE public.report_access_log (
     actor_type character varying(20),
     actor_id bigint,
     action character varying(20),
-    accessed_at timestamp without time zone,
+    accessed_at timestamp with time zone,
     client_channel character varying(20),
-    created_at timestamp without time zone DEFAULT now(),
+    created_at timestamp with time zone DEFAULT now(),
     created_by bigint,
-    updated_at timestamp without time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
     updated_by bigint
 );
 
@@ -1476,15 +1476,15 @@ ALTER SEQUENCE public.report_report_id_seq OWNED BY public.report.report_id;
 CREATE TABLE public.reservation (
     reservation_id bigint NOT NULL,
     patient_id bigint NOT NULL,
-    scheduled_at timestamp without time zone NOT NULL,
-    visited_at timestamp without time zone,
+    scheduled_at timestamp with time zone NOT NULL,
+    visited_at timestamp with time zone,
     reservation_status character varying(20),
     requested_by character varying(20),
     cancel_reason character varying(250),
     created_by_staff_id bigint,
-    created_at timestamp without time zone DEFAULT now(),
+    created_at timestamp with time zone DEFAULT now(),
     created_by bigint,
-    updated_at timestamp without time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
     updated_by bigint
 );
 
@@ -1517,14 +1517,14 @@ CREATE TABLE public.result_explanation (
     report_id bigint,
     patient_id bigint,
     explained_by_staff_id bigint,
-    explained_at timestamp without time zone,
+    explained_at timestamp with time zone,
     explain_method character varying(20),
     summary_text text,
     patient_confirmed boolean,
     storage_object_id bigint,
-    created_at timestamp without time zone DEFAULT now(),
+    created_at timestamp with time zone DEFAULT now(),
     created_by bigint,
-    updated_at timestamp without time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
     updated_by bigint
 );
 
@@ -1561,13 +1561,13 @@ CREATE TABLE public.specimen (
     guidance_route character varying(30),
     target_snapshot character varying(250),
     bound_by_staff_id bigint,
-    collected_at timestamp without time zone,
-    created_at timestamp without time zone DEFAULT now(),
+    collected_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now(),
     created_by bigint,
-    updated_at timestamp without time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
     updated_by bigint,
     accession_status character varying(20) DEFAULT 'unbound'::character varying NOT NULL,
-    accessioned_at timestamp without time zone,
+    accessioned_at timestamp with time zone,
     CONSTRAINT specimen_accession_status_ck CHECK (((accession_status)::text = ANY ((ARRAY['unbound'::character varying, 'bound'::character varying, 'accessioned'::character varying])::text[])))
 );
 
@@ -1606,9 +1606,9 @@ CREATE TABLE public.staff (
     staff_position character varying(30),
     account_status character varying(20) DEFAULT 'pending'::character varying,
     created_by bigint,
-    created_at timestamp without time zone DEFAULT now(),
+    created_at timestamp with time zone DEFAULT now(),
     updated_by bigint,
-    updated_at timestamp without time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
     CONSTRAINT staff_department_ck CHECK (((department)::text = ANY ((ARRAY['admin'::character varying, 'reception'::character varying, 'nursing'::character varying, 'radiology'::character varying, 'surgery'::character varying, 'pathology'::character varying])::text[])))
 );
 
@@ -1644,11 +1644,11 @@ CREATE TABLE public.storage_object (
     byte_size bigint,
     checksum_sha256 character varying(64),
     storage_class character varying(20),
-    uploaded_at timestamp without time zone DEFAULT now(),
-    deleted_at timestamp without time zone,
-    created_at timestamp without time zone DEFAULT now(),
+    uploaded_at timestamp with time zone DEFAULT now(),
+    deleted_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now(),
     created_by bigint,
-    updated_at timestamp without time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
     updated_by bigint
 );
 
@@ -1689,10 +1689,10 @@ CREATE TABLE public.study (
     device_name character varying(100),
     quality_status character varying(20),
     rejected_reason character varying(250),
-    performed_at timestamp without time zone,
-    created_at timestamp without time zone DEFAULT now(),
+    performed_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now(),
     created_by bigint,
-    updated_at timestamp without time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
     updated_by bigint
 );
 

@@ -12,9 +12,22 @@ on_delete 규칙
 
 storage_object 는 deleted_at 을 두어 소프트 삭제가 원칙이다.
 모델 순서는 FK 의존 순서(참조되는 쪽이 먼저)다.
+
+감사 컬럼
+    created_at  db_default=Now()   값을 주지 않으면 INSERT 에서 컬럼이 빠져
+                                   DB 의 DEFAULT now() 가 적용된다.
+    updated_at  auto_now=True      DB DEFAULT 는 INSERT 때만 동작하고 UPDATE 를
+                                   갱신하지 않는다. 갱신 트리거도 없다.
+    created_by  TODO               요청자 staff_id. API 계층 믹스인이 채운다.
+    updated_by  TODO               위와 같다.
+
+    그냥 null=True 로 두면 Django 가 INSERT 에 컬럼을 넣고 NULL 을 명시로 보내
+    DB DEFAULT 가 무시된다. 새 모델을 추가할 때 같은 함정에 빠지지 말 것 —
+    db/README.md 「감사 컬럼」 참조.
 """
 
 from django.db import models
+from django.db.models.functions import Now
 
 
 # audit_metric — 감사지표 6종   [공통·선택·7컬럼]
@@ -26,10 +39,10 @@ class AuditMetric(models.Model):
     period_end = models.DateField(blank=True, null=True)
     metric_value = models.DecimalField(max_digits=10, decimal_places=4, blank=True, null=True)
     computed_at = models.DateTimeField(blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
-    created_by = models.BigIntegerField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
-    updated_by = models.BigIntegerField(blank=True, null=True)
+    created_at = models.DateTimeField(db_default=Now(), blank=True, null=True)
+    created_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
+    updated_at = models.DateTimeField(auto_now=True, blank=True, null=True)
+    updated_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
 
     class Meta:
         managed = False
@@ -43,10 +56,10 @@ class Patient(models.Model):
     sex = models.CharField(max_length=20, blank=True, null=True)
     has_allergy = models.BooleanField(blank=True, null=True)
     allergy_note = models.CharField(max_length=250, blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
-    created_by = models.BigIntegerField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
-    updated_by = models.BigIntegerField(blank=True, null=True)
+    created_at = models.DateTimeField(db_default=Now(), blank=True, null=True)
+    created_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
+    updated_at = models.DateTimeField(auto_now=True, blank=True, null=True)
+    updated_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
 
     class Meta:
         managed = False
@@ -64,10 +77,10 @@ class Pharmacy(models.Model):
     business_hours = models.TextField(blank=True, null=True)
     is_holiday_open = models.BooleanField(blank=True, null=True)
     synced_at = models.DateTimeField(blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
-    created_by = models.BigIntegerField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
-    updated_by = models.BigIntegerField(blank=True, null=True)
+    created_at = models.DateTimeField(db_default=Now(), blank=True, null=True)
+    created_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
+    updated_at = models.DateTimeField(auto_now=True, blank=True, null=True)
+    updated_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
 
     class Meta:
         managed = False
@@ -84,10 +97,10 @@ class Staff(models.Model):
     password_hash = models.CharField(max_length=255)
     staff_position = models.CharField(max_length=30, blank=True, null=True)
     account_status = models.CharField(max_length=20, blank=True, null=True)
-    created_by = models.BigIntegerField(blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
-    updated_by = models.BigIntegerField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
+    created_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
+    created_at = models.DateTimeField(db_default=Now(), blank=True, null=True)
+    updated_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
+    updated_at = models.DateTimeField(auto_now=True, blank=True, null=True)
 
     class Meta:
         managed = False
@@ -104,10 +117,10 @@ class StorageObject(models.Model):
     storage_class = models.CharField(max_length=20, blank=True, null=True)
     uploaded_at = models.DateTimeField(blank=True, null=True)
     deleted_at = models.DateTimeField(blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
-    created_by = models.BigIntegerField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
-    updated_by = models.BigIntegerField(blank=True, null=True)
+    created_at = models.DateTimeField(db_default=Now(), blank=True, null=True)
+    created_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
+    updated_at = models.DateTimeField(auto_now=True, blank=True, null=True)
+    updated_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
 
     class Meta:
         managed = False
@@ -121,10 +134,10 @@ class ChatSession(models.Model):
     started_at = models.DateTimeField(blank=True, null=True)
     ended_at = models.DateTimeField(blank=True, null=True)
     escalated_to_staff = models.ForeignKey('Staff', models.PROTECT, blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
-    created_by = models.BigIntegerField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
-    updated_by = models.BigIntegerField(blank=True, null=True)
+    created_at = models.DateTimeField(db_default=Now(), blank=True, null=True)
+    created_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
+    updated_at = models.DateTimeField(auto_now=True, blank=True, null=True)
+    updated_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
 
     class Meta:
         managed = False
@@ -140,10 +153,10 @@ class Notification(models.Model):
     channel = models.CharField(max_length=20, blank=True, null=True)
     sent_at = models.DateTimeField(blank=True, null=True)
     acknowledged_at = models.DateTimeField(blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
-    created_by = models.BigIntegerField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
-    updated_by = models.BigIntegerField(blank=True, null=True)
+    created_at = models.DateTimeField(db_default=Now(), blank=True, null=True)
+    created_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
+    updated_at = models.DateTimeField(auto_now=True, blank=True, null=True)
+    updated_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
 
     class Meta:
         managed = False
@@ -159,10 +172,10 @@ class PatientAccount(models.Model):
     push_token = models.CharField(max_length=255, blank=True, null=True)
     account_status = models.CharField(max_length=20, blank=True, null=True)
     last_login_at = models.DateTimeField(blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
-    created_by = models.BigIntegerField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
-    updated_by = models.BigIntegerField(blank=True, null=True)
+    created_at = models.DateTimeField(db_default=Now(), blank=True, null=True)
+    created_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
+    updated_at = models.DateTimeField(auto_now=True, blank=True, null=True)
+    updated_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
 
     class Meta:
         managed = False
@@ -178,10 +191,10 @@ class Prescription(models.Model):
     diagnosis_code = models.CharField(max_length=30, blank=True, null=True)
     prescription_status = models.CharField(max_length=20, blank=True, null=True)
     storage_object = models.ForeignKey('StorageObject', models.PROTECT, blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
-    created_by = models.BigIntegerField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
-    updated_by = models.BigIntegerField(blank=True, null=True)
+    created_at = models.DateTimeField(db_default=Now(), blank=True, null=True)
+    created_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
+    updated_at = models.DateTimeField(auto_now=True, blank=True, null=True)
+    updated_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
 
     class Meta:
         managed = False
@@ -201,10 +214,10 @@ class Questionnaire(models.Model):
     risk_tier = models.CharField(max_length=50, blank=True, null=True)
     guideline_source = models.CharField(max_length=100, blank=True, null=True)
     answered_at = models.DateTimeField(blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
-    created_by = models.BigIntegerField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
-    updated_by = models.BigIntegerField(blank=True, null=True)
+    created_at = models.DateTimeField(db_default=Now(), blank=True, null=True)
+    created_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
+    updated_at = models.DateTimeField(auto_now=True, blank=True, null=True)
+    updated_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
 
     class Meta:
         managed = False
@@ -228,10 +241,10 @@ class Report(models.Model):
     issued_by_staff = models.ForeignKey('Staff', models.PROTECT, related_name='report_issued_by_staff_set', blank=True, null=True)
     storage_object = models.ForeignKey('StorageObject', models.PROTECT, blank=True, null=True)
     unlock_reason = models.CharField(max_length=100, blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
-    created_by = models.BigIntegerField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
-    updated_by = models.BigIntegerField(blank=True, null=True)
+    created_at = models.DateTimeField(db_default=Now(), blank=True, null=True)
+    created_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
+    updated_at = models.DateTimeField(auto_now=True, blank=True, null=True)
+    updated_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
 
     class Meta:
         managed = False
@@ -247,10 +260,10 @@ class Reservation(models.Model):
     requested_by = models.CharField(max_length=20, blank=True, null=True)
     cancel_reason = models.CharField(max_length=250, blank=True, null=True)
     created_by_staff = models.ForeignKey('Staff', models.PROTECT, blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
-    created_by = models.BigIntegerField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
-    updated_by = models.BigIntegerField(blank=True, null=True)
+    created_at = models.DateTimeField(db_default=Now(), blank=True, null=True)
+    created_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
+    updated_at = models.DateTimeField(auto_now=True, blank=True, null=True)
+    updated_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
 
     class Meta:
         managed = False
@@ -264,10 +277,10 @@ class ChatMessage(models.Model):
     content = models.TextField(blank=True, null=True)
     cited_report = models.ForeignKey('Report', models.PROTECT, blank=True, null=True)
     needs_human = models.BooleanField(blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
-    created_by = models.BigIntegerField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
-    updated_by = models.BigIntegerField(blank=True, null=True)
+    created_at = models.DateTimeField(db_default=Now(), blank=True, null=True)
+    created_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
+    updated_at = models.DateTimeField(auto_now=True, blank=True, null=True)
+    updated_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
 
     class Meta:
         managed = False
@@ -289,10 +302,10 @@ class ExamOrder(models.Model):
     ordered_by_staff = models.ForeignKey('Staff', models.PROTECT, blank=True, null=True)
     ordered_at = models.DateTimeField(blank=True, null=True)
     reservation = models.ForeignKey('Reservation', models.PROTECT, blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
-    created_by = models.BigIntegerField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
-    updated_by = models.BigIntegerField(blank=True, null=True)
+    created_at = models.DateTimeField(db_default=Now(), blank=True, null=True)
+    created_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
+    updated_at = models.DateTimeField(auto_now=True, blank=True, null=True)
+    updated_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
 
     class Meta:
         managed = False
@@ -311,10 +324,10 @@ class PrescriptionItem(models.Model):
     duration_days = models.IntegerField(blank=True, null=True)
     route = models.CharField(max_length=20, blank=True, null=True)
     instruction = models.CharField(max_length=250, blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
-    created_by = models.BigIntegerField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
-    updated_by = models.BigIntegerField(blank=True, null=True)
+    created_at = models.DateTimeField(db_default=Now(), blank=True, null=True)
+    created_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
+    updated_at = models.DateTimeField(auto_now=True, blank=True, null=True)
+    updated_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
 
     class Meta:
         managed = False
@@ -328,10 +341,10 @@ class PrescriptionPharmacy(models.Model):
     relation_type = models.CharField(max_length=20, blank=True, null=True)
     distance_meter = models.IntegerField(blank=True, null=True)
     occurred_at = models.DateTimeField(blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
-    created_by = models.BigIntegerField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
-    updated_by = models.BigIntegerField(blank=True, null=True)
+    created_at = models.DateTimeField(db_default=Now(), blank=True, null=True)
+    created_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
+    updated_at = models.DateTimeField(auto_now=True, blank=True, null=True)
+    updated_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
 
     class Meta:
         managed = False
@@ -347,10 +360,10 @@ class ReportAccessLog(models.Model):
     action = models.CharField(max_length=20, blank=True, null=True)
     accessed_at = models.DateTimeField(blank=True, null=True)
     client_channel = models.CharField(max_length=20, blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
-    created_by = models.BigIntegerField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
-    updated_by = models.BigIntegerField(blank=True, null=True)
+    created_at = models.DateTimeField(db_default=Now(), blank=True, null=True)
+    created_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
+    updated_at = models.DateTimeField(auto_now=True, blank=True, null=True)
+    updated_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
 
     class Meta:
         managed = False
@@ -367,10 +380,10 @@ class ResultExplanation(models.Model):
     summary_text = models.TextField(blank=True, null=True)
     patient_confirmed = models.BooleanField(blank=True, null=True)
     storage_object = models.ForeignKey('StorageObject', models.PROTECT, blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
-    created_by = models.BigIntegerField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
-    updated_by = models.BigIntegerField(blank=True, null=True)
+    created_at = models.DateTimeField(db_default=Now(), blank=True, null=True)
+    created_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
+    updated_at = models.DateTimeField(auto_now=True, blank=True, null=True)
+    updated_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
 
     class Meta:
         managed = False
@@ -391,10 +404,10 @@ class Study(models.Model):
     quality_status = models.CharField(max_length=20, blank=True, null=True)
     rejected_reason = models.CharField(max_length=250, blank=True, null=True)
     performed_at = models.DateTimeField(blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
-    created_by = models.BigIntegerField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
-    updated_by = models.BigIntegerField(blank=True, null=True)
+    created_at = models.DateTimeField(db_default=Now(), blank=True, null=True)
+    created_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
+    updated_at = models.DateTimeField(auto_now=True, blank=True, null=True)
+    updated_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
 
     class Meta:
         managed = False
@@ -418,10 +431,10 @@ class AiResult(models.Model):
     analyzed_at = models.DateTimeField(blank=True, null=True)
     run_status = models.CharField(max_length=20, blank=True, null=True)
     requested_by_staff = models.ForeignKey('Staff', models.PROTECT, blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
-    created_by = models.BigIntegerField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
-    updated_by = models.BigIntegerField(blank=True, null=True)
+    created_at = models.DateTimeField(db_default=Now(), blank=True, null=True)
+    created_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
+    updated_at = models.DateTimeField(auto_now=True, blank=True, null=True)
+    updated_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
 
     class Meta:
         managed = False
@@ -435,10 +448,10 @@ class BreastDensity(models.Model):
     density_category = models.CharField(max_length=10, blank=True, null=True)
     is_near_boundary = models.BooleanField(blank=True, null=True)
     measured_by = models.CharField(max_length=20, blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
-    created_by = models.BigIntegerField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
-    updated_by = models.BigIntegerField(blank=True, null=True)
+    created_at = models.DateTimeField(db_default=Now(), blank=True, null=True)
+    created_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
+    updated_at = models.DateTimeField(auto_now=True, blank=True, null=True)
+    updated_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
 
     class Meta:
         managed = False
@@ -451,10 +464,10 @@ class ImageSeries(models.Model):
     series_uid = models.CharField(unique=True, max_length=100)
     pixel_spacing_mm = models.DecimalField(max_digits=6, decimal_places=4, blank=True, null=True)
     slice_count = models.IntegerField(blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
-    created_by = models.BigIntegerField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
-    updated_by = models.BigIntegerField(blank=True, null=True)
+    created_at = models.DateTimeField(db_default=Now(), blank=True, null=True)
+    created_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
+    updated_at = models.DateTimeField(auto_now=True, blank=True, null=True)
+    updated_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
 
     class Meta:
         managed = False
@@ -469,10 +482,10 @@ class ImageInstance(models.Model):
     thumbnail_object = models.ForeignKey('StorageObject', models.PROTECT, related_name='imageinstance_thumbnail_object_set', blank=True, null=True)
     width_pixel = models.IntegerField(blank=True, null=True)
     height_pixel = models.IntegerField(blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
-    created_by = models.BigIntegerField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
-    updated_by = models.BigIntegerField(blank=True, null=True)
+    created_at = models.DateTimeField(db_default=Now(), blank=True, null=True)
+    created_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
+    updated_at = models.DateTimeField(auto_now=True, blank=True, null=True)
+    updated_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
 
     class Meta:
         managed = False
@@ -495,10 +508,10 @@ class Lesion(models.Model):
     lesion_type = models.CharField(max_length=30, blank=True, null=True)
     needs_additional_view = models.BooleanField(blank=True, null=True)
     additional_view_reason = models.CharField(max_length=250, blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
-    created_by = models.BigIntegerField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
-    updated_by = models.BigIntegerField(blank=True, null=True)
+    created_at = models.DateTimeField(db_default=Now(), blank=True, null=True)
+    created_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
+    updated_at = models.DateTimeField(auto_now=True, blank=True, null=True)
+    updated_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
 
     class Meta:
         managed = False
@@ -515,10 +528,10 @@ class AiMask(models.Model):
     pathology_slide = models.ForeignKey('PathologySlide', models.PROTECT, blank=True, null=True)
     mask_type = models.CharField(max_length=30, blank=True, null=True)
     storage_object = models.ForeignKey('StorageObject', models.PROTECT, blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
-    created_by = models.BigIntegerField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
-    updated_by = models.BigIntegerField(blank=True, null=True)
+    created_at = models.DateTimeField(db_default=Now(), blank=True, null=True)
+    created_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
+    updated_at = models.DateTimeField(auto_now=True, blank=True, null=True)
+    updated_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
 
     class Meta:
         managed = False
@@ -545,10 +558,10 @@ class Assessment(models.Model):
     superseded_by = models.ForeignKey('self', models.SET_NULL, blank=True, null=True)
     finding_note = models.TextField(blank=True, null=True)
     ai_revealed_at = models.DateTimeField(blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
-    created_by = models.BigIntegerField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
-    updated_by = models.BigIntegerField(blank=True, null=True)
+    created_at = models.DateTimeField(db_default=Now(), blank=True, null=True)
+    created_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
+    updated_at = models.DateTimeField(auto_now=True, blank=True, null=True)
+    updated_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
 
     class Meta:
         managed = False
@@ -563,10 +576,10 @@ class LesionDescriptor(models.Model):
     confidence = models.DecimalField(max_digits=4, decimal_places=3, blank=True, null=True)
     suspicion_score = models.IntegerField(blank=True, null=True)
     descriptor_source = models.CharField(max_length=20, blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
-    created_by = models.BigIntegerField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
-    updated_by = models.BigIntegerField(blank=True, null=True)
+    created_at = models.DateTimeField(db_default=Now(), blank=True, null=True)
+    created_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
+    updated_at = models.DateTimeField(auto_now=True, blank=True, null=True)
+    updated_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
 
     class Meta:
         managed = False
@@ -587,10 +600,10 @@ class Specimen(models.Model):
     target_snapshot = models.CharField(max_length=250, blank=True, null=True)
     bound_by_staff = models.ForeignKey('Staff', models.PROTECT, blank=True, null=True)
     collected_at = models.DateTimeField(blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
-    created_by = models.BigIntegerField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
-    updated_by = models.BigIntegerField(blank=True, null=True)
+    created_at = models.DateTimeField(db_default=Now(), blank=True, null=True)
+    created_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
+    updated_at = models.DateTimeField(auto_now=True, blank=True, null=True)
+    updated_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
 
     class Meta:
         managed = False
@@ -608,10 +621,10 @@ class FollowupTrack(models.Model):
     closed_at = models.DateTimeField(blank=True, null=True)
     close_reason = models.CharField(max_length=250, blank=True, null=True)
     assigned_staff = models.ForeignKey('Staff', models.PROTECT, blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
-    created_by = models.BigIntegerField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
-    updated_by = models.BigIntegerField(blank=True, null=True)
+    created_at = models.DateTimeField(db_default=Now(), blank=True, null=True)
+    created_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
+    updated_at = models.DateTimeField(auto_now=True, blank=True, null=True)
+    updated_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
 
     class Meta:
         managed = False
@@ -644,10 +657,10 @@ class PathologyResult(models.Model):
     reported_by_staff = models.ForeignKey('Staff', models.PROTECT, blank=True, null=True)
     finalized_at = models.DateTimeField(blank=True, null=True)
     finding_note = models.TextField(blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
-    created_by = models.BigIntegerField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
-    updated_by = models.BigIntegerField(blank=True, null=True)
+    created_at = models.DateTimeField(db_default=Now(), blank=True, null=True)
+    created_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
+    updated_at = models.DateTimeField(auto_now=True, blank=True, null=True)
+    updated_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
 
     class Meta:
         managed = False
@@ -673,10 +686,10 @@ class DiscordanceFlag(models.Model):
     disposed_by_staff = models.ForeignKey('Staff', models.PROTECT, related_name='discordanceflag_disposed_by_staff_set', blank=True, null=True)
     closed_at = models.DateTimeField(blank=True, null=True)
     superseded_by = models.ForeignKey('self', models.SET_NULL, blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
-    created_by = models.BigIntegerField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
-    updated_by = models.BigIntegerField(blank=True, null=True)
+    created_at = models.DateTimeField(db_default=Now(), blank=True, null=True)
+    created_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
+    updated_at = models.DateTimeField(auto_now=True, blank=True, null=True)
+    updated_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
 
     class Meta:
         managed = False
@@ -695,10 +708,10 @@ class FollowupRound(models.Model):
     contacted_at = models.DateTimeField(blank=True, null=True)
     contacted_by_staff = models.ForeignKey('Staff', models.PROTECT, blank=True, null=True)
     patient_response = models.CharField(max_length=20, blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
-    created_by = models.BigIntegerField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
-    updated_by = models.BigIntegerField(blank=True, null=True)
+    created_at = models.DateTimeField(db_default=Now(), blank=True, null=True)
+    created_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
+    updated_at = models.DateTimeField(auto_now=True, blank=True, null=True)
+    updated_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
 
     class Meta:
         managed = False
@@ -715,10 +728,10 @@ class PathologySlide(models.Model):
     stain_type = models.CharField(max_length=20, blank=True, null=True)
     scan_magnification = models.CharField(max_length=20, blank=True, null=True)
     mpp = models.DecimalField(max_digits=6, decimal_places=4, blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
-    created_by = models.BigIntegerField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
-    updated_by = models.BigIntegerField(blank=True, null=True)
+    created_at = models.DateTimeField(db_default=Now(), blank=True, null=True)
+    created_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
+    updated_at = models.DateTimeField(auto_now=True, blank=True, null=True)
+    updated_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
 
     class Meta:
         managed = False
@@ -745,10 +758,10 @@ class ImagePyramid(models.Model):
     # pending / building / ready / failed — 생성 전 뷰어 요청은 409 PYRAMID_NOT_READY
     build_status = models.CharField(max_length=20, blank=True, null=True)
     built_at = models.DateTimeField(blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
-    created_by = models.BigIntegerField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
-    updated_by = models.BigIntegerField(blank=True, null=True)
+    created_at = models.DateTimeField(db_default=Now(), blank=True, null=True)
+    created_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
+    updated_at = models.DateTimeField(auto_now=True, blank=True, null=True)
+    updated_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
 
     class Meta:
         managed = False
@@ -766,10 +779,10 @@ class ClinicalDecision(models.Model):
     source_discordance = models.ForeignKey('DiscordanceFlag', models.PROTECT, blank=True, null=True)
     decided_by_staff = models.ForeignKey('Staff', models.PROTECT, blank=True, null=True)
     decided_at = models.DateTimeField(blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
-    created_by = models.BigIntegerField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
-    updated_by = models.BigIntegerField(blank=True, null=True)
+    created_at = models.DateTimeField(db_default=Now(), blank=True, null=True)
+    created_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
+    updated_at = models.DateTimeField(auto_now=True, blank=True, null=True)
+    updated_by = models.BigIntegerField(blank=True, null=True)  # TODO: 요청자 staff_id
 
     class Meta:
         managed = False

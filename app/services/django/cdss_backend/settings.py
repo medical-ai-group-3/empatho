@@ -77,6 +77,12 @@ DATABASES = {
 
 # 검사·처방 시각을 다루므로 KST. USE_TZ=True 라 DB 에는 UTC 로 저장되고
 # 표시할 때만 KST 로 변환된다.
+#
+# 이게 성립하려면 시각 컬럼이 timestamptz 여야 한다. timestamp without time
+# zone 이면 Django 가 읽은 값이 naive 라 TIME_ZONE 으로 간주되고, 다시 저장할
+# 때 UTC 로 변환돼 매번 9시간씩 밀린다. 2026-09-02 에 업무 테이블 106개 컬럼을
+# 전부 timestamptz 로 바꿨다 — db/migrations/2026-09-02-timestamptz.sql.
+# 새 테이블도 반드시 timestamptz 로 만들 것.
 LANGUAGE_CODE = "ko-kr"
 TIME_ZONE = "Asia/Seoul"
 USE_I18N = True

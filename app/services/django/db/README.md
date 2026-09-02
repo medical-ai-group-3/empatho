@@ -34,6 +34,59 @@ python manage.py makemigrations core --check --dry-run
 스키마의 원본은 `cdss_schema.sql` 과 `migrations/` 다. 마이그레이션 파일의 diff 로
 "언제 무엇이 바뀌었나"를 추적하려 하면 안 된다.
 
+## 두 번 물린 함정 — 테이블을 추가하기 전에 읽을 것
+
+두 건 모두 2026-09-02 에 ORM CRUD 를 실제 DB 로 확인하다 드러났다. 문법 오류가
+아니라 **조용히 틀린 값이 저장되는** 종류라, 모르면 한참 뒤에야 발견된다.
+
+### ① 시각 컬럼은 반드시 `timestamptz`
+
+`timestamp without time zone` + `USE_TZ = True` 는 **저장할 때마다 9시간씩 밀린다.**
+
+```
+생성 직후  created_at = 2026-09-02 03:14:23
+save() 후  created_at = 2026-09-01 18:14:23      ← −9시간
+```
+
+DB 가 `DEFAULT now()` 로 UTC 를 timezone 없이 넣는다 → Django 가 naive 로 읽는다
+→ `USE_TZ=True` 라 `TIME_ZONE`(Asia/Seoul)으로 간주한다 → 다시 쓸 때 UTC 로 변환한다.
+`save()` 를 세 번 부르면 27시간 밀린다.
+
+업무 테이블 35개의 시각 컬럼 106개를 전부 `timestamptz` 로 바꿨다
+(`migrations/2026-09-02-timestamptz.sql`). Django 가 직접 만드는 `django_*` ·
+`auth_*` 테이블은 처음부터 `timestamptz` 였다 — 업무 테이블만 어긋나 있었다.
+
+**새 테이블을 `timestamp` 로 만들면 같은 문제가 그대로 재발한다.**
+
+### ② 감사 컬럼은 `db_default` · `auto_now` 로 둘 것
+
+`managed = False` 여도 **DB 의 `DEFAULT` 가 자동으로 먹지 않는다.** 필드를 그냥
+`null=True` 로 두면 Django 가 INSERT 컬럼 목록에 넣고 `NULL` 을 명시로 보낸다.
+
+```sql
+-- 필드가 그냥 null=True 일 때
+INSERT INTO patient (..., "created_at", ...) VALUES (..., NULL, ...)
+                                                          ↑ DEFAULT now() 가 무시된다
+```
+
+그래서 모델을 이렇게 둔다.
+
+```python
+created_at = models.DateTimeField(db_default=Now(), blank=True, null=True)
+updated_at = models.DateTimeField(auto_now=True, blank=True, null=True)
+```
+
+`created_at` 은 `db_default` 라 값이 없으면 컬럼이 INSERT 에서 빠져 DB 기본값이
+적용된다. `updated_at` 은 `auto_now` 여야 한다 — DB `DEFAULT` 는 INSERT 때만
+동작하고 UPDATE 를 갱신하지 않으며, 갱신 트리거도 없다.
+
+`created_by` · `updated_by` 는 요청자의 `staff_id` 라 DB 가 알 수 없다. API 계층의
+믹스인이 채운다 — `models.py` 에 `TODO` 로 표시해 뒀다.
+
+> 참고: `created_at` 은 DB 시계, `updated_at` 은 애플리케이션 시계에서 나온다.
+> 같은 호스트에 있으면 차이가 밀리초지만, 원격에서 터널로 붙으면 왕복 지연만큼
+> 벌어진다. 두 값의 대소를 비교하는 로직은 두지 말 것.
+
 ## 다시 만들 때
 
 ```bash
