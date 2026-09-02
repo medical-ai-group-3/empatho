@@ -22,6 +22,18 @@ func NewS3(endpoint, accessKey, secretKey, bucket, region string, useSSL bool) (
 		Creds:  credentials.NewStaticV4(accessKey, secretKey, ""),
 		Secure: useSSL,
 		Region: region,
+		// ⚠ path-style 을 강제한다 — 팀 접속 안내서가 못 박은 항목이다.
+		//
+		//   S3 주소 방식은 두 가지다.
+		//     가상 호스트  https://버킷.호스트/키   ← AWS 기본
+		//     경로        https://호스트/버킷/키    ← Garage 가 요구
+		//
+		//   가상 호스트 방식은 버킷 이름이 DNS 로 풀려야 하는데 Garage 는
+		//   그런 이름을 안 갖는다. 그러면 주소 자체를 못 찾는다.
+		//
+		//   minio-go 의 자동 판별이 IP 주소 끝점에서는 경로 방식을 고르지만,
+		//   나중에 도메인을 붙이면 판별이 뒤집힐 수 있다. 명시해서 못 박는다.
+		BucketLookup: minio.BucketLookupPath,
 	})
 	if err != nil {
 		return nil, err

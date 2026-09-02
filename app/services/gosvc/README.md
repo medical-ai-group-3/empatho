@@ -18,8 +18,9 @@ go mod download   # minio-go 하나뿐이다. vendor 는 17MB 라 커밋 안 했
 go build ./... && go test ./... -race
 ```
 
-`empatho-app` 저장소 안에 `gosvc/` 로 둔다. Django 와 별개 모듈이라
-파이썬 쪽 도구는 이 폴더를 안 본다.
+`empatho-app` 저장소의 **`services/gosvc/`** 에 있다. Django 는
+`services/django/` 다. Go 모듈 경로는 `cdss/gosvc` 라서 폴더가 옮겨져도
+임포트는 안 깨진다.
 
 ## 명세가 못 박은 것 넷 — 세 서비스 공통
 
@@ -242,12 +243,18 @@ Go 는 그 아래에만 쓰고 그 밖은 403 이다. 없으면 요청 자체를
 
 ## 실행
 
+세 서비스는 저장소 루트의 `compose.app.yml` 에 들어 있다(스택 이름
+`empatho-server`). 설정은 `conf/gosvc.env` 를 `env_file` 로 읽는다.
+
 ```bash
-cp .env.example .env   # 값을 채운다. .env 는 커밋하지 않는다
-docker compose -f compose.server -f compose.gosvc.yml up -d --build
+docker compose -f compose.app.yml up -d --build
 ```
 
-개발 중에 Garage 없이 돌리려면 `GW_LOCAL_ROOT` 를 주면 로컬 디스크를 쓴다.
+**⚠ 코드에 새 환경변수를 넣으면 `conf/gosvc.env.example` 에 이름을 추가하고
+같이 커밋할 것.** 실제 값은 서버에만 있고 git 에 없다. 이름을 안 알리면
+코드만 배포되고 값이 비어서, 기동에 실패하거나 조용히 기본값으로 돈다.
+
+포트는 `127.0.0.1` 에 묶여 있다. 밖에서는 SSH 터널로만 붙는다.
 `ORTHANC_URL` 을 비우면 DICOM 을 파싱해 I-2 만 보내고 전송은 건너뛴다.
 
 ## 시험
@@ -256,7 +263,7 @@ docker compose -f compose.server -f compose.gosvc.yml up -d --build
 go test ./... -race
 ```
 
-시험 함수 79개. 가짜 Ollama · 가짜 Django · 가짜 Orthanc · 임시 디스크
+시험 함수 89개. 가짜 Ollama · 가짜 Django · 가짜 Orthanc · 임시 디스크
 저장소를 세워 전 경로를 태운다. DICOM 은 바이트를 직접 지어서 만든다 —
 CBIS-DDSM 은 재배포 금지고 EMBED 는 DUA 로 묶여 있어 표본을 넣을 수 없다.
 
@@ -269,6 +276,123 @@ CBIS-DDSM 은 재배포 금지고 EMBED 는 DUA 로 묶여 있어 표본을 넣�
 제거 — 셋 다 해당 시험이 잡았다.
 **잡지 못한 것도 있다** — 허브의 닫힌 채널 경합. 그건 위에 쓴 대로 설계로
 바꿔서 막았다.
+
+## 팀 서버(app-host) 에 붙일 때
+
+접속 안내서 기준 확정 사항이다.
+
+| | 값 |
+|---|---|
+| Garage 버킷 · 원본 | `empatho-original` |
+| Garage 버킷 · 파생 | `empatho-derived` (타일·썸네일·마스크) |
+| region | `garage` |
+| 주소 방식 | **path-style 필수** — 코드에서 강제해 뒀다 |
+| Orthanc | `http://orthanc:8042` · DICOMweb 켜짐. **맘모도 등록한다** |
+| Django | 서비스 이름이 **`web`** 이다 — `CALLBACK_BASE=http://web:8000` |
+| Ollama | 워크스테이션에 있다. `host.docker.internal:11434`, 터널에 11434 가 아직 안 열려 llm-proxy 요청만 실패한다 |
+
+**맘모 DICOM 도 Orthanc 에 등록한다.** 원본 파일은 Garage 에, 촬영 정보는
+Orthanc 에 들어가고 둘을 I-2 의 `orthanc_instance_id` 로 잇는다.
+
+⚠ 접속 안내서에는 *"MRI 만 여기에 들어가고, 맘모·초음파·병리는 Garage 에
+있습니다"* 라고 적혀 있는데 **그 문서가 틀렸다.** 담당자에게 정정을 요청할 것 —
+그대로 두면 다른 팀원이 `ORTHANC_URL` 을 비운 채 띄우고, 그러면 업로드는
+성공하는데 Orthanc 에 아무것도 안 들어간다. 로그에 한 줄 남을 뿐이라
+한참 뒤에야 알게 된다.
+
+**운영에서는 터널이 필요 없다.** 세 서비스가 Garage·Orthanc·web 과 같은
+compose 망(`empatho-server`) 안에 있어 이름으로 바로 부른다.
+
+| Go 가 도는 곳 | GARAGE_ENDPOINT |
+|---|---|
+| **같은 compose 망 (운영)** | **`garage:3900`** |
+| 개인 PC 에서 직접 + 터널 | `127.0.0.1:13900` |
+| 개인 PC Docker + 호스트 터널 | `host.docker.internal:13900` |
+
+마지막 경우를 위해 compose 에 `extra_hosts: host.docker.internal:host-gateway`
+를 넣어 뒀다. 컨테이너의 `127.0.0.1` 은 컨테이너 자신이라 호스트 터널이
+안 보이기 때문이다.
+
+## Docker 로 올릴 때 반드시 볼 것 셋
+
+**① `GW_LOCAL_ROOT` 는 운영 `.env` 에 있으면 안 된다.**
+설정돼 있으면 Garage 를 무시하고 컨테이너 안 디스크에 쓴다. 재시작하면
+파일이 사라지는데 **업로드는 201 로 성공하고 로그도 정상이다.** 그래서
+`GW_DEV=1` 을 함께 주지 않으면 아예 기동을 거부하게 했다.
+
+**② `CORS_ORIGINS` 를 설정해야 브라우저가 Go 를 부를 수 있다.**
+Go 를 따로 둔 목적이 바이트가 Django 를 안 거치는 것이므로, **브라우저가
+Go 를 직접 부른다.** 프런트(:5173)와 Go(:8091)는 다른 출처라 사전 요청
+(OPTIONS)이 먼저 오는데, 답을 안 하면 업로드가 시작조차 안 되고 화면에는
+애매한 network error 만 뜬다.
+
+```
+CORS_ORIGINS=http://localhost:5173,https://cdss.example.org
+```
+
+nginx 하나로 프런트와 Go 를 같은 출처에 묶었다면 비워 두면 된다.
+`*` 도 받지만 개발용이다 — 티켓을 헤더로 보내므로 아무 사이트나 우리 API 를
+부를 수 있게 된다.
+
+**③ 인스턴스는 하나여야 한다.** 티켓 nonce 저장소가 프로세스 메모리다.
+`deploy.replicas` 를 2 이상으로 올리면 A 에서 쓴 티켓을 B 가 받아준다.
+늘리려면 Redis 로 옮기는 작업이 먼저다.
+
+세 서비스 모두 `/svc/v1/.../health` 를 제공하고 compose 에 healthcheck 가
+걸려 있다. Django 쪽에서 `depends_on: {file-gateway: {condition: service_healthy}}`
+로 기동 순서를 잡을 수 있다.
+
+## Docker 만으로 전 경로 태우기
+
+Garage·Django·Orthanc 없이, 파이썬 설치도 없이 확인할 수 있다.
+**저장소 루트에서** 실행한다.
+
+```bash
+docker compose -f compose.app.yml -f services/gosvc/compose.dev.yml up --build -d
+docker compose -f compose.app.yml -f services/gosvc/compose.dev.yml logs -f fake-django
+```
+
+점검 — 시험용 DICOM 을 컨테이너 안에서 만들어 단일·청크 두 경로를 태운다.
+
+```bash
+docker compose -f compose.app.yml -f services/gosvc/compose.dev.yml run --rm devkit
+```
+
+**실제 의료영상을 안 쓴다.** CBIS 는 재배포 금지, VinDr·EMBED 는 인증·DUA 로
+묶여 있어 개인 컴퓨터나 CI 로 옮기면 안 된다. `tools/make_test_dicom.py` 가
+바이트를 직접 쌓아 만든다 — 파서가 보는 것은 바이트 배치라 이쪽이 오히려
+정확한 시험이 된다.
+
+## tools/ — 진짜 Django 없이 전 경로를 태우는 도구
+
+`go test` 는 내가 지어낸 바이트로 돈다. 이건 **실제 촬영 파일**로 같은 경로를
+태워서 시험이 못 보는 것을 잡는다. 의존성 없음(표준 라이브러리만).
+
+| | |
+|---|---|
+| `tools/fake_django.py` | I-1~I-4 를 받아 화면에 찍는다. **서명·멱등키·순서를 검증한다** |
+| `tools/mint_ticket.py` | 티켓 발급. Django 가 할 일을 시험 동안 대신한다 |
+| `tools/smoke.py` | DICOM 한 장으로 업로드 → G-F7 → 다운로드 → 권한까지 12가지 확인 |
+| `tools/smoke_chunked.py` | 청크 업로드(G-F1~F3). 조각을 **거꾸로** 보내 순서를 확인한다 |
+| `tools/make_test_dicom.py` | 시험용 DICOM 생성. 실제 자료를 안 써도 되게 한다 |
+
+```bash
+# 창 1 — 가짜 Django
+python3 tools/fake_django.py --port 9999 --secret dev-secret
+
+# 창 2 — file-gateway (개발용 로컬 디스크)
+TICKET_KEY=dev-key CALLBACK_BASE=http://127.0.0.1:9999 \
+CALLBACK_SECRET=dev-secret GW_LOCAL_ROOT=/tmp/gw-store \
+GW_ADDR=127.0.0.1:8091 go run ./cmd/file-gateway
+
+# 창 3 — 점검
+python3 tools/smoke.py --file <진짜.dcm>
+```
+
+**Django 팀에게 유용한 지점** — `fake_django.py` 의 `sign()` 이 우리가 쓰는
+서명 계산을 그대로 담고 있다. Django 쪽 검증 코드를 이것과 맞추면 된다.
+`mint_ticket.py` 는 반대로 발급 쪽이고, PyJWT 로 바꿔도
+`jwt.encode(claims, key, algorithm="HS256")` 이 그대로 맞는다.
 
 ## 아직 안 한 것 · 왜 못 했나
 
