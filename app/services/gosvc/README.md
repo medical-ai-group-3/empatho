@@ -6,7 +6,7 @@ Go 를 안 거친다.
 
 ```
 cmd/file-gateway   :8091   G-F1~G-F5 · G-F7   업로드 · 다운로드 · DICOM (19-2)
-cmd/llm-proxy      :8090   G-L1 · G-L2 · G-L3 Ollama 호출 · 결과 전송 (19-4)
+cmd/llm-proxy      :8090   G-L1 리포트 서버 호출 · 결과 전송 (19-4)
 cmd/notify         :8092   G-N1~G-N5          실시간 알림 (19-3)
 ```
 
@@ -18,9 +18,8 @@ go mod download   # minio-go 하나뿐이다. vendor 는 17MB 라 커밋 안 했
 go build ./... && go test ./... -race
 ```
 
-`empatho-app` 저장소의 **`services/gosvc/`** 에 있다. Django 는
-`services/django/` 다. Go 모듈 경로는 `cdss/gosvc` 라서 폴더가 옮겨져도
-임포트는 안 깨진다.
+`empatho-app` 저장소 안에 `gosvc/` 로 둔다. Django 와 별개 모듈이라
+파이썬 쪽 도구는 이 폴더를 안 본다.
 
 ## 명세가 못 박은 것 넷 — 세 서비스 공통
 
@@ -113,44 +112,138 @@ I-2 나 Orthanc 가 실패해도 201 을 낸다. I-1 이 이미 끝나 객체가
 # llm-proxy (19-4)
 
 ```
-G-L1  POST /svc/v1/llm/report-narrative   리포트 서술 (SSE) → I-4 콜백
-G-L2  POST /svc/v1/llm/chat               챗봇 (SSE) — 저장 안 함
-G-L3  GET  /svc/v1/llm/models             Ollama 상주 모델
-      GET  /svc/v1/llm/health
+G-L1  POST /svc/v1/llm/report-narrative   판독 결과 → 리포트 서버 → I-4 콜백
+      GET  /svc/v1/llm/health             터널이 살아 있는지
 ```
 
-## G-L1 과 G-L2 를 가르는 한 가지
+## 2026-09-02 — Ollama 직접 호출을 그만뒀다
 
-**G-L1 은 리포트에 저장되는 글**이다. 그래서 근거 없는 문장을 버리고 I-4 로
-DB 에 남긴다.
-**G-L2 는 화면에서 한 번 읽고 마는 대화**다. 여기에 같은 문장 필터를 걸면
-"그게 무슨 뜻인가" 같은 질문에 아무 답도 못 한다 — 설명 문장은 근거 표시를
-달 자리가 없기 때문이다.
+```
+이전   Go 가 프롬프트를 만들고 → Ollama 를 흘려 받고 → Go 가 문장을 검사
+지금   Go 가 판독 결과를 넘기고 → 리포트 서버가 전부 하고 → 결과만 받는다
+```
 
-그래서 G-L2 는 문장을 안 버리고, **DB 에 안 남기고**(콜백 없음), 대신 근거를
-컨텍스트로 넣고 근거 밖 임상 사실을 단정하지 말라고 못 박는다. 응답 끝에
-면책을 함께 내려보내 화면이 그대로 띄우게 한다.
+소견 생성 · 숫자 검사 · 근거 검사가 전부 워크스테이션 리포트 서버(:8002)
+안에서 끝난다. Go 는 넘기고 받아서 Django 로 옮기는 일만 한다.
 
-⚠ **팀과 맞출 것** — 대화를 진료 기록으로 남길지. 남기기로 하면 명세 21장에
-콜백이 하나 더 필요하고, 그때는 문장 필터도 다시 봐야 한다.
+**왜 흘려보내지(스트리밍) 않나.** 검사가 문장 전체를 봐야 한다. "63.9px 가
+그대로 있나" 도 "근거 표시가 붙었나" 도 문장이 끝나야 판정된다. 검사에 걸리면
+모델 출력을 버리고 뼈대 문장으로 되돌리는데, **이미 흘려보낸 글자는 되돌릴 수
+없다.** 틀린 숫자를 잠깐 보여줬다 고치는 것은 판독 화면에서 할 일이 아니다.
+실측으로 소견 하나가 1초 미만(모델 적재 뒤)이라 기다릴 만하다.
 
-취소 방향도 반대다. G-L1 은 화면이 닫혀도 끝까지 생성한다(저장해야 하니까).
-G-L2 는 화면이 닫히면 즉시 멈춘다(저장할 게 없으니 GPU 낭비다).
+**왜 규칙을 리포트 서버에 두나.** 소켓마다 프롬프트와 안내 문구가 다르다.
+Go 가 들고 있으면 소켓이 늘 때마다 Go 를 고쳐야 한다.
 
-대화는 24턴 · 메시지당 4000자로 자른다. 안 자르면 컨텍스트 창을 넘기고
-**Ollama 가 앞쪽을 조용히 잘라내는데, 그 앞쪽이 근거 목록이다.**
+**G-L2 대화는 이번 범위에서 뺐다.** 자유 질문에는 숫자 검사도 근거 검사도
+적용할 수 없다. 지금 붙이면 검증 안 된 출력이 검증된 소견과 같은 화면에
+섞이고, 사용자는 그 차이를 모른다. 나중에 붙일 때는 대화용 규칙을 따로
+정하고 11434 터널이 필요해진다.
 
-## 근거 표시 형식 (G-L1)
+`internal/narrative`(근거 검사)와 `internal/ollama` 는 **남겨 뒀다.** 되돌릴
+일이 생기면 그게 있어야 하고, 같은 규칙이 두 곳에 적혀 있으면 리포트 서버 쪽
+판정과 대조해 볼 수 있다. 지금은 아무도 안 부른다.
 
-명세는 "근거 좌표가 붙지 않은 문장은 버린다" 까지만 정하고 표시 형식은
-안 정했다. 여기서는 문장 끝에 `[[e:<id>]]` 를 붙이게 한다.
+## 주고받는 모양
 
-검사는 두 단계다. ① 표시가 있는가 ② **그 id 가 우리가 넘긴 근거 목록 안에
-있는가.** ②가 핵심이다. ①만 보면 모델이 없는 근거를 지어내도 통과한다.
-**지어낸 인용은 근거 없는 문장보다 나쁘다 — 확인된 것처럼 보인다.**
+```
+Go → 리포트 서버   POST /report/{socket}
+                   { "result": {…판독 결과 그대로…},
+                     "evidence": ["MG-01", "MG-02"] }
 
-`evidence` 가 비면 400 으로 거부한다. 근거 없는 서술은 어차피 전부 버려지므로
-GPU 시간만 쓴다. 멱등키는 리포트당 고정(`narrative:<report_id>`)이다.
+   ← 소견 · 안내 · 인용된 ID · 버린 문장 · prompt_version
+```
+
+**근거 행은 안 보낸다.** 리포트 서버가 하는 근거 검사는 "모델이 인용한 ID 가
+목록 안에 있나" 뿐이라 좌표를 볼 일이 없고, 프롬프트가 밀리미터 환산을
+금지하고 있어 화소 간격도 쓸 데가 없다. 행은 Go 가 들고 있다가 응답과 합쳐
+화면으로 돌려준다 — 화면은 상자를 그려야 해서 좌표가 필요하다.
+
+`socket` 은 그대로 주소 경로에 들어간다. 그래서 `^[a-z0-9][a-z0-9_-]{0,31}$`
+로 막는다. 검사 없이 넣으면 바깥에서 온 값으로 리포트 서버의 다른 경로를
+부를 수 있다.
+
+## 근거 ID (팀 합의 2026-09-02)
+
+```
+MG-01  MG-02  …   맘모
+US-01  US-02  …   초음파
+PA-01  PA-02  …   병리
+MR-01  MR-02  …   MRI
+```
+
+`L1` 처럼 모달리티 없이 쓰면 여러 소켓이 합쳐질 때 충돌한다.
+
+**좌표 단위가 다른 것은 ID 로 풀 문제가 아니다.** ID 는 표의 열쇠일 뿐이고,
+좌표계는 그 행이 들고 있다. 맘모 행은 이렇다.
+
+```json
+{ "id": "MG-01",
+  "image": { "laterality": "R", "view": "MLO" },
+  "box": [x1, y1, x2, y2],
+  "frame": "pixel",
+  "pixel_spacing_mm": 0.0814 }
+```
+
+`pixel_spacing_mm` 이 왜 행마다 있나 — **장비마다 다르다.** 우리 데이터
+443장을 실측하니 0.0814 · 0.0828 · 0.083 · 0.085 로 갈렸고 폭이 4% 다.
+상수로 박으면 밀리미터 환산이 그만큼 조용히 어긋난다. 미세석회는 그 크기로
+판정이 갈리는 병변이다. 값은 G-F7 이 DICOM 에서 뽑아 준다.
+
+**모르면 `null` 이어야 한다.** 초음파는 판독 결과에 이 값이 없어서 null 이다.
+0 이나 임의 상수로 채우면 화면이 그럴듯한 밀리미터를 보여주는데 그게 틀린 값이다.
+
+⚠ **CC / MLO 중복.** 검출기가 사진을 한 장씩 따로 본다. 같은 병변이 두 뷰에
+찍히면 `MG-01` `MG-02` 로 **두 개가 된다.** 두 뷰를 잇는 기능이 없어서 서술
+단계에서 개수를 말하지 않고 고정 안내 문구(`MG-N01`)를 붙이는 것으로 막는다.
+잇는 것은 검출 쪽 일이고 이번 발표까지는 못 붙인다.
+
+## 근거가 비어도 거부하지 않는다
+
+예전에는 400 을 냈다. 지금은 안 낸다. **병변이 없는 것은 정상적인 판독
+결과**이고 "소견 없음" 도 리포트에 들어가야 하는 글이다. 근거가 비면 리포트
+서버가 근거 검사를 건너뛰고 숫자 검사만 한다.
+
+리포트 서버가 우리가 안 준 ID 를 돌려주면 Go 가 버린다. 그럴 일은 없어야
+하지만 **지어낸 인용은 근거 없는 문장보다 나쁘다 — 확인된 것처럼 보인다.**
+
+## I-4 에 세 칸이 늘었다
+
+```
+notes           코드가 붙인 고정 안내 문구 (모델이 쓴 글이 아니다)
+prompt_version  리포트 서버가 쓴 문구·규칙의 판
+fallback        모델 출력을 버리고 뼈대 문장으로 되돌린 사유
+```
+
+소견 생성이 리포트 서버로 옮겨가면서 **어느 규칙으로 쓴 글인지가 Go 쪽 코드에
+더는 안 남는다.** 나중에 "이 소견은 왜 이렇게 나왔나" 를 물으면 답할 근거가
+있어야 한다. 판독 기록이라 더 그렇다.
+
+⚠ **Django 쪽 `report` 테이블에 세 칸이 있어야 한다.** 없으면 조용히 버려진다.
+
+멱등키는 리포트당 고정(`narrative:<report_id>`)이다.
+
+## 터널 (팀 합의 2026-09-02)
+
+```
+REPORT_BASE=http://tunnel:8002
+```
+
+`tunnel` 은 compose 안의 터널 컨테이너다. 워크스테이션 8002 로 SSH 포트
+넘김을 걸어 두고 `restart: unless-stopped` 로 스스로 살아난다.
+
+**이전에는 `host.docker.internal:18002` 였다.** 사람이 Windows 에서 손으로
+`ssh -L` 을 띄우는 방식이었는데 **아무도 안 띄우면 앱 전체가 멈췄다.** 실제로
+그 상태로 하루가 지났다. 컨테이너로 옮기면서 주소가 서비스 이름이 됐고,
+배포하는 사람이 잊어버릴 자리가 없어졌다.
+
+⚠ 그래도 **워크스테이션이 꺼져 있으면 안 닿는다.** 남의 기계라 우리가 어쩔 수
+없다. 그래서 두 가지를 해 뒀다.
+
+* `GET /svc/v1/llm/health` 가 `report_server: false` 와 함께 터널을 의심하라는
+  힌트를 돌려준다
+* 배포 검사에서 터널 컨테이너만 제외한다 — 워크스테이션이 꺼졌다고 앱 서버
+  배포까지 막히는 것은 과하다. 대신 조용히 넘어가지 않도록 로그에 남긴다
 
 ---
 
@@ -243,18 +336,12 @@ Go 는 그 아래에만 쓰고 그 밖은 403 이다. 없으면 요청 자체를
 
 ## 실행
 
-세 서비스는 저장소 루트의 `compose.app.yml` 에 들어 있다(스택 이름
-`empatho-server`). 설정은 `conf/gosvc.env` 를 `env_file` 로 읽는다.
-
 ```bash
-docker compose -f compose.app.yml up -d --build
+cp .env.example .env   # 값을 채운다. .env 는 커밋하지 않는다
+docker compose -f compose.server -f compose.gosvc.yml up -d --build
 ```
 
-**⚠ 코드에 새 환경변수를 넣으면 `conf/gosvc.env.example` 에 이름을 추가하고
-같이 커밋할 것.** 실제 값은 서버에만 있고 git 에 없다. 이름을 안 알리면
-코드만 배포되고 값이 비어서, 기동에 실패하거나 조용히 기본값으로 돈다.
-
-포트는 `127.0.0.1` 에 묶여 있다. 밖에서는 SSH 터널로만 붙는다.
+개발 중에 Garage 없이 돌리려면 `GW_LOCAL_ROOT` 를 주면 로컬 디스크를 쓴다.
 `ORTHANC_URL` 을 비우면 DICOM 을 파싱해 I-2 만 보내고 전송은 건너뛴다.
 
 ## 시험
@@ -287,9 +374,7 @@ CBIS-DDSM 은 재배포 금지고 EMBED 는 DUA 로 묶여 있어 표본을 넣�
 | Garage 버킷 · 파생 | `empatho-derived` (타일·썸네일·마스크) |
 | region | `garage` |
 | 주소 방식 | **path-style 필수** — 코드에서 강제해 뒀다 |
-| Orthanc | `http://orthanc:8042` · DICOMweb 켜짐. **맘모도 등록한다** |
-| Django | 서비스 이름이 **`web`** 이다 — `CALLBACK_BASE=http://web:8000` |
-| Ollama | 워크스테이션에 있다. `host.docker.internal:11434`, 터널에 11434 가 아직 안 열려 llm-proxy 요청만 실패한다 |
+| Orthanc | 사용자 `empatho`, DICOMweb 켜짐. **맘모도 등록한다** |
 
 **맘모 DICOM 도 Orthanc 에 등록한다.** 원본 파일은 Garage 에, 촬영 정보는
 Orthanc 에 들어가고 둘을 I-2 의 `orthanc_instance_id` 로 잇는다.
@@ -300,18 +385,16 @@ Orthanc 에 들어가고 둘을 I-2 의 `orthanc_instance_id` 로 잇는다.
 성공하는데 Orthanc 에 아무것도 안 들어간다. 로그에 한 줄 남을 뿐이라
 한참 뒤에야 알게 된다.
 
-**운영에서는 터널이 필요 없다.** 세 서비스가 Garage·Orthanc·web 과 같은
-compose 망(`empatho-server`) 안에 있어 이름으로 바로 부른다.
+**⚠ 터널을 호스트에서 열고 Go 는 컨테이너 안에서 돌 때** — 컨테이너의
+`127.0.0.1` 은 컨테이너 자신이라 호스트 터널이 안 보인다. compose 에
+`extra_hosts: host.docker.internal:host-gateway` 를 넣어 뒀으니
+`GARAGE_ENDPOINT=host.docker.internal:13900` 으로 주면 된다.
 
 | Go 가 도는 곳 | GARAGE_ENDPOINT |
 |---|---|
-| **같은 compose 망 (운영)** | **`garage:3900`** |
-| 개인 PC 에서 직접 + 터널 | `127.0.0.1:13900` |
-| 개인 PC Docker + 호스트 터널 | `host.docker.internal:13900` |
-
-마지막 경우를 위해 compose 에 `extra_hosts: host.docker.internal:host-gateway`
-를 넣어 뒀다. 컨테이너의 `127.0.0.1` 은 컨테이너 자신이라 호스트 터널이
-안 보이기 때문이다.
+| 호스트에서 직접 | `127.0.0.1:13900` |
+| Docker + 호스트 터널 | `host.docker.internal:13900` |
+| Garage 와 같은 compose 망 | `garage:3900` |
 
 ## Docker 로 올릴 때 반드시 볼 것 셋
 
@@ -345,17 +428,18 @@ nginx 하나로 프런트와 Go 를 같은 출처에 묶었다면 비워 두면 
 ## Docker 만으로 전 경로 태우기
 
 Garage·Django·Orthanc 없이, 파이썬 설치도 없이 확인할 수 있다.
-**저장소 루트에서** 실행한다.
+**두 compose 파일 모두 저장소 루트에 두고 실행한다** (build context 가
+`./gosvc` 라서 그렇다).
 
 ```bash
-docker compose -f compose.app.yml -f services/gosvc/compose.dev.yml up --build -d
-docker compose -f compose.app.yml -f services/gosvc/compose.dev.yml logs -f fake-django
+docker compose -f compose.gosvc.yml -f compose.dev.yml up --build -d
+docker compose -f compose.gosvc.yml -f compose.dev.yml logs -f fake-django
 ```
 
 점검 — 시험용 DICOM 을 컨테이너 안에서 만들어 단일·청크 두 경로를 태운다.
 
 ```bash
-docker compose -f compose.app.yml -f services/gosvc/compose.dev.yml run --rm devkit
+docker compose -f compose.gosvc.yml -f compose.dev.yml run --rm devkit
 ```
 
 **실제 의료영상을 안 쓴다.** CBIS 는 재배포 금지, VinDr·EMBED 는 인증·DUA 로

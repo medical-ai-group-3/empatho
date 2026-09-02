@@ -58,16 +58,36 @@ func New(base string, secret []byte, certFile, keyFile string, retries int) *Cli
 	}
 }
 
-// Narrative 는 I-4 로 보내는 본문이다. 명세 21장 I-4 행 그대로다.
+// Narrative 는 I-4 로 보내는 본문이다. 명세 21장 I-4 행에 세 칸을 더했다.
+//
+// 더한 이유 — 소견 생성이 리포트 서버로 옮겨가면서, **어느 규칙으로 쓴
+// 글인지가 우리 쪽 코드에 더는 안 남는다.** 나중에 "이 소견은 왜 이렇게
+// 나왔나" 를 물으면 답할 근거가 있어야 한다. 판독 기록이라 더 그렇다.
+//
+//	PromptVersion  리포트 서버가 쓴 문구·규칙의 판. 문구가 바뀌면 올라간다
+//	Fallback       모델 출력을 버리고 뼈대 문장으로 되돌린 경우 그 사유
+//	Notes          코드가 붙인 고정 안내 문구. 모델이 쓴 글이 아니다
+//
+// ⚠ Django 쪽 report 테이블에 세 칸이 있어야 한다. 없으면 조용히 버려진다.
 type Narrative struct {
 	NarrativeText      string   `json:"narrative_text"`
 	EvidenceLinks      []string `json:"evidence_links"`
 	DroppedSentenceLog []Drop   `json:"dropped_sentence_log"`
+	Notes              []Note   `json:"notes,omitempty"`
+	PromptVersion      string   `json:"prompt_version,omitempty"`
+	Fallback           string   `json:"fallback,omitempty"`
 }
 
 type Drop struct {
 	Sentence string `json:"sentence"`
 	Reason   string `json:"reason"`
+}
+
+// Note — 고정 안내 문구. 모델이 만든 문장이 아니라 미리 정해 둔 표에서
+// ID 로 골라 온 것이다. 그래서 근거 검사를 안 탄다.
+type Note struct {
+	ID   string `json:"id"` // "MG-N01" 등
+	Text string `json:"text"`
 }
 
 // StorageObject 는 I-1 로 보내는 본문이다. 명세 21장 I-1 행 그대로다.

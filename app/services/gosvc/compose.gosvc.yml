@@ -1,0 +1,106 @@
+# Go 서비스 세 개. 기존 compose 에 합치거나 -f 로 같이 올린다.
+#
+#   docker compose -f compose.server -f compose.gosvc.yml up -d
+#
+# ⚠ 비밀값은 여기 적지 않는다. .env 로 뺀다.
+#    TICKET_KEY 와 CALLBACK_SECRET 은 Django 와 **같은 값**이어야 한다.
+#
+# 브라우저가 Go 를 직접 부른다(바이트가 Django 를 안 거치는 것이 설계 목적).
+# 그래서 아래 ports 를 노출하거나 리버스 프록시로 같은 출처에 묶어야 한다.
+# 노출하는 쪽이면 CORS_ORIGINS 를 반드시 설정할 것.
+
+x-gosvc-common: &gosvc-common
+  build:
+    context: ./gosvc
+  restart: unless-stopped
+  # ⚠ 터널을 **호스트**에서 열었을 때 컨테이너가 그 포트에 닿게 한다.
+  #   컨테이너의 127.0.0.1 은 컨테이너 자신이라 호스트 터널이 안 보인다.
+  #   그래서 GARAGE_ENDPOINT 를 host.docker.internal:13900 으로 준다.
+  #   Garage 가 같은 compose 망 안에 있으면 이 줄은 없어도 된다.
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
+  environment: &gosvc-env
+    TICKET_KEY: ${TICKET_KEY:?TICKET_KEY 를 .env 에 넣을 것}
+    CALLBACK_BASE: ${CALLBACK_BASE:-http://django:8000}
+    CALLBACK_SECRET: ${CALLBACK_SECRET:?CALLBACK_SECRET 을 .env 에 넣을 것}
+    # 운영에서는 반드시 채운다. 비어 있으면 콜백이 평문으로 나간다.
+    CALLBACK_CERT: ${CALLBACK_CERT:-}
+    CALLBACK_KEY: ${CALLBACK_KEY:-}
+    # 브라우저가 이 서비스들을 **직접** 부른다(바이트가 Django 를 안 거친다).
+    # 프런트 출처를 여기 적지 않으면 업로드·SSE 가 사전 요청에서 막힌다.
+    # nginx 하나로 같은 출처로 묶었다면 비워 둘 것.
+    CORS_ORIGINS: ${CORS_ORIGINS:-}
+    TZ: Asia/Seoul
+
+services:
+  file-gateway:
+    <<: *gosvc-common
+    entrypoint: /usr/local/bin/file-gateway
+    environment:
+      <<: *gosvc-env
+      GW_ADDR: ":8091"
+      GARAGE_ENDPOINT: ${GARAGE_ENDPOINT:-garage:3900}
+      GARAGE_REGION: ${GARAGE_REGION:-garage}
+      GARAGE_ACCESS_KEY: ${GARAGE_ACCESS_KEY:-}
+      GARAGE_SECRET_KEY: ${GARAGE_SECRET_KEY:-}
+      # 원본은 empatho-original, 파생물(타일·썸네일)은 empatho-derived
+      GARAGE_BUCKET: ${GARAGE_BUCKET:-empatho-original}
+      # 맘모 DICOM 도 Orthanc 에 등록한다. 비우면 전송만 건너뛴다(개발용).
+      ORTHANC_URL: ${ORTHANC_URL:-}
+      ORTHANC_USER: ${ORTHANC_USER:-}
+      ORTHANC_PASS: ${ORTHANC_PASS:-}
+      # ⚠ 운영에서는 절대 설정하지 말 것. 설정하면 Garage 를 무시하고
+      #   컨테이너 안 디스크에 쓰고, 재시작하면 파일이 사라진다.
+      #   안전장치로 GW_DEV=1 이 함께 없으면 기동을 거부한다.
+      GW_LOCAL_ROOT: ${GW_LOCAL_ROOT:-}
+      GW_DEV: ${GW_DEV:-}
+    volumes:
+      # 청크 조각이 여기 쌓인다. 컨테이너가 죽으면 진행 중이던 업로드가
+      # 날아가므로 볼륨으로 뺀다. WSI 는 다시 올리는 데 수십 분이 든다.
+      - gw-spool:/var/tmp/gw-spool
+    ports: ["8091:8091"]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8091/svc/v1/health"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+
+  llm-proxy:
+    <<: *gosvc-common
+    entrypoint: /usr/local/bin/llm-proxy
+    environment:
+      <<: *gosvc-env
+      LLM_ADDR: ":8090"
+      # 워크스테이션 리포트 서버. tunnel 컨테이너를 거쳐 나간다.
+      # Ollama 를 직접 부르지 않는다 — 소견 생성·검사가 전부 저쪽에서 끝난다.
+      REPORT_BASE: ${REPORT_BASE:-http://tunnel:8002}
+      REPORT_TIMEOUT: ${REPORT_TIMEOUT:-2m}
+    ports: ["8090:8090"]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8090/svc/v1/llm/health"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+
+  notify:
+    <<: *gosvc-common
+    entrypoint: /usr/local/bin/notify
+    environment:
+      <<: *gosvc-env
+      NOTIFY_ADDR: ":8092"
+      NOTIFY_BUFFER: ${NOTIFY_BUFFER:-32}
+    ports: ["8092:8092"]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8092/svc/v1/notify/health"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+
+volumes:
+  gw-spool:
