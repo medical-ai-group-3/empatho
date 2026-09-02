@@ -2,12 +2,42 @@
 
 ```
 cdss_schema.sql   스키마 전용 덤프 (데이터 없음). django_* · auth_* 포함
+migrations/       스키마를 바꾼 SQL. 파일명은 날짜-제목
 ```
+
+## 스키마 변경 규칙
+
+**스키마를 바꾸면 SQL 파일로 남긴다.** `migrations/<날짜>-<제목>.sql` 로 두고
+머리말에 무엇을 왜 바꿨는지 적는다. 그 다음 `cdss_schema.sql` 을 다시 뜬다.
+
+### Django 마이그레이션은 스키마 이력이 아니다
+
+`core` 의 모델은 전부 `managed = False` 다. 여기서 두 가지가 따라온다.
+
+**① `migrate` 는 DDL 을 내지 않는다.** 표를 만들고 고치는 것은 사람이 SQL 로 한다.
+마이그레이션 파일은 Django 의 상태 기록일 뿐이다.
+
+**② `makemigrations` 가 필드 변경을 아예 보지 않는다.** autodetector 는 unmanaged
+모델에 대해 **모델 생성·삭제만** 감지한다. 컬럼을 추가하거나 FK 를 바꿔도
+마이그레이션이 생기지 않는다.
+
+그래서 이렇게 된다.
+
+```bash
+python manage.py makemigrations core --check --dry-run
+# No changes detected  ← 필드가 맞다는 뜻이 아니다. 애초에 안 본다.
+```
+
+**이 명령이 통과해도 모델과 DB 가 일치한다는 보장이 없다.** 실제로 맞는지 보려면
+`information_schema` 를 직접 조회해서 대조해야 한다.
+
+스키마의 원본은 `cdss_schema.sql` 과 `migrations/` 다. 마이그레이션 파일의 diff 로
+"언제 무엇이 바뀌었나"를 추적하려 하면 안 된다.
 
 ## 다시 만들 때
 
 ```bash
-cd backend
+cd services/django
 PGPASSWORD=<비번> pg_dump -h 127.0.0.1 -p 15432 -U empatho -d empatho \
     --schema-only --no-owner --no-privileges -f db/cdss_schema.sql
 ```
@@ -27,8 +57,8 @@ DB `empatho` 와 사용자 `empatho` 는 postgres 컨테이너가 `conf/postgres
 ```bash
 PGPASSWORD=<비번> psql -h 127.0.0.1 -p 15432 -U empatho -d empatho -f db/cdss_schema.sql
 
-cd backend
-cp ../conf/web.env.example .env   # 값을 채운다. 터널이면 DB_HOST=127.0.0.1 · DB_PORT=15432
+cd services/django
+cp ../../conf/web.env.example .env   # 값을 채운다. 터널이면 DB_HOST=127.0.0.1 · DB_PORT=15432
 python manage.py migrate --fake
 python manage.py makemigrations core --check --dry-run   # "No changes" 여야 정상
 ```
