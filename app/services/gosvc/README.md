@@ -18,8 +18,9 @@ go mod download   # minio-go 하나뿐이다. vendor 는 17MB 라 커밋 안 했
 go build ./... && go test ./... -race
 ```
 
-`empatho-app` 저장소 안에 `gosvc/` 로 둔다. Django 와 별개 모듈이라
-파이썬 쪽 도구는 이 폴더를 안 본다.
+`empatho-app` 저장소의 **`services/gosvc/`** 에 있다. Django 는
+`services/django/` 다. Go 모듈 경로는 `cdss/gosvc` 라서 폴더가 옮겨져도
+임포트는 안 깨진다.
 
 ## 명세가 못 박은 것 넷 — 세 서비스 공통
 
@@ -242,12 +243,18 @@ Go 는 그 아래에만 쓰고 그 밖은 403 이다. 없으면 요청 자체를
 
 ## 실행
 
+세 서비스는 저장소 루트의 `compose.app.yml` 에 들어 있다(스택 이름
+`empatho-server`). 설정은 `conf/gosvc.env` 를 `env_file` 로 읽는다.
+
 ```bash
-cp .env.example .env   # 값을 채운다. .env 는 커밋하지 않는다
-docker compose -f compose.server -f compose.gosvc.yml up -d --build
+docker compose -f compose.app.yml up -d --build
 ```
 
-개발 중에 Garage 없이 돌리려면 `GW_LOCAL_ROOT` 를 주면 로컬 디스크를 쓴다.
+**⚠ 코드에 새 환경변수를 넣으면 `conf/gosvc.env.example` 에 이름을 추가하고
+같이 커밋할 것.** 실제 값은 서버에만 있고 git 에 없다. 이름을 안 알리면
+코드만 배포되고 값이 비어서, 기동에 실패하거나 조용히 기본값으로 돈다.
+
+포트는 `127.0.0.1` 에 묶여 있다. 밖에서는 SSH 터널로만 붙는다.
 `ORTHANC_URL` 을 비우면 DICOM 을 파싱해 I-2 만 보내고 전송은 건너뛴다.
 
 ## 시험
@@ -280,7 +287,9 @@ CBIS-DDSM 은 재배포 금지고 EMBED 는 DUA 로 묶여 있어 표본을 넣�
 | Garage 버킷 · 파생 | `empatho-derived` (타일·썸네일·마스크) |
 | region | `garage` |
 | 주소 방식 | **path-style 필수** — 코드에서 강제해 뒀다 |
-| Orthanc | 사용자 `empatho`, DICOMweb 켜짐. **맘모도 등록한다** |
+| Orthanc | `http://orthanc:8042` · DICOMweb 켜짐. **맘모도 등록한다** |
+| Django | 서비스 이름이 **`web`** 이다 — `CALLBACK_BASE=http://web:8000` |
+| Ollama | 워크스테이션에 있다. `host.docker.internal:11434`, 터널에 11434 가 아직 안 열려 llm-proxy 요청만 실패한다 |
 
 **맘모 DICOM 도 Orthanc 에 등록한다.** 원본 파일은 Garage 에, 촬영 정보는
 Orthanc 에 들어가고 둘을 I-2 의 `orthanc_instance_id` 로 잇는다.
@@ -291,16 +300,18 @@ Orthanc 에 들어가고 둘을 I-2 의 `orthanc_instance_id` 로 잇는다.
 성공하는데 Orthanc 에 아무것도 안 들어간다. 로그에 한 줄 남을 뿐이라
 한참 뒤에야 알게 된다.
 
-**⚠ 터널을 호스트에서 열고 Go 는 컨테이너 안에서 돌 때** — 컨테이너의
-`127.0.0.1` 은 컨테이너 자신이라 호스트 터널이 안 보인다. compose 에
-`extra_hosts: host.docker.internal:host-gateway` 를 넣어 뒀으니
-`GARAGE_ENDPOINT=host.docker.internal:13900` 으로 주면 된다.
+**운영에서는 터널이 필요 없다.** 세 서비스가 Garage·Orthanc·web 과 같은
+compose 망(`empatho-server`) 안에 있어 이름으로 바로 부른다.
 
 | Go 가 도는 곳 | GARAGE_ENDPOINT |
 |---|---|
-| 호스트에서 직접 | `127.0.0.1:13900` |
-| Docker + 호스트 터널 | `host.docker.internal:13900` |
-| Garage 와 같은 compose 망 | `garage:3900` |
+| **같은 compose 망 (운영)** | **`garage:3900`** |
+| 개인 PC 에서 직접 + 터널 | `127.0.0.1:13900` |
+| 개인 PC Docker + 호스트 터널 | `host.docker.internal:13900` |
+
+마지막 경우를 위해 compose 에 `extra_hosts: host.docker.internal:host-gateway`
+를 넣어 뒀다. 컨테이너의 `127.0.0.1` 은 컨테이너 자신이라 호스트 터널이
+안 보이기 때문이다.
 
 ## Docker 로 올릴 때 반드시 볼 것 셋
 
@@ -334,18 +345,17 @@ nginx 하나로 프런트와 Go 를 같은 출처에 묶었다면 비워 두면 
 ## Docker 만으로 전 경로 태우기
 
 Garage·Django·Orthanc 없이, 파이썬 설치도 없이 확인할 수 있다.
-**두 compose 파일 모두 저장소 루트에 두고 실행한다** (build context 가
-`./gosvc` 라서 그렇다).
+**저장소 루트에서** 실행한다.
 
 ```bash
-docker compose -f compose.gosvc.yml -f compose.dev.yml up --build -d
-docker compose -f compose.gosvc.yml -f compose.dev.yml logs -f fake-django
+docker compose -f compose.app.yml -f services/gosvc/compose.dev.yml up --build -d
+docker compose -f compose.app.yml -f services/gosvc/compose.dev.yml logs -f fake-django
 ```
 
 점검 — 시험용 DICOM 을 컨테이너 안에서 만들어 단일·청크 두 경로를 태운다.
 
 ```bash
-docker compose -f compose.gosvc.yml -f compose.dev.yml run --rm devkit
+docker compose -f compose.app.yml -f services/gosvc/compose.dev.yml run --rm devkit
 ```
 
 **실제 의료영상을 안 쓴다.** CBIS 는 재배포 금지, VinDr·EMBED 는 인증·DUA 로

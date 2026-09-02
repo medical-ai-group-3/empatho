@@ -1,22 +1,18 @@
 # 개발용 덮어쓰기 — Garage · Django · Orthanc 없이 Docker 만으로 전 경로를 태운다.
 #
-#   docker compose -f compose.gosvc.yml -f compose.dev.yml up --build -d
-#   docker compose -f compose.gosvc.yml -f compose.dev.yml logs -f fake-django
+# 저장소 루트에서 실행한다. 상대 경로는 첫 compose 파일 위치를 기준으로 풀린다.
 #
-# 그리고 점검:
-#   docker compose -f compose.gosvc.yml -f compose.dev.yml run --rm devkit
+#   docker compose -f compose.app.yml -f services/gosvc/compose.dev.yml up --build -d
+#   docker compose -f compose.app.yml -f services/gosvc/compose.dev.yml logs -f fake-django
+#   docker compose -f compose.app.yml -f services/gosvc/compose.dev.yml run --rm devkit
 #
-# ⚠ 이 파일은 **개발 전용**이다. 운영 compose 에 섞지 말 것.
-#    저장소가 컨테이너 볼륨이라 Garage 를 안 쓴다.
-#
-# ⚠ 두 compose 파일 모두 **저장소 루트**에 두고 실행한다.
-#    build context 가 ./gosvc 라서 그렇다. gosvc/ 안에서 실행하면
-#    ./gosvc/gosvc 를 찾다가 실패한다.
+# ⚠ **개발 전용이다. 운영 스택에 섞지 말 것.**
+#    저장소를 컨테이너 볼륨으로 돌려서 Garage 를 안 쓴다. 재시작하면 사라진다.
+#    file-gateway 가 GW_DEV=1 없이는 이 설정으로 기동을 거부하도록 막아 뒀다.
 
 services:
   file-gateway:
     environment:
-      # 개발용 로컬 디스크. GW_DEV=1 이 없으면 기동을 거부하도록 막아 뒀다.
       GW_LOCAL_ROOT: /data
       GW_DEV: "1"
       CALLBACK_BASE: http://fake-django:9999
@@ -49,14 +45,16 @@ services:
     depends_on:
       - fake-django
 
-  # Django 자리를 대신한다. 내부 콜백(I-1~I-4)을 받아 로그로 찍는다.
+  # 운영의 web(Django) 자리를 대신한다. 내부 콜백 I-1~I-4 를 받아 로그로 찍고
+  # 서명·멱등키·순서를 검증한다.
+  #
   # ⚠ --host 0.0.0.0 이어야 다른 컨테이너가 붙는다. 기본값 127.0.0.1 은
   #   컨테이너 안에서는 자기 자신만 가리킨다.
   fake-django:
     image: python:3.12-alpine
     working_dir: /tools
     volumes:
-      - ./gosvc/tools:/tools:ro
+      - ./services/gosvc/tools:/tools:ro
     command: >
       python3 fake_django.py --host 0.0.0.0 --port 9999
       --secret ${CALLBACK_SECRET:-dev-secret}
@@ -64,16 +62,14 @@ services:
 
   # 점검 도구. 평소에는 안 뜨고 run 으로만 부른다.
   #
-  #   docker compose ... run --rm devkit
-  #
   # 시험용 DICOM 을 컨테이너 안에서 만들어 쓴다. **실제 의료영상을 쓰지 않는다** —
-  # CBIS 는 재배포 금지고 VinDr·EMBED 는 인증·DUA 로 묶여 있어 개인 컴퓨터로
-  # 옮기면 안 된다.
+  # CBIS 는 재배포 금지고 VinDr·EMBED 는 인증·DUA 로 묶여 있어 개인 컴퓨터나
+  # CI 로 옮기면 안 된다.
   devkit:
     image: python:3.12-alpine
     working_dir: /tools
     volumes:
-      - ./gosvc/tools:/tools:ro
+      - ./services/gosvc/tools:/tools:ro
     profiles: ["tools"]
     environment:
       GW: http://file-gateway:8091
