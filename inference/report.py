@@ -38,14 +38,19 @@ def _ask(system: str, prompt:str, schema:dict, timeout:int = 100) -> dict:
     with urllib.request.urlopen(req, timeout=timeout) as r:
         return json.loads(json.loads(r.read())["response"])
     
-def _done(socket_id: str, p, text:str, fallback): 
-    """fallback 이 None 이면 모델이 쓴 것, 아니면 코드가 만든 뼈대"""
+def _done(socket_id: str, p, text:str, notes:list[str], fallback):
+    """fallback 이 None 이면 모델이 쓴 것, 아니면 코드가 만든 뼈대.
+
+    안내(notes)는 모델을 거치지 않는다. 「형태 지표를 믿지 마십시오」 같은
+    문장은 다시 쓰면 뜻이 흐려지고, 받는 쪽이 「문제 없음」으로 읽는다.
+    """
     return {
-        "socket_id": socket_id, 
-        "abstained": False, 
-        "소견": text, 
-        "model_name": None if fallback else MODEL, 
-        "prompt_version": p.VERSION, 
+        "socket_id": socket_id,
+        "abstained": False,
+        "소견": text,
+        "안내": notes,
+        "model_name": None if fallback else MODEL,
+        "prompt_version": p.VERSION,
         "fallback": fallback,
     }
     
@@ -72,18 +77,18 @@ def report(socket_id: str, result: dict):
     
     fact_lines = p.facts(result) 
     note_lines = p.notes(result)
-    skeleton = " ".join(fact_lines + note_lines)
+    skeleton = " ".join(fact_lines)
     
     try:
-        out = _ask(p.SYSTEM, p.build(fact_lines, note_lines), p.SCHEMA)
+        out = _ask(p.SYSTEM, p.build(fact_lines), p.SCHEMA)
         text = (out.get("소견") or "").strip()
     except Exception as exc:
         # 모델이 없어도 리포트는 나간다. 뼈대는 완성된 문장이다 
-        return _done(socket_id, p, skeleton, f"llm_failed: {type(exc).__name__}")
+        return _done(socket_id, p, skeleton, note_lines, f"llm_failed: {type(exc).__name__}")
     
     missing = [n for n in p.numbers(result) if n not in text]
     if missing: 
         # 모델이 수치를 바꿨다. 그 출력은 버린다. 
-        return  _done(socket_id, p, skeleton, "numbers_changed: "+",".join(missing))
+        return  _done(socket_id, p, skeleton, note_lines, "numbers_changed: "+",".join(missing))
     
-    return _done(socket_id, p, text, None)
+    return _done(socket_id, p, text, note_lines ,None)

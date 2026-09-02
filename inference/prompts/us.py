@@ -90,7 +90,6 @@ SCHEMA = {
     "required": ["소견"],
 }
 
-
-def build(fact_lines: list[str], note_lines: list[str]) -> str:
-    return ("[사실]\n" + "\n".join(fact_lines)
-            + "\n\n[주의사항]\n" + "\n".join(note_lines))
+def build(fact_lines: list[str]) -> str:
+    # 주의사항은 모델에 넘기지 않는다. 우리가 쓴 문장이 그대로 나가야 한다.
+    return "[사실]\n" + "\n".join(fact_lines)
