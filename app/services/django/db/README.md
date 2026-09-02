@@ -58,6 +58,10 @@ DB 가 `DEFAULT now()` 로 UTC 를 timezone 없이 넣는다 → Django 가 naiv
 
 **새 테이블을 `timestamp` 로 만들면 같은 문제가 그대로 재발한다.**
 
+보기 편하라고 `ALTER DATABASE empatho SET TimeZone = 'Asia/Seoul'` 을 걸어 뒀다 —
+HeidiSQL 은 KST 로 보이고 Django 는 커넥션마다 UTC 를 강제하므로 영향받지 않는다.
+DB 를 새로 만들면 이 설정은 없어진다.
+
 ### ② 감사 컬럼은 `db_default` · `auto_now` 로 둘 것
 
 `managed = False` 여도 **DB 의 `DEFAULT` 가 자동으로 먹지 않는다.** 필드를 그냥
