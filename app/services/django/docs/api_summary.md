@@ -8,6 +8,111 @@
 
 ---
 
+## 0 · v3 개정 이력 · 스키마 보완 필요 항목
+
+원본 docx 를 저장소에 두지 않으므로, **결정과 미결 항목은 여기로 옮겨 적는다.**
+아래는 원본에서 그대로 옮긴 것이고 요약하거나 해석하지 않았다.
+
+### 0-1 · v3 개정 이력 — 2026-08-19 팀 합의 확정
+
+출처: DB 설계문서 v3 「v3 개정 이력」. 스키마에 영향 있는 항목만 옮겼다.
+
+| 항목 | v2 → v3 |
+|---|---|
+| 테이블 수 | 35 → 34. `hospital` 삭제 (처방전은 유지 — 결제 기능만 만들지 않는다) |
+| `staff.department` | 원무(reception)와 시스템 관리자(admin)를 분리한다. 관리자는 임상 액터가 아니므로 사용자 목록(6명)에는 넣지 않고 권한 매트릭스에만 열을 둔다 |
+| `lesion` | `lesion_type` 신설 (mass / calcification / asymmetry / architectural_distortion / lymph_node). `needs_additional_view` + 사유 신설 — 등급 0을 등급으로 접지 않기 위한 칸 |
+| `lesion_descriptor` | 초음파 전용 → 맘모 + 초음파. 허용값을 (모달리티, 병변유형) 조합으로 제약 |
+| `assessment` | `category` 에 6 추가. `path_agreement` 에 not_applicable 추가. `rule_table_version` 은 모달리티 접두사 필수 (mammo-v1.0 / us-v0.3) |
+| `pathology_result` | `b_category`(b1~b5) 신설 — AI 는 benign/malignant 만 내고 B분류는 병리의가 직접 고른다. `amend`·`superseded_by_id` 는 만들지 않는다 |
+| **`pathology_slide`** | **`pathology_result_id` → `specimen_id` FK 로 전환.** 스캔 배율 · mpp 추가 (세포밀도 sTIL 환산용) |
+| `discordance_flag` | `violated_rule` 에 rule5(역불일치 — 영상 3·4a 인데 병리 악성) 추가 |
+| 처방 · 결제 | 결제(payment) 테이블을 신설하지 않는다. 서류 발급 화면에 수납 버튼만 두고 발급 조건으로 걸지 않는다. 처방전(prescription)은 그대로 유지 |
+| 프로토타입 범위 | `notification` 발송 결과 컬럼 · 내부 콜백 멱등성 키 · `model_registry` 테이블은 만들지 않는다. 소켓 가용 여부는 설정 파일(yaml) |
+| 이름 길이 | 30자 → 25~30자 (공통 규약 합의문과 통일) |
+
+매핑표 v3 가 별도로 기록한 결정:
+
+| 항목 | 내용 |
+|---|---|
+| `conformal_q` 제약 | 삭제 — DB 제약↔에러 매핑에서 제거. `gate_flags` 1건 이상 → `abstained=true` 로 대체 |
+| `model_registry` (G5) | 만들지 않는다 — 프로토타입 범위. 소켓 가용 여부는 설정 파일(yaml) |
+| G11 · G12 | `notification` 발송 결과 · 콜백 멱등성 키는 만들지 않는다 — 재시도를 하지 않으므로 필요 없다 |
+| 신규 반영 대상 | `lesion_type` · `needs_additional_view` · `b_category` · `category` 6 · `path_agreement` not_applicable · **`pathology_slide` 의 `specimen_id` 전환** · 소켓 1·2 테이블 분리 · `GET /me/followups` |
+
+### 0-2 · 스키마 보완 필요 항목 (갭 목록)
+
+출처: 매핑표 v3 「6. 스키마 보완 필요 항목」 전 16건.
+
+> 매핑 과정에서 드러난 공백이다. W0(8.25–8.31) 스키마 잠금 전에 결정해야 하며,
+> 잠긴 뒤에는 과거 레코드를 복원할 수 없는 항목이 포함돼 있다.
+
+| # | 항목 | 문제 | 제안 | 시급도 |
+|---|---|---|---|---|
+| G1 | `exam_order` 진행 상태 | 접수 · 촬영중 · 완료 · 취소를 담을 컬럼이 없어 4.x 상태 전이를 저장할 수 없다 | `order_status` varchar 추가 | 높음 |
+| G2 | `ai_result` 의 병리 대상 | `study_id` 만 있어 7.6 슬라이드 분석의 대상을 가리킬 수 없다 | `pathology_slide_id` bigint 추가 (`study_id` 와 배타) | 높음 |
+| G3 | `ai_mask` 의 병리 대상 | `image_instance_id` 만 있어 병리 마스크(tumor·stroma·immune)를 붙일 곳이 없다 | `pathology_slide_id` bigint 추가 | 높음 |
+| G4 | `specimen` 접수 상태 | 7.3 병리 접수 완료 여부를 저장할 컬럼이 없다 | `accession_status` + `accessioned_at` | 높음 |
+| ~~G5~~ | `model_registry` | — | **만들지 않는다** (v3 확정) | — |
+| G6 | `patient` 성명 | 컬럼 자체가 없다 — 비식별 의도인지 누락인지 미확인 | 팀 확인 (Q1) | 높음 |
+| G7 | `study` MWL 배포 상태 | D2 추가분에 있으나 DBML 에 반영되지 않았다 | MVP 제외 항목이므로 `mwl_status` varchar 필드만 확보 | 보통 |
+| G8 | `staff` 로그인 이력 | `patient_account` 에는 `last_login_at` 이 있으나 `staff` 에는 없다 | `last_login_at` 추가 또는 별도 로그 테이블 | 보통 |
+| G9 | `report_access_log.actor_id` | `patient_account_id` 와 `staff_id` 를 한 컬럼에 담아 FK 를 걸 수 없다 | 무결성은 애플리케이션 책임으로 명시하거나 컬럼 분리 | 보통 |
+| G10 | SEV-1 승격 규칙 | `notification.acknowledged_at` 미기록 시 승격 기준·기한이 정해지지 않았다 | 운영 정책 확정 후 배치 잡 설계 (Q3) | 보통 |
+| ~~G11~~ | `notification` 발송 결과 | Go I-3 이 돌려주는 실패 사유 · 재시도 횟수를 담을 컬럼이 없다 | **만들지 않는다** (v3 확정 — 재시도를 하지 않는다) | — |
+| ~~G12~~ | 내부 콜백 멱등성 | I-1~I-5 재시도 시 중복 행을 막을 키 저장소가 없다 | **만들지 않는다** (v3 확정 — 재시도를 하지 않는다) | — |
+| **G13** | **`image_pyramid` 테이블 부재** | 타일 피라미드 메타(레벨 수 · 타일 크기 · mpp · 경로 prefix · 빌드 상태)를 저장할 테이블이 아예 없다. **이게 없으면 WSI 판독 화면이 열리지 않는다** | `image_pyramid` 신설 — `source_type`(image_instance/pathology_slide) · `source_id` · `tile_size` · `tile_format` · `level_count` · `max_width/height` · `mpp_x/y` · `object_key_prefix` · `build_status` · `built_at` | **최상 (데모 차단)** |
+| G14 | `ai_mask.mask_type` 부족 | 현재 6종(lesion·dense_tissue·breast_area·tumor·stroma·immune)뿐이라 히트맵 · 바운딩박스 · 세포검출 마커를 담을 수 없다. bbox·마커는 래스터가 아니라 좌표 데이터라 저장 형식도 다르다 | `mask_type` 에 heatmap·bbox·cell_detection·contour 추가 + `payload_format`(raster/vector_json) 컬럼 신설 | 보통 |
+| G15 | MRI Orthanc 직결 설계 미기록 | Cornerstone3D 가 DICOMweb 으로 Orthanc 에 직접 붙고 Django 를 우회하는 경로가 어느 문서에도 없다. 소켓 3 재개 시 인증·권한 설계부터 다시 논의해야 한다 | 명세서 18장 Q9 로 등재 · 재개 시 우회 경로의 토큰 검증 주체를 먼저 확정 | 보통 (소켓 3 재개 시 높음) |
+| G16 | `notification.channel` 값 부족 | 실시간 스트림(G-N5)으로 도달한 건을 구분할 값이 없다 | `channel` 에 stream 추가 (기존 app·sms·call_queue) | 보통 |
+
+> **G13 이 가장 급하다.** 7장(검체·병리)이 MVP 필수 경로이고 완성 기준이
+> 「병리 판정까지 끊기지 않고 흐르는가」인데, 이 테이블이 없으면 WSI 를 확대해서 보는
+> 화면 자체가 성립하지 않는다. G1~G5 는 API 를 구현하면 즉시 막히고, G11·G12 는 Go
+> 콜백을 붙이는 순간 필요해진다 — 멱등성 키가 없으면 재시도 한 번에 `storage_object`
+> 가 중복 생성된다. G15 는 스키마 문제가 아니라 기록 누락이므로 재발 방지 차원에서
+> 목록에 남긴다.
+
+관련 표기가 본문 다른 곳에도 있다 — 스토리지 매핑의 `image_pyramid.object_key_prefix ⚠ G13`,
+7.6 의 `⚠ 슬라이드 참조 컬럼 없음`, 7.9 의 `image_pyramid ⚠`.
+
+### 0-3 · 미결 질문(Q) 해소 기록
+
+원본 사양서가 Q 번호로 등재해둔 미결 항목 중 **확정된 것**을 여기에 적는다.
+확정 전에는 원본 상세표에 `정의 확인 필요` · `⚠ 정의 미확정` 으로만 남아 있어
+저장소만 봐서는 무엇이 미정인지 알 수 없었다.
+
+#### Q6 · TSR 정의 — **확정**
+
+원본이 남긴 질문 (API 명세서 18장):
+
+> **Q6** | TSR 정의 | 암÷사이조직 vs 암÷(암+사이조직) — 값이 크게 달라짐 | 7장 병리
+
+확정 내용:
+
+| 항목 | 확정값 |
+|---|---|
+| 공식 | **간질 ÷ (종양 + 간질)** |
+| 산출 주체 | AI. 기권 시 수기값이 정답 (사양서 규정) |
+| 신뢰구간 | **없음** — `tsr_interval_low`/`high` 를 만들지 않는다 |
+| 컬럼 | `pathology_result.tsr_percent` `numeric(5,2)` — 변경 없음 |
+
+**왜 TSR 에만 구간이 없는가** — 나중에 반드시 나올 질문이므로 근거를 남긴다.
+
+`stil_percent` 는 `stil_interval_low`/`stil_interval_high` 로 신뢰구간을 남긴다.
+그 구간은 **MC Dropout**(추론 시 dropout 을 켠 채 여러 번 돌려 분산을 구하는 방식)으로
+산출한다. 그런데 TSR 을 내는 **소켓 1 조직분할 모델(`linear_tand`)에는 dropout 레이어가
+없다.** 켤 dropout 이 없으므로 MC Dropout 자체가 성립하지 않고, sTIL 과 같은 방식의
+구간을 낼 수 없다.
+
+즉 **"안 만든 것"이 아니라 "그 모델로는 만들 수 없는 것"이다.** 모델이 dropout 을 갖도록
+바뀌면 그때 다시 판단한다.
+
+공식이 `간질 ÷ (종양 + 간질)` 이므로 값은 0~100 으로 갇힌다. `numeric(5,2)` 로 충분하다.
+(원본 Q6 의 후보였던 `암÷사이조직` 은 비율이라 100 을 넘을 수 있었다.)
+
+---
+
 ## 1 · 공통 규약
 
 | 항목 | 값 |

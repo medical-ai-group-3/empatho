@@ -621,6 +621,9 @@ class PathologyResult(models.Model):
     stil_percent = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True)
     stil_interval_low = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True)
     stil_interval_high = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True)
+    # 간질 ÷ (종양 + 간질). 0~100 으로 갇힌다 [Q6 확정]
+    # 구간(low/high)이 없는 이유는 api_summary.md §0-3 참조 —
+    # 소켓 1 조직분할 모델(linear_tand)에 dropout 이 없어 MC Dropout 이 안 된다.
     tsr_percent = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True)
     stil_source = models.CharField(max_length=20, blank=True, null=True)
     has_calcification = models.BooleanField(blank=True, null=True)
