@@ -36,7 +36,8 @@ CREATE TABLE public.ai_mask (
     created_at timestamp without time zone DEFAULT now(),
     created_by bigint,
     updated_at timestamp without time zone DEFAULT now(),
-    updated_by bigint
+    updated_by bigint,
+    pathology_slide_id bigint
 );
 
 
@@ -80,7 +81,9 @@ CREATE TABLE public.ai_result (
     created_at timestamp without time zone DEFAULT now(),
     created_by bigint,
     updated_at timestamp without time zone DEFAULT now(),
-    updated_by bigint
+    updated_by bigint,
+    pathology_slide_id bigint,
+    CONSTRAINT ai_result_target_ck CHECK ((num_nonnulls(study_id, pathology_slide_id) <= 1))
 );
 
 
@@ -807,6 +810,51 @@ ALTER SEQUENCE public.image_instance_image_instance_id_seq OWNED BY public.image
 
 
 --
+-- Name: image_pyramid; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.image_pyramid (
+    image_pyramid_id bigint NOT NULL,
+    pathology_slide_id bigint,
+    image_instance_id bigint,
+    tile_size integer,
+    tile_format character varying(10),
+    level_count integer,
+    max_width integer,
+    max_height integer,
+    mpp_x numeric(6,4),
+    mpp_y numeric(6,4),
+    object_key_prefix character varying(255),
+    build_status character varying(20),
+    built_at timestamp without time zone,
+    created_at timestamp without time zone DEFAULT now(),
+    created_by bigint,
+    updated_at timestamp without time zone DEFAULT now(),
+    updated_by bigint,
+    CONSTRAINT image_pyramid_source_ck CHECK ((num_nonnulls(pathology_slide_id, image_instance_id) = 1))
+);
+
+
+--
+-- Name: image_pyramid_image_pyramid_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.image_pyramid_image_pyramid_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: image_pyramid_image_pyramid_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.image_pyramid_image_pyramid_id_seq OWNED BY public.image_pyramid.image_pyramid_id;
+
+
+--
 -- Name: image_series; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1023,7 +1071,6 @@ ALTER SEQUENCE public.pathology_result_pathology_result_id_seq OWNED BY public.p
 
 CREATE TABLE public.pathology_slide (
     pathology_slide_id bigint NOT NULL,
-    pathology_result_id bigint,
     storage_object_id bigint,
     thumbnail_object_id bigint,
     stain_type character varying(20),
@@ -1032,7 +1079,8 @@ CREATE TABLE public.pathology_slide (
     created_at timestamp without time zone DEFAULT now(),
     created_by bigint,
     updated_at timestamp without time zone DEFAULT now(),
-    updated_by bigint
+    updated_by bigint,
+    specimen_id bigint
 );
 
 
@@ -1757,6 +1805,13 @@ ALTER TABLE ONLY public.image_instance ALTER COLUMN image_instance_id SET DEFAUL
 -- Name: image_series image_series_id; Type: DEFAULT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.image_pyramid ALTER COLUMN image_pyramid_id SET DEFAULT nextval('public.image_pyramid_image_pyramid_id_seq'::regclass);
+
+
+--
+-- Name: image_series image_series_id; Type: DEFAULT; Schema: public; Owner: -
+--
+
 ALTER TABLE ONLY public.image_series ALTER COLUMN image_series_id SET DEFAULT nextval('public.image_series_image_series_id_seq'::regclass);
 
 
@@ -2141,6 +2196,14 @@ ALTER TABLE ONLY public.image_instance
 
 
 --
+-- Name: image_pyramid image_pyramid_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.image_pyramid
+    ADD CONSTRAINT image_pyramid_pkey PRIMARY KEY (image_pyramid_id);
+
+
+--
 -- Name: image_series image_series_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2485,6 +2548,41 @@ CREATE INDEX django_session_expire_date_a5c62663 ON public.django_session USING 
 --
 
 CREATE INDEX django_session_session_key_c0390e0f_like ON public.django_session USING btree (session_key varchar_pattern_ops);
+
+
+--
+-- Name: ai_mask_pathology_slide_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX ai_mask_pathology_slide_id_idx ON public.ai_mask USING btree (pathology_slide_id);
+
+
+--
+-- Name: ai_result_pathology_slide_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX ai_result_pathology_slide_id_idx ON public.ai_result USING btree (pathology_slide_id);
+
+
+--
+-- Name: image_pyramid_instance_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX image_pyramid_instance_idx ON public.image_pyramid USING btree (image_instance_id) WHERE (image_instance_id IS NOT NULL);
+
+
+--
+-- Name: image_pyramid_slide_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX image_pyramid_slide_idx ON public.image_pyramid USING btree (pathology_slide_id) WHERE (pathology_slide_id IS NOT NULL);
+
+
+--
+-- Name: pathology_slide_specimen_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX pathology_slide_specimen_id_idx ON public.pathology_slide USING btree (specimen_id);
 
 
 --
@@ -2984,11 +3082,11 @@ ALTER TABLE ONLY public.pathology_result
 
 
 --
--- Name: pathology_slide pathology_slide_pathology_result_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: pathology_slide pathology_slide_specimen_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.pathology_slide
-    ADD CONSTRAINT pathology_slide_pathology_result_id_fkey FOREIGN KEY (pathology_result_id) REFERENCES public.pathology_result(pathology_result_id);
+    ADD CONSTRAINT pathology_slide_specimen_id_fkey FOREIGN KEY (specimen_id) REFERENCES public.specimen(specimen_id);
 
 
 --
@@ -3005,6 +3103,38 @@ ALTER TABLE ONLY public.pathology_slide
 
 ALTER TABLE ONLY public.pathology_slide
     ADD CONSTRAINT pathology_slide_thumbnail_object_id_fkey FOREIGN KEY (thumbnail_object_id) REFERENCES public.storage_object(storage_object_id);
+
+
+--
+-- Name: ai_mask ai_mask_pathology_slide_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.ai_mask
+    ADD CONSTRAINT ai_mask_pathology_slide_id_fkey FOREIGN KEY (pathology_slide_id) REFERENCES public.pathology_slide(pathology_slide_id);
+
+
+--
+-- Name: ai_result ai_result_pathology_slide_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.ai_result
+    ADD CONSTRAINT ai_result_pathology_slide_id_fkey FOREIGN KEY (pathology_slide_id) REFERENCES public.pathology_slide(pathology_slide_id);
+
+
+--
+-- Name: image_pyramid image_pyramid_image_instance_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.image_pyramid
+    ADD CONSTRAINT image_pyramid_image_instance_id_fkey FOREIGN KEY (image_instance_id) REFERENCES public.image_instance(image_instance_id);
+
+
+--
+-- Name: image_pyramid image_pyramid_pathology_slide_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.image_pyramid
+    ADD CONSTRAINT image_pyramid_pathology_slide_id_fkey FOREIGN KEY (pathology_slide_id) REFERENCES public.pathology_slide(pathology_slide_id);
 
 
 --

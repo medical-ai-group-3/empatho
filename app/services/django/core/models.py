@@ -1,5 +1,5 @@
 """
-CDSS 데이터 모델 — 34개 테이블.
+CDSS 데이터 모델 — 35개 테이블.
 
 DB 스키마(SQL)가 원본이고 이 파일은 그것을 Django 로 옮긴 것이다.
 스키마를 바꿀 때는 SQL 과 이 파일을 함께 고치고 makemigrations 로 대조할 것.
@@ -397,11 +397,14 @@ class Study(models.Model):
         managed = False
         db_table = 'study'
 
-# ai_result — AI 실행 1건 · 버전 테이블 안 씀   [AI·필수·15컬럼]
+# ai_result — AI 실행 1건 · 버전 테이블 안 씀   [AI·필수·14컬럼]
 class AiResult(models.Model):
     ai_result_id = models.BigAutoField(primary_key=True)
     patient = models.ForeignKey('Patient', models.PROTECT, blank=True, null=True)
     study = models.ForeignKey('Study', models.PROTECT, blank=True, null=True)
+    # 매핑표 G2 — study_id 만으로는 7.6 슬라이드 분석 대상을 가리킬 수 없었다.
+    # study 와 배타다(DB CHECK: num_nonnulls <= 1).
+    pathology_slide = models.ForeignKey('PathologySlide', models.PROTECT, blank=True, null=True)
     socket_name = models.CharField(max_length=30, blank=True, null=True)
     model_name = models.CharField(max_length=50, blank=True, null=True)
     model_version = models.CharField(max_length=50, blank=True, null=True)
@@ -498,12 +501,15 @@ class Lesion(models.Model):
         managed = False
         db_table = 'lesion'
 
-# ai_mask — AI가 그린 마스크 · XAI 1층   [AI·필수·6컬럼]
+# ai_mask — AI가 그린 마스크 · XAI 1층   [AI·필수·7컬럼]
 class AiMask(models.Model):
     ai_mask_id = models.BigAutoField(primary_key=True)
     ai_result = models.ForeignKey('AiResult', models.PROTECT, blank=True, null=True)
     lesion = models.ForeignKey('Lesion', models.PROTECT, blank=True, null=True)
     image_instance = models.ForeignKey('ImageInstance', models.PROTECT, blank=True, null=True)
+    # 매핑표 G3 — image_instance_id 만으로는 병리 마스크(tumor·stroma·immune)를
+    # 붙일 곳이 없었다. G3 제안에 배타 언급이 없어 CHECK 은 걸지 않는다.
+    pathology_slide = models.ForeignKey('PathologySlide', models.PROTECT, blank=True, null=True)
     mask_type = models.CharField(max_length=30, blank=True, null=True)
     storage_object = models.ForeignKey('StorageObject', models.PROTECT, blank=True, null=True)
     created_at = models.DateTimeField(blank=True, null=True)
@@ -604,7 +610,7 @@ class FollowupTrack(models.Model):
         managed = False
         db_table = 'followup_track'
 
-# pathology_result — 확진 · 정량 · 대조 트리거   [병리·필수·20컬럼]
+# pathology_result — 확진 · 정량 · 대조 트리거   [병리·필수·21컬럼]
 class PathologyResult(models.Model):
     pathology_result_id = models.BigAutoField(primary_key=True)
     patient = models.ForeignKey('Patient', models.PROTECT, blank=True, null=True)
@@ -690,10 +696,12 @@ class FollowupRound(models.Model):
         managed = False
         db_table = 'followup_round'
 
-# pathology_slide — 조직 슬라이드 이미지 · specimen 기준으로 등록  [v3]   [병리·필수·5컬럼]
+# pathology_slide — 조직 슬라이드 이미지 · specimen 기준으로 등록  [v3]   [병리·필수·7컬럼]
 class PathologySlide(models.Model):
     pathology_slide_id = models.BigAutoField(primary_key=True)
-    pathology_result = models.ForeignKey(PathologyResult, models.PROTECT, blank=True, null=True)
+    # v3 개정이력 "pathology_result_id → specimen_id FK 로 전환".
+    # 스캔이 판독보다 먼저라 결과 초안을 기다리지 않고 붙일 수 있어야 한다.
+    specimen = models.ForeignKey(Specimen, models.PROTECT, blank=True, null=True)
     storage_object = models.ForeignKey('StorageObject', models.PROTECT, blank=True, null=True)
     thumbnail_object = models.ForeignKey('StorageObject', models.PROTECT, related_name='pathologyslide_thumbnail_object_set', blank=True, null=True)
     stain_type = models.CharField(max_length=20, blank=True, null=True)
@@ -707,6 +715,36 @@ class PathologySlide(models.Model):
     class Meta:
         managed = False
         db_table = 'pathology_slide'
+
+# image_pyramid — 타일 피라미드 메타 · 판독 화면이 이걸 보고 열린다   [영상·필수·13컬럼]
+#
+# 매핑표 G13 으로 등재됐던 신설 테이블이다. 원본 제안은 source_type/source_id
+# 다형 참조였으나 배타 FK 2개로 간다 — 같은 문서가 G2 에서 배타 방식을 골랐고,
+# G9 에서 한 컬럼에 담는 방식을 "FK 를 걸 수 없다"는 결함으로 등재했다.
+# 소스는 병리 WSI 아니면 영상 인스턴스, 정확히 하나다(DB CHECK).
+class ImagePyramid(models.Model):
+    image_pyramid_id = models.BigAutoField(primary_key=True)
+    pathology_slide = models.ForeignKey(PathologySlide, models.PROTECT, blank=True, null=True)
+    image_instance = models.ForeignKey('ImageInstance', models.PROTECT, blank=True, null=True)
+    tile_size = models.IntegerField(blank=True, null=True)
+    tile_format = models.CharField(max_length=10, blank=True, null=True)
+    level_count = models.IntegerField(blank=True, null=True)
+    max_width = models.IntegerField(blank=True, null=True)
+    max_height = models.IntegerField(blank=True, null=True)
+    mpp_x = models.DecimalField(max_digits=6, decimal_places=4, blank=True, null=True)
+    mpp_y = models.DecimalField(max_digits=6, decimal_places=4, blank=True, null=True)
+    object_key_prefix = models.CharField(max_length=255, blank=True, null=True)
+    # pending / building / ready / failed — 생성 전 뷰어 요청은 409 PYRAMID_NOT_READY
+    build_status = models.CharField(max_length=20, blank=True, null=True)
+    built_at = models.DateTimeField(blank=True, null=True)
+    created_at = models.DateTimeField(blank=True, null=True)
+    created_by = models.BigIntegerField(blank=True, null=True)
+    updated_at = models.DateTimeField(blank=True, null=True)
+    updated_by = models.BigIntegerField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'image_pyramid'
 
 # clinical_decision — 유방외과의 결정 4종 · 불일치 해소는 discordance_flag 담당   [판정·필수·10컬럼]
 class ClinicalDecision(models.Model):

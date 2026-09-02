@@ -4,7 +4,7 @@
 개발에 필요한 것만 뽑아 합쳤다. **원본 docx 는 저장소에 두지 않는다.**
 
 - 공개 API **100개** (2~14장) · Django + DRF 가 단독으로 DB 를 쓴다
-- 테이블 **34개** (필수 25 · 선택 9) · 컬럼 345개
+- 테이블 **35개** (필수 26 · 선택 9) — v3 에서 `image_pyramid` 신설(G13)
 
 ---
 
@@ -47,24 +47,39 @@
 > 매핑 과정에서 드러난 공백이다. W0(8.25–8.31) 스키마 잠금 전에 결정해야 하며,
 > 잠긴 뒤에는 과거 레코드를 복원할 수 없는 항목이 포함돼 있다.
 
-| # | 항목 | 문제 | 제안 | 시급도 |
-|---|---|---|---|---|
-| G1 | `exam_order` 진행 상태 | 접수 · 촬영중 · 완료 · 취소를 담을 컬럼이 없어 4.x 상태 전이를 저장할 수 없다 | `order_status` varchar 추가 | 높음 |
-| G2 | `ai_result` 의 병리 대상 | `study_id` 만 있어 7.6 슬라이드 분석의 대상을 가리킬 수 없다 | `pathology_slide_id` bigint 추가 (`study_id` 와 배타) | 높음 |
-| G3 | `ai_mask` 의 병리 대상 | `image_instance_id` 만 있어 병리 마스크(tumor·stroma·immune)를 붙일 곳이 없다 | `pathology_slide_id` bigint 추가 | 높음 |
-| G4 | `specimen` 접수 상태 | 7.3 병리 접수 완료 여부를 저장할 컬럼이 없다 | `accession_status` + `accessioned_at` | 높음 |
-| ~~G5~~ | `model_registry` | — | **만들지 않는다** (v3 확정) | — |
-| G6 | `patient` 성명 | 컬럼 자체가 없다 — 비식별 의도인지 누락인지 미확인 | 팀 확인 (Q1) | 높음 |
-| G7 | `study` MWL 배포 상태 | D2 추가분에 있으나 DBML 에 반영되지 않았다 | MVP 제외 항목이므로 `mwl_status` varchar 필드만 확보 | 보통 |
-| G8 | `staff` 로그인 이력 | `patient_account` 에는 `last_login_at` 이 있으나 `staff` 에는 없다 | `last_login_at` 추가 또는 별도 로그 테이블 | 보통 |
-| G9 | `report_access_log.actor_id` | `patient_account_id` 와 `staff_id` 를 한 컬럼에 담아 FK 를 걸 수 없다 | 무결성은 애플리케이션 책임으로 명시하거나 컬럼 분리 | 보통 |
-| G10 | SEV-1 승격 규칙 | `notification.acknowledged_at` 미기록 시 승격 기준·기한이 정해지지 않았다 | 운영 정책 확정 후 배치 잡 설계 (Q3) | 보통 |
-| ~~G11~~ | `notification` 발송 결과 | Go I-3 이 돌려주는 실패 사유 · 재시도 횟수를 담을 컬럼이 없다 | **만들지 않는다** (v3 확정 — 재시도를 하지 않는다) | — |
-| ~~G12~~ | 내부 콜백 멱등성 | I-1~I-5 재시도 시 중복 행을 막을 키 저장소가 없다 | **만들지 않는다** (v3 확정 — 재시도를 하지 않는다) | — |
-| **G13** | **`image_pyramid` 테이블 부재** | 타일 피라미드 메타(레벨 수 · 타일 크기 · mpp · 경로 prefix · 빌드 상태)를 저장할 테이블이 아예 없다. **이게 없으면 WSI 판독 화면이 열리지 않는다** | `image_pyramid` 신설 — `source_type`(image_instance/pathology_slide) · `source_id` · `tile_size` · `tile_format` · `level_count` · `max_width/height` · `mpp_x/y` · `object_key_prefix` · `build_status` · `built_at` | **최상 (데모 차단)** |
-| G14 | `ai_mask.mask_type` 부족 | 현재 6종(lesion·dense_tissue·breast_area·tumor·stroma·immune)뿐이라 히트맵 · 바운딩박스 · 세포검출 마커를 담을 수 없다. bbox·마커는 래스터가 아니라 좌표 데이터라 저장 형식도 다르다 | `mask_type` 에 heatmap·bbox·cell_detection·contour 추가 + `payload_format`(raster/vector_json) 컬럼 신설 | 보통 |
-| G15 | MRI Orthanc 직결 설계 미기록 | Cornerstone3D 가 DICOMweb 으로 Orthanc 에 직접 붙고 Django 를 우회하는 경로가 어느 문서에도 없다. 소켓 3 재개 시 인증·권한 설계부터 다시 논의해야 한다 | 명세서 18장 Q9 로 등재 · 재개 시 우회 경로의 토큰 검증 주체를 먼저 확정 | 보통 (소켓 3 재개 시 높음) |
-| G16 | `notification.channel` 값 부족 | 실시간 스트림(G-N5)으로 도달한 건을 구분할 값이 없다 | `channel` 에 stream 추가 (기존 app·sms·call_queue) | 보통 |
+**상태 열은 2026-09-02 라이브 DB 대조 결과다.** 나머지 칸은 원본 그대로다.
+
+| # | 상태 | 항목 | 문제 | 제안 | 시급도 |
+|---|---|---|---|---|---|
+| G1 | ❌ **미반영 · API 전 결정** | `exam_order` 진행 상태 | 접수 · 촬영중 · 완료 · 취소를 담을 컬럼이 없어 4.x 상태 전이를 저장할 수 없다 | `order_status` varchar 추가 | 높음 |
+| G2 | ✅ **해소 (09-02)** | `ai_result` 의 병리 대상 | `study_id` 만 있어 7.6 슬라이드 분석의 대상을 가리킬 수 없다 | `pathology_slide_id` bigint 추가 (`study_id` 와 배타) | 높음 |
+| G3 | ✅ **해소 (09-02)** | `ai_mask` 의 병리 대상 | `image_instance_id` 만 있어 병리 마스크(tumor·stroma·immune)를 붙일 곳이 없다 | `pathology_slide_id` bigint 추가 | 높음 |
+| G4 | ❌ **미반영 · API 전 결정** | `specimen` 접수 상태 | 7.3 병리 접수 완료 여부를 저장할 컬럼이 없다 | `accession_status` + `accessioned_at` | 높음 |
+| ~~G5~~ | — 만들지 않음 | `model_registry` | — | **만들지 않는다** (v3 확정) | — |
+| G6 | ❌ 미반영 (Q1 대기) | `patient` 성명 | 컬럼 자체가 없다 — 비식별 의도인지 누락인지 미확인 | 팀 확인 (Q1) | 높음 |
+| G7 | ❌ 미반영 (MVP 제외) | `study` MWL 배포 상태 | D2 추가분에 있으나 DBML 에 반영되지 않았다 | MVP 제외 항목이므로 `mwl_status` varchar 필드만 확보 | 보통 |
+| G8 | ❌ 미반영 | `staff` 로그인 이력 | `patient_account` 에는 `last_login_at` 이 있으나 `staff` 에는 없다 | `last_login_at` 추가 또는 별도 로그 테이블 | 보통 |
+| G9 | ⚠️ 그대로 — `actor_id` 단일 컬럼 | `report_access_log.actor_id` | `patient_account_id` 와 `staff_id` 를 한 컬럼에 담아 FK 를 걸 수 없다 | 무결성은 애플리케이션 책임으로 명시하거나 컬럼 분리 | 보통 |
+| G10 | 스키마 아님 — 컬럼 있음 | SEV-1 승격 규칙 | `notification.acknowledged_at` 미기록 시 승격 기준·기한이 정해지지 않았다 | 운영 정책 확정 후 배치 잡 설계 (Q3) | 보통 |
+| ~~G11~~ | — 만들지 않음 | `notification` 발송 결과 | Go I-3 이 돌려주는 실패 사유 · 재시도 횟수를 담을 컬럼이 없다 | **만들지 않는다** (v3 확정 — 재시도를 하지 않는다) | — |
+| ~~G12~~ | — 만들지 않음 | 내부 콜백 멱등성 | I-1~I-5 재시도 시 중복 행을 막을 키 저장소가 없다 | **만들지 않는다** (v3 확정 — 재시도를 하지 않는다) | — |
+| **G13** | ✅ **테이블 해소 (09-02)**<br>⚠️ Go G-F8~F12 는 미구현 | **`image_pyramid` 테이블 부재** | 타일 피라미드 메타(레벨 수 · 타일 크기 · mpp · 경로 prefix · 빌드 상태)를 저장할 테이블이 아예 없다. **이게 없으면 WSI 판독 화면이 열리지 않는다** | `image_pyramid` 신설 — `source_type`(image_instance/pathology_slide) · `source_id` · `tile_size` · `tile_format` · `level_count` · `max_width/height` · `mpp_x/y` · `object_key_prefix` · `build_status` · `built_at` | **최상 (데모 차단)** |
+| G14 | ❌ 미반영 | `ai_mask.mask_type` 부족 | 현재 6종(lesion·dense_tissue·breast_area·tumor·stroma·immune)뿐이라 히트맵 · 바운딩박스 · 세포검출 마커를 담을 수 없다. bbox·마커는 래스터가 아니라 좌표 데이터라 저장 형식도 다르다 | `mask_type` 에 heatmap·bbox·cell_detection·contour 추가 + `payload_format`(raster/vector_json) 컬럼 신설 | 보통 |
+| G15 | 스키마 아님 — 기록 누락 | MRI Orthanc 직결 설계 미기록 | Cornerstone3D 가 DICOMweb 으로 Orthanc 에 직접 붙고 Django 를 우회하는 경로가 어느 문서에도 없다. 소켓 3 재개 시 인증·권한 설계부터 다시 논의해야 한다 | 명세서 18장 Q9 로 등재 · 재개 시 우회 경로의 토큰 검증 주체를 먼저 확정 | 보통 (소켓 3 재개 시 높음) |
+| G16 | 컬럼 있음 · 허용값만 추가 | `notification.channel` 값 부족 | 실시간 스트림(G-N5)으로 도달한 건을 구분할 값이 없다 | `channel` 에 stream 추가 (기존 app·sms·call_queue) | 보통 |
+
+**G1 · G4 는 API 작업 전에 결정해야 한다.** 원문이 "G1~G5 는 API 를 구현하면 즉시 막힌다"
+고 경고한 항목이고, 둘 다 상태 저장 컬럼이라 나중에 넣으면 과거 레코드를 복원할 수 없다.
+
+**G13 은 테이블만 해소됐다.** `services/gosvc` 에 `pyramid`·`tile` 패키지가 없고
+`/svc/v1/pyramid/...` 라우트도 없다. Go README 가 사유를 적어 뒀다 —
+"libvips/openslide 필요. 게다가 WSI 는 병리 담당 자료라 표본이 없다".
+`I-5 POST /internal/v1/pyramids` 도 미구현이다. **데모 차단은 아직 풀리지 않았다.**
+
+G13 은 원문 제안의 `source_type`/`source_id` 다형 참조 대신 **배타 FK 2개**
+(`pathology_slide_id` · `image_instance_id` + `CHECK (num_nonnulls(...) = 1)`)로 만들었다.
+같은 문서가 G2 에서 배타 방식을 골랐고, G9 에서 한 컬럼에 담는 방식을 결함으로
+등재했기 때문이다.
 
 > **G13 이 가장 급하다.** 7장(검체·병리)이 MVP 필수 경로이고 완성 기준이
 > 「병리 판정까지 끊기지 않고 흐르는가」인데, 이 테이블이 없으면 WSI 를 확대해서 보는
@@ -110,6 +125,50 @@
 
 공식이 `간질 ÷ (종양 + 간질)` 이므로 값은 0~100 으로 갇힌다. `numeric(5,2)` 로 충분하다.
 (원본 Q6 의 후보였던 `암÷사이조직` 은 비율이라 100 을 넘을 수 있었다.)
+
+### 0-4 · 원본 ↔ DB 전수 대조 (2026-09-02)
+
+원본 DB 설계문서 §6 상세표 34개와 라이브 DB 를 컬럼 이름 · 타입 · NULL · FK 대상 ·
+UNIQUE · 컬럼 수까지 전부 대조했다. **타입 · FK · UNIQUE 는 불일치 0건**이다.
+UNIQUE 11개는 문서가 `UK` 로 표기했고 DB 와 전부 맞는다.
+
+**어긋난 것은 두 종류뿐이다.**
+
+#### ① §5 요약표의 컬럼 수가 틀렸다 — 5개 테이블
+
+| 테이블 | §5 요약표 | §6 상세표 = DB |
+|---|---|---|
+| `patient` | 8 | **6** |
+| `image_series` | 6 | **5** |
+| `ai_result` | 15 | **13** |
+| `lesion_descriptor` | 8 | **7** |
+| `staff` | 10 | **9** |
+
+**§5 요약표를 근거로 쓰면 안 된다.** §6 상세표와 DB 는 이 5개에서 완전히 일치한다.
+이 문서가 `ai_result` 를 15로 적었던 것도 §5 를 옮겼기 때문이다(지금은 14 — 13 + G2).
+
+#### ② DB 가 앞서 있다 — 6건, 전부 개정이력 반영분이라 **DB 가 옳다**
+
+| 테이블 | 컬럼 | 개정이력 근거 |
+|---|---|---|
+| `lesion` | `lesion_type` · `needs_additional_view` · `additional_view_reason` | "lesion_type 신설 · needs_additional_view + 사유 신설" |
+| `pathology_result` | `b_category` | "b_category(b1~b5) 신설" |
+| `pathology_slide` | `scan_magnification` · `mpp` | "스캔 배율 · mpp 추가" |
+
+**상세표가 미갱신인 것이지 DB 가 틀린 게 아니다.** 앞으로 "문서엔 있는데 DB 에 없다"는
+지적이 나오면 이 표를 먼저 볼 것.
+
+#### `staff.position` → `staff_position` 은 누락이 아니라 개명
+
+상세표는 `position` 인데 DB 는 `staff_position` 이다. v3 개정이력의
+**"이름 규칙 · 예약어 회피(`order→exam_order`, `user→staff`)"** 를 따른 것이다.
+`position` 은 PostgreSQL 의 예약 함수명(`POSITION(x IN y)`)이다. **DB 가 규칙을 지켰다.**
+
+#### 표기 관행이 섞여 있다
+
+`patient` · `image_series` · `lesion_descriptor` · `lesion` 4개 상세표는 감사 컬럼
+`created_at` 을 컬럼 행으로 나열하고 나머지 30개는 나열하지 않는다. 컬럼 수를 셀 때
+이것 때문에 1씩 어긋나 보인다.
 
 ---
 
@@ -241,11 +300,11 @@ Go 의 결과는 내부 콜백으로 Django 에 넘어와 기록된다. Postgres
 | 7.2 | GET | `/specimens` | 목록 (?binding=unbound) | 간호 · 병리 | — | specimen · lesion |
 | 7.3 | POST | `/specimens/{id}/accession` | 병리 접수 — 미바인딩이면 409 | 병리 | specimen | specimen · lesion |
 | 7.4 | POST | `/specimens/{id}/pathology-results` | 병리 결과 초안 등록 | 병리 | pathology_result | specimen |
-| 7.5 | POST | `/pathology-results/{id}/slides` | WSI 업로드 티켓 발급 → Go G-F1~G-F3 청크 전송 | 병리 | pathology_slide · storage_object | pathology_result |
+| 7.5 | POST | `/specimens/{id}/slides` | WSI 업로드 티켓 발급 → Go G-F1~G-F3 청크 전송  [v3 반영] | 병리 | pathology_slide · storage_object | specimen |
 | 7.6 | POST | `/pathology-slides/{id}/ai-results` | sTIL · TSR 정량 분석 요청 | 병리 | ai_result · ai_mask · pathology_result | pathology_slide |
 | 7.7 | GET | `/pathology-results/{id}/reference-images` | 영상 참조 패널 데이터 | 병리 | — | lesion · study · image_instance · storage_object · assessment |
 | 7.8 | POST | `/pathology-results/{id}/finalize` | 병리 FINAL = 자동 대조 트리거 | 병리 | pathology_result · discordance_flag · notification | assessment · lesion · specimen |
-| 7.9 | GET | `/pathology-slides/{id}/viewer` | WSI 뷰어 세션 — DZI 메타 + 타일 티켓 + sTIL 오버레이 | 병리 | — | pathology_slide · ai_mask |
+| 7.9 | GET | `/pathology-slides/{id}/viewer` | WSI 뷰어 세션 — DZI 메타 + 타일 티켓 + sTIL 오버레이 | 병리 | — | image_pyramid · pathology_slide · ai_mask |
 
 ### 8. 영상–병리 자동 대조 (SYS-4)
 
@@ -326,8 +385,8 @@ Go 의 결과는 내부 콜백으로 Django 에 넘어와 기록된다. Postgres
 
 | 테이블 | 구분 | 필수 | 컬럼 | 쓰는 API | 읽는 API |
 |---|---|---|---|---|---|
-| `ai_mask` | AI | 필수 | 6 | 5.1, 7.6 | 4.14, 5.4, 5.8, 7.9 |
-| `ai_result` | AI | 필수 | 15 | 5.1, 7.6 | 4.13, 5.2, 5.10, 6.2, 6.3, 11.1 |
+| `ai_mask` | AI | 필수 | 7 | 5.1, 7.6 | 4.14, 5.4, 5.8, 7.9 |
+| `ai_result` | AI | 필수 | 14 | 5.1, 7.6 | 4.13, 5.2, 5.10, 6.2, 6.3, 11.1 |
 | `lesion` | AI | 필수 | 13 | 5.1, 5.6, 5.7 | 5.3, 5.4, 5.9, 6.1, 7.1, 7.2, 7.3, 7.7, 7.8, 8.2 … |
 | `lesion_descriptor` | AI | 필수 | 8 | 5.1, 5.6 | 5.4, 5.5 |
 | `patient_account` | 계정 | 필수 | 8 | 2.9, 2.10, 2.11 | 14.1 |
@@ -337,11 +396,12 @@ Go 의 결과는 내부 콜백으로 Django 에 넘어와 기록된다. Postgres
 | `report` | 리포트 | 필수 | 16 | 11.1, 11.5, 11.6 | 3.5, 10.3, 11.2, 11.4, 14.5, 14.6, 14.9 |
 | `report_access_log` | 리포트 | 선택 | 8 | 11.2, 14.6 | 11.7 |
 | `result_explanation` | 리포트 | 필수 | 9 | 11.4 | 11.3, 11.5 |
-| `pathology_result` | 병리 | 필수 | 20 | 7.4, 7.6, 7.8 | 3.5, 7.5, 8.2, 10.3, 11.1, 11.3, 13.4 |
-| `pathology_slide` | 병리 | 필수 | 5 | 7.5 | 7.6, 7.9 |
+| `pathology_result` | 병리 | 필수 | 21 | 7.4, 7.6, 7.8 | 3.5, 8.2, 10.3, 11.1, 11.3, 13.4 |
+| `pathology_slide` | 병리 | 필수 | 7 | 7.5 | 7.6, 7.9 |
 | `specimen` | 병리 | 필수 | 9 | 7.1, 7.3 | 3.5, 7.2, 7.3, 7.4, 7.8, 8.2 |
 | `breast_density` | 영상 | 선택 | 6 | 4.13 | 6.4, 6.7 |
 | `image_instance` | 영상 | 필수 | 7 | — | 4.7, 4.14, 5.1, 7.7 |
+| `image_pyramid` | 영상 | 필수 | 13 | I-5 (Go G-F8·G-F11) | 4.14, 7.9, G-F9·G-F10·G-F12 |
 | `image_series` | 영상 | 필수 | 6 | 4.9 | 4.7, 4.10, 5.1 |
 | `storage_object` | 영상 | 필수 | 9 | 4.12, 7.5, 11.4, 11.6, 12.1 | 4.11, 5.1, 5.8, 7.7 |
 | `study` | 영상 | 필수 | 13 | 4.6, 4.8, 4.12 | 3.5, 4.7, 4.9, 4.13, 5.1, 5.7, 5.9, 6.1, 7.7, 13.4 |
