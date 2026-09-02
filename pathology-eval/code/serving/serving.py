@@ -13,11 +13,25 @@ sTIL 파이프라인 서빙 래퍼.
 내부적으로 `code/stil_inference_pipeline.py` 의 로직을 그대로 재사용한다
 (중복 구현 없음). 파이프라인 상세·한계는 `docs/stil_pipeline_limitations.md` 참고.
 
+CLI (단독 실행, 이미지 1장 자가 테스트용 — 서버 코드는 위 API 를 직접 import 할 것)
+
+    python3 serving.py --image a.png
+
 주의:
   - torch 를 cupy 보다 먼저 import 해야 한다. cupy(12.x wheel)는 torch 가 올려둔
     nvidia-cuda-runtime-cu12 의 libcudart.so.12 에 의존한다. 이 모듈은 순서를 지킨다.
   - Virchow2 는 gated HF 모델. 최초 로드 시 ~/.cache/huggingface 에 없으면
     HF_TOKEN(또는 `huggingface-cli login`)이 필요하다. MANIFEST.md 참고.
+  - ⚠ 체크포인트 경로 4종이 전부 `~/models/cellvitpp/...` 로 하드코딩돼 있다
+    (DEFAULT_CONFIG, 아래) — 이 서버 특정 계정의 홈 디렉터리 기준이며 다른 서버에서는
+    거의 확실히 존재하지 않는다. 배포 시 반드시 `config` 로 4개 경로(tissue_checkpoint,
+    cell_head, cellvit_path) 를 덮어쓰고 `CELLVIT_REPO` 환경변수로 CellViT-plus-plus
+    패키지 위치를 지정할 것. 안 하면 load_model() 이 FileNotFoundError/RuntimeError 로
+    바로 실패한다(조용히 잘못된 걸 로드하지는 않음). 전체 목록·이유는 MANIFEST.md §2.
+  - ⚠ predict() 가 돌려주는 stil_percent 는 절대값이 아니다 — 임상 육안 TIL 스코어 대비
+    ~12배 낮게 나오도록 검증됐다(캘리브 안 된 상태). 화면에 그대로 노출하지 말 것.
+    자세한 사유·캘리브 계수는 반환 dict 의 필드별 주석과 `docs/stil_pipeline_limitations.md`
+    §2-6, §2-8 참고.
 """
 from __future__ import annotations
 
@@ -274,6 +288,12 @@ def predict(bundle: dict, image, *, return_tissue_mask: bool | None = None) -> d
       n_cells_total, n_cells_til, n_cells_til_stromal, tumor_area_px, stroma_area_px,
       immune_nucleus_area_px, immune_cell_area_px, img_w, img_h, mpp, nc_ratio,
       til_threshold, tissue_mask, tissue_mask_legend, predict_seconds, model_version
+      — 화면 노출 시 주의할 필드는 아래 return dict 옆 주석 참고
+      (특히 stil_percent 절대값, stil_interval_* 의 "신뢰구간" 오독 위험).
+
+    ⚠ tissue_mask 는 numpy ndarray(H,W) 라 그대로 JSON 직렬화가 안 된다.
+      호출부에서 .tolist() 로 변환하거나 pop 해서 별도 저장할 것 — 필요 없으면
+      애초에 predict(..., return_tissue_mask=False) 로 요청해 페이로드도 줄이는 편이 낫다.
     """
     cfg = bundle["cfg"]
     device = bundle["device"]
@@ -334,11 +354,16 @@ def predict(bundle: dict, image, *, return_tissue_mask: bool | None = None) -> d
         return round(x, n) if x is not None else None
 
     return {
+        # ⚠ 화면 비노출(또는 캘리브 후에만 노출) — 임상 육안 TIL 스코어 대비 ~12배 낮게
+        #   나오도록 검증됨(비보정). 노출하려면 slide_stil_calibrated ≈ 12 × stil_percent
+        #   (또는 저/중/고 3분류만) 사용할 것. docs/stil_pipeline_limitations.md §2-6.
         "stil_percent": _r(stil_percent),
+        # ⚠ "신뢰구간"으로 표기 금지 — 소켓2 분류기 재현성 하한일 뿐, 조직분할·검출·
+        #   캘리브레이션 불확실성은 미포함(§2-8). UI 라벨은 "재현성 범위" 등으로.
         "stil_interval_low": _r(stil_lo),
         "stil_interval_high": _r(stil_hi),
-        "stil_mc_mean": _r(stil_mc_mean),
-        "stil_mc_std": _r(stil_mc_std, 3),
+        "stil_mc_mean": _r(stil_mc_mean),         # 참고용 — 점추정(stil_percent)과 다른 축
+        "stil_mc_std": _r(stil_mc_std, 3),        # 참고용 — 위와 동일 주의
         "mc_samples": int(cfg["mc_samples"]) if do_mc else 0,
 
         "tsr_tumor_percent": _r(tsr_tumor),
@@ -358,7 +383,10 @@ def predict(bundle: dict, image, *, return_tissue_mask: bool | None = None) -> d
         "nc_ratio": nc_ratio,
         "til_threshold": thr,
 
-        "tissue_mask": (mask if want_mask else None),          # (H,W) uint8 0/1/2
+        # ⚠ numpy ndarray(H,W) uint8 0/1/2 — JSON 직렬화 전에 반드시 pop 하거나
+        #   .tolist() 로 변환할 것(그대로 json.dumps 하면 TypeError). 필요 없으면
+        #   predict(..., return_tissue_mask=False) 로 애초에 안 받는 게 낫다.
+        "tissue_mask": (mask if want_mask else None),
         "tissue_mask_legend": TISSUE_MASK_LEGEND,
 
         "predict_seconds": round(time.perf_counter() - t0, 2),
@@ -366,16 +394,79 @@ def predict(bundle: dict, image, *, return_tissue_mask: bool | None = None) -> d
     }
 
 
-if __name__ == "__main__":  # 간단 자가 테스트: python serving.py [이미지경로]
+# ────────────────────────────── CLI ──────────────────────────────
+# 이미지 1장을 단독으로 돌려볼 때 쓴다(자가 테스트/디버깅용). 서버 코드는 이 CLI 를
+# 거치지 않고 load_model()/predict() 를 직접 import 해서 쓴다(모듈 상단 docstring 참고).
+def main():
+    import argparse
     import json
 
-    cfg = {"fp16": bool(int(os.getenv("FP16", "0"))), "verify_checksums": False}
-    b = load_model(cfg)
-    print(f"load_model OK  {b['load_seconds']}s  {b['gpu_mem_after_load']}")
-    img = sys.argv[1] if len(sys.argv) > 1 else None
-    if img is None:
+    ap = argparse.ArgumentParser(description=__doc__.strip().splitlines()[0])
+    ap.add_argument("--image", default=None,
+                    help="이미지 경로. 생략하면 랜덤 이미지로 파이프라인만 자가 테스트")
+    ap.add_argument("--out", default=str(Path(__file__).resolve().parent / "infer_out"))
+    ap.add_argument("--gpu", type=int, default=DEFAULT_CONFIG["gpu"])
+    ap.add_argument("--fp16", action="store_true",
+                    default=bool(int(os.getenv("FP16", "0"))),
+                    help="저VRAM(공유 GPU) 모드 — 가중치 half")
+    ap.add_argument("--no-verify-checksums", dest="verify_checksums",
+                    action="store_false", default=True,
+                    help="체크포인트 sha256 확인 생략(로딩 ~15s 단축)")
+    ap.add_argument("--til-threshold", type=float, default=None)
+    ap.add_argument("--mc-samples", type=int, default=None,
+                    help="MC Dropout 반복 횟수(0 이면 구간 계산 안 함)")
+    ap.add_argument("--no-tissue-mask", dest="return_tissue_mask",
+                    action="store_false", default=True,
+                    help="tissue_mask PNG 저장 생략(페이로드/시간 절감)")
+    a = ap.parse_args()
+
+    cfg = {"gpu": a.gpu, "fp16": a.fp16, "verify_checksums": a.verify_checksums}
+    if a.til_threshold is not None:
+        cfg["til_threshold"] = a.til_threshold
+    if a.mc_samples is not None:
+        cfg["mc_samples"] = a.mc_samples
+
+    if a.image:
+        img_path = Path(a.image).resolve()
+        if not img_path.exists():
+            sys.exit(f"없는 경로: {img_path}")
+        image, stem = img_path, img_path.stem
+    else:
         rng = np.random.default_rng(0)
-        img = rng.integers(160, 230, (1024, 1024, 3), dtype=np.uint8)
-    r = predict(b, img, return_tissue_mask=False)
-    print(json.dumps({k: v for k, v in r.items() if k != "model_version"},
-                     ensure_ascii=False, indent=2))
+        image = rng.integers(160, 230, (1024, 1024, 3), dtype=np.uint8)
+        stem = "self_test"
+
+    print("모델이 로딩 중 입니다.")
+    b = load_model(cfg)
+    print(f"로딩 완료. {b['load_seconds']}s  {b['gpu_mem_after_load']}")
+
+    r = predict(b, image, return_tissue_mask=a.return_tissue_mask)
+
+    out_dir = Path(a.out).resolve()
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    # tissue_mask 는 numpy 라 JSON 직렬화 전에 반드시 뺀다(위 predict() docstring 참고).
+    mask = r.pop("tissue_mask", None)
+    if mask is not None:
+        mask_path = out_dir / f"{stem}_tissue_mask.png"
+        Image.fromarray((mask * 120).astype(np.uint8)).save(mask_path)  # 0/1/2 -> 보기 좋게 스케일
+        r["tissue_mask_png"] = mask_path.name
+
+    json_path = out_dir / f"{stem}.json"
+    json_path.write_text(
+        json.dumps({k: v for k, v in r.items() if k != "model_version"},
+                   ensure_ascii=False, indent=2),
+        encoding="utf-8")
+
+    print(f"stil_percent {r['stil_percent']} (⚠ 비보정 — 절대값 아님, §2-6)"
+          f"  ·  재현성범위 [{r['stil_interval_low']}, {r['stil_interval_high']}] (신뢰구간 아님, §2-8)")
+    print(f"  세포 {r['n_cells_total']}개 (TIL {r['n_cells_til']}개, 간질내 {r['n_cells_til_stromal']}개)"
+          f"  ·  간질상태 {r['stroma_status']}")
+    print(f"  TSR 종양 {r['tsr_tumor_percent']}% · 간질 {r['tsr_stroma_percent']}%")
+    print(f"  {json_path}")
+    if mask is not None:
+        print(f"  {mask_path}")
+
+
+if __name__ == "__main__":
+    main()
