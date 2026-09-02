@@ -471,39 +471,56 @@ API 계층과 DB 제약 양쪽에서 막는다.
 
 | 리소스 | 상태 값 | 전이 조건 |
 |---|---|---|
-| `전이 조건` | exam_order | ordered → accepted → in_progress → completed / cancelled |
-| `완료 시 study 생성 필수` | study.quality_status | accepted / rejected |
-| `rejected → 재촬영 오더 자동 발행 + 간호 재호출 + 순서 재배치` | ai_result.run_status | queued → running → done / failed |
-| `gate_flags 1건 이상 → abstained=true  [v3]` | assessment | first(잠금) → reveal-ai → final → finalized |
-| `finalize 후 수정은 amend → superseded_by_id + 대조 재실행` | specimen | unbound → bound → accessioned |
-| `unbound 상태로 접수하면 409` | pathology_result | draft → finalized |
-| `finalized_at = SYS-4 무인 트리거` | discordance_flag | pass / sev1 · sev2 · review → closed |
-| `검토 의견만으로는 종결되지 않고 처분으로만 종결` | followup_track | open → resolved / escalated / declined / overdue |
-| `24개월 안정 → 범주 2 재판정 후 종결` | report.lock_status | locked → unlocked |
-| `해제 3조건 AND` | reservation | reserved → change_requested / cancelled / done |
+| `exam_order` | ordered → accepted → in_progress → completed / cancelled | 완료 시 study 생성 필수 |
+| `study.quality_status` | accepted / rejected | rejected → 재촬영 오더 자동 발행 + 간호 재호출 + 순서 재배치 |
+| `ai_result.run_status` | queued → running → done / failed | gate_flags 1건 이상 → abstained=true  [v3] |
+| `assessment` | first(잠금) → reveal-ai → final → finalized | finalize 후 수정은 amend → superseded_by_id + 대조 재실행 |
+| `specimen` | unbound → bound → accessioned | unbound 상태로 접수하면 409 |
+| `pathology_result` | draft → finalized | finalized_at = SYS-4 무인 트리거 |
+| `discordance_flag` | pass / sev1 · sev2 · review → closed | 검토 의견만으로는 종결되지 않고 처분으로만 종결 |
+| `followup_track` | open → resolved / escalated / declined / overdue | 24개월 안정 → 범주 2 재판정 후 종결 |
+| `report.lock_status` | locked → unlocked | 해제 3조건 AND |
+| `reservation` | reserved → change_requested / cancelled / done | visited_at 미기록 = 노쇼 |
+
+**`exam_order` 와 `specimen` 은 상태를 담을 컬럼이 DB 에 없다** — 갭 G1 · G4.
+§0-2 참조.
 
 ## 8 · 역할별 권한 매트릭스
 
 C 생성 · R 조회 · U 수정 · D 삭제. **굵은 항목은 단독 권한** — 다른 역할에 주면
 미처리 건이 어느 큐에도 남지 않는다.
 
-| 원무 | 간호 | 영상의학 | 병리 | 유방외과 | 환자 | patient · reservation |
+| 리소스 | 원무 | 간호 | 영상의학 | 병리 | 유방외과 | 환자 |
 |---|---|---|---|---|---|---|
-| CRUD | RU | R | R | R | 본인 CRU | questionnaire |
-| R | CRU | R | R | R | — | exam_order |
-| CRU | CR | CRU | R | CR | — | study · quality(반려) |
-| — | R | CRU | R | R | — | ai_result · lesion |
-| — | — | CR (1차 잠금 후) | CR (병리) | R | — | assessment · 영상 FINAL |
-| R | R | CRU | R | R | — | specimen (바인딩) |
-| — | C 단독 | R | R | R | — | pathology_result · FINAL |
-| R | R | R | CRU | R | — | discordance 검토 의견 |
-| — | — | CU (의견만) | R | R | — | discordance 해소 처분 |
-| — | — | — | — | CU 단독 | — | followup_track · round |
-| R | CRU | CRU | — | R | 본인 R | clinical_decision |
-| R | R | R | R | CRU | — | report 열람 잠금 해제 |
-| — | — | — | — | U 단독 | — | report 생성 · 발급 |
-| C (발급) | R | CR | CR | CR | 본인 R | prescription |
-| R | R | — | — | C | 본인 R | audit_metric |
+| `patient` · `reservation` | CRUD | RU | R | R | R | 본인 CRU |
+| `questionnaire` | R | CRU | R | R | R | — |
+| `exam_order` | CRU | CR | CRU | R | CR | — |
+| `study` · quality(반려) | — | R | CRU | R | R | — |
+| `ai_result` · `lesion` | — | — | CR (1차 잠금 후) | CR (병리) | R | — |
+| `assessment` · 영상 FINAL | R | R | CRU | R | R | — |
+| `specimen` (바인딩) | — | **C 단독** | R | R | R | — |
+| `pathology_result` · FINAL | R | R | R | CRU | R | — |
+| discordance 검토 의견 | — | — | CU (의견만) | R | R | — |
+| discordance 해소 처분 | — | — | — | — | **CU 단독** | — |
+| `followup_track` · `round` | R | CRU | CRU | — | R | 본인 R |
+| `clinical_decision` | R | R | R | R | CRU | — |
+| report 열람 잠금 해제 | — | — | — | — | **U 단독** | — |
+| report 생성 · 발급 | C (발급) | R | CR | CR | CR | 본인 R |
+| `prescription` | R | R | — | — | C | 본인 R |
+| `audit_metric` | — | — | R | R | R | — |
+
+**단독 권한 3개** — 전용 에러 코드가 이미 §6 에 있다.
+
+| 리소스 | 단독 역할 | 위반 시 |
+|---|---|---|
+| `specimen` 바인딩 | 간호 (C 단독) | `BINDING_ROLE_FORBIDDEN` 403 |
+| discordance 해소 처분 | 유방외과 (CU 단독) | `DISPOSITION_ROLE_ONLY_SURGERY` 403 |
+| report 열람 잠금 해제 | 유방외과 (U 단독) | `UNLOCK_ROLE_ONLY_SURGERY` 403 |
+
+역할은 `staff.department` 로 판정한다 — `admin` · `reception` · `nursing` ·
+`radiology` · `surgery` · `pathology`. 원본이 두 곳에서 `staff.role` 이라고
+쓰지만 그런 컬럼은 없다. `reception` 은 v3 개정이력이 `admin` 에서 분리하기로
+한 값인데 상세표 6-34 의 허용값에는 아직 반영되지 않았다.
 
 ## 9 · MVP 구현 우선순위
 
