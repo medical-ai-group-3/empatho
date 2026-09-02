@@ -1,0 +1,12 @@
+# CDSS 백엔드 — Django 가 API 서빙 · ORM · admin 을 모두 담당한다.
+# 모델 추론은 FastAPI(별도 담당), 파일 전송·발송은 Go 계층이 맡는다.
+django==6.1
+djangorestframework==3.16.1
+django-cors-headers==4.9.0
+psycopg2-binary==2.9.12
+python-dotenv==1.2.3
+
+# 컨테이너에서 돌린다. runserver 는 개발 서버라 쓰지 않는다.
+gunicorn==23.0.0
+# gunicorn 이 정적 파일을 서빙하지 않아 admin CSS 가 깨진다. 그걸 메운다.
+whitenoise==6.9.0

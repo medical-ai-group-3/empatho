@@ -1,0 +1,61 @@
+# 데이터 쪽과 이름이 같아야 한 네트워크에 들어간다.
+# 다르면 web 이 postgres 를 이름으로 못 찾는다.
+name: empatho-server
+
+services:
+
+# web(django)
+  web: 
+    build: ./services/django 
+    container_name: web 
+    restart: unless-stopped
+    env_file:
+      - ./conf/web.env
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+# Go service 
+  file-gateway:
+    build: ./services/gosvc
+    container_name: file-gateway
+    restart: unless-stopped
+    # Dockerfile 이 실행파일 셋 만든다 
+    entrypoint: /usr/local/bin/file-gateway
+    env_file:
+      - ./conf/gosvc.env
+    environment:
+      GW_ADDR: ":8091"
+    volumes:
+      - gw-spool:/var/tmp/gw-spool
+    ports:
+      - "127.0.0.1:8091:8091"
+
+  llm-proxy:
+    build: ./services/gosvc
+    container_name: llm-proxy
+    restart: unless-stopped
+    entrypoint: /usr/local/bin/llm-proxy
+    env_file:
+      - ./conf/gosvc.env
+    environment:
+      LLM_ADDR: ":8090"
+    ports:
+      - "127.0.0.1:8090:8090"
+
+  notify:
+    build: ./services/gosvc
+    container_name: notify
+    restart: unless-stopped
+    entrypoint: /usr/local/bin/notify
+    env_file:
+      - ./conf/gosvc.env
+    environment:
+      NOTIFY_ADDR: ":8092"
+    ports:
+      - "127.0.0.1:8092:8092"
+
+volumes:
+  gw-spool: 

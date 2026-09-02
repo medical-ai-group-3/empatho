@@ -5,6 +5,11 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# 두 파일을 매번 -f 로 넘기면 길어지고 한 곳만 빠뜨리기 쉽다.
+# docker compose 가 이 변수를 알아서 읽는다.
+env:
+  COMPOSE_FILE: compose.server.yml:compose.app.yml
+
 jobs:
   deploy:
     runs-on: self-hosted
@@ -12,13 +17,20 @@ jobs:
       - uses: actions/checkout@v4
 
       # 비밀값은 git 에 없다. 러너 홈에 둔 것을 가져온다
-      - run: cp ~/empatho-conf/* conf/
+      - run: cp ~/empatho-conf/*.env ~/empatho-conf/*.toml conf/
 
-      - run: docker compose -f compose.server.yml up -d
+      # --build 가 붙는 이유 — Django 와 Go 는 우리 코드로 이미지를 만든다.
+      # postgres 처럼 받아 쓰는 것과 다르다.
+      - run: docker compose up -d --build
 
-      # up -d 는 컨테이너가 재시작을 반복해도 0 으로 끝난다.
-      # 오늘 garage 가 그랬다 — 그래서 여기서 한 번 본다
+      # 표 구조를 맞춘다. makemigrations 는 여기서 돌리지 않는다 —
+      # 파일이 서버에만 생겨서 다음 배포 때 사라진다.
+      - run: docker compose run --rm web python manage.py migrate
+
+      # up -d 는 컨테이너가 죽었다 살아나기를 반복해도 0 으로 끝난다.
+      # Go 셋은 환경변수가 하나만 없어도 log.Fatal 로 즉시 죽는다.
       - run: |
-          sleep 10
-          docker compose -f compose.server.yml ps
-          test -z "$(docker compose -f compose.server.yml ps --status restarting -q)"
+          sleep 15
+          docker compose ps
+          bad=$(docker compose ps --status restarting -q)
+          if [ -n "$bad" ]; then docker compose logs --tail 30 $bad; exit 1; fi

@@ -5,3 +5,23 @@ conf/orthanc.env
 __pycache__/
 *.pyc
 *.env
+
+# Django 
+venv/
+.venv/
+db.sqlite3
+staticfiles/
+media/
+*.log
+
+# 스키마 덤프의 압축본만 제외한다.
+services/django/db/*.sql.gz
+
+# 빌드 산출물
+services/gosvc/file-gateway
+services/gosvc/llm-proxy
+services/gosvc/bin/
+
+# vendor 는 커밋하지 않는다 — minio-go 때문에 17MB 다.
+# 처음 받는 사람은 `go mod download` 한 번이면 된다.
+services/gosvc/vendor/
