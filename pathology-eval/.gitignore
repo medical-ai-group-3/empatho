@@ -8,3 +8,4 @@ candidates/
 data/
 cache/
 *.log
+.claude/
