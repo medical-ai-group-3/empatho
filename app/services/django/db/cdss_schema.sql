@@ -665,7 +665,9 @@ CREATE TABLE public.exam_order (
     created_at timestamp without time zone DEFAULT now(),
     created_by bigint,
     updated_at timestamp without time zone DEFAULT now(),
-    updated_by bigint
+    updated_by bigint,
+    order_status character varying(20) DEFAULT 'ordered'::character varying NOT NULL,
+    CONSTRAINT exam_order_order_status_ck CHECK (((order_status)::text = ANY ((ARRAY['ordered'::character varying, 'accepted'::character varying, 'in_progress'::character varying, 'completed'::character varying, 'cancelled'::character varying])::text[])))
 );
 
 
@@ -1563,7 +1565,10 @@ CREATE TABLE public.specimen (
     created_at timestamp without time zone DEFAULT now(),
     created_by bigint,
     updated_at timestamp without time zone DEFAULT now(),
-    updated_by bigint
+    updated_by bigint,
+    accession_status character varying(20) DEFAULT 'unbound'::character varying NOT NULL,
+    accessioned_at timestamp without time zone,
+    CONSTRAINT specimen_accession_status_ck CHECK (((accession_status)::text = ANY ((ARRAY['unbound'::character varying, 'bound'::character varying, 'accessioned'::character varying])::text[])))
 );
 
 
@@ -1603,7 +1608,8 @@ CREATE TABLE public.staff (
     created_by bigint,
     created_at timestamp without time zone DEFAULT now(),
     updated_by bigint,
-    updated_at timestamp without time zone DEFAULT now()
+    updated_at timestamp without time zone DEFAULT now(),
+    CONSTRAINT staff_department_ck CHECK (((department)::text = ANY ((ARRAY['admin'::character varying, 'reception'::character varying, 'nursing'::character varying, 'radiology'::character varying, 'surgery'::character varying, 'pathology'::character varying])::text[])))
 );
 
 

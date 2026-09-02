@@ -10,3 +10,8 @@ staticfiles/
 media/
 *.log
 db.sqlite3
+
+# 스키마 덤프 · 변경 SQL · 사양서 요약. 런타임이 읽지 않는다.
+# core/migrations 는 제외하지 않는다 — 배포가 manage.py migrate 를 돌린다.
+db/
+docs/

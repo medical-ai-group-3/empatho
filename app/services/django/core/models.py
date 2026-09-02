@@ -273,11 +273,14 @@ class ChatMessage(models.Model):
         managed = False
         db_table = 'chat_message'
 
-# exam_order — 검사 오더 · 재촬영 연결   [환자·필수·11컬럼]
+# exam_order — 검사 오더 · 재촬영 연결   [환자·필수·12컬럼]
 class ExamOrder(models.Model):
     exam_order_id = models.BigAutoField(primary_key=True)
     patient = models.ForeignKey('Patient', models.PROTECT)
     exam_purpose = models.CharField(max_length=20)
+    # 갭 G1. ordered → accepted → in_progress → completed / cancelled
+    # 허용값은 DB CHECK 이 막는다. 완료 시 study 생성이 필수다.
+    order_status = models.CharField(max_length=20, default='ordered')
     modality = models.CharField(max_length=20, blank=True, null=True)
     order_source = models.CharField(max_length=20, blank=True, null=True)
     followup_round_no = models.IntegerField(blank=True, null=True)
@@ -569,11 +572,15 @@ class LesionDescriptor(models.Model):
         managed = False
         db_table = 'lesion_descriptor'
 
-# specimen — 검체 · 진행 차단 지점   [병리·필수·9컬럼]
+# specimen — 검체 · 진행 차단 지점   [병리·필수·11컬럼]
 class Specimen(models.Model):
     specimen_id = models.BigAutoField(primary_key=True)
     patient = models.ForeignKey(Patient, models.PROTECT, blank=True, null=True)
     lesion = models.ForeignKey(Lesion, models.PROTECT)
+    # 갭 G4. unbound → bound → accessioned
+    # unbound 상태로 7.3 접수를 시도하면 409 SPECIMEN_NOT_BOUND.
+    accession_status = models.CharField(max_length=20, default='unbound')
+    accessioned_at = models.DateTimeField(blank=True, null=True)
     specimen_label = models.CharField(unique=True, max_length=50, blank=True, null=True)
     specimen_type = models.CharField(max_length=30, blank=True, null=True)
     guidance_route = models.CharField(max_length=30, blank=True, null=True)
@@ -628,8 +635,9 @@ class PathologyResult(models.Model):
     stil_interval_low = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True)
     stil_interval_high = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True)
     # 간질 ÷ (종양 + 간질). 0~100 으로 갇힌다 [Q6 확정]
-    # 구간(low/high)이 없는 이유는 api_summary.md §0-3 참조 —
-    # 소켓 1 조직분할 모델(linear_tand)에 dropout 이 없어 MC Dropout 이 안 된다.
+    # 구간(low/high)이 없다 — 소켓 1 조직분할 모델(linear_tand)에 dropout 이
+    # 없어 sTIL 처럼 MC Dropout 으로 구간을 낼 수 없다. 저장소의
+    # docs/api_summary.md §0-3 에 근거를 적어 뒀다(이미지에는 들어가지 않는다).
     tsr_percent = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True)
     stil_source = models.CharField(max_length=20, blank=True, null=True)
     has_calcification = models.BooleanField(blank=True, null=True)
