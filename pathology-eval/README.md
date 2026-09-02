@@ -7,8 +7,10 @@
 
 ## ⚠️ 구 폴더는 동결되었습니다
 
-`~/workspace/breast/pathology/` 는 **2026-08-30 이후 동결(deprecated)** 되었으며
-`~/workspace/breast/pathology.ARCHIVED-2026-08-30/` 으로 이름이 바뀌었습니다.
+`~/workspace/breast/pathology/` 는 **2026-08-30 이후 동결(deprecated)** 되었고
+2026-09-02 에 삭제되었습니다(자리에는 안내 stub 만 남음). pathology-eval 에 없던
+소켓2 weighted 재학습 이전 체크포인트·로그는
+`candidates/socket2/_pre_weighted_2026-08-26/` 에 보존했습니다.
 
 아래 항목들은 **이 저장소에만** 반영되어 있습니다. 구 폴더를 참조하면 낡은 코드/공식을 쓰게 됩니다.
 
