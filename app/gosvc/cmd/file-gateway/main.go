@@ -134,7 +134,7 @@ func makeStore() (storage.Store, error) {
 	return storage.NewS3(
 		env("GARAGE_ENDPOINT", "127.0.0.1:3900"),
 		os.Getenv("GARAGE_ACCESS_KEY"), os.Getenv("GARAGE_SECRET_KEY"),
-		env("GARAGE_BUCKET", "cdss"), env("GARAGE_REGION", "garage"),
+		env("GARAGE_BUCKET", "empatho-original"), env("GARAGE_REGION", "garage"),
 		os.Getenv("GARAGE_SSL") == "1")
 }
 

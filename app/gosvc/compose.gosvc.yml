@@ -13,6 +13,12 @@ x-gosvc-common: &gosvc-common
   build:
     context: ./gosvc
   restart: unless-stopped
+  # ⚠ 터널을 **호스트**에서 열었을 때 컨테이너가 그 포트에 닿게 한다.
+  #   컨테이너의 127.0.0.1 은 컨테이너 자신이라 호스트 터널이 안 보인다.
+  #   그래서 GARAGE_ENDPOINT 를 host.docker.internal:13900 으로 준다.
+  #   Garage 가 같은 compose 망 안에 있으면 이 줄은 없어도 된다.
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
   environment: &gosvc-env
     TICKET_KEY: ${TICKET_KEY:?TICKET_KEY 를 .env 에 넣을 것}
     CALLBACK_BASE: ${CALLBACK_BASE:-http://django:8000}
@@ -34,9 +40,12 @@ services:
       <<: *gosvc-env
       GW_ADDR: ":8091"
       GARAGE_ENDPOINT: ${GARAGE_ENDPOINT:-garage:3900}
+      GARAGE_REGION: ${GARAGE_REGION:-garage}
       GARAGE_ACCESS_KEY: ${GARAGE_ACCESS_KEY:-}
       GARAGE_SECRET_KEY: ${GARAGE_SECRET_KEY:-}
-      GARAGE_BUCKET: ${GARAGE_BUCKET:-cdss}
+      # 원본은 empatho-original, 파생물(타일·썸네일)은 empatho-derived
+      GARAGE_BUCKET: ${GARAGE_BUCKET:-empatho-original}
+      # 맘모 DICOM 도 Orthanc 에 등록한다. 비우면 전송만 건너뛴다(개발용).
       ORTHANC_URL: ${ORTHANC_URL:-}
       ORTHANC_USER: ${ORTHANC_USER:-}
       ORTHANC_PASS: ${ORTHANC_PASS:-}

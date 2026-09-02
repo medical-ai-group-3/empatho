@@ -270,6 +270,38 @@ CBIS-DDSM 은 재배포 금지고 EMBED 는 DUA 로 묶여 있어 표본을 넣�
 **잡지 못한 것도 있다** — 허브의 닫힌 채널 경합. 그건 위에 쓴 대로 설계로
 바꿔서 막았다.
 
+## 팀 서버(app-host) 에 붙일 때
+
+접속 안내서 기준 확정 사항이다.
+
+| | 값 |
+|---|---|
+| Garage 버킷 · 원본 | `empatho-original` |
+| Garage 버킷 · 파생 | `empatho-derived` (타일·썸네일·마스크) |
+| region | `garage` |
+| 주소 방식 | **path-style 필수** — 코드에서 강제해 뒀다 |
+| Orthanc | 사용자 `empatho`, DICOMweb 켜짐. **맘모도 등록한다** |
+
+**맘모 DICOM 도 Orthanc 에 등록한다.** 원본 파일은 Garage 에, 촬영 정보는
+Orthanc 에 들어가고 둘을 I-2 의 `orthanc_instance_id` 로 잇는다.
+
+⚠ 접속 안내서에는 *"MRI 만 여기에 들어가고, 맘모·초음파·병리는 Garage 에
+있습니다"* 라고 적혀 있는데 **그 문서가 틀렸다.** 담당자에게 정정을 요청할 것 —
+그대로 두면 다른 팀원이 `ORTHANC_URL` 을 비운 채 띄우고, 그러면 업로드는
+성공하는데 Orthanc 에 아무것도 안 들어간다. 로그에 한 줄 남을 뿐이라
+한참 뒤에야 알게 된다.
+
+**⚠ 터널을 호스트에서 열고 Go 는 컨테이너 안에서 돌 때** — 컨테이너의
+`127.0.0.1` 은 컨테이너 자신이라 호스트 터널이 안 보인다. compose 에
+`extra_hosts: host.docker.internal:host-gateway` 를 넣어 뒀으니
+`GARAGE_ENDPOINT=host.docker.internal:13900` 으로 주면 된다.
+
+| Go 가 도는 곳 | GARAGE_ENDPOINT |
+|---|---|
+| 호스트에서 직접 | `127.0.0.1:13900` |
+| Docker + 호스트 터널 | `host.docker.internal:13900` |
+| Garage 와 같은 compose 망 | `garage:3900` |
+
 ## Docker 로 올릴 때 반드시 볼 것 셋
 
 **① `GW_LOCAL_ROOT` 는 운영 `.env` 에 있으면 안 된다.**
@@ -299,6 +331,28 @@ nginx 하나로 프런트와 Go 를 같은 출처에 묶었다면 비워 두면 
 걸려 있다. Django 쪽에서 `depends_on: {file-gateway: {condition: service_healthy}}`
 로 기동 순서를 잡을 수 있다.
 
+## Docker 만으로 전 경로 태우기
+
+Garage·Django·Orthanc 없이, 파이썬 설치도 없이 확인할 수 있다.
+**두 compose 파일 모두 저장소 루트에 두고 실행한다** (build context 가
+`./gosvc` 라서 그렇다).
+
+```bash
+docker compose -f compose.gosvc.yml -f compose.dev.yml up --build -d
+docker compose -f compose.gosvc.yml -f compose.dev.yml logs -f fake-django
+```
+
+점검 — 시험용 DICOM 을 컨테이너 안에서 만들어 단일·청크 두 경로를 태운다.
+
+```bash
+docker compose -f compose.gosvc.yml -f compose.dev.yml run --rm devkit
+```
+
+**실제 의료영상을 안 쓴다.** CBIS 는 재배포 금지, VinDr·EMBED 는 인증·DUA 로
+묶여 있어 개인 컴퓨터나 CI 로 옮기면 안 된다. `tools/make_test_dicom.py` 가
+바이트를 직접 쌓아 만든다 — 파서가 보는 것은 바이트 배치라 이쪽이 오히려
+정확한 시험이 된다.
+
 ## tools/ — 진짜 Django 없이 전 경로를 태우는 도구
 
 `go test` 는 내가 지어낸 바이트로 돈다. 이건 **실제 촬영 파일**로 같은 경로를
@@ -309,6 +363,8 @@ nginx 하나로 프런트와 Go 를 같은 출처에 묶었다면 비워 두면 
 | `tools/fake_django.py` | I-1~I-4 를 받아 화면에 찍는다. **서명·멱등키·순서를 검증한다** |
 | `tools/mint_ticket.py` | 티켓 발급. Django 가 할 일을 시험 동안 대신한다 |
 | `tools/smoke.py` | DICOM 한 장으로 업로드 → G-F7 → 다운로드 → 권한까지 12가지 확인 |
+| `tools/smoke_chunked.py` | 청크 업로드(G-F1~F3). 조각을 **거꾸로** 보내 순서를 확인한다 |
+| `tools/make_test_dicom.py` | 시험용 DICOM 생성. 실제 자료를 안 써도 되게 한다 |
 
 ```bash
 # 창 1 — 가짜 Django

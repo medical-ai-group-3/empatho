@@ -148,6 +148,9 @@ class Handler(BaseHTTPRequestHandler):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--port", type=int, default=9999)
+    ap.add_argument("--host", default="127.0.0.1",
+                    help="컨테이너 안에서는 0.0.0.0 이어야 다른 컨테이너가 붙는다. "
+                         "기본값이 127.0.0.1 인 것은 실수로 밖에 열지 않기 위해서다")
     ap.add_argument("--secret", default="dev-secret",
                     help="Go 의 CALLBACK_SECRET 과 같아야 한다")
     ap.add_argument("--fail", action="append", default=[],
@@ -157,7 +160,7 @@ def main():
     Handler.secret = a.secret.encode()
     Handler.fail_paths = set(a.fail)
 
-    print(f"{C['b']}가짜 Django{C['0']}  127.0.0.1:{a.port}")
+    print(f"{C['b']}가짜 Django{C['0']}  {a.host}:{a.port}")
     print(f"  받는 경로")
     for p, n in [("/internal/v1/storage-objects", "I-1 저장 객체"),
                  ("/internal/v1/dicom-instances", "I-2 DICOM 메타"),
@@ -169,7 +172,7 @@ def main():
     print(f"  {C['d']}Ctrl-C 로 종료{C['0']}\n")
 
     try:
-        HTTPServer(("127.0.0.1", a.port), Handler).serve_forever()
+        HTTPServer((a.host, a.port), Handler).serve_forever()
     except KeyboardInterrupt:
         print(f"\n\n받은 콜백 {len(ORDER)}건 · 서로 다른 멱등키 {len(SEEN)}개")
         sys.exit(0)
