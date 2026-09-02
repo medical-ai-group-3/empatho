@@ -36,6 +36,7 @@ import (
 
 	"cdss/gosvc/internal/callback"
 	"cdss/gosvc/internal/dicom"
+	"cdss/gosvc/internal/httpx"
 	"cdss/gosvc/internal/orthanc"
 	"cdss/gosvc/internal/storage"
 	"cdss/gosvc/internal/ticket"
@@ -87,7 +88,8 @@ func main() {
 	}()
 
 	log.Printf("file-gateway %s · bucket %s", addr, st.Bucket())
-	log.Fatal((&http.Server{Addr: addr, Handler: g.routes(),
+	log.Fatal((&http.Server{Addr: addr,
+		Handler:           httpx.CORS(g.routes(), os.Getenv("CORS_ORIGINS")),
 		ReadHeaderTimeout: 10 * time.Second}).ListenAndServe())
 }
 
@@ -106,9 +108,27 @@ func (g *gw) routes() *http.ServeMux {
 	return mux
 }
 
+// makeStore — 저장소를 고른다.
+//
+// ⚠ GW_LOCAL_ROOT 는 **개발용이다.** 이게 설정돼 있으면 Garage 를 무시하고
+//
+//	로컬 디스크에 쓴다. 그 상태로 배포되면 파일이 컨테이너 안에 쌓이고
+//	재시작하면 사라지는데, **업로드는 201 로 성공하고 로그도 정상이다.**
+//	아무도 모른 채 자료가 없어진다.
+//
+//	그래서 GW_DEV=1 을 함께 주지 않으면 기동을 거부한다. 개발자가 한 번 더
+//	의도를 밝히게 하는 것이 목적이다 — .env 에 남은 줄 하나로 이런 일이
+//	벌어지면 안 된다.
 func makeStore() (storage.Store, error) {
 	if root := os.Getenv("GW_LOCAL_ROOT"); root != "" {
-		log.Printf("[gw] ⚠ 로컬 디스크 저장소 (%s). 개발용이다", root)
+		if os.Getenv("GW_DEV") != "1" {
+			return nil, errors.New(
+				"GW_LOCAL_ROOT 가 설정돼 있다. 이건 개발용 로컬 디스크 저장소라 " +
+					"컨테이너가 재시작하면 파일이 사라진다. 정말 쓰려면 GW_DEV=1 을 " +
+					"함께 줄 것. 운영이면 GW_LOCAL_ROOT 를 지우고 GARAGE_* 를 설정할 것")
+		}
+		log.Printf("[gw] ⚠ 로컬 디스크 저장소 (%s). 개발용이다 — "+
+			"재시작하면 사라진다", root)
 		return storage.NewFS(root), nil
 	}
 	return storage.NewS3(

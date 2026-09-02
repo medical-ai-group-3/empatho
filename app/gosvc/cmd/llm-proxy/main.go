@@ -23,10 +23,6 @@
 package main
 
 import (
-	"cdss/gosvc/internal/callback"
-	"cdss/gosvc/internal/narrative"
-	"cdss/gosvc/internal/ollama"
-	"cdss/gosvc/internal/ticket"
 	"context"
 	"encoding/json"
 	"errors"
@@ -36,6 +32,12 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"cdss/gosvc/internal/callback"
+	"cdss/gosvc/internal/httpx"
+	"cdss/gosvc/internal/narrative"
+	"cdss/gosvc/internal/ollama"
+	"cdss/gosvc/internal/ticket"
 )
 
 const (
@@ -94,7 +96,7 @@ func main() {
 	log.Printf("llm-proxy %s · ollama %s · model %s", addr, s.oll.Base, s.oll.Model)
 	srv := &http.Server{
 		Addr:    addr,
-		Handler: mux,
+		Handler: httpx.CORS(mux, os.Getenv("CORS_ORIGINS")),
 		// 스트리밍이라 쓰기 타임아웃을 걸면 긴 서술이 중간에 끊긴다.
 		ReadHeaderTimeout: 10 * time.Second,
 	}

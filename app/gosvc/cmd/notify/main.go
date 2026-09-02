@@ -33,6 +33,7 @@ import (
 	"time"
 
 	"cdss/gosvc/internal/callback"
+	"cdss/gosvc/internal/httpx"
 	"cdss/gosvc/internal/hub"
 	"cdss/gosvc/internal/ticket"
 )
@@ -61,7 +62,8 @@ func main() {
 		secret: []byte(cbSec), // 발행 서명도 같은 키를 쓴다
 	}
 	log.Printf("notify %s", addr)
-	log.Fatal((&http.Server{Addr: addr, Handler: s.routes(),
+	log.Fatal((&http.Server{Addr: addr,
+		Handler:           httpx.CORS(s.routes(), os.Getenv("CORS_ORIGINS")),
 		ReadHeaderTimeout: 10 * time.Second}).ListenAndServe())
 }
 
