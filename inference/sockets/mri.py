@@ -17,6 +17,9 @@ import os
 import pathlib 
 import sys 
 import tempfile 
+import shutil 
+import zipfile 
+import io
 
 from sockets import gpu 
 
@@ -48,7 +51,40 @@ REQUIRED = [
 _STATE = {}
 _ERROR = {}
 
-def _load() -> dict: 
+def _materialize(data: bytes, filename: str | None, dest: pathlib.Path) -> pathlib.Path: 
+    """바이트를 SimpleITK 가 읽을 수 있는 경로로 내린다.
+
+    .zip 이면 풀어서 폴더를 돌려준다. DICOM 시리즈는 슬라이스마다 파일이라
+    200장쯤 되는데 한 요청에 파일 하나씩 올릴 수 없다. Go 가 Orthanc 에서
+    꺼낸 시리즈를 그대로 묶어 보내면 여기서 푼다.
+    .zip 이 아니면 파일 하나로 쓴다(.nii · .nii.gz).
+
+    ── 압축을 풀 때 지키는 두 가지 ────────────────────────────────
+    ① zip 안에 적힌 경로를 그대로 믿지 않는다. "../../etc/x" 같은 항목이
+       섞이면 임시 폴더 밖에 파일을 쓰게 된다. 이름만 떼어 쓴다.
+    ② 전부 한 폴더에 평평하게 푼다. GetGDCMSeriesFileNames 는 하위 폴더를
+       내려가지 않으므로, 원본 폴더 구조를 살리면 파일을 못 찾는다.
+       이름이 겹칠 수 있어 번호를 붙인다 — DICOM 순서는 파일명이 아니라
+       헤더의 위치 태그로 정해지므로 이름을 바꿔도 안전하다.
+    """
+    name = filename or "volume.nii.gz"
+    if not name.lower().endswith(".zip"):
+        p = dest / pathlib.Path(name).name
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_bytes(data)
+        return p
+
+    dest.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(io.BytesIO(data)) as z:
+        for i, info in enumerate(z.infolist()):
+            if info.is_dir():
+                continue
+            flat = dest / f"{i:05d}_{pathlib.Path(info.filename).name}"
+            with z.open(info) as src, open(flat, "wb") as dst: 
+                shutil.copyfileobj(src, dst)
+    return dest
+
+def _load() -> dict:
     """번들을 올린다. 적재량과 시간은 아직 실측 전이다(담당자 README 도 TBD).
 
     load_model 이 안에서 os.chdir 한다(MedSAM3 가 상대경로를 하드코딩).
@@ -102,6 +138,7 @@ def predict(data:bytes, filename: str | None = None, post: bytes | None=None, po
 
       data           조영 전 볼륨 바이트 (nii · nii.gz)
       filename       확장자를 보고 형식을 정하므로 원본 이름이 필요하다
+                     .zip 이면 DICOM 시리즈로 보고 풀어서 폴더로 넘긴다 
       post           조영 후 볼륨 바이트. mamamia 는 있어야 한다
       dataset_tag    "mamamia" 또는 "duke". 호출부가 정한다
       over           thresholds.yaml 의 mri: 항목. include_mesh 도 여기로 끈다
@@ -123,15 +160,12 @@ def predict(data:bytes, filename: str | None = None, post: bytes | None=None, po
     with gpu.LOCK:
         if not _STATE:
             raise RuntimeError("모델이 내려감")
-        gpu.touch() 
+        gpu.touch()
         with tempfile.TemporaryDirectory(prefix="mri_") as tmp:
             tmp = pathlib.Path(tmp)
-            pre_path = tmp / (filename or "pre.nii.gz")
-            pre_path.write_bytes(data)
-            post_path = None
-            if post is not None :
-                post_path = tmp / (post_filename or "post.nii.gz")
-                post_path.write_bytes(post)
+            pre_path = _materialize(data, filename, tmp / "pre")
+            post_path = (_materialize(post, post_filename, tmp / "post")
+                        if post is not None else None)
                 
         volume, geometry = _STATE["preprocess"](
             str(pre_path), str(post_path) if post_path else None,
