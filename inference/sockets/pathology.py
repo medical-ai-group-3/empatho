@@ -83,7 +83,7 @@ def _load() -> dict:
         "bundle": bundle, 
         "predict": _predict, 
         "versions": {
-            "model_name": "virchow2+celvit-sam-h",
+            "model_name": "virchow2+cellvit-sam-h",
             "model_version": bundle["model_version"],
         }
     }
