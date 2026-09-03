@@ -35,7 +35,7 @@ import pathlib
 import yaml
 from fastapi import FastAPI, File, UploadFile
 
-from sockets import gpu, mammo, us
+from sockets import gpu, mammo, us, pathology
 
 # 가중치 뿌리. 배포 때 supervisord.conf 가 실제 경로를 넣는다.
 MODEL_ROOT = pathlib.Path(os.getenv("MODEL_ROOT", "/models"))
@@ -51,8 +51,8 @@ BASE_ROOT = MODEL_ROOT / "base"
 #              때문이다 — 초음파는 셋이, 맘모는 셋이 한 벌이어야 한다.
 #   설명       healthz 에 그대로 나간다. 사람이 읽는 값이다.
 SOCKETS = {
-    "1":  ("virchow2", ["path_seg_head.pth"],  "병리 분할 (Virchow2 + Efficient-UNet)"),
-    "2":  ("cellvit",  ["path_cell_head.pth"], "병리 세포검출 (CellViT++)"),
+    "1":  ("virchow2", pathology.REQUIRED,  "병리 분할 (Virchow2 + linear_tand)"),
+    "2":  ("cellvit",  pathology.REQUIRED, "병리 세포검출 (CellViT-SAM-H)"),
     "3":  ("medsam3",  ["mri/ckpt/mri_lora_best.pt"], "MRI 병변 분할"),
     "4":  ("medsam3",  us.REQUIRED_SEG,   "초음파 분할"),
     "5":  ("medsam3",  us.REQUIRED_GRADE, "초음파 등급 (CORAL 헤드)"),
@@ -64,7 +64,7 @@ SOCKETS = {
 # 위 SOCKETS 와 역할이 다르다. SOCKETS 는 「파일이 있느냐」를 보고,
 # 이쪽은 「그 파일로 판독할 코드가 있느냐」를 본다. 둘 다 있어야 ready 다.
 # 가중치만 있고 코드가 없는 상태(소켓 3 MRI 가 지금 그렇다)가 실제로 있다.
-MODULES = (us, mammo)
+MODULES = (us, mammo, pathology)
 
 # 소켓 번호 → 그 소켓을 맡은 모듈. 요청이 이 표를 보고 갈라진다.
 #
