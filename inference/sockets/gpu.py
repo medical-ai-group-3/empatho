@@ -26,9 +26,10 @@ LOCK = threading.Lock()
 # 마지막으로 GPU 를 쓴 시각(epoch 초). 어느 소켓이 썼든 하나로 센다.
 _LAST = {"t": 0.0}
 
-# 올라와 있는 소켓 이름들. 비어 있으면 수거할 것이 없다는 뜻이라
-# 수거자가 프로세스를 끝내지 않는다 — 모델을 한 번도 안 올린 서버는
-# 놀아도 살아 있어야 healthz 가 답한다.
+# 올라와 있는 소켓 이름들. healthz 가 이걸 보여준다.
+#
+# 수거 여부를 이것만으로 정하지 않는다 — 적재에 실패하면 여기는 비었는데
+# GPU 는 잡혀 있다. 실제 판단은 _reaper 가 reserved 까지 보고 한다.
 _LOADED = set()
 
 
@@ -89,8 +90,17 @@ def _reaper() -> None:
     오면 연결이 거절되고, 다시 뜬 뒤에는 첫 요청에서 모델을 다시 올린다
     (초음파 7초 · 맘모 17초).
 
-    _LOADED 가 비어 있으면 죽이지 않는다 — 모델을 한 번도 안 올린 서버는
-    놀아도 살아 있어야 healthz 가 답한다.
+    ── 무엇을 「쥐고 있다」로 보나 ───────────────────────────────
+    올라간 모델이 있거나(_LOADED), 없어도 GPU 를 잡고 있으면(reserved > 0)
+    쥐고 있는 것으로 본다.
+
+    둘째 조건이 필요한 이유 — 적재하다 OOM 으로 죽으면 _LOADED 는 비었는데
+    죽기 전까지 잡은 3GB 가 그대로 남는다. PyTorch 는 실패한 할당분도 OS 에
+    돌려주지 않는다. _LOADED 만 보면 그 3GB 를 영원히 쥐고 있게 된다 —
+    2026-09-03 에 실제로 8분간 그랬다.
+
+    모델을 한 번도 안 올린 프로세스는 torch 조차 없어 mb() 가 None 이다.
+    그래서 놀아도 안 죽는다 — healthz 는 계속 답해야 한다.
 
     os._exit(0) 을 쓰는 이유 — sys.exit 는 예외라서 uvicorn 이 잡아먹는다.
     정리 없이 즉시 끝내야 한다.
@@ -98,9 +108,10 @@ def _reaper() -> None:
     while True:
         time.sleep(_REAP_EVERY)
         with LOCK:
-            if _LOADED and time.time() - _LAST["t"] > KEEP_ALIVE:
+            m = mb()
+            holding = bool(_LOADED) or (m is not None and m["reserved"] > 0)
+            if holding and time.time() - _LAST["t"] > KEEP_ALIVE:
                 os._exit(0)
-
 
 # 이 모듈을 import 하는 순간 수거자가 돈다. 소켓 모듈들이 전부 이걸 import
 # 하므로 어디서 시작하든 딱 한 번만 뜬다 — 파이썬이 모듈을 한 번만 실행한다.
