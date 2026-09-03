@@ -33,9 +33,9 @@ import os
 import pathlib
 
 import yaml
-from fastapi import FastAPI, File, UploadFile
+from fastapi import FastAPI, File, Form, UploadFile
 
-from sockets import gpu, mammo, us, pathology
+from sockets import gpu, mammo, mri, pathology, us
 
 # 가중치 뿌리. 배포 때 supervisord.conf 가 실제 경로를 넣는다.
 MODEL_ROOT = pathlib.Path(os.getenv("MODEL_ROOT", "/models"))
@@ -53,7 +53,7 @@ BASE_ROOT = MODEL_ROOT / "base"
 SOCKETS = {
     "1":  ("virchow2", pathology.REQUIRED,  "병리 분할 (Virchow2 + linear_tand)"),
     "2":  ("cellvit",  pathology.REQUIRED, "병리 세포검출 (CellViT-SAM-H)"),
-    "3":  ("medsam3",  ["mri/ckpt/mri_lora_best.pt"], "MRI 병변 분할"),
+    "3":  ("medsam3",  mri.REQUIRED, "MRI 병변 분할"),
     "4":  ("medsam3",  us.REQUIRED_SEG,   "초음파 분할"),
     "5":  ("medsam3",  us.REQUIRED_GRADE, "초음파 등급 (CORAL 헤드)"),
     "4b": ("medsam3",  mammo.REQUIRED,    "유방 엑스레이 서술어 (경로 A)"),
@@ -64,7 +64,7 @@ SOCKETS = {
 # 위 SOCKETS 와 역할이 다르다. SOCKETS 는 「파일이 있느냐」를 보고,
 # 이쪽은 「그 파일로 판독할 코드가 있느냐」를 본다. 둘 다 있어야 ready 다.
 # 가중치만 있고 코드가 없는 상태(소켓 3 MRI 가 지금 그렇다)가 실제로 있다.
-MODULES = (us, mammo, pathology)
+MODULES = (us, mammo, pathology, mri)
 
 # 소켓 번호 → 그 소켓을 맡은 모듈. 요청이 이 표를 보고 갈라진다.
 #
@@ -177,7 +177,7 @@ def healthz():
 
 
 @app.post("/analyze/{socket_id}")
-async def analyze(socket_id: str, image: UploadFile = File(...)):
+async def analyze(socket_id: str, image: UploadFile = File(...), post: UploadFile | None = File(None), dataset_tag: str | None = Form(None)):
     """영상 한 장을 받아 소켓 번호에 맞는 모델로 보낸다.
 
     앱 서버(Celery 워커)가 부르는 유일한 판독 창구다. 어느 모달리티인지는
@@ -249,8 +249,17 @@ async def analyze(socket_id: str, image: UploadFile = File(...)):
     #
     #    THRESHOLDS[모듈이름] 이 없으면 {} 라서 번들 기본값으로 돈다.
     try:
-        result = mod.predict(data, filename=image.filename,
-                             **(THRESHOLDS.get(mod.NAME) or {}))
+        # MRI 만 두 번째 파일과 dataset_tag 를 쓴다. 값이 있을 때만 넣는다 —
+        # 다른 소켓의 predict 는 **over 를 아래 라이브러리로 그대로 넘기므로
+        # 모르는 인자가 들어가면 거기서 터진다.
+        extra = {} 
+        if post is not None:
+            extra["post"] = await post.read() 
+            extra["post_filename"] = post.filename
+        if dataset_tag is not None: 
+            extra["dataset_tag"] = dataset_tag
+        result = mod.predict(data, filename=image.filename, **extra, **(THRESHOLDS.get(mod.NAME) or {}))
+        
     # 판독 실패도 기권이다. GPU 가 모자라면 지금 못 할 뿐 코드가 틀린 게 아니고,
     # 500 을 내면 앱 서버가 판독을 오류로 처리하고 배포까지 롤백된다.
     except Exception as exc :
