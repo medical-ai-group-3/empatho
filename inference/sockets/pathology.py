@@ -132,6 +132,6 @@ def predict(data: bytes, filename: str | None= None, **over) -> dict :
         if not _STATE:
             raise RuntimeError("모델이 내려감")
         gpu.touch() 
-        result = _STATE["predict"](_STATE["bundel"], Image.open(io.BytesIO(data)), **over)
+        result = _STATE["predict"](_STATE["bundle"], Image.open(io.BytesIO(data)), **over)
     result.pop("tissue_mask", None)
     return result
