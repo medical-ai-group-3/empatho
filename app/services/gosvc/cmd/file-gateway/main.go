@@ -402,6 +402,13 @@ func (g *gw) ingestDICOM(ctx context.Context, key, patient, scope string,
 		out["pixel_spacing_mm"] = nil
 		log.Printf("[G-F7] ⚠ key=%s 화소 간격 없음 — 해상도 보정 불가", key)
 	}
+	// 3D 기하 — MRI 는 이게 없으면 슬라이스를 쌓을 수 없다.
+	// 맘모(MG)는 낱장 2D 라 없는 것이 정상이므로 경고하지 않는다.
+	out["has_geometry"] = m.HasGeometry()
+	if !m.HasGeometry() && m.Modality == "MR" {
+		log.Printf("[G-F7] ⚠ key=%s MR 인데 3D 기하 없음 — 재구성 불가 "+
+			"(ImagePositionPatient / ImageOrientationPatient)", key)
+	}
 
 	cm := callback.DicomMetadata{
 		ObjectKey: key, Bucket: g.st.Bucket(),
@@ -415,16 +422,26 @@ func (g *gw) ingestDICOM(ctx context.Context, key, patient, scope string,
 		BitsAllocated: m.BitsAllocated, BitsStored: m.BitsStored,
 		NumberOfFrames: m.NumberOfFrames, PhotometricInterp: m.PhotometricInterp,
 		PixelSpacing: m.PixelSpacing, PixelSpacingTag: m.PixelSpacingTag,
-		TransferSyntaxUID:  m.TransferSyntaxUID,
-		BurnedInAnnotation: m.BurnedInAnnotation,
-		PatientID:          patient, ScopeID: scope,
+		ImagePositionPatient:    m.ImagePositionPatient,
+		ImageOrientationPatient: m.ImageOrientationPatient,
+		SliceThickness:          m.SliceThickness,
+		SpacingBetweenSlices:    m.SpacingBetweenSlices,
+		TransferSyntaxUID:       m.TransferSyntaxUID,
+		BurnedInAnnotation:      m.BurnedInAnnotation,
+		PatientID:               patient, ScopeID: scope,
 	}
-	if id, err := g.toOrthanc(ctx, key); err != nil {
+	if res, err := g.toOrthanc(ctx, key); err != nil {
 		log.Printf("[G-F7] Orthanc 전송 실패 key=%s: %v", key, err)
 		out["orthanc"] = "failed"
-	} else if id != "" {
-		cm.OrthancInstanceID = id
-		out["orthanc"] = id
+	} else if res != nil && res.ID != "" {
+		cm.OrthancInstanceID = res.ID
+		cm.OrthancSeriesID = res.ParentSeries
+		cm.OrthancStudyID = res.ParentStudy
+		cm.OrthancPatientID = res.ParentPatient
+		out["orthanc"] = map[string]string{
+			"instance": res.ID, "series": res.ParentSeries,
+			"study": res.ParentStudy, "patient": res.ParentPatient,
+		}
 	}
 
 	if err := g.cb.PostDicomMetadata(ctx, cm); err != nil {
@@ -441,27 +458,28 @@ func (g *gw) ingestDICOM(ctx context.Context, key, patient, scope string,
 
 // toOrthanc — 커밋된 객체를 저장소에서 다시 읽어 Orthanc 로 보낸다.
 // 업로드 본문은 스트림으로 흘려보내서 메모리에 안 남는다.
-func (g *gw) toOrthanc(ctx context.Context, key string) (string, error) {
+func (g *gw) toOrthanc(ctx context.Context, key string) (*orthanc.Result, error) {
 	if g.or == nil {
-		return "", nil
+		return nil, nil
 	}
 	rd, _, err := g.st.Open(ctx, key)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	defer rd.Close()
 	res, err := g.or.Store(ctx, rd)
 	if errors.Is(err, orthanc.ErrDuplicate) {
 		// 재시도가 만든 중복이다. 실패가 아니다.
-		if res != nil {
-			return res.ID, nil
-		}
-		return "", nil
+		//
+		// ⚠ 409 로 온 중복은 본문이 없어서 res 가 nil 이다. 그때는 ID 를
+		//   알 수 없다 — 이미 Orthanc 안에 있지만 우리가 그 이름을 모른다.
+		//   200 + AlreadyStored 로 온 중복은 본문이 있어서 ID 를 안다.
+		return res, nil
 	}
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return res.ID, nil
+	return res, nil
 }
 
 // ── G-F5 ────────────────────────────────────────────────────────────

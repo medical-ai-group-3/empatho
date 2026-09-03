@@ -147,11 +147,24 @@ type DicomMetadata struct {
 	PixelSpacing      []float64 `json:"pixel_spacing,omitempty"`
 	PixelSpacingTag   string    `json:"pixel_spacing_tag,omitempty"`
 
+	// MRI 3D 재구성용 기하 (MRI 팀 요청 2026-09-02).
+	// 맘모는 낱장 2D 라 전부 빈 값으로 간다 — 오류가 아니다.
+	ImagePositionPatient    []float64 `json:"image_position_patient,omitempty"`
+	ImageOrientationPatient []float64 `json:"image_orientation_patient,omitempty"`
+	SliceThickness          float64   `json:"slice_thickness,omitempty"`
+	SpacingBetweenSlices    float64   `json:"spacing_between_slices,omitempty"`
+
 	TransferSyntaxUID  string `json:"transfer_syntax_uid,omitempty"`
 	BurnedInAnnotation string `json:"burned_in_annotation,omitempty"`
 
 	// Orthanc 에 올렸으면 그쪽 식별자. 안 올렸으면 빈 값이다.
+	//
+	// 넷을 다 넘긴다. 인스턴스 ID 만으로는 뷰어가 검사 하나를 통째로 못 연다 —
+	// Cornerstone3D 처럼 study 단위로 여는 뷰어는 ParentStudy 가 있어야 한다.
 	OrthancInstanceID string `json:"orthanc_instance_id,omitempty"`
+	OrthancSeriesID   string `json:"orthanc_series_id,omitempty"`
+	OrthancStudyID    string `json:"orthanc_study_id,omitempty"`
+	OrthancPatientID  string `json:"orthanc_patient_id,omitempty"`
 
 	// 티켓에서 온 우리 쪽 식별자 — DICOM 안의 값과 다를 수 있다
 	PatientID string `json:"patient_id,omitempty"`
