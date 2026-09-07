@@ -21,7 +21,7 @@ import shutil
 import zipfile 
 import io
 
-from sockets import base, gpu
+from sockets import base, gpu, medsam3
 
 MODEL_ROOT = pathlib.Path(os.getenv("MODEL_ROOT", "/models"))
 
@@ -88,9 +88,15 @@ def _load() -> dict:
     기본값이 원위치시키므로 keep_cwd 는 건드리지 않는다.
     """
     sys.path.insert(0, str(MRI_DIR / "serving" / "code"))
+    from model_io import import_medsam3
     from infer_mri import load_model, preprocess_raw_to_volume
     from infer_mri import predict as _predict
-    
+
+    import yaml
+    cfg = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))
+    # 초음파와 같은 병합본을 쓴다(sha c98faebf). 먼저 올린 쪽이 세우고 나눠 쓴다.
+    medsam3.patch(import_medsam3(cfg["model"]["medsam3_repo"]))
+
     bundle = load_model(str(CONFIG))
     return {
         "bundle" : bundle,
@@ -100,6 +106,8 @@ def _load() -> dict:
             "model_name": "medsam3",
             "model_version": pathlib.Path(bundle["paths"]["weights"]).name,
         },
+        # 판독 직전에 얹을 어댑터 — us.py 와 같은 이유다.
+        "adapter": str(bundle["paths"]["weights"]),
     }
 
 def _run(state, data, filename, post=None, post_filename=None, dataset_tag=None, **over) :
@@ -112,6 +120,7 @@ def _run(state, data, filename, post=None, post_filename=None, dataset_tag=None,
     전처리까지 락 안에서 하는 이유 — 락 밖이면 그 사이 수거자가 프로세스를 끝낼 수 있다.
     """
     
+    medsam3.use(state["adapter"])   # 다른 소켓이 쓰고 갔을 수 있다. 락 안이다
     with tempfile.TemporaryDirectory(prefix="mri_") as tmp: 
         tmp = pathlib.Path(tmp)
         pre_path = _materialize(data, filename, tmp / "pre")

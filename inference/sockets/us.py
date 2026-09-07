@@ -14,7 +14,7 @@ import sys
 import yaml
 from PIL import Image
 
-from sockets import base, gpu
+from sockets import base, gpu, medsam3
 
 # 가중치 뿌리. 배포 때 supervisord.conf 가 실제 경로를 넣는다.
 MODEL_ROOT = pathlib.Path(os.getenv("MODEL_ROOT", "/models"))
@@ -80,17 +80,27 @@ def _load() -> dict:
     번들에 들어 있는 것은 앙상블이고, 없으면 등급 없이 분할만 조용히 돌아간다.
     """
     sys.path.insert(0, str(US_DIR / "code"))
+    from model_io import import_medsam3
     from infer_us import load_model
     from infer_us import predict as _predict
-    
+
+    cfg = yaml.safe_load((US_DIR / "configs" / "us_lora.yaml").read_text(encoding="utf-8"))
+    # 백본을 공용으로 바꾼다. import_medsam3 가 os.chdir 하므로 그 뒤에 부른다.
+    # load_model 은 그대로 두고 그 안의 load_merged_model 만 캐시판이 된다.
+    medsam3.patch(import_medsam3(cfg["model"]["medsam3_repo"]))
+
     bundle = load_model(
         str(US_DIR / "configs" / "us_lora.yaml"),
         heads = str(US_DIR / "ckpt" / "us_heads_ensemble.pt"),
     )
-    return {"bundle": bundle, "predict": _predict, "versions": _versions()}
+    return {"bundle": bundle, "predict": _predict, "versions": _versions(),
+            # 판독 직전에 얹을 어댑터. 공용 백본을 다른 소켓과 나눠 쓰므로
+            # 내 어댑터가 아직 얹혀 있다는 보장이 없다.
+            "adapter": str(US_DIR / "ckpt" / "us_lora_best.pt")}
 
 def _run(state, data, filename, **over):
     """초음파 고유 부분만 — PIL 로 열어 번들 predict 에 넘긴다. 락은 base 가 잡는다."""
+    medsam3.use(state["adapter"])   # 다른 소켓이 쓰고 갔을 수 있다. 락 안이다
     return state["predict"](state["bundle"], Image.open(io.BytesIO(data)), **over)
 
 SOCKET = base.Socket(NAME, SOCKET_IDS, ENABLED, _load, _run, drop=("_mask",))
