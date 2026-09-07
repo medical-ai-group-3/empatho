@@ -73,13 +73,38 @@ def _versions() -> dict :
         "lora_version": f"{manifest.get('run', '?')}@ep{manifest.get('epoch', '?')}+{digest}"
     }
     
+def _own(code_dir: pathlib.Path, *names: str) -> None:
+    """내 code 폴더를 sys.path 맨 앞에 두고, 남이 차지한 모듈 이름을 비운다.
+
+    us 와 mri 에 model_io 라는 같은 이름의 모듈이 있다. 파이썬은 모듈을 이름으로
+    한 번만 올리므로, 초음파가 먼저 판독한 프로세스에서 MRI 를 부르면 MRI 의
+    infer_mri 가 us 의 model_io 를 받는다.
+
+      ImportError: cannot import name 'load_model' from 'model_io'
+      (.../models/us/code/model_io.py)
+
+    sys.path 를 앞에 꽂는 것만으로는 안 된다 — 이미 sys.modules 에 있으면
+    파이썬이 경로를 다시 보지 않는다. 그 이름을 지워야 다시 찾는다.
+
+    공용화 이전부터 있던 결함이다. 소켓을 하나만 올려 시험할 때는 안 드러났다.
+    """
+    d = str(code_dir)
+    while d in sys.path:
+        sys.path.remove(d)
+    sys.path.insert(0, d)
+    for n in names:
+        mod = sys.modules.get(n)
+        if mod is not None and not str(getattr(mod, "__file__", "")).startswith(d):
+            del sys.modules[n]
+
+
 def _load() -> dict: 
     """번들을 올린다. 약 7초 · VRAM 3.9GB, 판독 peak 6.5GB.
 
     heads 를 명시적으로 넘긴다 — infer_us 의 기본값은 us_heads_best.pt 인데
     번들에 들어 있는 것은 앙상블이고, 없으면 등급 없이 분할만 조용히 돌아간다.
     """
-    sys.path.insert(0, str(US_DIR / "code"))
+    _own(US_DIR / "code", "model_io", "infer_us", "heads", "shape_metrics")
     from infer_us import load_model
     from infer_us import predict as _predict
 
