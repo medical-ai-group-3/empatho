@@ -31,7 +31,7 @@ GPU 를 잡지 않는다 — 학습과 나눠 쓰는 자원이다.
 """
 import os
 import pathlib
-
+import traceback
 import yaml
 from fastapi import FastAPI, File, Form, UploadFile
 
@@ -262,7 +262,13 @@ async def analyze(socket_id: str, image: UploadFile = File(...), post: UploadFil
         
     # 판독 실패도 기권이다. GPU 가 모자라면 지금 못 할 뿐 코드가 틀린 게 아니고,
     # 500 을 내면 앱 서버가 판독을 오류로 처리하고 배포까지 롤백된다.
+    # 서버 로그에도 남긴다. 응답에만 담으면 그 응답을 못 받았을 때
+    # (연결이 끊기거나 프로세스가 죽으면) 원인이 통째로 사라진다 —
+    # 09-07 MRI 판독이 그랬다. print 로 충분하다: supervisor 가
+    # stderr 를 inference.err.log 로 받는다.
     except Exception as exc :
+        print(f"[predict_failed] socket={socket_id} file={image.filename}", flush=True)
+        traceback.print_exc()
         return {
             "socket_id": socket_id,
             "abstained": True,

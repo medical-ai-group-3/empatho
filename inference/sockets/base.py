@@ -8,8 +8,8 @@
   drop                      응답에서 지울 열쇠 — numpy 등 JSON 으로 못 나가는 것
   상수                      NAME · SOCKET_IDS · ENABLED
 """
-
-from sockets import gpu 
+import traceback
+from sockets import gpu
 
 class Socket: 
     def __init__(self, name, socket_ids, enabled, load, run, drop=()):
@@ -37,6 +37,7 @@ class Socket:
                 self._error.clear()
             except Exception as exc:
                 self._error["msg"] = f"{type(exc).__name__}: {exc}"
+                traceback.print_exc() 
                 
     def is_loaded(self): return bool(self._state)
     def error(self): return self._error.get("msg")
