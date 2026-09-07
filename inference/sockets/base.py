@@ -50,7 +50,14 @@ class Socket:
             if not self._state:
                 raise RuntimeError("모델이 내려감")
             gpu.touch()
-            result = self._run(self._state, data, filename, **kw)
+            try: 
+                result = self._run(self._state, data, filename, **kw)
+            finally: 
+                # 끝난 시각으로 다시 민다. 이게 없으면 시계가 "판독 시작"에
+                # 멈춰 있어, 긴 판독이 락을 놓는 순간 수거자가 유휴로 보고
+                # 프로세스를 끝낸다 — 응답이 나가기 전에. MRI 는 636초다.
+                # 실패해도 밀어야 한다. 기권 응답도 나갈 시간이 필요하다.
+                gpu.touch() 
         for k in self._drop:
             result.pop(k, None)
         return result
