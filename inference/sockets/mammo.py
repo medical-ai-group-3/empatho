@@ -25,11 +25,11 @@
 응답 스키마 전체는 models/mammo/docs/mammo_api.md 에 있다.
 """
 
-import os 
-import pathlib 
-import sys 
+import os
+import pathlib
+import sys
 
-from sockets import gpu 
+from sockets import base
 
 # 가중치 뿌리. 배포 때 supervisord.conf 가 실제 경로를 넣는다.
 MODEL_ROOT = pathlib.Path(os.getenv("MODEL_ROOT", "/models"))
@@ -71,13 +71,6 @@ REQUIRED = [
     "mammo/training/ckpt/mammo_mass_trunk_last_grid4_pad0_clip999_lora.pt",
 ]
 
-# 올라간 번들. {"bundle", "predict", "versions"} 또는 비어 있음.
-# 비어 있다 = 아직 안 올렸거나 내려갔다.
-_STATE = {}
-
-# 마지막 적재 실패 사유. {"msg": "..."} 또는 비어 있음.
-# 실패해도 다음 요청에서 다시 시도하므로 영구 상태가 아니다.
-_ERROR = {}
 
 def _load() -> dict:
     """번들을 올린다. 약 17초 · 상주 6.7GB, 판독 중 최대 11.3GB(실측).
@@ -105,57 +98,8 @@ def _load() -> dict:
         },
     }
     
-def ensure() -> None:
-    """첫 요청 때 올린다. 실패하면 기록만 하고 다음 요청에서 다시 시도한다.
 
-    GPU 를 학습과 나눠 쓰므로 적재 실패는 대개 일시적이다. 여기서 포기하면
-    사람이 재시작할 때까지 소켓이 죽어 있게 된다.
-    """
-    # 락을 잡기 전에 한 번 본다. 이미 올라와 있으면 락을 기다릴 이유가 없다 —
-    # 판독 중인 요청이 락을 쥐고 있어서 최대 20초 멈춘다.
-    if _STATE:
-        return
-    with gpu.LOCK:
-        # 락을 기다리는 동안 다른 요청이 이미 올렸을 수 있다.
-        # 락 밖에서 적재하면 첫 요청 둘이 6.7GB 짜리를 각각 올린다.
-        if _STATE:
-            return
-        try:
-            _STATE.update(_load())
-            gpu.mark(NAME)   # 올리자마자 수거되지 않게 시계도 같이 민다
-            _ERROR.clear()   # 지난 실패 기록을 지운다. 이제 올라왔다
-        except Exception as exc:
-            # 예외를 밖으로 올리지 않는다. 올리면 요청이 500 이 되고,
-            # 앱 서버가 판독을 오류로 처리한다. 사유만 남기고 기권시킨다.
-            _ERROR["msg"] = f"{type(exc).__name__}: {exc}"
+def _run(state, data, filename, **over):
+    return state["predict"](state["bundle"], data, name = filename, **over)
 
-def is_loaded() -> bool:
-    """지금 GPU 에 올라와 있나. main.py 가 판독 전에 확인한다."""
-    return bool(_STATE)
-
-def error():
-    """마지막 적재 실패 사유. 없으면 None — 기권 사유를 만들 때 쓴다."""
-    return _ERROR.get("msg")
-
-def versions() -> dict:
-    """응답에 실을 가중치 식별자. 안 올라와 있으면 빈 dict."""
-    return _STATE.get("versions", {})
-
-def predict(data: bytes, filename: str | None = None, **over) -> dict:
-    """영상 한 장(DICOM 또는 PNG) → 병변 박스 · 서술어 · 등급.
-
-      data      원본 바이트. bytes 를 그대로 넘긴다 — DICOM 은 PIL 로 못 연다.
-                읽기는 read_mammogram 이 하고, 학습 때와 같은 함수라
-                전처리가 갈라지지 않는다.
-      filename  결과의 file 필드에 적을 이름. 없으면 "<upload>" 가 된다.
-      over      요청 단위 임계값 덮어쓰기(score_calc·score_mass·tissue_frac·topk).
-                thresholds.yaml 의 mammo: 항목이 여기로 들어온다.
-
-    락을 쥐고 도는 이유 — 카드가 하나라 판독은 어차피 직렬이고,
-    도중에 수거자가 프로세스를 끝내지 못하게 막는 역할도 한다.
-    """
-    with gpu.LOCK:
-        if not _STATE:
-            raise RuntimeError("모델이 내려감")
-        gpu.touch()
-        return _STATE["predict"](_STATE["bundle"], data, name=filename, **over)
+SOCKET = base.Socket(NAME, SOCKET_IDS, ENABLED, _load, _run, drop=())

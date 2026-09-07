@@ -14,7 +14,7 @@ import sys
 import yaml
 from PIL import Image
 
-from sockets import gpu
+from sockets import base, gpu
 
 # 가중치 뿌리. 배포 때 supervisord.conf 가 실제 경로를 넣는다.
 MODEL_ROOT = pathlib.Path(os.getenv("MODEL_ROOT", "/models"))
@@ -48,13 +48,6 @@ REQUIRED_SEG = [
 ]
 REQUIRED_GRADE = REQUIRED_SEG + ["us/ckpt/us_heads_ensemble.pt"]
 
-# 올라간 번들. {"bundle", "predict", "versions"} 또는 비어 있음.
-# 비어 있다 = 아직 안 올렸거나 내려갔다.
-_STATE = {}
-
-# 마지막 적재 실패 사유. {"msg": "..."} 또는 비어 있음.
-# 실패해도 다음 요청에서 다시 시도하므로 영구 상태가 아니다.
-_ERROR = {}
 
 def _versions() -> dict :
     """적재한 가중치의 식별자. 응답에 실어 결과를 재현 가능하게 한다.
@@ -96,74 +89,8 @@ def _load() -> dict:
     )
     return {"bundle": bundle, "predict": _predict, "versions": _versions()}
 
-def ensure() -> None: 
-    """첫 요청 때 올린다. 한 번 올리면 프로세스가 살아 있는 동안 상주한다.
+def _run(state, data, filename, **over):
+    """초음파 고유 부분만 — PIL 로 열어 번들 predict 에 넘긴다. 락은 base 가 잡는다."""
+    return state["predict"](state["bundle"], Image.open(io.BytesIO(data)), **over)
 
-    실패하면 기록만 하고 다음 요청에서 다시 시도한다. GPU 를 학습과 나눠 쓰므로
-    적재 실패는 대개 일시적이다 — 학습이 끝나면 저절로 풀린다. 여기서 포기하면
-    사람이 재시작할 때까지 그 소켓이 죽어 있게 된다.
-
-    내려놓지 않는 이유 — PyTorch 는 GPU 메모리를 깨끗하게 반환하지 못한다.
-    반복하면 회수 안 된 파편이 쌓인다. 내릴 때는 프로세스를 재시작한다.
-    """
-    # 락을 잡기 전에 한 번 본다. 이미 올라와 있으면 락을 기다릴 이유가 없다 —
-    # 판독 중인 요청이 락을 쥐고 있어서 몇 초씩 멈춘다.
-    if _STATE:
-        return
-    with gpu.LOCK:
-        # 락을 기다리는 동안 다른 요청이 이미 올렸을 수 있다.
-        # 이 두 번째 검사가 없으면 동시에 들어온 첫 요청들이 번들을 각각 올린다.
-        if _STATE:
-            return
-        try:
-            _STATE.update(_load())
-            gpu.mark(NAME)   # 올리자마자 수거되지 않게 시계도 같이 민다
-            _ERROR.clear()   # 지난 실패 기록을 지운다. 이제 올라왔다
-        except Exception as exc:
-            # 예외를 밖으로 올리지 않는다. 올리면 요청이 500 이 되고,
-            # 앱 서버가 판독을 오류로 처리한다. 사유만 남기고 기권시킨다.
-            _ERROR["msg"] = f"{type(exc).__name__}: {exc}"
-
-def is_loaded() -> bool :
-    """지금 GPU 에 올라와 있나. main.py 가 판독 전에 확인한다."""
-    return bool(_STATE)
-
-def error() :
-    """마지막 적재 실패 사유. 없으면 None — 기권 사유를 만들 때 쓴다."""
-    return _ERROR.get("msg")
-
-def versions() -> dict:
-    """응답에 실을 가중치 식별자. 안 올라와 있으면 빈 dict."""
-    return _STATE.get("versions", {})
-
-
-def predict(data: bytes, filename: str | None = None, **over) -> dict:
-    """영상 한 장 → 결과. 전처리·추론·후처리가 전부 이 안에서 일어난다.
-
-    여기서 전처리를 따로 하지 않는 이유는 학습 때와 같은 함수를 써야 하기
-    때문이다. 복사해 두면 학습 코드가 바뀔 때 조용히 갈라진다.
-
-      전처리   1008x1008 리사이즈 → mean/std 0.5 정규화
-               (바꾸려면 재학습해야 한다 — models/us/README.md)
-      추론     MedSAM3 + LoRA. 쿼리별 점수와 마스크가 나온다
-      후처리   임계값으로 쿼리 선별 → 마스크 → CORAL 등급 → 폴리곤·형태지표
-
-      data      원본 바이트. 맘모 소켓과 창구를 맞추려고 bytes 로 받는다 —
-                맘모는 DICOM 이라 PIL 로 못 열어서 main.py 가 디코딩을 못 한다.
-      filename  초음파는 쓰지 않는다. 소켓마다 창구가 갈라지지 않게 받아만 둔다.
-      over      요청 단위 임계값 덮어쓰기. thresholds.yaml 의 us: 항목이
-                여기로 들어온다. 비면 번들 기본값을 쓴다.
-
-    _mask 는 numpy 배열이라 JSON 으로 못 나간다. 화면에 그릴 좌표는
-    result["polygons"] 에 따로 있어서 버려도 정보가 줄지 않는다.
-    """
-    with gpu.LOCK:
-        # 락을 잡고서야 확인하는 이유 — ensure 와 판독 사이에 수거자가
-        # 프로세스를 끝냈을 수 있다. 락 안에서는 그 일이 일어나지 않는다.
-        if not _STATE:
-            raise RuntimeError('모델이 내려감')
-        gpu.touch()   # 방금 썼다고 표시. 이게 없으면 판독 중에 수거 대상이 된다
-        result = _STATE["predict"](_STATE["bundle"], Image.open(io.BytesIO(data)), **over)
-    # 락 밖에서 지운다. numpy 배열 하나 버리는 데 GPU 를 잡고 있을 이유가 없다.
-    result.pop("_mask", None)
-    return result
+SOCKET = base.Socket(NAME, SOCKET_IDS, ENABLED, _load, _run, drop=("_mask",))

@@ -64,7 +64,7 @@ SOCKETS = {
 # 위 SOCKETS 와 역할이 다르다. SOCKETS 는 「파일이 있느냐」를 보고,
 # 이쪽은 「그 파일로 판독할 코드가 있느냐」를 본다. 둘 다 있어야 ready 다.
 # 가중치만 있고 코드가 없는 상태(소켓 3 MRI 가 지금 그렇다)가 실제로 있다.
-MODULES = (us, mammo, pathology, mri)
+MODULES = (us.SOCKET, mammo.SOCKET, pathology.SOCKET, mri.SOCKET)
 
 # 소켓 번호 → 그 소켓을 맡은 모듈. 요청이 이 표를 보고 갈라진다.
 #

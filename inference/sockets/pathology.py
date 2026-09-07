@@ -27,7 +27,7 @@ import pathlib
 import sys 
 
 from PIL import Image 
-from sockets import gpu 
+from sockets import base, gpu 
 
 MODEL_ROOT = pathlib.Path(os.getenv("MODEL_ROOT", "/models"))
 
@@ -54,9 +54,6 @@ REQUIRED = [
     "base/cellvit/logs_local/virchow2_linear_tand/best_head.pth",
     "base/cellvit/checkpoints/CellViT-SAM-H-x40-AMP.pth",
 ]
-
-_STATE = {}
-_ERROR = {}
 
 def _load() -> dict: 
     """번들을 올린다. 약 17.7초(체크섬 4초 + 적재 13.5초) · VRAM 7.7GB.
@@ -88,50 +85,8 @@ def _load() -> dict:
         }
     }
     
-def ensure() -> None: 
-    """첫 요청 때 올린다. 실패하면 기록만 하고 다음 요청에서 다시 시도한다"""
-    if _STATE: 
-        return 
-    with gpu.LOCK: 
-        # 락을 기다리는 동안 다른 요청이 이이 올렸을 수 있다 
-        if _STATE:
-            return 
-        try :
-            _STATE.update(_load())
-            gpu.mark(NAME)
-            _ERROR.clear() 
-        except Exception as exc: 
-            # 예외를 올리면 요청이 500이 된다. 사유만 남기고 기권 시킴 
-            _ERROR["msg"] = f"{type(exc).__name__} : {exc}"
-            
-def is_loaded() -> bool:
-    """지금 GPU에 올라와 있나. main.py가 판독전에 확인"""
-    return bool(_STATE)
 
-def error() :
-    """마지막 적재 실패 사유, 없으면 None"""
-    return _ERROR.get("msg")
+def _run(state, data, filename, **over) :
+    return state["predict"](state["bundle"], Image.open(io.BytesIO(data)), **over)
 
-def versions() -> dict: 
-    """응답에 실을 가중치 식별자. 안올라와 있으면 빈 dict"""
-    return _STATE.get("versions", {})
-
-def predict(data: bytes, filename: str | None= None, **over) -> dict :
-    """영상 한 장 → sTIL · TSR · 세포 수.
-
-      data      원본 바이트. PIL 로 열어 넘긴다.
-      filename  병리는 쓰지 않는다. 소켓마다 창구가 갈라지지 않게 받아만 둔다.
-      over      thresholds.yaml 의 pathology: 항목. serving 은 config 를
-                load_model 에서만 받으므로 predict 가 아는 것은
-                return_tissue_mask 하나뿐이다.
-
-    tissue_mask 를 지우는 이유 — numpy 배열이라 JSON 으로 못 나간다.
-    config 로 껐어도 키 자체는 남고, 누가 다시 켜면 응답이 통째로 터진다.
-    """
-    with gpu.LOCK:
-        if not _STATE:
-            raise RuntimeError("모델이 내려감")
-        gpu.touch() 
-        result = _STATE["predict"](_STATE["bundle"], Image.open(io.BytesIO(data)), **over)
-    result.pop("tissue_mask", None)
-    return result
+SOCKET = base.Socket(NAME, SOCKET_IDS, ENABLED, _load, _run, drop=("tissue_mask",))
