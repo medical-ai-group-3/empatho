@@ -88,14 +88,11 @@ def _load() -> dict:
     기본값이 원위치시키므로 keep_cwd 는 건드리지 않는다.
     """
     sys.path.insert(0, str(MRI_DIR / "serving" / "code"))
-    from model_io import import_medsam3
     from infer_mri import load_model, preprocess_raw_to_volume
     from infer_mri import predict as _predict
 
-    import yaml
-    cfg = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))
     # 초음파와 같은 병합본을 쓴다(sha c98faebf). 먼저 올린 쪽이 세우고 나눠 쓴다.
-    medsam3.patch(import_medsam3(cfg["model"]["medsam3_repo"]))
+    medsam3.arm("model_io", "eval_mri_lora_v3")
 
     bundle = load_model(str(CONFIG))
     return {

@@ -31,6 +31,7 @@
      백본이 세워져 us·mri 어댑터가 안 들어간다.
   둘 다 남의 build_detector 를 고쳐야 풀린다 — 2단계로 미룬다.
 """
+import sys
 import threading
 
 import torch
@@ -48,6 +49,37 @@ _CACHE = {}
 # patch() 가 여러 소켓에서 동시에 불릴 수 있다. gpu.LOCK 은 판독용이라
 # 적재 경로를 다 덮지 못하므로 여기서 따로 잠근다.
 _LOCK = threading.Lock()
+
+
+def arm(*module_names: str) -> None:
+    """소켓의 load_model 이 부를 import_medsam3 를 미리 감싼다.
+
+    소켓마다 이 함수가 사는 모듈이 다르다.
+      us   model_io            (app/models/us/code)
+      mri  eval_mri_lora_v3    (mri/postprocess_3d/code · model_io 는 재수출만)
+
+    그래서 이름을 여러 개 받아 있는 것만 감싼다. 아직 import 되지 않은
+    모듈은 여기서 부르지 않는다 — us 와 mri 에 model_io 라는 같은 이름이
+    있어서, 우리가 먼저 import 하면 sys.modules 를 차지해 나중 소켓이
+    남의 모듈을 받는다. 2026-09-07 에 MRI 가 그렇게 깨졌다:
+      ImportError: cannot import name 'load_model' from 'model_io'
+      (.../models/us/code/model_io.py)
+
+    소켓의 _load 는 이미 sys.path 를 자기 code 로 잡아 두었으므로,
+    load_model 을 import 하는 순간 올바른 모듈이 sys.modules 에 올라온다.
+    이 함수는 그 뒤에 부른다.
+    """
+    for name in module_names:
+        mod = sys.modules.get(name)
+        fn = getattr(mod, "import_medsam3", None) if mod else None
+        if fn is None or getattr(fn, "_shared", False):
+            continue
+
+        def wrapped(repo_root, _orig=fn):
+            return patch(_orig(repo_root))
+
+        wrapped._shared = True
+        mod.import_medsam3 = wrapped
 
 
 def patch(M: dict) -> dict:

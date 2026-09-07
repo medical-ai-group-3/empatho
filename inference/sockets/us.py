@@ -80,14 +80,16 @@ def _load() -> dict:
     번들에 들어 있는 것은 앙상블이고, 없으면 등급 없이 분할만 조용히 돌아간다.
     """
     sys.path.insert(0, str(US_DIR / "code"))
-    from model_io import import_medsam3
     from infer_us import load_model
     from infer_us import predict as _predict
 
-    cfg = yaml.safe_load((US_DIR / "configs" / "us_lora.yaml").read_text(encoding="utf-8"))
-    # 백본을 공용으로 바꾼다. import_medsam3 가 os.chdir 하므로 그 뒤에 부른다.
-    # load_model 은 그대로 두고 그 안의 load_merged_model 만 캐시판이 된다.
-    medsam3.patch(import_medsam3(cfg["model"]["medsam3_repo"]))
+    # 백본을 공용으로. load_model 안에서 import_medsam3 → load_merged_model 순으로
+    # 부르므로, 그 모듈의 함수를 미리 캐시판으로 바꿔 둔다.
+    #
+    # 우리가 model_io 를 import 하지 않는 이유 — us 와 mri 에 같은 이름의 모듈이
+    # 있다. 먼저 부른 쪽이 sys.modules["model_io"] 를 차지해서, 나중 소켓이
+    # 자기 model_io 를 부르면 남의 것이 나온다(09-07 에 MRI 가 그렇게 깨졌다).
+    medsam3.arm("model_io")
 
     bundle = load_model(
         str(US_DIR / "configs" / "us_lora.yaml"),
