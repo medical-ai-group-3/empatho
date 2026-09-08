@@ -46,6 +46,14 @@ _ACTIVE = None
 # 매번 디스크에서 읽으면 교체가 0.2초에서 1초대로 늘어난다.
 _CACHE = {}
 
+# 가장 넓은 LoRA 설정 — us·mri 것이다. 맘모(10종·3부위)는 이 안에 들어간다.
+# 09-07 실측: 맘모 어댑터를 이 설정 백본에 얹어도 따로 세운 것과 비트 동일.
+_TARGETS = ["q_proj", "k_proj", "v_proj", "out_proj", "qkv", "proj",
+            "fc1", "fc2", "c_fc", "c_proj", "linear1", "linear2"]
+
+# LoRA 를 이미 붙였나. 두 번 붙이면 LoRALinear 위에 LoRALinear 가 겹친다.
+_LORA_DONE = False
+
 # patch() 가 여러 소켓에서 동시에 불릴 수 있다. gpu.LOCK 은 판독용이라
 # 적재 경로를 다 덮지 못하므로 여기서 따로 잠근다.
 _LOCK = threading.Lock()
@@ -104,6 +112,35 @@ def patch(M: dict) -> dict:
 
     cached._shared = True
     M["load_merged_model"] = cached
+
+    # apply_lora_to_model 도 가로챈다.
+    #
+    # 소켓마다 LoRA 설정이 다르다 — us·mri 는 12종·6부위(슬롯 458개), 맘모
+    # 검출기는 10종·3부위(278개)다. 맘모의 설정은 build_detector 의 함수
+    # 기본값이라 호출부에서 못 바꾼다.
+    #
+    # 좁은 설정으로 먼저 세워지면 넓은 어댑터가 들어갈 자리가 없다. 그래서
+    # 가장 넓은 설정으로 한 번만 붙이고, 그 뒤 호출은 이미 붙은 모델을 그대로
+    # 돌려준다. 좁은 어댑터를 넓은 백본에 얹는 것은 09-07 에 확인했다 —
+    # 맘모 어댑터를 us 설정 백본에 얹어도 따로 세운 것과 비트 단위로 같았다.
+    orig_lora = M["apply_lora_to_model"]
+
+    def lora_once(model, config):
+        global _LORA_DONE
+        with _LOCK:
+            if _LORA_DONE:
+                return model          # 이미 가장 넓은 설정으로 붙어 있다
+            widest = type(config)(
+                rank=16, alpha=32, dropout=0.0, target_modules=list(_TARGETS),
+                apply_to_vision_encoder=True, apply_to_text_encoder=True,
+                apply_to_geometry_encoder=True, apply_to_detr_encoder=True,
+                apply_to_detr_decoder=True, apply_to_mask_decoder=True)
+            out = orig_lora(model, widest)
+            _LORA_DONE = True
+            return out
+
+    lora_once._shared = True
+    M["apply_lora_to_model"] = lora_once
     return M
 
 
