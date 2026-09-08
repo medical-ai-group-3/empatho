@@ -1,18 +1,8 @@
 """
-EMPATHO CDSS 데이터 모델 — v9 · 18개 테이블.
+EMPATHO CDSS 데이터 모델 — v10 · 18개 테이블.
 
-기준 문서 — DB_스키마_v9_20260907_최종수정.docx
+기준 문서 — DB_스키마_v10_20260908.docx
 
-on_delete 는 전부 PROTECT. SET_NULL 은 자기참조 3건뿐 —
-exam_order.parent_order · assessment.superseded_by · discordance_flag.superseded_by.
-
-CHECK 은 값이 닫힌 소수 집합이면서, 틀린 값이 들어가면 워크플로나 기록의
-정합성이 깨지는 칸에만 건다 — 권한 · 상태 기계 · 모달리티 분기 · 확진 · 통보 ·
-처분. 나머지 값 집합은 choices 로만 둔다. 값이 아직 흔들려서 CHECK 을 걸면 값
-하나 늘 때마다 마이그레이션이 필요하다. choices 는 DDL 을 바꾸지 않는다.
-
-created_by · updated_by 는 API 계층이 채운다. admin 으로 넣은 행은 이 둘이
-NULL 인 게 정상이다 — admin 로그인은 auth_user 라 account 로 이을 수단이 없다.
 """
 
 from django.db import models
