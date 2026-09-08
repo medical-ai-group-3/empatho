@@ -21,7 +21,7 @@ import shutil
 import zipfile 
 import io
 
-from sockets import base, gpu, medsam3
+from sockets import base, gpu
 
 MODEL_ROOT = pathlib.Path(os.getenv("MODEL_ROOT", "/models"))
 
@@ -81,44 +81,16 @@ def _materialize(data: bytes, filename: str | None, dest: pathlib.Path) -> pathl
                 shutil.copyfileobj(src, dst)
     return dest
 
-def _own(code_dir: pathlib.Path, *names: str) -> None:
-    """내 code 폴더를 sys.path 맨 앞에 두고, 남이 차지한 모듈 이름을 비운다.
-
-    us 와 mri 에 model_io 라는 같은 이름의 모듈이 있다. 파이썬은 모듈을 이름으로
-    한 번만 올리므로, 초음파가 먼저 판독한 프로세스에서 MRI 를 부르면 MRI 의
-    infer_mri 가 us 의 model_io 를 받는다.
-
-      ImportError: cannot import name 'load_model' from 'model_io'
-      (.../models/us/code/model_io.py)
-
-    sys.path 를 앞에 꽂는 것만으로는 안 된다 — 이미 sys.modules 에 있으면
-    파이썬이 경로를 다시 보지 않는다. 그 이름을 지워야 다시 찾는다.
-
-    공용화 이전부터 있던 결함이다. 소켓을 하나만 올려 시험할 때는 안 드러났다.
-    """
-    d = str(code_dir)
-    while d in sys.path:
-        sys.path.remove(d)
-    sys.path.insert(0, d)
-    for n in names:
-        mod = sys.modules.get(n)
-        if mod is not None and not str(getattr(mod, "__file__", "")).startswith(d):
-            del sys.modules[n]
-
-
 def _load() -> dict:
     """번들을 올린다. 적재량과 시간은 아직 실측 전이다(담당자 README 도 TBD).
 
     load_model 이 안에서 os.chdir 한다(MedSAM3 가 상대경로를 하드코딩).
     기본값이 원위치시키므로 keep_cwd 는 건드리지 않는다.
     """
-    _own(MRI_DIR / "serving" / "code", "model_io", "infer_mri", "normalize", "derived_io")
+    sys.path.insert(0, str(MRI_DIR / "serving" / "code"))
     from infer_mri import load_model, preprocess_raw_to_volume
     from infer_mri import predict as _predict
-
-    # 초음파와 같은 병합본을 쓴다(sha c98faebf). 먼저 올린 쪽이 세우고 나눠 쓴다.
-    medsam3.arm("model_io", "eval_mri_lora_v3")
-
+    
     bundle = load_model(str(CONFIG))
     return {
         "bundle" : bundle,
@@ -128,8 +100,6 @@ def _load() -> dict:
             "model_name": "medsam3",
             "model_version": pathlib.Path(bundle["paths"]["weights"]).name,
         },
-        # 판독 직전에 얹을 어댑터 — us.py 와 같은 이유다.
-        "adapter": str(bundle["paths"]["weights"]),
     }
 
 def _run(state, data, filename, post=None, post_filename=None, dataset_tag=None, **over) :
@@ -142,7 +112,6 @@ def _run(state, data, filename, post=None, post_filename=None, dataset_tag=None,
     전처리까지 락 안에서 하는 이유 — 락 밖이면 그 사이 수거자가 프로세스를 끝낼 수 있다.
     """
     
-    medsam3.use(state["adapter"])   # 다른 소켓이 쓰고 갔을 수 있다. 락 안이다
     with tempfile.TemporaryDirectory(prefix="mri_") as tmp: 
         tmp = pathlib.Path(tmp)
         pre_path = _materialize(data, filename, tmp / "pre")

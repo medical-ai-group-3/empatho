@@ -14,7 +14,7 @@ import sys
 import yaml
 from PIL import Image
 
-from sockets import base, gpu, medsam3
+from sockets import base, gpu
 
 # 가중치 뿌리. 배포 때 supervisord.conf 가 실제 경로를 넣는다.
 MODEL_ROOT = pathlib.Path(os.getenv("MODEL_ROOT", "/models"))
@@ -73,61 +73,24 @@ def _versions() -> dict :
         "lora_version": f"{manifest.get('run', '?')}@ep{manifest.get('epoch', '?')}+{digest}"
     }
     
-def _own(code_dir: pathlib.Path, *names: str) -> None:
-    """내 code 폴더를 sys.path 맨 앞에 두고, 남이 차지한 모듈 이름을 비운다.
-
-    us 와 mri 에 model_io 라는 같은 이름의 모듈이 있다. 파이썬은 모듈을 이름으로
-    한 번만 올리므로, 초음파가 먼저 판독한 프로세스에서 MRI 를 부르면 MRI 의
-    infer_mri 가 us 의 model_io 를 받는다.
-
-      ImportError: cannot import name 'load_model' from 'model_io'
-      (.../models/us/code/model_io.py)
-
-    sys.path 를 앞에 꽂는 것만으로는 안 된다 — 이미 sys.modules 에 있으면
-    파이썬이 경로를 다시 보지 않는다. 그 이름을 지워야 다시 찾는다.
-
-    공용화 이전부터 있던 결함이다. 소켓을 하나만 올려 시험할 때는 안 드러났다.
-    """
-    d = str(code_dir)
-    while d in sys.path:
-        sys.path.remove(d)
-    sys.path.insert(0, d)
-    for n in names:
-        mod = sys.modules.get(n)
-        if mod is not None and not str(getattr(mod, "__file__", "")).startswith(d):
-            del sys.modules[n]
-
-
 def _load() -> dict: 
     """번들을 올린다. 약 7초 · VRAM 3.9GB, 판독 peak 6.5GB.
 
     heads 를 명시적으로 넘긴다 — infer_us 의 기본값은 us_heads_best.pt 인데
     번들에 들어 있는 것은 앙상블이고, 없으면 등급 없이 분할만 조용히 돌아간다.
     """
-    _own(US_DIR / "code", "model_io", "infer_us", "heads", "shape_metrics")
+    sys.path.insert(0, str(US_DIR / "code"))
     from infer_us import load_model
     from infer_us import predict as _predict
-
-    # 백본을 공용으로. load_model 안에서 import_medsam3 → load_merged_model 순으로
-    # 부르므로, 그 모듈의 함수를 미리 캐시판으로 바꿔 둔다.
-    #
-    # 우리가 model_io 를 import 하지 않는 이유 — us 와 mri 에 같은 이름의 모듈이
-    # 있다. 먼저 부른 쪽이 sys.modules["model_io"] 를 차지해서, 나중 소켓이
-    # 자기 model_io 를 부르면 남의 것이 나온다(09-07 에 MRI 가 그렇게 깨졌다).
-    medsam3.arm("model_io")
-
+    
     bundle = load_model(
         str(US_DIR / "configs" / "us_lora.yaml"),
         heads = str(US_DIR / "ckpt" / "us_heads_ensemble.pt"),
     )
-    return {"bundle": bundle, "predict": _predict, "versions": _versions(),
-            # 판독 직전에 얹을 어댑터. 공용 백본을 다른 소켓과 나눠 쓰므로
-            # 내 어댑터가 아직 얹혀 있다는 보장이 없다.
-            "adapter": str(US_DIR / "ckpt" / "us_lora_best.pt")}
+    return {"bundle": bundle, "predict": _predict, "versions": _versions()}
 
 def _run(state, data, filename, **over):
     """초음파 고유 부분만 — PIL 로 열어 번들 predict 에 넘긴다. 락은 base 가 잡는다."""
-    medsam3.use(state["adapter"])   # 다른 소켓이 쓰고 갔을 수 있다. 락 안이다
     return state["predict"](state["bundle"], Image.open(io.BytesIO(data)), **over)
 
 SOCKET = base.Socket(NAME, SOCKET_IDS, ENABLED, _load, _run, drop=("_mask",))

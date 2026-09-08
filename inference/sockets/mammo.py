@@ -29,7 +29,7 @@ import os
 import pathlib
 import sys
 
-from sockets import base, medsam3
+from sockets import base
 
 # 가중치 뿌리. 배포 때 supervisord.conf 가 실제 경로를 넣는다.
 MODEL_ROOT = pathlib.Path(os.getenv("MODEL_ROOT", "/models"))
@@ -72,42 +72,15 @@ REQUIRED = [
 ]
 
 
-def _own(code_dir: pathlib.Path, *names: str) -> None:
-    """내 code 폴더를 sys.path 맨 앞에 두고, 남이 차지한 모듈 이름을 비운다.
-
-    맘모는 us·mri 와 겹치는 모듈 이름이 지금은 없다(model_io 가 아니라
-    mammo_io 다). 그래도 같은 방식으로 잡아 둔다 — 남의 폴더에 같은 이름이
-    생기면 조용히 남의 모듈을 받게 되고, 그때 원인을 찾기가 어렵다.
-    """
-    d = str(code_dir)
-    while d in sys.path:
-        sys.path.remove(d)
-    sys.path.insert(0, d)
-    for n in names:
-        mod = sys.modules.get(n)
-        if mod is not None and not str(getattr(mod, "__file__", "")).startswith(d):
-            del sys.modules[n]
-
-
 def _load() -> dict:
     """번들을 올린다. 약 17초 · 상주 6.7GB, 판독 중 최대 11.3GB(실측).
 
     load_model 이 안에서 os.chdir 한다(MedSAM3 가 상대경로를 하드코딩).
     기본값이 원위치시키므로 keep_cwd 는 건드리지 않는다.
     """
-    _own(MAMMO_DIR / "training" / "code",
-         "mammo_io", "infer_mammo", "train_mammo", "paths", "mammo_data", "eval_e2e")
+    sys.path.insert(0, str(MAMMO_DIR / "training" / "code"))
     from infer_mammo import load_model
     from infer_mammo import predict as _predict
-
-    # 백본을 공용으로. load_model 이 import_medsam3 → build_detector 순으로
-    # 부르는데, build_detector 의 LoRA 설정이 us·mri 보다 좁다(10종·3부위).
-    # medsam3 가 가장 넓은 설정으로 한 번만 붙이므로 어느 소켓이 먼저 와도 된다.
-    #
-    # 서술어 트렁크 2벌은 공용화되지 않는다 — build_descriptor 는 M 을 안 거치고
-    # train_mammo 의 load_merged_model 을 직접 부른다. 그래서 이 소켓은
-    # 백본 한 벌(공용) + 서술어 트렁크 2벌을 쓴다.
-    medsam3.arm("mammo_io")
 
     # bundle  검출기 1 + 서술어 2 + 규칙표. 프로세스가 사는 동안 재사용한다.
     # verbose 를 끄는 이유 — 켜면 LoRA 를 입힌 458개 모듈을 전부 찍어
@@ -123,14 +96,10 @@ def _load() -> dict:
             "det_version": DET,
             "operating_point": bundle["operating_point"],
         },
-        # 판독 직전에 얹을 검출기 어댑터. 공용 백본을 나눠 쓰므로 내 것이
-        # 아직 얹혀 있다는 보장이 없다.
-        "adapter": str(CKPT / DET),
     }
     
 
 def _run(state, data, filename, **over):
-    medsam3.use(state["adapter"])   # 다른 소켓이 쓰고 갔을 수 있다. 락 안이다
     return state["predict"](state["bundle"], data, name = filename, **over)
 
 SOCKET = base.Socket(NAME, SOCKET_IDS, ENABLED, _load, _run, drop=())
