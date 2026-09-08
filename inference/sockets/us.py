@@ -14,7 +14,7 @@ import sys
 import yaml
 from PIL import Image
 
-from sockets import base, gpu
+from sockets import base, gpu, medsam3
 
 # 가중치 뿌리. 배포 때 supervisord.conf 가 실제 경로를 넣는다.
 MODEL_ROOT = pathlib.Path(os.getenv("MODEL_ROOT", "/models"))
@@ -83,14 +83,25 @@ def _load() -> dict:
     from infer_us import load_model
     from infer_us import predict as _predict
     
+    # 백본을 공용으로. infer_us 를 import 한 "뒤"에 불러야 한다 —
+    # arm 은 sys.modules 에 이미 올라온 모듈만 바꾼다.
+    #
+    # infer_us 도 넘기는 것이 핵심이다. infer_us.py:32 가
+    #   from model_io import (..., import_medsam3, ...)
+    # 로 원본을 자기 이름표에 복사해 두고 82줄에서 그 복사본을 쓴다.
+    # model_io 만 바꾸면 안 닿는다 — 09-08 에 실측으로 드러났다.
+    
+    medsam3.arm("model_io", "infer_us")
+    
     bundle = load_model(
         str(US_DIR / "configs" / "us_lora.yaml"),
         heads = str(US_DIR / "ckpt" / "us_heads_ensemble.pt"),
     )
-    return {"bundle": bundle, "predict": _predict, "versions": _versions()}
+    return {"bundle": bundle, "predict": _predict, "versions": _versions(), "adapter": str(US_DIR / "ckpt" / "us_lora_best.pt")}
 
 def _run(state, data, filename, **over):
     """초음파 고유 부분만 — PIL 로 열어 번들 predict 에 넘긴다. 락은 base 가 잡는다."""
+    medsam3.use(state["adapter"]) # 다른 소켓이 쓰고 갔을 수 있다, 락 안이다 
     return state["predict"](state["bundle"], Image.open(io.BytesIO(data)), **over)
 
 SOCKET = base.Socket(NAME, SOCKET_IDS, ENABLED, _load, _run, drop=("_mask",))

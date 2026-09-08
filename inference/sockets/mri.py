@@ -21,7 +21,7 @@ import sys
 import tempfile
 import zipfile
 
-from sockets import base, gpu
+from sockets import base, gpu, medsam3
 
 MODEL_ROOT = pathlib.Path(os.getenv("MODEL_ROOT", "/models"))
 
@@ -82,7 +82,8 @@ def _materialize(data: bytes, filename: str | None, dest: pathlib.Path) -> pathl
     return dest
 
 def _load() -> dict:
-    """번들을 올린다. 적재량과 시간은 아직 실측 전이다(담당자 README 도 TBD).
+    """번들을 올린다. 초음파가 먼저 올라와 있으면 0.9초 · 증가 0 MiB,
+    혼자 올라오면 13.1초 · 3.4GB 다(09-08 실측). 백본을 나눠 쓰기 때문이다.
 
     load_model 이 안에서 os.chdir 한다(MedSAM3 가 상대경로를 하드코딩).
     기본값이 원위치시키므로 keep_cwd 는 건드리지 않는다.
@@ -91,6 +92,11 @@ def _load() -> dict:
     base.own(MRI_DIR / "serving" / "code", "model_io", "infer_mri", "normalize", "derived_io")
     from infer_mri import load_model, preprocess_raw_to_volume
     from infer_mri import predict as _predict
+    
+    # 초음파와 같은 병합본을 쓴다. 먼저 올린 쪽이 세우고 나눠 쓴다.
+    # MRI 는 model_io.py:66 이 자기 모듈 이름으로 부르므로 model_io 로 닿는다.
+    # eval_mri_lora_v3 도 import_medsam3 라는 이름을 갖고 있어 함께 넘긴다.
+    medsam3.arm("model_io", "eval_mri_lora_v3")
     
     bundle = load_model(str(CONFIG))
     return {
@@ -101,6 +107,8 @@ def _load() -> dict:
             "model_name": "medsam3",
             "model_version": pathlib.Path(bundle["paths"]["weights"]).name,
         },
+        # 판독 직전에 얹을 어댑터 
+        "adapter": str(bundle["paths"]["weights"]),
     }
 
 def _run(state, data, filename, post=None, post_filename=None, dataset_tag=None, **over) :
@@ -112,6 +120,7 @@ def _run(state, data, filename, post=None, post_filename=None, dataset_tag=None,
     임시 폴더 안에서 읽어야 한다 — with 를 벗어나면 폴더가 지워진다.
     전처리까지 락 안에서 하는 이유 — 락 밖이면 그 사이 수거자가 프로세스를 끝낼 수 있다.
     """
+    medsam3.use(state["adapter"]) # 다른 소켓이 쓰고 갔을 수 있다
     
     with tempfile.TemporaryDirectory(prefix="mri_") as tmp: 
         tmp = pathlib.Path(tmp)
