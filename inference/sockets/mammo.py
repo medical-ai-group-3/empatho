@@ -78,7 +78,7 @@ def _load() -> dict:
     load_model 이 안에서 os.chdir 한다(MedSAM3 가 상대경로를 하드코딩).
     기본값이 원위치시키므로 keep_cwd 는 건드리지 않는다.
     """
-    sys.path.insert(0, str(MAMMO_DIR / "training" / "code"))
+    base.own(MAMMO_DIR / "training" / "code", "mammo_io", "infer_mammo", "train_mammo", "paths", "mammo_data", "eval_e2e")
     from infer_mammo import load_model
     from infer_mammo import predict as _predict
 

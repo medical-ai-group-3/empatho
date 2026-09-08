@@ -13,13 +13,13 @@
 맘모(20초)와 달리 분 단위가 될 수 있다. 담당자 README 에도 아직 TBD 다.
 """
 
-import os 
-import pathlib 
-import sys 
-import tempfile 
-import shutil 
-import zipfile 
 import io
+import os
+import pathlib
+import shutil
+import sys
+import tempfile
+import zipfile
 
 from sockets import base, gpu
 
@@ -87,7 +87,8 @@ def _load() -> dict:
     load_model 이 안에서 os.chdir 한다(MedSAM3 가 상대경로를 하드코딩).
     기본값이 원위치시키므로 keep_cwd 는 건드리지 않는다.
     """
-    sys.path.insert(0, str(MRI_DIR / "serving" / "code"))
+    
+    base.own(MRI_DIR / "serving" / "code", "model_io", "infer_mri", "normalize", "derived_io")
     from infer_mri import load_model, preprocess_raw_to_volume
     from infer_mri import predict as _predict
     

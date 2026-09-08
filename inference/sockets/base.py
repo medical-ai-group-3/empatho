@@ -8,6 +8,8 @@
   drop                      응답에서 지울 열쇠 — numpy 등 JSON 으로 못 나가는 것
   상수                      NAME · SOCKET_IDS · ENABLED
 """
+import pathlib
+import sys
 import traceback
 from sockets import gpu
 
@@ -50,7 +52,7 @@ class Socket:
             if not self._state:
                 raise RuntimeError("모델이 내려감")
             gpu.touch()
-            try: 
+            try:
                 result = self._run(self._state, data, filename, **kw)
             finally: 
                 # 끝난 시각으로 다시 민다. 이게 없으면 시계가 "판독 시작"에
@@ -61,3 +63,33 @@ class Socket:
         for k in self._drop:
             result.pop(k, None)
         return result
+    
+def own(code_dir: pathlib.Path, *names: str) -> None : 
+    """내 code 폴더를 sys.path 맨 앞에 두고, 남이 차지한 모듈 이름을 비운다.
+
+    us 와 mri 에 model_io 라는 같은 이름의 모듈이 있다. 파이썬은 모듈을 이름으로
+    한 번만 올리므로, 초음파가 먼저 판독한 프로세스에서 MRI 를 부르면 MRI 의
+    infer_mri 가 us 의 model_io 를 받는다.
+
+      ImportError: cannot import name 'load_model' from 'model_io'
+      (.../models/us/code/model_io.py)
+
+    sys.path 를 앞에 꽂는 것만으로는 안 된다 — 이미 sys.modules 에 있으면
+    파이썬이 경로를 다시 보지 않는다. 그 이름을 지워야 다시 찾는다.
+
+    지우는 것은 __file__ 이 code_dir 밖인 것만이다. 내 것까지 지우면
+    판독마다 다시 읽는다.
+
+    공용화 이전부터 있던 결함이다. 소켓을 하나만 올려 시험할 때는 안 드러났다.
+    """
+    
+    d = str(code_dir) 
+    while d in sys.path: 
+        sys.path.remove(d)
+    sys.path.insert(0, d)
+    for n in names:
+        mod = sys.modules.get(n)
+        if mod is not None and not str(getattr(mod, "__file__", "")).startswith(d):
+            del sys.modules[n]
+            
+    

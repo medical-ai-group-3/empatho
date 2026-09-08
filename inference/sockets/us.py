@@ -79,7 +79,7 @@ def _load() -> dict:
     heads 를 명시적으로 넘긴다 — infer_us 의 기본값은 us_heads_best.pt 인데
     번들에 들어 있는 것은 앙상블이고, 없으면 등급 없이 분할만 조용히 돌아간다.
     """
-    sys.path.insert(0, str(US_DIR / "code"))
+    base.own(US_DIR / "code", "model_io", "infer_us", "heads", "shape_metrics")
     from infer_us import load_model
     from infer_us import predict as _predict
     
