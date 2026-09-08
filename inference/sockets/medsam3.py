@@ -37,6 +37,12 @@ _active = None
 # 읽어둔 어댑터들, CPU 메모리에 저장하고 필요하면 호출 
 _cache = {}
 
+# 가장 넓은 LoRA 설정 - 초음파 MRI 것 / 맘모는 여기에 
+_TARGETS = ["q_proj", "k_proj", "v_proj", "out_proj", "qkv", "proj", "fc1", "fc2", "c_fc", "c_proj", "linear1", "linear2"]
+
+# LoRA 자리를 이미 만들었나 확인 / 두 번 만들면 LoRA 위에 LoRA 가 겹친다
+_lora_done = False 
+
 def arm(*module_names: str) -> None: 
     """소켓이 부를 import_medsam3 를 미리 우리 것으로 바꿔 둔다.
 
@@ -70,14 +76,66 @@ def arm(*module_names: str) -> None:
         mod.import_medsam3 = wrapped
 
 def patch(M: dict) -> dict :
-    """M 안의 load_merged_model 을 "한 번만 올리는" 판으로 바꿔 돌려준다.
-
-    M 은 import_medsam3 가 주는 함수 모음 dict 다. 소켓의 load_model 이
-    그 안의 load_merged_model 을 불러 백본을 세운다. 그 자리만 바꾼다.
-    """
+    # ── apply_lora_to_model 도 가로챈다 ─────────────────────────
+    #
+    # 소켓마다 LoRA 설정이 다르다.
+    #   초음파·MRI  12종 · 6부위 → 자리 458개
+    #   맘모 검출기 10종 · 3부위 → 자리 278개
+    #
+    # 맘모 설정은 mammo_io.build_detector 의 "함수 기본값"이라 호출부에서
+    # 못 바꾼다. 맘모가 먼저 올라오면 백본이 278자리로 세워져 초음파·MRI
+    # 어댑터가 들어갈 자리가 없다.
+    #
+    # 그래서 넘어온 설정을 무시하고 항상 가장 넓게, 한 번만 만든다. 남는
+    # 자리는 lora_B 가 0 이라 계산에 영향이 없다 — 09-07 에 맘모 어댑터를
+    # 넓은 백본에 얹어 따로 세운 것과 비트 단위로 같은 것을 확인했다.
+    #
+    # rank 16 · alpha 32 가 세 소켓 모두 같다는 전제다. 다른 값으로 학습한
+    # 어댑터가 생기면 이 자리를 다시 봐야 한다.
     if getattr(M.get("load_merged_model"), "_shared", False):
-        return M 
+            return M 
+        
     original = M["load_merged_model"]
+        
+    
+    LoRAConfig = M["LoRAConfig"]
+    orig_lora = M["apply_lora_to_model"]
+    
+    def lora_once(model, config) :
+        global _lora_done
+        if _lora_done: 
+            return model
+        widest = LoRAConfig(
+            rank=16, alpha=32, dropout=0.0, target_modules=list(_TARGETS),
+            apply_to_vision_encoder=True, apply_to_text_encoder=True, 
+            apply_to_geometry_encoder=True, apply_to_detr_encoder=True,
+            apply_to_detr_decoder=True, apply_to_mask_decoder=True
+        )
+        out = orig_lora(model, widest)
+        _lora_done= True
+        return out 
+    
+    lora_once._shared = True
+    M["apply_lora_to_model"] = lora_once
+    
+        # ── load_lora_weights 도 가로챈다 ───────────────────────────
+    #
+    # mammo_io.py:128 이 우리를 안 거치고 어댑터를 직접 얹는다. 그때 lora_B 를
+    # 0 으로 밀지 않으므로, 백본에 남아 있던 다른 소켓의 값이 맘모가 안 쓰는
+    # 180자리에 그대로 살아 있게 된다.
+    #
+    # 누가 무엇을 얹었는지 우리가 모르니 _active 를 지운다. 그러면 다음 판독의
+    # use() 가 "내 것이 아니다"로 보고 반드시 다시 얹는다.
+    orig_weights = M["load_lora_weights"]
+    
+    def weights_tracked(model, path, *a, **kw):
+        global _active 
+        out = orig_weights(model, path, *a, **kw)
+        _active = None 
+        return out
+    weights_tracked._shared = True 
+    M["load_lora_weights"] = weights_tracked
+    
     
     def load_once(ckpt, cfg, device="cuda"):
         global _model

@@ -29,7 +29,7 @@ import os
 import pathlib
 import sys
 
-from sockets import base
+from sockets import base, medsam3
 
 # 가중치 뿌리. 배포 때 supervisord.conf 가 실제 경로를 넣는다.
 MODEL_ROOT = pathlib.Path(os.getenv("MODEL_ROOT", "/models"))
@@ -81,7 +81,15 @@ def _load() -> dict:
     base.own(MAMMO_DIR / "training" / "code", "mammo_io", "infer_mammo", "train_mammo", "paths", "mammo_data", "eval_e2e")
     from infer_mammo import load_model
     from infer_mammo import predict as _predict
-
+    
+    # 백본을 공용으로. infer_mammo.py:52 가 from mammo_io import (..., import_medsam3, ...)
+    # 로 원본을 복사해 두고 203줄에서 그 복사본을 쓴다 — infer_mammo 도 넘겨야 닿는다.
+    #
+    # 서술어 트렁크 2벌은 공용화되지 않는다. build_descriptor 는 M 을 안 거치고
+    # train_mammo 의 load_merged_model 을 직접 부른다(mammo_io.py:138·150).
+    # 그래서 이 소켓은 공용 백본 1 + 서술어 트렁크 2벌을 쓴다.
+    medsam3.arm("mammo_io", "infer_mammo")
+    
     # bundle  검출기 1 + 서술어 2 + 규칙표. 프로세스가 사는 동안 재사용한다.
     # verbose 를 끄는 이유 — 켜면 LoRA 를 입힌 458개 모듈을 전부 찍어
     #         supervisor 로그가 요청마다 수백 줄씩 불어난다.
@@ -96,10 +104,14 @@ def _load() -> dict:
             "det_version": DET,
             "operating_point": bundle["operating_point"],
         },
+        # 판독 직전에 얹을 검출기 어댑터, 공용 백본을 나눠 쓰므로 내 것이 
+        # 아직 얹혀 있다는 보장이 없음 
+        "adapter": str(CKPT / DET)
     }
     
 
 def _run(state, data, filename, **over):
+    medsam3.use(state["adapter"])
     return state["predict"](state["bundle"], data, name = filename, **over)
 
 SOCKET = base.Socket(NAME, SOCKET_IDS, ENABLED, _load, _run, drop=())
