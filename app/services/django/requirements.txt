@@ -6,6 +6,11 @@ django-cors-headers==4.9.0
 psycopg2-binary==2.9.12
 python-dotenv==1.2.3
 
+# JWT 는 직접 다룬다. simplejwt 를 쓰지 않는 이유는 core/api/auth.py 머리말에.
+PyJWT==2.13.0
+# OpenAPI 스키마 · Swagger UI
+drf-spectacular==0.30.0
+
 # 컨테이너에서 돌린다. runserver 는 개발 서버라 쓰지 않는다.
 gunicorn==23.0.0
 # gunicorn 이 정적 파일을 서빙하지 않아 admin CSS 가 깨진다. 그걸 메운다.
