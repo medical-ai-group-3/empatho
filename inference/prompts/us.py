@@ -17,7 +17,8 @@ from prompts import base
 # 2026-09-09.a  근거 표시 규칙 삭제 · 모델에 완성 문장 대신 판독값을 넘긴다
 #               SYSTEM·SCHEMA·build 는 base 로 옮겼다
 
-VERSION = "us-2026-09-09.a"
+# 2026-09-09.b  base.SYSTEM — 번호 붙은 항목은 항목마다 문장을 끊는다
+VERSION = "us-2026-09-09.b"
 
 # 이 프롬프트가 담당하는 소켓, prompts/__init__.py 의 표가 이걸로 만들어진다 
 SOCKET_IDS = {"4","5"}

@@ -21,7 +21,8 @@
 from prompts import base
 
 # 2026-09-09.a  신규. sTIL 수치 제외 판
-VERSION = "pathology-2026-09-09.a"
+# 2026-09-09.b  base.SYSTEM — 번호 붙은 항목은 항목마다 문장을 끊는다
+VERSION = "pathology-2026-09-09.b"
 
 SOCKET_IDS = {"1", "2"}
 
