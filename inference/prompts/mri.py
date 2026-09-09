@@ -31,8 +31,11 @@ def values(r:dict) -> list[tuple[str, str]]:
         return out 
     
     out.append(("병변 수", f"{tumor.get('lesion_count')}건"))
-    if tumor.get("location_note"):
-        out.append(("위치", str(tumor["location_note"])))
+    for i, l in enumerate(tumor.get("lesions") or [], 1) :
+        out.append((f"병변 {i}", 
+                    f"부피 {l.get('volume_cm3')} cm³ / "
+                    f"최대 직경 {l.get('max_diameter_mm')} mm / "
+                    f"{l.get('quadrant')} / 유두거리 {l.get('nipple_distance_mm')} mm"))
     return out 
 
 def facts(r:dict) -> list[str]:
@@ -49,8 +52,10 @@ def facts(r:dict) -> list[str]:
         return out 
     
     out.append(f"병변 {tumor.get('lesion_count')}건이 검출되었습니다.")
-    if tumor.get("location_note"):
-        out.append(f"{tumor['location_note']}.")
+    for i, l in enumerate(tumor.get("lesions") or [], 1):
+        out.append(f"병변 {i}: 부피 {l.get('volume_cm3')}cm³, "
+                   f"최대 직경 {l.get('max_diameter_mm')}mm, "
+                   f"{l.get('quadrant')}, 유두거리 {l.get('nipple_distance_mm')}mm.")
     return out
 
 NOTES = {
@@ -59,12 +64,18 @@ NOTES = {
     "MR-N03": "치밀도는 유방 부피 대비 치밀 조직 부피의 비율입니다. "
               "BI-RADS 밀도 범주와 다릅니다.",
     "MR-N04": "최종 판정은 의사가 합니다.",
+    "MR-N05": "병변 위치는 유방 윤곽이 아니라 명암 기반 몸통 윤곽 근사치입니다.",
+    "MR-N06": "부피가 큰 순으로 최대 10건까지만 반환됩니다.",
 }
 
 def notes(r:dict) -> list[dict]:
     out = []
     if not r.get("tumor") :
         out.append(base.note(NOTES, "MR-N01"))
+    else :
+        out.append(base.note(NOTES, "MR-N05"))
+        if (r["tumor"].get("lesion_count") or 0) >= 10:
+            out.append(base.note(NOTES, "MR-N06"))
     out.append(base.note(NOTES, "MR-N02"))
     out.append(base.note(NOTES, "MR-N03"))
     out.append(base.note(NOTES, "MR-N04"))
@@ -77,4 +88,6 @@ def numbers(r:dict) -> list[str]:
             d.get("dense_density_pct"), r.get("n_slices")]
     if tumor:
         vals.append(tumor.get("lesion_count"))
+        for l in tumor.get("lesions") or []:
+            vals += [l.get("volume_cm3"), l.get("max_diameter_mm")]
     return [str(v) for v in vals if v is not None]

@@ -10,7 +10,9 @@
 
 import json
 import os
+import re
 import urllib.request
+import re
 
 from fastapi import FastAPI, HTTPException
 
@@ -19,8 +21,14 @@ from prompts import PROMPTS, base
 # Ollama 주소. 이 서버와 같은 워크스테이션에 있으므로 기본이 127.0.0.1 이다.
 OLLAMA = os.getenv("OLLAMA_URL", "http://127.0.0.1:11434")
 
-# 소견 문장을 엮는 모델. 판독은 하지 않는다 — 이미 나온 사실을 잇기만 한다.
-MODEL = os.getenv("REPORT_MODEL", "medgemma1.5:4b-it-q4_K_M")
+# 소견 문장을 쓰는 모델. 판독은 하지 않는다 — 이미 나온 값을 옮기기만 한다.
+#
+# 4B 는 반복 항목을 못 버틴다 — 맘모 6병변에서 서술어 2건을 지우고
+# 「1~5번은」으로 묶었다(09-09 실측). 12B 는 6건을 각각 정확히 쓴다.
+# 의료 지식이 필요한 일이 아니라 값을 빠짐없이 옮기는 일이라, 의료 특화보다
+# 지시 이행력이 중요하다. VRAM 은 2.9GB → 8GB 로 는다.
+MODEL = os.getenv("REPORT_MODEL", "gemma3:12b-it-q4_K_M")
+
 
 app = FastAPI(title="report")
 
@@ -160,7 +168,11 @@ def report(socket_id: str, result: dict, evidence: list[str] = []):
     # 넘긴 수치가 소견문에 그대로 남아 있는지 본다. 글자열로 찾는 단순한 검사다.
     # 값을 바꿔 쓰면 그 값은 사라지므로 여기서 걸린다. 반대로 문장을 어떻게
     # 다듬든 숫자만 그대로면 통과한다 — 우리가 막으려는 것은 문체가 아니다.
-    missing = [n for n in p.numbers(result) if n not in text]
+    # 숫자 경계를 본다. 부분문자열로 찾으면 0.0 이 100.0 안에서 걸려
+    # 「종양 면적 비율 0.0%」가 빠진 것을 못 잡는다(09-09 병리에서 실제 발생).
+    missing = [n for n in p.numbers(result)
+               if not re.search(rf"(?<![\d.]){re.escape(n)}(?![\d.])", text)]
+    missing = [n for n in p.numbers(result) if not re.search(rf"(?<![\d.]){re.escape(n)}(?![\d.])", text)]
     if missing:
         # 모델이 수치를 바꿨다. 그 출력은 통째로 버린다.
         # 어느 값이 사라졌는지 fallback 에 남겨 나중에 프롬프트를 고칠 단서로 쓴다.

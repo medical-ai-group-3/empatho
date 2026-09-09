@@ -104,5 +104,9 @@ def numbers(r:dict) -> list[str]:
     if s.get("abstained") :
         return [] 
     vals = [s.get("n_lesions"), s.get("max_birads")]
-    vals += [l.get("birads") for l in (r.get("lesions") or [])]
+    for l in r.get("lesions") or []:
+        vals.append(l.get("birads"))
+        # 서술어도 지킨다. 모델이 병변을 묶으면 여기서 걸린다 —
+        # 09-09 에 4B 가 6건을 두 묶음으로 요약하며 2건의 서술어를 지웠다.
+        vals += [v.get("value") for v in (l.get("descriptors") or {}).values()]
     return [str(v) for v in vals if v is not None]
