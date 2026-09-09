@@ -27,3 +27,7 @@ services/gosvc/bin/
 services/gosvc/vendor/
 web-dist/*
 !web-dist/.gitkeep
+
+# tunnel 컨테이너가 워크스테이션에 붙을 때 쓰는 SSH 개인키
+conf/ws_key
+conf/ws_known_hosts
