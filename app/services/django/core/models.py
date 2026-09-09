@@ -6,7 +6,19 @@ EMPATHO CDSS 데이터 모델 — v10 · 18개 테이블.
 """
 
 from django.db import models
-from django.db.models import Q
+from django.db.models import Func, IntegerField, Q
+from django.db.models.lookups import Exact
+
+
+class NumNonNulls(Func):
+    """비어 있지 않은 칸이 몇 개인가. Postgres 의 num_nonnulls().
+
+    「셋 중 정확히 하나」를 Q 로 쓰면 3 갈래 × 3 항이 된다. 주인이 넷째로
+    늘면 4 × 4 로 불어난다.
+    """
+
+    function = 'num_nonnulls'
+    output_field = IntegerField()
 
 
 def as_choices(values):
@@ -324,17 +336,24 @@ class StorageObject(AuditBase):
                               related_name='storage_objects')      # 영상
     specimen = models.ForeignKey('Specimen', models.PROTECT, blank=True, null=True,
                                  related_name='storage_objects')   # 병리
+    report = models.ForeignKey('Report', models.PROTECT, blank=True, null=True,
+                               related_name='storage_objects')     # 발급 PDF
     # 속한 시리즈의 DICOM UID. 같은 시리즈의 파일들이 같은 값을 가진다.
     # 이름은 DICOM SeriesInstanceUID 그대로 둔다 — 바꾸면 Go · Orthanc 과의
     # 대응이 끊긴다.
-    series_uid = models.CharField(max_length=100, blank=True, null=True)
-    # 이 파일의 DICOM UID. 파일 단위 멱등키다.
-    # DICOM 이 아닌 파일(병리 PNG 등)은 비어 있다.
-    sop_instance_uid = models.CharField(max_length=100, blank=True, null=True)
+    series_uid = models.CharField(max_length=100, blank=True, null=True,
+                                  db_index=True)
+    # 이 파일의 DICOM UID. DICOM 이 아닌 파일(병리 PNG 등)은 비어 있다.
+    # UNIQUE 를 걸지 않는다 — I-1 이 먼저 오고 그때는 이 칸이 NULL 이라 INSERT 를
+    # 못 막는다. I-2 가 UPDATE 할 때 터지는데 그땐 이미 행이 두 개다.
+    sop_instance_uid = models.CharField(max_length=100, blank=True, null=True,
+                                        db_index=True)
     series_role = models.CharField(max_length=30, blank=True, null=True)
     orthanc_series_id = models.CharField(max_length=100, blank=True, null=True)
     bucket = models.CharField(max_length=100, blank=True, null=True)
-    object_key = models.CharField(unique=True, max_length=255, blank=True, null=True)
+    # UUID 만 쓴다. 경로에 환자번호를 넣지 않는다.
+    # 유일성은 (bucket, object_key) 짝으로 본다 — 아래 UK.
+    object_key = models.CharField(max_length=255, blank=True, null=True)
     laterality = models.CharField(max_length=10, choices=as_choices(LATERALITY),
                                   blank=True, null=True)
     view_position = models.CharField(max_length=20, choices=as_choices(VIEW_POSITION),
@@ -361,17 +380,17 @@ class StorageObject(AuditBase):
                 condition=(Q(orthanc_series_id__isnull=False) & Q(object_key__isnull=True))
                 | (Q(orthanc_series_id__isnull=True) & Q(object_key__isnull=False)),
                 name='storage_object_address_ck'),
-            # 영상 아니면 병리, 정확히 하나
+            # 영상 · 병리 · 리포트 중 정확히 하나에 매달린다.
+            # 티켓 purpose 가 dicom_upload · wsi_upload · report_pdf 로 갈린다.
+            # prescription_pdf · derived_upload 는 아직 미정이라 자리가 없다.
             models.CheckConstraint(
-                condition=(Q(study__isnull=False) & Q(specimen__isnull=True))
-                | (Q(study__isnull=True) & Q(specimen__isnull=False)),
+                condition=Exact(NumNonNulls('study', 'specimen', 'report'), 1),
                 name='storage_object_owner_ck'),
-            # 같은 DICOM 파일이 두 번 들어오는 것을 막는다. DICOM 이 아닌 파일이
-            # 많아 NULL 을 빼고 건다 — 인덱스도 그만큼 작아진다.
-            models.UniqueConstraint(
-                fields=['sop_instance_uid'],
-                condition=Q(sop_instance_uid__isnull=False),
-                name='storage_object_sop_instance_uid_uk'),
+            # I-1 의 멱등키. 모든 행에 있고 I-1 시점에 확정된다 —
+            # Go 의 멱등키 obj:<object_key> 와 같은 자리다.
+            # Orthanc 에 둔 파일은 둘 다 NULL 이라 서로 안 부딪힌다.
+            models.UniqueConstraint(fields=['bucket', 'object_key'],
+                                    name='storage_object_bucket_object_key_uk'),
         ]
 
 
