@@ -312,14 +312,25 @@ class Study(AuditBase):
 
 
 class StorageObject(AuditBase):
-    """원본 시리즈 · 파일 1개. 주소와 촬영 정보."""
+    """원본 파일 1개. 주소와 촬영 정보.
+
+    파일 단위다 — Go 가 파일(SOP instance) 하나마다 I-1 콜백을 부르고, 파일마다
+    object_key 와 checksum 이 달라 한 행에 담기지 않는다. 같은 시리즈의 파일
+    여럿이 같은 series_uid 를 갖는다.
+    """
 
     storage_object_id = models.BigAutoField(primary_key=True)
     study = models.ForeignKey(Study, models.PROTECT, blank=True, null=True,
                               related_name='storage_objects')      # 영상
     specimen = models.ForeignKey('Specimen', models.PROTECT, blank=True, null=True,
                                  related_name='storage_objects')   # 병리
-    series_uid = models.CharField(unique=True, max_length=100, blank=True, null=True)
+    # 속한 시리즈의 DICOM UID. 같은 시리즈의 파일들이 같은 값을 가진다.
+    # 이름은 DICOM SeriesInstanceUID 그대로 둔다 — 바꾸면 Go · Orthanc 과의
+    # 대응이 끊긴다.
+    series_uid = models.CharField(max_length=100, blank=True, null=True)
+    # 이 파일의 DICOM UID. 파일 단위 멱등키다.
+    # DICOM 이 아닌 파일(병리 PNG 등)은 비어 있다.
+    sop_instance_uid = models.CharField(max_length=100, blank=True, null=True)
     series_role = models.CharField(max_length=30, blank=True, null=True)
     orthanc_series_id = models.CharField(max_length=100, blank=True, null=True)
     bucket = models.CharField(max_length=100, blank=True, null=True)
@@ -355,6 +366,12 @@ class StorageObject(AuditBase):
                 condition=(Q(study__isnull=False) & Q(specimen__isnull=True))
                 | (Q(study__isnull=True) & Q(specimen__isnull=False)),
                 name='storage_object_owner_ck'),
+            # 같은 DICOM 파일이 두 번 들어오는 것을 막는다. DICOM 이 아닌 파일이
+            # 많아 NULL 을 빼고 건다 — 인덱스도 그만큼 작아진다.
+            models.UniqueConstraint(
+                fields=['sop_instance_uid'],
+                condition=Q(sop_instance_uid__isnull=False),
+                name='storage_object_sop_instance_uid_uk'),
         ]
 
 
