@@ -14,19 +14,13 @@ import urllib.request
 
 from fastapi import FastAPI, HTTPException
 
-import narrative
-from prompts import us
+from prompts import PROMPTS, base
 
 # Ollama 주소. 이 서버와 같은 워크스테이션에 있으므로 기본이 127.0.0.1 이다.
 OLLAMA = os.getenv("OLLAMA_URL", "http://127.0.0.1:11434")
 
 # 소견 문장을 엮는 모델. 판독은 하지 않는다 — 이미 나온 사실을 잇기만 한다.
 MODEL = os.getenv("REPORT_MODEL", "medgemma1.5:4b-it-q4_K_M")
-
-# 소켓 번호 → 그 모달리티의 프롬프트 모듈.
-# 모듈마다 VERSION · SYSTEM · SCHEMA 와 facts/notes/numbers/build 를 갖는다.
-# 소켓이 추가되면 여기에 더한다.
-PROMPTS = {sid: us for sid in us.SOCKET_IDS}
 
 app = FastAPI(title="report")
 
@@ -45,7 +39,7 @@ def _ask(system: str, prompt:str, schema:dict, timeout:int = 100) -> dict:
         "format": schema, # 스키마 강제 - 추론 과정 출력 방지
         "stream": False,  # 앱 서버가 완성본만 쓴다. 토막을 받을 곳이 없다
         # 0.2  같은 판독에서 같은 문장이 나와야 한다. 창의성은 여기서 위험이다
-        "options": {"temperature": 0.2},
+        "options": {"temperature": 0},
     }).encode()
     req = urllib.request.Request(
         f"{OLLAMA}/api/generate", data=body,
@@ -150,39 +144,21 @@ def report(socket_id: str, result: dict, evidence: list[str] = []):
     skeleton = " ".join(fact_lines)
 
     try:
-        out = _ask(p.SYSTEM, p.build(fact_lines, evidence), p.SCHEMA)
+        out = _ask(base.SYSTEM, base.build(p.values(result)), base.SCHEMA)
         text = (out.get("소견") or "").strip()
     except Exception as exc:
         # 모델이 없어도 리포트는 나간다. 뼈대는 완성된 문장이다
         return _done(socket_id, p, skeleton, note_lines, f"llm_failed: {type(exc).__name__}")
-
-    # 근거 검사. 표시가 없거나 없는 ID 를 인용한 문장을 버리고 표시를 지운다.
-    #
-    # 수치 검사보다 먼저 하는 이유 — 반대로 하면 지어낸 근거가 붙은 문장이
-    # 수치 검사를 통과한 뒤 사라져서, 최종 문장에 없는 숫자를 통과시킨 셈이 된다.
-    #
-    # evidence 가 비면 건너뛴다. 병변이 없으면 인용할 근거도 없기 때문이고,
-    # Go 쪽 report.Request 주석이 그렇게 못 박고 있다 —
-    # 「비워 보내면 근거 검사를 건너뛰고 숫자 검사만 한다」.
-    # narrative.filter_ 는 빈 목록을 「전부 버림」으로 보므로 그냥 부르면 안 된다.
-    cited, dropped = [], []
-    if evidence:
-        kept = narrative.filter_(text, evidence)
-        text, cited, dropped = kept["text"], kept["evidence"], kept["dropped"]
-    else :
-        # 근거 목록이 비면 검사는 건너뛰지만 표시는 지워야 한다 
-        # SYSTEM이 언제나 표시를 붙이라고 하므로 안 지우면 원래 모양이 그래도 소견문에 나간다 
-        # filter_는 목록이 비면 "전부 버림"이라 못 쓴다 
-        text = narrative.TAG.sub("", text).strip().replace(" .", ".")
 
     # 넘긴 수치가 소견문에 그대로 남아 있는지 본다. 글자열로 찾는 단순한 검사다.
     # 값을 바꿔 쓰면 그 값은 사라지므로 여기서 걸린다. 반대로 문장을 어떻게
     # 다듬든 숫자만 그대로면 통과한다 — 우리가 막으려는 것은 문체가 아니다.
     missing = [n for n in p.numbers(result) if n not in text]
     if missing:
-        # 모델이 수치를 바꿨거나, 그 값을 담은 문장이 근거 검사에서 버려졌다.
-        # 어느 쪽이든 남은 문장은 불완전하므로 출력을 통째로 버린다.
+        # 모델이 수치를 바꿨다. 그 출력은 통째로 버린다.
         # 어느 값이 사라졌는지 fallback 에 남겨 나중에 프롬프트를 고칠 단서로 쓴다.
         return  _done(socket_id, p, skeleton, note_lines, "numbers_changed: "+",".join(missing))
 
-    return _done(socket_id, p, text, note_lines, None, cited, dropped)
+    # evidence 는 받은 것을 그대로 돌려준다. 문장별이 아니라 리포트 단위다 -
+    # 어느 사진 어느 병변인지는 화면이 마스크와 수치로 따로 보여준다.
+    return _done(socket_id, p, text, note_lines, None, evidence)
