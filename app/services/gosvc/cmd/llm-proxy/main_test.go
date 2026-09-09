@@ -304,8 +304,11 @@ func TestDroppedAndFallbackReachDjango(t *testing.T) {
 	if len(got) != 1 {
 		t.Fatalf("I-4 가 한 번 가야 한다. got=%d", len(got))
 	}
-	if got[0].Fallback != "숫자 검사 실패" {
-		t.Errorf("되돌린 사유가 남아야 한다. got=%q", got[0].Fallback)
+	if !got[0].Fallback {
+		t.Error("되돌렸으면 fallback 이 true 여야 한다")
+	}
+	if got[0].FallbackReason != "숫자 검사 실패" {
+		t.Errorf("되돌린 사유가 남아야 한다. got=%q", got[0].FallbackReason)
 	}
 	if len(got[0].DroppedSentenceLog) != 1 {
 		t.Errorf("버린 문장이 남아야 한다. got=%+v", got[0].DroppedSentenceLog)

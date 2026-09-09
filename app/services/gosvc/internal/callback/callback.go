@@ -65,7 +65,8 @@ func New(base string, secret []byte, certFile, keyFile string, retries int) *Cli
 // 나왔나" 를 물으면 답할 근거가 있어야 한다. 판독 기록이라 더 그렇다.
 //
 //	PromptVersion  리포트 서버가 쓴 문구·규칙의 판. 문구가 바뀌면 올라간다
-//	Fallback       모델 출력을 버리고 뼈대 문장으로 되돌린 경우 그 사유
+//	Fallback       모델 출력을 버리고 뼈대 문장으로 되돌렸는가
+//	FallbackReason 되돌린 사유. v10 에 칸이 없어 content_json 으로 간다
 //	Notes          코드가 붙인 고정 안내 문구. 모델이 쓴 글이 아니다
 //
 // ⚠ Django 쪽 report 테이블에 세 칸이 있어야 한다. 없으면 조용히 버려진다.
@@ -75,7 +76,15 @@ type Narrative struct {
 	DroppedSentenceLog []Drop   `json:"dropped_sentence_log"`
 	Notes              []Note   `json:"notes,omitempty"`
 	PromptVersion      string   `json:"prompt_version,omitempty"`
-	Fallback           string   `json:"fallback,omitempty"`
+
+	// v10 의 report.fallback 은 boolean 이라 그 모양으로 보낸다. 사유는
+	// 값이 아니라 설명이라 칸을 따로 냈다 — Django 가 content_json 에
+	// 넣는다. 스키마는 안 바꾼다.
+	//
+	// ⚠ Fallback 에 omitempty 를 붙이지 않는다. 안 되돌렸으면 false 가
+	//   **와야** 한다. 키가 빠지면 「안 되돌림」과 「모름」이 같아진다.
+	Fallback       bool   `json:"fallback"`
+	FallbackReason string `json:"fallback_reason,omitempty"`
 }
 
 type Drop struct {
@@ -100,6 +109,20 @@ type StorageObject struct {
 	StorageClass   string `json:"storage_class"`
 	PatientID      string `json:"patient_id,omitempty"`
 	ScopeID        string `json:"scope_id,omitempty"`
+
+	// scope_id 가 무엇을 가리키는지. 티켓 클레임을 그대로 넘긴다.
+	//
+	// Django 의 storage_object 는 study_id · specimen_id 중 하나만
+	// 채우라는 CHECK 을 갖고 있는데, scope_id 만으로는 어느 쪽인지
+	// 알 수 없다 — 셋 다 bigint 시퀀스라 값이 겹친다.
+	//
+	// **어느 칸에 넣을지는 Go 가 정하지 않는다.** 티켓을 발급하는 쪽도
+	// CHECK 을 가진 쪽도 Django 다. 여기서 study/specimen 을 판정하면
+	// purpose 가 늘 때마다 두 곳을 고쳐야 한다.
+	//
+	// 지금 오는 값 다섯 — dicom_upload · wsi_upload · report_pdf ·
+	// prescription_pdf · derived_upload (cmd/file-gateway 의 auth 호출부)
+	Purpose string `json:"purpose"`
 }
 
 // PostStorageObject — I-1  POST /internal/v1/storage-objects

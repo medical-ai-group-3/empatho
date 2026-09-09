@@ -228,7 +228,7 @@ func (g *gw) initUpload(w http.ResponseWriter, r *http.Request) {
 	rand.Read(b[:])
 	id := hex.EncodeToString(b[:])
 	s := g.up.Init(id, keyFor(cl, req.Filename), cl.ContentType,
-		cl.PatientID, cl.ScopeID, cl.MaxBytes)
+		cl.PatientID, cl.ScopeID, cl.Purpose, cl.MaxBytes)
 	log.Printf("[G-F1] upload=%s scope=%s max=%d", id, cl.ScopeID, cl.MaxBytes)
 	writeJSON(w, 200, map[string]any{
 		"upload_id": s.ID, "max_bytes": s.MaxBytes,
@@ -290,7 +290,7 @@ func (g *gw) complete(w http.ResponseWriter, r *http.Request) {
 	// 분할 업로드는 원본 전용이다. 파생물은 메시 · 마스크라 한 번에 올라간다 —
 	// 필요해지면 여기에도 저장소를 골라 넘기면 된다.
 	g.commit(w, r, g.st, s.ObjectKey, sum, total, s.ContentType,
-		s.PatientID, s.ScopeID, tap.b.Bytes())
+		s.PatientID, s.ScopeID, s.Purpose, tap.b.Bytes())
 }
 
 // headTap — 앞 max 바이트만 모으고 나머지는 버린다.
@@ -384,7 +384,7 @@ func (g *gw) putTo(w http.ResponseWriter, r *http.Request, cl *ticket.Claims,
 		head = nil // 파생물은 DICOM 이 아니다. 파싱도 Orthanc 전송도 건너뛴다
 	}
 	g.commit(w, r, st, key, hex.EncodeToString(h.Sum(nil)), cr.read, ct,
-		cl.PatientID, cl.ScopeID, head)
+		cl.PatientID, cl.ScopeID, cl.Purpose, head)
 }
 
 // bucketName — 설정 안 된 저장소를 로그·health 에서 구분해 보여준다.
@@ -419,11 +419,12 @@ func (c *capReader) Read(p []byte) (int, error) {
 // 콜백이 실패하면 Garage 에는 있는데 DB 에 없는 고아 객체가 된다.
 // 명세 21장이 그 상태를 정상으로 취급하지 말라고 못 박았으므로 502 로 알린다.
 func (g *gw) commit(w http.ResponseWriter, r *http.Request, st storage.Store,
-	key, sum string, size int64, ct, patient, scope string, head []byte) {
+	key, sum string, size int64, ct, patient, scope, purpose string,
+	head []byte) {
 	obj := callback.StorageObject{
 		Bucket: st.Bucket(), ObjectKey: key, ChecksumSHA256: sum,
 		ByteSize: size, ContentType: ct, StorageClass: g.cls,
-		PatientID: patient, ScopeID: scope,
+		PatientID: patient, ScopeID: scope, Purpose: purpose,
 	}
 	if err := g.cb.PostStorageObject(r.Context(), obj); err != nil {
 		log.Printf("[gw] ✗ I-1 실패 key=%s — 고아 객체가 된다: %v", key, err)

@@ -291,7 +291,11 @@ func (s *server) reportNarrative(w http.ResponseWriter, r *http.Request) {
 			DroppedSentenceLog: drops,
 			Notes:              notes,
 			PromptVersion:      res.PromptVersion,
-			Fallback:           fb,
+			// 되돌렸는가(boolean) 와 왜(문자열)를 나눠 보낸다.
+			// res.Fallback 이 nil 이면 안 되돌린 것이다 — 사유가 빈
+			// 문자열인 경우와 구분해야 해서 nil 로 판정한다.
+			Fallback:       res.Fallback != nil,
+			FallbackReason: fb,
 		})
 	if cerr != nil {
 		fail(w, 502, "CALLBACK_FAILED",
