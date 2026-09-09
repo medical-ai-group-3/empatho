@@ -224,6 +224,9 @@ class ExamOrder(AuditBase):
 
     진실은 이 표다. notification 은 통지일 뿐이라 원무 큐는 알림이 아니라
     order_status='requested' 로 뽑는다 — 알림이 안 갔거나 지워져도 신청은 남는다.
+
+    원무의 거절도 cancelled 다 — rejected 를 따로 두지 않는다. 누가 물렸는지는
+    notification.staff_id 로 갈린다: 거절이면 채워지고, 환자 취소면 null 이다.
     """
 
     exam_order_id = models.BigAutoField(primary_key=True)
@@ -261,11 +264,14 @@ class ExamOrder(AuditBase):
                 name='exam_order_modality_ck'),
             models.CheckConstraint(condition=Q(order_status__in=ORDER_STATUS),
                                    name='exam_order_status_ck'),
-            # 신청 상태일 때만 검사 종류 · 목적 · 지시자가 비어도 된다.
+            # 신청 · 취소일 때만 검사 종류 · 목적 · 지시자가 비어도 된다.
+            # 확정 전에 물린 신청은 requested → cancelled 로 가는데 세 칸이 비어
+            # 있고, PROTECT 정책이라 행을 지울 수도 없다. 확정 후 취소는 세 칸이
+            # 이미 차 있어 느슨해지는 것이 없다.
             # API 계층이 아니라 DB 로 막는다 — Celery 나 admin 으로 들어오는 행은
             # API 검증을 거치지 않는다.
             models.CheckConstraint(
-                condition=Q(order_status='requested')
+                condition=Q(order_status__in=['requested', 'cancelled'])
                 | (Q(modality__isnull=False) & Q(exam_purpose__isnull=False)
                    & Q(ordered_by__isnull=False)),
                 name='exam_order_requested_fields_ck'),
