@@ -53,7 +53,8 @@ SPECIMEN_TYPE = ["core_needle", "surgical"]
 GUIDANCE_ROUTE = ["ultrasound", "stereotactic", "mri", "localization"]
 STIL_LEVEL = ["low", "mid", "high"]
 STROMA_STATUS = ["ok", "absent"]
-VIOLATED_RULE = ["rule1", "rule2", "rule3", "rule4", "rule5"]
+# rule3(석회 표적 대조)은 쓰지 않기로 해서 뺐다 — 대조는 4 종이다.
+VIOLATED_RULE = ["rule1", "rule2", "rule4", "rule5"]
 FLAG_STATUS = ["pass", "sev1", "sev2", "review", "unbindable"]
 REVIEW_OPINION = ["agree", "object"]
 REPORT_TYPE = ["stage", "final"]
@@ -98,6 +99,16 @@ class Account(AuditBase):
             models.CheckConstraint(condition=Q(role__in=ROLE), name='account_role_ck'),
         ]
 
+    # DRF 가 request.user 에서 보는 것들. 인증 주체가 auth_user 가 아니라 이
+    # 표라서 직접 준다. 파이썬 속성이라 컬럼도 마이그레이션도 생기지 않는다.
+    # 여기까지 온 Account 는 인증을 통과한 것이다 — is_active 검사는
+    # core/api/auth.py 가 먼저 한다.
+    is_authenticated = True
+    is_anonymous = False
+
+    def __str__(self):
+        return "%s(%s)" % (self.login_id or self.account_id, self.role)
+
 
 class Staff(AuditBase):
     """의료진 신원. 계정과 권한(role)은 account 에, 여기는 이름 · 직원번호 · 승인 기록."""
@@ -106,6 +117,9 @@ class Staff(AuditBase):
     account = models.OneToOneField(Account, models.PROTECT, related_name='staff')
     staff_number = models.CharField(unique=True, max_length=50, blank=True, null=True)
     full_name = models.CharField(max_length=50, blank=True, null=True)
+    # 역할 기본 권한에 개인별로 더하는 권한. {"assessment": ["R"], "report": ["R"]}
+    # 더하기만 한다 — 역할이 준 권한을 개인이 잃지 않는다.
+    extra_permissions = models.JSONField(blank=True, null=True)
     approved_by = models.ForeignKey('self', models.PROTECT, blank=True, null=True,
                                     related_name='+', db_column='approved_by')
     approved_at = models.DateTimeField(blank=True, null=True)
