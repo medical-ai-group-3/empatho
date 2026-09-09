@@ -205,13 +205,8 @@ class DicomInstanceCallback(InternalCallbackView):
         obj.height_px = p.get("rows") or None
         obj.pixel_spacing_mm = self._spacing(p.get("pixel_spacing"), object_key)
         obj.has_geometry = self._has_geometry(p)
-
-        # ⚠ orthanc_series_id 는 채우지 못한다. storage_object_address_ck 가
-        #   「Orthanc 아니면 Garage, 정확히 하나」인데 DICOM 은 Garage 와
-        #   Orthanc 양쪽에 있다. 제약을 고칠지 팀 확인 대상이다.
-        if p.get("orthanc_series_id"):
-            logger.warning("[I-2] orthanc_series_id 를 버린다 key=%s — "
-                           "address CHECK 이 Garage 와 동시 보유를 막는다", object_key)
+        # Garage 와 Orthanc 양쪽에 있는 것이 정상이다 (0008 에서 제약 완화).
+        obj.orthanc_series_id = p.get("orthanc_series_id") or None
 
         with transaction.atomic():
             obj.save()

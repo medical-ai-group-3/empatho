@@ -68,13 +68,39 @@ class ObjectKeyIdempotencyTests(StorageObjectFileUnitTests):
         self.assertEqual(
             StorageObject.objects.filter(object_key="mri/0001.dcm").count(), 2)
 
-    def test_Orthanc_에_둔_파일은_둘_다_비어_서로_안_부딪힌다(self):
+    def test_Orthanc_에만_둔_파일은_키가_비어_서로_안_부딪힌다(self):
         for n in range(3):
             StorageObject.objects.create(
                 study=self.study, bucket=None, object_key=None,
                 orthanc_series_id="orthanc-%d" % n)
         self.assertEqual(
             StorageObject.objects.filter(object_key__isnull=True).count(), 3)
+
+
+class AddressTests(StorageObjectFileUnitTests):
+    """주소는 적어도 하나 — DICOM 은 Garage 와 Orthanc 양쪽에 있는 것이 정상이다."""
+
+    def test_양쪽에_다_있어도_된다(self):
+        # Go 가 Garage 에 커밋(I-1)한 뒤 Orthanc 에도 올린다.
+        obj = self._file(1, orthanc_series_id="orthanc-series-1")
+        self.assertEqual(obj.orthanc_series_id, "orthanc-series-1")
+        self.assertEqual(obj.object_key, "mri/0001.dcm")
+
+    def test_Garage_에만_있어도_된다(self):
+        self.assertIsNone(self._file(2).orthanc_series_id)
+
+    def test_Orthanc_에만_있어도_된다(self):
+        obj = StorageObject.objects.create(
+            study=self.study, bucket=None, object_key=None,
+            orthanc_series_id="orthanc-only")
+        self.assertIsNone(obj.object_key)
+
+    def test_주소가_아예_없으면_막힌다(self):
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                StorageObject.objects.create(
+                    study=self.study, bucket=None, object_key=None,
+                    orthanc_series_id=None)
 
     def test_I1_재시도가_행을_두_번_만들지_않는다(self):
         for _ in range(3):

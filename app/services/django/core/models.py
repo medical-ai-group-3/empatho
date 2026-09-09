@@ -375,10 +375,13 @@ class StorageObject(AuditBase):
     class Meta:
         db_table = 'storage_object'
         constraints = [
-            # 주소는 Orthanc 아니면 Garage, 정확히 하나
+            # 주소가 적어도 하나는 있어야 한다.
+            # 「정확히 하나」가 아니다 — DICOM 은 Garage 와 Orthanc 양쪽에 있는
+            # 것이 정상 흐름이다. Go 가 Garage 에 커밋(I-1)한 뒤 Orthanc 에도
+            # 올리고 I-2 로 그쪽 식별자를 보낸다.
             models.CheckConstraint(
-                condition=(Q(orthanc_series_id__isnull=False) & Q(object_key__isnull=True))
-                | (Q(orthanc_series_id__isnull=True) & Q(object_key__isnull=False)),
+                condition=Q(orthanc_series_id__isnull=False)
+                | Q(object_key__isnull=False),
                 name='storage_object_address_ck'),
             # 영상 · 병리 · 리포트 중 정확히 하나에 매달린다.
             # 티켓 purpose 가 dicom_upload · wsi_upload · report_pdf 로 갈린다.
