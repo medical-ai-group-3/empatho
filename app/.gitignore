@@ -27,3 +27,4 @@ services/gosvc/bin/
 services/gosvc/vendor/
 web-dist/*
 !web-dist/.gitkeep
+services/web/node_modules/
