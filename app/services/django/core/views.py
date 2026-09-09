@@ -9,34 +9,51 @@
 
 from rest_framework import viewsets
 from rest_framework.decorators import action
+
+from rest_framework import status
 from rest_framework.response import Response
+
+from django.db.models import Q
 
 from . import models, serializers
 from .mixins import RoleScopedViewSet
 
 
+
+
 # ── reception · 원무 ──────────────────────────────────────────
 class PatientViewSet(RoleScopedViewSet, viewsets.ModelViewSet):
-    """§5-1 검색 · §5-2 신규 등록.
-
-    GET  /patients/?q=...        환자 검색 (patient_number + 이름/전화/생년)
-    POST /patients/              patient + patient_pii 한 트랜잭션
-    """
 
     required_roles = {"reception", "nursing"}
     queryset = models.Patient.objects.select_related("pii").all()
 
+    def get_queryset(self):
+            qs = super().get_queryset()
+            q = self.request.query_params.get("q", "").strip()
+            if not q:
+                return qs.none()
+            return qs.filter(
+                Q(patient_number=q) |
+                Q(pii__name__icontains=q) |
+                Q(pii__phone__icontains=q)
+            )
+            
     def get_serializer_class(self):
         if self.action == "create":
             return serializers.PatientCreateSerializer
-        if self.action in ("retrieve",):
+        if self.action == "retrieve":
             return serializers.PatientDetailSerializer
+        if self.action == "list":
+            return serializers.PatientListSerializer
         return serializers.PatientSerializer
+    
 
-    # TODO: get_queryset() 에서 ?q= 로 patient_number / pii__name / pii__phone 필터
-    # TODO: create() — PatientCreateSerializer 로 검증 후 atomic insert
-
-
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data= request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        out = serializers.PatientDetailSerializer(serializer.instance)
+        return Response(out.data, status=status.HTTP_201_CREATED)
 class ReservationViewSet(RoleScopedViewSet, viewsets.ViewSet):
     """§5-3 예약 생성. exam_order 로 1:N 생성.
 
@@ -44,8 +61,16 @@ class ReservationViewSet(RoleScopedViewSet, viewsets.ViewSet):
     """
 
     required_roles = {"reception"}
+    
+    def create(self, request):
+        serializer = serializers.ReservationCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        rows = serializer.instance
+        out = serializers.ExamOrderSerializer(rows, many=True)
+        return Response(out.data, status=status.HTTP_201_CREATED)
 
-    # TODO: create() — exam_order N건 insert (exam_purpose NOT NULL)
+    
 
 
 # ── nursing · 간호 ───────────────────────────────────────────
@@ -58,7 +83,7 @@ class VisitTodayViewSet(RoleScopedViewSet, viewsets.ViewSet):
 
     required_roles = {"nursing"}
 
-    # TODO: list() / create()
+   
 
 
 class FollowupViewSet(RoleScopedViewSet, viewsets.ModelViewSet):
@@ -73,7 +98,7 @@ class FollowupViewSet(RoleScopedViewSet, viewsets.ModelViewSet):
     queryset = models.Followup.objects.select_related("patient").order_by("due_at")
     serializer_class = serializers.FollowupSerializer
 
-    # TODO: partial_update 분기 — 통화 기록 vs 회차 종료
+
 
 
 class QuestionnaireView(RoleScopedViewSet, viewsets.ViewSet):
@@ -83,5 +108,7 @@ class QuestionnaireView(RoleScopedViewSet, viewsets.ViewSet):
     """
 
     required_roles = {"nursing"}
+    
+    def partial_update(self, request, pk=None):
+        return Response(status=status.HTTP_501_NOT_IMPLEMENTED)
 
-    # TODO: partial_update(request, pk) — questionnaire JSON 갱신
