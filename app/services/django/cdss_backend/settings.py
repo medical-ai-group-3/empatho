@@ -138,6 +138,14 @@ JWT = {
     "REFRESH_TTL_DAYS": int(os.environ.get("JWT_REFRESH_TTL_DAYS", "14")),
 }
 
+# Go → Django 내부 콜백(명세 21장)의 서명 키. conf/gosvc.env 의 CALLBACK_SECRET
+# 과 **같은 값**이어야 한다. 어긋나면 콜백이 401 로 조용히 거절된다.
+# 비어 있으면 콜백을 아예 받지 않는다 — 설정 누락을 통과로 취급하지 않는다.
+CALLBACK_SECRET = os.environ.get("CALLBACK_SECRET", "")
+# Go 가 nonce 를 안 보내서 시간 창이 재전송을 막는 유일한 수단이다.
+CALLBACK_TIMESTAMP_TOLERANCE_SEC = int(
+    os.environ.get("CALLBACK_TIMESTAMP_TOLERANCE_SEC", "300"))
+
 SPECTACULAR_SETTINGS = {
     "TITLE": "EMPATHO CDSS API",
     "DESCRIPTION": "유방암 검진 CDSS — 공통 규약은 CDSS_API_명세서_v3 §1 을 따른다.",
