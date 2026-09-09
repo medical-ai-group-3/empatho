@@ -49,14 +49,31 @@ type Claims struct {
 // ⚠ 인스턴스를 여러 개 띄우면 Redis 로 옮겨야 한다. 안 옮기면 A 인스턴스에서
 //
 //	쓴 티켓을 B 인스턴스가 받아준다.
+//
+// reusable 에 적은 purpose 는 **nonce 를 소진하지 않는다.** 명세 §19-5 의
+// 「뷰어 세션 단위 발급」이 그 뜻이다 — 타일 뷰어는 화면 하나에 수십 장을
+// 당기는데, 1회용이면 그만큼 발급을 받아야 한다.
+//
+// ⚠ 읽기 티켓은 exp 까지 몇 번이든 쓸 수 있다. 대신 서는 것이 둘이고 둘 다
+//
+//	발급하는 쪽(Django)에 있다.
+//	  object_key_prefix  이제 이것이 유일한 경계다. 검사 하나로 좁혀야 한다
+//	  exp                이것이 곧 재사용 가능 시간이다
+//
+//	쓰기는 절대 넣지 말 것. 재사용되면 같은 자리에 덮어쓸 수 있다.
 type Verifier struct {
-	key  []byte
-	mu   sync.Mutex
-	used map[string]int64 // nonce -> exp. 만료된 것은 청소한다
+	key      []byte
+	reusable map[string]bool // 이 purpose 는 nonce 를 소진하지 않는다
+	mu       sync.Mutex
+	used     map[string]int64 // nonce -> exp. 만료된 것은 청소한다
 }
 
-func NewVerifier(key []byte) *Verifier {
-	return &Verifier{key: key, used: make(map[string]int64)}
+func NewVerifier(key []byte, reusable ...string) *Verifier {
+	r := make(map[string]bool, len(reusable))
+	for _, p := range reusable {
+		r[p] = true
+	}
+	return &Verifier{key: key, reusable: r, used: make(map[string]int64)}
 }
 
 func (v *Verifier) Verify(token string) (*Claims, error) {
@@ -90,6 +107,13 @@ func (v *Verifier) Verify(token string) (*Claims, error) {
 	if c.Nonce == "" {
 		return nil, ErrMalformed
 	}
+
+	// 읽기 티켓은 여기서 끝난다. nonce 는 **여전히 필수**다 — 값을 계속
+	// 유일하게 받아 두면, 나중에 소진을 다시 켤 때 양쪽 형식을 안 바꿔도 된다.
+	if v.reusable[c.Purpose] {
+		return &c, nil
+	}
+
 	v.mu.Lock()
 	defer v.mu.Unlock()
 	v.sweep(now)

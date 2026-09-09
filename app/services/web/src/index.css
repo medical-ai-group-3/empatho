@@ -1,111 +1,319 @@
-:root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+/* ─────────────────────────────────────────────────────────────
+   EMPATHO — 팀 색 체계 (밝은 판 · 어두운 판)
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
+   규칙 둘을 지킨다.
+     ① **핑크는 상태 컬러로 쓰지 않는다.** 좋다/주의/오류는 무채색과
+        노랑·연분홍(오류)으로만 말한다. 핑크가 상태를 뜻하기 시작하면
+        브랜드 색이 경고색이 되어 버린다.
+     ② **무채색 70~80% · 핑크 10~15%.** 핑크는 «여기를 보라»는 자리에만
+        놓는다 — 주요 단추, 선택된 탭, 배지, 안내문.
 
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
+   ── 두 판을 한 줄에 적는 이유 ──────────────────────────────────
+   light-dark(밝을 때, 어두울 때) 를 쓴다. 값이 나란히 있어야 한 쪽만
+   고치는 사고가 안 난다. 판을 가르는 것은 아래 color-scheme 한 줄이다.
+
+     color-scheme: light dark   → 기기 설정을 따라간다 (기본)
+     <html data-theme="dark">   → 어두운 판으로 고정
+     <html data-theme="light">  → 밝은 판으로 고정
+
+   토글을 붙일 자리는 「내 정보」다. 그때 data-theme 만 바꾸면 되고,
+   색은 여기 말고 어디도 손대지 않는다.
+   ───────────────────────────────────────────────────────────── */
+@import url("https://fonts.googleapis.com/css2?family=Gothic+A1:wght@300;400;500;600;700&family=Gowun+Batang:wght@400;700&family=IBM+Plex+Mono:wght@400;500&display=swap");
+
+:root{
   color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
-}
+  /* 핑크 — 어두운 판에서는 한 단계씩 밝다. 어두운 바탕 위에서
+     밝은 판의 #A85C70 은 글자로 읽히지 않는다 */
+  --pink:    light-dark(#A85C70, #C58F9B);   /* Primary — 핵심 포인트 · 선택 */
+  --pink-2:  light-dark(#C98294, #D9A7B1);   /* Muted   — 버튼 · 강조 요소 */
+  --pink-3:  light-dark(#DDA8B5, #E6C6CD);   /* Soft    — 배지 · 아이콘 · 차트 */
+  --pink-bg: light-dark(#F1DDE2, #3A2830);   /* 강조 배경 · 알림 배경
+                                                (어두운 판의 Pink Tint) */
+  --blush:   light-dark(#F8EFF1, #2E242B);   /* 섹션 배경 — 어두운 값은
+                                                Pink Tint 를 Surface 쪽으로
+                                                60% 당긴 것이다 */
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
+  /* 핑크 위에 얹는 글자. 밝은 판은 흰 글자, 어두운 판은 **검은 글자**다 —
+     어두운 판의 핑크가 밝아서 흰 글자가 안 읽힌다 */
+  --pink-ink: light-dark(#FFFFFF, #1C2024);
 
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
-}
+  /* 무채색 */
+  --ink:       light-dark(#1C2024, #E9ECEF);  /* 주요 텍스트 */
+  --ink-2:     light-dark(#454A50, #D2D6DA);  /* 제목 · 강조 텍스트 */
+  --muted:     light-dark(#6A7078, #AEB3B8);  /* 설명 · 보조 텍스트 */
+  --faint:     light-dark(#AEB3B8, #767C84);  /* 비활성 · 플레이스홀더 */
+  --line:      light-dark(#E1E4E8, #3A3F46);  /* 테두리 · 구분선 */
+  --line-soft: light-dark(#EDEFF1, #2C3137);  /* 목록 사이 — Border 를 옅게 */
+  --surface:   light-dark(#FFFFFF, #1C1F24);  /* 카드 · 모달 */
+  --raised:    light-dark(#FFFFFF, #262A31);  /* 한 칸 떠 있는 면 · 트랙 */
+  --bg:        light-dark(#F7F7F6, #121317);  /* 전체 배경 */
 
-body {
-  margin: 0;
-}
+  /* ── 상태 — 핑크를 쓰지 않는다 ──────────────────────────────
+     주의와 오류는 팀 시안에서 두 판이 **같은 값**이다. 성공은 어두운 판
+     시안에만 있어서, 같은 규칙을 따라 밝은 판에도 그 값을 쓴다 —
+     새 색을 지어내는 것보다 이미 선 규칙을 따르는 쪽이 맞다.
+     정보만 판마다 다른데, 그것은 의도된 것이다(팀 확인 완료). */
+  --ok:    #4CAF8A;
+  --warn:  #E6C46A;
+  --error: #E08C8C;
+  --info:  light-dark(#6A7078, #7BA7D9);
+  --off:   light-dark(#D9DDE1, #262A31);
 
-#root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
+  /* 그림자는 어두운 판에서 안 보인다. 색을 투명으로 두어 끈다 */
+  --shadow: light-dark(rgba(28,32,36,.04), transparent);
+  --card: 0 1px 2px var(--shadow);
 }
 
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
-}
+/* 기기 설정을 무시하고 한 판으로 고정할 때 */
+:root[data-theme="light"]{ color-scheme: light }
+:root[data-theme="dark"] { color-scheme: dark  }
 
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
-}
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
-}
-p {
-  margin: 0;
-}
+*{box-sizing:border-box}
+html,body,#root{height:100%}
+body{margin:0; background:var(--bg); color:var(--ink);
+  font-family:"Gothic A1",system-ui,sans-serif; font-size:14px;
+  line-height:1.62; -webkit-font-smoothing:antialiased}
+button{font:inherit; color:inherit; background:none; border:none; padding:0;
+  cursor:pointer; text-align:left}
+a{color:inherit; text-decoration:none}
+:focus-visible{outline:2px solid var(--pink); outline-offset:2px;
+  border-radius:4px}
 
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
-}
+/* ── 뼈대 ─────────────────────────────────── */
+.app{height:100%; display:flex; flex-direction:column;
+  max-width:520px; margin:0 auto; background:var(--surface);
+  border-inline:1px solid var(--line)}
 
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
-}
+/* 화면은 Fragment 로 온다 — 감싸는 요소가 없다. 그래서 여기가 곧
+   세로 통이고, .top 과 .pane 이 바로 자식이 된다. */
+.screens{flex:1; min-height:0; display:flex; flex-direction:column}
+
+/* 머리말 — 뒤로가기는 **왼쪽 끝**, 제목은 그 옆 */
+.top{display:flex; align-items:center; gap:10px; padding:14px 20px;
+  border-bottom:1px solid var(--line); flex:none; background:var(--surface)}
+.top .back{color:var(--ink-2); font-size:24px; line-height:1;
+  width:26px; height:26px; flex:none; margin-left:-6px;
+  display:flex; align-items:center; justify-content:center; border-radius:4px}
+.top .back:hover{background:var(--bg); color:var(--pink)}
+.top h2{margin:0; font-size:16px; font-weight:700; letter-spacing:-.01em;
+  color:var(--ink); flex:1; min-width:0}
+
+/* 머리말 오른쪽 — 지금은 밝기 단추 하나뿐이다 */
+.top .right{flex:none; display:flex; align-items:center; gap:2px;
+  margin-right:-6px}
+.top .icon{width:30px; height:30px; border-radius:8px; flex:none;
+  display:flex; align-items:center; justify-content:center;
+  font-size:15px; line-height:1; color:var(--muted)}
+.top .icon:hover{background:var(--bg); color:var(--pink)}
+.top .icon.on{color:var(--pink)}     /* 자동이 아니라 손으로 골라 둔 상태 */
+
+.pane{padding:20px; overflow-y:auto; flex:1; display:flex;
+  flex-direction:column; gap:14px; background:var(--bg)}
+.pane.mid{justify-content:center; gap:16px}
+
+/* 아래 탭 — 선택된 것만 핑크다 */
+.tabs{display:flex; border-top:1px solid var(--line); flex:none;
+  background:var(--surface)}
+.tabs a{flex:1; text-align:center; padding:11px 2px 15px; font-size:10.5px;
+  color:var(--faint); line-height:1.4; letter-spacing:.02em; position:relative}
+.tabs a.on{color:var(--pink); font-weight:700}
+.tabs a.on::before{content:""; position:absolute; top:-1px; left:26%;
+  right:26%; height:2px; background:var(--pink)}
+.tabs .ic{display:block; font-size:15px; margin-bottom:3px; font-style:normal}
+
+/* ── 단추 ─────────────────────────────────── */
+.btn{display:block; width:100%; background:var(--pink); color:var(--pink-ink);
+  border-radius:8px; text-align:center; padding:14px; font-weight:700;
+  font-size:14px; letter-spacing:.01em; transition:background .12s}
+.btn:hover:not(:disabled){background:var(--pink-2)}
+.btn:disabled{background:var(--off); color:var(--faint); cursor:not-allowed}
+
+/* 보조 — 연분홍 바탕에 핑크 글자 */
+.btn.soft{background:var(--pink-bg); color:var(--pink)}
+.btn.soft:hover:not(:disabled){background:var(--pink-3); color:var(--pink-ink)}
+
+/* 3순위 — 바탕색에 테두리만 */
+.btn.ghost{background:var(--surface); color:var(--ink-2);
+  box-shadow:inset 0 0 0 1px var(--line)}
+.btn.ghost:hover:not(:disabled){background:var(--surface);
+  box-shadow:inset 0 0 0 1px var(--pink-3); color:var(--pink)}
+.btn.ghost:disabled{background:var(--surface); color:var(--faint);
+  box-shadow:inset 0 0 0 1px var(--line)}
+
+.row2{display:flex; gap:10px; align-items:stretch}
+.row2 > *{flex:1}
+
+/* ── 글 ───────────────────────────────────── */
+.note{font-size:12px; color:var(--muted); line-height:1.75; margin:0}
+.note.c{text-align:center}
+.note b{color:var(--ink-2); font-weight:600}
+
+.hello{font-size:21px; font-weight:700; letter-spacing:-.02em; line-height:1.4;
+  color:var(--ink); margin:2px 0 0}
+.hello small{display:block; font-size:11.5px; color:var(--muted);
+  font-weight:400; margin-top:5px; letter-spacing:0}
+
+/* ── 카드 ─────────────────────────────────── */
+.card{border:1px solid var(--line); border-radius:10px; padding:16px;
+  background:var(--surface); display:flex; flex-direction:column; gap:5px;
+  width:100%; text-align:left; box-shadow:var(--card)}
+.card .k{font-size:10px; letter-spacing:.12em; text-transform:uppercase;
+  color:var(--muted); font-weight:700}
+.card .v{font-size:15.5px; font-weight:700; letter-spacing:-.012em;
+  color:var(--ink)}
+.card .s{font-size:12.5px; color:var(--muted)}
+
+/* 눈에 띄어야 하는 카드 — 연분홍 바탕 */
+.card.accent{border-color:var(--pink-3); background:var(--pink-bg);
+  box-shadow:none}
+.card.accent .k{color:var(--pink)}
+
+/* 주의가 필요한 카드 — 바탕은 알림 배경, 상태는 «색»이 아니라 글자로 */
+.card.flag{border-color:var(--warn); background:var(--surface);
+  box-shadow:none; border-left-width:3px}
+.card.flag .k{color:var(--ink-2)}
+
+/* 누르면 어디론가 가는 카드 — 오른쪽 화살표가 그것을 말한다.
+   화살표만으로 «누를 수 있음»을 말하지 않도록 전체가 링크다 */
+.card.go{flex-direction:row; align-items:center; gap:12px}
+.card.go .tx{flex:1; min-width:0; display:flex; flex-direction:column; gap:4px}
+.card.go .arw{flex:none; font-size:20px; line-height:1; color:var(--faint)}
+.card.go:hover .arw{color:var(--pink)}
+
+/* 진행 막대 — 문진이 몇 문항까지 왔는지 */
+.prog{display:block; height:5px; border-radius:3px; background:var(--off);
+  overflow:hidden; margin-top:3px}
+.prog i{display:block; height:100%; background:var(--pink); border-radius:3px}
+.card.accent .prog{background:var(--surface)}
+
+/* ── 목록 ─────────────────────────────────── */
+.list{display:flex; flex-direction:column; background:var(--surface);
+  border:1px solid var(--line); border-radius:10px; overflow:hidden}
+.list > *{padding:15px 16px; border-bottom:1px solid var(--line-soft);
+  display:flex; gap:12px; align-items:flex-start; width:100%; text-align:left}
+.list > *:last-child{border-bottom:none}
+.list a:hover{background:var(--blush)}
+.list .dt{font-family:"IBM Plex Mono",monospace; font-size:10.5px;
+  color:var(--faint); flex:none; width:74px; padding-top:3px;
+  font-variant-numeric:tabular-nums}
+.list .tx{flex:1; min-width:0}
+.list .tx b{display:block; font-size:14px; font-weight:700;
+  letter-spacing:-.008em; color:var(--ink)}
+.list .tx span{font-size:12px; color:var(--muted)}
+
+/* ── 배지 — 핑크를 써도 되는 자리다(상태가 아니라 표시) ── */
+.pill{font-size:10px; font-weight:700; padding:4px 9px; border-radius:20px;
+  flex:none; white-space:nowrap; letter-spacing:.04em;
+  align-self:flex-start; margin-top:2px}
+.pill.new{background:var(--pink-bg); color:var(--pink)}
+.pill.read{background:var(--bg); color:var(--faint)}
+
+/* 「끝났다」 — 초록은 **점**으로만 쓴다. 10px 굵은 글자로 쓰면 흰 바탕에서
+   대비가 2.7:1 밖에 안 나와 읽히지 않는다. 뜻은 글자가 지고 색은 거든다. */
+.pill.ok{background:var(--bg); color:var(--muted);
+  display:inline-flex; align-items:center; gap:5px}
+.pill.ok::before{content:""; width:5px; height:5px; border-radius:50%;
+  background:var(--ok); flex:none}
+
+/* ── 달력 ──────────────────────────────────────────────────────
+   **보기만 한다.** 날짜를 고르는 곳은 예약 화면 한 곳이다 — 두 군데서
+   고를 수 있으면 어느 쪽이 «진짜» 신청인지 헷갈린다.
+
+   점의 뜻은 아래 범례가 글자로 말한다. 색만으로 뜻을 전하면 색을
+   구분 못 하는 사람에게는 아무 말도 안 한 것이 된다.
+   ────────────────────────────────────────────────────────────── */
+.cal{border:1px solid var(--line); border-radius:10px; background:var(--surface);
+  box-shadow:var(--card); overflow:hidden}
+.cal .mhead{padding:14px 16px 10px; font-size:13px; font-weight:700;
+  color:var(--ink); letter-spacing:-.01em}
+.cal .wd,.cal .grid{display:grid; grid-template-columns:repeat(7,1fr)}
+.cal .wd{padding:0 10px 6px; font-size:10px; color:var(--faint);
+  text-align:center; letter-spacing:.06em; font-weight:600}
+.cal .grid{padding:0 10px 12px; row-gap:2px}
+
+.cal .d{aspect-ratio:1/1; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:3px;
+  font-size:12px; color:var(--ink-2); font-variant-numeric:tabular-nums;
+  border-radius:8px}
+.cal .d.pad{visibility:hidden}
+.cal .d.sun{color:var(--error)}
+/* 오늘 — 채우지 않고 테두리만. 채우면 «선택됨»으로 읽힌다 */
+.cal .d.today{box-shadow:inset 0 0 0 1.5px var(--line); font-weight:700;
+  color:var(--ink)}
+.cal .d.marked{background:var(--blush); font-weight:700; color:var(--ink)}
+
+/* 고른 날 — 여기만 핑크로 채운다. 「지금 이걸 신청한다」는 뜻이라
+   화면에서 제일 강해야 한다 */
+.cal .d.sel{background:var(--pink); color:var(--pink-ink); font-weight:700}
+.cal .d.sel .dot{background:var(--pink-ink); box-shadow:none}
+
+.cal .dot{width:5px; height:5px; border-radius:50%; flex:none}
+.cal .dot.open     {background:var(--pink-3)}
+.cal .dot.done     {background:var(--faint)}
+.cal .dot.confirmed{background:var(--pink)}
+/* 신청은 «아직 비어 있다» — 테두리만 두어 확정과 눈으로 갈린다 */
+.cal .dot.requested{background:transparent; box-shadow:inset 0 0 0 1.5px var(--pink)}
+.cal .dot.followup {background:transparent; box-shadow:inset 0 0 0 1.5px var(--faint)}
+.cal .dot.none     {background:transparent}
+
+.cal .legend{display:flex; flex-wrap:wrap; gap:4px 14px;
+  padding:0 16px 14px; font-size:10.5px; color:var(--muted)}
+.cal .legend span{display:flex; align-items:center; gap:5px}
+
+/* 달력 아래 한 줄 — 다음 예약과 예약 화면으로 가는 길 */
+.cal .foot{display:flex; align-items:center; gap:12px;
+  padding:13px 16px; border-top:1px solid var(--line-soft);
+  background:var(--blush)}
+.cal .foot .tx{flex:1; min-width:0}
+.cal .foot .tx b{display:block; font-size:13px; font-weight:700; color:var(--ink)}
+.cal .foot .tx span{font-size:11.5px; color:var(--muted)}
+.cal .foot .more{flex:none; font-size:12px; font-weight:700; color:var(--pink);
+  padding:6px 10px; border-radius:6px}
+.cal .foot .more:hover{background:var(--pink-bg)}
+
+/* ── 구역 제목 ─────────────────────────────── */
+.sec{margin:6px 0 -4px; font-size:12px; font-weight:700; color:var(--muted);
+  letter-spacing:.02em}
+
+/* ── 시간 고르기 — 칩 ───────────────────────── */
+.chips{display:flex; flex-wrap:wrap; gap:7px; margin-top:8px}
+.chip{border-radius:7px; padding:9px 13px; font-size:13px; font-weight:600;
+  font-variant-numeric:tabular-nums; color:var(--ink-2);
+  box-shadow:inset 0 0 0 1px var(--line); background:var(--surface);
+  transition:background .12s}
+.chip:hover{box-shadow:inset 0 0 0 1px var(--pink-3); color:var(--pink)}
+.chip.on{background:var(--pink); color:var(--pink-ink); box-shadow:none}
+
+/* ── 목록 안에서 세로로 쌓이는 항목 ────────────
+   .list > * 가 가로 배치라, 아래에 줄을 더 붙이려면 한 칸 감싼다 */
+.list .col{display:flex; flex-direction:column; gap:0; align-items:stretch}
+.list .col .row{display:flex; gap:12px; align-items:flex-start}
+
+/* 되묻는 줄 — 취소처럼 되돌릴 수 없는 것에만 쓴다 */
+.ask{display:flex; gap:14px; align-items:center; margin-top:9px;
+  font-size:12px; color:var(--muted)}
+.lnk{font-size:12px; font-weight:700; color:var(--pink); padding:2px 0}
+.lnk:hover{text-decoration:underline}
+.lnk:disabled{color:var(--faint); cursor:not-allowed; text-decoration:none}
+/* 「취소한다」는 상태가 아니라 경고다. 핑크를 쓰지 않는다 */
+.lnk.warn{color:var(--error)}
+
+/* ── 안내문 — 이 앱에서 사람이 «읽는» 유일한 자리 ──────────────
+   명조에 넓은 행간. 바탕은 섹션 배경(Blush)이라 화면에서 한 칸 떠 보인다. */
+.letter{background:var(--blush); border:1px solid var(--pink-bg);
+  border-radius:12px; padding:24px 22px 18px;
+  font-family:"Gowun Batang","Nanum Myeongjo",serif;
+  display:flex; flex-direction:column; gap:14px}
+.letter h3{margin:0; font-size:20px; font-weight:700; color:var(--ink);
+  letter-spacing:-.01em}
+.letter .by{font-family:"Gothic A1",sans-serif; font-size:11px;
+  color:var(--pink); margin:0; letter-spacing:.06em; font-weight:600}
+.letter p{margin:0; font-size:14.5px; line-height:2.05; color:var(--ink-2)}
+.stamp{display:flex; gap:8px; align-items:center; margin-top:4px;
+  padding-top:14px; border-top:1px solid var(--pink-bg);
+  font-family:"Gothic A1",sans-serif; font-size:11px; color:var(--pink);
+  font-weight:700; letter-spacing:.02em}
+
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}

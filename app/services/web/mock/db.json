@@ -166,6 +166,27 @@
     "note": "어떤 검사를 받으실지는 병원에서 정합니다."
   },
 
+  "POST /api/v1/me/reservations/77021/cancel": {
+    "ok": true,
+    "exam_order_id": 77021,
+    "order_status": "cancelled",
+    "detail": "예약을 취소했습니다"
+  },
+
+  "POST /api/v1/me/reservations/77044/cancel": {
+    "ok": true,
+    "exam_order_id": 77044,
+    "order_status": "cancelled",
+    "detail": "방문 신청을 취소했습니다"
+  },
+
+  "POST /api/v1/me/reservations/77051/cancel": {
+    "ok": true,
+    "exam_order_id": 77051,
+    "order_status": "cancelled",
+    "detail": "방문 신청을 취소했습니다"
+  },
+
   "POST /api/v1/me/reservation-requests": {
     "exam_order_id": 77051,
     "order_status": "requested",
