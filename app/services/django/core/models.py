@@ -19,7 +19,9 @@ DOC_TYPE = ["terms", "privacy", "sensitive_health", "marketing"]
 FOLLOWUP_STATUS = ["open", "resolved", "escalated", "declined", "overdue"]
 EXAM_PURPOSE = ["screening", "diagnostic"]
 MODALITY = ["mammo", "us", "mri"]
-ORDER_STATUS = ["ordered", "accepted", "in_progress", "completed", "cancelled"]
+# requested — 환자가 날짜·시간만 넣고 신청한 상태. 원무가 확정하면 ordered 다.
+ORDER_STATUS = ["requested", "ordered", "accepted", "in_progress", "completed",
+                "cancelled"]
 READ_STATUS = ["pending", "first_locked", "ai_revealed", "finalized"]
 IMAGE_KIND = ["mask", "overlay", "mesh", "heatmap", "thumbnail"]
 READ_STAGE = ["first", "final"]
@@ -27,7 +29,8 @@ ACCESSION_STATUS = ["unbound", "bound", "accessioned"]
 DIAGNOSIS = ["benign", "malignant"]
 B_CATEGORY = ["b1", "b2", "b3", "b4", "b5"]
 NOTIFICATION_TYPE = ["followup", "discordance", "report_ready",
-                     "reservation_created", "reservation_changed"]
+                     "reservation_requested", "reservation_created",
+                     "reservation_changed"]
 DISPOSITION_TYPE = ["rebiopsy", "excision", "no_action"]
 
 # choices 로만 두는 값 집합
@@ -213,17 +216,32 @@ class Followup(AuditBase):
 
 
 class ExamOrder(AuditBase):
-    """검사 오더. 예약과 재촬영 연결을 함께 갖는다."""
+    """검사 오더. 예약 신청 · 확정 · 재촬영 연결을 함께 갖는다.
+
+    환자가 날짜·시간만 넣고 신청하면 order_status='requested' 로 행이 하나 선다.
+    원무가 확정하면서 modality · exam_purpose · ordered_by 를 채우고 'ordered'
+    로 옮긴다.
+
+    진실은 이 표다. notification 은 통지일 뿐이라 원무 큐는 알림이 아니라
+    order_status='requested' 로 뽑는다 — 알림이 안 갔거나 지워져도 신청은 남는다.
+    """
 
     exam_order_id = models.BigAutoField(primary_key=True)
-    patient = models.ForeignKey(Patient, models.PROTECT, blank=True, null=True,
-                                related_name='exam_orders')
-    exam_purpose = models.CharField(max_length=20, choices=as_choices(EXAM_PURPOSE))
-    modality = models.CharField(max_length=20, choices=as_choices(MODALITY))
+    patient = models.ForeignKey(Patient, models.PROTECT, related_name='exam_orders')
+    # 신청 단계에선 비어 있다. 확정하면서 채운다 — 아래 CHECK 이 강제한다.
+    exam_purpose = models.CharField(max_length=20, choices=as_choices(EXAM_PURPOSE),
+                                    blank=True, null=True)
+    modality = models.CharField(max_length=20, choices=as_choices(MODALITY),
+                                blank=True, null=True)
     order_status = models.CharField(max_length=20, choices=as_choices(ORDER_STATUS))
+    # 검사를 지시한 의료진. created_by(행을 만든 계정)와 다른 값이다 —
+    # 원무가 의사 지시를 대신 입력하면 둘이 갈린다.
     ordered_by = models.ForeignKey(Staff, models.PROTECT, blank=True, null=True,
                                    related_name='+', db_column='ordered_by')
     ordered_at = models.DateTimeField(blank=True, null=True)
+    # requested 일 때는 환자의 희망 시각, ordered 부터는 확정 시각이다.
+    # 원무가 다른 시간으로 확정하면 희망 시각이 덮여 사라지므로, 확정 알림에
+    # 「9월 22일 오전 신청 → 14:00 확정」처럼 둘을 같이 적는다.
     scheduled_at = models.DateTimeField(blank=True, null=True)
     visited_at = models.DateTimeField(blank=True, null=True)   # null = 노쇼
     parent_order = models.ForeignKey('self', models.SET_NULL, blank=True, null=True,
@@ -234,12 +252,23 @@ class ExamOrder(AuditBase):
     class Meta:
         db_table = 'exam_order'
         constraints = [
-            models.CheckConstraint(condition=Q(exam_purpose__in=EXAM_PURPOSE),
-                                   name='exam_order_purpose_ck'),
-            models.CheckConstraint(condition=Q(modality__in=MODALITY),
-                                   name='exam_order_modality_ck'),
+            models.CheckConstraint(
+                condition=Q(exam_purpose__in=EXAM_PURPOSE)
+                | Q(exam_purpose__isnull=True),
+                name='exam_order_purpose_ck'),
+            models.CheckConstraint(
+                condition=Q(modality__in=MODALITY) | Q(modality__isnull=True),
+                name='exam_order_modality_ck'),
             models.CheckConstraint(condition=Q(order_status__in=ORDER_STATUS),
                                    name='exam_order_status_ck'),
+            # 신청 상태일 때만 검사 종류 · 목적 · 지시자가 비어도 된다.
+            # API 계층이 아니라 DB 로 막는다 — Celery 나 admin 으로 들어오는 행은
+            # API 검증을 거치지 않는다.
+            models.CheckConstraint(
+                condition=Q(order_status='requested')
+                | (Q(modality__isnull=False) & Q(exam_purpose__isnull=False)
+                   & Q(ordered_by__isnull=False)),
+                name='exam_order_requested_fields_ck'),
         ]
 
 
