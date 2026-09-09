@@ -97,6 +97,9 @@ def _load() -> dict:
         str(US_DIR / "configs" / "us_lora.yaml"),
         heads = str(US_DIR / "ckpt" / "us_heads_ensemble.pt"),
     )
+    # 초음파는 픽셀디코더를 갈아 끼운다  
+    # 공용 백본이라 다른 소켓이 그대로 쓰면 안 되기 때문에, 이 어댑터에 묶어놓고 되돌린다
+    medsam3.claim(str(US_DIR / "ckpt" / "us_lora_best.pt"))
     return {"bundle": bundle, "predict": _predict, "versions": _versions(), "adapter": str(US_DIR / "ckpt" / "us_lora_best.pt")}
 
 def _run(state, data, filename, **over):

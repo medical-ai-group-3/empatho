@@ -43,6 +43,26 @@ _TARGETS = ["q_proj", "k_proj", "v_proj", "out_proj", "qkv", "proj", "fc1", "fc2
 # LoRA 자리를 이미 만들었나 확인 / 두 번 만들면 LoRA 위에 LoRA 가 겹친다
 _lora_done = False 
 
+# 백본을 처음 세울 때의 원본 픽셀 디코더, 초음파가 갈아 끼우기 전 원본 디코더 
+_pd_base = None 
+
+# 어댑터 경로 -> 그 소켓이 갈아 끼운 디코더 
+_pd_own = {} 
+
+def _find_pd(model):
+    """픽셀 디코더와 그것을 달고 있는 부모를 찾는다.
+
+    us/code/unet_pixel_decoder.find_pixel_decoder 와 같은 규칙이다 —
+    경로가 빌드 방식에 따라 달라져 하드코딩하지 않는다. 남의 모듈을
+    import 하지 않으려고 여기 다시 쓴다.
+    """
+    mods = dict(model.named_modules())
+    for name, mod in mods.items():
+        if name.endswith("pixel_decoder") and "." in name:
+            parent, attr = name.rsplit(".", 1)
+            return mods[parent], attr, mod
+    return None, None, None
+
 def arm(*module_names: str) -> None: 
     """소켓이 부를 import_medsam3 를 미리 우리 것으로 바꿔 둔다.
 
@@ -140,7 +160,9 @@ def patch(M: dict) -> dict :
     def load_once(ckpt, cfg, device="cuda"):
         global _model
         if _model is None:
-            _model = original(ckpt, cfg, device=device) 
+            _model = original(ckpt, cfg, device=device)
+            global _pd_base
+            _pd_base = _find_pd(_model)[2]
         return _model
     
     load_once._shared = True 
@@ -161,6 +183,13 @@ def use(adapter_path: str) -> None:
     if _model is None or _active == adapter_path:
         return  # 백본이 아직 없거나 이미 돌아감 
     
+    # 초음파는 적재할 때 공용 백본의 픽셀디코더를 교체한다 
+    # lora B만 되돌리면 그 교체가 남아 다름 소켓이 초음파 디코더로 순전파해서 텐서 크기가 어긋난다
+    parent, attr, cur = _find_pd(_model)
+    want = _pd_own.get(adapter_path, _pd_base)
+    if parent is not None and want is not None and cur is not want: 
+        setattr(parent, attr, want)
+    
     weights = _cache.get(adapter_path)
     if weights is None:
         weights = _cache[adapter_path] = torch.load(adapter_path, map_location="cpu")
@@ -171,3 +200,13 @@ def use(adapter_path: str) -> None:
                 p.zero_()
         _model.load_state_dict(weights, strict=False)
     _active = adapter_path
+    
+def claim(adapter_path: str) -> None:
+    """이 소켓이 백본 구조를 바꿨으면 그 모듈을 어댑터에 묶어 둔다.
+    _load 가 끝난 뒤 부른다. 바꾼 것이 없으면 아무 일도 하지 않는다.
+    """
+    if _model is None or _pd_base is None:
+        return 
+    cur = _find_pd(_model)[2]
+    if cur is not _pd_base:
+        _pd_own[adapter_path] = cur
