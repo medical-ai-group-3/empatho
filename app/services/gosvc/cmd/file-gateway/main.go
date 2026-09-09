@@ -83,7 +83,7 @@ func main() {
 	}
 	g := &gw{st: st, der: der, up: um,
 		cb: callback.New(cbBase, []byte(cbSec), os.Getenv("CALLBACK_CERT"), os.Getenv("CALLBACK_KEY"), 4),
-		tv: ticket.NewVerifier([]byte(tkey)),
+		tv: ticket.NewVerifier([]byte(tkey), purposeDownload, purposeTile),
 		or: orthanc.New(os.Getenv("ORTHANC_URL"),
 			os.Getenv("ORTHANC_USER"), os.Getenv("ORTHANC_PASS")),
 		cls: env("GW_STORAGE_CLASS", "standard")}
@@ -164,6 +164,15 @@ func makeStore(bucket string) (storage.Store, error) {
 }
 
 // ── 티켓 ────────────────────────────────────────────────────────────
+
+// 읽기 purpose 둘. 이것만 nonce 를 소진하지 않는다(internal/ticket).
+// 여기 한 곳에 두는 이유 — 허용 목록과 재사용 목록이 어긋나면, 타일이
+// 한 장 열리고 두 장째부터 401 이 나는 식으로 조용히 갈린다.
+const (
+	purposeDownload = "download"
+	purposeTile     = "tile"
+)
+
 func (g *gw) auth(w http.ResponseWriter, r *http.Request, want ...string) *ticket.Claims {
 	cl, err := g.tv.Verify(bearer(r))
 	if err != nil {
@@ -558,7 +567,7 @@ func (g *gw) toOrthanc(ctx context.Context, key string) (*orthanc.Result, error)
 
 // ── G-F5 ────────────────────────────────────────────────────────────
 func (g *gw) getFile(w http.ResponseWriter, r *http.Request) {
-	cl := g.auth(w, r, "download", "tile")
+	cl := g.auth(w, r, purposeDownload, purposeTile)
 	if cl == nil {
 		return
 	}
@@ -575,7 +584,7 @@ func (g *gw) getDerived(w http.ResponseWriter, r *http.Request) {
 		fail(w, 404, "DERIVED_DISABLED", "파생물 버킷이 설정돼 있지 않다")
 		return
 	}
-	cl := g.auth(w, r, "download", "tile")
+	cl := g.auth(w, r, purposeDownload, purposeTile)
 	if cl == nil {
 		return
 	}
