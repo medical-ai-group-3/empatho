@@ -39,6 +39,10 @@ type Session struct {
 	ScopeID     string
 	Created     time.Time
 
+	// 티켓 purpose. **개시할 때의 것**을 붙들어 둔다. I-1 에 실을 값이
+	// 이것이고, 다른 purpose 의 티켓으로 완료하는 것도 이걸로 막힌다.
+	Purpose string
+
 	mu    sync.Mutex
 	bytes int64
 	parts map[int]int64 // 조각 번호 -> 크기
@@ -58,11 +62,11 @@ func NewManager(dir string, ttl time.Duration) (*Manager, error) {
 	return &Manager{dir: dir, s: map[string]*Session{}, ttl: ttl}, nil
 }
 
-func (m *Manager) Init(id, objectKey, contentType, patientID, scopeID string,
-	maxBytes int64) *Session {
+func (m *Manager) Init(id, objectKey, contentType, patientID, scopeID,
+	purpose string, maxBytes int64) *Session {
 	s := &Session{ID: id, ObjectKey: objectKey, ContentType: contentType,
 		MaxBytes: maxBytes, PatientID: patientID, ScopeID: scopeID,
-		Created: time.Now(), parts: map[int]int64{}}
+		Purpose: purpose, Created: time.Now(), parts: map[int]int64{}}
 	m.mu.Lock()
 	m.s[id] = s
 	m.mu.Unlock()

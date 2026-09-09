@@ -44,7 +44,14 @@ import (
 )
 
 type gw struct {
-	st  storage.Store
+	st storage.Store
+	// der — 파생물 버킷. 3D 메시 · 마스크 · 썸네일처럼 **우리가 만들어 낸 것**이
+	// 여기 간다. 원본과 섞지 않는 이유는 수명이 다르기 때문이다 — 원본은
+	// 지우면 안 되고, 파생물은 모델이 바뀌면 다시 만들면 된다.
+	//
+	// nil 이면 파생물 경로가 404 를 낸다. 설정 안 한 것과 고장난 것을 구분하려고
+	// 조용히 원본 버킷에 쓰지 않는다.
+	der storage.Store
 	up  *upload.Manager
 	cb  *callback.Client
 	tv  *ticket.Verifier
@@ -59,20 +66,31 @@ func main() {
 	if tkey == "" || cbBase == "" || cbSec == "" {
 		log.Fatal("TICKET_KEY · CALLBACK_BASE · CALLBACK_SECRET 이 필요하다")
 	}
-	st, err := makeStore()
+	st, err := makeStore(env("GARAGE_BUCKET", "empatho-original"))
 	if err != nil {
 		log.Fatalf("저장소: %v", err)
+	}
+	// 파생물 버킷은 선택이다. 안 주면 파생물 경로만 꺼진다.
+	var der storage.Store
+	if b := os.Getenv("GARAGE_BUCKET_DERIVED"); b != "" {
+		if der, err = makeStore(b); err != nil {
+			log.Fatalf("파생물 저장소: %v", err)
+		}
 	}
 	um, err := upload.NewManager(env("GW_SPOOL", "/var/tmp/gw-spool"), 24*time.Hour)
 	if err != nil {
 		log.Fatalf("스풀: %v", err)
 	}
-	g := &gw{st: st, up: um,
+	g := &gw{st: st, der: der, up: um,
 		cb: callback.New(cbBase, []byte(cbSec), os.Getenv("CALLBACK_CERT"), os.Getenv("CALLBACK_KEY"), 4),
 		tv: ticket.NewVerifier([]byte(tkey)),
 		or: orthanc.New(os.Getenv("ORTHANC_URL"),
 			os.Getenv("ORTHANC_USER"), os.Getenv("ORTHANC_PASS")),
 		cls: env("GW_STORAGE_CLASS", "standard")}
+	if g.der == nil {
+		log.Printf("[gw] GARAGE_BUCKET_DERIVED 가 비어 있다 — " +
+			"파생물 업로드(/svc/v1/derived)는 꺼진다")
+	}
 	if g.or == nil {
 		log.Printf("[gw] ORTHANC_URL 이 비어 있다 — DICOM 은 파싱해서 I-2 만 보내고 " +
 			"Orthanc 전송은 건너뛴다")
@@ -87,7 +105,8 @@ func main() {
 		}
 	}()
 
-	log.Printf("file-gateway %s · bucket %s", addr, st.Bucket())
+	log.Printf("file-gateway %s · bucket %s · derived %s",
+		addr, st.Bucket(), bucketName(der))
 	log.Fatal((&http.Server{Addr: addr,
 		Handler:           httpx.CORS(g.routes(), os.Getenv("CORS_ORIGINS")),
 		ReadHeaderTimeout: 10 * time.Second}).ListenAndServe())
@@ -102,8 +121,11 @@ func (g *gw) routes() *http.ServeMux {
 	mux.HandleFunc("POST /svc/v1/upload/{id}/complete", g.complete)
 	mux.HandleFunc("POST /svc/v1/files", g.putFile)
 	mux.HandleFunc("GET /svc/v1/files/{key...}", g.getFile)
+	mux.HandleFunc("POST /svc/v1/derived", g.putDerived)
+	mux.HandleFunc("GET /svc/v1/derived/{key...}", g.getDerived)
 	mux.HandleFunc("GET /svc/v1/health", func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, 200, map[string]any{"ok": true, "bucket": g.st.Bucket()})
+		writeJSON(w, 200, map[string]any{"ok": true,
+			"bucket": g.st.Bucket(), "derived_bucket": bucketName(g.der)})
 	})
 	return mux
 }
@@ -119,7 +141,7 @@ func (g *gw) routes() *http.ServeMux {
 //	그래서 GW_DEV=1 을 함께 주지 않으면 기동을 거부한다. 개발자가 한 번 더
 //	의도를 밝히게 하는 것이 목적이다 — .env 에 남은 줄 하나로 이런 일이
 //	벌어지면 안 된다.
-func makeStore() (storage.Store, error) {
+func makeStore(bucket string) (storage.Store, error) {
 	if root := os.Getenv("GW_LOCAL_ROOT"); root != "" {
 		if os.Getenv("GW_DEV") != "1" {
 			return nil, errors.New(
@@ -127,14 +149,17 @@ func makeStore() (storage.Store, error) {
 					"컨테이너가 재시작하면 파일이 사라진다. 정말 쓰려면 GW_DEV=1 을 " +
 					"함께 줄 것. 운영이면 GW_LOCAL_ROOT 를 지우고 GARAGE_* 를 설정할 것")
 		}
+		// 버킷마다 하위 폴더를 나눈다. 한 폴더에 섞으면 로컬 시험에서
+		// 원본과 파생물의 키가 부딪힐 수 있다.
+		dir := filepath.Join(root, bucket)
 		log.Printf("[gw] ⚠ 로컬 디스크 저장소 (%s). 개발용이다 — "+
-			"재시작하면 사라진다", root)
-		return storage.NewFS(root), nil
+			"재시작하면 사라진다", dir)
+		return storage.NewFS(dir), nil
 	}
 	return storage.NewS3(
 		env("GARAGE_ENDPOINT", "127.0.0.1:3900"),
 		os.Getenv("GARAGE_ACCESS_KEY"), os.Getenv("GARAGE_SECRET_KEY"),
-		env("GARAGE_BUCKET", "empatho-original"), env("GARAGE_REGION", "garage"),
+		bucket, env("GARAGE_REGION", "garage"),
 		os.Getenv("GARAGE_SSL") == "1")
 }
 
@@ -203,7 +228,7 @@ func (g *gw) initUpload(w http.ResponseWriter, r *http.Request) {
 	rand.Read(b[:])
 	id := hex.EncodeToString(b[:])
 	s := g.up.Init(id, keyFor(cl, req.Filename), cl.ContentType,
-		cl.PatientID, cl.ScopeID, cl.MaxBytes)
+		cl.PatientID, cl.ScopeID, cl.Purpose, cl.MaxBytes)
 	log.Printf("[G-F1] upload=%s scope=%s max=%d", id, cl.ScopeID, cl.MaxBytes)
 	writeJSON(w, 200, map[string]any{
 		"upload_id": s.ID, "max_bytes": s.MaxBytes,
@@ -262,8 +287,10 @@ func (g *gw) complete(w http.ResponseWriter, r *http.Request) {
 		fail(w, 400, "ASSEMBLE_FAILED", err.Error())
 		return
 	}
-	g.commit(w, r, s.ObjectKey, sum, total, s.ContentType, s.PatientID, s.ScopeID,
-		tap.b.Bytes())
+	// 분할 업로드는 원본 전용이다. 파생물은 메시 · 마스크라 한 번에 올라간다 —
+	// 필요해지면 여기에도 저장소를 골라 넘기면 된다.
+	g.commit(w, r, g.st, s.ObjectKey, sum, total, s.ContentType,
+		s.PatientID, s.ScopeID, s.Purpose, tap.b.Bytes())
 }
 
 // headTap — 앞 max 바이트만 모으고 나머지는 버린다.
@@ -291,6 +318,39 @@ func (g *gw) putFile(w http.ResponseWriter, r *http.Request) {
 	if cl == nil {
 		return
 	}
+	g.putTo(w, r, cl, g.st, true)
+}
+
+// putDerived — 파생물 올리기. 3D 메시 · 마스크처럼 **우리가 만들어 낸 것**이다.
+//
+// 왜 추론 서비스가 Garage 에 직접 안 쓰고 여기를 거치나
+//
+//	우리 설계의 규칙 하나가 "저장소에 올라간 것은 반드시 DB 에 등록된다" 이다.
+//	Go 가 커밋한 뒤 I-1 로 storage_object 행을 만들고, 그게 실패하면 업로드를
+//	502 로 되돌린다. 추론 쪽이 쓰기 키로 직접 올리면 이 경로 밖으로 나가서
+//	**등록되지 않은 파일**이 생긴다. 그러면 나중에 화면이 그 파일을 열 때
+//	경로를 이름 규칙으로 유추해야 하는데, 그건 우리가 막기로 한 것이다.
+//
+//	여기를 거치면 체크섬 · 멱등키 · 재시도가 그대로 따라오고,
+//	쓰기 키를 추론 서비스에 나눠 줄 필요도 없다.
+//
+// DICOM 파싱과 Orthanc 전송은 하지 않는다. 파생물은 DICOM 이 아니다.
+func (g *gw) putDerived(w http.ResponseWriter, r *http.Request) {
+	if g.der == nil {
+		fail(w, 404, "DERIVED_DISABLED",
+			"GARAGE_BUCKET_DERIVED 가 설정돼 있지 않다. "+
+				"파생물 버킷을 정하고 게이트웨이를 다시 띄울 것")
+		return
+	}
+	cl := g.auth(w, r, "derived_upload")
+	if cl == nil {
+		return
+	}
+	g.putTo(w, r, cl, g.der, false)
+}
+
+func (g *gw) putTo(w http.ResponseWriter, r *http.Request, cl *ticket.Claims,
+	st storage.Store, parseDICOM bool) {
 	max := cl.MaxBytes
 	if max <= 0 {
 		max = 1 << 30
@@ -308,10 +368,10 @@ func (g *gw) putFile(w http.ResponseWriter, r *http.Request) {
 	if ct == "" {
 		ct = r.Header.Get("Content-Type")
 	}
-	if err := g.st.Put(r.Context(), key,
+	if err := st.Put(r.Context(), key,
 		io.TeeReader(cr, io.MultiWriter(h, tap)), -1, ct); err != nil {
 		// 중단된 자리에 조각이 남았을 수 있다. 저장소 구현에 맡기지 않고 지운다.
-		g.st.Delete(r.Context(), key)
+		st.Delete(r.Context(), key)
 		if errors.Is(err, upload.ErrTooBig) {
 			fail(w, 413, "UPLOAD_TOO_LARGE", "티켓 max_bytes 를 넘는다")
 			return
@@ -319,8 +379,21 @@ func (g *gw) putFile(w http.ResponseWriter, r *http.Request) {
 		fail(w, 500, "PUT_FAILED", err.Error())
 		return
 	}
-	g.commit(w, r, key, hex.EncodeToString(h.Sum(nil)), cr.read, ct,
-		cl.PatientID, cl.ScopeID, tap.b.Bytes())
+	head := tap.b.Bytes()
+	if !parseDICOM {
+		head = nil // 파생물은 DICOM 이 아니다. 파싱도 Orthanc 전송도 건너뛴다
+	}
+	g.commit(w, r, st, key, hex.EncodeToString(h.Sum(nil)), cr.read, ct,
+		cl.PatientID, cl.ScopeID, cl.Purpose, head)
+}
+
+// bucketName — 설정 안 된 저장소를 로그·health 에서 구분해 보여준다.
+// 빈 문자열로 두면 "이름이 빈 버킷" 과 "설정 안 됨" 이 같아 보인다.
+func bucketName(st storage.Store) string {
+	if st == nil {
+		return "(설정 안 됨)"
+	}
+	return st.Bucket()
 }
 
 // capReader — limit 바이트를 넘겨 읽는 순간 ErrTooBig 를 낸다.
@@ -345,12 +418,13 @@ func (c *capReader) Read(p []byte) (int, error) {
 //
 // 콜백이 실패하면 Garage 에는 있는데 DB 에 없는 고아 객체가 된다.
 // 명세 21장이 그 상태를 정상으로 취급하지 말라고 못 박았으므로 502 로 알린다.
-func (g *gw) commit(w http.ResponseWriter, r *http.Request,
-	key, sum string, size int64, ct, patient, scope string, head []byte) {
+func (g *gw) commit(w http.ResponseWriter, r *http.Request, st storage.Store,
+	key, sum string, size int64, ct, patient, scope, purpose string,
+	head []byte) {
 	obj := callback.StorageObject{
-		Bucket: g.st.Bucket(), ObjectKey: key, ChecksumSHA256: sum,
+		Bucket: st.Bucket(), ObjectKey: key, ChecksumSHA256: sum,
 		ByteSize: size, ContentType: ct, StorageClass: g.cls,
-		PatientID: patient, ScopeID: scope,
+		PatientID: patient, ScopeID: scope, Purpose: purpose,
 	}
 	if err := g.cb.PostStorageObject(r.Context(), obj); err != nil {
 		log.Printf("[gw] ✗ I-1 실패 key=%s — 고아 객체가 된다: %v", key, err)
@@ -402,6 +476,13 @@ func (g *gw) ingestDICOM(ctx context.Context, key, patient, scope string,
 		out["pixel_spacing_mm"] = nil
 		log.Printf("[G-F7] ⚠ key=%s 화소 간격 없음 — 해상도 보정 불가", key)
 	}
+	// 3D 기하 — MRI 는 이게 없으면 슬라이스를 쌓을 수 없다.
+	// 맘모(MG)는 낱장 2D 라 없는 것이 정상이므로 경고하지 않는다.
+	out["has_geometry"] = m.HasGeometry()
+	if !m.HasGeometry() && m.Modality == "MR" {
+		log.Printf("[G-F7] ⚠ key=%s MR 인데 3D 기하 없음 — 재구성 불가 "+
+			"(ImagePositionPatient / ImageOrientationPatient)", key)
+	}
 
 	cm := callback.DicomMetadata{
 		ObjectKey: key, Bucket: g.st.Bucket(),
@@ -415,16 +496,26 @@ func (g *gw) ingestDICOM(ctx context.Context, key, patient, scope string,
 		BitsAllocated: m.BitsAllocated, BitsStored: m.BitsStored,
 		NumberOfFrames: m.NumberOfFrames, PhotometricInterp: m.PhotometricInterp,
 		PixelSpacing: m.PixelSpacing, PixelSpacingTag: m.PixelSpacingTag,
-		TransferSyntaxUID:  m.TransferSyntaxUID,
-		BurnedInAnnotation: m.BurnedInAnnotation,
-		PatientID:          patient, ScopeID: scope,
+		ImagePositionPatient:    m.ImagePositionPatient,
+		ImageOrientationPatient: m.ImageOrientationPatient,
+		SliceThickness:          m.SliceThickness,
+		SpacingBetweenSlices:    m.SpacingBetweenSlices,
+		TransferSyntaxUID:       m.TransferSyntaxUID,
+		BurnedInAnnotation:      m.BurnedInAnnotation,
+		PatientID:               patient, ScopeID: scope,
 	}
-	if id, err := g.toOrthanc(ctx, key); err != nil {
+	if res, err := g.toOrthanc(ctx, key); err != nil {
 		log.Printf("[G-F7] Orthanc 전송 실패 key=%s: %v", key, err)
 		out["orthanc"] = "failed"
-	} else if id != "" {
-		cm.OrthancInstanceID = id
-		out["orthanc"] = id
+	} else if res != nil && res.ID != "" {
+		cm.OrthancInstanceID = res.ID
+		cm.OrthancSeriesID = res.ParentSeries
+		cm.OrthancStudyID = res.ParentStudy
+		cm.OrthancPatientID = res.ParentPatient
+		out["orthanc"] = map[string]string{
+			"instance": res.ID, "series": res.ParentSeries,
+			"study": res.ParentStudy, "patient": res.ParentPatient,
+		}
 	}
 
 	if err := g.cb.PostDicomMetadata(ctx, cm); err != nil {
@@ -441,27 +532,28 @@ func (g *gw) ingestDICOM(ctx context.Context, key, patient, scope string,
 
 // toOrthanc — 커밋된 객체를 저장소에서 다시 읽어 Orthanc 로 보낸다.
 // 업로드 본문은 스트림으로 흘려보내서 메모리에 안 남는다.
-func (g *gw) toOrthanc(ctx context.Context, key string) (string, error) {
+func (g *gw) toOrthanc(ctx context.Context, key string) (*orthanc.Result, error) {
 	if g.or == nil {
-		return "", nil
+		return nil, nil
 	}
 	rd, _, err := g.st.Open(ctx, key)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	defer rd.Close()
 	res, err := g.or.Store(ctx, rd)
 	if errors.Is(err, orthanc.ErrDuplicate) {
 		// 재시도가 만든 중복이다. 실패가 아니다.
-		if res != nil {
-			return res.ID, nil
-		}
-		return "", nil
+		//
+		// ⚠ 409 로 온 중복은 본문이 없어서 res 가 nil 이다. 그때는 ID 를
+		//   알 수 없다 — 이미 Orthanc 안에 있지만 우리가 그 이름을 모른다.
+		//   200 + AlreadyStored 로 온 중복은 본문이 있어서 ID 를 안다.
+		return res, nil
 	}
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return res.ID, nil
+	return res, nil
 }
 
 // ── G-F5 ────────────────────────────────────────────────────────────
@@ -470,13 +562,35 @@ func (g *gw) getFile(w http.ResponseWriter, r *http.Request) {
 	if cl == nil {
 		return
 	}
+	g.getFrom(w, r, cl, g.st)
+}
+
+// getDerived — 파생물 내려받기.
+//
+// 경로를 따로 둔 이유는 **키만으로는 어느 버킷인지 알 수 없기 때문이다.**
+// 원본과 파생물이 같은 접두사 아래 있을 수 있어서, 한 경로에서 버킷을
+// 추측하게 두면 언젠가 엉뚱한 버킷을 뒤진다. 주소로 갈라 두면 그럴 일이 없다.
+func (g *gw) getDerived(w http.ResponseWriter, r *http.Request) {
+	if g.der == nil {
+		fail(w, 404, "DERIVED_DISABLED", "파생물 버킷이 설정돼 있지 않다")
+		return
+	}
+	cl := g.auth(w, r, "download", "tile")
+	if cl == nil {
+		return
+	}
+	g.getFrom(w, r, cl, g.der)
+}
+
+func (g *gw) getFrom(w http.ResponseWriter, r *http.Request,
+	cl *ticket.Claims, st storage.Store) {
 	key := r.PathValue("key")
 	// 티켓 접두사 밖의 객체는 못 읽는다. 이게 권한 경계다.
 	if !strings.HasPrefix(key, strings.TrimSuffix(cl.ObjectKeyPrefix, "/")+"/") {
 		fail(w, 403, "TICKET_SCOPE_MISMATCH", "티켓 범위 밖 객체다")
 		return
 	}
-	rd, info, err := g.st.Open(r.Context(), key)
+	rd, info, err := st.Open(r.Context(), key)
 	if err != nil {
 		fail(w, 404, "OBJECT_NOT_FOUND", err.Error())
 		return

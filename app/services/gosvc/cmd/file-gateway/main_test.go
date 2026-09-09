@@ -55,9 +55,10 @@ type i1 struct {
 }
 
 type rig struct {
-	g    *gw
-	mux  *http.ServeMux
-	root string // FS 저장소 뿌리
+	g       *gw
+	mux     *http.ServeMux
+	root    string // FS 저장소 뿌리
+	derRoot string // 파생물 버킷 뿌리
 
 	mu   sync.Mutex
 	got  []i1
@@ -98,9 +99,11 @@ func newRig(t *testing.T) *rig {
 	if err != nil {
 		t.Fatal(err)
 	}
+	r.derRoot = filepath.Join(t.TempDir(), "derived")
 	r.g = &gw{
-		st: storage.NewFS(r.root),
-		up: um,
+		st:  storage.NewFS(r.root),
+		der: storage.NewFS(r.derRoot),
+		up:  um,
 		// 재시도 0 — 실패 시험이 백오프 때문에 몇 초씩 걸리면 안 된다
 		cb:  callback.New(dj.URL, []byte(cbsec), "", "", 0),
 		tv:  ticket.NewVerifier([]byte(tkey)),
@@ -857,5 +860,149 @@ func TestDicomMetadataFailureDoesNotFailRequest(t *testing.T) {
 	}
 	if d["metadata_registered"] != false {
 		t.Errorf("실패를 표시 안 했다: %v", d)
+	}
+}
+
+// ── 파생물 업로드 (3D 메시 · 마스크) ────────────────────────────────
+
+func mintDerived(t *testing.T, edit ...func(*ticket.Claims)) string {
+	t.Helper()
+	all := append([]func(*ticket.Claims){func(c *ticket.Claims) {
+		c.Purpose = "derived_upload"
+		c.ContentType = "model/stl"
+	}}, edit...)
+	return mint(t, all...)
+}
+
+func TestPutDerived(t *testing.T) {
+	r := newRig(t)
+	body := []byte("solid mesh\n  facet normal 0 0 1\nendsolid")
+
+	w := r.do(t, "POST", "/svc/v1/derived", mintDerived(t),
+		bytes.NewReader(body), "X-Filename", "tumor.stl")
+	if w.Code != 201 {
+		t.Fatalf("%d %s", w.Code, w.Body)
+	}
+	out := decode(t, w)
+	key := out["object_key"].(string)
+
+	// 원본이 아니라 파생물 버킷에 있어야 한다
+	if blob, err := os.ReadFile(filepath.Join(r.derRoot, filepath.FromSlash(key))); err != nil {
+		t.Fatalf("파생물 버킷에 없다: %v", err)
+	} else if !bytes.Equal(blob, body) {
+		t.Error("저장된 내용이 다르다")
+	}
+	if _, err := os.Stat(filepath.Join(r.root, filepath.FromSlash(key))); err == nil {
+		t.Error("원본 버킷에 쓰였다 — 버킷이 갈리지 않았다")
+	}
+
+	// I-1 로 등록됐는가. 이게 이 경로를 만든 이유다 —
+	// 추론이 Garage 에 직접 쓰면 이 행이 안 생긴다.
+	cbs := r.callbacks()
+	if len(cbs) != 1 {
+		t.Fatalf("I-1 이 한 번 가야 한다. got=%d", len(cbs))
+	}
+	if got := cbs[0].Parsed.Bucket; got != "local:"+r.derRoot {
+		t.Errorf("I-1 의 bucket 이 파생물 버킷이어야 한다. got=%s", got)
+	}
+	if cbs[0].Parsed.ObjectKey != key {
+		t.Errorf("object_key 불일치")
+	}
+	sum := sha256.Sum256(body)
+	if cbs[0].Parsed.ChecksumSHA256 != hex.EncodeToString(sum[:]) {
+		t.Error("체크섬이 I-1 에 실려야 한다")
+	}
+}
+
+// 파생물은 DICOM 이 아니다. 머리말을 파싱하거나 Orthanc 로 보내면 안 된다.
+func TestPutDerivedSkipsDICOM(t *testing.T) {
+	r := newRig(t)
+	// 일부러 DICOM 처럼 생긴 바이트를 넣는다
+	body := append(make([]byte, 128), []byte("DICM")...)
+	body = append(body, make([]byte, 64)...)
+
+	w := r.do(t, "POST", "/svc/v1/derived", mintDerived(t),
+		bytes.NewReader(body), "X-Filename", "mask.bin")
+	if w.Code != 201 {
+		t.Fatalf("%d %s", w.Code, w.Body)
+	}
+	if n := len(r.dicoms()); n != 0 {
+		t.Errorf("파생물에 I-2 를 보내면 안 된다. got=%d", n)
+	}
+	if _, ok := decode(t, w)["dicom"]; ok {
+		t.Error("응답에 dicom 정보가 있으면 안 된다")
+	}
+}
+
+// 용도가 다른 티켓으로는 파생물을 못 올린다.
+func TestPutDerivedRejectsWrongPurpose(t *testing.T) {
+	r := newRig(t)
+	w := r.do(t, "POST", "/svc/v1/derived", mint(t), // dicom_upload 티켓
+		bytes.NewReader([]byte("x")), "X-Filename", "a.stl")
+	if w.Code != 403 {
+		t.Fatalf("403 이어야 한다. got=%d %s", w.Code, w.Body)
+	}
+	if len(r.callbacks()) != 0 {
+		t.Error("거부됐으면 I-1 도 안 가야 한다")
+	}
+}
+
+// 반대 방향도 막혀야 한다 — 파생물 티켓으로 원본 경로를 쓰면 안 된다.
+func TestOriginalPathRejectsDerivedTicket(t *testing.T) {
+	r := newRig(t)
+	w := r.do(t, "POST", "/svc/v1/files", mintDerived(t),
+		bytes.NewReader([]byte("x")), "X-Filename", "a.stl")
+	if w.Code != 403 {
+		t.Fatalf("403 이어야 한다. got=%d %s", w.Code, w.Body)
+	}
+}
+
+// 파생물 버킷이 설정 안 됐으면 조용히 원본에 쓰지 말고 404 를 내야 한다.
+// 설정 누락과 정상 동작이 같아 보이면 아무도 모른 채 원본이 더러워진다.
+func TestDerivedDisabledWhenNotConfigured(t *testing.T) {
+	r := newRig(t)
+	r.g.der = nil
+
+	w := r.do(t, "POST", "/svc/v1/derived", mintDerived(t),
+		bytes.NewReader([]byte("x")), "X-Filename", "a.stl")
+	if w.Code != 404 {
+		t.Fatalf("404 여야 한다. got=%d %s", w.Code, w.Body)
+	}
+	if len(r.callbacks()) != 0 {
+		t.Error("I-1 이 가면 안 된다")
+	}
+	g := r.do(t, "GET", "/svc/v1/derived/"+prefix+"/x", mint(t, func(c *ticket.Claims) {
+		c.Purpose = "download"
+	}), nil)
+	if g.Code != 404 {
+		t.Errorf("내려받기도 404 여야 한다. got=%d", g.Code)
+	}
+}
+
+// 올린 것을 다시 받을 수 있어야 한다. 티켓 접두사 밖은 못 본다.
+func TestGetDerived(t *testing.T) {
+	r := newRig(t)
+	body := []byte("solid mesh")
+	w := r.do(t, "POST", "/svc/v1/derived", mintDerived(t),
+		bytes.NewReader(body), "X-Filename", "m.stl")
+	if w.Code != 201 {
+		t.Fatalf("%d %s", w.Code, w.Body)
+	}
+	key := decode(t, w)["object_key"].(string)
+
+	dl := mint(t, func(c *ticket.Claims) { c.Purpose = "download" })
+	g := r.do(t, "GET", "/svc/v1/derived/"+key, dl, nil)
+	if g.Code != 200 {
+		t.Fatalf("200 이어야 한다. got=%d %s", g.Code, g.Body)
+	}
+	if !bytes.Equal(g.Body.Bytes(), body) {
+		t.Error("내려받은 내용이 다르다")
+	}
+
+	// 같은 키를 원본 경로로 받으면 없어야 한다 — 버킷이 갈려 있다는 증거
+	o := r.do(t, "GET", "/svc/v1/files/"+key,
+		mint(t, func(c *ticket.Claims) { c.Purpose = "download" }), nil)
+	if o.Code != 404 {
+		t.Errorf("원본 경로에서는 404 여야 한다. got=%d", o.Code)
 	}
 }
