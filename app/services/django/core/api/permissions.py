@@ -132,14 +132,17 @@ MATRIX = {
         SURGERY: _r("CRU", note="대면 설명 기록 — explained_* · patient_confirmed"),
         PATIENT: _r("R", own_only=True),
     },
-    # 업로드하는 부서만 CR. D 는 아무도 — 지우는 대신 deleted_at 을 찍는다.
+    # 올리는 부서만 C. D 는 아무도 — 지우는 대신 deleted_at 을 찍는다.
     "storage_object": {
         RECEPTION: NONE, NURSING: _r("CR"), RADIOLOGY: _r("CR"),
-        PATHOLOGY: _r("CR"), SURGERY: NONE, PATIENT: NONE,
+        PATHOLOGY: _r("CR", note="§7.7 영상 참조 패널"),
+        SURGERY: _r("R", note="§4-1 타임라인 검사 카드 · 3D 병변 보기"),
+        PATIENT: NONE,
     },
     "patient_pii": {
         RECEPTION: _r("CRU"), NURSING: NONE, RADIOLOGY: NONE,
-        PATHOLOGY: NONE, SURGERY: NONE, PATIENT: NONE,
+        PATHOLOGY: NONE, SURGERY: NONE,
+        PATIENT: _r("R", own_only=True, note="/me/profile"),
     },
     # 만드는 것은 시스템(Go I-3)이라 사람에게 C 가 없다. 확인 처리만 U.
     "notification": {
@@ -209,8 +212,11 @@ class MatrixPermission(IsAuthenticatedAccount):
             resource = "study"
             permission_classes = [MatrixPermission]
 
-    「본인」 권한은 뷰가 is_owned_by(obj, account) 를 정의해야 한다. 정의하지
-    않으면 막는다 — 소유 판정을 빠뜨린 채 열리는 것보다 낫다.
+    「본인」 권한(own_only)은 두 군데를 다 막아야 한다.
+        한 건    뷰가 is_owned_by(obj, account) 를 정의한다. 없으면 막는다 —
+                 소유 판정을 빠뜨린 채 열리는 것보다 낫다.
+        목록     권한 클래스가 쿼리셋을 못 봐서 못 막는다. 뷰가 OwnedOnlyMixin
+                 을 붙여 걸러야 한다. 안 붙이면 남의 행이 목록에 섞인다.
     """
 
     def _resource(self, view):
@@ -244,6 +250,33 @@ class MatrixPermission(IsAuthenticatedAccount):
         if not owned_by(obj, request.user):
             raise ApiError("ROLE_FORBIDDEN")
         return True
+
+
+class OwnedOnlyMixin:
+    """own_only 가 걸린 역할에게는 목록도 자기 것만 보이게 한다.
+
+        class MyReportList(OwnedOnlyMixin, ListAPIView):
+            resource = "report"
+
+            def owned_queryset(self, queryset, account):
+                return queryset.filter(patient__account=account)
+
+    MatrixPermission 은 객체 하나는 막지만 목록은 못 막는다 — 쿼리셋을 못 보기
+    때문이다. own_only 리소스를 다루는 뷰는 이 믹스인을 함께 붙인다.
+    """
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        role = self.request.user.role
+        if not rule_for(getattr(self, "resource", ""), role).own_only:
+            return queryset
+        return self.owned_queryset(queryset, self.request.user)
+
+    def owned_queryset(self, queryset, account):
+        raise ImproperlyConfigured(
+            "%s 는 「본인」 권한이 걸린 리소스인데 owned_queryset 이 없다."
+            % type(self).__name__
+        )
 
 
 class IsRole(IsAuthenticatedAccount):

@@ -73,10 +73,22 @@ class NewResourceTests(SimpleTestCase):
         for role in perm.MATRIX["storage_object"]:
             self.assertFalse(perm.rule_for("storage_object", role).allows("D"), role)
 
-    def test_개인정보는_원무만_본다(self):
+    def test_유방외과는_영상을_읽지만_올리지는_못한다(self):
+        # §4-1 타임라인 검사 카드 · 3D 병변 보기
+        rule = perm.rule_for("storage_object", perm.SURGERY)
+        self.assertTrue(rule.allows("R"))
+        self.assertFalse(rule.allows("C"))
+
+    def test_병리도_영상을_읽는다(self):
+        # §7.7 영상 참조 패널 — CR 에 이미 포함돼 있다
+        self.assertTrue(perm.rule_for("storage_object", perm.PATHOLOGY).allows("R"))
+
+    def test_개인정보는_원무가_쓰고_환자는_자기_것만_읽는다(self):
         self.assertEqual(perm.rule_for("patient_pii", perm.RECEPTION).actions, "CRU")
-        for role in (perm.NURSING, perm.RADIOLOGY, perm.PATHOLOGY, perm.SURGERY,
-                     perm.PATIENT):
+        patient = perm.rule_for("patient_pii", perm.PATIENT)
+        self.assertEqual(patient.actions, "R")      # /me/profile
+        self.assertTrue(patient.own_only)
+        for role in (perm.NURSING, perm.RADIOLOGY, perm.PATHOLOGY, perm.SURGERY):
             self.assertEqual(perm.rule_for("patient_pii", role).actions, "", role)
 
     def test_알림은_본인_것만_읽고_확인한다(self):
@@ -231,6 +243,38 @@ class MatrixPermissionTests(SimpleTestCase):
         # 영상의학은 report 에 own_only 가 아니라 is_owned_by 가 없어도 통과한다
         self.assertTrue(self.permission.has_object_permission(
             _request(perm.RADIOLOGY), _View("report"), object()))
+
+
+class OwnedOnlyMixinTests(SimpleTestCase):
+    """목록 단계의 「본인」 권한. 권한 클래스가 못 막는 자리다."""
+
+    class _Base:
+        def __init__(self, role):
+            self.request = _request(role)
+
+        def get_queryset(self):
+            return ["남의 것", "내 것"]
+
+    def _view(self, role, resource, owned=None):
+        body = {"resource": resource}
+        if owned is not None:
+            body["owned_queryset"] = owned
+        klass = type("V", (perm.OwnedOnlyMixin, self._Base), body)
+        return klass(role)
+
+    def test_본인_권한이면_걸러진다(self):
+        view = self._view(perm.PATIENT, "patient_pii",
+                          owned=lambda self, qs, account: ["내 것"])
+        self.assertEqual(view.get_queryset(), ["내 것"])
+
+    def test_본인_권한이_아니면_그대로_둔다(self):
+        view = self._view(perm.RECEPTION, "patient_pii")
+        self.assertEqual(view.get_queryset(), ["남의 것", "내 것"])
+
+    def test_거르는_법을_안_주면_막힌다(self):
+        view = self._view(perm.PATIENT, "patient_pii")
+        with self.assertRaises(ImproperlyConfigured):
+            view.get_queryset()
 
 
 class ExtraPermissionTests(SimpleTestCase):
