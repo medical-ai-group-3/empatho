@@ -88,6 +88,11 @@ class PatientCreateSerializer(serializers.Serializer):
         if models.Patient.objects.filter(patient_number=value).exists():
             raise serializers.ValidationError("이미 등록된 환자번호입니다.")
         return value
+    
+    def validate_phone(self, value):
+        if value and models.PatientPii.objects.filter(phone=value).exists():
+            raise serializers.ValidationError("이미 등록된 전화번호입니다.")
+        return value
 
     @transaction.atomic
     def create(self, validated_data):
@@ -144,3 +149,27 @@ class ReservationCreateSerializer(serializers.Serializer):
         return models.ExamOrder.objects.bulk_create(rows)
     
   
+  
+  
+  
+  
+  #=====환자 신청용======
+class ReservationRequestCreateSerializer(serializers.Serializer):
+    """POST /me/reservation-requests — 환자가 날짜·시간만 신청(§7).
+
+    patient_id 는 여기서 안 받는다 — view 에서 request.user.patient 로 강제.
+    """
+
+    scheduled_at = serializers.DateTimeField()
+
+    def create(self, validated_data):
+        return models.ExamOrder.objects.create(
+            patient=validated_data["patient"],
+            scheduled_at=validated_data["scheduled_at"],
+            order_status="requested",
+            modality=None,
+            exam_purpose=None,
+            ordered_by=None,
+            created_by=validated_data.get("created_by"),
+            updated_by=validated_data.get("updated_by"),
+        )

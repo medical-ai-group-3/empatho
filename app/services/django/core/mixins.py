@@ -1,6 +1,5 @@
 """ViewSet 공통 믹스인."""
 
-from .permissions import HasRole
 
 
 class AuditMixin:
@@ -14,7 +13,7 @@ class AuditMixin:
     """
 
     def _current_account(self):
-        return None
+        return self.request.user if self.request.user.is_authenticated else None
 
     def perform_create(self, serializer):
         serializer.save(created_by=self._current_account(),
@@ -24,13 +23,3 @@ class AuditMixin:
         serializer.save(updated_by=self._current_account())
 
 
-class RoleScopedViewSet(AuditMixin):
-    """역할 제한 + 감사 컬럼을 함께 거는 베이스.
-
-    사용:
-        class PatientViewSet(RoleScopedViewSet, viewsets.ModelViewSet):
-            required_roles = {"reception", "nursing"}
-    """
-
-    permission_classes = [HasRole]
-    required_roles: set[str] = set()
