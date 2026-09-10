@@ -154,6 +154,10 @@ class Patient(AuditBase):
     birth_year = models.IntegerField(blank=True, null=True)
     has_allergy = models.BooleanField(blank=True, null=True)
     allergy_note = models.CharField(max_length=250, blank=True, null=True)
+    # 최신 1건 캐시. **진실은 exam_order.questionnaire 다** — 문진은 방문 때
+    # 받는 것이라 방문마다 한 벌이고, 여기는 조회 편의로 마지막 것을 둔다.
+    # 앱은 한 벌로 보내고 서버가 한 트랜잭션에서 양쪽에 담는다 — 화면이 나눠
+    # 보내면 한쪽만 저장되는 경우가 생긴다.
     questionnaire = models.JSONField(blank=True, null=True)
     # 주치의. 간호과가 환자를 배정할 때 지정한다.
     # related_name 은 유방외과의 「내 환자 목록」이 staff.primary_patients 로
@@ -268,6 +272,10 @@ class ExamOrder(AuditBase):
                                      related_name='+', db_column='parent_order_id')
     followup = models.ForeignKey(Followup, models.PROTECT, blank=True, null=True,
                                  related_name='exam_orders')
+    # 이 방문에서 받은 문진. 진실은 이쪽이고 patient.questionnaire 는 캐시다.
+    # 방문마다 한 벌이라 이력이 자연히 남는다.
+    # {"form_version": "v1", "answers": {"문항code": "선택지id"}}
+    questionnaire = models.JSONField(blank=True, null=True)
 
     class Meta:
         db_table = 'exam_order'
@@ -415,8 +423,11 @@ class Image(AuditBase):
                                related_name='images')
     kind = models.CharField(max_length=20, choices=as_choices(IMAGE_KIND))
     frame = models.CharField(max_length=30, blank=True, null=True)
+    # 파생물의 바이트 주소. storage_object 를 거치지 않고 Garage 를 바로 가리킨다 —
+    # 파생물은 Orthanc 에 안 가고 empatho-derived 에만 있어서 주소가 하나다.
+    # source_object 는 「어디서 왔나」이고 이쪽이 「바이트가 어디 있나」다.
     bucket = models.CharField(max_length=100, blank=True, null=True)
-    object_key = models.CharField(unique=True, max_length=255, blank=True, null=True)
+    object_key = models.CharField(max_length=255, blank=True, null=True)
     width_px = models.IntegerField(blank=True, null=True)
     height_px = models.IntegerField(blank=True, null=True)
     content_type = models.CharField(max_length=100, blank=True, null=True)
@@ -429,6 +440,10 @@ class Image(AuditBase):
         constraints = [
             models.CheckConstraint(condition=Q(kind__in=IMAGE_KIND),
                                    name='image_kind_ck'),
+            # storage_object 와 같은 자리. object_key 만 UNIQUE 로 두면
+            # empatho-original 과 empatho-derived 에 같은 키를 못 쓴다.
+            models.UniqueConstraint(fields=['bucket', 'object_key'],
+                                    name='image_bucket_object_key_uk'),
         ]
 
 

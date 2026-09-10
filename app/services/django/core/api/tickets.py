@@ -80,11 +80,27 @@ def object_key_prefix(scope_kind, scope_id):
     return "%s/%s" % (scope_kind, scope_id)
 
 
+#: 파생물 kind 별 필수 FK. 여기 없는 kind 는 아직 정해지지 않아 거절한다.
+#: 맘모는 overlay · thumbnail 둘뿐이고 영상당 1 장이다 (09-10 확인).
+#: mask · heatmap · mesh 는 초음파 · MRI · 병리 담당 확인 중이다.
+DERIVED_REQUIRED = {
+    "overlay": ("source_object_id", "ai_result_id"),   # lesion 은 null 가능
+    "thumbnail": ("source_object_id",),
+}
+
+#: 티켓에 실어 서명하는 파생물 클레임. payload 는 이것과 대조만 한다.
+DERIVED_CLAIMS = ("kind", "source_object_id", "ai_result_id", "lesion_id")
+
+
 def issue(purpose, scope_kind, scope_id, patient_id=None, content_type=None,
-          max_bytes=None):
+          max_bytes=None, derived=None):
     """서명된 티켓 하나. 권한은 보지 않는다 — 부르는 쪽이 이미 봤다.
 
     Celery 처럼 사람 토큰이 없는 곳에서도 이 함수를 직접 쓴다.
+
+    derived 는 derived_upload 전용이다. 여기 실어 서명하면 추론 서비스가
+    I-1 payload 를 고쳐도 Django 가 티켓과 대조해 걸러낸다 — 파생물이 엉뚱한
+    병변이나 실행에 붙는 것을 막는 유일한 자리다.
     """
     key = settings.TICKET_KEY
     if not key:
@@ -112,9 +128,57 @@ def issue(purpose, scope_kind, scope_id, patient_id=None, content_type=None,
         claims["max_bytes"] = int(max_bytes)
     if content_type:
         claims["content_type"] = content_type
+    if derived:
+        claims.update(check_derived(derived, scope_kind, scope_id))
 
     token = jwt.encode(claims, key, algorithm="HS256")
     return token, claims, expires_at
+
+
+def check_derived(derived, scope_kind, scope_id):
+    """파생물 클레임을 검증하고 티켓에 실을 모양으로 돌려준다.
+
+    kind 마다 있어야 하는 FK 가 다르다. 정해지지 않은 kind 는 거절한다 —
+    받아 두면 어디에도 안 붙은 image 행이 생긴다.
+    """
+    kind = derived.get("kind")
+    required = DERIVED_REQUIRED.get(kind)
+    if required is None:
+        logger.warning("[ticket] 아직 못 받는 파생물 kind=%s", kind)
+        raise ApiError("UNSUPPORTED_PURPOSE",
+                       details={"kind": kind, "allowed": sorted(DERIVED_REQUIRED)})
+
+    missing = [name for name in required if not derived.get(name)]
+    if missing:
+        raise ApiError("VALIDATION_ERROR", "파생물에 필요한 값이 없습니다.",
+                       details={"kind": kind, "missing": missing})
+
+    source = _source_object(derived["source_object_id"])
+    # 원본이 이 티켓의 대상에 속하는지. 안 보면 study 티켓으로 남의 검사
+    # 파생물을 올릴 수 있다.
+    owner_id = getattr(source, "%s_id" % scope_kind, None)
+    if owner_id != int(scope_id):
+        raise ApiError("ROLE_FORBIDDEN",
+                       details={"reason": "원본이 티켓 범위 밖입니다.",
+                                "source_object_id": source.pk,
+                                scope_kind: owner_id})
+
+    claims = {"kind": kind}
+    for name in DERIVED_CLAIMS[1:]:
+        value = derived.get(name)
+        claims[name] = str(value) if value else ""
+    return claims
+
+
+def _source_object(source_object_id):
+    from ..models import StorageObject
+
+    try:
+        return StorageObject.objects.get(pk=int(source_object_id))
+    except (StorageObject.DoesNotExist, TypeError, ValueError):
+        raise ApiError("TARGET_NOT_FOUND",
+                       details={"target": "storage_object",
+                                "id": source_object_id}) from None
 
 
 class TicketView(APIView):
