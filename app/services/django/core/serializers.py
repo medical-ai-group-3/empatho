@@ -31,6 +31,9 @@ class PatientPiiSerializer(serializers.ModelSerializer):
 class PatientSerializer(serializers.ModelSerializer):
     """목록용. 개인정보(pii)는 필요할 때 PatientDetailSerializer 로."""
 
+    primary_staff_name = serializers.CharField(
+        source = "primary_staff.full_name", read_only=True, default=None
+    )
     class Meta:
         model = models.Patient
         exclude = AUDIT_FIELDS

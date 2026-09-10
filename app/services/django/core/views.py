@@ -12,7 +12,7 @@ class PatientViewSet(AuditMixin, OwnedOnlyMixin, viewsets.ModelViewSet):
 
     resource = "patient"
     permission_classes = [MatrixPermission]
-    queryset = models.Patient.objects.select_related("pii").all()
+    queryset = models.Patient.objects.select_related("pii", "primary_staff").all()
 
     def get_queryset(self):
         qs = super().get_queryset()
