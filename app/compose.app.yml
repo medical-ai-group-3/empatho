@@ -42,6 +42,13 @@ services:
       - ./conf/gosvc.env
     environment:
       LLM_ADDR: ":8090"
+      # 워크스테이션 리포트 서버. tunnel 컨테이너를 거쳐 나간다.
+      # 비면 llm-proxy 가 log.Fatal 로 죽고 재시작을 반복한다 —
+      # nginx 는 그때 /svc/v1/llm/* 을 502 로 돌려준다.
+      #
+      # conf/gosvc.env 에 값이 있으면 그것이 이긴다.
+      REPORT_BASE: ${REPORT_BASE:-http://tunnel:8002}
+      REPORT_TIMEOUT: ${REPORT_TIMEOUT:-2m}
     ports:
       - "127.0.0.1:8090:8090"
 
