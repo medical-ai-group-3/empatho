@@ -75,3 +75,31 @@ class NotFoundView(APIView):
         raise ApiError("NOT_FOUND")
 
     get = post = put = patch = delete = head = options = _not_found
+
+
+
+from rest_framework.decorators import api_view, permission_classes
+from django.contrib.auth.hashers import check_password
+
+from ..models import Account
+from .auth import issue_pair
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def login(request):
+    login_id = request.data.get("login_id")
+    password = request.data.get("password")
+
+    if not login_id or not password:
+        raise ApiError("VALIDATION_ERROR", "login_id · password 가 필요합니다.")
+
+    try:
+        account = Account.objects.get(login_id=login_id, is_active=True)
+    except Account.DoesNotExist:
+        raise ApiError("UNAUTHENTICATED", "아이디 또는 비밀번호가 올바르지 않습니다.")
+
+    if not account.password_hash or not check_password(password, account.password_hash):
+        raise ApiError("UNAUTHENTICATED", "아이디 또는 비밀번호가 올바르지 않습니다.")
+
+    return Response(issue_pair(account))
