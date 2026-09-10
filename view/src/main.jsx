@@ -1,6 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Link, Route, Routes } from "react-router-dom";
 
 import App, { Bare } from "./App.jsx";
 import Boom from "./lib/Boom.jsx";
@@ -8,9 +8,11 @@ import RequireAuth from "./lib/RequireAuth.jsx";
 import { Head } from "./lib/Screen.jsx";
 import { applyScale, applyTheme, readScale, readTheme } from "./lib/theme.js";
 import Book from "./screens/Book.jsx";
+import Chat from "./screens/Chat.jsx";
 import Home from "./screens/Home.jsx";
 import Login from "./screens/Login.jsx";
 import Me from "./screens/Me.jsx";
+import Notis from "./screens/Notis.jsx";
 import Quest from "./screens/Quest.jsx";
 import Report from "./screens/Report.jsx";
 import Results from "./screens/Results.jsx";
@@ -26,20 +28,22 @@ import "./index.css";
  * 그래서 **브라우저 뒤로가기가 곧 앱 뒤로가기**다. 화면마다 돌아갈 곳을
  * 박아 둘 필요가 없다. */
 
-/* 아직 안 만든 화면. 여기도 Head 를 쓴다 — 뒤로가기가 화면마다 다르게
+/* 없는 주소로 왔을 때. 여기도 Head 를 쓴다 — 뒤로가기가 화면마다 다르게
  * 생기지 않게 하려면 머리말을 손으로 그리는 자리가 없어야 한다.
  *
- * 한 줄을 위쪽에 붙여 두면 «잘못 눌렀나» 싶다. 가운데에 세우고 언제쯤
- * 되는지 한 줄을 더 붙인다 — 빈 화면이라도 «여기는 여기까지»는 말한다. */
-function Soon({ name }) {
+ * 한 줄을 위쪽에 붙여 두면 «잘못 눌렀나» 싶다. 가운데에 세우고 나갈
+ * 길을 하나 둔다 — 오래된 알림 링크로 들어오면 여기가 첫 화면이라
+ * 되짚을 이력이 없다. */
+function Missing() {
   return (
     <>
-      <Head title={name} />
+      <Head title="없는 화면" />
       <div className="pane">
         <div className="empty">
           <i className="ic" aria-hidden="true">◍</i>
-          <p>준비 중입니다.<br />다음 판에서 열립니다.</p>
+          <p>주소가 잘못되었거나 사라진 화면입니다.</p>
         </div>
+        <Link className="btn ghost" to="/">홈으로</Link>
       </div>
     </>
   );
@@ -78,11 +82,11 @@ createRoot(document.getElementById("root")).render(
           <Route path="/reports/:id"  element={<Report />} />
           <Route path="/book"         element={<Book />} />
           <Route path="/quest"        element={<Quest />} />
-          <Route path="/chat"         element={<Soon name="안내 챗봇" />} />
-          <Route path="/notis"        element={<Soon name="알림" />} />
+          <Route path="/chat"         element={<Chat />} />
+          <Route path="/notis"        element={<Notis />} />
           <Route path="/me"           element={<Me />} />
           <Route path="/settings"     element={<Settings />} />
-          <Route path="*"             element={<Soon name="없는 화면" />} />
+          <Route path="*"             element={<Missing />} />
         </Route>
       </Routes>
     </BrowserRouter>

@@ -14,6 +14,29 @@ export function fmtDay(iso) {
   return `${d.getFullYear()}.${p(d.getMonth() + 1)}.${p(d.getDate())}`;
 }
 
+/** 알림 목록의 왼쪽 칸 — 오늘 10:24 · 어제 · 9.8
+ *
+ * 알림은 **언제 왔는지가 먼 것일수록 덜 중요하다.** 오늘 온 것은 몇 시에
+ * 왔는지가 궁금하고, 지난달 것은 날짜만 알면 된다. 그래서 가까울수록
+ * 자세히 적는다.
+ *
+ * 「3시간 전」처럼 흐르는 말은 안 쓴다. 화면을 열어 둔 채로 시간이
+ * 지나면 틀린 말이 되고, 다시 그리기 전까지 그대로 남는다.
+ */
+export function fmtStamp(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  const now = new Date();
+
+  // 날짜만 떼어 견준다. 시각까지 넣고 빼면 «23시간 전»이 어제가 된다
+  const day = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate());
+  const diff = Math.round((day(now) - day(d)) / 86400000);
+
+  if (diff === 0) return `${p(d.getHours())}:${p(d.getMinutes())}`;
+  if (diff === 1) return "어제";
+  return `${d.getMonth() + 1}.${d.getDate()}`;
+}
+
 /** 9월 15일(월) 14:00 */
 export function fmtWhen(iso) {
   if (!iso) return "";

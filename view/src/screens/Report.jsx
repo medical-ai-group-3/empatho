@@ -1,5 +1,7 @@
 import { Link, useParams } from "react-router-dom";
 import { api } from "../api";
+import { HOSPITAL } from "../brand";
+import { deptSuffix } from "../lib/dept";
 import { useApi } from "../lib/useApi";
 import { Body, Head } from "../lib/Screen";
 
@@ -54,6 +56,11 @@ function Letter({ r }) {
 
   return (
     <>
+      {/* 인쇄에만 나오는 머리. 화면에서는 위에 머리말(.top)이 있지만
+          인쇄에서는 그것을 숨기므로, 그냥 두면 종이에 «어디서 온
+          무엇인지»가 하나도 없이 본문만 남는다 */}
+      <p className="printhead" aria-hidden="true">{HOSPITAL} · 검사 안내문</p>
+
       <article className="letter">
         <h3>검사 결과를 안내드립니다</h3>
         {/* 판독의와 주치의는 **다른 사람**이다. 사진을 읽은 사람과
@@ -62,11 +69,11 @@ function Letter({ r }) {
         <p className="by">
           {fmtDate(r.issued_at)} · 영상의학과 ·
           {" "}판독의 {r.issued_by_name}
-          {r.attending_name && (
+          {r.primary_staff_name && (
             <>
               <br />
-              담당 주치의 {r.attending_name}
-              {r.attending_dept ? ` · ${r.attending_dept}` : ""}
+              담당 주치의 {r.primary_staff_name}
+              {deptSuffix(r.primary_staff_dept)}
             </>
           )}
         </p>
@@ -92,7 +99,18 @@ function Letter({ r }) {
       )}
 
       <div className="row2">
-        <button className="btn soft" disabled={!r.pdf_available}>
+        {/* 브라우저의 인쇄를 부른다. 인쇄 창에서 「PDF 로 저장」을 고르면
+            파일이 남고, 종이로 뽑을 수도 있다 — 접수처에 들고 갈 사람도
+            있다.
+
+            서버에서 PDF 를 받아 오는 길(GET …/pdf)은 아직 없다. 생기면
+            여기만 그쪽으로 바꾸면 된다. 그때까지 단추가 아무 일도 안 하는
+            것보다는 이 편이 낫다.
+
+            @media print 가 앱 껍데기를 걷어 내고 안내문만 남긴다
+            (index.css 맨 아래). */}
+        <button className="btn soft" disabled={!r.pdf_available}
+                onClick={() => window.print()}>
           PDF 저장
         </button>
         <Link className="btn ghost" to="/chat">모르는 말 묻기</Link>

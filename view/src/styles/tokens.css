@@ -315,6 +315,24 @@
   --pro-no-fs:  calc(12px * var(--ft));
   --pro-pad-b:  calc(6px * var(--sp));
 
+  /* ══ 챗봇 ═════════════════════════════════════════════════
+     말풍선은 **내 말이 오른쪽, 답이 왼쪽**이다. 색이 아니라 자리가
+     누구 말인지를 진다 — 색을 못 가려도 왼오는 보인다. */
+  --bub-max:      82%;                       /* 말풍선 최대 폭 */
+  --bub-pad-y:    calc(11px * var(--sp));
+  --bub-pad-x:    calc(14px * var(--sp));
+  --bub-radius:   16px;
+  --bub-tail:     5px;                       /* 말하는 쪽 모서리만 덜 둥글게 */
+  --bub-fs:       calc(14px * var(--ft));
+  --bub-lh:       1.72;
+  --bub-gap:      calc(9px * var(--sp));     /* 말풍선 사이 */
+  --bub-note-fs:  calc(11px * var(--ft));    /* 답 아래 딸린 한 줄 */
+  --bub-note-gap: calc(8px * var(--sp));
+
+  /* 아래 입력 줄 */
+  --askbar-pad:   calc(12px * var(--sp));
+  --askbar-gap:   calc(8px * var(--sp));
+
   /* ══ 빈 화면 ══════════════════════════════════════════════
      아직 아무것도 없는 자리(준비 중 · 불러오는 중). 한 줄을 위쪽에
      붙여 두면 화면이 잘못 뜬 것처럼 보인다 — 가운데에 세운다. */
@@ -359,3 +377,42 @@
 /* 기기 설정을 무시하고 한 판으로 고정할 때 */
 :root[data-theme="light"]{ color-scheme: light }
 :root[data-theme="dark"] { color-scheme: dark  }
+
+/* ── 인쇄 · PDF 저장 ──────────────────────────────────────────
+   안내문 화면의 「PDF 저장」이 브라우저 인쇄를 부른다.
+
+   **어두운 판으로 보던 사람이 눌러도 종이는 희어야 한다.** 위 색들은
+   light-dark() 라 기기 설정을 따라가는데, 그대로 두면 검은 바탕에
+   흰 글씨가 찍힌다. 잉크도 잉크지만 읽히지도 않는다.
+
+   그래서 인쇄일 때만 값을 못 박는다. 화면용 값은 하나도 안 건드린다.
+   종이는 화면보다 대비가 좋으므로 회색을 한 단계씩 진하게 잡았다.
+
+   걷어 내는 규칙(머리말·탭·단추를 숨기는 것)은 index.css 맨 아래에
+   있다 — 색은 여기, 배치는 저기다.
+   ───────────────────────────────────────────────────────────── */
+@media print{
+  :root{
+    color-scheme: light;
+
+    --bg:        #FFFFFF;
+    --surface:   #FFFFFF;
+    --blush:     #FFFFFF;   /* 안내문 바탕 — 종이에는 색을 안 깐다 */
+    --pink-bg:   #F1DDE2;
+
+    --ink:       #000000;
+    --ink-2:     #1C2024;
+    --muted:     #3A3F46;   /* 화면의 #6A7078 보다 진하다 */
+    --faint:     #5A6068;
+    --line:      #9AA0A6;
+    --line-soft: #C8CCD0;
+
+    --pink:      #8A4457;   /* 도장·강조 — 흑백 인쇄에서도 남게 진하게 */
+    --pink-ink:  #FFFFFF;
+
+    --shadow:      transparent;
+    --card-line:   #C8CCD0;
+    --card-shadow: none;
+    --nav-shadow:  none;
+  }
+}

@@ -6,6 +6,7 @@ import Coach from "../lib/Coach";
 import { COACH_HOME } from "../lib/seen";
 import { Body } from "../lib/Screen";
 import { fmtDay, fmtWhen } from "../lib/when";
+import { deptSuffix } from "../lib/dept";
 
 /* 03 · 홈
  *
@@ -83,7 +84,7 @@ function Inner({ d }) {
       {d.last_visit_at && (
         <p className="note">
           마지막 내원 <b>{fmtDay(d.last_visit_at)}</b>
-          {d.last_visit_dept ? ` · ${d.last_visit_dept}` : ""}
+          {deptSuffix(d.last_visit_dept)}
         </p>
       )}
 

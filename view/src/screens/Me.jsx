@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { api } from "../api";
 import { useApi } from "../lib/useApi";
 import { Body, Head } from "../lib/Screen";
+import { deptSuffix } from "../lib/dept";
 import { fmtDay, fmtDayKey } from "../lib/when";
 
 /* 10 · 내 정보
@@ -80,14 +81,14 @@ function Inner({ me }) {
         </p>
       </div>
 
-      {(me.attending_name || me.last_visit_at) && (
+      {(me.primary_staff_name || me.last_visit_at) && (
         <div className="card">
-          {me.attending_name ? (
+          {me.primary_staff_name ? (
             <>
               <span className="k">담당 주치의</span>
               <span className="v">
-                {me.attending_name}
-                {me.attending_dept ? ` · ${me.attending_dept}` : ""}
+                {me.primary_staff_name}
+                {deptSuffix(me.primary_staff_dept)}
               </span>
             </>
           ) : (
@@ -96,7 +97,7 @@ function Inner({ me }) {
           {me.last_visit_at && (
             <span className="s">
               마지막 내원 {fmtDay(me.last_visit_at)}
-              {me.last_visit_dept ? ` · ${me.last_visit_dept}` : ""}
+              {deptSuffix(me.last_visit_dept)}
             </span>
           )}
         </div>

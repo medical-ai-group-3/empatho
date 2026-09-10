@@ -5,6 +5,7 @@ import Calendar from "../lib/Calendar";
 import Choices from "../lib/Choices";
 import { Body, Head } from "../lib/Screen";
 import { fmtDateKey, fmtWhen } from "../lib/when";
+import { deptSuffix } from "../lib/dept";
 
 /* 05 · 예약
  *
@@ -118,10 +119,10 @@ function Inner({ d, reload }) {
       {/* 담당 주치의는 환자에게 붙는 값이라 예약마다가 아니라 위에 한 번만
           쓴다. 줄마다 같은 이름을 반복하면 읽는 사람이 «예약별로 다른가»
           하고 한 번 더 본다 */}
-      {d.attending_name && (
+      {d.primary_staff_name && (
         <p className="note">
-          담당 주치의 <b>{d.attending_name}</b>
-          {d.attending_dept ? ` · ${d.attending_dept}` : ""}
+          담당 주치의 <b>{d.primary_staff_name}</b>
+          {deptSuffix(d.primary_staff_dept)}
         </p>
       )}
       {d.items?.length ? (

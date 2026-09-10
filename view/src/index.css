@@ -493,6 +493,55 @@ a{color:inherit; text-decoration:none}
   font-size:var(--pro-no-fs); color:var(--muted);
   font-family:var(--font-num)}
 
+/* ── 챗봇 ─────────────────────────────────────────────────────
+   내 말은 오른쪽, 답은 왼쪽이다. **자리가 누구 말인지를 진다** — 색을
+   못 가리는 사람에게도 왼오는 보인다. 색은 거들 뿐이다.
+
+   말하는 쪽 아래 모서리만 덜 둥글게 깎는다. 꼬리를 따로 그리는 것보다
+   조용하고, 어느 쪽에서 나온 말인지가 그것만으로 읽힌다. */
+.chat{gap:var(--bub-gap)}
+
+.bub{max-width:var(--bub-max); padding:var(--bub-pad-y) var(--bub-pad-x);
+  border-radius:var(--bub-radius); font-size:var(--bub-fs);
+  line-height:var(--bub-lh)}
+.bub p{margin:0; white-space:pre-line}   /* 답의 줄바꿈은 서버가 정한다 */
+
+.bub.me{align-self:flex-end; background:var(--pink); color:var(--pink-ink);
+  border-bottom-right-radius:var(--bub-tail)}
+.bub.bot{align-self:flex-start; background:var(--surface); color:var(--ink);
+  border:var(--line-w) solid var(--card-line); box-shadow:var(--card-shadow);
+  border-bottom-left-radius:var(--bub-tail)}
+
+/* 답에 딸리는 한 줄 — 서버가 답마다 함께 준다. 답과 같은 풍선 안에
+   두되 선으로 갈라 둔다. 밖에 두면 그냥 화면 설명으로 읽힌다 */
+.bub.bot small{display:block; margin-top:var(--bub-note-gap);
+  padding-top:var(--bub-note-gap);
+  border-top:var(--line-w) solid var(--line-soft);
+  font-size:var(--bub-note-fs); line-height:var(--note-lh);
+  color:var(--muted)}
+
+/* 오류도 대화 안에 둔다. 방금 물은 것 바로 아래여야 무엇에 대한
+   오류인지 안다 */
+.bub.bot.err{border-color:var(--error); color:var(--ink-2)}
+.bub.wait{color:var(--muted)}
+
+/* 아래 입력 줄 — .pane 밖이라 대화가 길어져도 늘 보인다 */
+.askbar{flex:none; background:var(--surface);
+  border-top:var(--line-w) solid var(--line);
+  padding:var(--askbar-pad) var(--screen-pad)}
+.askrow{display:flex; gap:var(--askbar-gap); align-items:center}
+.askrow input{flex:1; min-width:0; font:inherit; font-size:var(--field-fs);
+  color:var(--ink); background:var(--bg); border:none;
+  padding:var(--field-pad-y) var(--field-pad-x);
+  border-radius:var(--field-radius);
+  box-shadow:inset 0 0 0 var(--line-w) var(--line)}
+.askrow input::placeholder{color:var(--faint)}
+.askrow input:focus{outline:none;
+  box-shadow:inset 0 0 0 var(--focus-w) var(--pink)}
+.askrow .btn.narrow{width:auto; flex:none; white-space:nowrap;
+  padding:var(--field-pad-y) var(--opt-pad-x)}
+.askbar .note{margin-top:var(--askbar-gap)}
+
 /* ── 빈 화면 ──────────────────────────────────────────────────
    준비 중 · 불러오는 중. 한 줄을 위쪽에 붙여 두면 «잘못 떴나» 싶다.
    가운데에 세우면 적어도 «지금은 여기까지»로 읽힌다.
@@ -634,3 +683,47 @@ a{color:inherit; text-decoration:none}
 @media (prefers-reduced-motion:reduce){
   *{transition:none!important; animation:none!important}
 }
+
+/* ── 인쇄 · PDF 저장 ──────────────────────────────────────────
+   안내문의 「PDF 저장」이 window.print() 를 부른다. 종이에 남길 것은
+   **안내문 하나**다 — 뒤로가기 · 아래 탭 · 단추는 눌러지지도 않는
+   그림이 되어 자리만 먹는다.
+
+   색은 tokens.css 맨 아래 @media print 가 못 박는다. 여기는 배치만
+   다룬다.
+
+   ⚠ !important 를 쓴다. 인쇄는 화면 규칙 위에 덧대는 것이라, 앞에서
+     정해 둔 display 를 확실히 이겨야 한다. 이 파일에서 !important 가
+     쓰이는 곳은 여기와 위의 «움직임 줄이기» 둘뿐이다.
+   ───────────────────────────────────────────────────────────── */
+@media print{
+  /* 눌러야 뜻이 있는 것들. 종이에서는 아무 일도 못 한다 */
+  .top, .tabs, .row2, .askbar, .coach, .btn, .lnk{display:none!important}
+
+  /* 앱은 폰 폭에 맞춘 통이다. 종이에서는 그 틀을 푼다 */
+  .app{max-width:none; height:auto; border:none; background:var(--bg)}
+  .screens{display:block; min-height:0}
+  .pane{display:block; overflow:visible; padding:0; background:var(--bg)}
+
+  /* 안내문 — 카드가 아니라 **글**로 만든다. 종이에 둥근 모서리와
+     그림자를 그리면 화면을 찍은 것처럼 보인다 */
+  .letter{background:var(--bg); border:none; box-shadow:none;
+    border-radius:0; padding:0}
+
+  /* 인쇄에만 나오는 머리 — 어디서 온 무엇인지를 종이에 남긴다 */
+  .printhead{display:block!important; margin:0 0 var(--letter-gap);
+    padding-bottom:var(--stamp-gap);
+    border-bottom:var(--line-w) solid var(--line);
+    font-family:var(--font-ui); font-size:var(--letter-by-fs);
+    letter-spacing:.06em; color:var(--ink-2); font-weight:700}
+
+  /* 면책 문구는 **반드시 같이 나가야 한다.** 안내문만 떼어 내면
+     「진단서가 아니다」가 빠진 채로 돌아다닌다 */
+  .note{color:var(--muted); margin-top:var(--letter-gap)}
+
+  /* 한 문단이 두 쪽에 걸쳐 잘리지 않게 */
+  .letter p, .stamp, .note{break-inside:avoid}
+}
+
+/* 화면에서는 숨어 있다 — 위 @media print 만 이것을 꺼낸다 */
+.printhead{display:none}

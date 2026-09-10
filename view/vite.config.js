@@ -26,6 +26,25 @@ const SERVER = process.env.EMPATHO_SERVER || "http://app-host";
 
    개발에서만 붙는다. 빌드 결과에는 한 줄도 안 들어간다.
    ────────────────────────────────────────────────────────────────── */
+/* 요청 본문을 모아 JSON 으로 읽는다. 챗봇처럼 **보낸 내용에 따라 답이
+   달라지는** 곳에서만 쓴다. 깨진 본문은 빈 객체로 넘긴다 — 가짜 API 가
+   본문 때문에 500 을 내면 화면 쪽 문제와 구분이 안 된다. */
+function readBody(req, done) {
+  let raw = "";
+  req.on("data", (c) => { raw += c; });
+  req.on("end", () => {
+    let body = {};
+    try { body = JSON.parse(raw || "{}"); } catch { /* 빈 객체로 둔다 */ }
+    done(body);
+  });
+}
+
+/* 응답 한 벌. 헤더를 빠뜨리면 한글이 깨져서 «서버가 이상하다»로 읽힌다 */
+function send(res, obj) {
+  res.setHeader("content-type", "application/json; charset=utf-8");
+  res.end(JSON.stringify(obj));
+}
+
 function mockApi() {
   /* 로그인 상태를 기억한다.
      Django 는 세션 쿠키로 판정하고, 로그인 전에는 **401 을 준다.** 가짜 API 가
@@ -111,11 +130,31 @@ function mockApi() {
           return;
         }
 
+        /* 챗봇 — **물음에 따라 답이 갈린다.**
+           하나뿐인 답을 늘 돌려주면 무엇을 물어도 같은 말이 나와서,
+           화면이 제대로 도는지 시험할 수가 없다.
+
+           db.json 의 __match 를 위에서부터 훑어 when 의 낱말이 물음에
+           하나라도 들어 있으면 그 답을 준다. 아무것도 안 걸리면 기본
+           answer 다.
+
+           ⚠ 이 규칙은 **가짜 API 안에만 있다.** Django 는 몰라도 되고,
+             응답 모양(answer · disclaimer · stored)만 같으면 된다. */
+        if (path === "/api/v1/chat" && hit && hit.__match) {
+          readBody(req, (body) => {
+            const q = String(body.question || "");
+            const m = hit.__match.find((x) => x.when.some((w) => q.includes(w)));
+            send(res, {
+              answer: (m || hit).answer,
+              disclaimer: hit.disclaimer,
+              stored: hit.stored,
+            });
+          });
+          return;
+        }
+
         // 사람이 기다리는 느낌. 즉답이면 «분석 중»을 못 본다.
-        setTimeout(() => {
-          res.setHeader("content-type", "application/json; charset=utf-8");
-          res.end(JSON.stringify(hit));
-        }, 180);
+        setTimeout(() => send(res, hit), 180);
       });
     },
   };
