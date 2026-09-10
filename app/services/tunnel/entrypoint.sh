@@ -3,7 +3,7 @@ set -e
 
 # 바인드 마운트는 Windows 쪽 권한이 그대로 와서 ssh 가 키를 거부한다
 # (Permissions 0777 are too open). 복사해서 좁힌다.
-cp /key /tmp/k
+cp /ws/key /tmp/k
 chmod 600 /tmp/k
 
 # -L 앞의 0.0.0.0 이 없으면 이 컨테이너 안에서만 열려서
@@ -15,7 +15,7 @@ chmod 600 /tmp/k
 #   8001   추론 FastAPI  — Celery 워커가 판독을 부른다
 #   8002   리포트 서버   — 소견문
 exec ssh -N -i /tmp/k \
-  -o UserKnownHostsFile=/known_hosts \
+  -o UserKnownHostsFile=/ws/known_hosts \
   -o StrictHostKeyChecking=yes \
   -o ExitOnForwardFailure=yes \
   -o ServerAliveInterval=20 \

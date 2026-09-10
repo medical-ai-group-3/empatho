@@ -117,9 +117,17 @@ services:
       WS_PORT: "22"
       WS_USER: "wsuser"
     volumes:
-      # 개인키는 저장소에 없다(.gitignore). 서버 담당에게 받아 conf/ 에 둔다.
-      - ./conf/ws_key:/key:ro
-      - ./conf/ws_known_hosts:/known_hosts:ro
+      # 개인키는 저장소에 없다(.gitignore). 서버 담당에게 받아 conf/ws/ 에 둔다.
+      #
+      # ⚠ 파일 하나씩 마운트하지 말 것. Docker Desktop 이 WSL 바인드 마운트를
+      #   캐시하는데, 파일 단위로 걸면 그 캐시가 어긋나 파일 자리에 디렉터리를
+      #   물린다. 그러면 컨테이너가 `cp: omitting directory '/key'` 로 죽고
+      #   재생성 말고는 고칠 방법이 없다. 09-10 하루에 세 번 났다.
+      #   폴더째 마운트하면 이 버그를 안 만난다.
+      #
+      #   conf/ 전체가 아니라 하위 폴더를 쓰는 이유 — DB 비밀번호가 든
+      #   web.env·postgres.env 를 터널 컨테이너에 들여보내지 않는다.
+      - ./conf/ws:/ws:ro
 
 volumes:
   gw-spool: 
