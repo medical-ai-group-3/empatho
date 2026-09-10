@@ -50,6 +50,23 @@ BASE_ROOT = MODEL_ROOT / "base"
 #              이름 앞글자로 훑지 않는 이유는 그러면 짝이 맞는지 알 수 없기
 #              때문이다 — 초음파는 셋이, 맘모는 셋이 한 벌이어야 한다.
 #   설명       healthz 에 그대로 나간다. 사람이 읽는 값이다.
+# 같은 파이프라인을 가리키는 소켓 번호. 들어오면 대표 번호로 넘긴다.
+#
+# 초음파 4·5 와 병리 1·2 는 각각 한 모듈로 가고, _run 이 소켓 번호를 인자로
+# 받지 않아 실행이 갈리지 않는다. 2026-09-10 실측 — 같은 이미지로 4 와 5 를
+# 부르면 응답이 1,481 바이트까지 같았다. 1·2 는 MC Dropout 이 흔드는 다섯
+# 필드만 달랐고 결정론적 값은 전부 같았다.
+#
+# 대표를 5·1 로 잡은 이유
+#   초음파  소켓 4 의 파일 목록에 등급 헤드가 빠져 있는데 실행은 그것을 쓴다.
+#           헤드만 없어지면 4 는 ready 라 답하고 판독에서 터진다. 목록이
+#           실행과 맞는 5 를 대표로 둔다.
+#   병리    목록이 REQUIRED 하나로 같다. 조직 분할이 sTIL 의 분모라 1 이 앞이다.
+#
+# 지우지 않는 이유 — API 명세가 소켓 1~5 를 정의하고 있다. 부르던 쪽이 깨지지
+# 않게 받아 주되, 응답의 socket_id 에는 실제로 처리한 번호를 담는다.
+ALIAS = {"4": "5", "2": "1"}
+
 SOCKETS = {
     "1":  ("virchow2", pathology.REQUIRED,  "병리 분할 (Virchow2 + linear_tand)"),
     "2":  ("cellvit",  pathology.REQUIRED, "병리 세포검출 (CellViT-SAM-H)"),
@@ -188,6 +205,11 @@ async def analyze(socket_id: str, image: UploadFile = File(...), post: UploadFil
 
     어떤 경우에도 200 을 낸다. 실패는 abstained=True 와 reason 으로 알린다.
     """
+    # ⓪ 별칭이면 대표 번호로 바꾼다. 아래 로직은 대표 번호만 본다.
+    #    requested 를 남겨 응답에 함께 실어, 부른 쪽이 넘어간 것을 알 수 있게 한다.
+    requested = socket_id
+    socket_id = ALIAS.get(socket_id, socket_id)
+
     # ① 아는 소켓 번호인가. SOCKETS 에 없으면 오타이거나 아직 없는 소켓이다.
     known = SOCKETS.get(socket_id)
     if known is None:
@@ -281,6 +303,8 @@ async def analyze(socket_id: str, image: UploadFile = File(...), post: UploadFil
     #    나중에 「이 결과는 어느 모델이 냈나」에 답할 수 있는 유일한 단서다.
     return {
         "socket_id": socket_id,
+        # 4·2 로 불렀으면 어디로 넘어갔는지 보인다. 같은 번호면 안 싣는다.
+        **({"requested_socket_id": requested} if requested != socket_id else {}),
         "abstained": False,
         "reason": None,
         **mod.versions(),
