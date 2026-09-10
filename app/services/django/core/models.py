@@ -35,7 +35,11 @@ MODALITY = ["mammo", "us", "mri"]
 ORDER_STATUS = ["requested", "ordered", "accepted", "in_progress", "completed",
                 "cancelled"]
 READ_STATUS = ["pending", "first_locked", "ai_revealed", "finalized"]
-IMAGE_KIND = ["mask", "overlay", "mesh", "heatmap", "thumbnail"]
+# mesh 가 셋인 이유 — MRI 는 유방 전체 · 치밀부위 · 병변 세 종류를 낸다.
+# 앞의 둘은 검사당 1개라 lesion 이 null 이고 뒤는 병변당 1개라 lesion 이 필수다.
+# 한 kind 로 두면 그 차이를 DB 가 못 걸고, lesion 이 null 인 두 행이 구분도 안 된다.
+IMAGE_KIND = ["mask", "overlay", "mesh_breast", "mesh_dense", "mesh_lesion",
+              "heatmap", "thumbnail"]
 READ_STAGE = ["first", "final"]
 ACCESSION_STATUS = ["unbound", "bound", "accessioned"]
 DIAGNOSIS = ["benign", "malignant"]
@@ -481,6 +485,12 @@ class AiResult(AuditBase):
                                       db_column='source_object_id')
     model = models.ForeignKey(AiModel, models.PROTECT, blank=True, null=True,
                               related_name='ai_results')
+    # 요청한 소켓. 실제 처리한 소켓은 model.socket_id 다 — 4→5 처럼 재배치되면
+    # 둘이 달라지고, 그 차이 자체가 재배치 기록이다. 하나만 두면 흔적이 사라진다.
+    requested_socket_id = models.CharField(max_length=5, choices=as_choices(SOCKET_ID),
+                                           blank=True, null=True)
+    # MRI 메시는 여기 없다. 응답의 99.98% 가 메시라 core/mesh.py 가 걷어내
+    # Garage 로 보내고, 자리에는 (bucket, object_key) 스텁만 남는다.
     result = models.JSONField(blank=True, null=True)
     abstained = models.BooleanField(blank=True, null=True)      # 봉투 기권
     abstain_reason = models.CharField(max_length=100, blank=True, null=True)

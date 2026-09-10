@@ -102,16 +102,48 @@ class TicketClaimTests(DerivedTestCase):
         self.assertEqual(claims["kind"], "thumbnail")
         self.assertEqual(claims["ai_result_id"], "")
 
-    def test_아직_안_정해진_kind_는_거절한다(self):
-        # mask · heatmap · mesh 는 담당 확인 중이다
-        for kind in ("mask", "heatmap", "mesh"):
+    def test_아무도_안_내는_kind_는_거절한다(self):
+        # 초음파는 폴리곤 JSON, 병리 응답에 마스크 없음, 맘모는 분할 안 함
+        for kind in ("mask", "heatmap"):
             with self.assertRaises(ApiError) as caught:
                 check_derived({"kind": kind, "source_object_id": self.source.pk},
                               "study", self.study.pk)
             self.assertEqual(caught.exception.code, "UNSUPPORTED_PURPOSE", kind)
 
-    def test_맘모는_둘만_쓴다(self):
-        self.assertEqual(set(DERIVED_REQUIRED), {"overlay", "thumbnail"})
+    def test_한덩이_mesh_는_이제_없다(self):
+        # 셋으로 나눴다. 옛 이름으로 오면 거절해야 한다.
+        with self.assertRaises(ApiError) as caught:
+            check_derived({"kind": "mesh", "source_object_id": self.source.pk,
+                           "ai_result_id": self.ai_result.pk},
+                          "study", self.study.pk)
+        self.assertEqual(caught.exception.code, "UNSUPPORTED_PURPOSE")
+
+    def test_받는_kind_는_다섯이다(self):
+        self.assertEqual(set(DERIVED_REQUIRED),
+                         {"overlay", "thumbnail",
+                          "mesh_breast", "mesh_dense", "mesh_lesion"})
+
+    def test_검사_메시는_lesion_없이_된다(self):
+        for kind in ("mesh_breast", "mesh_dense"):
+            _, claims, _ = issue("derived_upload", "study", self.study.pk,
+                                 derived={"kind": kind,
+                                          "source_object_id": self.source.pk,
+                                          "ai_result_id": self.ai_result.pk})
+            self.assertEqual(claims["lesion_id"], "", kind)
+
+    def test_병변_메시는_lesion_이_필수다(self):
+        with self.assertRaises(ApiError) as caught:
+            check_derived({"kind": "mesh_lesion",
+                           "source_object_id": self.source.pk,
+                           "ai_result_id": self.ai_result.pk},
+                          "study", self.study.pk)
+        self.assertIn("lesion_id", caught.exception.details["missing"])
+
+    def test_병변_메시가_lesion_을_싣는다(self):
+        _, claims, _ = issue("derived_upload", "study", self.study.pk,
+                             derived=self.derived(kind="mesh_lesion"))
+        self.assertEqual(claims["kind"], "mesh_lesion")
+        self.assertEqual(claims["lesion_id"], str(self.lesion.pk))
 
     def test_overlay_에_ai_result_가_없으면_막힌다(self):
         with self.assertRaises(ApiError) as caught:
@@ -179,6 +211,28 @@ class DerivedCallbackTests(DerivedTestCase):
             r = self.post(self.payload(derived=self.derived(kind="mask")))
         self.assertEqual(r.status_code, 422)
         self.assertEqual(r.json()["error"]["code"], "UNSUPPORTED_PURPOSE")
+
+    def test_병변_메시가_image_행이_된다(self):
+        r = self.post(self.payload(
+            object_key="study/1/mesh/lesion-0.json",
+            content_type="application/json",
+            derived=self.derived(kind="mesh_lesion")))
+        self.assertEqual(r.status_code, 200)
+        image = Image.objects.get(object_key="study/1/mesh/lesion-0.json")
+        self.assertEqual(image.kind, "mesh_lesion")
+        self.assertEqual(image.lesion_id, self.lesion.pk)
+        self.assertEqual(image.content_type, "application/json")
+
+    def test_검사_메시는_lesion_이_빈_채로_들어간다(self):
+        r = self.post(self.payload(
+            object_key="study/1/mesh/breast_mesh.json",
+            derived={"kind": "mesh_breast",
+                     "source_object_id": self.source.pk,
+                     "ai_result_id": self.ai_result.pk}))
+        self.assertEqual(r.status_code, 200)
+        image = Image.objects.get(object_key="study/1/mesh/breast_mesh.json")
+        self.assertIsNone(image.lesion_id)
+        self.assertEqual(image.ai_result_id, self.ai_result.pk)
 
     def test_필수_FK_가_비면_400(self):
         r = self.post(self.payload(derived=self.derived(ai_result_id=None)))
