@@ -64,5 +64,26 @@ services:
     ports:
       - "127.0.0.1:8092:8092"
 
+# 워크스테이션(추론 서버)으로 나가는 SSH 터널.
+#
+# 09-02 에 만들어져 돌고 있었지만 정의가 저장소에 없어 고아 컨테이너였다.
+# --remove-orphans 한 번이면 사라지고 다시 만들 방법도 없었다. 2026-09-09 에
+# Dockerfile 과 함께 되살리면서 11434(Ollama)를 더 열었다.
+#
+# 포트를 호스트에 내보내지 않는다 — 도커 네트워크 안에서 web·llm-proxy·worker 가
+# tunnel:8001 처럼 이름으로 부른다.
+  tunnel:
+    build: ./services/tunnel
+    container_name: tunnel
+    restart: unless-stopped
+    environment:
+      WS_HOST: "ws-host"
+      WS_PORT: "22"
+      WS_USER: "wsuser"
+    volumes:
+      # 개인키는 저장소에 없다(.gitignore). 서버 담당에게 받아 conf/ 에 둔다.
+      - ./conf/ws_key:/key:ro
+      - ./conf/ws_known_hosts:/known_hosts:ro
+
 volumes:
   gw-spool: 
