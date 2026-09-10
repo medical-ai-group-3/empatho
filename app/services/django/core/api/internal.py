@@ -134,7 +134,7 @@ class InternalCallbackView(APIView):
         try:
             return model.objects.get(pk=int(pk))
         except (model.DoesNotExist, TypeError, ValueError):
-            raise ApiError("CALLBACK_TARGET_NOT_FOUND",
+            raise ApiError("TARGET_NOT_FOUND",
                            details={"target": what, "id": pk}) from None
 
 
@@ -156,7 +156,7 @@ class StorageObjectCallback(InternalCallbackView):
             # 조용히 200 을 주면 파일이 어디에도 안 붙은 채 잊힌다.
             logger.warning("[I-1] 받을 수 없는 purpose=%s key=%s — 파일이 매달릴 곳이 없다",
                            purpose, object_key)
-            raise ApiError("CALLBACK_UNSUPPORTED_PURPOSE", details={"purpose": purpose})
+            raise ApiError("UNSUPPORTED_PURPOSE", details={"purpose": purpose})
 
         field, model = owner
         target = self.target(model, self.payload.get("scope_id"), field)
@@ -192,7 +192,7 @@ class DicomInstanceCallback(InternalCallbackView):
             obj = StorageObject.objects.get(bucket=bucket, object_key=object_key)
         except StorageObject.DoesNotExist:
             logger.warning("[I-2] I-1 이 먼저 오지 않았다 key=%s", object_key)
-            raise ApiError("CALLBACK_TARGET_NOT_FOUND",
+            raise ApiError("TARGET_NOT_FOUND",
                            details={"target": "storage_object",
                                     "object_key": object_key}) from None
 

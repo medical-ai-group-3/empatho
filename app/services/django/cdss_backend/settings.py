@@ -146,6 +146,40 @@ CALLBACK_SECRET = os.environ.get("CALLBACK_SECRET", "")
 CALLBACK_TIMESTAMP_TOLERANCE_SEC = int(
     os.environ.get("CALLBACK_TIMESTAMP_TOLERANCE_SEC", "300"))
 
+# 전송 티켓(명세 19-1)의 서명 키. Django 가 서명하고 Go 가 검증한다 —
+# CALLBACK_SECRET 과 방향이 반대이고 **절대 같은 값이면 안 된다**.
+# core/apps.py 의 시스템 검사가 같은 값을 막는다.
+TICKET_KEY = os.environ.get("TICKET_KEY", "")
+
+# purpose 별 유효기간. 읽기는 Go 가 nonce 소진을 빼서 재사용될 수 있으므로
+# 짧게 잡는다 — 그게 replay 방어를 대신한다.
+_TICKET_TTL_DEFAULT = {
+    "tile": 900,             # 뷰어 한 세션
+    "download": 120,         # 받는 즉시 끝나고 환자 자료다
+    "dicom_upload": 300,
+    "wsi_upload": 300,
+    "derived_upload": 300,
+    "report_pdf": 300,
+}
+TICKET_TTL_SEC = {
+    p: int(os.environ.get("TICKET_TTL_%s" % p.upper(), d))
+    for p, d in _TICKET_TTL_DEFAULT.items()
+}
+
+# 업로드 상한. 0 이면 Go 가 제한 없이 받는다 — 반드시 값을 넣는다.
+_TICKET_MAX_BYTES_DEFAULT = {
+    "dicom_upload": 200 * 1024 ** 2,
+    "wsi_upload": 8 * 1024 ** 3,        # WSI 는 수 GB 다
+    "derived_upload": 512 * 1024 ** 2,
+    "report_pdf": 32 * 1024 ** 2,
+    "download": 0,                       # 읽기라 상한이 의미 없다
+    "tile": 0,
+}
+TICKET_MAX_BYTES = {
+    p: int(os.environ.get("TICKET_MAX_BYTES_%s" % p.upper(), d))
+    for p, d in _TICKET_MAX_BYTES_DEFAULT.items()
+}
+
 SPECTACULAR_SETTINGS = {
     "TITLE": "EMPATHO CDSS API",
     "DESCRIPTION": "유방암 검진 CDSS — 공통 규약은 CDSS_API_명세서_v3 §1 을 따른다.",

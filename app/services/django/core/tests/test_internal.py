@@ -181,14 +181,14 @@ class StorageObjectCallbackTests(Fixtures):
                               self.obj_payload(purpose=purpose))
             self.assertEqual(r.status_code, 422, purpose)
             self.assertEqual(r.json()["error"]["code"],
-                             "CALLBACK_UNSUPPORTED_PURPOSE")
+                             "UNSUPPORTED_PURPOSE")
             self.assertIn(purpose, caught.output[0])
         self.assertEqual(StorageObject.objects.count(), 0)
 
     def test_대상이_없으면_422(self):
         r = self.post("storage-objects", self.obj_payload(scope_id="99999"))
         self.assertEqual(r.status_code, 422)
-        self.assertEqual(r.json()["error"]["code"], "CALLBACK_TARGET_NOT_FOUND")
+        self.assertEqual(r.json()["error"]["code"], "TARGET_NOT_FOUND")
 
     def test_필수값이_없으면_400(self):
         payload = self.obj_payload()
@@ -288,7 +288,7 @@ class DicomInstanceCallbackTests(Fixtures):
             r = self.post("dicom-instances",
                           self.dicom_payload(object_key="mri/없는파일.dcm"))
         self.assertEqual(r.status_code, 422)
-        self.assertEqual(r.json()["error"]["code"], "CALLBACK_TARGET_NOT_FOUND")
+        self.assertEqual(r.json()["error"]["code"], "TARGET_NOT_FOUND")
 
     def test_재시도해도_행이_안_늘고_값이_같다(self):
         for _ in range(3):

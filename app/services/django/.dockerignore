@@ -15,3 +15,11 @@ db.sqlite3
 # core/migrations 는 제외하지 않는다 — 배포가 manage.py migrate 를 돌린다.
 db/
 docs/
+*.md
+*.docx
+
+.pytest_cache/
+.git/
+
+# 운영에서 안쓰는 테스트 코드. CI에서 이미지 안의 테스트 돌릴거면 빼야한다.
+core/tests/
