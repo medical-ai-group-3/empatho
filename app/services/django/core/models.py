@@ -155,6 +155,11 @@ class Patient(AuditBase):
     has_allergy = models.BooleanField(blank=True, null=True)
     allergy_note = models.CharField(max_length=250, blank=True, null=True)
     questionnaire = models.JSONField(blank=True, null=True)
+    # 주치의. 간호과가 환자를 배정할 때 지정한다.
+    # related_name 은 유방외과의 「내 환자 목록」이 staff.primary_patients 로
+    # 바로 도는 자리다.
+    primary_staff = models.ForeignKey('Staff', models.PROTECT, blank=True, null=True,
+                                      related_name='primary_patients')
 
     class Meta:
         db_table = 'patient'
