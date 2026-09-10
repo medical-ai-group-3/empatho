@@ -2,10 +2,16 @@ from rest_framework import viewsets, status
 from rest_framework.response import Response
 from django.db.models import Q
 
+
 from . import models, serializers
 from .mixins import AuditMixin
 from core.api.permissions import MatrixPermission, OwnedOnlyMixin
 
+from core.api.errors import ApiError
+from rest_framework import generics
+
+from django.db import transaction
+from core.api.errors import ApiError
 
 # ── reception · 원무 ──────────────────────────────────────────
 class PatientViewSet(AuditMixin, OwnedOnlyMixin, viewsets.ModelViewSet):
@@ -71,6 +77,29 @@ class ReservationViewSet(AuditMixin, OwnedOnlyMixin, viewsets.ViewSet):
         out = serializers.ExamOrderSerializer(rows, many=True)
         return Response(out.data, status=status.HTTP_201_CREATED)
 
+class ReservationRequestViewSet(AuditMixin, viewsets.ViewSet):
+    """§7 환자 예약 신청.
+
+    POST /me/reservation-requests   {scheduled_at}
+    """
+
+    resource = "reservation"
+    permission_classes = [MatrixPermission]
+
+    def create(self, request):
+        patient = getattr(request.user, "patient", None)
+        if patient is None:
+            raise ApiError("VALIDATION_ERROR", "환자 계정이 아닙니다.")
+
+        serializer = serializers.ReservationRequestCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(
+            patient=patient,
+            created_by=self._current_account(),
+            updated_by=self._current_account(),
+        )
+        out = serializers.ExamOrderSerializer(serializer.instance)
+        return Response(out.data, status=status.HTTP_201_CREATED)
 
 # ── nursing · 간호 ───────────────────────────────────────────
 class VisitTodayViewSet(AuditMixin, viewsets.ViewSet):
@@ -110,5 +139,90 @@ class ReservationRequestViewSet(AuditMixin, viewsets.ViewSet):
     resource = "reservation"
     permission_classes = [MatrixPermission]
     
+    def get_serializer_class(self):
+        return serializers.ReservationRequestCreateSerializer
+
     def create(self, request):
         patient = getattr(request.user, "patient", None)
+        if patient is None:
+            raise ApiError("VALIDATION_ERROR", "환자 계정이 아닙니다.")
+
+        serializer = serializers.ReservationRequestCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(
+            patient=patient,
+            created_by=self._current_account(),
+            updated_by=self._current_account(),
+        )
+        out = serializers.ExamOrderSerializer(serializer.instance)
+        return Response(out.data, status=status.HTTP_201_CREATED)
+    
+    
+class ReservationRequestQueueView(generics.ListAPIView):
+    """§7 원무 큐 — order_status='requested' 만 노출.
+
+    GET /reservation-requests
+    """
+
+    resource = "exam_order"
+    permission_classes = [MatrixPermission]
+    serializer_class = serializers.ExamOrderSerializer
+    queryset = models.ExamOrder.objects.filter(order_status="requested").order_by("scheduled_at")
+    
+    
+class ExamOrderConfirmView(AuditMixin, viewsets.ViewSet):
+    """§7 원무 확정 — modality 여러 개면 parent_order_id 로 묶어 추가 생성.
+
+    PATCH /exam-orders/{id}/confirm   {modalities: [...], exam_purpose}
+    """
+
+    resource = "exam_order"
+    permission_classes = [MatrixPermission]
+
+    @transaction.atomic
+    def partial_update(self, request, pk=None):
+        order = models.ExamOrder.objects.select_for_update().get(pk=pk)
+
+        if order.order_status != "requested":
+            raise ApiError("ALREADY_CONFIRMED")
+
+        modalities = request.data.get("modalities") or []
+        exam_purpose = request.data.get("exam_purpose")
+        ordered_by_id = request.data.get("ordered_by")
+
+        if not modalities or not exam_purpose or not ordered_by_id:
+            raise ApiError("VALIDATION_ERROR", "modalities · exam_purpose · ordered_by 가 필요합니다.")
+
+        account = self._current_account()
+
+        # 첫 번째 modality — 기존 requested 행을 확정
+        order.modality = modalities[0]
+        order.exam_purpose = exam_purpose
+        order.ordered_by_id = ordered_by_id
+        order.order_status = "ordered"
+        order.updated_by = account
+        order.save()
+
+        # 나머지 modality — 새 행 생성, parent_order_id 로 묶음
+        extra_rows = [
+            models.ExamOrder(
+                patient=order.patient,
+                scheduled_at=order.scheduled_at,
+                exam_purpose=exam_purpose,
+                modality=m,
+                order_status="ordered",
+                ordered_by_id=ordered_by_id,
+                parent_order=order,
+                created_by=account,
+                updated_by=account,
+            )
+            for m in modalities[1:]
+        ]
+        if extra_rows:
+            models.ExamOrder.objects.bulk_create(extra_rows)
+
+        all_rows = [order] + extra_rows
+        out = serializers.ExamOrderSerializer(all_rows, many=True)
+        return Response(out.data, status=status.HTTP_200_OK)
+
+

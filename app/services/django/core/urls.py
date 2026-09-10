@@ -33,10 +33,21 @@ router.register(r"patients", views.PatientViewSet, basename="patient")
 router.register(r"reservations", views.ReservationViewSet, basename="reservation")
 router.register(r"visits/today", views.VisitTodayViewSet, basename="visit-today")
 router.register(r"followups", views.FollowupViewSet, basename="followup")
+router.register(r"me/reservation-requests", views.ReservationRequestViewSet, basename="reservation-request")
+
 
 urlpatterns = [
     path("", include(router.urls)),
-    # 라우터에 안 맞는 중첩 경로는 명시적으로.
+    path(
+        "reservation-requests",
+        views.ReservationRequestQueueView.as_view(),
+        name="reservation-request-queue",
+    ),
+    path(
+        "exam-orders/<int:pk>/confirm",
+        views.ExamOrderConfirmView.as_view({"patch": "partial_update"}),
+        name = "exam-order-confirm",
+    ),
     path(
         "patients/<int:pk>/questionnaire/",
         views.QuestionnaireView.as_view({"patch": "partial_update"}),
