@@ -122,6 +122,30 @@
           { "id": "pre",  "label": "폐경 전" }
         ],
         "answer": "post"
+      },
+      {
+        "id": "implant",
+        "critical": true,
+        "question": "가슴에 보형물이나 삽입물이 있으신가요?",
+        "hint": "촬영 방법이 달라져서 미리 알아야 합니다",
+        "choices": [
+          { "id": "no",      "label": "없다" },
+          { "id": "yes",     "label": "있다" },
+          { "id": "unknown", "label": "모르겠다" }
+        ],
+        "answer": null
+      },
+      {
+        "id": "pregnancy",
+        "critical": true,
+        "question": "임신 중이거나 임신 가능성이 있으신가요?",
+        "hint": "해당되시면 촬영을 미루거나 다른 검사를 합니다",
+        "choices": [
+          { "id": "no",      "label": "아니다" },
+          { "id": "yes",     "label": "그렇다" },
+          { "id": "unknown", "label": "모르겠다" }
+        ],
+        "answer": null
       }
     ]
   },

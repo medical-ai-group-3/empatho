@@ -300,6 +300,29 @@ a{color:inherit; text-decoration:none}
 /* 「취소한다」는 상태가 아니라 경고다. 핑크를 쓰지 않는다 */
 .lnk.warn{color:var(--error)}
 
+/* ── 문진 — 하나 고르기 ─────────────────────────
+   색만으로 고른 것을 말하지 않는다. 왼쪽 동그라미가 «차는» 모양이 같이
+   바뀐다 — 색을 구분 못 하는 사람에게 색만 쓰면 아무 말도 안 한 것이 된다. */
+.qhead{display:flex; gap:10px; align-items:flex-start}
+.q{flex:1; min-width:0; font-size:14.5px; font-weight:700; color:var(--ink);
+  line-height:1.55; letter-spacing:-.01em}
+.pill.req{background:var(--bg); color:var(--ink-2)}
+
+.opts{display:flex; flex-direction:column; gap:7px; margin-top:9px}
+.opt{display:flex; align-items:center; gap:11px; width:100%;
+  padding:12px 14px; border-radius:9px; font-size:13.5px; color:var(--ink-2);
+  background:var(--surface); box-shadow:inset 0 0 0 1px var(--line);
+  transition:background .12s}
+.opt:hover{box-shadow:inset 0 0 0 1px var(--pink-3)}
+.opt.on{background:var(--pink-bg); color:var(--pink); font-weight:700;
+  box-shadow:inset 0 0 0 1.5px var(--pink)}
+.opt i{width:15px; height:15px; border-radius:50%; flex:none;
+  box-shadow:inset 0 0 0 1.5px var(--faint)}
+.opt.on i{box-shadow:inset 0 0 0 4.5px var(--pink)}
+
+/* 카드 안에서 옵션이 바로 붙지 않게 — .card 의 gap 이 5px 라 좁다 */
+.card .opts{margin-top:6px}
+
 /* ── 안내문 — 이 앱에서 사람이 «읽는» 유일한 자리 ──────────────
    명조에 넓은 행간. 바탕은 섹션 배경(Blush)이라 화면에서 한 칸 떠 보인다. */
 .letter{background:var(--blush); border:1px solid var(--pink-bg);

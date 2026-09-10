@@ -7,6 +7,7 @@ import { Head } from "./lib/Screen.jsx";
 import { applyTheme, readTheme } from "./lib/theme.js";
 import Book from "./screens/Book.jsx";
 import Home from "./screens/Home.jsx";
+import Quest from "./screens/Quest.jsx";
 import Report from "./screens/Report.jsx";
 import Results from "./screens/Results.jsx";
 import "./index.css";
@@ -47,7 +48,7 @@ createRoot(document.getElementById("root")).render(
           <Route path="/results"      element={<Results />} />
           <Route path="/reports/:id"  element={<Report />} />
           <Route path="/book"         element={<Book />} />
-          <Route path="/quest"        element={<Soon name="자가검진 문진" />} />
+          <Route path="/quest"        element={<Quest />} />
           <Route path="/chat"         element={<Soon name="안내 챗봇" />} />
           <Route path="/notis"        element={<Soon name="알림" />} />
           <Route path="/me"           element={<Soon name="내 정보" />} />
