@@ -73,9 +73,15 @@ SPEC_ERRORS = [
 ]
 
 # 명세 밖. 늘릴 때는 팀에 알린다.
+# 아래 둘은 Go 와 주고받는 자리(내부 콜백 · 티켓 발급)에서 쓴다 — 명세 §1-4 는
+# 공개 API 의 계약이고 그 두 경로는 거기 없다.
 INFRA_ERRORS = [
     _spec("INTERNAL_ERROR", 500, "서버에서 처리하지 못했습니다.",
           "잡히지 않은 예외 — 봉투를 유지하려고 둔다. 명세 §1-4 에는 없다"),
+    _spec("TARGET_NOT_FOUND", 422, "가리키는 대상이 없습니다.",
+          "scope_id 의 study · specimen · report 가 없다. 재시도해도 같다"),
+    _spec("UNSUPPORTED_PURPOSE", 422, "아직 받을 수 없는 purpose 입니다.",
+          "담을 칸이 없다 — prescription_pdf 는 처방 표가 MVP 밖이다"),
 ]
 
 SPEC_CODES = frozenset(e.code for e in SPEC_ERRORS)

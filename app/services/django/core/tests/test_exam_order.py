@@ -64,10 +64,30 @@ class ExamOrderRequestedTests(TestCase):
     def test_지시자_없이_확정하지_못한다(self):
         self._blocked(ordered_by=None)
 
-    def test_신청_아닌_다른_상태도_세_칸이_필요하다(self):
-        # 'requested' 만 예외다
-        for status in ("accepted", "in_progress", "completed", "cancelled"):
+    def test_신청_취소_외의_상태는_세_칸이_필요하다(self):
+        for status in ("ordered", "accepted", "in_progress", "completed"):
             self._blocked(order_status=status, modality=None)
+
+    def test_확정_전에_물린_신청은_취소된다(self):
+        # requested → cancelled. 세 칸이 빈 채로 넘어가야 한다 — PROTECT 라
+        # 행을 지울 수도 없다.
+        order = ExamOrder.objects.create(
+            patient=self.patient, order_status="requested",
+            scheduled_at="2026-09-22T09:00:00+09:00")
+        order.order_status = "cancelled"
+        order.save()
+        order.refresh_from_db()
+        self.assertEqual(order.order_status, "cancelled")
+        self.assertIsNone(order.modality)
+
+    def test_확정_후_취소는_세_칸이_그대로_남는다(self):
+        order = ExamOrder.objects.create(
+            patient=self.patient, order_status="ordered", modality="mammo",
+            exam_purpose="screening", ordered_by=self.staff)
+        order.order_status = "cancelled"
+        order.save()
+        order.refresh_from_db()
+        self.assertEqual(order.modality, "mammo")
 
     def test_환자_없이는_만들지_못한다(self):
         with self.assertRaises(IntegrityError):

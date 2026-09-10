@@ -6,7 +6,19 @@ EMPATHO CDSS 데이터 모델 — v10 · 18개 테이블.
 """
 
 from django.db import models
-from django.db.models import Q
+from django.db.models import Func, IntegerField, Q
+from django.db.models.lookups import Exact
+
+
+class NumNonNulls(Func):
+    """비어 있지 않은 칸이 몇 개인가. Postgres 의 num_nonnulls().
+
+    「셋 중 정확히 하나」를 Q 로 쓰면 3 갈래 × 3 항이 된다. 주인이 넷째로
+    늘면 4 × 4 로 불어난다.
+    """
+
+    function = 'num_nonnulls'
+    output_field = IntegerField()
 
 
 def as_choices(values):
@@ -224,6 +236,9 @@ class ExamOrder(AuditBase):
 
     진실은 이 표다. notification 은 통지일 뿐이라 원무 큐는 알림이 아니라
     order_status='requested' 로 뽑는다 — 알림이 안 갔거나 지워져도 신청은 남는다.
+
+    원무의 거절도 cancelled 다 — rejected 를 따로 두지 않는다. 누가 물렸는지는
+    notification.staff_id 로 갈린다: 거절이면 채워지고, 환자 취소면 null 이다.
     """
 
     exam_order_id = models.BigAutoField(primary_key=True)
@@ -261,11 +276,14 @@ class ExamOrder(AuditBase):
                 name='exam_order_modality_ck'),
             models.CheckConstraint(condition=Q(order_status__in=ORDER_STATUS),
                                    name='exam_order_status_ck'),
-            # 신청 상태일 때만 검사 종류 · 목적 · 지시자가 비어도 된다.
+            # 신청 · 취소일 때만 검사 종류 · 목적 · 지시자가 비어도 된다.
+            # 확정 전에 물린 신청은 requested → cancelled 로 가는데 세 칸이 비어
+            # 있고, PROTECT 정책이라 행을 지울 수도 없다. 확정 후 취소는 세 칸이
+            # 이미 차 있어 느슨해지는 것이 없다.
             # API 계층이 아니라 DB 로 막는다 — Celery 나 admin 으로 들어오는 행은
             # API 검증을 거치지 않는다.
             models.CheckConstraint(
-                condition=Q(order_status='requested')
+                condition=Q(order_status__in=['requested', 'cancelled'])
                 | (Q(modality__isnull=False) & Q(exam_purpose__isnull=False)
                    & Q(ordered_by__isnull=False)),
                 name='exam_order_requested_fields_ck'),
@@ -306,18 +324,36 @@ class Study(AuditBase):
 
 
 class StorageObject(AuditBase):
-    """원본 시리즈 · 파일 1개. 주소와 촬영 정보."""
+    """원본 파일 1개. 주소와 촬영 정보.
+
+    파일 단위다 — Go 가 파일(SOP instance) 하나마다 I-1 콜백을 부르고, 파일마다
+    object_key 와 checksum 이 달라 한 행에 담기지 않는다. 같은 시리즈의 파일
+    여럿이 같은 series_uid 를 갖는다.
+    """
 
     storage_object_id = models.BigAutoField(primary_key=True)
     study = models.ForeignKey(Study, models.PROTECT, blank=True, null=True,
                               related_name='storage_objects')      # 영상
     specimen = models.ForeignKey('Specimen', models.PROTECT, blank=True, null=True,
                                  related_name='storage_objects')   # 병리
-    series_uid = models.CharField(unique=True, max_length=100, blank=True, null=True)
+    report = models.ForeignKey('Report', models.PROTECT, blank=True, null=True,
+                               related_name='storage_objects')     # 발급 PDF
+    # 속한 시리즈의 DICOM UID. 같은 시리즈의 파일들이 같은 값을 가진다.
+    # 이름은 DICOM SeriesInstanceUID 그대로 둔다 — 바꾸면 Go · Orthanc 과의
+    # 대응이 끊긴다.
+    series_uid = models.CharField(max_length=100, blank=True, null=True,
+                                  db_index=True)
+    # 이 파일의 DICOM UID. DICOM 이 아닌 파일(병리 PNG 등)은 비어 있다.
+    # UNIQUE 를 걸지 않는다 — I-1 이 먼저 오고 그때는 이 칸이 NULL 이라 INSERT 를
+    # 못 막는다. I-2 가 UPDATE 할 때 터지는데 그땐 이미 행이 두 개다.
+    sop_instance_uid = models.CharField(max_length=100, blank=True, null=True,
+                                        db_index=True)
     series_role = models.CharField(max_length=30, blank=True, null=True)
     orthanc_series_id = models.CharField(max_length=100, blank=True, null=True)
     bucket = models.CharField(max_length=100, blank=True, null=True)
-    object_key = models.CharField(unique=True, max_length=255, blank=True, null=True)
+    # UUID 만 쓴다. 경로에 환자번호를 넣지 않는다.
+    # 유일성은 (bucket, object_key) 짝으로 본다 — 아래 UK.
+    object_key = models.CharField(max_length=255, blank=True, null=True)
     laterality = models.CharField(max_length=10, choices=as_choices(LATERALITY),
                                   blank=True, null=True)
     view_position = models.CharField(max_length=20, choices=as_choices(VIEW_POSITION),
@@ -339,16 +375,25 @@ class StorageObject(AuditBase):
     class Meta:
         db_table = 'storage_object'
         constraints = [
-            # 주소는 Orthanc 아니면 Garage, 정확히 하나
+            # 주소가 적어도 하나는 있어야 한다.
+            # 「정확히 하나」가 아니다 — DICOM 은 Garage 와 Orthanc 양쪽에 있는
+            # 것이 정상 흐름이다. Go 가 Garage 에 커밋(I-1)한 뒤 Orthanc 에도
+            # 올리고 I-2 로 그쪽 식별자를 보낸다.
             models.CheckConstraint(
-                condition=(Q(orthanc_series_id__isnull=False) & Q(object_key__isnull=True))
-                | (Q(orthanc_series_id__isnull=True) & Q(object_key__isnull=False)),
+                condition=Q(orthanc_series_id__isnull=False)
+                | Q(object_key__isnull=False),
                 name='storage_object_address_ck'),
-            # 영상 아니면 병리, 정확히 하나
+            # 영상 · 병리 · 리포트 중 정확히 하나에 매달린다.
+            # 티켓 purpose 가 dicom_upload · wsi_upload · report_pdf 로 갈린다.
+            # prescription_pdf · derived_upload 는 아직 미정이라 자리가 없다.
             models.CheckConstraint(
-                condition=(Q(study__isnull=False) & Q(specimen__isnull=True))
-                | (Q(study__isnull=True) & Q(specimen__isnull=False)),
+                condition=Exact(NumNonNulls('study', 'specimen', 'report'), 1),
                 name='storage_object_owner_ck'),
+            # I-1 의 멱등키. 모든 행에 있고 I-1 시점에 확정된다 —
+            # Go 의 멱등키 obj:<object_key> 와 같은 자리다.
+            # Orthanc 에 둔 파일은 둘 다 NULL 이라 서로 안 부딪힌다.
+            models.UniqueConstraint(fields=['bucket', 'object_key'],
+                                    name='storage_object_bucket_object_key_uk'),
         ]
 
 
