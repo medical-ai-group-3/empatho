@@ -1,0 +1,636 @@
+/* ─────────────────────────────────────────────────────────────
+   EMPATHO — 화면 규칙
+
+   **여기에는 숫자를 쓰지 않는다.** 크기 · 여백 · 색은 전부
+   styles/tokens.css 의 이름을 부른다. 디자인을 바꿀 일이 생기면
+   이 파일이 아니라 그쪽을 연다.
+
+   예외 셋을 둔다.
+     · 뜻이 하나뿐인 값 — 0, 100%, 50%, 1fr, repeat(7,1fr)
+     · 배치에만 쓰는 값 — flex:1, min-width:0
+     · **광학 보정** — margin-left:-6px, margin-top:2px 처럼 눈에 맞춰
+       1~6px 어긋내는 것. 지금 열두 군데 있다
+
+   앞의 둘은 디자인 수치가 아니라 «어떻게 놓이는가»다. 셋째는 옆 요소와의
+   관계에서 나온 값이라, 이름을 붙여 다이얼 판에 올려도 **누가 언제 얼마로
+   바꿔야 하는지 알 수 없다.** 배율(--sp)을 따라 움직여도 안 된다 — 0.5px
+   단위로 흐려지면서 정렬이 오히려 어긋난다.
+   ───────────────────────────────────────────────────────────── */
+@import url("./styles/tokens.css");
+@import url("https://fonts.googleapis.com/css2?family=Gothic+A1:wght@300;400;500;600;700&family=Gowun+Batang:wght@400;700&family=IBM+Plex+Mono:wght@400;500&display=swap");
+
+*{box-sizing:border-box}
+html,body,#root{height:100%}
+
+/* 모바일에서 잘리지 않게 —
+   주소창이 드나들면 화면 높이가 변한다. 100% 는 그걸 못 따라가서 아래쪽이
+   브라우저 UI 밑으로 밀리고, 마지막 덩어리(달력)와 하단바가 잘린다.
+   100dvh 는 «지금 실제로 보이는 높이»다. 옛 브라우저를 위해 100% 를 먼저
+   적어 두면, 못 읽는 쪽은 그것만 쓴다. */
+@supports (height: 100dvh) {
+  html,body,#root{height:100dvh}
+}
+body{margin:0; background:var(--bg); color:var(--ink);
+  font-family:var(--font-ui); font-size:var(--body-fs);
+  line-height:var(--body-lh); -webkit-font-smoothing:antialiased}
+button{font:inherit; color:inherit; background:none; border:none; padding:0;
+  cursor:pointer; text-align:left}
+a{color:inherit; text-decoration:none}
+:focus-visible{outline:var(--focus-w) solid var(--pink); outline-offset:2px;
+  border-radius:var(--radius-xs)}
+
+/* ── 뼈대 ─────────────────────────────────── */
+/* 바탕을 --bg 로 둔다. 하단바가 «떠 있는» 것으로 보이려면 그 아래가
+   카드색(--surface)이 아니라 바탕색이어야 한다 */
+.app{height:100%; display:flex; flex-direction:column;
+  max-width:var(--app-max); margin:0 auto; background:var(--bg);
+  border-inline:var(--line-w) solid var(--line)}
+
+/* 화면은 Fragment 로 온다 — 감싸는 요소가 없다. 그래서 여기가 곧
+   세로 통이고, .top 과 .pane 이 바로 자식이 된다. */
+.screens{flex:1; min-height:0; display:flex; flex-direction:column}
+
+/* 머리말 — 뒤로가기는 **왼쪽 끝**, 제목은 그 옆 */
+.top{display:flex; align-items:center; gap:var(--top-gap);
+  padding:var(--top-pad-y) var(--top-pad-x);
+  border-bottom:var(--line-w) solid var(--line);
+  flex:none; background:var(--surface)}
+.top .back{color:var(--ink-2); font-size:var(--top-back-fs); line-height:1;
+  width:var(--top-back); height:var(--top-back); flex:none; margin-left:-6px;
+  display:flex; align-items:center; justify-content:center; border-radius:var(--radius-xs)}
+.top .back:hover{background:var(--bg); color:var(--pink)}
+.top h2{margin:0; font-size:var(--top-fs); font-weight:700;
+  letter-spacing:-.01em; color:var(--ink); flex:1; min-width:0}
+
+/* 머리말 오른쪽 — 지금은 밝기 단추 하나뿐이다 */
+.top .right{flex:none; display:flex; align-items:center; gap:2px;
+  margin-right:-6px}
+.top .icon{width:var(--icon); height:var(--icon);
+  border-radius:var(--icon-radius); flex:none;
+  display:flex; align-items:center; justify-content:center;
+  font-size:var(--icon-fs); line-height:1; color:var(--muted)}
+.top .icon:hover{background:var(--bg); color:var(--pink)}
+.top .icon.on{color:var(--pink)}     /* 자동이 아니라 손으로 골라 둔 상태 */
+
+.pane{padding:var(--screen-pad); overflow-y:auto; flex:1; display:flex;
+  flex-direction:column; gap:var(--screen-gap); background:var(--bg)}
+.pane.mid{justify-content:center}
+
+/* ⚠ 이 한 줄이 없으면 폰에서 화면이 잘린다.
+   .pane 이 세로 flex 통이라 자식은 기본값이 «공간이 모자라면 줄어든다»
+   (flex-shrink:1)이다. 내용이 화면보다 길어지면 스크롤이 생기는 게 아니라
+   **덩어리들이 눌린다.** 달력처럼 overflow:hidden 이 걸린 것은 눌린 만큼
+   아래가 잘려 나가고, 넘쳤다는 표시도 안 난다.
+
+   PC 는 화면이 길어서 안 눌린다 — 폰에서만 드러나는 종류다. */
+.pane > *{flex:none}
+
+/* 아래 탭 — 바닥에 붙이지 않고 한 칸 띄운다.
+   선택된 것은 **아이콘을 감싸는 알약**으로 말한다. 예전처럼 위에 줄을
+   그으면 둥근 모서리에 잘려서 지저분하다. */
+.tabs{display:flex; flex:none; background:var(--surface);
+  /* env(safe-area-inset-bottom) — 아이폰 아래쪽 «홈 인디케이터» 막대 높이다.
+     안 빼면 하단바가 그 밑에 깔려서 탭이 안 눌린다. 그 막대가 없는 기기에서는
+     0 이라 아무 일도 안 일어난다 */
+  margin:0 var(--nav-side)
+         calc(var(--nav-bottom) + env(safe-area-inset-bottom, 0px));
+  border-radius:var(--nav-radius);
+  border:var(--line-w) solid var(--card-line);
+  box-shadow:var(--nav-shadow)}
+.tabs a{flex:1; text-align:center; font-size:var(--tab-fs);
+  padding:var(--tab-pad-y) 2px;
+  color:var(--faint); line-height:1.4; letter-spacing:.02em;
+  display:flex; flex-direction:column; align-items:center;
+  gap:var(--tab-ic-gap)}
+.tabs a.on{color:var(--pink); font-weight:700}
+.tabs .ic{display:flex; align-items:center; justify-content:center;
+  width:var(--tab-ic-box); height:var(--tab-ic-box);
+  border-radius:var(--tab-ic-radius); font-size:var(--tab-ic-fs);
+  font-style:normal; transition:background var(--motion)}
+.tabs a.on .ic{background:var(--pink-bg)}
+
+/* ── 단추 ─────────────────────────────────── */
+.btn{display:block; width:100%; background:var(--pink); color:var(--pink-ink);
+  border-radius:var(--btn-radius); text-align:center; padding:var(--btn-pad);
+  font-weight:700; font-size:var(--btn-fs); letter-spacing:.01em;
+  transition:background var(--motion)}
+.btn:hover:not(:disabled){background:var(--pink-2)}
+.btn:disabled{background:var(--off); color:var(--faint); cursor:not-allowed}
+
+/* 보조 — 연분홍 바탕에 핑크 글자 */
+.btn.soft{background:var(--pink-bg); color:var(--pink)}
+.btn.soft:hover:not(:disabled){background:var(--pink-3); color:var(--pink-ink)}
+
+/* 3순위 — 바탕색에 테두리만 */
+.btn.ghost{background:var(--surface); color:var(--ink-2);
+  box-shadow:inset 0 0 0 var(--line-w) var(--line)}
+.btn.ghost:hover:not(:disabled){background:var(--surface);
+  box-shadow:inset 0 0 0 var(--line-w) var(--pink-3); color:var(--pink)}
+.btn.ghost:disabled{background:var(--surface); color:var(--faint);
+  box-shadow:inset 0 0 0 var(--line-w) var(--line)}
+
+.row2{display:flex; gap:var(--row-gap); align-items:stretch}
+.row2 > *{flex:1}
+
+/* ── 글 ───────────────────────────────────── */
+.note{font-size:var(--note-fs); color:var(--muted); line-height:var(--note-lh);
+  margin:0}
+.note.c{text-align:center}
+.note b{color:var(--ink-2); font-weight:600}
+
+/* ── 카드 ─────────────────────────────────── */
+.card{border:var(--line-w) solid var(--card-line); border-radius:var(--card-radius);
+  padding:var(--card-pad); background:var(--surface);
+  display:flex; flex-direction:column; gap:var(--card-gap);
+  width:100%; text-align:left; box-shadow:var(--card-shadow)}
+.card .k{font-size:var(--card-k-fs); letter-spacing:.12em;
+  text-transform:uppercase; color:var(--muted); font-weight:700}
+.card .v{font-size:var(--card-v-fs); font-weight:700; letter-spacing:-.012em;
+  color:var(--ink)}
+.card .s{font-size:var(--card-s-fs); color:var(--muted)}
+
+/* 눈에 띄어야 하는 카드 — 연분홍 바탕 */
+.card.accent{border-color:var(--pink-3); background:var(--pink-bg);
+  box-shadow:none}
+.card.accent .k{color:var(--pink)}
+
+/* 주의가 필요한 카드 — 바탕은 알림 배경, 상태는 «색»이 아니라 글자로 */
+.card.flag{border-color:var(--warn); background:var(--surface);
+  box-shadow:none; border-left-width:var(--flag-bar)}
+.card.flag .k{color:var(--ink-2)}
+
+/* 누르면 어디론가 가는 카드 — 오른쪽 화살표가 그것을 말한다.
+   화살표만으로 «누를 수 있음»을 말하지 않도록 전체가 링크다 */
+.card.go{flex-direction:row; align-items:center; gap:var(--card-go-gap)}
+.card.go .tx{flex:1; min-width:0; display:flex; flex-direction:column;
+  gap:var(--card-tx-gap)}
+.card.go .arw{flex:none; font-size:var(--card-arw-fs); line-height:1;
+  color:var(--faint)}
+.card.go:hover .arw{color:var(--pink)}
+
+/* 진행 막대 — 문진이 몇 문항까지 왔는지 */
+.prog{display:block; height:var(--prog-h); border-radius:var(--prog-radius);
+  background:var(--off); overflow:hidden; margin-top:var(--prog-gap-top)}
+.prog i{display:block; height:100%; background:var(--pink);
+  border-radius:var(--prog-radius)}
+.card.accent .prog{background:var(--surface)}
+
+/* ── 목록 ─────────────────────────────────── */
+.list{display:flex; flex-direction:column; background:var(--surface);
+  border:var(--line-w) solid var(--card-line);
+  border-radius:var(--list-radius); overflow:hidden;
+  box-shadow:var(--card-shadow)}
+.list > *{padding:var(--list-pad-y) var(--list-pad-x);
+  border-bottom:var(--line-w) solid var(--line-soft);
+  display:flex; gap:var(--list-gap); align-items:flex-start;
+  width:100%; text-align:left}
+.list > *:last-child{border-bottom:none}
+.list a:hover{background:var(--blush)}
+.list .dt{font-family:var(--font-num); font-size:var(--list-dt-fs);
+  color:var(--faint); flex:none; width:var(--list-dt-w); padding-top:3px;
+  font-variant-numeric:tabular-nums}
+.list .tx{flex:1; min-width:0}
+.list .tx b{display:block; font-size:var(--list-b-fs); font-weight:700;
+  letter-spacing:-.008em; color:var(--ink)}
+.list .tx span{font-size:var(--list-s-fs); color:var(--muted)}
+
+/* 목록 안에서 세로로 쌓이는 항목 —
+   .list > * 가 가로 배치라, 아래에 줄을 더 붙이려면 한 칸 감싼다 */
+.list .col{display:flex; flex-direction:column; gap:0; align-items:stretch}
+.list .col .row{display:flex; gap:var(--list-gap); align-items:flex-start}
+
+/* ── 배지 — 핑크를 써도 되는 자리다(상태가 아니라 표시) ── */
+.pill{font-size:var(--pill-fs); font-weight:700;
+  padding:var(--pill-pad-y) var(--pill-pad-x); border-radius:var(--pill-radius);
+  flex:none; white-space:nowrap; letter-spacing:.04em;
+  align-self:flex-start; margin-top:2px}
+.pill.new{background:var(--pink-bg); color:var(--pink)}
+.pill.read{background:var(--bg); color:var(--faint)}
+.pill.req{background:var(--bg); color:var(--ink-2)}
+
+/* 「끝났다」 — 초록은 **점**으로만 쓴다. 작은 굵은 글자로 쓰면 흰 바탕에서
+   대비가 2.7:1 밖에 안 나와 읽히지 않는다. 뜻은 글자가 지고 색은 거든다. */
+.pill.ok{background:var(--bg); color:var(--muted);
+  display:inline-flex; align-items:center; gap:var(--dot-gap)}
+.pill.ok::before{content:""; width:var(--pill-dot); height:var(--pill-dot);
+  border-radius:50%; background:var(--ok); flex:none}
+
+/* ── 달력 ──────────────────────────────────────────────────────
+   **보기만 한다.** 날짜를 고르는 곳은 예약 화면 한 곳이다 — 두 군데서
+   고를 수 있으면 어느 쪽이 «진짜» 신청인지 헷갈린다.
+
+   점의 뜻은 아래 범례가 글자로 말한다. 색만으로 뜻을 전하면 색을
+   구분 못 하는 사람에게는 아무 말도 안 한 것이 된다.
+   ────────────────────────────────────────────────────────────── */
+.cal{border:var(--line-w) solid var(--card-line); border-radius:var(--cal-radius);
+  background:var(--surface); box-shadow:var(--card-shadow); overflow:hidden}
+.cal .mhead{padding:var(--top-pad-y) var(--cal-pad-x) var(--cal-head-pad-b);
+  font-size:var(--cal-head-fs); font-weight:700; color:var(--ink);
+  letter-spacing:-.01em}
+.cal .wd,.cal .grid{display:grid; grid-template-columns:repeat(7,1fr)}
+.cal .wd{padding:0 var(--cal-grid-pad-x) var(--cal-wd-pad-b); font-size:var(--cal-wd-fs);
+  color:var(--faint); text-align:center; letter-spacing:.06em; font-weight:600}
+.cal .grid{padding:0 var(--cal-grid-pad-x) var(--cal-grid-pad-b); row-gap:2px}
+
+.cal .d{aspect-ratio:1/1; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:var(--cal-day-gap);
+  font-size:var(--cal-day-fs); color:var(--ink-2);
+  font-variant-numeric:tabular-nums; border-radius:var(--cal-day-radius)}
+.cal .d.pad{visibility:hidden}
+.cal .d.sun{color:var(--error)}
+/* 오늘 — 채우지 않고 테두리만. 채우면 «선택됨»으로 읽힌다 */
+.cal .d.today{box-shadow:inset 0 0 0 var(--cal-ring) var(--line);
+  font-weight:700; color:var(--ink)}
+.cal .d.marked{background:var(--blush); font-weight:700; color:var(--ink)}
+
+/* 고른 날 — 여기만 핑크로 채운다. 「지금 이걸 신청한다」는 뜻이라
+   화면에서 제일 강해야 한다 */
+.cal .d.sel{background:var(--pink); color:var(--pink-ink); font-weight:700}
+.cal .d.sel .dot{background:var(--pink-ink); box-shadow:none}
+
+.cal .dot{width:var(--cal-dot); height:var(--cal-dot); border-radius:50%;
+  flex:none}
+.cal .dot.open     {background:var(--pink-3)}
+.cal .dot.done     {background:var(--faint)}
+.cal .dot.confirmed{background:var(--pink)}
+/* 신청은 «아직 비어 있다» — 테두리만 두어 확정과 눈으로 갈린다 */
+.cal .dot.requested{background:transparent;
+  box-shadow:inset 0 0 0 var(--cal-ring) var(--pink)}
+.cal .dot.followup {background:transparent;
+  box-shadow:inset 0 0 0 var(--cal-ring) var(--faint)}
+.cal .dot.none     {background:transparent}
+
+.cal .legend{display:flex; flex-wrap:wrap; gap:var(--cal-legend-gap);
+  padding:0 var(--cal-pad-x) var(--cal-legend-pad-b); font-size:var(--cal-legend-fs);
+  color:var(--muted)}
+.cal .legend span{display:flex; align-items:center; gap:var(--dot-gap)}
+
+/* 달력 아래 한 줄 — 다음 예약과 예약 화면으로 가는 길 */
+.cal .foot{display:flex; align-items:center; gap:var(--list-gap);
+  padding:var(--cal-foot-pad-y) var(--cal-pad-x);
+  border-top:var(--line-w) solid var(--line-soft); background:var(--blush)}
+.cal .foot .tx{flex:1; min-width:0}
+.cal .foot .tx b{display:block; font-size:var(--cal-foot-b-fs);
+  font-weight:700; color:var(--ink)}
+.cal .foot .tx span{font-size:var(--cal-foot-s-fs); color:var(--muted)}
+.cal .foot .more{flex:none; font-size:var(--cal-more-fs); font-weight:700;
+  color:var(--pink); padding:var(--more-pad-y) var(--more-pad-x);
+  border-radius:var(--more-radius)}
+.cal .foot .more:hover{background:var(--pink-bg)}
+
+/* ── 구역 제목 ─────────────────────────────── */
+.sec{margin:6px 0 -4px; font-size:var(--sec-fs); font-weight:700;
+  color:var(--muted); letter-spacing:.02em}
+
+/* ── 시간 고르기 — 칩 ───────────────────────── */
+.chips{display:flex; flex-wrap:wrap; gap:var(--chip-gap);
+  margin-top:var(--chips-gap-top)}
+.chip{border-radius:var(--chip-radius);
+  padding:var(--chip-pad-y) var(--chip-pad-x); font-size:var(--chip-fs);
+  font-weight:600; font-variant-numeric:tabular-nums; color:var(--ink-2);
+  box-shadow:inset 0 0 0 var(--line-w) var(--line); background:var(--surface);
+  transition:background var(--motion)}
+.chip:hover{box-shadow:inset 0 0 0 var(--line-w) var(--pink-3);
+  color:var(--pink)}
+.chip.on{background:var(--pink); color:var(--pink-ink); box-shadow:none}
+
+/* ── 되묻는 줄 — 취소처럼 되돌릴 수 없는 것에만 쓴다 ── */
+.ask{display:flex; gap:var(--ask-gap); align-items:center; margin-top:var(--ask-gap-top);
+  font-size:var(--ask-fs); color:var(--muted)}
+.lnk{font-size:var(--lnk-fs); font-weight:700; color:var(--pink);
+  padding:2px 0}
+.lnk:hover{text-decoration:underline}
+.lnk:disabled{color:var(--faint); cursor:not-allowed; text-decoration:none}
+/* 「취소한다」는 상태가 아니라 경고다. 핑크를 쓰지 않는다 */
+.lnk.warn{color:var(--error)}
+
+/* ── 문진 — 하나 고르기 ─────────────────────────
+   색만으로 고른 것을 말하지 않는다. 왼쪽 동그라미가 «차는» 모양이 같이
+   바뀐다 — 색을 구분 못 하는 사람에게 색만 쓰면 아무 말도 안 한 것이 된다. */
+.qhead{display:flex; gap:var(--top-gap); align-items:flex-start}
+.q{flex:1; min-width:0; font-size:var(--q-fs); font-weight:700;
+  color:var(--ink); line-height:var(--q-lh); letter-spacing:-.01em}
+
+.opts{display:flex; flex-direction:column; gap:var(--opt-gap);
+  margin-top:var(--opts-gap-top)}
+.opt{display:flex; align-items:center; gap:var(--opt-icon-gap); width:100%;
+  padding:var(--opt-pad-y) var(--opt-pad-x); border-radius:var(--opt-radius);
+  font-size:var(--opt-fs); color:var(--ink-2); background:var(--surface);
+  box-shadow:inset 0 0 0 var(--line-w) var(--line);
+  transition:background var(--motion)}
+.opt:hover{box-shadow:inset 0 0 0 var(--line-w) var(--pink-3)}
+.opt.on{background:var(--pink-bg); color:var(--pink); font-weight:700;
+  box-shadow:inset 0 0 0 var(--radio-ring) var(--pink)}
+.opt i{width:var(--radio); height:var(--radio); border-radius:50%; flex:none;
+  box-shadow:inset 0 0 0 var(--radio-ring) var(--faint)}
+.opt.on i{box-shadow:inset 0 0 0 var(--radio-fill) var(--pink)}
+
+/* 카드 안에서 옵션이 바로 붙지 않게 — .card 의 gap 이 좁다 */
+.card .opts{margin-top:var(--opts-gap-card)}
+
+/* ── 입력 · 서식 ──────────────────────────────────────────────
+   label 로 감싼다. 이름표를 누르면 입력칸에 초점이 가고, 읽어 주는 기계도
+   둘을 한 쌍으로 읽는다 — for/id 를 짝짓는 것보다 어긋날 자리가 없다. */
+.form{display:flex; flex-direction:column; gap:var(--form-gap)}
+
+.field{display:flex; flex-direction:column; gap:var(--field-gap)}
+.field > span{font-size:var(--label-fs); color:var(--muted); font-weight:600}
+.field > em{font-size:var(--hint-fs); color:var(--muted); font-style:normal}
+
+.field input{width:100%; font:inherit; font-size:var(--field-fs);
+  color:var(--ink); background:var(--surface); border:none;
+  box-shadow:var(--card-shadow);
+  padding:var(--field-pad-y) var(--field-pad-x);
+  border-radius:var(--field-radius);
+  box-shadow:inset 0 0 0 var(--line-w) var(--line)}
+.field input::placeholder{color:var(--faint)}
+/* 초점은 테두리를 굵히는 것으로만 말한다. 바깥 외곽선을 쓰면 둥근 모서리
+   바깥에 사각형이 하나 더 그려져서 지저분하다 */
+.field input:focus{outline:none;
+  box-shadow:inset 0 0 0 var(--focus-w) var(--pink)}
+.field input:disabled{background:var(--bg); color:var(--muted)}
+
+/* 인증번호 — 한 자씩 또렷하게 */
+.field input.code{font-family:var(--font-num); font-size:var(--code-fs);
+  letter-spacing:var(--code-track); text-align:center; font-weight:500}
+
+/* ── 로고 자리 ────────────────────────────────── */
+.brand{text-align:center; margin-bottom:var(--brand-gap);
+  display:flex; flex-direction:column; align-items:center;
+  gap:var(--field-gap)}
+.brand .tag{margin:8px 0 0; font-size:var(--brand-sub-fs); color:var(--muted)}
+
+/* 화면 맨 아래에 붙는 한 줄 */
+.foot-note{padding:0 var(--screen-pad) var(--screen-pad); flex:none}
+
+/* 주민등록번호 — 앞자리와 뒷자리를 나란히. 아이디 + 중복확인도 이 모양이다 */
+.rrn{display:flex; align-items:center; gap:var(--rrn-gap)}
+.rrn input{flex:1; min-width:0}
+.rrn .sep{flex:none; color:var(--faint); font-style:normal}
+.rrn .btn.narrow{width:auto; flex:none; white-space:nowrap;
+  padding:var(--field-pad-y) var(--opt-pad-x)}
+
+/* 지금 어디쯤인지 — 세 걸음이라 끝이 보여야 시작한다 */
+.steps{display:flex; gap:var(--steps-gap); list-style:none; margin:0;
+  padding:0; font-size:var(--steps-fs); color:var(--faint)}
+.steps li{flex:1; display:flex; align-items:center; gap:var(--steps-gap);
+  white-space:nowrap; overflow:hidden}
+.steps b{flex:none; width:var(--steps-num); height:var(--steps-num);
+  border-radius:50%; display:flex; align-items:center; justify-content:center;
+  font-size:var(--steps-num-fs); background:var(--off); color:var(--muted)}
+.steps li.on{color:var(--pink); font-weight:700}
+.steps li.on b{background:var(--pink); color:var(--pink-ink)}
+/* 지나온 걸음 — 색이 아니라 **체크 표시**로 말한다 */
+.steps li.done{color:var(--muted)}
+.steps li.done b{background:var(--pink-bg); color:var(--pink); font-size:0}
+.steps li.done b::before{content:"✓"; font-size:var(--steps-num-fs)}
+
+/* ── 홈 머리말 — 제목줄 대신 인사 ──────────────────────────────
+   사진이 없다. 이름 첫 글자를 동그라미에 넣는다 — 없는 사진 자리를
+   회색 사람 아이콘으로 채우는 것보다 낫다.
+   오른쪽 아이콘은 원형 단추 둘(알림 · 밝기)이다. */
+.hhead{display:flex; align-items:center; gap:var(--hhead-gap)}
+.hhead .ava{flex:none; width:var(--ava); height:var(--ava);
+  border-radius:50%; background:var(--pink-bg); color:var(--pink);
+  display:flex; align-items:center; justify-content:center;
+  font-size:var(--ava-fs); font-weight:700}
+.hhead .who{flex:1; min-width:0; display:flex; flex-direction:column}
+.hhead .who small{font-size:var(--hhead-hi); color:var(--muted)}
+.hhead .who b{font-size:var(--hhead-nm); font-weight:700; color:var(--ink);
+  letter-spacing:-.015em}
+
+/* 원형 아이콘 단추 — 머리말 오른쪽. 알림 · 밝기가 같은 모양이다 */
+.hhead .icon{flex:none; width:var(--icon); height:var(--icon);
+  border-radius:var(--icon-radius); background:var(--surface);
+  border:var(--line-w) solid var(--card-line); box-shadow:var(--card-shadow);
+  display:flex; align-items:center; justify-content:center;
+  font-size:var(--icon-fs); line-height:1;
+  color:var(--muted); position:relative}
+.hhead .icon:hover{color:var(--pink)}
+.hhead .icon.on{color:var(--pink)}   /* 밝기를 손으로 골라 둔 상태 */
+.hhead .icon svg{width:17px; height:17px}
+/* 안 읽은 알림 — 숫자를 안 쓴다. 몇 개인지보다 «있다»가 중요하다 */
+.hhead .icon .new{position:absolute; top:5px; right:5px;
+  width:var(--bell-dot); height:var(--bell-dot); border-radius:50%;
+  background:var(--pink); box-shadow:0 0 0 2px var(--surface)}
+
+/* ── 스플래시 ─────────────────────────────────────────────────
+   로그인 확인이 도는 동안을 덮는다. 진행선은 «얼마나 남았나»가 아니라
+   «멈춘 게 아니다»를 말한다 — 우리는 남은 양을 모른다. */
+.splash{flex:1; display:flex; flex-direction:column; align-items:center;
+  justify-content:center; gap:var(--field-gap); background:var(--bg);
+  padding:var(--screen-pad)}
+.splash .tag{margin:0; font-size:var(--brand-sub-fs); color:var(--muted)}
+.splash .bar{margin-top:var(--wel-gap); width:var(--splash-bar-w);
+  height:var(--splash-bar-h); border-radius:999px; background:var(--off);
+  overflow:hidden}
+.splash .bar i{display:block; width:40%; height:100%; border-radius:999px;
+  background:var(--pink); animation:slide var(--splash-ms) ease-in-out infinite}
+@keyframes slide{
+  0%  {transform:translateX(-100%)}
+  100%{transform:translateX(250%)}
+}
+
+/* 화면에는 안 보이고 읽어 주는 기계에만 들리는 글 */
+.sr{position:absolute; width:1px; height:1px; overflow:hidden;
+  clip-path:inset(50%); white-space:nowrap}
+
+/* ── 웰컴 ─────────────────────────────────────────────────────
+   할 수 있는 일을 **세 줄로 편다.** 전에는 한 문단이었는데, 그러면
+   화면의 반 넘게가 빈 채로 남는다. 글이 는 것이 아니라 같은 말이
+   자리를 차지하는 것이다.
+
+   줄 앞 기호는 **아래 탭에서 쓰는 것과 같다.** 나중에 그 탭을 찾을 때
+   눈이 한 번 본 모양을 따라간다. */
+.wel{height:100%; max-width:var(--app-max); margin:0 auto;
+  display:flex; flex-direction:column; background:var(--bg);
+  border-inline:var(--line-w) solid var(--line);
+  padding:var(--wel-pad);
+  padding-bottom:calc(var(--wel-pad) + env(safe-area-inset-bottom, 0px))}
+
+.wel-body{flex:1; min-height:0; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:var(--wel-gap);
+  text-align:center; overflow-y:auto}
+/* .pane 과 같은 이유다 — 세 줄이 늘어난 만큼 짧은 폰에서는 자리가
+   빠듯한데, 안 막으면 덩어리가 눌리지 스크롤이 생기지 않는다 */
+.wel-body > *{flex:none}
+.wel-tx h2{margin:0; font-size:var(--wel-h-fs); font-weight:700;
+  line-height:1.35; letter-spacing:-.025em; color:var(--ink);
+  white-space:pre-line}       /* 제목의 줄바꿈은 손으로 정한다 */
+.wel-tx p{margin:var(--field-gap) 0 0; font-size:var(--wel-p-fs);
+  line-height:1.8; color:var(--muted)}
+
+/* 세 줄. 카드와 같은 면이라 홈에 들어갔을 때 낯설지 않다 */
+.wel-list{list-style:none; margin:0; padding:0; width:100%;
+  display:flex; flex-direction:column; gap:var(--wel-row-gap)}
+.wel-list li{display:flex; align-items:center; gap:var(--wel-ic-gap);
+  text-align:left; padding:var(--wel-row-pad);
+  font-size:var(--wel-row-fs); color:var(--ink-2);
+  background:var(--surface); border-radius:var(--card-radius);
+  border:var(--line-w) solid var(--card-line); box-shadow:var(--card-shadow)}
+.wel-list .ic{flex:none; width:var(--wel-ic); height:var(--wel-ic);
+  border-radius:50%; background:var(--pink-bg); color:var(--pink);
+  display:flex; align-items:center; justify-content:center;
+  font-size:var(--wel-ic-fs); line-height:1}
+
+.wel-foot{flex:none; display:flex; flex-direction:column;
+  gap:var(--form-gap); align-items:stretch}
+
+/* ── 내 정보 머리 ─────────────────────────────────────────────
+   이름과 환자번호를 카드에서 꺼내 세운다. 작은 상자 둘로 시작하면
+   화면이 비어 보이는데, 정작 «누구의 화면인가»는 제일 큰 글로 있어야
+   할 것이다. 동그라미는 홈 머리말과 같은 모양이다. */
+.pro{display:flex; flex-direction:column; align-items:center;
+  gap:var(--pro-gap); padding-bottom:var(--pro-pad-b); text-align:center}
+.pro .ava{flex:none; width:var(--pro-ava); height:var(--pro-ava);
+  border-radius:50%; background:var(--pink-bg); color:var(--pink);
+  display:flex; align-items:center; justify-content:center;
+  font-size:var(--pro-ava-fs); font-weight:700}
+.pro .nm{margin:0}
+.pro .nm b{display:block; font-size:var(--pro-nm-fs); font-weight:700;
+  color:var(--ink); letter-spacing:-.015em}
+.pro .nm small{display:block; margin-top:var(--card-tx-gap);
+  font-size:var(--pro-no-fs); color:var(--muted);
+  font-family:var(--font-num)}
+
+/* ── 빈 화면 ──────────────────────────────────────────────────
+   준비 중 · 불러오는 중. 한 줄을 위쪽에 붙여 두면 «잘못 떴나» 싶다.
+   가운데에 세우면 적어도 «지금은 여기까지»로 읽힌다.
+
+   ⚠ .pane > * 가 모든 자식의 flex 를 끄므로 여기서 다시 켠다. 다만
+     늘어나기만 하고 **줄지는 않게**(1 0 auto) 둔다 — 줄어들면 폰에서
+     내용이 눌린다. */
+.pane > .empty{flex:1 0 auto}
+.empty{display:flex; flex-direction:column; align-items:center;
+  justify-content:center; gap:var(--empty-gap); text-align:center}
+.empty .ic{flex:none; width:var(--empty-ic); height:var(--empty-ic);
+  border-radius:50%; background:var(--blush); color:var(--pink-3);
+  display:flex; align-items:center; justify-content:center;
+  font-size:var(--empty-ic-fs); line-height:1}
+.empty p{margin:0; font-size:var(--empty-fs); color:var(--muted);
+  line-height:var(--note-lh)}
+
+
+/* ── 로고 ─────────────────────────────────────────────────────
+   그림이 있으면 그림, 없으면 글자. 둘이 같은 높이를 쓰므로 파일을 넣고
+   빼도 화면이 흔들리지 않는다. */
+.logo{display:block; width:auto; object-fit:contain}
+.logo.lg{height:var(--logo-lg)}
+.logo.md{height:var(--logo-md)}
+.logo.sm{height:var(--logo-sm)}
+
+.mark{margin:0; font-weight:700; color:var(--pink);
+  letter-spacing:var(--brand-track)}
+.mark.lg{font-size:var(--brand-fs)}
+.mark.md{font-size:var(--brand-fs)}
+.mark.sm{font-size:var(--brand-sub-fs)}
+
+/* ── 스위치 ───────────────────────────────────────────────────
+   색만으로 말하지 않는다. **손잡이가 움직이는 것**이 켜짐/꺼짐을 지고
+   색은 거든다 — 앱 전체에서 지키는 규칙과 같다. */
+.sw{flex:none; width:var(--sw-w); height:var(--sw-h); border-radius:999px;
+  background:var(--off); padding:var(--sw-pad); align-self:center;
+  display:flex; transition:background var(--motion)}
+.sw i{width:var(--sw-knob); height:var(--sw-knob); border-radius:50%;
+  background:var(--surface); box-shadow:0 1px 3px rgba(28,32,36,.25);
+  transition:transform var(--motion)}
+.sw.on{background:var(--pink)}
+.sw.on i{transform:translateX(calc(var(--sw-w) - var(--sw-knob)
+                                   - var(--sw-pad) * 2))}
+.sw:disabled{opacity:.5; cursor:not-allowed}
+
+/* ── 가른 단추 — 셋 중 하나 고르기 ─────────────────────────── */
+.seg{display:flex; gap:var(--seg-pad); padding:var(--seg-pad);
+  background:var(--bg); border-radius:var(--seg-radius); margin-top:2px}
+.seg button{flex:1; text-align:center; font-size:var(--seg-fs);
+  font-weight:600; color:var(--muted); padding:var(--seg-pad-y) 0;
+  border-radius:calc(var(--seg-radius) - var(--seg-pad));
+  transition:background var(--motion), color var(--motion)}
+.seg button.on{background:var(--surface); color:var(--pink);
+  box-shadow:var(--card-shadow)}
+
+/* ── 코치마크 ─────────────────────────────────────────────────
+   소개 슬라이드를 대신한다. 화면을 덮고 **짚을 곳만 밝게** 남긴 뒤
+   그 옆에 한 줄 붙인다.
+
+   구멍은 테두리로 그리지 않는다. 바깥을 통째로 덮는 그림자
+   (box-shadow 를 화면보다 크게)로 만들어야 대상이 실제로 밝게 남는다. */
+.coach{position:fixed; inset:0; z-index:50;
+  animation:coachIn var(--coach-in) ease-out}
+@keyframes coachIn{ from{opacity:0} to{opacity:1} }
+
+/* touch-action:none — 덮개 위에서 쓸어도 뒤 화면이 안 흐른다.
+   조명은 그대로인데 내용만 움직이면 엉뚱한 곳을 짚게 된다 */
+.coach-veil{position:absolute; inset:0; width:100%; height:100%;
+  background:transparent; padding:0; touch-action:none}
+
+.coach-hole{position:fixed; border-radius:var(--coach-radius);
+  box-shadow:0 0 0 9999px var(--coach-veil),
+             0 0 0 2px var(--coach-glow);
+  pointer-events:none;          /* 구멍은 눌리는 대상이 아니다 */
+  /* 걸음이 바뀌면 조명이 다음 자리로 미끄러진다. 눈이 그 움직임을
+     따라가면 다음에 볼 곳을 안 찾아도 된다 */
+  transition:top var(--coach-move), left var(--coach-move),
+             width var(--coach-move), height var(--coach-move);
+  transition-timing-function:cubic-bezier(.4,0,.2,1)}
+
+.coach-tip{position:fixed; background:var(--surface);
+  border-radius:var(--card-radius); padding:var(--coach-pad);
+  box-shadow:0 12px 40px rgba(0,0,0,.28);
+  display:flex; flex-direction:column; gap:var(--card-gap)}
+.coach-n{font-family:var(--font-num); font-size:var(--coach-n-fs);
+  color:var(--pink); letter-spacing:.08em; font-weight:500}
+.coach-tip b{font-size:var(--coach-t-fs); font-weight:700; color:var(--ink);
+  letter-spacing:-.02em; line-height:1.4}
+.coach-tip p{margin:0; font-size:var(--coach-b-fs); color:var(--muted);
+  line-height:1.75}
+
+/* 꼬리 — 밝은 자리를 가리킨다. 말풍선과 같은 색이라 한 덩어리로 보인다.
+   --arrow 는 화면 쪽에서 대상 한가운데로 계산해 넣는다 */
+.coach-tip::before{content:""; position:absolute; left:var(--arrow);
+  width:calc(var(--coach-arrow) * 2); height:calc(var(--coach-arrow) * 2);
+  margin-left:calc(var(--coach-arrow) * -1); background:var(--surface);
+  border-radius:3px; transform:rotate(45deg)}
+.coach-tip::before{top:calc(var(--coach-arrow) * -1 + 3px)}
+.coach-tip.up::before{top:auto; bottom:calc(var(--coach-arrow) * -1 + 3px)}
+
+.coach-foot{display:flex; align-items:center; gap:var(--ask-gap);
+  margin-top:var(--field-gap)}
+.coach-foot .lnk{flex:none; color:var(--muted)}
+.coach-foot .lnk:hover{color:var(--ink-2)}
+/* 다음으로 가는 단추는 **채운 단추**다. 글자 링크로 두면 어디를 눌러야
+   이어지는지 한 번 찾아야 한다 */
+.btn.coach-next{flex:1; width:auto; padding:var(--chip-pad-y) var(--btn-pad)}
+
+/* 나가는 문은 늘 같은 자리에 — 오른쪽 위 */
+.coach-x{position:fixed; top:calc(var(--screen-pad) + env(safe-area-inset-top, 0px));
+  right:var(--screen-pad); width:var(--icon); height:var(--icon);
+  border-radius:999px; background:rgba(255,255,255,.14); color:#fff;
+  display:flex; align-items:center; justify-content:center;
+  font-size:var(--icon-fs); backdrop-filter:blur(2px)}
+.coach-x:hover{background:rgba(255,255,255,.24)}
+
+/* ── 안내문 — 이 앱에서 사람이 «읽는» 유일한 자리 ──────────────
+   명조에 넓은 행간. 바탕은 섹션 배경(Blush)이라 화면에서 한 칸 떠 보인다. */
+.letter{background:var(--blush);
+  border:var(--line-w) solid var(--pink-bg);
+  border-radius:var(--letter-radius);
+  padding:var(--letter-pad-t) var(--letter-pad-x) var(--letter-pad-b);
+  font-family:var(--font-read);
+  display:flex; flex-direction:column; gap:var(--letter-gap)}
+.letter h3{margin:0; font-size:var(--letter-h-fs); font-weight:700;
+  color:var(--ink); letter-spacing:-.01em}
+.letter .by{font-family:var(--font-ui); font-size:var(--letter-by-fs);
+  color:var(--pink); margin:0; letter-spacing:.06em; font-weight:600}
+.letter p{margin:0; font-size:var(--letter-fs); line-height:var(--letter-lh);
+  color:var(--ink-2)}
+.stamp{display:flex; gap:var(--stamp-gap); align-items:center; margin-top:4px;
+  padding-top:var(--stamp-pad-t); border-top:var(--line-w) solid var(--pink-bg);
+  font-family:var(--font-ui); font-size:var(--stamp-fs); color:var(--pink);
+  font-weight:700; letter-spacing:.02em}
+
+/* 움직임에 예민한 사람이 있다. 전환뿐 아니라 **애니메이션도** 멈춘다 —
+   스플래시의 진행선이 계속 도는 것이 어지러울 수 있다 */
+@media (prefers-reduced-motion:reduce){
+  *{transition:none!important; animation:none!important}
+}
