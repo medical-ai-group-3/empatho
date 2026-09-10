@@ -16,8 +16,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # 비밀값은 git 에 없다. 러너 홈에 둔 것을 가져온다
+      # 비밀값은 git 에 없다. 러너 홈에 둔 것을 가져온다.
+      #
+      # ws/ 를 따로 복사하는 이유 — 워크스테이션 SSH 자격은 .env 도 .toml 도
+      # 아니라 위 패턴에 안 걸린다. checkout 이 작업 폴더를 청소하므로 이 줄이
+      # 없으면 배포마다 사라지고, 터널이 마운트할 원본이 없어 죽는다.
+      # 09-10 에 배포 세 번 연속으로 터널이 죽었다.
       - run: cp ~/empatho-conf/*.env ~/empatho-conf/*.toml conf/
+      - run: mkdir -p conf/ws && cp ~/empatho-conf/ws/* conf/ws/ && chmod 600 conf/ws/*
 
       # --build 가 붙는 이유 — Django 와 Go 는 우리 코드로 이미지를 만든다.
       # postgres 처럼 받아 쓰는 것과 다르다.
