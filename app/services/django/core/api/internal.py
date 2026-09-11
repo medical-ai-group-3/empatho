@@ -39,8 +39,10 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from ..models import Notification, Report, Specimen, StorageObject, Study
+from ..models import (Image, Notification, Report, Specimen, StorageObject,
+                      Study)
 from .errors import ApiError
+from .tickets import check_derived
 
 logger = logging.getLogger(__name__)
 
@@ -50,8 +52,14 @@ PURPOSE_OWNER = {
     "dicom_upload": ("study", Study),
     "wsi_upload": ("specimen", Specimen),
     "report_pdf": ("report", Report),
-    # derived_upload · prescription_pdf 는 자리가 없다. 정해지면 여기 추가.
+    # prescription_pdf 는 처방 표가 MVP 밖이라 자리가 없다.
 }
+
+#: 파생물은 storage_object 가 아니라 image 로 간다. v10 이 그 표를 따로 뒀고
+#: source_object · ai_result · lesion FK 로 「어디서 왔나」를 남긴다.
+#: image 는 bucket · object_key 를 직접 들고 있어 storage_object 행이 필요 없다 —
+#: 파생물은 Orthanc 에 안 가고 Garage 에만 있다.
+DERIVED_PURPOSE = "derived_upload"
 
 # DICOM 값 → v10 choices
 LATERALITY = {"L": "left", "R": "right"}
@@ -150,6 +158,9 @@ class StorageObjectCallback(InternalCallbackView):
     def post(self, request):
         bucket, object_key, purpose = self.require("bucket", "object_key", "purpose")
 
+        if purpose == DERIVED_PURPOSE:
+            return self._derived(bucket, object_key)
+
         owner = PURPOSE_OWNER.get(purpose)
         if owner is None:
             # 담을 칸이 없다. 재시도해도 같으므로 4xx 로 돌려보내고 남긴다 —
@@ -175,6 +186,77 @@ class StorageObjectCallback(InternalCallbackView):
                     "등록" if created else "이미 있음", object_key, field,
                     target.pk, self.idempotency_key)
         return Response({"storage_object_id": obj.pk, "created": created})
+
+    def _derived(self, bucket, object_key):
+        """파생물은 image 행이 된다. storage_object 를 만들지 않는다.
+
+        payload 의 derived 블록은 Go 가 티켓 클레임에서 옮겨 온 값이다. Django
+        는 그 티켓을 받지 못하므로, 발급 때와 **같은 함수로 다시 검증**한다 —
+        kind 가 아는 것인지 · 필수 FK 가 있는지 · 원본이 그 검사 것인지.
+
+        ⚠ 「티켓과 글자 그대로 대조」는 아직 못 한다. 그러려면 Go 가 원본
+          티켓을 payload 에 함께 실어야 한다. 지금은 불변식을 다시 세우는
+          방식이라 결과는 같지만, 티켓이 바뀐 것과 payload 가 바뀐 것을
+          구분하지는 못한다.
+        """
+        derived = self.payload.get("derived")
+        if not isinstance(derived, dict):
+            raise ApiError("VALIDATION_ERROR", "파생물에는 derived 블록이 필요합니다.",
+                           details={"missing": ["derived"]})
+
+        scope_kind, scope_id = self._derived_scope()
+        claims = check_derived(derived, scope_kind, scope_id)
+
+        image, created = Image.objects.get_or_create(
+            bucket=bucket, object_key=object_key,
+            defaults={
+                "kind": claims["kind"],
+                "source_object_id": int(claims["source_object_id"]),
+                "ai_result_id": int(claims["ai_result_id"] or 0) or None,
+                "lesion_id": int(claims["lesion_id"] or 0) or None,
+                "frame": derived.get("frame") or None,
+                "checksum_sha256": self.payload.get("checksum_sha256") or None,
+                "byte_size": self.payload.get("byte_size") or None,
+                "content_type": self.payload.get("content_type") or None,
+            },
+        )
+        logger.info("[I-1] %s 파생물 key=%s kind=%s source=%s idem=%s",
+                    "등록" if created else "이미 있음", object_key, claims["kind"],
+                    claims["source_object_id"], self.idempotency_key)
+        return Response({"image_id": image.pk, "created": created})
+
+    def _derived_scope(self):
+        """scope_kind 는 원본에서, scope_id 는 **payload 에서** 가져온다.
+
+        payload 에 scope_kind 가 없어 원본이 study 에 붙었는지 specimen 에
+        붙었는지로 가른다. 그건 구조라 위조할 수 없다.
+
+        scope_id 는 티켓이 말한 값이라 payload 쪽을 써야 한다. 원본에서 꺼내
+        오면 「원본이 티켓 범위 안인가」가 자기 자신과의 비교가 되어 아무것도
+        못 막는다.
+        """
+        source_id = (self.payload.get("derived") or {}).get("source_object_id")
+        try:
+            source = StorageObject.objects.get(pk=int(source_id))
+        except (StorageObject.DoesNotExist, TypeError, ValueError):
+            raise ApiError("TARGET_NOT_FOUND",
+                           details={"target": "storage_object",
+                                    "id": source_id}) from None
+
+        if source.study_id:
+            scope_kind = "study"
+        elif source.specimen_id:
+            scope_kind = "specimen"
+        else:
+            raise ApiError("VALIDATION_ERROR",
+                           "원본이 검사에도 검체에도 안 붙어 있습니다.",
+                           details={"source_object_id": source.pk})
+
+        scope_id = self.payload.get("scope_id")
+        if not scope_id:
+            raise ApiError("VALIDATION_ERROR", "필수 값이 없습니다.",
+                           details={"missing": ["scope_id"]})
+        return scope_kind, scope_id
 
 
 # ── I-2  DICOM 메타 ──────────────────────────────────────────────────────

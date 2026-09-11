@@ -1,7 +1,7 @@
 # CDSS 백엔드 — Django 가 API 서빙 · ORM · admin 을 모두 담당한다.
 # 모델 추론은 FastAPI(별도 담당), 파일 전송·발송은 Go 계층이 맡는다.
 django==6.1
-djangorestframework==3.16.1
+djangorestframework==3.18.1
 django-cors-headers==4.9.0
 psycopg2-binary==2.9.12
 python-dotenv==1.2.3
@@ -10,6 +10,10 @@ python-dotenv==1.2.3
 PyJWT==2.13.0
 # OpenAPI 스키마 · Swagger UI
 drf-spectacular==0.30.0
+# 문진 문항 정의(core/questionnaire/*.yaml)를 읽는다.
+# drf-spectacular 가 끌고 오기도 하지만 직접 쓰므로 따로 적는다 —
+# 그쪽 의존이 바뀌면 조용히 사라진다.
+PyYAML==6.0.3
 
 # 컨테이너에서 돌린다. runserver 는 개발 서버라 쓰지 않는다.
 gunicorn==23.0.0

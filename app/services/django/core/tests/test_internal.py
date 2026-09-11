@@ -175,14 +175,14 @@ class StorageObjectCallbackTests(Fixtures):
             object_key="report/1.pdf").report_id, self.report.pk)
 
     def test_자리가_없는_purpose_는_422_로_거절하고_남긴다(self):
-        for purpose in ("derived_upload", "prescription_pdf"):
-            with self.assertLogs("core.api.internal", level="WARNING") as caught:
-                r = self.post("storage-objects",
-                              self.obj_payload(purpose=purpose))
-            self.assertEqual(r.status_code, 422, purpose)
-            self.assertEqual(r.json()["error"]["code"],
-                             "UNSUPPORTED_PURPOSE")
-            self.assertIn(purpose, caught.output[0])
+        # 처방 표가 MVP 밖이라 파일이 갈 곳이 없다.
+        # derived_upload 는 image 로 가므로 여기 없다 — test_derived.py 참고.
+        purpose = "prescription_pdf"
+        with self.assertLogs("core.api.internal", level="WARNING") as caught:
+            r = self.post("storage-objects", self.obj_payload(purpose=purpose))
+        self.assertEqual(r.status_code, 422)
+        self.assertEqual(r.json()["error"]["code"], "UNSUPPORTED_PURPOSE")
+        self.assertIn(purpose, caught.output[0])
         self.assertEqual(StorageObject.objects.count(), 0)
 
     def test_대상이_없으면_422(self):
