@@ -1,0 +1,91 @@
+"""간호과(nursing) view."""
+
+from rest_framework import viewsets, status
+from rest_framework.response import Response
+
+from django.utils import timezone
+
+from .. import models, serializers
+from ..mixins import AuditMixin
+from core.api.permissions import MatrixPermission, OwnedOnlyMixin
+from core.api import questionnaire as questionnaire_module
+
+
+class VisitTodayViewSet(AuditMixin, viewsets.ViewSet):
+    """§6-1 오늘 방문.
+
+    GET  /visits/today/            오늘 scheduled_at 인 exam_order 목록 + 내원상태
+    POST /visits/today/            {exam_order_id} → visited_at = now()
+    """
+
+    resource = "exam_order"
+    permission_classes = [MatrixPermission]
+
+    def list(self, request):
+        today = timezone.localdate()
+        qs = models.ExamOrder.objects.filter(
+            scheduled_at__date=today
+        ).order_by("scheduled_at")
+        out = serializers.ExamOrderSerializer(qs, many=True)
+        return Response(out.data)
+
+    def create(self, request):
+        serializer = serializers.VisitCheckInSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        order = models.ExamOrder.objects.get(pk=serializer.validated_data["exam_order_id"])
+        order.visited_at = timezone.now()
+        order.updated_by = self._current_account()
+        order.save()
+        out = serializers.ExamOrderSerializer(order)
+        return Response(out.data, status=status.HTTP_200_OK)
+
+
+class FollowupViewSet(AuditMixin, OwnedOnlyMixin, viewsets.ModelViewSet):
+    """§6-3 추적 관리."""
+
+    resource = "followup"
+    permission_classes = [MatrixPermission]
+    queryset = models.Followup.objects.select_related("patient").order_by("due_at")
+    serializer_class = serializers.FollowupSerializer
+
+    def partial_update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        data = request.data
+
+        if "closed_reason" in data:
+            instance.status = data.get("status", "resolved")
+            instance.closed_at = timezone.now()
+            instance.closed_reason = data["closed_reason"]
+        else:
+            instance.call_result = data.get("call_result")
+            instance.call_note = data.get("call_note")
+            instance.called_by = self._current_account()
+            instance.called_at = timezone.now()
+
+        instance.updated_by = self._current_account()
+        instance.save()
+
+        out = serializers.FollowupSerializer(instance)
+        return Response(out.data)
+
+    def owned_queryset(self, queryset, account):
+        return queryset.filter(patient__account=account)
+
+    def is_owned_by(self, obj, account):
+        return obj.patient.account_id == account.account_id
+
+
+class QuestionnaireView(AuditMixin, viewsets.ViewSet):
+    """§6-2 문진 저장."""
+
+    resource = "questionnaire"
+    permission_classes = [MatrixPermission]
+
+    def partial_update(self, request, pk=None):
+        patient = models.Patient.objects.get(pk=pk)
+        validated = questionnaire_module.validate(request.data)
+        patient.questionnaire = validated
+        patient.updated_by = self._current_account()
+        patient.save()
+        out = serializers.PatientDetailSerializer(patient)
+        return Response(out.data)
