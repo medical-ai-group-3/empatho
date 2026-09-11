@@ -1,23 +1,25 @@
-"""
-URL configuration for cdss_backend project.
+"""URL 라우팅.
 
-The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/6.0/topics/http/urls/
-Examples:
-Function views
-    1. Add an import:  from my_app import views
-    2. Add a URL to urlpatterns:  path('', views.home, name='home')
-Class-based views
-    1. Add an import:  from other_app.views import Home
-    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
-Including another URLconf
-    1. Import the include() function: from django.urls import include, path
-    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
+    /api/v1/      공개 API — 명세서 §1-1 의 Base URL
+    /api/schema/  OpenAPI 문서 (Swagger 가 읽는 원본)
+    /api/docs/    Swagger UI
+    /admin/       Django admin — 인증 주체가 API 와 다르다 (auth_user)
+    /internal/v1/ Go → Django 콜백 (명세 21장) — 서명으로만 연다
+
+Go 계층의 /svc/v1 은 다른 서비스라 여기 없다.
+
+/internal/v1 은 밖에서 닿으면 안 된다. compose 에서 web 은 127.0.0.1:8000 이고
+conf/nginx.conf 가 location /internal/ 을 404 로 잘라낸다.
 """
 
 from django.contrib import admin
-from django.urls import path
+from django.urls import include, path
+from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("api/v1/", include("core.api.urls")),
+    path("internal/v1/", include("core.api.internal")),
+    path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
+    path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="docs"),
 ]

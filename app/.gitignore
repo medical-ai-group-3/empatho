@@ -17,6 +17,11 @@ media/
 # 스키마 덤프의 압축본만 제외한다.
 services/django/db/*.sql.gz
 
+# 인계받은 원본 문서. 바이너리는 저장소에 두지 않는다 — 읽고 정리한 결과만 남긴다.
+*.docx
+*.pptx
+*.xlsx
+
 # 빌드 산출물
 services/gosvc/file-gateway
 services/gosvc/llm-proxy
