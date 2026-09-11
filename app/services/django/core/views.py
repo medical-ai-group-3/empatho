@@ -2,7 +2,7 @@ from rest_framework import viewsets, status
 from rest_framework.response import Response
 from django.db.models import Q
 
-
+from django.utils import timezone
 from . import models, serializers
 from .mixins import AuditMixin
 from core.api.permissions import MatrixPermission, OwnedOnlyMixin
@@ -103,11 +103,32 @@ class ReservationRequestViewSet(AuditMixin, viewsets.ViewSet):
 
 # ── nursing · 간호 ───────────────────────────────────────────
 class VisitTodayViewSet(AuditMixin, viewsets.ViewSet):
-    """§6-1 오늘 방문."""
+    """§6-1 오늘 방문.
+
+    GET  /visits/today/            오늘 scheduled_at 인 exam_order 목록 + 내원상태
+    POST /visits/today/            {exam_order_id} → visited_at = now()
+    """
+
     resource = "exam_order"
     permission_classes = [MatrixPermission]
-    # own_only 없음 (exam_order 매트릭스엔 own_only 없음) — OwnedOnlyMixin 불필요
 
+    def list(self, request):
+        today = timezone.localdate()
+        qs = models.ExamOrder.objects.filter(
+            scheduled_at__date=today
+        ).order_by("scheduled_at")
+        out = serializers.ExamOrderSerializer(qs, many=True)
+        return Response(out.data)
+
+    def create(self, request):
+        serializer = serializers.VisitCheckInSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        order = models.ExamOrder.objects.get(pk=serializer.validated_data["exam_order_id"])
+        order.visited_at = timezone.now()
+        order.updated_by = self._current_account()
+        order.save()
+        out = serializers.ExamOrderSerializer(order)
+        return Response(out.data, status=status.HTTP_200_OK)
 
 class FollowupViewSet(AuditMixin, OwnedOnlyMixin, viewsets.ModelViewSet):
     resource = "followup"

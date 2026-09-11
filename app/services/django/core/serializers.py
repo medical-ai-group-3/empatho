@@ -120,6 +120,7 @@ class ExamOrderItemSerializer(serializers.Serializer):
 class ReservationCreateSerializer(serializers.Serializer):
     patient_id = serializers.IntegerField()
     scheduled_at = serializers.DateTimeField()
+    ordered_by = serializers.IntegerField()
     orders = ExamOrderItemSerializer(many=True, allow_empty=False)
     
     def validate_patient_id(self, value):
@@ -134,6 +135,7 @@ class ReservationCreateSerializer(serializers.Serializer):
             "updated_by" : validated_data.pop("updated_by", None),
         }
         order_items = validated_data.pop("orders")
+        ordered_by_id = validated_data.pop("ordered_by")
         
         rows=[]
         for item in order_items:
@@ -144,7 +146,7 @@ class ReservationCreateSerializer(serializers.Serializer):
                 modality= item["modality"],
                 order_status ="ordered",
                 ordered_at = timezone.now(),
-                ordered_by=None,
+                ordered_by_id=ordered_by_id,
                 **audit,
             )
             rows.append(row)
@@ -176,3 +178,15 @@ class ReservationRequestCreateSerializer(serializers.Serializer):
             created_by=validated_data.get("created_by"),
             updated_by=validated_data.get("updated_by"),
         )
+        
+        
+        
+class VisitCheckInSerializer(serializers.Serializer):
+    """POST /visits/today/ — 내원 확인(§6-1)."""
+
+    exam_order_id = serializers.IntegerField()
+
+    def validate_exam_order_id(self, value):
+        if not models.ExamOrder.objects.filter(pk=value).exists():
+            raise serializers.ValidationError("존재하지 않는 오더입니다.")
+        return value
