@@ -19,3 +19,10 @@ from .nursing import (
     FollowupSerializer,
     VisitCheckInSerializer,
 )
+
+from .radiology import (
+    StudySerializer,
+    LesionSerializer,
+    AssessmentSerializer,
+    AiResultSerializer,
+)

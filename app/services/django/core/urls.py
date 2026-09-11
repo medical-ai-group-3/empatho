@@ -34,6 +34,7 @@ router.register(r"reservations", views.ReservationViewSet, basename="reservation
 router.register(r"visits/today", views.VisitTodayViewSet, basename="visit-today")
 router.register(r"followups", views.FollowupViewSet, basename="followup")
 router.register(r"me/reservation-requests", views.ReservationRequestViewSet, basename="reservation-request")
+router.register(r"studies", views.StudyViewSet, basename = "study")
 
 
 urlpatterns = [
@@ -53,4 +54,9 @@ urlpatterns = [
         views.QuestionnaireView.as_view({"patch": "partial_update"}),
         name="patient-questionnaire",
     ),
+    path(
+        "radiology/dashboard",
+        views.RadiologyDashboardView.as_view({"get": "list"}),
+        name = "radiology-dashboard"
+    )
 ]

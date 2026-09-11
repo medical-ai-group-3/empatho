@@ -12,3 +12,8 @@ from .nursing import (
     FollowupViewSet,
     QuestionnaireView,
 )
+
+from .radiology import(
+    RadiologyDashboardView,
+    StudyViewSet,
+)
