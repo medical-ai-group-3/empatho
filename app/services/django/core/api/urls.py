@@ -7,16 +7,19 @@ cdss_backend 에서 include 를 두 줄로 나누면 순서가 갈려 위쪽이 
 catch-all 은 반드시 맨 끝. 새 경로는 그 위에 넣는다.
 """
 
+
+
 from importlib.util import find_spec
 
 from django.urls import include, path, re_path
 
 from .tickets import TicketView
-from .views import HealthView, NotFoundView
+from .views import HealthView, NotFoundView, login
 
 urlpatterns = [
     path("health", HealthView.as_view(), name="health"),
     path("tickets", TicketView.as_view(), name="ticket-issue"),
+    path("login", login, name = "login"),
 ]
 
 # 업무 엔드포인트는 다른 브랜치에서 오는 중이다. 들어오면 자동으로 물린다.

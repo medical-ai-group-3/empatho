@@ -36,3 +36,6 @@ web-dist/*
 # tunnel 컨테이너가 워크스테이션에 붙을 때 쓰는 SSH 개인키
 # 워크스테이션 SSH 자격. 폴더째 제외한다 — 파일이 늘어도 새는 일이 없다.
 conf/ws/
+
+# 테스트가 만드는 고정값
+services/django/test_*.json
