@@ -25,4 +25,12 @@ from .radiology import (
     LesionSerializer,
     AssessmentSerializer,
     AiResultSerializer,
+    ReportSerializer,
+    ExamOrderAssignSerializer,
+    ExamOrderCompleteSerializer,
+    AssessmentDraftSerializer,
+    AssessmentFinalSerializer,
+    LesionCreateSerializer,
+    LesionFalsePositiveSerializer,
+    AssessmentAmendSerializer,
 )

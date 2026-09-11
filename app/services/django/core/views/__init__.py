@@ -13,7 +13,17 @@ from .nursing import (
     QuestionnaireView,
 )
 
-from .radiology import(
-    RadiologyDashboardView,
+from .radiology import (
+    ExamOrderQueueView,
+    ExamOrderAssignView,
+    ExamOrderCompleteView,
+    AiResultQueueView,
+    AiResultListView,
     StudyViewSet,
+    AssessmentDraftView,
+    StudyFinalizeView,
+    LesionViewSet,
+    AssessmentHistoryView,
+    AssessmentAmendView,
+    ReportViewSet,
 )
