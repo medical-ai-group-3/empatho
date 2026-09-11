@@ -131,10 +131,33 @@ class VisitTodayViewSet(AuditMixin, viewsets.ViewSet):
         return Response(out.data, status=status.HTTP_200_OK)
 
 class FollowupViewSet(AuditMixin, OwnedOnlyMixin, viewsets.ModelViewSet):
+    """§6-3 추적 관리."""
+    
     resource = "followup"
     permission_classes = [MatrixPermission]
     queryset = models.Followup.objects.select_related("patient").order_by("due_at")
     serializer_class = serializers.FollowupSerializer
+
+    def partial_update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        data = request.data
+        
+        if "closed_reason" in data:
+            instance.status = data.get("status", "resolved")
+            instance.closed_at = timezone.now()
+            instance.closed_reason = data["closed_reaason"]
+        else:
+            instance.call_result = data.get("call_result")
+            instance.call_note = data.get("claa_note")
+            instance.called_by = self._current_account()
+            instance.called_at = timezone.now()
+            
+        instance.updated_by = self._current_account()
+        instance.save()
+        
+        out= serializers.FollowupSerializer(instance)
+        return Response(out.data)
+
 
     def owned_queryset(self, queryset, account):
         return queryset.filter(patient__account=account)
@@ -144,11 +167,18 @@ class FollowupViewSet(AuditMixin, OwnedOnlyMixin, viewsets.ModelViewSet):
 
 
 class QuestionnaireView(AuditMixin, viewsets.ViewSet):
+    """§6-2 문진 저장."""
+    
     resource = "questionnaire"
     permission_classes = [MatrixPermission]
 
     def partial_update(self, request, pk=None):
-        return Response(status=status.HTTP_501_NOT_IMPLEMENTED)
+        patient = models.Patient.objects.get(pk=pk)
+        patient.questionnaire = request.data 
+        patient.updated_by = self._current_account()
+        patient.save()
+        out = serializers.PatientDetailSerializer(patient)
+        return Response(out.data)
     
     
     
