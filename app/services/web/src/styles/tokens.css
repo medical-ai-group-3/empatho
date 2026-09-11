@@ -1,0 +1,238 @@
+/* ─────────────────────────────────────────────────────────────
+   EMPATHO — 다이얼 판
+
+   **디자인 수치는 전부 여기 있다.** index.css 에는 숫자를 쓰지 않는다.
+   「안내문 글씨를 키워 달라」는 요청이 오면 이 파일에서 한 줄만 고친다.
+
+   ── 이름 붙이는 규칙 ──────────────────────────────────────────
+   쓰이는 자리 이름으로 짓는다. `--letter-fs` 는 안내문 본문 글씨다.
+   추상 척도(`--f-md`)로 안 지은 이유 — 그러면 안내문만 키우려 해도
+   같은 단계를 쓰는 다른 곳이 전부 따라 움직인다.
+
+   ── 두 손잡이 ────────────────────────────────────────────────
+   --sp  여백 배율.  1.1 로 올리면 앱 전체가 넉넉해진다
+   --ft  글씨 배율.  1.1 로 올리면 앱 전체 글씨가 커진다
+
+   1 이면 지금과 똑같다. 시연 화면이 크거나 작을 때 이 둘로 맞춘다.
+   개별 값은 그대로 두고 이것만 만지는 편이 안전하다.
+
+   ── 색 ───────────────────────────────────────────────────────
+   규칙 둘을 지킨다.
+     ① **핑크는 상태 컬러로 쓰지 않는다.** 브랜드 색이 경고색이 되면 안 된다
+     ② **무채색 70~80% · 핑크 10~15%**
+
+   light-dark(밝을 때, 어두울 때) 로 두 판을 한 줄에 적는다. 값이 나란히
+   있어야 한 쪽만 고치는 사고가 안 난다.
+
+     color-scheme: light dark   → 기기 설정을 따라간다 (기본)
+     <html data-theme="dark">   → 어두운 판으로 고정
+     <html data-theme="light">  → 밝은 판으로 고정
+   ───────────────────────────────────────────────────────────── */
+
+:root{
+  color-scheme: light dark;
+
+  /* ══ 손잡이 ═══════════════════════════════════════════════ */
+  --sp: 1;
+  --ft: 1;
+
+  /* ══ 색 ═══════════════════════════════════════════════════ */
+
+  /* 핑크 — 어두운 판에서는 한 단계씩 밝다. 어두운 바탕 위에서
+     밝은 판의 #A85C70 은 글자로 읽히지 않는다 */
+  --pink:    light-dark(#A85C70, #C58F9B);   /* Primary — 핵심 포인트 · 선택 */
+  --pink-2:  light-dark(#C98294, #D9A7B1);   /* Muted   — 버튼 · 강조 요소 */
+  --pink-3:  light-dark(#DDA8B5, #E6C6CD);   /* Soft    — 배지 · 아이콘 · 차트 */
+  --pink-bg: light-dark(#F1DDE2, #3A2830);   /* 강조 배경 · 알림 배경 */
+  --blush:   light-dark(#F8EFF1, #2E242B);   /* 섹션 배경 — 어두운 값은
+                                                Pink Tint 를 Surface 쪽으로
+                                                60% 당긴 것이다 */
+
+  /* 핑크 위에 얹는 글자. 밝은 판은 흰 글자, 어두운 판은 **검은 글자**다 —
+     어두운 판의 핑크가 밝아서 흰 글자가 안 읽힌다 */
+  --pink-ink: light-dark(#FFFFFF, #1C2024);
+
+  /* 무채색 */
+  --ink:       light-dark(#1C2024, #E9ECEF);  /* 주요 텍스트 */
+  --ink-2:     light-dark(#454A50, #D2D6DA);  /* 제목 · 강조 텍스트 */
+  --muted:     light-dark(#6A7078, #AEB3B8);  /* 설명 · 보조 텍스트 */
+  --faint:     light-dark(#AEB3B8, #767C84);  /* 비활성 · 플레이스홀더 */
+  --line:      light-dark(#E1E4E8, #3A3F46);  /* 테두리 · 구분선 */
+  --line-soft: light-dark(#EDEFF1, #2C3137);  /* 목록 사이 — Border 를 옅게 */
+  --surface:   light-dark(#FFFFFF, #1C1F24);  /* 카드 · 모달 */
+  --bg:        light-dark(#F7F7F6, #121317);  /* 전체 배경 */
+
+  /* 상태 — 핑크를 쓰지 않는다.
+     주의와 오류는 팀 시안에서 두 판이 같은 값이다. 성공은 어두운 판
+     시안에만 있어서, 같은 규칙을 따라 밝은 판에도 그 값을 쓴다.
+     정보만 판마다 다른데, 그것은 의도된 것이다(팀 확인 완료). */
+  --ok:    #4CAF8A;
+  --warn:  #E6C46A;
+  --error: #E08C8C;
+  --info:  light-dark(#6A7078, #7BA7D9);
+  --off:   light-dark(#D9DDE1, #262A31);
+
+  /* 그림자는 어두운 판에서 안 보인다. 색을 투명으로 두어 끈다 */
+  --shadow: light-dark(rgba(28,32,36,.04), transparent);
+  --card-shadow: 0 1px 2px var(--shadow);
+
+  /* ══ 선 · 모션 ════════════════════════════════════════════ */
+  --line-w:  1px;
+  --focus-w: 2px;
+  --motion:  .12s;
+
+  /* ══ 글꼴 ═════════════════════════════════════════════════ */
+  --font-ui:     "Gothic A1", system-ui, sans-serif;
+  --font-read:   "Gowun Batang", "Nanum Myeongjo", serif;   /* 안내문 전용 */
+  --font-num:    "IBM Plex Mono", monospace;
+
+  --body-fs: calc(14px * var(--ft));
+  --body-lh: 1.62;
+
+  /* ══ 앱 틀 ════════════════════════════════════════════════ */
+  --app-max:    520px;          /* 폰 폭. 넓히면 태블릿에서 덜 허전하다 */
+  --screen-pad: calc(20px * var(--sp));
+  --screen-gap: calc(14px * var(--sp));   /* 화면 안 덩어리 사이 */
+
+  /* ══ 머리말 ═══════════════════════════════════════════════ */
+  --top-pad-y:    calc(14px * var(--sp));
+  --top-pad-x:    calc(20px * var(--sp));
+  --top-gap:      calc(10px * var(--sp));
+  --top-fs:       calc(16px * var(--ft));
+  --top-back:     26px;                    /* 뒤로가기 누르는 넓이 */
+  --top-back-fs:  calc(24px * var(--ft));
+  --icon:         30px;                    /* 머리말 오른쪽 단추 */
+  --icon-fs:      calc(15px * var(--ft));
+  --icon-radius:  8px;
+
+  /* ══ 아래 탭 ══════════════════════════════════════════════ */
+  --tab-pad-top: calc(11px * var(--sp));
+  --tab-pad-bot: calc(15px * var(--sp));   /* 홈 버튼 자리를 피해 더 준다 */
+  --tab-fs:      calc(10.5px * var(--ft));
+  --tab-ic-fs:   calc(15px * var(--ft));
+  --tab-mark-h:  2px;                      /* 선택된 탭 위의 줄 */
+
+  /* ══ 단추 ═════════════════════════════════════════════════ */
+  --btn-pad:    calc(14px * var(--sp));
+  --btn-fs:     calc(14px * var(--ft));
+  --btn-radius: 8px;
+  --row-gap:    calc(10px * var(--sp));    /* 나란한 단추 사이 */
+
+  /* ══ 카드 ═════════════════════════════════════════════════ */
+  --card-pad:    calc(16px * var(--sp));
+  --card-gap:    calc(5px * var(--sp));
+  --card-radius: 10px;
+  --card-k-fs:   calc(10px * var(--ft));   /* 위 작은 라벨 */
+  --card-v-fs:   calc(15.5px * var(--ft)); /* 큰 값 */
+  --card-s-fs:   calc(12.5px * var(--ft)); /* 설명 */
+  --card-go-gap: calc(12px * var(--sp));
+  --card-tx-gap: calc(4px * var(--sp));
+  --card-arw-fs: calc(20px * var(--ft));   /* › 화살표 */
+
+  /* 진행 막대 */
+  --prog-h:      5px;
+  --prog-radius: 3px;
+
+  /* ══ 글 ═══════════════════════════════════════════════════ */
+  --note-fs:      calc(12px * var(--ft));
+  --note-lh:      1.75;
+  --hello-fs:     calc(21px * var(--ft));
+  --hello-sub-fs: calc(11.5px * var(--ft));
+  --sec-fs:       calc(12px * var(--ft));  /* 구역 제목 */
+
+  /* ══ 목록 ═════════════════════════════════════════════════ */
+  --list-radius: 10px;
+  --list-pad-y:  calc(15px * var(--sp));
+  --list-pad-x:  calc(16px * var(--sp));
+  --list-gap:    calc(12px * var(--sp));
+  --list-dt-fs:  calc(10.5px * var(--ft));
+  --list-dt-w:   74px;                     /* 날짜 칸 — 줄바꿈이 안 되게 */
+  --list-b-fs:   calc(14px * var(--ft));
+  --list-s-fs:   calc(12px * var(--ft));
+
+  /* ══ 배지 ═════════════════════════════════════════════════ */
+  --pill-fs:     calc(10px * var(--ft));
+  --pill-pad-y:  4px;
+  --pill-pad-x:  9px;
+  --pill-radius: 20px;
+  --pill-dot:    5px;
+
+  /* ══ 달력 ═════════════════════════════════════════════════ */
+  --cal-radius:      10px;
+  --cal-pad-x:       calc(16px * var(--sp));
+  --cal-grid-pad-x:  calc(10px * var(--sp));
+  --cal-head-fs:     calc(13px * var(--ft));
+  --cal-wd-fs:       calc(10px * var(--ft));
+  --cal-day-fs:      calc(12px * var(--ft));
+  --cal-day-radius:  8px;
+  --cal-dot:         5px;
+  --cal-ring:        1.5px;                /* 오늘 테두리 · 빈 점 테두리 */
+  --cal-legend-fs:   calc(10.5px * var(--ft));
+  --cal-foot-pad-y:  calc(13px * var(--sp));
+  --cal-foot-b-fs:   calc(13px * var(--ft));
+  --cal-foot-s-fs:   calc(11.5px * var(--ft));
+  --cal-more-fs:     calc(12px * var(--ft));
+
+  /* ══ 시간 칩 ══════════════════════════════════════════════ */
+  --chip-radius: 7px;
+  --chip-pad-y:  calc(9px * var(--sp));
+  --chip-pad-x:  calc(13px * var(--sp));
+  --chip-fs:     calc(13px * var(--ft));
+  --chip-gap:    calc(7px * var(--sp));
+
+  /* ══ 되묻는 줄 ════════════════════════════════════════════ */
+  --ask-gap: calc(14px * var(--sp));
+  --ask-fs:  calc(12px * var(--ft));
+  --lnk-fs:  calc(12px * var(--ft));
+
+  /* ══ 문진 ═════════════════════════════════════════════════ */
+  --q-fs:        calc(14.5px * var(--ft));
+  --q-lh:        1.55;
+  --opt-pad-y:   calc(12px * var(--sp));
+  --opt-pad-x:   calc(14px * var(--sp));
+  --opt-radius:  9px;
+  --opt-fs:      calc(13.5px * var(--ft));
+  --opt-gap:     calc(7px * var(--sp));
+  --radio:       15px;
+  --radio-ring:  1.5px;                    /* 안 고른 동그라미 테두리 */
+  --radio-fill:  4.5px;                    /* 고른 동그라미가 «차는» 두께 */
+
+  /* ══ 안내문 ═══════════════════════════════════════════════ */
+  --letter-radius: 12px;
+  --letter-pad-t:  calc(24px * var(--sp));
+  --letter-pad-x:  calc(22px * var(--sp));
+  --letter-pad-b:  calc(18px * var(--sp));
+  --letter-gap:    calc(14px * var(--sp));
+  --letter-h-fs:   calc(20px * var(--ft));
+  --letter-fs:     calc(14.5px * var(--ft));
+  --letter-lh:     2.05;                   /* 넓은 행간 — 읽는 자리다 */
+  --letter-by-fs:  calc(11px * var(--ft));
+  --stamp-fs:      calc(11px * var(--ft));
+  /* ══ 잔여백 — 부품 안에서 요소끼리 벌어지는 거리 ══════════ */
+  --radius-xs:    4px;                     /* 초점 테두리 · 뒤로가기 */
+  --dot-gap:      5px;                     /* 점과 글자 사이 */
+  --flag-bar:     3px;                     /* 주의 카드 왼쪽 굵은 선 */
+  --hello-sub-gap: calc(5px * var(--sp));
+  --prog-gap-top: calc(3px * var(--sp));
+  --tab-ic-gap:   calc(3px * var(--sp));
+  --cal-day-gap:  calc(3px * var(--sp));   /* 날짜와 점 사이 */
+  --cal-head-pad-b:   calc(10px * var(--sp));
+  --cal-wd-pad-b:     calc(6px * var(--sp));
+  --cal-grid-pad-b:   calc(12px * var(--sp));
+  --cal-legend-pad-b: calc(14px * var(--sp));
+  --cal-legend-gap:   calc(4px * var(--sp)) calc(14px * var(--sp));
+  --more-pad-y:   calc(6px * var(--sp));
+  --more-pad-x:   calc(10px * var(--sp));
+  --more-radius:  6px;
+  --chips-gap-top: calc(8px * var(--sp));
+  --opts-gap-top:  calc(9px * var(--sp));
+  --opts-gap-card: calc(6px * var(--sp));  /* 카드 안에서는 더 좁게 */
+  --opt-icon-gap:  calc(11px * var(--sp)); /* 동그라미와 글자 사이 */
+  --ask-gap-top:   calc(9px * var(--sp));
+  --stamp-gap:     calc(8px * var(--sp));
+  --stamp-pad-t:   calc(14px * var(--sp));
+}
+
+/* 기기 설정을 무시하고 한 판으로 고정할 때 */
+:root[data-theme="light"]{ color-scheme: light }
+:root[data-theme="dark"] { color-scheme: dark  }
