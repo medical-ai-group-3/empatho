@@ -34,6 +34,9 @@ router.register(r"reservations", views.ReservationViewSet, basename="reservation
 router.register(r"visits/today", views.VisitTodayViewSet, basename="visit-today")
 router.register(r"followups", views.FollowupViewSet, basename="followup")
 router.register(r"me/reservation-requests", views.ReservationRequestViewSet, basename="reservation-request")
+router.register(r"studies", views.StudyViewSet, basename = "study")
+router.register(r"lesions", views.LesionViewSet, basename="lesion")
+router.register(r"reports", views.ReportViewSet, basename="report")
 
 
 urlpatterns = [
@@ -53,4 +56,14 @@ urlpatterns = [
         views.QuestionnaireView.as_view({"patch": "partial_update"}),
         name="patient-questionnaire",
     ),
+    path("exam-orders", views.ExamOrderQueueView.as_view(), name="exam-order-queue"),
+    path("exam-orders/<int:pk>/assign", views.ExamOrderAssignView.as_view({"patch": "partial_update"}), name="exam-order-assign"),
+    path("exam-orders/<int:pk>/complete", views.ExamOrderCompleteView.as_view({"patch": "partial_update"}), name="exam-order-complete"),
+    path("studies/<int:pk>/ai-results", views.AiResultQueueView.as_view({"post": "start"}), name="study-ai-results-start"),
+    path("ai-results", views.AiResultListView.as_view(), name="ai-results-list"),
+    path("studies/<int:pk>/assessment/draft", views.AssessmentDraftView.as_view({"put": "update"}), name="study-assessment-draft"),
+    path("studies/<int:pk>/finalize", views.StudyFinalizeView.as_view({"patch": "partial_update"}), name="study-finalize"),
+    path("assessments", views.AssessmentHistoryView.as_view(), name="assessment-history"),
+    path("assessments/<int:pk>/amend", views.AssessmentAmendView.as_view({"post": "create"}), name="assessment-amend"),
 ]
+

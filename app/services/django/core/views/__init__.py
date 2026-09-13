@@ -12,3 +12,18 @@ from .nursing import (
     FollowupViewSet,
     QuestionnaireView,
 )
+
+from .radiology import (
+    ExamOrderQueueView,
+    ExamOrderAssignView,
+    ExamOrderCompleteView,
+    AiResultQueueView,
+    AiResultListView,
+    StudyViewSet,
+    AssessmentDraftView,
+    StudyFinalizeView,
+    LesionViewSet,
+    AssessmentHistoryView,
+    AssessmentAmendView,
+    ReportViewSet,
+)

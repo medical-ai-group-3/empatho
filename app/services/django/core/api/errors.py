@@ -70,6 +70,7 @@ SPEC_ERRORS = [
     _spec("PYRAMID_NOT_READY", 409, "타일 피라미드가 아직 만들어지지 않았습니다.",
           "build_status 와 진행률을 함께 반환"),
     _spec("ALREADY_CONFIRMED", 409,  "이미 확정된 오더입니다."),
+    _spec("ALREADY_ASSIGNED", 409, "다른 선생님이 이미 맡았습니다."),
     _spec("TILE_OUT_OF_RANGE", 404, "없는 줌 레벨 또는 타일 좌표입니다.", "level_count 범위 밖"),
 ]
 
