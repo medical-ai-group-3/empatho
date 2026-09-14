@@ -19,6 +19,14 @@ class PatientViewSet(AuditMixin, OwnedOnlyMixin, viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
+        
+        primary_staff_param = self.request.query_params.get("primaty_staff")
+        if primary_staff_param == "me":
+            staff = getattr(self.request.user, "staff", None)
+            if staff is None:
+                return qs.none()
+            return qs.filter(primary_staff=staff)
+        
         q = self.request.query_params.get("q", "").strip()
         if not q:
             return qs.none()

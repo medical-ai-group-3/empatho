@@ -25,12 +25,22 @@ from .radiology import (
     LesionSerializer,
     AssessmentSerializer,
     AiResultSerializer,
-    ReportSerializer,
-    ExamOrderAssignSerializer,
-    ExamOrderCompleteSerializer,
+    StorageObjectSerializer,
     AssessmentDraftSerializer,
-    AssessmentFinalSerializer,
+    StudyUploadReviewSerializer,
     LesionCreateSerializer,
     LesionFalsePositiveSerializer,
     AssessmentAmendSerializer,
+)
+
+from .surgery import (
+    ReportSerializer,
+    DiscordanceFlagSerializer,
+    SpecimenSerializer,
+    LesionSerializer,
+    ExamOrderRequestSerializer,
+    SurgeryDecisionSerializer,
+    ReportExplainSerializer,
+    SpecimenBindSerializer,
+    DiscordanceDisposeSerializer
 )

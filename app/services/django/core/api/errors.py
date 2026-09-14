@@ -86,10 +86,18 @@ INFRA_ERRORS = [
           "담을 칸이 없다 — prescription_pdf 는 처방 표가 MVP 밖이다"),
 ]
 
+# 명세 밖. 영상의학과 라우터 인계 문서(2026-09) 재설계로 추가.
+# 문서 화면 ③ 판독 통합조회의 서버 가드 — SPEC_ERRORS 25개엔 없던 케이스라
+# 여기 따로 둔다. 늘릴 때는 팀에 알린다.
+HANDOVER_ERRORS = [
+    _spec("STUDY_NOT_READ_READY", 409, "업로드된 영상이 없어 판독을 시작할 수 없습니다.",
+          "study 에 storage_object 가 하나도 없다 — Go 웹훅 대기 중"),
+]
+
 SPEC_CODES = frozenset(e.code for e in SPEC_ERRORS)
 INFRA_CODES = frozenset(e.code for e in INFRA_ERRORS)
 
-ERRORS = {e.code: e for e in SPEC_ERRORS + INFRA_ERRORS}
+ERRORS = {e.code: e for e in SPEC_ERRORS + INFRA_ERRORS + HANDOVER_ERRORS}
 
 
 def spec_for(code):
