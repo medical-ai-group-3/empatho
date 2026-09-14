@@ -208,12 +208,29 @@ class ReportUnlockView(AuditMixin, viewsets.ViewSet):
 
 
 class SpecimenBindViewSet(AuditMixin, viewsets.ViewSet):
-    """§4 POST /specimens — 검체 바인딩."""
+    """§4 POST /specimens — 검체 바인딩.
+    §4(병리과) GET /specimens — 전체 목록 + 필터/정렬.
+    """
 
     resource = "specimen"
     permission_classes = [CanBindSpecimen]
     # TODO: 단독 권한 CanBindSpecimen 적용 (간호·유방외과) — permissions import 확인 후 교체
 
+    def list(self, request):
+        qs = models.Specimen.objects.select_related("patient").all()
+        ordering = request.query_params.get("ordering")
+        allowed = {
+            "patient__name": "patient__pii_name",
+            "collected_at": "collected_at",
+            "accessioned_at": "accessioned_at",
+            "accession_status": "accession_status",
+        }
+        if ordering and ordering.lstrip("-") in allowed:
+            field = allowed[ordering.lstrip("-")]
+            qs = qs.order_by(("-" + field) if ordering.startswith("-") else field)
+        out = serializers.SpecimenSerializer(qs, many = True)
+        return Response(out.data)
+    
     def create(self, request):
         serializer = serializers.SpecimenBindSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)

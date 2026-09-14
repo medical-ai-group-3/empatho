@@ -39,3 +39,10 @@ from .surgery import (
     DiscordanceListView,
     DiscordanceDisposeView,
 )
+from .pathology import(
+    SpecimenQueueView,
+    SpecimenAssignView,
+    SpecimenAiResultView,
+    SpecimenDraftView,
+    SpecimenFinalizeView,
+)

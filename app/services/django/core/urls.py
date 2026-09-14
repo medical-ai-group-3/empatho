@@ -43,6 +43,8 @@ router.register(r"lesions", views.LesionViewSet, basename="lesion")
 router.register(r"specimens", views.SpecimenBindViewSet, basename="specimen")
 router.register(r"reports", views.SurgeryReportViewSet, basename="report")
 
+
+
 urlpatterns = [
     path("", include(router.urls)),
     path(
@@ -89,6 +91,11 @@ urlpatterns = [
     path("discordances", views.DiscordanceListView.as_view(), name="discordance-list"),
     path("discordances/<int:pk>", views.DiscordanceDisposeView.as_view({"get": "retrieve", "patch": "partial_update"}), name="discordance-detail"),
     path("exam-orders", views.ExamOrderRequestView.as_view({"post": "create"}), name="exam-order-request"),
+    path("specimens/queue", views.SpecimenQueueView.as_view(), name="specimen-queue"),
+    path("specimens/<int:pk>/assign", views.SpecimenAssignView.as_view({"patch": "partial_update"}), name="specimen-assign"),
+    path("specimens/<int:pk>/ai-results", views.SpecimenAiResultView.as_view({"post": "start"}), name="specimen-ai-results-start"),
+    path("specimens/<int:pk>/draft", views.SpecimenDraftView.as_view({"put": "update"}), name="specimen-draft"),
+    path("specimens/<int:pk>/finalize", views.SpecimenFinalizeView.as_view({"patch": "partial_update"}), name="specimen-finalize"),
 
 ]
 

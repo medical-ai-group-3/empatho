@@ -44,3 +44,7 @@ from .surgery import (
     SpecimenBindSerializer,
     DiscordanceDisposeSerializer
 )
+from .pathology import(
+    SpecimenDraftSerializer,
+    SpecimenFinalizeSerializer,
+)

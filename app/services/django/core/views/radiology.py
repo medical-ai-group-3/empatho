@@ -172,8 +172,9 @@ class AiResultQueueView(AuditMixin, viewsets.ViewSet):
         return Response(out.data, status=status.HTTP_202_ACCEPTED)
 
 
+# views/radiology.py 의 AiResultListView 수정
 class AiResultListView(generics.ListAPIView):
-    """GET /ai-results?study={id}"""
+    """GET /ai-results?study={id} 또는 ?specimen={id}"""
 
     resource = "ai_result"
     permission_classes = [MatrixPermission]
@@ -182,10 +183,12 @@ class AiResultListView(generics.ListAPIView):
     def get_queryset(self):
         qs = models.AiResult.objects.all().order_by("-created_at")
         study_id = self.request.query_params.get("study")
+        specimen_id = self.request.query_params.get("specimen")
         if study_id:
             qs = qs.filter(study_id=study_id)
+        if specimen_id:
+            qs = qs.filter(source_object__specimen_id=specimen_id)
         return qs
-
 
 class AssessmentDraftView(AuditMixin, viewsets.ViewSet):
     """PUT /studies/{id}/assessment/draft — 임시저장(덮어쓰기)."""
