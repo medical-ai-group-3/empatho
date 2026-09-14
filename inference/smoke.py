@@ -50,7 +50,8 @@ def main() -> int :
     
     status, d = post_image("4", png)
     ok &= check("POST /analyze/4 가 200", status == 200, f"HTTP {status}")
-    ok &= check("socket_id 를 그대로 돌려줌", d.get("socket_id") == "4")
+    ok &= check("4 -> 5 로 넘김", d.get("socket_id")== "5")
+    
     got = d.get("image", {}).get("bytes")
     ok &= check("이미지가 온전히 도착", got == len(png), f"{got} / {len(png)}")
     
