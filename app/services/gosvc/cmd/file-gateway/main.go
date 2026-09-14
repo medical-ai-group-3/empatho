@@ -542,6 +542,18 @@ func (g *gw) ingestDICOM(ctx context.Context, key, patient, scope string,
 	out["metadata_registered"] = true
 	log.Printf("[G-F7] I-2 key=%s %s %s%s %dx%d",
 		key, m.Modality, m.Laterality, m.ViewPosition, m.Columns, m.Rows)
+
+	// DICOM 은 Orthanc 에만 둔다. Orthanc 에 저장이 확인됐고(시리즈 ID) I-2 가 성공했을
+	// 때만 Garage 사본을 지운다 — Django 는 I-2 에서 이 행의 주소를 Orthanc 로 옮겼다.
+	// 전송 실패 · 409 중복(ID 모름) · I-2 실패면 여기 오지 않거나 ID 가 비어 사본이 남는다.
+	// 지우기가 실패해도 파일이 남을 뿐이라 요청은 성공으로 둔다.
+	if cm.OrthancSeriesID != "" {
+		if err := g.st.Delete(ctx, key); err != nil {
+			log.Printf("[G-F7] ⚠ Garage 사본 삭제 실패 key=%s: %v", key, err)
+		} else {
+			out["garage_deleted"] = true
+		}
+	}
 	return out
 }
 

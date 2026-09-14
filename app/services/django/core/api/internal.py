@@ -288,7 +288,13 @@ class DicomInstanceCallback(InternalCallbackView):
         obj.pixel_spacing_mm = self._spacing(p.get("pixel_spacing"), object_key)
         obj.has_geometry = self._has_geometry(p)
         # Garage 와 Orthanc 양쪽에 있는 것이 정상이다 (0008 에서 제약 완화).
+        # DICOM 은 Orthanc 에만 둔다. Orthanc 에 저장이 확인되면 주소를 Orthanc 로 옮기고
+        # Garage 키를 비운다 — Go 가 I-2 성공 뒤 Garage 사본을 지운다.
+        # 전송이 실패해 ID 가 없으면 키를 남긴다. 그 파일은 Garage 에만 있다.
         obj.orthanc_series_id = p.get("orthanc_series_id") or None
+        if obj.orthanc_series_id:
+            obj.bucket = None
+            obj.object_key = None
 
         with transaction.atomic():
             obj.save()

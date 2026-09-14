@@ -1092,3 +1092,56 @@ func TestDicomInstanceNotFound(t *testing.T) {
 		t.Fatalf("없는 인스턴스에 %d", w.Code)
 	}
 }
+
+// ── DICOM 은 Orthanc 에만 ─────────────────────────────────────────────
+
+// garageHas — FS 저장소에 그 키의 파일이 남아 있는가.
+func (r *rig) garageHas(key string) bool {
+	_, err := os.Stat(filepath.Join(r.root, filepath.FromSlash(key)))
+	return err == nil
+}
+
+// Orthanc 가 시리즈 ID 를 주고 I-2 가 성공하면 Garage 사본이 사라진다.
+func TestDicomDeletedFromGarageAfterOrthanc(t *testing.T) {
+	r := newRig(t)
+	r.withOrthanc(t, map[string]string{
+		"POST /instances": `{"ID":"inst-1","ParentSeries":"ser-1","ParentStudy":"st-1","Status":"Success"}`,
+	})
+	w := r.do(t, "POST", "/svc/v1/files", mint(t),
+		bytes.NewReader(mgDICOM("1.2.3.SOP", "R", "CC", `0.07\0.07`)), "X-Filename", "a.dcm")
+	if w.Code != 201 {
+		t.Fatalf("%d %s", w.Code, w.Body)
+	}
+	key := decode(t, w)["object_key"].(string)
+	if r.garageHas(key) {
+		t.Errorf("Orthanc 저장 뒤에도 Garage 에 사본이 남았다: %s", key)
+	}
+	if len(r.dicoms()) != 1 || r.dicoms()[0].Dicom.OrthancSeriesID != "ser-1" {
+		t.Errorf("I-2 에 Orthanc 시리즈 ID 가 안 실렸다")
+	}
+}
+
+// I-2 가 실패하면 DB 가 아직 Garage 를 가리키므로 지우면 안 된다.
+func TestDicomKeptWhenI2Fails(t *testing.T) {
+	r := newRig(t)
+	r.failPath = "/internal/v1/dicom-instances"
+	r.withOrthanc(t, map[string]string{
+		"POST /instances": `{"ID":"inst-1","ParentSeries":"ser-1","Status":"Success"}`,
+	})
+	w := r.do(t, "POST", "/svc/v1/files", mint(t),
+		bytes.NewReader(mgDICOM("1.2.3.SOP", "R", "CC", `0.07\0.07`)), "X-Filename", "a.dcm")
+	if key := decode(t, w)["object_key"].(string); !r.garageHas(key) {
+		t.Errorf("I-2 실패인데 Garage 사본을 지웠다: %s", key)
+	}
+}
+
+// Orthanc 가 ID 없이 답하면(409 중복 등) 어디에 있는지 모르므로 남긴다.
+func TestDicomKeptWhenOrthancHasNoID(t *testing.T) {
+	r := newRig(t)
+	r.withOrthanc(t, map[string]string{"POST /instances": `{"Status":"Success"}`})
+	w := r.do(t, "POST", "/svc/v1/files", mint(t),
+		bytes.NewReader(mgDICOM("1.2.3.SOP", "R", "CC", `0.07\0.07`)), "X-Filename", "a.dcm")
+	if key := decode(t, w)["object_key"].(string); !r.garageHas(key) {
+		t.Errorf("Orthanc ID 가 없는데 Garage 사본을 지웠다: %s", key)
+	}
+}
