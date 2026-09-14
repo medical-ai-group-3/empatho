@@ -30,6 +30,7 @@ import (
 	"time"
 
 	"cdss/gosvc/internal/callback"
+	"cdss/gosvc/internal/orthanc"
 	"cdss/gosvc/internal/storage"
 	"cdss/gosvc/internal/ticket"
 	"cdss/gosvc/internal/upload"
@@ -1010,5 +1011,84 @@ func TestGetDerived(t *testing.T) {
 		mint(t, func(c *ticket.Claims) { c.Purpose = "download" }), nil)
 	if o.Code != 404 {
 		t.Errorf("원본 경로에서는 404 여야 한다. got=%d", o.Code)
+	}
+}
+
+// ── DICOM 내려받기 ──────────────────────────────────────────────────
+
+// withOrthanc — 가짜 Orthanc 를 붙인다. "메서드 경로" → 돌려줄 본문. 없는 경로는 404.
+func (r *rig) withOrthanc(t *testing.T, routes map[string]string) {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		body, ok := routes[req.Method+" "+req.URL.Path]
+		if !ok {
+			w.WriteHeader(404)
+			return
+		}
+		w.Write([]byte(body))
+	}))
+	t.Cleanup(srv.Close)
+	r.g.or = orthanc.New(srv.URL, "", "")
+}
+
+func dicomTicket(t *testing.T, scope string) string {
+	return mint(t, func(c *ticket.Claims) { c.Purpose = "download"; c.ObjectKeyPrefix = scope })
+}
+
+func TestDicomInstanceDownload(t *testing.T) {
+	r := newRig(t)
+	r.withOrthanc(t, map[string]string{
+		"POST /tools/lookup":         `[{"ID":"inst-1","Type":"Instance"}]`,
+		"GET /instances/inst-1/file": "DICM원본",
+	})
+	w := r.do(t, "GET", "/svc/v1/dicom/instances/1.2.3", dicomTicket(t, "dicom/instances/1.2.3"), nil)
+	if w.Code != 200 || w.Body.String() != "DICM원본" {
+		t.Fatalf("%d %q", w.Code, w.Body.String())
+	}
+}
+
+func TestDicomSeriesDownload(t *testing.T) {
+	r := newRig(t)
+	r.withOrthanc(t, map[string]string{"GET /series/ab-1/archive": "PK시리즈zip"})
+	w := r.do(t, "GET", "/svc/v1/dicom/series/ab-1", dicomTicket(t, "dicom/series/ab-1"), nil)
+	if w.Code != 200 || w.Body.String() != "PK시리즈zip" {
+		t.Fatalf("%d %q", w.Code, w.Body.String())
+	}
+}
+
+// 접두사로 시작만 보면 ab-1 티켓으로 ab-12 를 연다. 다른 종류(인스턴스 ↔ 시리즈)도 막는다.
+func TestDicomRejectsOtherScope(t *testing.T) {
+	r := newRig(t)
+	r.withOrthanc(t, map[string]string{"GET /series/ab-12/archive": "남의 시리즈"})
+	for _, c := range []struct{ path, scope string }{
+		{"/svc/v1/dicom/series/ab-12", "dicom/series/ab-1"},
+		{"/svc/v1/dicom/series/ab-12", "dicom/instances/ab-12"},
+	} {
+		if w := r.do(t, "GET", c.path, dicomTicket(t, c.scope), nil); w.Code != 403 {
+			t.Errorf("%s 를 %s 티켓으로 %d", c.path, c.scope, w.Code)
+		}
+	}
+}
+
+// Orthanc 경로에 그대로 들어가는 값이다. 형식 밖 글자는 Orthanc 에 닿기 전에 거절한다.
+func TestDicomRejectsBadID(t *testing.T) {
+	r := newRig(t)
+	r.withOrthanc(t, map[string]string{})
+	for _, p := range []string{
+		"/svc/v1/dicom/series/..%2Fsystem",
+		"/svc/v1/dicom/instances/1.2.3%2F..",
+	} {
+		if w := r.do(t, "GET", p, dicomTicket(t, "dicom/series/x"), nil); w.Code != 400 {
+			t.Errorf("%s → %d", p, w.Code)
+		}
+	}
+}
+
+func TestDicomInstanceNotFound(t *testing.T) {
+	r := newRig(t)
+	r.withOrthanc(t, map[string]string{"POST /tools/lookup": `[]`})
+	w := r.do(t, "GET", "/svc/v1/dicom/instances/9.9", dicomTicket(t, "dicom/instances/9.9"), nil)
+	if w.Code != 404 {
+		t.Fatalf("없는 인스턴스에 %d", w.Code)
 	}
 }

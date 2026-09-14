@@ -123,6 +123,8 @@ func (g *gw) routes() *http.ServeMux {
 	mux.HandleFunc("GET /svc/v1/files/{key...}", g.getFile)
 	mux.HandleFunc("POST /svc/v1/derived", g.putDerived)
 	mux.HandleFunc("GET /svc/v1/derived/{key...}", g.getDerived)
+	mux.HandleFunc("GET /svc/v1/dicom/instances/{sop}", g.getDicomInstance)
+	mux.HandleFunc("GET /svc/v1/dicom/series/{id}", g.getDicomSeries)
 	mux.HandleFunc("GET /svc/v1/health", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 200, map[string]any{"ok": true,
 			"bucket": g.st.Bucket(), "derived_bucket": bucketName(g.der)})
@@ -593,6 +595,74 @@ func (g *gw) getDerived(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	g.getFrom(w, r, cl, g.der)
+}
+
+// ── DICOM 내려받기 ──────────────────────────────────────────────────
+//
+// DICOM 은 Orthanc 에만 둔다. 워커는 Orthanc 에 직접 가지 않고 여기서 받는다.
+//
+//	GET /svc/v1/dicom/instances/{sop}   맘모 한 장 — SOP UID 로 찾아 원본 파일
+//	GET /svc/v1/dicom/series/{id}       MRI 시리즈 zip — id 는 Orthanc 시리즈 ID
+//
+// 값이 Orthanc 경로에 그대로 들어가므로 글자를 좁힌다. %2F 로 다른 경로를 부르지 못한다.
+func (g *gw) getDicomInstance(w http.ResponseWriter, r *http.Request) {
+	sop := r.PathValue("sop")
+	if strings.Trim(sop, "0123456789.") != "" {
+		fail(w, 400, "BAD_REQUEST", "SOP UID 는 숫자와 점만 쓴다")
+		return
+	}
+	g.fromOrthanc(w, r, "dicom/instances/"+sop, func(ctx context.Context) (string, error) {
+		id, err := g.or.Lookup(ctx, sop)
+		return "/instances/" + id + "/file", err
+	})
+}
+
+func (g *gw) getDicomSeries(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if strings.Trim(id, "0123456789abcdef-") != "" {
+		fail(w, 400, "BAD_REQUEST", "Orthanc 시리즈 ID 형식이 아니다")
+		return
+	}
+	g.fromOrthanc(w, r, "dicom/series/"+id, func(context.Context) (string, error) {
+		return "/series/" + id + "/archive", nil
+	})
+}
+
+// fromOrthanc = 티켓 범위를 확인하고 Orthanc 응답을 그대로 흘려보낸다
+// path 는 티켓 검사를 통과한 뒤에만 부른다 - 권한없는 요청으로 orthanc 를 조회하지 않는다
+func (g *gw) fromOrthanc(w http.ResponseWriter, r *http.Request, scope string, path func(context.Context) (string, error)) {
+	cl := g.auth(w, r, purposeDownload)
+	if cl == nil {
+		return
+	}
+	// 파일 경로와 달리 시작만 보지 않는다 - dicom/series/ab 티켓으로 ab12를 열면 안된다.
+	if cl.ObjectKeyPrefix != scope {
+		fail(w, 403, "TICKET_SCOPE_MISMATCH", "티켓 범위 밖 DICOM 이다")
+		return
+	}
+	if g.or == nil {
+		fail(w, 503, "ORTHANC_DISABLED", "ORTHANC_URL 이 설정되어 있지 않다")
+		return
+	}
+	p, err := path(r.Context())
+	if err == nil {
+		var res *http.Response
+		if res, err = g.or.Get(r.Context(), p); err == nil {
+			defer res.Body.Close()
+			w.Header().Set("Content-Type", res.Header.Get("Content-Type"))
+			// 길이를 넘겨야 중간에 끊겼을 때 받는 쪽이 알아챈다
+			if n := res.Header.Get("Content-Length"); n != "" {
+				w.Header().Set("Content-Length", n)
+			}
+			io.Copy(w, res.Body)
+			return
+		}
+	}
+	if errors.Is(err, orthanc.ErrNotFound) {
+		fail(w, 404, "OBJECT_NOT_FOUND", err.Error())
+		return
+	}
+	fail(w, 502, "ORTHANC_FAILED", err.Error())
 }
 
 func (g *gw) getFrom(w http.ResponseWriter, r *http.Request,
