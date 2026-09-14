@@ -212,7 +212,11 @@ func (g *gw) auth(w http.ResponseWriter, r *http.Request, want ...string) *ticke
 // 그래야 남의 자리에 못 쓴다.
 func keyFor(cl *ticket.Claims, filename string) string {
 	// 확장자만 뽑는다. 경로 구분자·상위 참조가 섞여 들어오면 버린다.
-	ext := strings.ToLower(path.Ext(path.Base(filepath.ToSlash(filename))))
+	base := strings.ToLower(path.Base(filepath.ToSlash(filename)))
+	ext := path.Ext(base)
+	if strings.HasSuffix(base, ".nii.gz") {
+		ext = ".nii.gz"
+	}
 	if len(ext) > 12 || strings.ContainsAny(ext, `/\`) || strings.Contains(ext, "..") {
 		ext = ""
 	}

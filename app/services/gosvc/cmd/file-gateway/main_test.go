@@ -582,6 +582,12 @@ func TestKeyForIsUnique(t *testing.T) {
 		seen[k] = true
 	}
 }
+func TestKeyForKeepsNiiGz(t *testing.T) {
+	cl := &ticket.Claims{ObjectKeyPrefix: prefix}
+	if k := keyFor(cl, "duke_465_0000.nii.gz"); !strings.HasSuffix(k, ".nii.gz") {
+		t.Errorf("확장자가 잘렸다: %s", k)
+	}
+}
 
 // ── I-1 실패 ────────────────────────────────────────────────────────
 
