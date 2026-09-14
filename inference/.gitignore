@@ -4,3 +4,4 @@ models/
 *.sock
 __pycache__/
 *.pyc
+/graphify-out

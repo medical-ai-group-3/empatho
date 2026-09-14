@@ -11,3 +11,6 @@ from prompts import mammo, mri, us, pathology
 MODULES = (us, mammo, mri, pathology)
 
 PROMPTS = {sid: mod for mod in MODULES for sid in mod.SOCKET_IDS}
+
+# 앱 서버는 모달리티 이름으로 부르기 때문에 번호로 불러도 깨지지않게 둘 다 받음
+PROMPTS.update({"us": us, "mammo": mammo, "mri": mri, "pathology": pathology})
