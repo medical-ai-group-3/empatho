@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────
-   EMPATHO 콘솔 — 화면 규칙
+   EMPATHO 병원 웹 — 화면 규칙
 
    **여기에는 숫자를 쓰지 않는다.** 전부 tokens.css 의 이름을 부른다.
    예외는 환자 앱과 같은 셋이다.
@@ -404,3 +404,153 @@ input,select,textarea{font:inherit; color:inherit}
 @media (prefers-reduced-motion:reduce){
   *{transition:none!important; animation:none!important}
 }
+
+/* ── 이름–값 표 ───────────────────────────────────────────────
+   「검체번호 · S-2026-00126」처럼 짝을 늘어놓는 자리. 화면 여럿이 쓴다.
+   항목 이름 칸을 고정 폭으로 두어야 값이 세로로 줄을 맞춘다 — 눈이
+   값만 훑을 수 있다. */
+.kv{margin:0; display:flex; flex-direction:column; gap:var(--kv-gap)}
+.kv > div{display:flex; align-items:baseline; gap:var(--gap-sm)}
+.kv dt{width:var(--kv-k); flex:none; font-size:var(--label-fs);
+  color:var(--warm)}
+.kv.wide dt{width:var(--kv-k-wide)}
+.kv dd{margin:0; flex:1; min-width:0; font-size:var(--kv-fs)}
+.kv dd b{font-weight:600}
+.kv.two{display:grid; grid-template-columns:1fr 1fr; gap:var(--kv-gap) var(--gap)}
+
+/* ── 환자 머리 ───────────────────────────────────────────── */
+.ph{display:flex; align-items:center; gap:var(--gap-sm)}
+.ph .ava{width:var(--ph-ava); height:var(--ph-ava); border-radius:50%;
+  background:var(--wash); color:var(--ink); font-size:var(--ph-ava-fs);
+  font-weight:700; flex:none;
+  display:flex; align-items:center; justify-content:center}
+.ph-tx{flex:1; min-width:0; display:flex; flex-direction:column; line-height:1.35}
+.ph-tx b{font-family:var(--font-head); font-size:var(--ph-nm-fs); font-weight:600}
+.ph-tx span{font-size:var(--hint-fs); color:var(--warm)}
+
+/* ── 알림 상자 — 색이 아니라 옅은 면으로 ─────────────────── */
+.info{background:var(--wash); border-radius:var(--info-radius);
+  padding:var(--info-pad); display:flex; gap:var(--gap-sm)}
+.info i{font-style:normal; flex:none}
+.info-tx{display:flex; flex-direction:column; gap:var(--gap-xs); min-width:0}
+.info-tx b{font-size:var(--kv-fs); font-weight:600}
+.info-tx span{font-size:var(--hint-fs); color:var(--ink-2)}
+
+/* ── 첨부 · 파일 ─────────────────────────────────────────── */
+.files{display:flex; flex-direction:column; gap:var(--gap-sm)}
+.file{display:flex; align-items:center; gap:var(--sub-gap);
+  padding:var(--file-pad-y) var(--in-pad-x); border-radius:var(--file-radius);
+  background:var(--canvas); box-shadow:inset 0 0 0 var(--hair) var(--border);
+  font-size:var(--hint-fs); color:var(--ink-2)}
+.file i{font-style:normal; color:var(--warm); flex:none}
+.file span{color:var(--warm)}
+
+/* ── 썸네일 ──────────────────────────────────────────────── */
+.thumbs{display:flex; gap:var(--gap-sm); flex-wrap:wrap}
+.thumb{display:flex; flex-direction:column; gap:var(--gap-xs);
+  font-size:var(--hint-fs); color:var(--warm); text-align:center}
+.thumb i{display:block; width:var(--thumb); height:var(--thumb);
+  border-radius:var(--file-radius); background:var(--soot)}
+.thumb.lg i{width:var(--thumb-lg); height:calc(var(--thumb-lg) * .72)}
+.thumb.on i{box-shadow:0 0 0 var(--focus-w) var(--cyan)}
+
+/* ── 슬라이드 목록 ───────────────────────────────────────── */
+.slides{list-style:none; margin:0; padding:0; display:flex;
+  flex-direction:column; gap:var(--gap-5)}
+.slides button{display:flex; align-items:center; gap:var(--sub-gap);
+  width:100%; padding:var(--slide-pad); border-radius:var(--file-radius);
+  font-size:var(--kv-fs); position:relative;
+  box-shadow:inset 0 0 0 var(--hair) var(--border)}
+.slides button:hover{background:var(--canvas)}
+.slides .on button{background:var(--wash); box-shadow:none}
+.slides .on button::before{content:""; position:absolute; left:0; top:var(--sub-gap);
+  bottom:var(--sub-gap); width:var(--slide-mark); border-radius:var(--round);
+  background:var(--cyan)}
+
+/* ── 레이어 켜고 끄기 — 뷰어 안 ──────────────────────────── */
+.layers{display:flex; flex-direction:column; gap:var(--gap-xs);
+  background:var(--v-card); border:var(--hair) solid var(--v-line);
+  border-radius:var(--file-radius); padding:var(--layer-pad)}
+.layers label{display:flex; align-items:center; gap:var(--sub-gap);
+  font-size:var(--v-fs); color:var(--v-ink); cursor:pointer}
+.layers input{accent-color:var(--cyan)}
+.layers .sw{width:var(--layer-sw); height:var(--layer-sw); border-radius:var(--radius-xxs);
+  flex:none; background:var(--v-warm)}
+
+/* 뷰어 위에 얹히는 것들 */
+.vfloat{position:absolute; right:var(--v-pad); bottom:var(--v-pad); z-index:2}
+.vmeta{position:absolute; right:var(--v-pad); top:var(--v-pad); z-index:2;
+  font-size:var(--hint-fs); color:var(--v-warm)}
+
+/* ── 입력 서식 ───────────────────────────────────────────── */
+.field{display:flex; flex-direction:column; gap:var(--gap-xs)}
+.field > span{font-size:var(--label-fs); color:var(--warm)}
+.field .req{color:var(--cyan)}
+.field input,.field select,.field textarea{width:100%; border:none;
+  background:var(--card); border-radius:var(--in-radius);
+  padding:var(--in-pad-y) var(--in-pad-x); font-size:var(--in-fs);
+  box-shadow:inset 0 0 0 var(--hair) var(--border); outline:none}
+.field textarea{min-height:var(--ta-h); resize:vertical;
+  line-height:var(--body-lh); font-family:inherit}
+.field textarea.lg{min-height:var(--ta-h-lg)}
+.field input:focus,.field select:focus,.field textarea:focus{
+  box-shadow:inset 0 0 0 var(--focus-w) var(--cyan)}
+.field ::placeholder{color:var(--faint)}
+.count{align-self:flex-end; font-size:var(--hint-fs); color:var(--faint)}
+
+/* 갈래 고르기 — 악성 / 양성 / 경계성 */
+.seg{display:flex; gap:var(--chip-gap)}
+.seg button{flex:1; text-align:center; border-radius:var(--round);
+  padding:var(--seg-pad-y) var(--chip-pad-x); font-size:var(--chip-fs);
+  font-weight:600; color:var(--warm);
+  box-shadow:inset 0 0 0 var(--hair) var(--border)}
+.seg button.on{background:var(--soot); color:var(--soot-ink); box-shadow:none}
+
+/* ── 편집기 줄 ───────────────────────────────────────────── */
+.rte{border-radius:var(--in-radius);
+  box-shadow:inset 0 0 0 var(--hair) var(--border); overflow:hidden}
+.rte-bar{display:flex; align-items:center; gap:var(--gap-xxs);
+  height:var(--rte-h); padding:0 var(--sub-gap);
+  border-bottom:var(--hair) solid var(--border); background:var(--canvas)}
+.rte-bar button{width:var(--rte-btn); height:var(--rte-btn); border-radius:var(--radius-xs);
+  color:var(--warm); display:flex; align-items:center; justify-content:center;
+  font-size:var(--chip-fs)}
+.rte-bar button:hover{background:var(--card); color:var(--ink)}
+.rte-bar .div{width:var(--hair); height:var(--rte-btn); background:var(--border);
+  margin:0 var(--gap-xs)}
+.rte textarea{border-radius:0; box-shadow:none; min-height:var(--ta-h-lg)}
+.rte textarea:focus{box-shadow:none}
+
+/* ── 쪽 넘김 ─────────────────────────────────────────────── */
+.pg{display:flex; align-items:center; gap:var(--gap-xxs)}
+.pg button{min-width:var(--pg-btn); height:var(--pg-btn); border-radius:var(--radius-sm);
+  font-size:var(--chip-fs); color:var(--warm); padding:0 var(--gap-xs);
+  display:flex; align-items:center; justify-content:center}
+.pg button:hover{background:var(--canvas); color:var(--ink)}
+.pg button.on{background:var(--soot); color:var(--soot-ink)}
+
+/* ── 읽기 전용 소견 ──────────────────────────────────────── */
+.readout{font-size:var(--kv-fs); line-height:1.75; display:flex;
+  flex-direction:column; gap:var(--card-gap)}
+.readout h3{font-size:var(--label-fs); color:var(--warm); font-weight:600;
+  font-family:var(--font-ui); letter-spacing:.02em}
+.readout p{margin:0}
+.readout ul{margin:0; padding-left:1.1em; display:flex;
+  flex-direction:column; gap:var(--gap-xs)}
+.readout .by{font-size:var(--hint-fs); color:var(--warm)}
+
+/* ── 카드 안 작은 구역 제목 ───────────────────────────────────
+   「검체 정보 (요청 정보)」처럼 한 카드 안에서 묶음을 가르는 자리.
+   카드 제목(.card-h h2)보다 작고 조용하다 — 카드가 하나의 주제이고
+   이건 그 안의 소제목이라 위계가 한 단 아래여야 한다. */
+.seck{margin:var(--gap-sm) 0 0; font-family:var(--font-ui);
+  font-size:var(--label-fs); font-weight:600; color:var(--warm);
+  letter-spacing:.02em}
+.card-b > .seck:first-child{margin-top:0}
+
+/* 본문 한 줄 — 임상 정보처럼 문장으로 오는 것 */
+.note{margin:0; font-size:var(--kv-fs); color:var(--ink-2);
+  line-height:var(--body-lh)}
+
+/* 칩을 나란히 */
+.row-chips{display:flex; flex-wrap:wrap; gap:var(--chip-gap)}

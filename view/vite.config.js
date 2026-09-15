@@ -3,6 +3,7 @@ import react from "@vitejs/plugin-react";
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import hospitalMock from "./mock/hospital.js";  
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -175,7 +176,7 @@ function mockApi() {
 export default defineConfig(({ mode }) => {
   const MOCK = mode === "mock";
   return {
-  plugins: [react(), ...(MOCK ? [mockApi()] : [])],
+    plugins: [react(), ...(MOCK ? [hospitalMock(), mockApi()] : [])],
 
   /* 빌드 결과는 **이 저장소 안**에 낸다.
      전에는 resolve(here, "../../web-dist") 였다. empatho-app 안에 있을
@@ -191,7 +192,7 @@ export default defineConfig(({ mode }) => {
     rollupOptions: {
       input: {
         main:    resolve(here, "index.html"),
-        console: resolve(here, "console.html"),
+        hospital: resolve(here, "hospital.html"),
       },
     },
   },

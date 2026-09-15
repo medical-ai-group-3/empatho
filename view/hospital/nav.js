@@ -170,7 +170,7 @@ export const DEPTS = [
 
 /* ── 아래는 표에서 뽑아 쓰는 것들 ───────────────────────────── */
 
-export const ROOT = "/console";
+export const ROOT = "/hospital";
 
 /** 부서 하나의 주소.  /console/pathology */
 export const deptPath = (d) => `${ROOT}/${d.key}`;

@@ -5,8 +5,13 @@ import { BrowserRouter, Link, Outlet, Route, Routes } from "react-router-dom";
 import { DEPTS, HOSPITAL, PRODUCT, ROOT, deptPath, findDept, screenCount,
          screenPath } from "./nav";
 import Skeleton from "./Skeleton";
+import PathAmend from "./screens/path/Amend";
+import PathPatients from "./screens/path/Patients";
+import PathRead from "./screens/path/Read";
+import PathSpecimens from "./screens/path/Specimens";
+import PathUpload from "./screens/path/Upload";
 import Top from "./lib/Top";
-import "./console.css";
+import "./hospital.css";
 
 /* 의료진용 콘솔 — 진입점.
  *
@@ -18,7 +23,7 @@ import "./console.css";
  * / 를 쓴다 — 입구가 둘이라 CSS 와 토큰은 안 섞이지만 **주소는 한
  * 서버에서 나가므로** 앞머리로 갈라 준다.
  *
- * ⚠ nginx 에 한 줄이 필요하다. /console 로 들어온 요청은 console.html 을
+ * ⚠ nginx 에 한 줄이 필요하다. /hospital 로 들어온 요청은 hospital.html 을
  *   돌려줘야 새로고침해도 살아난다. 지금 규칙은 전부 index.html 로
  *   보내므로, 그대로 두면 콘솔 주소에서 환자 앱이 뜬다.
  */
@@ -101,14 +106,29 @@ function Missing() {
   );
 }
 
+/* 진짜로 만든 화면. 표(nav.js)의 «부서/화면» 열쇠로 찾는다.
+   여기 없는 것은 뼈대(Skeleton)가 대신 그린다 — 자리는 잡혀 있고
+   내용만 안 들어간 상태다. 화면 하나가 완성될 때마다 여기 한 줄씩
+   더하면 되고, 라우팅은 안 건드린다. */
+const REAL = {
+  "pathology/":         PathSpecimens,
+  "pathology/patients": PathPatients,
+  "pathology/upload":   PathUpload,
+  "pathology/read":     PathRead,
+  "pathology/amend":    PathAmend,
+};
+
 /* 표 한 줄 → Route 하나 */
 function routesOf(d) {
-  return d.screens.map((s) => (
-    <Route key={s.key || "_"}
-           path={s.key || undefined}
-           index={!s.key}
-           element={<Skeleton dept={d} screen={s} />} />
-  ));
+  return d.screens.map((s) => {
+    const Real = REAL[`${d.key}/${s.key}`];
+    return (
+      <Route key={s.key || "_"}
+             path={s.key || undefined}
+             index={!s.key}
+             element={Real ? <Real /> : <Skeleton dept={d} screen={s} />} />
+    );
+  });
 }
 
 const p2 = (n) => String(n).padStart(2, "0");
@@ -130,7 +150,7 @@ createRoot(document.getElementById("root")).render(
           ))}
         </Route>
         {/* ⚠ 뿌리 주소를 여기서 다루지 않는다. 그 자리는 환자 앱 것이다.
-            병원 웹은 /console 아래만 맡는다 — 한 저장소에 있을 뿐
+            병원 웹은 /hospital 아래만 맡는다 — 한 저장소에 있을 뿐
             서로 다른 물건이고, 뿌리를 가로채면 둘이 엉킨다. */}
         <Route path="*" element={<div className="app"><Missing /></div>} />
       </Routes>

@@ -1,0 +1,548 @@
+{
+  "__README": [
+    "병원 웹(의료진용) 가짜 API. 환자 앱의 mock/db.json 과 **다른 파일**이다.",
+    "주소가 /api/v1/hospital/... 로 갈리고, 로그인 쿠키도 갈린다.",
+    "이 응답의 모양이 곧 Django 와의 계약이다. 규격을 다듬을 일이 생기면",
+    "여기서 다듬어 그대로 전달한다.",
+    "담긴 자료는 **전부 지어낸 것**이다. 실제 환자 자료를 넣지 않는다.",
+    "열쇠의 {id} 는 아무 값이나 맞는다(mock/hospital.js).",
+    "그래서 어느 환자를 눌러도 화면이 돌지만, 돌아오는 자료는 늘 같다."
+  ],
+  "GET /api/v1/hospital/pathology/specimens": {
+    "stats": [
+      {
+        "label": "대기",
+        "n": 7
+      },
+      {
+        "label": "슬라이드 제작",
+        "n": 2
+      },
+      {
+        "label": "AI 분석 중",
+        "n": 4
+      },
+      {
+        "label": "판독 완료",
+        "n": 11
+      }
+    ],
+    "items": [
+      {
+        "id": "00126",
+        "seq": 1,
+        "name": "이정민",
+        "patient_no": "P-2026-00417",
+        "specimen_no": "S-2026-00126",
+        "sex": "여",
+        "age": 52,
+        "site": "좌측 유방",
+        "kind": "Core Needle",
+        "bound": true
+      },
+      {
+        "id": "00127",
+        "seq": 2,
+        "name": "윤서현",
+        "patient_no": "P-2026-00402",
+        "specimen_no": "S-2026-00127",
+        "sex": "여",
+        "age": 54,
+        "site": "우측 유방",
+        "kind": "Core Needle",
+        "bound": false
+      },
+      {
+        "id": "00128",
+        "seq": 3,
+        "name": "오세라",
+        "patient_no": "P-2026-00412",
+        "specimen_no": "S-2026-00128",
+        "sex": "여",
+        "age": 58,
+        "site": "좌측 유방",
+        "kind": "Vacuum-assisted",
+        "bound": false
+      },
+      {
+        "id": "00129",
+        "seq": 4,
+        "name": "박서연",
+        "patient_no": "P-2026-00418",
+        "specimen_no": "S-2026-00129",
+        "sex": "여",
+        "age": 47,
+        "site": "좌측 유방",
+        "kind": "Core Needle",
+        "bound": false
+      },
+      {
+        "id": "00130",
+        "seq": 5,
+        "name": "김도윤",
+        "patient_no": "P-2026-00415",
+        "specimen_no": "S-2026-00130",
+        "sex": "남",
+        "age": 61,
+        "site": "좌측 유두",
+        "kind": "Cytology",
+        "bound": false
+      },
+      {
+        "id": "00131",
+        "seq": 6,
+        "name": "한지우",
+        "patient_no": "P-2026-00413",
+        "specimen_no": "S-2026-00131",
+        "sex": "여",
+        "age": 33,
+        "site": "우측 유방",
+        "kind": "Core Needle",
+        "bound": false
+      },
+      {
+        "id": "00132",
+        "seq": 7,
+        "name": "최은영",
+        "patient_no": "P-2026-00416",
+        "specimen_no": "S-2026-00132",
+        "sex": "여",
+        "age": 39,
+        "site": "우측 유방",
+        "kind": "Core Needle",
+        "bound": false
+      }
+    ]
+  },
+  "GET /api/v1/hospital/pathology/specimens/{id}": {
+    "id": "S-2026-00126",
+    "patient": {
+      "name": "이정민",
+      "patient_no": "P-2026-00417",
+      "sex": "F",
+      "age": 52,
+      "birth_date": "1974.07.02"
+    },
+    "request": {
+      "dept": "유방외과",
+      "at": "2026-09-10",
+      "doctor": "이수정 교수"
+    },
+    "specimen": {
+      "no": "S-2026-00126",
+      "kind": "Core Needle Biopsy",
+      "method": "초음파 유도 (Ultrasound Guided)",
+      "taken_at": "2026-09-10 14:23",
+      "site": "좌측 유방",
+      "lesion": "L1 (좌측 유방 · 상외측)"
+    },
+    "bound": true,
+    "clinical": "좌측 상외측 유방에 만져지는 종괴로 조직검사 의뢰합니다.",
+    "imaging": {
+      "modality": "Ultrasound",
+      "read_at": "2026-09-08",
+      "finding": "좌측 상외측 18 × 12 mm 크기의 불규칙한 저에코성 병변",
+      "birads": "4A"
+    },
+    "attachments": [
+      {
+        "label": "검사 의뢰서",
+        "n": 1
+      },
+      {
+        "label": "병변 스냅샷",
+        "n": 1
+      },
+      {
+        "label": "기타 문서",
+        "n": 0
+      }
+    ],
+    "files": [
+      {
+        "name": "조직검사 의뢰서.pdf",
+        "kind": "doc",
+        "at": "2026-09-10 10:21"
+      },
+      {
+        "name": "병변 스냅샷.png",
+        "kind": "image",
+        "at": "2026-09-10 10:21"
+      }
+    ]
+  },
+  "GET /api/v1/hospital/pathology/cases": {
+    "total": 18,
+    "waiting": 4,
+    "items": [
+      {
+        "id": "S-2026-00126",
+        "seq": 1,
+        "patient_no": "P-2026-00417",
+        "specimen_no": "S-2026-00126",
+        "name": "이정민",
+        "age": 52,
+        "sex": "여",
+        "state": "판독 중",
+        "checked": false
+      },
+      {
+        "id": "S-2026-00127",
+        "seq": 2,
+        "patient_no": "P-2026-00402",
+        "specimen_no": "S-2026-00127",
+        "name": "윤서현",
+        "age": 54,
+        "sex": "여",
+        "state": "판독 완료",
+        "checked": true
+      },
+      {
+        "id": "S-2026-00128",
+        "seq": 3,
+        "patient_no": "P-2026-00412",
+        "specimen_no": "S-2026-00128",
+        "name": "오세라",
+        "age": 58,
+        "sex": "여",
+        "state": "판독 완료",
+        "checked": true
+      },
+      {
+        "id": "S-2026-00129",
+        "seq": 4,
+        "patient_no": "P-2026-00418",
+        "specimen_no": "S-2026-00129",
+        "name": "박서연",
+        "age": 47,
+        "sex": "여",
+        "state": "슬라이드 제작",
+        "checked": false
+      },
+      {
+        "id": "S-2026-00130",
+        "seq": 5,
+        "patient_no": "P-2026-00415",
+        "specimen_no": "S-2026-00130",
+        "name": "김도윤",
+        "age": 61,
+        "sex": "남",
+        "state": "AI 분석 중",
+        "checked": false
+      },
+      {
+        "id": "S-2026-00131",
+        "seq": 6,
+        "patient_no": "P-2026-00413",
+        "specimen_no": "S-2026-00131",
+        "name": "한지우",
+        "age": 33,
+        "sex": "여",
+        "state": "판독 완료",
+        "checked": true
+      }
+    ]
+  },
+  "GET /api/v1/hospital/pathology/cases/{id}": {
+    "id": "S-2026-00126",
+    "name": "이정민",
+    "patient_no": "P-2026-00417",
+    "specimen_no": "S-2026-00126",
+    "sex": "여",
+    "age": 52,
+    "kind": "Core Needle",
+    "site": "좌측 유방",
+    "scanned_at": "2026-09-15 11:02",
+    "slides": [
+      {
+        "label": "H&E 40x"
+      },
+      {
+        "label": "H&E 20x"
+      },
+      {
+        "label": "IHC HER2"
+      }
+    ],
+    "report": {
+      "diagnosis": "Invasive ductal carcinoma, NOS · Grade 2",
+      "ihc": "ER(+) PR(+) HER2 2+ · Ki-67 25%",
+      "note": "침윤성 관암종. HER2 equivocal → FISH 권고."
+    }
+  },
+  "GET /api/v1/hospital/pathology/cases/{id}/upload": {
+    "id": "S-2026-00126",
+    "patient": {
+      "name": "이정민",
+      "sex": "F",
+      "age": 52,
+      "birth_date": "1974.07.02",
+      "patient_no": "P-2026-00417",
+      "specimen_no": "S-2026-00126"
+    },
+    "requested": [
+      "H&E",
+      "IHC (ER/PR/HER2/Ki-67)"
+    ],
+    "doctor": "이수정 교수 (유방외과)",
+    "requested_at": "2026-09-10",
+    "purpose": "조직 진단 · 아형 확인",
+    "remark": "",
+    "pipeline": "AI 조직 분할 · 세포 검출 · TIL 추정",
+    "eta": "6분",
+    "files": [
+      {
+        "id": 1,
+        "name": "S-2026-00126_HE_40x.svs",
+        "series": "H&E (40x)",
+        "site": "좌측 유방",
+        "at": "09.15 11:02",
+        "size": "1.8 GB",
+        "done": true,
+        "pct": 100
+      },
+      {
+        "id": 2,
+        "name": "S-2026-00126_HE_20x.svs",
+        "series": "H&E (20x)",
+        "site": "좌측 유방",
+        "at": "09.15 11:06",
+        "size": "640 MB",
+        "done": true,
+        "pct": 100
+      },
+      {
+        "id": 3,
+        "name": "S-2026-00126_HER2.svs",
+        "series": "IHC (HER2)",
+        "site": "좌측 유방",
+        "at": "09.15 11:10",
+        "size": "1.2 GB",
+        "done": false,
+        "pct": 66
+      }
+    ]
+  },
+  "GET /api/v1/hospital/pathology/cases/{id}/read": {
+    "id": "S-2026-00126",
+    "state": "AI 분석 완료",
+    "mpp": "0.25",
+    "scalebar": "500 μm",
+    "patient": {
+      "name": "이정민",
+      "sex": "여",
+      "age": 52,
+      "patient_no": "P-2026-00417",
+      "specimen_no": "S-2026-00126",
+      "kind": "Core Needle",
+      "target": "좌측 상외측",
+      "from_dept": "유방외과"
+    },
+    "slides": [
+      {
+        "id": "he40",
+        "label": "H&E (40x)",
+        "zoom": 40
+      },
+      {
+        "id": "he20",
+        "label": "H&E (20x)",
+        "zoom": 20
+      },
+      {
+        "id": "her2",
+        "label": "IHC (HER2)",
+        "zoom": 20
+      }
+    ],
+    "linked": {
+      "modality": "유방 초음파",
+      "note": "좌측 상외측 병변",
+      "at": "2026-09-08"
+    },
+    "evidence": [
+      {
+        "label": "전체 슬라이드"
+      },
+      {
+        "label": "종양 영역 확대"
+      },
+      {
+        "label": "TIL 고밀도 영역"
+      },
+      {
+        "label": "낮은 TIL 영역"
+      },
+      {
+        "label": "기질 영역"
+      }
+    ],
+    "options": {
+      "diagnosis": [
+        "Invasive ductal carcinoma, NOS",
+        "Invasive lobular carcinoma",
+        "Ductal carcinoma in situ",
+        "Fibroadenoma",
+        "기타"
+      ],
+      "grade": [
+        "Grade 1",
+        "Grade 2",
+        "Grade 3"
+      ],
+      "her2": [
+        "0",
+        "1+",
+        "2+",
+        "3+"
+      ]
+    },
+    "doctor": {
+      "malignancy": "악성",
+      "diagnosis": "Invasive ductal carcinoma, NOS",
+      "grade": "Grade 2",
+      "her2": "2+",
+      "note": "좌측 유방 core needle biopsy: 침윤성 관암종, NOS. 핵 등급 2.\nER(+) PR(+) HER2 2+ → FISH 추가 검사 권고. Ki-67 약 25%."
+    },
+    "ai": {
+      "metrics": [
+        {
+          "key": "tumor_ratio",
+          "label": "종양 영역 비율",
+          "value": "62%"
+        },
+        {
+          "key": "til",
+          "label": "TIL 추정",
+          "value": "28% (중등도)"
+        },
+        {
+          "key": "grade",
+          "label": "핵 등급 제안",
+          "value": "Grade 2"
+        },
+        {
+          "key": "her2",
+          "label": "HER2 (IHC) 제안",
+          "value": "2+ (equivocal)"
+        },
+        {
+          "key": "conf",
+          "label": "확신도",
+          "value": "88%"
+        }
+      ],
+      "summary": {
+        "abstained": false
+      },
+      "lesions": [
+        {
+          "id": 1,
+          "kind": "tumor",
+          "label": "침윤성 관암종 의심",
+          "confidence": "high",
+          "descriptors": {
+            "영역": {
+              "value": "4.2 mm²",
+              "confidence": 0.88,
+              "verify": false
+            },
+            "권고": {
+              "value": "FISH 확인 권고",
+              "confidence": 0.74,
+              "verify": false
+            }
+          }
+        }
+      ],
+      "limitations": {
+        "병기(stage)": "조직 절편만으로는 병기를 판정할 수 없습니다. 영상·수술 소견이 필요합니다.",
+        "절제연": "core needle 검체라 절제연 평가가 성립하지 않습니다."
+      },
+      "disclaimer": "판독 보조이며 진단이 아닙니다. 제시하지 않은 영역에 병변이 없다는 뜻은 아닙니다."
+    }
+  },
+  "GET /api/v1/hospital/pathology/cases/{id}/amend": {
+    "id": "S-2026-00126",
+    "patient": {
+      "name": "이정민",
+      "sex": "여",
+      "age": 52,
+      "specimen_no": "S-2026-00126",
+      "kind": "Core Needle",
+      "site": "좌측 유방"
+    },
+    "slides": [
+      {
+        "label": "H&E 40x"
+      },
+      {
+        "label": "20x"
+      },
+      {
+        "label": "IHC HER2"
+      }
+    ],
+    "refs": [
+      "종양 영역",
+      "TIL",
+      "HER2"
+    ],
+    "categories": [
+      "면역조직화학 결과 변경",
+      "핵 등급 수정",
+      "조직학적 진단 변경",
+      "추가 검사 결과 반영",
+      "오기 정정"
+    ],
+    "prev": {
+      "at": "2026-09-15 14:10",
+      "by": "박민재 교수",
+      "sections": [
+        {
+          "head": "진단",
+          "lines": [
+            "Left breast, core needle biopsy: Invasive ductal carcinoma, NOS, nuclear grade 2."
+          ]
+        },
+        {
+          "head": "면역조직화학",
+          "lines": [
+            "ER: positive (90%, strong)",
+            "PR: positive (60%, moderate)",
+            "HER2: 2+ (equivocal) — FISH 권고",
+            "Ki-67: 약 25%"
+          ]
+        },
+        {
+          "head": "AI 참고",
+          "lines": [
+            "종양 영역 62% · TIL 28%"
+          ]
+        }
+      ]
+    }
+  },
+  "POST /api/v1/hospital/pathology/specimens/{id}/accept": {
+    "ok": true
+  },
+  "POST /api/v1/hospital/pathology/specimens/{id}/reject": {
+    "ok": true
+  },
+  "POST /api/v1/hospital/pathology/cases/{id}/analyze": {
+    "ok": true,
+    "eta_sec": 360
+  },
+  "PUT /api/v1/hospital/pathology/cases/{id}/read": {
+    "ok": true
+  },
+  "PUT /api/v1/hospital/pathology/cases/{id}/read/draft": {
+    "ok": true
+  },
+  "POST /api/v1/hospital/pathology/cases/{id}/read/false-positive": {
+    "ok": true
+  },
+  "POST /api/v1/hospital/pathology/cases/{id}/amend": {
+    "ok": true
+  }
+}
