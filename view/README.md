@@ -25,11 +25,21 @@ EMPATHO 유방암 임상의사결정지원 시스템의 **화면** 저장소.
 
 ```bash
 npm install
-
-npm run dev:mock    # 목업 자료로 혼자 돌린다 (서버 없이)
-npm run dev         # 진짜 서버에 붙는다
-npm run build       # dist/ 로 내보낸다 (두 입구가 같이 빌드된다)
 ```
+
+| 명령 | 하는 일 |
+|---|---|
+| `npm run dev:hos` | **병원 웹.** 목업으로 돌고 `/hospital` 을 바로 연다 |
+| `npm run dev:mock` | 목업으로 돌린다. 브라우저는 `/` — **환자 앱이 열린다** |
+| `npm run dev` | 진짜 서버에 붙는다 |
+| `npm run build` | `dist/` 로 내보낸다 (두 입구가 같이 빌드된다) |
+| `npm run preview` | 빌드 결과를 그대로 띄워 본다 |
+| `npm run lint` | oxlint |
+
+> **병원 웹을 보려는데 휴대폰 화면이 뜬다면** `dev:mock` 을 친 것이다.
+> 그 명령은 `/` 를 열고, 거기는 환자 앱 자리다. `dev:hos` 를 쓰거나
+> 주소창에 `/hospital` 을 직접 치면 된다. 둘 다 같은 서버라 한쪽을
+> 띄워 놓고 다른 주소로 옮겨 가도 된다.
 
 열 주소
 
