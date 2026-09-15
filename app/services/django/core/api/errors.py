@@ -82,6 +82,8 @@ INFRA_ERRORS = [
           "scope_id 의 study · specimen · report 가 없다. 재시도해도 같다"),
     _spec("UNSUPPORTED_PURPOSE", 422, "아직 받을 수 없는 purpose 입니다.",
           "담을 칸이 없다 — prescription_pdf 는 처방 표가 MVP 밖이다"),
+    _spec("ALREADY_ASSIGNED", 409, "다른 담당자가 이미 맡았습니다.",
+          "선착순 집기 — 조건부 UPDATE 가 0 행이면 던진다. 영상·병리 공용"),
 ]
 
 SPEC_CODES = frozenset(e.code for e in SPEC_ERRORS)
