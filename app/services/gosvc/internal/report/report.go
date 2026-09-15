@@ -98,6 +98,9 @@ type Response struct {
 	Dropped       []Dropped `json:"dropped"`
 	Fallback      *string   `json:"fallback"` // 뼈대 문장으로 되돌렸으면 그 사유
 	PromptVersion string    `json:"prompt_version"`
+	// 리포트 서버는 못 만들 때도 200을 준다. 그때 abstained=true 이고 소견이 없다
+	Abstained bool   `json:"abstained"`
+	Reason    string `json:"reason"`
 }
 
 type Client struct {
@@ -162,6 +165,11 @@ func (c *Client) Narrate(ctx context.Context, socket string, req Request) (*Resp
 	var out Response
 	if err := json.NewDecoder(io.LimitReader(res.Body, 1<<20)).Decode(&out); err != nil {
 		return nil, fmt.Errorf("%w: 응답을 못 읽었다: %v", ErrUpstream, err)
+	}
+	// 기권은 소견문이 없다는 뜻이다. 성공으로 넘기면 빈 소견문이 저장된다
+	// 리포트 서버가 기권하는 경우 모르는 소켓 하나 뿐이라 소켓 오류로 돌린다
+	if out.Abstained {
+		return nil, fmt.Errorf("%w: 리포트 서버가 기권했다 (%s)", ErrBadSocket, out.Reason)
 	}
 	return &out, nil
 }

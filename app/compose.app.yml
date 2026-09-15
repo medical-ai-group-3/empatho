@@ -27,6 +27,11 @@ services:
     image: redis:7-alpine
     container_name: redis
     restart: unless-stopped
+    # 대기 중인 판독 태스크를 재시작 재생성에도 남긴다 
+    # appendonly - 들어온 명령을 파일에 이어 적는다(1초 단위 반영) 없으면 스냅숏 사이의 태스트가 사라진다 
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -134,3 +139,4 @@ services:
 
 volumes:
   gw-spool: 
+  redis-data: 

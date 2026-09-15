@@ -249,3 +249,18 @@ func TestNew_기본_타임아웃(t *testing.T) {
 		t.Errorf("끝의 / 를 떼야 한다. got=%q", c.Base)
 	}
 }
+
+// 리포트 서버는 모르는 소켓에도 200+abstained 를 준다. 성공으로 넘기면 빈 소견문이 저장된다
+func TestNarrate_기권이면_소켓오류(t *testing.T) {
+	f := newFake(t)
+	f.respBody = `{"socket_id":"mammo", "abstained":true, "reason":"unknown_socket"}`
+	c := New(f.srv.URL, 5*time.Second)
+
+	res, err := c.Narrate(context.Background(), "mammo", Request{Result: json.RawMessage(`{}`)})
+	if !errors.Is(err, ErrBadSocket) {
+		t.Fatalf("기권을 소켓 오류로 돌려야 한다. res=%v err=%v", res, err)
+	}
+	if !strings.Contains(err.Error(), "unknown_socket") {
+		t.Errorf("사유가 오류에 남아야 한다: %v", err)
+	}
+}
