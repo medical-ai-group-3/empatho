@@ -305,7 +305,7 @@ func (g *gw) complete(w http.ResponseWriter, r *http.Request) {
 	// 분할 업로드는 원본 전용이다. 파생물은 메시 · 마스크라 한 번에 올라간다 —
 	// 필요해지면 여기에도 저장소를 골라 넘기면 된다.
 	g.commit(w, r, g.st, s.ObjectKey, sum, total, s.ContentType,
-		s.PatientID, s.ScopeID, s.Purpose, tap.b.Bytes())
+		s.PatientID, s.ScopeID, s.Purpose, tap.b.Bytes(), nil)
 }
 
 // headTap — 앞 max 바이트만 모으고 나머지는 버린다.
@@ -398,8 +398,12 @@ func (g *gw) putTo(w http.ResponseWriter, r *http.Request, cl *ticket.Claims,
 	if !parseDICOM {
 		head = nil // 파생물은 DICOM 이 아니다. 파싱도 Orthanc 전송도 건너뛴다
 	}
+	var derived map[string]string
+	if cl.Purpose == "derived_upload" {
+		derived = map[string]string{"kind": cl.Kind, "source_object_id": cl.SourceObjectID, "ai_result_id": cl.AiResultID, "lesion_id": cl.LesionID}
+	}
 	g.commit(w, r, st, key, hex.EncodeToString(h.Sum(nil)), cr.read, ct,
-		cl.PatientID, cl.ScopeID, cl.Purpose, head)
+		cl.PatientID, cl.ScopeID, cl.Purpose, head, derived)
 }
 
 // bucketName — 설정 안 된 저장소를 로그·health 에서 구분해 보여준다.
@@ -435,11 +439,12 @@ func (c *capReader) Read(p []byte) (int, error) {
 // 명세 21장이 그 상태를 정상으로 취급하지 말라고 못 박았으므로 502 로 알린다.
 func (g *gw) commit(w http.ResponseWriter, r *http.Request, st storage.Store,
 	key, sum string, size int64, ct, patient, scope, purpose string,
-	head []byte) {
+	head []byte, derived map[string]string) {
 	obj := callback.StorageObject{
 		Bucket: st.Bucket(), ObjectKey: key, ChecksumSHA256: sum,
 		ByteSize: size, ContentType: ct, StorageClass: g.cls,
 		PatientID: patient, ScopeID: scope, Purpose: purpose,
+		Derived: derived,
 	}
 	if err := g.cb.PostStorageObject(r.Context(), obj); err != nil {
 		log.Printf("[gw] ✗ I-1 실패 key=%s — 고아 객체가 된다: %v", key, err)

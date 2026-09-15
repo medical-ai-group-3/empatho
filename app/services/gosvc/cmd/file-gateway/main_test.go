@@ -1145,3 +1145,32 @@ func TestDicomKeptWhenOrthancHasNoID(t *testing.T) {
 		t.Errorf("Orthanc ID 가 없는데 Garage 사본을 지웠다: %s", key)
 	}
 }
+
+// 파생물 티켓의 클레이밍 파일 등록 콜백의 derived 블록으로 옮겨져야 Django가 image 행을 만듦
+func TestPutDerivedSendsDerivedBlock(t *testing.T) {
+	r := newRig(t)
+	tok := mintDerived(t, func(c *ticket.Claims) {
+		c.Kind, c.SourceObjectID, c.AiResultID = "mesh_breast", "12", "34"
+	})
+	w := r.do(t, "POST", "/svc/v1/derived", tok, bytes.NewReader([]byte("{}")), "X-Filename", "m.json")
+
+	if w.Code != 201 {
+		t.Fatalf("%d %s", w.Code, w.Body)
+	}
+	d := r.callbacks()[0].Parsed.Derived
+	if d["kind"] != "mesh_breast" || d["source_object_id"] != "12" || d["ai_result_id"] != "34" {
+		t.Errorf("derived 블록 = %v", d)
+	}
+}
+
+// 원본 업로드에는 dervied 블록이 없어야한다 - 있으면 Django가 파생물로 오해할 수 있다
+func TestPutFileSendsNoDerivedBlock(t *testing.T) {
+	r := newRig(t)
+	w := r.do(t, "POST", "/svc/v1/files", mint(t), bytes.NewReader([]byte("x")), "X-Filename", "a.bin")
+	if w.Code != 201 {
+		t.Fatalf("%d %s", w.Code, w.Body)
+	}
+	if bytes.Contains(r.callbacks()[0].Body, []byte(`"derived"`)) {
+		t.Errorf("원본 콜백에 derived가 실렸다: %s", r.callbacks()[0].Body)
+	}
+}

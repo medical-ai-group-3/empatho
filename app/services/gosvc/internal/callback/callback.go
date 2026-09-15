@@ -123,6 +123,8 @@ type StorageObject struct {
 	// 지금 오는 값 다섯 — dicom_upload · wsi_upload · report_pdf ·
 	// prescription_pdf · derived_upload (cmd/file-gateway 의 auth 호출부)
 	Purpose string `json:"purpose"`
+	// 파생물이면 티켓 클레임을 그대로 옮긴다. Django 는 이 블록이 없으면 422로 거절
+	Derived map[string]string `json:"derived,omitempty"`
 }
 
 // PostStorageObject — I-1  POST /internal/v1/storage-objects

@@ -41,6 +41,10 @@ type Claims struct {
 	ObjectKeyPrefix string `json:"object_key_prefix,omitempty"`
 	Exp             int64  `json:"exp"`
 	Nonce           string `json:"nonce"`
+	Kind            string `json:"kind,omitempty"`
+	SourceObjectID  string `json:"source_object_id,omitempty"`
+	AiResultID      string `json:"ai_result_id,omitempty"`
+	LesionID        string `json:"lesion_id,omitempty"`
 }
 
 // Verifier 는 서명·만료·재사용을 본다.
