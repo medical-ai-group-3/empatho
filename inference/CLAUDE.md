@@ -1,121 +1,146 @@
 # EMPATHO — 유방암 CDSS
 
-유방 영상(맘모·초음파·MRI)과 병리 슬라이드를 AI 가 읽고 의사의 판독을 돕는 시스템.
-AI 산출은 전부 제안·후보이고, 최종 판정은 의사가 한다.
+유방 영상(맘모 · 초음파 · MRI)과 병리 슬라이드를 AI 가 판독해 의사의 판독을 돕는 시스템.
+AI 산출은 전부 제안 · 후보이고, 최종 판정은 의사가 한다.
+
+2026-09-15 코드 기준. 이 레포는 워크스테이션 쪽이다.
 
 ---
 
-## 전체 그림
+## 공간 두 개
 
-```
-앱 서버 / 팀원 PC — empatho-app            워크스테이션 — empatho-inference
-┌──────────────────────────────┐          ┌──────────────────────────────┐
-│ postgres      gateway (Go)   │          │ FastAPI                      │
-│ web (Django)  garage·orthanc │══Tail═══▶│   소켓 1·2·3·4·4b·5 — GPU    │
-│ redis         worker (Celery)│  scale   │ Ollama · MedGemma — 소켓 6   │
-└──────────────────────────────┘          └──────────────────────────────┘
-```
-
-**GPU 는 워크스테이션에만 있다.** 그래서 모델은 앱 서버 어디에도 올라가지 않고, 앱 서버는 HTTP 로 부르는 쪽이 된다. 이 한 가지가 나머지 배치를 대부분 결정한다.
-
----
-
-## 네 프로세스
-
-| | 위치 | 하는 일 |
-|---|---|---|
-| **web** (Django) | 앱 서버 | 공개 API · 권한 판정 · **DB 쓰기 전담** · 전송 티켓 발급 |
-| **worker** (Celery) | 앱 서버 | 추론 요청을 FastAPI 로 보내고 결과를 기록 |
-| **gateway** (Go) | 앱 서버 | **바이트 전담** — 업로드·다운로드·타일 서빙 · Ollama 호출 |
-| **inference** (FastAPI) | 워크스테이션 | **소켓 1~5 추론만** |
-
-**두 줄로 갈린다.**
-1. Django 만 DB 를 쓴다 — Go 는 `I-1`~`I-5` 콜백으로 Django 가 쓰게 한다.
-2. Go 만 바이트를 만진다 — Django 가 서명한 티켓이 없으면 받지 않는다.
-
----
-
-## 추론이 흐르는 길
-
-```
-POST /studies/{id}/ai-results  →  ai_result(queued)  →  Redis 큐
-     →  Celery 워커  →  FastAPI(워크스테이션)  →  결과 기록  →  GET /ai-results/{id}
-```
-
-소켓 1~5 는 **워커가 FastAPI 를 직접 호출**한다. Go 를 경유하지 않는다.
-Go 가 부르는 LLM 은 소켓 6(리포트 서술·챗봇)의 Ollama 뿐이다.
-
-`INFERENCE_MODE` 값 하나로 전송 방식이 갈리고 호출부는 바뀌지 않는다 — `mock`(기본) / `direct`(Tailscale).
-추론 서버가 안 닿으면 예외가 아니라 **기권 결과**를 돌려준다.
-
----
-
-## 소켓 — 모델이 들어갈 자리
-
-| 소켓 | 대상 | 백본 | 출력 |
+| | 레포 | 위치 | 하는 일 |
 |---|---|---|---|
-| 1 | 병리 조직 분할 | Virchow2 | 조직 영역 |
-| 2 | 병리 세포 검출 | SAM-H · CellViT++ | 세포 좌표 |
-| 3 | MRI 병변 분할 | MedSAM3 | 마스크 |
-| 4 | 초음파 분할 | MedSAM3 | 마스크 |
-| 5 | 초음파 등급 | MedSAM3 | CORAL 등급 |
-| 4b | 맘모 서술어 | MedSAM3 | 서술어 → 규칙표 → 등급 |
-| 6 | 리포트 · 챗봇 | Ollama · MedGemma | 서술 문장 |
+| **앱 서버** | `empatho-app` | app-host · Windows + Docker Desktop | API · DB · 파일 저장 · 판독 요청 · 화면 진입점 |
+| **워크스테이션** | `empatho-inference` (이 레포) | `ssh -p 22 wsuser@ws-host` · GPU 32 GB · 학습 작업과 공유 | 판독 서버 · 리포트 서버 |
 
-**MedSAM3 백본(3.2GB·동결)은 한 벌만 상주**하고, 소켓 3·4·5·4b 가 LoRA 어댑터와 헤드만 바꿔 쓴다.
-병리 두 소켓은 백본을 완전히 얼려 두고 헤드만 다르다.
+**GPU 는 워크스테이션에만 있다.** 모델은 앱 서버에 올라가지 않고, 앱 서버는 HTTP 로 부른다.
+
+워크스테이션의 서비스는 전부 `127.0.0.1` 에만 열려 있다. 앱 서버의 `tunnel` 컨테이너가
+SSH 포트 넘김으로 `8001`(판독) · `8002`(리포트) 두 포트만 잇는다.
+
+```
+앱 서버 (Docker 네트워크)                              워크스테이션
+┌────────────────────────────────────────────┐        ┌──────────────────────────────┐
+│ nginx :80 ── 밖에 열린 유일한 포트            │        │ 판독 서버   :8001  main.py     │
+│ web (Django)   worker (Celery)   redis      │        │ 리포트 서버 :8002  report.py   │
+│ file-gateway · llm-proxy · notify (Go)      │        │ Ollama     :11434 gemma3 12B │
+│ postgres · garage · orthanc                 │        │ supervisor 가 8001 · 8002 관리 │
+│ tunnel ════════════ SSH ═══════════════╪═══════▶│                              │
+└────────────────────────────────────────────┘        └──────────────────────────────┘
+```
 
 ---
 
-## 저장 — MRI 만 Orthanc
+## 데이터가 흐르는 길
+
+```
+[업로드]
+화면 ─ 파일 + 티켓 ─▶ nginx ─▶ Go file-gateway ─▶ Garage empatho-original
+                                  └─ 파일 등록 콜백 ─▶ Django: storage_object 행
+                                  └─ DICOM 이면 ─▶ Orthanc ─ DICOM 정보 콜백 ─▶ Django ─▶ Garage 사본 삭제
+
+[판독]
+Django: ai_result 행(queued) ─▶ Redis ─▶ Celery worker (core/tasks.py run_inference)
+  worker ─ 티켓 ─▶ Go ─▶ Garage 파일 / Orthanc 인스턴스 / Orthanc 시리즈 zip 받기
+  worker ─▶ tunnel ─▶ 판독 서버 POST /analyze/{소켓} ─▶ 판독 결과 JSON
+
+[리포트]
+Go llm-proxy ─▶ tunnel ─▶ 리포트 서버 POST /report/{소켓} ─▶ Ollama ─▶ 소견문
+Go ─ 소견문 저장 콜백 ─▶ Django: report 행
+
+[파생물]
+worker ─ 파생물 티켓 ─▶ Go /svc/v1/derived ─▶ Garage empatho-derived ─ 파일 등록 콜백 ─▶ Django: image 행
+```
+
+**아직 이어지지 않은 구간** (2026-09-15)
+
+| 구간 | 상태 |
+|---|---|
+| 판독 요청 → 태스크 투입 | Django `POST /studies/{id}/ai-results` 가 `ai_result`(queued)만 만들고 태스크를 넣지 않는다 |
+| 판독 결과 → `ai_result` 기록 | worker 가 결과를 로그와 Redis 요약으로만 남긴다 |
+| 판독 → 리포트 요청 | 부르는 곳이 없다. Django 에 리포트 티켓 발급 용도가 없다 |
+| MRI 메시 → 파생물 저장 | Go · 설정은 준비됐고 worker 의 업로드 코드가 없다 |
+| 완료 알림 | notify 에 발행하는 곳이 없다 |
+
+---
+
+## 이 레포
+
+| 파일 | 역할 |
+|---|---|
+| `main.py` | 판독 서버(8001). `POST /analyze/{소켓}` · `GET /healthz` |
+| `report.py` | 리포트 서버(8002). `POST /report/{소켓}` · `GET /health` |
+| `sockets/base.py` | 소켓 공통부 — 적재 · 상태 · 락 |
+| `sockets/gpu.py` | GPU 락 하나 · 유휴 시계 하나 · 수거자 하나 |
+| `sockets/medsam3.py` | MedSAM3 백본 공유 |
+| `sockets/us · mammo · mri · pathology.py` | 모달리티별 적재 · 판독 |
+| `prompts/` | 모달리티별 판독값 → 사실 문장 · 안내 · 보존할 수치 |
+| `thresholds.yaml` | 소켓별 임계값 덮어쓰기 |
+| `smoke.py` | 배포 뒤 `/analyze` 점검 |
+| `supervisord.conf` | `inference`(8001) · `report`(8002) 프로그램 |
+| `models/` | 가중치 · 모델 코드 링크 (git 에 없다) |
+
+supervisor 명령: `/usr/local/bin/python3.12 -m supervisor.supervisorctl -c ~/app/supervisord.conf status`
+
+---
+
+## 소켓
+
+| 요청 소켓 | 처리 소켓 | 대상 | 입력 | 응답 결과 |
+|---|---|---|---|---|
+| 5 · 4 | **5** | 초음파 | PNG · JPG 1장 | 병변 유무 · 형태 지표 · 등급 · 윤곽 좌표 |
+| 4b | **4b** | 맘모 | DICOM 1장 | 병변 상자 · 서술어 · BI-RADS · 생검 권고 |
+| 3 | **3** | MRI | 조영 전 볼륨(`image`) + 조영 후 볼륨(`post`, 선택) · zip 또는 NIfTI | 조영 전만: 밀도(phases=1) · 둘 다: 병변 + 밀도(phases=2) · 3D 메시 포함 |
+| 1 · 2 | **1** | 병리 | 크롭 이미지 1장 | sTIL · 세포 수 · 면적 |
+
+- 4 → 5, 2 → 1 로 넘긴다. 같은 파이프라인이다. 넘어가면 응답에 `requested_socket_id` 가 실린다.
+- 판독이 안 되면 HTTP 200 에 `abstained: true` 와 `reason` 을 준다. 500 을 내지 않는다.
+- 초음파 픽셀 마스크는 소켓이 응답에서 뺀다. 병리 조직 마스크는 꺼 두었다. 병리 세포 좌표는 모델이 응답에 넣지 않는다.
+- MRI 응답은 48 MB 안팎이고 대부분이 3D 메시다. 앱 서버가 메시를 떼어 파생물로 저장한다.
+- 환자 식별자는 받지 않는다. MRI 응답의 `patient_id` 는 모델 기본값 `"unknown"` 이다.
+
+**MedSAM3 백본(3.37 GB)은 한 벌만 올리고** 소켓 3 · 5 · 4b 가 어댑터만 바꿔 쓴다.
+어댑터 자리는 가장 넓은 설정(458)으로 한 번만 만들고, 교체 때마다 B 행렬을 0 으로 비운 뒤 적재한다.
+초음파가 바꾸는 픽셀 디코더는 교체 때 되돌린다.
+
+GPU 는 요청이 없으면 30초 뒤 프로세스를 끝내 회수한다(supervisor 가 다시 띄운다).
+그래서 유휴 뒤 첫 요청은 모델 적재 시간이 붙는다 — 맘모 약 20~70초, MRI 약 50초~3분 (2026-09-11 · 14 실측).
+
+**리포트 서버**는 `/report/{소켓}` 에 소켓 번호(`5` · `4b` · `3` · `1`)와 이름(`us` · `mammo` · `mri` · `pathology`)을 모두 받는다.
+수치와 판단은 코드가 문장으로 만들고, 모델(온도 0)은 엮기만 한다. 모델이 수치를 바꾸면 코드가 만든 문장으로 대체한다(`fallback`).
+
+---
+
+## 저장
 
 | 무엇 | 어디에 |
 |---|---|
-| **MRI** | **Orthanc** (DICOMweb) |
-| 맘모 · 초음파 · 병리 WSI · PDF | Garage `empatho-original` |
-| 타일 · 썸네일 · 마스크 | Garage `empatho-derived` |
+| **DICOM (맘모 · MRI)** | **Orthanc 에만.** Garage 에 먼저 저장했다가 Orthanc 저장과 DICOM 정보 콜백이 성공하면 Garage 사본을 지운다. Orthanc 전송이 실패하면 Garage 에 남는다 |
+| 초음파 이미지 · 병리 슬라이드 · PDF | Garage `empatho-original` |
+| MRI 메시 등 파생물 | Garage `empatho-derived` |
 
-어느 것도 두 곳에 두지 않는다. MRI 만 볼륨이라 진짜 DICOM 서버가 필요하고, 나머지는 2D 라 타일로 서빙한다.
-
----
-
-## 레포 구조 — `empatho-app`
-
-```
-services/web/          Django — empatho/(settings·urls) + api/(models·views·tasks·inference)
-services/gateway/      Go — main.go
-mock_inference/        FastAPI 스텁 (개발용)
-conf/                  garage.toml · orthanc.env  ← git 에 없다
-scripts/               init-config · bootstrap · smoke · update-server · restore-db
-compose.yml            개발 스택 (web · worker · gateway · redis · mock)
-compose.server.yml     공유 데이터 (postgres · garage · orthanc)
-compose.localdb.yml    로컬 DB 오버레이
-```
-
-`empatho-inference` 는 훨씬 작다 — `main.py`(FastAPI) + `models/`(가중치, 심볼릭 링크) + 배포 워크플로.
+DB `storage_object` 행은 DICOM 이면 `orthanc_series_id` · `sop_instance_uid` 를, 나머지면 `bucket` · `object_key` 를 가리킨다.
 
 ---
 
-## 실행
+## 지키는 규칙
 
-```bash
-docker compose -f compose.yml -f compose.localdb.yml up -d   # 팀원 기본
-docker compose up -d web                                     # Django 만 고칠 때
-docker compose -f compose.server.yml up -d                   # 서버 담당
-```
-
-**`/healthz` 가 진도표다.** 붙는 것이 늘 때마다 항목이 하나씩 는다.
-
-```json
-{ "status": "ok", "checks": { "postgres": "ok" } }
-```
+1. **DB 는 Django 코드만 쓴다.** Go 는 콜백으로 Django 가 쓰게 한다. Celery worker 는 Django 코드라 직접 쓴다.
+2. **파일 바이트는 Go 만 다룬다.** worker 도 저장소에 직접 가지 않고 Go 에서 받는다. Go 는 Django 가 서명한 티켓만 받는다.
+3. **판독 서버 · 리포트 서버는 실패를 기권으로 돌려준다.** HTTP 200 · `abstained`.
+4. **환자 식별자를 워크스테이션으로 보내지 않는다.** 영상은 디스크에 쓰지 않는다(MRI 만 임시 폴더에 풀고 지운다).
+5. 설명 · 문서에 명세 번호를 쓰지 않는다. 「파일 등록 콜백」 「DICOM 정보 콜백」 「소견문 저장 콜백」처럼 하는 일로 쓴다.
 
 ---
 
-## API 표면
+## 배포
 
-- 공개 API `/api/v1` — 89개. snake_case, 응답 봉투 `{success, data, error, trace_id}`
-- Go 서비스 `/svc/v1` — 파일(`G-F*`) · 알림(`G-N*`) · LLM(`G-L*`)
-- 내부 콜백 `/internal/v1` — `I-1`~`I-5`. Go 가 DB 를 쓰지 않기 위한 통로
+| 레포 | 트리거 | 순서 |
+|---|---|---|
+| `empatho-inference` | `main` push | 워크스테이션 러너 → `git pull` → 문법 검사 → supervisor `restart inference report` → `/healthz` → `smoke.py` → 실패하면 이전 커밋으로 `git reset` |
+| `empatho-app` | `main` push | 앱 서버 러너 → 설정 복사(`~/empatho-conf`) → `docker compose up -d --build` → `migrate` → nginx 문법 검사 · 다시 읽기 → 경로 확인 |
 
-상세는 `CDSS_API_명세서_v3.docx` 와 `CDSS_DB_설계문서_v3.docx`.
+**push 가 곧 운영 배포다.** 앱 서버는 개발 PC 이자 운영 서버이자 배포 러너다.
+
+설정 파일은 git 에 없다 — 앱 서버 `conf/*.env` · `conf/garage/garage.toml` · `conf/ws/`(SSH 자격).
