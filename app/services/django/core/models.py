@@ -437,9 +437,11 @@ class StorageObject(AuditBase):
         db_table = 'storage_object'
         constraints = [
             # 주소가 적어도 하나는 있어야 한다.
-            # 「정확히 하나」가 아니다 — DICOM 은 Garage 와 Orthanc 양쪽에 있는
-            # 것이 정상 흐름이다. Go 가 Garage 에 커밋(I-1)한 뒤 Orthanc 에도
-            # 올리고 I-2 로 그쪽 식별자를 보낸다.
+            # DICOM 은 Orthanc 에, 나머지는 Garage 에 둔다. DICOM 도 I-1 때는
+            # Garage 에 있다가, I-2 로 Orthanc 저장이 확인되면 주소가 그쪽으로
+            # 옮겨가고 Garage 키가 비워진다 (사본은 Go 가 지운다).
+            # 「정확히 하나」로 조이지 않는 것은 전송이 실패해 Orthanc ID 가
+            # 없으면 Garage 키를 남겨야 해서다 — 그 파일은 Garage 에만 있다.
             models.CheckConstraint(
                 condition=Q(orthanc_series_id__isnull=False)
                 | Q(object_key__isnull=False),
@@ -450,9 +452,10 @@ class StorageObject(AuditBase):
             models.CheckConstraint(
                 condition=Exact(NumNonNulls('study', 'specimen', 'report'), 1),
                 name='storage_object_owner_ck'),
-            # I-1 의 멱등키. 모든 행에 있고 I-1 시점에 확정된다 —
-            # Go 의 멱등키 obj:<object_key> 와 같은 자리다.
-            # Orthanc 에 둔 파일은 둘 다 NULL 이라 서로 안 부딪힌다.
+            # I-1 의 멱등키. I-1 시점에 확정된다 — Go 의 멱등키
+            # obj:<object_key> 와 같은 자리다.
+            # Orthanc 로 옮겨간 뒤에는 둘 다 NULL 이 되는데, Postgres 가 NULL 을
+            # UNIQUE 에서 빼므로 그런 행이 여럿이어도 서로 안 부딪힌다.
             models.UniqueConstraint(fields=['bucket', 'object_key'],
                                     name='storage_object_bucket_object_key_uk'),
         ]
