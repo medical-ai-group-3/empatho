@@ -6,11 +6,17 @@ from .reception import (
     ReservationRequestViewSet,
     ReservationRequestQueueView,
     ExamOrderConfirmView,
+    ExamOrderQueryView,
+    StaffListView,
+    PatientTodayStatusView,
 )
 from .nursing import (
     VisitTodayViewSet,
     FollowupViewSet,
     QuestionnaireView,
+    FollowupCreateView,
+    FollowupCallView,
+    PrimaryStaffAssignView,
 )
 
 from .radiology import (
@@ -45,4 +51,9 @@ from .pathology import(
     SpecimenAiResultView,
     SpecimenDraftView,
     SpecimenFinalizeView,
+)
+from .admin import (
+    StaffApprovalListView,
+    StaffApproveView,
+    AccountRoleView, 
 )

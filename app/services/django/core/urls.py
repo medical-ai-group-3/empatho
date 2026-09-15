@@ -52,11 +52,13 @@ urlpatterns = [
         views.ReservationRequestQueueView.as_view(),
         name="reservation-request-queue",
     ),
+    path("exam-orders", views.ExamOrderQueryView.as_view(), name="exam-order-query"),
     path(
         "exam-orders/<int:pk>/confirm",
         views.ExamOrderConfirmView.as_view({"patch": "partial_update"}),
         name = "exam-order-confirm",
     ),
+    path("patients/today-status", views.PatientTodayStatusView.as_view({"get": "list"}), name = "patient-today-status"),
     path(
         "patients/<int:pk>/questionnaire/",
         views.QuestionnaireView.as_view({"patch": "partial_update"}),
@@ -96,6 +98,11 @@ urlpatterns = [
     path("specimens/<int:pk>/ai-results", views.SpecimenAiResultView.as_view({"post": "start"}), name="specimen-ai-results-start"),
     path("specimens/<int:pk>/draft", views.SpecimenDraftView.as_view({"put": "update"}), name="specimen-draft"),
     path("specimens/<int:pk>/finalize", views.SpecimenFinalizeView.as_view({"patch": "partial_update"}), name="specimen-finalize"),
-
-]
+    path("admin/approvals", views.StaffApprovalListView.as_view(), name="admin-approvals-list"),
+    path("admin/approvals/<int:pk>", views.StaffApproveView.as_view({"patch": "partial_update"}), name="admin-approval-approve"),
+    path("admin/accounts/<int:pk>/role", views.AccountRoleView.as_view({"patch": "partial_update"}), name="admin-account-role"),
+    path("staff",views.StaffListView.as_view(), name ="staff-list"),
+    path("followups/new", views.FollowupCreateView.as_view({"post": "create"}), name="followup-create"),
+    path("followups/<int:pk>/call", views.FollowupCallView.as_view({"patch": "partial_update"}), name="followup-call"),
+    ]
 

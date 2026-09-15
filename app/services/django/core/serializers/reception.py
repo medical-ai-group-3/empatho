@@ -151,3 +151,8 @@ class ReservationRequestCreateSerializer(serializers.Serializer):
             created_by=validated_data.get("created_by"),
             updated_by=validated_data.get("updated_by"),
         )
+        
+class StaffSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.Staff
+        exclude = ("created_at", "created_by" , "updated_at", "updated_by")

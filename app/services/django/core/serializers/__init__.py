@@ -14,10 +14,14 @@ from .reception import (
     ExamOrderItemSerializer,
     ReservationCreateSerializer,
     ReservationRequestCreateSerializer,
+    StaffSerializer
 )
 from .nursing import (
     FollowupSerializer,
     VisitCheckInSerializer,
+    FollowupCreateSerializer,
+    FollowupCallSerializer,
+    PrimaryStaffAssignSerializer,
 )
 
 from .radiology import (
@@ -47,4 +51,9 @@ from .surgery import (
 from .pathology import(
     SpecimenDraftSerializer,
     SpecimenFinalizeSerializer,
+)
+from .admin import (
+    StaffApprovalSerializer,
+    StaffApproveSerializer,
+    AccountRoleSerializer,
 )
