@@ -21,7 +21,7 @@ Go 는 Postgres 에 직접 쓰지 않는다. 파일을 저장하거나 알림을
            DB 오류처럼 다음에 될 수도 있는 것은 5xx 로 둬서 재시도를 받는다.
 
 밖에서는 닿지 않는다. compose 에서 web 은 127.0.0.1:8000 이고,
-conf/nginx.conf 가 location /internal/ 을 404 로 잘라낸다.
+conf/nginx/default.conf 가 location /internal/ 을 404 로 잘라낸다.
 """
 
 import hmac

@@ -1,5 +1,5 @@
 # 비밀번호가 들어간다
-conf/garage.toml
+conf/garage/garage.toml
 conf/orthanc.env
 
 __pycache__/

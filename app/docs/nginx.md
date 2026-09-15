@@ -108,7 +108,7 @@ postgres · garage · orthanc 는 nginx 대상이 아니다. postgres 는 HTTP �
 **운영 병원 배포에서는 TLS 가 필수다.** 환자 이름·전화번호, 판독 결과,
 영상, 티켓(`Authorization` 헤더)이 지나가는 경로다.
 
-`conf/nginx.conf` 하단에 TLS 설정과 인증서 생성 명령을 주석으로 넣어 뒀다.
+`conf/nginx/default.conf` 하단에 TLS 설정과 인증서 생성 명령을 주석으로 넣어 뒀다.
 주석만 풀면 된다.
 
 브라우저의 카메라·위치·서비스워커·웹푸시는 HTTPS 에서만 동작한다. 알림은
@@ -118,7 +118,7 @@ SSE 라 HTTP 로 되지만, 그런 기능을 쓸 계획이 생기면 그때는 �
 
 ## 7. 설정을 손댈 때
 
-`conf/nginx.conf` 의 값은 짐작이 아니라 `services/gosvc` 소스에서 나왔다.
+`conf/nginx/default.conf` 의 값은 짐작이 아니라 `services/gosvc` 소스에서 나왔다.
 바꾸기 전에 왜 그 값인지 확인할 것.
 
 ### `resolver` — 지우면 배포마다 502 가 난다
@@ -183,7 +183,7 @@ nginx 는 설정이 틀려도 컨테이너가 살아 있는 채로 502 만 뱉�
 필요 없다.
 
 ```bash
-docker run --rm -v "$PWD/conf/nginx.conf:/etc/nginx/conf.d/default.conf:ro" \
+docker run --rm -v "$PWD/conf/nginx:/etc/nginx/conf.d:ro" \
   nginx:1.27-alpine nginx -t
 ```
 

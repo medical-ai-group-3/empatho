@@ -8,10 +8,14 @@ services:
     ports:
       - "127.0.0.1:3900:3900"
       - "127.0.0.1:3903:3903"
+    # 설정은 파일이 아니라 폴더째 붙인다. Docker Desktop 이 재시작하면 파일 하나를
+    # 붙인 마운트가 끊겨 컨테이너가 안 뜬다(2026-09-14 · 1시간 장애). 폴더 마운트는 안 끊겼다.
+    environment:
+      GARAGE_CONFIG_FILE: /etc/garage/garage.toml
     volumes:
       - garage-meta:/var/lib/garage/meta
       - garage-data:/var/lib/garage/data
-      - ./conf/garage.toml:/etc/garage.toml:ro
+      - ./conf/garage:/etc/garage:ro
 
   orthanc:
     image: orthancteam/orthanc:26.8.1

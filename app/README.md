@@ -94,7 +94,7 @@ ssh -L 18001:127.0.0.1:8001 -L 18002:127.0.0.1:8002 -p 22 wsuser@ws-host
 
 ## 비밀값
 
-`conf/postgres.env` · `conf/orthanc.env` · `conf/garage.toml` 은 git 에 없다.
+`conf/postgres.env` · `conf/orthanc.env` · `conf/garage/garage.toml` 은 git 에 없다.
 `.example` 을 복사해서 채운다. 값은 서버 담당에게 받는다.
 
 ```bash
