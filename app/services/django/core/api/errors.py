@@ -69,8 +69,6 @@ SPEC_ERRORS = [
           "리포트는 content_json 만으로 발급된다"),
     _spec("PYRAMID_NOT_READY", 409, "타일 피라미드가 아직 만들어지지 않았습니다.",
           "build_status 와 진행률을 함께 반환"),
-    _spec("ALREADY_CONFIRMED", 409,  "이미 확정된 오더입니다."),
-    _spec("ALREADY_ASSIGNED", 409, "다른 선생님이 이미 맡았습니다."),
     _spec("TILE_OUT_OF_RANGE", 404, "없는 줌 레벨 또는 타일 좌표입니다.", "level_count 범위 밖"),
 ]
 
@@ -84,6 +82,10 @@ INFRA_ERRORS = [
           "scope_id 의 study · specimen · report 가 없다. 재시도해도 같다"),
     _spec("UNSUPPORTED_PURPOSE", 422, "아직 받을 수 없는 purpose 입니다.",
           "담을 칸이 없다 — prescription_pdf 는 처방 표가 MVP 밖이다"),
+    # 원무 · 영상의학과 API 에서 쓴다. 명세 §1-4 에 없어 여기 둔다 — 명세에 넣으면 위로 옮기고
+    # test_errors.py 의 표에도 더한다.
+    _spec("ALREADY_CONFIRMED", 409, "이미 확정된 오더입니다."),
+    _spec("ALREADY_ASSIGNED", 409, "다른 선생님이 이미 맡았습니다."),
 ]
 
 SPEC_CODES = frozenset(e.code for e in SPEC_ERRORS)
