@@ -70,8 +70,9 @@ function Inner({ d, reload }) {
 
   /* 큐 맨 앞을 집는다. 고른 행이 아니라 **맨 앞**이다 — 선착순이라
      골라 집으면 큐가 아니게 된다 */
+  const head = d.items[0];
+
   async function take() {
-    const head = d.items[0];
     if (!head) return;
     setBusy(true); setMsg(null);
     try {
@@ -101,7 +102,12 @@ function Inner({ d, reload }) {
             value={pick} onPick={setPick} q={q} onSearch={setQ}
             foot={
               <>
-                <span>{msg ?? "채취 순서대로 도착합니다"}</span>
+                {/* **누구를 집는지 미리 말한다.** 검색으로 걸러 놓으면
+                    화면 맨 위와 큐 맨 앞이 달라서, 안 적으면 엉뚱한
+                    사람을 집은 것처럼 보인다 */}
+                <span>{msg ?? (head
+                  ? `다음은 ${head.name} · ${head.specimen_no}`
+                  : "대기 중인 검체가 없습니다")}</span>
                 <Btn kind="fill" disabled={busy || d.items.length === 0}
                      onClick={take}>다음 환자</Btn>
               </>
@@ -109,7 +115,7 @@ function Inner({ d, reload }) {
           />
         </Card>
       }
-      right={<Detail id={pick} />}
+      right={pick ? <Detail id={pick} /> : null}
       empty="왼쪽에서 검체를 고르세요"
     />
   );
@@ -117,7 +123,12 @@ function Inner({ d, reload }) {
 
 /* 고른 검체 — 아직 집은 것이 아니다. 보기만 한다 */
 function Detail({ id }) {
-  const { loading, data, error, reload } = useApi(() => api.specimen(id), [id]);
+  /* ⚠ 고른 것이 없으면 **부르지 않는다.** 전에는 id 가 null 인 채로
+     /specimens/null 을 불러 404 를 받았다. 큐가 비었을 때 오류 카드가
+     뜨던 것이 이것이다. */
+  const { loading, data, error, reload } =
+    useApi(() => (id ? api.specimen(id) : Promise.resolve(null)), [id]);
+  if (!id) return null;
   return (
     <Card title="지금 확인할 환자 정보">
       <Body loading={loading} error={error} onRetry={reload}>

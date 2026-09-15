@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../../api";
 import { Body } from "../../lib/Body";
@@ -53,6 +53,24 @@ function Inner({ d }) {
   const nav = useNavigate();
   const [busy, setBusy] = useState(false);
   const [run, setRun] = useState(d.ai_run ?? null);
+  const [picked, setPicked] = useState([]);     // 방금 고른 것 — 아직 안 올라갔다
+  const fileRef = useRef(null);
+
+  /* ⚠ **실제 전송은 아직 안 이어져 있다.**
+     명세는 「티켓 발급 → Go 로 직접 업로드」다. 티켓 본문 규격이
+     정해지면 여기서 api.ticket() 을 부르고 받은 주소로 PUT 한다.
+
+     그때까지 고른 파일을 목록에만 보인다. 완료로 꾸미지 않는다 —
+     안 올라간 것을 올라간 것처럼 그리면 그다음이 전부 거짓이 된다. */
+  function choose(e) {
+    const fs = [...(e.target.files ?? [])];
+    if (fs.length === 0) return;
+    setPicked((p) => [...p, ...fs.map((f) => ({
+      id: `${f.name}-${f.size}`, name: f.name,
+      size: `${(f.size / 1048576).toFixed(1)} MB`,
+    }))]);
+    e.target.value = "";                         // 같은 파일을 다시 골라도 먹게
+  }
 
   /* 분석이 도는 동안만 물어본다 */
   useEffect(() => {
@@ -83,7 +101,9 @@ function Inner({ d }) {
               <i aria-hidden="true">↥</i>
               <b>조직 이미지를 드래그하세요 (여러 장 가능)</b>
               <span>크롭한 조직 이미지를 올립니다. 슬라이드 통파일이 아닙니다.</span>
-              <Btn>파일 선택</Btn>
+              <input ref={fileRef} type="file" multiple accept={d.accept}
+                     onChange={choose} hidden />
+              <Btn onClick={() => fileRef.current?.click()}>파일 선택</Btn>
               <small>지원 형식: {d.accept}</small>
             </div>
 
@@ -106,6 +126,17 @@ function Inner({ d }) {
                   {c.done
                     ? <Chip tone="line">업로드 완료</Chip>
                     : <span className="crop-bar"><Bar value={c.pct} /></span>}
+                </li>
+              ))}
+              {/* 방금 고른 것. 올라간 것과 **구분해서** 보인다 */}
+              {picked.map((c) => (
+                <li key={c.id}>
+                  <i className="thumb sm" aria-hidden="true" />
+                  <span className="crop-tx">
+                    <b>{c.name}</b>
+                    <span>{c.size} · 전송 대기</span>
+                  </span>
+                  <Chip tone="dot">전송 준비 중</Chip>
                 </li>
               ))}
               {d.crops.length === 0 && (
@@ -140,6 +171,12 @@ function Inner({ d }) {
             <p className="hint">
               올린 이미지를 전부 분석합니다. 한 장에 약 {d.eta} 걸립니다.
             </p>
+            {picked.length > 0 && (
+              <p className="hint">
+                방금 고른 {picked.length}장은 아직 전송되지 않았습니다 —
+                업로드 창구가 이어지면 함께 분석됩니다.
+              </p>
+            )}
           </Card>
 
           <Card title="검체 정보">

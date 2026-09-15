@@ -43,14 +43,26 @@ export default function Amend() {
 function Inner({ d }) {
   const nav = useNavigate();
   const prev = d.report;
+  /* ⚠ 「세부 소견」과 「정정 판독 내용」이 **다른 값**이다.
+     전에는 둘 다 finding_note 에 묶여 있어 한쪽을 치면 다른 쪽이 같이
+     바뀌었다.
+
+       amend_detail   왜 고치는지에 대한 상세 — 이력에만 남는다
+       finding_note   고쳐 쓴 판독문 그 자체 — 유방외과로 나간다
+
+     명세는 「세부 소견(finding_note)」으로 적었지만, 그 자리의 안내
+     문구가 「정정 사유에 대한 상세 내용」이라 판독문이 아니다.
+     확인 중이며, 정해지면 한쪽 이름만 바꾸면 된다. */
   const [f, setF] = useState({
-    amend_reason: "", b_category: "", finding_note: "", diagnosis: prev?.diagnosis ?? "",
+    amend_reason: "", b_category: "", amend_detail: "",
+    finding_note: prev?.finding_note ?? "", diagnosis: prev?.diagnosis ?? "",
   });
   const [busy, setBusy] = useState(false);
   const [crop, setCrop] = useState(0);
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
 
-  const ready = f.amend_reason.trim() && f.b_category && f.finding_note.trim();
+  const ready = f.amend_reason.trim() && f.b_category
+             && f.amend_detail.trim() && f.finding_note.trim();
 
   async function send(draft) {
     setBusy(true);
@@ -111,10 +123,10 @@ function Inner({ d }) {
           </label>
           <label className="field">
             <span>세부 소견 <i className="req">*</i></span>
-            <textarea value={f.finding_note} maxLength={1000}
+            <textarea value={f.amend_detail} maxLength={1000}
                       placeholder="정정 사유에 대한 상세 내용을 입력해주세요."
-                      onChange={(e) => set("finding_note", e.target.value)} />
-            <span className="count">{f.finding_note.length} / 1000</span>
+                      onChange={(e) => set("amend_detail", e.target.value)} />
+            <span className="count">{f.amend_detail.length} / 1000</span>
           </label>
         </Card>
       </div>

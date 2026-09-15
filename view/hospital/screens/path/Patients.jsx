@@ -92,23 +92,27 @@ function Inner({ d, q, setQ, ordering, setOrdering }) {
                         setOrdering(SORTS.find((s) => s.label === lb).value)} />
               </>}>
           <Table cols={COLS} rows={rows} value={pick} onPick={setPick} />
+          {/* ⚠ 쪽 넘김을 안 그린다. 명세에 나누는 규격(page · cursor)이
+              없어서, 눌러도 아무 일 없는 단추를 두느니 없는 편이 낫다.
+              규격이 정해지면 여기에 붙인다 */}
           <div className="tbl-foot">
-            <span>{d.total}명 중 1–{rows.length} 표시</span>
-            <div className="pg">
-              <button>‹</button><button className="on">1</button>
-              <button>2</button><button>3</button><button>›</button>
-            </div>
+            <span>{d.total}건 중 {rows.length}건 표시</span>
           </div>
         </Card>
       }
-      right={<Detail id={pick} />}
+      right={pick ? <Detail id={pick} /> : null}
       empty="왼쪽에서 검체를 고르세요"
     />
   );
 }
 
 function Detail({ id }) {
-  const { loading, data, error, reload } = useApi(() => api.specimen(id), [id]);
+  /* ⚠ 고른 것이 없으면 **부르지 않는다.** 전에는 id 가 null 인 채로
+     /specimens/null 을 불러 404 를 받았다. 큐가 비었을 때 오류 카드가
+     뜨던 것이 이것이다. */
+  const { loading, data, error, reload } =
+    useApi(() => (id ? api.specimen(id) : Promise.resolve(null)), [id]);
+  if (!id) return null;
   return (
     <Card title="선택한 환자 상세 정보">
       <Body loading={loading} error={error} onRetry={reload}>
