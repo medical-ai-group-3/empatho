@@ -1,75 +1,111 @@
-import { useState } from "react";
-import { api } from "../../api";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { ERR, api } from "../../api";
 import { Body } from "../../lib/Body";
 import { Btn, Card, Page } from "../../lib/Page";
-import { Chip, Queue, Split } from "../../lib/Parts";
+import { Chip, Fold, Queue, Split } from "../../lib/Parts";
 import { useApi } from "../../lib/useApi";
+import { go } from "../../nav";
 
-/* 병리 21 · 검체 바인딩 대기
+/* 병리 1 · 검체 접수 대기  (명세 p.21)
  *
- * 간호과와 유방외과에서 등록한 검체가 순서대로 도착한다. 확인하고 접수하면
- * 슬라이드 업로드로 넘어간다.
+ * ── 이 화면은 «접수»지 «바인딩»이 아니다 ──────────────────────
+ * 바인딩(검체를 병변에 잇는 일)은 간호과와 유방외과가 한다. 여기는 그것이
+ * 끝난 검체를 병리가 **집어서 접수하는** 자리다. 그래서 제목이 「검체 접수
+ * 대기」다.
  *
- * ── 왜 오른쪽이 이렇게 긴가 ───────────────────────────────────
- * 검체를 접수한다는 것은 **이 유리 조각이 이 환자의 이 병변에서 나온
- * 것이 맞는가**를 확인하는 일이다. 틀리면 남의 결과를 받게 된다.
- * 그래서 요청한 쪽이 보낸 것을 전부 펴 놓는다 — 요청 정보 · 임상 정보 ·
- * 영상 판독 요약 · 첨부. 접수 단추는 그것들을 다 지나야 나온다.
+ * ── 선착순 큐 ────────────────────────────────────────────────
+ * 병리과 전체가 같은 목록을 본다. 누가 집으면 다른 사람 화면에서 사라진다.
+ * 그래서 셋을 지킨다.
  *
- * 「반려」가 「접수」와 나란히 있는 이유도 같다. 확인해 보니 아니면
- * 돌려보낼 수 있어야 한다.
+ *   · **순번은 표시 전용이다.** 끌어서 못 옮긴다 — 각자 순서를 바꾸면
+ *     같은 화면이 아니게 된다. 대신 검색으로 건너뛴다
+ *   · **폴링으로 갱신한다.** 남이 집어 간 것이 내 화면에 남아 있으면
+ *     헛걸음한다
+ *   · **동시에 집으면 하나만 성공한다.** 진 쪽은 409 를 받고, 그때
+ *     「다른 선생님이 이미 맡았습니다」로 알린다
+ *
+ * ── 반려가 없다 ──────────────────────────────────────────────
+ * 검체가 이상한지를 이 시스템이 판단할 수 없다. 물건은 이미 와 있고,
+ * 문제가 있으면 사람이 전화로 푼다.
  */
+
+const POLL_MS = 7000;   // 명세 「5~10초 폴링」
+
 export default function Specimens() {
-  const { loading, data, error, reload } = useApi(() => api.specimens());
+  const { loading, data, error, reload } = useApi(() => api.queue());
+
+  /* 남이 집어 간 것을 내 화면에 남겨 두지 않는다 */
+  useEffect(() => {
+    const t = setInterval(reload, POLL_MS);
+    return () => clearInterval(t);
+  }, [reload]);
+
   return (
-    <Page crumb={["병리과", "검체 관리"]} title="검체 바인딩 대기"
+    <Page crumb={["병리과", "검체 관리"]} title="검체 접수 대기"
           badge={data ? `${data.items.length}건` : undefined}
-          sub="간호과와 유방외과에서 등록한 검체가 순서대로 도착합니다. 확인 후 슬라이드를 업로드합니다."
-          right={data && <Stats s={data.stats} />}>
+          sub="간호과와 유방외과에서 바인딩을 마친 검체가 채취 순서대로 도착합니다. 확인 후 집어서 접수합니다.">
       <Body loading={loading} error={error} onRetry={reload}>
-        {data && <Inner items={data.items} />}
+        {data && <Inner d={data} reload={reload} />}
       </Body>
     </Page>
   );
 }
 
-function Stats({ s }) {
-  if (!s) return null;
-  return (
-    <div className="stats" style={{ gridTemplateColumns: `repeat(${s.length},auto)` }}>
-      {s.map((x) => <div className="stat" key={x.label}><b>{x.n}</b><span>{x.label}</span></div>)}
-    </div>
-  );
-}
+function Inner({ d, reload }) {
+  const nav = useNavigate();
+  const [pick, setPick] = useState(d.items[0]?.id ?? null);
+  const [q, setQ] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState(null);
 
-function Inner({ items }) {
-  const [list, setList] = useState(items);
-  const [pick, setPick] = useState(items[0]?.id ?? null);
+  /* 순서를 안 바꾸고 건너뛰어 찾는다 */
+  const shown = useMemo(() => {
+    const key = q.trim().toLowerCase();
+    return d.items
+      .map((x, i) => ({ ...x, no: i + 1 }))
+      .filter((x) => !key ||
+        [x.name, x.specimen_no, x.patient_no].some((v) => v.toLowerCase().includes(key)));
+  }, [d.items, q]);
 
-  const move = (a, b) => setList((l) => {
-    const n = [...l]; n.splice(b, 0, ...n.splice(a, 1)); return n;
-  });
-  const step = (d) => {
-    const i = list.findIndex((x) => x.id === pick);
-    const j = Math.min(list.length - 1, Math.max(0, i + d));
-    setPick(list[j].id);
-  };
+  /* 큐 맨 앞을 집는다. 고른 행이 아니라 **맨 앞**이다 — 선착순이라
+     골라 집으면 큐가 아니게 된다 */
+  async function take() {
+    const head = d.items[0];
+    if (!head) return;
+    setBusy(true); setMsg(null);
+    try {
+      await api.assign(head.id);
+      nav(go.upload(head.id));
+    } catch (e) {
+      if (e.code === ERR.ALREADY_ASSIGNED) {
+        setMsg("다른 선생님이 이미 맡았습니다.");
+        reload();
+      } else {
+        setMsg(e.detail || e.message);
+      }
+    } finally { setBusy(false); }
+  }
 
   return (
     <Split
       left={
-        <Card title="검체 바인딩 대기 환자 리스트"
-              right={<span className="src">환자 순서대로 배치</span>} pad={false}>
+        <Card title="검체 접수 대기 리스트"
+              right={<span className="src">채취 순서</span>} pad={false}>
           <Queue
-            items={list.map((x) => ({
-              id: x.id,
+            items={shown.map((x) => ({
+              id: x.id, no: x.no,
               title: `${x.name}  ${x.patient_no} · ${x.sex} ${x.age}세`,
               sub: `${x.specimen_no} · ${x.site} · ${x.kind}`,
-              chip: x.bound ? "바인딩 완료" : "대기",
-              chipTone: x.bound ? "dot" : "line",
             }))}
-            value={pick} onPick={setPick} onMove={move}
-            onPrev={() => step(-1)} onNext={() => step(1)}
+            value={pick} onPick={setPick} q={q} onSearch={setQ}
+            foot={
+              <>
+                <span>{msg ?? "채취 순서대로 도착합니다"}</span>
+                <Btn kind="fill" disabled={busy || d.items.length === 0}
+                     onClick={take}>다음 환자</Btn>
+              </>
+            }
           />
         </Card>
       }
@@ -79,11 +115,11 @@ function Inner({ items }) {
   );
 }
 
-/* 고른 검체 하나 — 접수 화면 */
+/* 고른 검체 — 아직 집은 것이 아니다. 보기만 한다 */
 function Detail({ id }) {
   const { loading, data, error, reload } = useApi(() => api.specimen(id), [id]);
   return (
-    <Card title="검체 접수" right={<span className="src">대시보드 › 검체 접수</span>}>
+    <Card title="지금 확인할 환자 정보">
       <Body loading={loading} error={error} onRetry={reload}>
         {data && <DetailBody d={data} />}
       </Body>
@@ -92,8 +128,8 @@ function Detail({ id }) {
 }
 
 function DetailBody({ d }) {
-  const [busy, setBusy] = useState(false);
   const p = d.patient;
+  const [shot, setShot] = useState(0);
 
   return (
     <>
@@ -103,38 +139,27 @@ function DetailBody({ d }) {
           <b>{p.name}</b>
           <span>{p.patient_no} · {p.sex} / {p.age}세 · {p.birth_date}</span>
         </div>
+        {/* 「바인딩 완료」는 배지로 줄였다 — 큰 상자로 두면 정작 중요한
+            검체 정보가 밀린다 */}
+        {d.bound && <Chip tone="dot">바인딩 완료</Chip>}
       </div>
 
-      <dl className="kv two">
-        <div><dt>요청 부서</dt><dd>{d.request.dept}</dd></div>
-        <div><dt>요청일</dt><dd>{d.request.at}</dd></div>
-        <div><dt>담당의</dt><dd>{d.request.doctor}</dd></div>
-      </dl>
-
-      <h3 className="seck">검체 정보 (요청 정보)</h3>
       <dl className="kv wide">
         <div><dt>검체번호</dt><dd><b>{d.specimen.no}</b></dd></div>
         <div><dt>검체 종류</dt><dd>{d.specimen.kind}</dd></div>
         <div><dt>채취 방식</dt><dd>{d.specimen.method}</dd></div>
-        <div><dt>채취일시</dt><dd>{d.specimen.taken_at}</dd></div>
+        <div><dt>채취일시</dt><dd>{d.specimen.collected_at}</dd></div>
         <div><dt>요청 부위</dt><dd>{d.specimen.site}</dd></div>
         <div><dt>병변</dt><dd>{d.specimen.lesion}</dd></div>
+        <div><dt>요청 부서</dt><dd>{d.request.dept} · {d.request.doctor}</dd></div>
       </dl>
 
-      {/* 바인딩 여부 — **접수 가능한지를 가르는 값**이라 눈에 띄는 자리에
-          둔다. 안 되어 있으면 접수 단추가 잠긴다 */}
-      <div className="info">
-        <i aria-hidden="true">{d.bound ? "✓" : "!"}</i>
-        <div className="info-tx">
-          <b>{d.bound ? "검체 바인딩 완료" : "병변과 연결되지 않았습니다"}</b>
-          <span>{d.bound
-            ? "이 검체는 병변과 연결되어 접수 가능합니다."
-            : "요청한 부서에 병변 연결을 요청하십시오."}</span>
-        </div>
-      </div>
-
-      <h3 className="seck">임상 정보 ({d.request.dept})</h3>
-      <p className="note">{d.clinical}</p>
+      {d.clinical_note && (
+        <>
+          <h3 className="seck">임상 정보 ({d.request.dept})</h3>
+          <p className="note">{d.clinical_note}</p>
+        </>
+      )}
 
       {d.imaging && (
         <>
@@ -143,38 +168,39 @@ function DetailBody({ d }) {
             <div><dt>검사 종류</dt><dd>{d.imaging.modality}</dd></div>
             <div><dt>판독일</dt><dd>{d.imaging.read_at}</dd></div>
             <div><dt>소견</dt><dd>{d.imaging.finding}</dd></div>
-            {/* 영상 쪽 판정이라 「모델 BI-RADS」가 아니다. 사람이 낸 값이다 */}
             <div><dt>BI-RADS</dt><dd><b>{d.imaging.birads}</b></dd></div>
           </dl>
         </>
       )}
 
-      <h3 className="seck">첨부 이미지 / 문서</h3>
-      <div className="row-chips">
-        {d.attachments.map((g) => (
-          <Chip key={g.label} tone={g.n > 0 ? "fill" : "line"}>{g.label} {g.n}</Chip>
-        ))}
-      </div>
-      <div className="files">
-        {d.files.map((f) => (
-          <span className="file" key={f.name}>
-            <i aria-hidden="true">{f.kind === "image" ? "▣" : "▤"}</i>
-            {f.name}<span>· {f.at}</span>
-          </span>
-        ))}
-      </div>
+      {/* 채취 때 쓴 영상. 어느 자리를 찔렀는지 눈으로 봐야 검체가 맞는지
+          안다 — specimen → lesion → study 로 타고 온다 */}
+      {d.guide_images?.length > 0 && (
+        <>
+          <h3 className="seck">유도 영상</h3>
+          <div className="thumbs">
+            {d.guide_images.map((g, i) => (
+              <button className={`thumb ${shot === i ? "on" : ""}`} key={g.label}
+                      onClick={() => setShot(i)}>
+                <i aria-hidden="true" />{g.label}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
 
-      <div className="rowb">
-        <Btn disabled={busy}
-             onClick={() => { setBusy(true); api.rejectSpecimen(d.id, "").finally(() => setBusy(false)); }}>
-          반려
-        </Btn>
-        {/* 화면당 하나뿐인 채움 단추. 이 화면에서 할 일은 접수다 */}
-        <Btn kind="fill" disabled={!d.bound || busy}
-             onClick={() => { setBusy(true); api.acceptSpecimen(d.id).finally(() => setBusy(false)); }}>
-          접수 · 업로드
-        </Btn>
-      </div>
+      {/* 같은 환자의 다른 검체 — 한 번에 여러 자리를 뗀 경우가 있다 */}
+      {d.siblings?.length > 0 && (
+        <Fold title={`이 환자의 다른 검체 ${d.siblings.length}`} open={false}>
+          <dl className="kv wide">
+            {d.siblings.map((s) => (
+              <div key={s.no}>
+                <dt>{s.no}</dt><dd>{s.site} · {s.kind} · {s.state}</dd>
+              </div>
+            ))}
+          </dl>
+        </Fold>
+      )}
     </>
   );
 }

@@ -70,16 +70,11 @@ input,select,textarea{font:inherit; color:inherit}
 .me-tx{display:flex; flex-direction:column; line-height:1.25}
 .me-tx b{font-size:var(--top-fs); font-weight:600}
 .me-tx small{font-size:var(--crumb-fs); color:var(--warm)}
-.out{width:var(--avatar); height:var(--avatar); border-radius:50%;
-  display:flex; align-items:center; justify-content:center; color:var(--warm);
-  box-shadow:inset 0 0 0 var(--hair) var(--border)}
-.out:hover{color:var(--ink)}
 
 /* ── 쪽 ─────────────────────────────────────────────────────── */
 .page{flex:1; width:100%; max-width:var(--max); margin:0 auto;
   padding:var(--page-pad-y) var(--page-pad-x);
   display:flex; flex-direction:column; gap:var(--gap)}
-.narrow{max-width:var(--form-w); width:100%}
 
 .crumb{display:flex; align-items:center; gap:var(--crumb-gap);
   font-size:var(--crumb-fs); color:var(--warm)}
@@ -117,12 +112,6 @@ input,select,textarea{font:inherit; color:inherit}
 
 .grid2{display:grid; grid-template-columns:1fr 1fr; gap:var(--gap)}
 .grid3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:var(--gap)}
-.stats{display:grid; grid-template-columns:repeat(4,1fr); gap:var(--gap)}
-.stat{background:var(--card); border:var(--hair) solid var(--border);
-  border-radius:var(--card-radius); padding:var(--card-pad);
-  display:flex; flex-direction:column; gap:var(--gap-xxs)}
-.stat b{font-family:var(--font-head); font-size:var(--h1-fs)}
-.stat span{font-size:var(--crumb-fs); color:var(--warm)}
 
 /* 아직 안 만든 자리 */
 .slot{border:var(--hair) dashed var(--border); border-radius:var(--in-radius);
@@ -143,7 +132,6 @@ input,select,textarea{font:inherit; color:inherit}
 /* **화면당 하나.** 그 화면에서 할 일 하나를 가리킨다 */
 .btn.fill{background:var(--cyan); color:var(--cyan-ink)}
 .btn.fill:hover{filter:brightness(.95)}
-.btn.soot{background:var(--soot); color:var(--soot-ink)}
 .btn:disabled{opacity:.45; cursor:not-allowed}
 .rowb{display:flex; gap:var(--btn-gap); justify-content:flex-end}
 
@@ -191,8 +179,6 @@ input,select,textarea{font:inherit; color:inherit}
 .queue li.on .q-row{background:var(--canvas)}
 .queue li.on .q-row::before{content:""; position:absolute; left:0; top:0;
   bottom:0; width:var(--row-mark); background:var(--cyan)}
-.q-row .grip{color:var(--faint); font-size:var(--q-grip); font-style:normal;
-  cursor:grab; flex:none}
 .q-row .no{width:var(--q-no); height:var(--q-no); border-radius:50%;
   background:var(--soot); color:var(--soot-ink); font-size:var(--q-no-fs);
   font-style:normal; font-weight:700; flex:none;
@@ -204,7 +190,6 @@ input,select,textarea{font:inherit; color:inherit}
   gap:var(--gap-sm); padding:var(--row-pad-y) var(--row-pad-x);
   border-top:var(--hair) solid var(--border); font-size:var(--hint-fs);
   color:var(--warm)}
-.q-nav{display:flex; gap:var(--chip-gap)}
 
 /* ── 표 ─────────────────────────────────────────────────────── */
 .tbl-wrap{overflow-x:auto}
@@ -231,24 +216,6 @@ input,select,textarea{font:inherit; color:inherit}
 .hint{margin:0; font-size:var(--hint-fs); color:var(--warm)}
 
 /* ── 팝업 ───────────────────────────────────────────────────── */
-.modal{position:fixed; inset:0; z-index:50; display:flex;
-  align-items:center; justify-content:center; padding:var(--page-pad-x)}
-.modal-veil{position:absolute; inset:0; background:var(--veil)}
-.modal-box{position:relative; width:100%; max-width:var(--modal-w);
-  background:var(--card); border-radius:var(--modal-radius);
-  box-shadow:0 12px 48px rgba(12,10,9,.22); overflow:hidden;
-  display:flex; flex-direction:column; max-height:88vh}
-.modal-h{display:flex; align-items:flex-start; gap:var(--gap-sm);
-  padding:var(--modal-pad); border-bottom:var(--hair) solid var(--border)}
-.modal-h h2{font-size:var(--card-h-fs)}
-.modal-h .sub{margin-top:var(--gap-xs)}
-.modal-b{padding:var(--modal-pad); overflow-y:auto;
-  display:flex; flex-direction:column; gap:var(--card-gap)}
-.modal-f{display:flex; gap:var(--btn-gap); justify-content:flex-end;
-  padding:var(--card-pad-sm) var(--modal-pad);
-  border-top:var(--hair) solid var(--border)}
-.x{color:var(--warm); flex:none; padding:2px 4px}
-.x:hover{color:var(--ink)}
 
 /* ── 업로드 ─────────────────────────────────────────────────── */
 .drop{min-height:var(--up-h); border:var(--hair) dashed var(--border);
@@ -339,52 +306,6 @@ input,select,textarea{font:inherit; color:inherit}
 .ai-kv > div{display:flex; align-items:baseline; gap:var(--gap-sm)}
 .ai-kv dt{flex:1; min-width:0; font-size:var(--ai-k-fs); color:var(--v-warm)}
 .ai-kv dd{margin:0; font-size:var(--ai-v-fs); font-weight:600}
-.ai-les{border:var(--hair) solid var(--v-line); border-radius:var(--in-radius);
-  padding:var(--v-pad); display:flex; flex-direction:column; gap:var(--gap-tight)}
-.ai-les-h{display:flex; align-items:center; gap:var(--gap-tight)}
-.ai-les-h .no{width:var(--ai-no); height:var(--ai-no); border-radius:50%; flex:none;
-  background:var(--v-ink); color:var(--v-bg); font-style:normal;
-  font-size:var(--hint-fs); font-weight:700;
-  display:flex; align-items:center; justify-content:center}
-.ai-les-h b{flex:1; min-width:0}
-.ai-desc{list-style:none; margin:0; padding:0; display:flex;
-  flex-direction:column; gap:var(--gap-xxs)}
-.ai-desc li{display:flex; align-items:baseline; gap:var(--sub-gap)}
-.ai-desc li > span:first-child{width:var(--ai-ax); flex:none; color:var(--v-warm)}
-.ai-desc em{font-style:normal; color:var(--v-warm)}
-.ai-desc .warn{color:var(--cyan); font-weight:600}
-.ai-les-b{display:flex; gap:var(--chip-gap)}
-.ai-les-b .pill{background:transparent; color:var(--v-warm);
-  box-shadow:inset 0 0 0 var(--hair) var(--v-line)}
-.ai-lim summary{cursor:pointer; color:var(--v-warm); font-size:var(--hint-fs)}
-.ai-lim dl{margin:var(--gap-sm) 0 0; display:flex; flex-direction:column;
-  gap:var(--gap-tight)}
-.ai-lim dt{font-size:var(--hint-fs); color:var(--v-ink); font-weight:600}
-.ai-lim dd{margin:var(--gap-xxs) 0 0; font-size:var(--hint-fs); color:var(--v-warm);
-  line-height:1.55}
-
-/* ── 부서 고르기 ────────────────────────────────────────────── */
-.top.bare{justify-content:center}
-.flow{margin:0; font-size:var(--sub-fs); color:var(--warm);
-  background:var(--card); border:var(--hair) solid var(--border);
-  border-radius:var(--card-radius); padding:var(--card-pad-sm) var(--card-pad);
-  line-height:1.9}
-.depts{display:grid; grid-template-columns:repeat(3,1fr); gap:var(--gap)}
-.dcard{background:var(--card); border:var(--hair) solid var(--border);
-  border-radius:var(--card-radius); box-shadow:var(--card-shadow);
-  padding:var(--card-pad); display:flex; flex-direction:column;
-  gap:var(--gap-sm)}
-.dcard .en{font-size:var(--crumb-fs); letter-spacing:.14em; color:var(--faint);
-  font-weight:600}
-.dcard h2{font-size:var(--card-h-fs)}
-.dcard .who{margin:0; font-size:var(--hint-fs); color:var(--warm)}
-.dcard ul{list-style:none; margin:0; padding:0; display:flex;
-  flex-direction:column; gap:var(--gap-5); flex:1}
-.dcard li{display:flex; align-items:baseline; gap:var(--gap-sm);
-  font-size:var(--hint-fs)}
-.dcard li a{flex:1; min-width:0; color:var(--ink-2)}
-.dcard li a:hover{color:var(--cyan)}
-.dcard .btn{align-self:flex-start}
 
 /* ── 좁은 화면 ────────────────────────────────────────────────
    ⚠ 여기 두 수는 토큰으로 못 뺀다. @media 는 var() 를 안 받는다 —
@@ -393,11 +314,9 @@ input,select,textarea{font:inherit; color:inherit}
 @media (max-width: 1180px){
   .split,.split.wide{grid-template-columns:1fr}
   .grid3{grid-template-columns:1fr 1fr}
-  .depts{grid-template-columns:1fr 1fr}
 }
 @media (max-width: 860px){
-  .grid2,.grid3,.depts{grid-template-columns:1fr}
-  .stats{grid-template-columns:1fr 1fr}
+  .grid2,.grid3{grid-template-columns:1fr}
   .menu{overflow-x:auto}
 }
 
@@ -416,7 +335,6 @@ input,select,textarea{font:inherit; color:inherit}
 .kv.wide dt{width:var(--kv-k-wide)}
 .kv dd{margin:0; flex:1; min-width:0; font-size:var(--kv-fs)}
 .kv dd b{font-weight:600}
-.kv.two{display:grid; grid-template-columns:1fr 1fr; gap:var(--kv-gap) var(--gap)}
 
 /* ── 환자 머리 ───────────────────────────────────────────── */
 .ph{display:flex; align-items:center; gap:var(--gap-sm)}
@@ -429,21 +347,8 @@ input,select,textarea{font:inherit; color:inherit}
 .ph-tx span{font-size:var(--hint-fs); color:var(--warm)}
 
 /* ── 알림 상자 — 색이 아니라 옅은 면으로 ─────────────────── */
-.info{background:var(--wash); border-radius:var(--info-radius);
-  padding:var(--info-pad); display:flex; gap:var(--gap-sm)}
-.info i{font-style:normal; flex:none}
-.info-tx{display:flex; flex-direction:column; gap:var(--gap-xs); min-width:0}
-.info-tx b{font-size:var(--kv-fs); font-weight:600}
-.info-tx span{font-size:var(--hint-fs); color:var(--ink-2)}
 
 /* ── 첨부 · 파일 ─────────────────────────────────────────── */
-.files{display:flex; flex-direction:column; gap:var(--gap-sm)}
-.file{display:flex; align-items:center; gap:var(--sub-gap);
-  padding:var(--file-pad-y) var(--in-pad-x); border-radius:var(--file-radius);
-  background:var(--canvas); box-shadow:inset 0 0 0 var(--hair) var(--border);
-  font-size:var(--hint-fs); color:var(--ink-2)}
-.file i{font-style:normal; color:var(--warm); flex:none}
-.file span{color:var(--warm)}
 
 /* ── 썸네일 ──────────────────────────────────────────────── */
 .thumbs{display:flex; gap:var(--gap-sm); flex-wrap:wrap}
@@ -468,19 +373,8 @@ input,select,textarea{font:inherit; color:inherit}
   background:var(--cyan)}
 
 /* ── 레이어 켜고 끄기 — 뷰어 안 ──────────────────────────── */
-.layers{display:flex; flex-direction:column; gap:var(--gap-xs);
-  background:var(--v-card); border:var(--hair) solid var(--v-line);
-  border-radius:var(--file-radius); padding:var(--layer-pad)}
-.layers label{display:flex; align-items:center; gap:var(--sub-gap);
-  font-size:var(--v-fs); color:var(--v-ink); cursor:pointer}
-.layers input{accent-color:var(--cyan)}
-.layers .sw{width:var(--layer-sw); height:var(--layer-sw); border-radius:var(--radius-xxs);
-  flex:none; background:var(--v-warm)}
 
 /* 뷰어 위에 얹히는 것들 */
-.vfloat{position:absolute; right:var(--v-pad); bottom:var(--v-pad); z-index:2}
-.vmeta{position:absolute; right:var(--v-pad); top:var(--v-pad); z-index:2;
-  font-size:var(--hint-fs); color:var(--v-warm)}
 
 /* ── 입력 서식 ───────────────────────────────────────────── */
 .field{display:flex; flex-direction:column; gap:var(--gap-xs)}
@@ -553,4 +447,69 @@ input,select,textarea{font:inherit; color:inherit}
   line-height:var(--body-lh)}
 
 /* 칩을 나란히 */
-.row-chips{display:flex; flex-wrap:wrap; gap:var(--chip-gap)}
+
+/* ── 접는 덩어리 ──────────────────────────────────────────────
+   판독 화면의 세 패널(검체 정보 · AI 소견 · 의사 소견)이 쓴다.
+   머리를 통째로 누르게 한다 — 작은 삼각형만 눌러야 하면 손이 자꾸 빗나간다. */
+.fold{background:var(--card); border:var(--hair) solid var(--border);
+  border-radius:var(--card-radius); box-shadow:var(--card-shadow);
+  overflow:hidden}
+.fold-h{display:flex; align-items:center; gap:var(--sub-gap); width:100%;
+  height:var(--fold-h); padding:0 var(--fold-pad); background:var(--card)}
+.fold-h:hover{background:var(--canvas)}
+.fold-h i{font-style:normal; color:var(--warm); flex:none}
+.fold-h b{flex:1; min-width:0; font-size:var(--card-h-fs); font-weight:600;
+  font-family:var(--font-head); text-align:left}
+.fold-r{flex:none; font-size:var(--hint-fs); color:var(--warm)}
+.fold-b{padding:var(--fold-pad); border-top:var(--hair) solid var(--border);
+  display:flex; flex-direction:column; gap:var(--card-gap)}
+.fold.shut{box-shadow:none}
+
+/* 뷰어 안에서는 면을 안 깐다 — 어두운 판이라 카드가 뜨면 눈이 그리 간다 */
+.vside .fold{background:transparent; border-color:var(--v-line);
+  box-shadow:none}
+.vside .fold-h{background:transparent; color:var(--v-ink)}
+.vside .fold-h:hover{background:transparent}
+.vside .fold-h i,.vside .fold-r{color:var(--v-warm)}
+.vside .fold-b{border-top-color:var(--v-line)}
+
+/* ── 대기열 — 검색과 빈 자리 ─────────────────────────────── */
+.q-search{padding:var(--gap-sm) var(--row-pad-x);
+  border-bottom:var(--hair) solid var(--border)}
+.q-empty{padding:var(--card-pad); text-align:center; color:var(--warm);
+  font-size:var(--hint-fs)}
+
+/* ── 올린 크롭 목록 ───────────────────────────────────────── */
+.crops{list-style:none; margin:0; padding:0}
+.crops li{display:flex; align-items:center; gap:var(--gap-sm);
+  padding:var(--crop-pad) var(--row-pad-x);
+  border-bottom:var(--hair) solid var(--line-2)}
+.crops li:last-child{border-bottom:none}
+.crop-tx{flex:1; min-width:0; display:flex; flex-direction:column; line-height:1.35}
+.crop-tx b{font-size:var(--row-fs); font-weight:600}
+.crop-tx span{font-size:var(--hint-fs); color:var(--warm)}
+.crop-bar{width:var(--crop-bar); flex:none}
+.thumb.sm i,i.thumb.sm{width:var(--crop-th); height:var(--crop-th); flex:none}
+
+/* ── 잴 수 없는 값 ────────────────────────────────────────────
+   간질이 없으면 sTIL 이 null 이다. **0% 가 아니다** — 잴 수 없는 것이지
+   TIL 이 없는 것이 아니다. 숫자 자리에 글자를 넣어 구분한다. */
+.ai-na{color:var(--v-warm); font-weight:400}
+
+/* 점 목록 — 업로드 주의사항 */
+.bul{margin:0; padding-left:1.1em; display:flex; flex-direction:column;
+  gap:var(--gap-xs); font-size:var(--kv-fs); color:var(--ink-2);
+  line-height:var(--body-lh)}
+
+/* 뷰어를 화면 가득 — 오른쪽 패널을 접는다 */
+.split.full{grid-template-columns:1fr}
+.split.full .split-r{display:none}
+
+/* ── 목업 표시 줄 ─────────────────────────────────────────────
+   목업을 보면서 진짜인 줄 아는 일을 막는다. 눈에 띄되 일을 가리지
+   않도록 바닥에 얇게 붙인다. 진짜 서버에 붙으면 아예 안 그려진다. */
+.mockbar{position:sticky; bottom:0; z-index:15; flex:none;
+  height:var(--mock-h); display:flex; align-items:center;
+  justify-content:center; gap:var(--sub-gap);
+  background:var(--soot); color:var(--soot-ink);
+  font-size:var(--mock-fs); letter-spacing:.02em}

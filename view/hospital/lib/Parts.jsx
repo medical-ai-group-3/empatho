@@ -52,30 +52,27 @@ export function Split({ side = "normal", left, right, empty = "왼쪽에서 하�
 }
 
 /* ── 대기열 ───────────────────────────────────────────────────
-   순서가 뜻을 갖는 목록이다. 끌어서 옮길 수 있고 「다음 환자」로 넘어간다.
+   **선착순 큐다.** 병리과 전체가 함께 보고, 누가 집으면 다른 사람
+   화면에서 사라진다.
 
-   ⚠ **「이전 환자」를 같이 둔다.** 와이어프레임에는 「다음」만 있었는데,
-     잘못 넘기면 돌아갈 방법이 없다. 순서가 있는 화면에서 한쪽으로만
-     가는 것은 거의 항상 실수다. */
-export function Queue({ items, value, onPick, onMove, onPrev, onNext, foot }) {
-  const drag = useRef(null);
+   ⚠ 순번은 **표시 전용**이다. 끌어서 못 옮긴다 — 채취 순서(collected_at)가
+     곧 순서이고, 그것을 손으로 바꾸면 «내 화면에서만» 바뀐 것이 된다.
+     여럿이 보는 큐에서 각자 순서를 바꾸면 같은 화면이 아니게 된다.
 
+   대신 **검색**을 둔다. 순서를 안 바꾸고 건너뛰어 찾을 수 있게. */
+export function Queue({ items, value, onPick, foot, onSearch, q }) {
   return (
     <div className="queue">
+      {onSearch && (
+        <div className="q-search">
+          <Search placeholder="환자 · 검체번호" value={q} onChange={onSearch} />
+        </div>
+      )}
       <ul>
         {items.map((it, i) => (
-          <li key={it.id}
-              className={value === it.id ? "on" : undefined}
-              draggable
-              onDragStart={() => { drag.current = i; }}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={() => {
-                if (drag.current !== null && drag.current !== i) onMove?.(drag.current, i);
-                drag.current = null;
-              }}>
+          <li key={it.id} className={value === it.id ? "on" : undefined}>
             <button className="q-row" onClick={() => onPick?.(it.id)}>
-              <i className="grip" aria-hidden="true">⣿</i>
-              <i className="no">{i + 1}</i>
+              <i className="no">{it.no ?? i + 1}</i>
               <span className="q-tx">
                 <b>{it.title}</b>
                 {it.sub && <span>{it.sub}</span>}
@@ -84,15 +81,29 @@ export function Queue({ items, value, onPick, onMove, onPrev, onNext, foot }) {
             </button>
           </li>
         ))}
+        {items.length === 0 && (
+          <li><div className="q-empty">대기 중인 검체가 없습니다</div></li>
+        )}
       </ul>
-      <div className="q-foot">
-        <span>{foot ?? "끌어서 순서를 바꿉니다"}</span>
-        <span className="q-nav">
-          <button className="pill" onClick={onPrev}>‹ 이전 환자</button>
-          <button className="pill" onClick={onNext}>다음 환자 ›</button>
-        </span>
-      </div>
+      {foot && <div className="q-foot">{foot}</div>}
     </div>
+  );
+}
+
+/* ── 접었다 펴는 덩어리 ───────────────────────────────────────
+   판독 화면의 세 패널(검체 정보 · AI 소견 · 의사 소견)이 쓴다.
+   접힘/펼침은 **화면 상태라 서버가 모른다** — 저장하지 않는다. */
+export function Fold({ title, open = true, right, children }) {
+  const [on, setOn] = useState(open);
+  return (
+    <section className={`fold ${on ? "" : "shut"}`}>
+      <button className="fold-h" onClick={() => setOn(!on)} aria-expanded={on}>
+        <i aria-hidden="true">{on ? "▾" : "▸"}</i>
+        <b>{title}</b>
+        {right && <span className="fold-r">{right}</span>}
+      </button>
+      {on && <div className="fold-b">{children}</div>}
+    </section>
   );
 }
 
@@ -135,52 +146,7 @@ export function Save({ hint, onDraft, onSave, saveLabel = "저장", busy }) {
   );
 }
 
-/* ── 팝업 ─────────────────────────────────────────────────────
-   촬영 요청 · 환자 검색 · 검체 신청이 쓴다. Esc 와 바깥 누르기로 닫힌다 —
-   닫는 길이 ✕ 하나뿐이면 손이 먼저 바깥을 누른다. */
-export function Modal({ open, title, sub, onClose, foot, children }) {
-  useEffect(() => {
-    if (!open) return;
-    const k = (e) => { if (e.key === "Escape") onClose?.(); };
-    window.addEventListener("keydown", k);
-    return () => window.removeEventListener("keydown", k);
-  }, [open, onClose]);
-
-  if (!open) return null;
-  return (
-    <div className="modal" role="dialog" aria-modal="true" aria-label={title}>
-      <button className="modal-veil" onClick={onClose} aria-label="닫기" />
-      <div className="modal-box">
-        <div className="modal-h">
-          <div>
-            <h2>{title}</h2>
-            {sub && <p className="sub">{sub}</p>}
-          </div>
-          <button className="x" onClick={onClose} aria-label="닫기">✕</button>
-        </div>
-        <div className="modal-b">{children}</div>
-        {foot && <div className="modal-f">{foot}</div>}
-      </div>
-    </div>
-  );
-}
-
-/* ── 업로드 ───────────────────────────────────────────────────
-   ⚠ **WSI 는 낱장 4GB · ZIP 20GB 까지 온다.** 화면은 진행률만 그리지만,
-     받는 쪽(nginx client_max_body_size · file-gateway)이 그 크기를
-     받도록 맞춰져 있어야 한다. 기본값이면 413 으로 끊긴다. */
-export function Drop({ title, note, accept, max, onPick }) {
-  return (
-    <div className="drop">
-      <i aria-hidden="true">↥</i>
-      <b>{title}</b>
-      <span>{note}</span>
-      <button className="btn line" onClick={onPick}>파일 선택</button>
-      <small>지원 형식: {accept} · 최대 {max}</small>
-    </div>
-  );
-}
-
+/* 진행 막대. 업로드와 AI 분석이 같이 쓴다 */
 export function Bar({ value = 0, label }) {
   return (
     <div className="barwrap">
@@ -197,9 +163,10 @@ export function Bar({ value = 0, label }) {
    양옆 패널은 접힌다. 접으면 손잡이만 남아서 다시 펼 수 있다 —
    완전히 사라지면 「그게 어디 갔지」가 된다. */
 export function Viewer({ tools, tabs, children, leftPanel, rightPanel,
-                         leftName = "AI 소견", rightName = "의사 소견" }) {
-  const [L, setL] = useState(true);
-  const [R, setR] = useState(true);
+                         leftName = "AI 소견", rightName = "의사 소견",
+                         leftOpen = true, rightOpen = true }) {
+  const [L, setL] = useState(leftOpen);
+  const [R, setR] = useState(rightOpen);
 
   return (
     <div className="vwrap">
@@ -230,11 +197,13 @@ export function Viewer({ tools, tabs, children, leftPanel, rightPanel,
   );
 }
 
-/* 배율 슬라이더 */
-export function Zoom({ value, onChange, min = 1, max = 40, unit = "x" }) {
+/* 미끄럼 손잡이 하나. 배율에도 쓰고 마스크 투명도에도 쓴다.
+   투명도는 **저장하지 않는다** — 보는 사람의 지금 형편이지 판독 내용이
+   아니다. */
+export function Slide({ label, value, onChange, min = 0, max = 100, unit = "%" }) {
   return (
     <div className="zoom">
-      <span>배율</span>
+      <span>{label}</span>
       <input type="range" min={min} max={max} value={value}
              onChange={(e) => onChange?.(Number(e.target.value))} />
       <b>{value}{unit}</b>

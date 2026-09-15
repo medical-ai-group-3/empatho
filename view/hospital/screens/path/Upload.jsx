@@ -1,36 +1,38 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../../api";
 import { Body } from "../../lib/Body";
 import { Btn, Card, Page } from "../../lib/Page";
-import { Bar, Chip, Drop, Split, Table } from "../../lib/Parts";
+import { Bar, Chip, Fold, Split } from "../../lib/Parts";
 import { useApi } from "../../lib/useApi";
+import { go } from "../../nav";
 
-/* 병리 22 · 슬라이드 업로드
+/* 병리 2 · 조직 이미지 업로드  (명세 p.22)
  *
- * 스캔한 전체 슬라이드 이미지(WSI)를 올리고 AI 분석을 시작한다.
+ * ── WSI 전체가 아니라 크롭이다 ───────────────────────────────
+ * 추론 서버가 **크롭 한 장씩** 받는다. WSI 타일 피라미드는 시연 범위
+ * 밖이다. 화면 문구도 그에 맞춘다 — 「WSI 파일」이라고 적어 두면 올리는
+ * 사람이 슬라이드 통파일을 찾는다.
  *
- * ── ⚠ 파일이 크다 ────────────────────────────────────────────
- * WSI 는 낱장이 **기가바이트 단위**다. 화면은 진행률만 그리지만 받는
- * 쪽이 그 크기를 받도록 맞춰져 있어야 한다.
+ * ── 여러 장을 올린다 ─────────────────────────────────────────
+ * 같은 슬라이드라도 **자른 자리에 따라 sTIL 이 0~36% 로 요동친다**(CV≈1.0).
+ * 한 장만 돌리면 그 한 자리의 값이고, 여러 장을 돌려야 분포가 보인다.
+ * 크롭 3장이면 ai_result 3행이고 specimen_id 가 같아 묶인다.
  *
- *   · nginx  client_max_body_size 기본값은 1MB — 안 올리면 413
- *   · nginx  proxy_read_timeout 기본 60초 — 20GB ZIP 은 그보다 오래 걸린다
- *   · file-gateway 가 본문을 메모리에 올리는 구조면 프로세스가 죽는다
- *
- * 화면을 아무리 잘 만들어도 이 셋이 안 맞으면 업로드가 막힌다.
- *
- * ── 분석은 되돌릴 수 없다 ─────────────────────────────────────
- * 누르면 GPU 가 몇 분 돈다. 그래서 무엇이 실행되는지와 얼마나 걸리는지를
- * 단추 바로 위에 적는다 — 누르고 나서 알게 되면 늦다.
+ * ── 분석이 여기서 시작되고 여기서 끝난다 ─────────────────────
+ * 끝나야 판독으로 넘어갈 수 있다. 그래서 **판독 화면에는 「분석 중」이
+ * 없다.** 건너뛰는 길도 없다 — 일단 돌리고, 결과를 볼지 말지는 판독
+ * 화면에서 패널로 정한다.
  */
-export default function Upload() {
-  const id = new URLSearchParams(location.search).get("case") ?? "current";
-  const { loading, data, error, reload } = useApi(() => api.upload(id), [id]);
 
+const POLL_MS = 3000;
+
+export default function Upload() {
+  const { id } = useParams();
+  const { loading, data, error, reload } = useApi(() => api.uploadInfo(id), [id]);
   return (
-    <Page crumb={["병리과", "슬라이드 업로드"]} title="촬영 파일 업로드" badge="WSI"
-          sub="스캔한 전체 슬라이드 이미지를 올리고 AI 분석을 시작합니다."
-          right={<Btn>업로드 가이드 보기</Btn>}>
+    <Page crumb={["병리과", "조직 이미지 업로드"]} title="조직 이미지 업로드"
+          sub="크롭한 조직 이미지를 올리고 AI 분석을 시작합니다. 여러 장을 올릴 수 있습니다.">
       <Body loading={loading} error={error} onRetry={reload}>
         {data && <Inner d={data} />}
       </Body>
@@ -38,80 +40,143 @@ export default function Upload() {
   );
 }
 
-const FCOLS = [
-  { key: "name",  label: "파일명",     w: "28%" },
-  { key: "series", label: "시리즈 설명", w: "15%" },
-  { key: "site",  label: "촬영 부위",   w: "13%" },
-  { key: "at",    label: "촬영일시",    w: "14%" },
-  { key: "size",  label: "파일 크기",   w: "12%" },
-  { key: "state", label: "상태",        w: "12%" },
-  { key: "memo",  label: "비고" },
-];
+/* 대기중 → 분석중 → 완료. 소켓을 나누지 않는다 —
+   추론 서버가 조직 분할과 세포 검출을 한 번에 낸다 */
+const RUN = {
+  queued:  { label: "대기중", tone: "line" },
+  running: { label: "분석중", tone: "dot"  },
+  done:    { label: "완료",   tone: "line" },
+  failed:  { label: "실패",   tone: "fill" },
+};
 
 function Inner({ d }) {
+  const nav = useNavigate();
   const [busy, setBusy] = useState(false);
-  const done = d.files.filter((f) => f.done).length;
-  const all  = d.files.length;
+  const [run, setRun] = useState(d.ai_run ?? null);
+
+  /* 분석이 도는 동안만 물어본다 */
+  useEffect(() => {
+    if (run?.status !== "queued" && run?.status !== "running") return;
+    const t = setInterval(async () => {
+      try { setRun(await api.aiResults(d.id)); } catch { /* 다음 번에 */ }
+    }, POLL_MS);
+    return () => clearInterval(t);
+  }, [run?.status, d.id]);
+
+  const uploaded = d.crops.filter((c) => c.done).length;
+  const canAnalyze = uploaded > 0 && uploaded === d.crops.length
+                     && run?.status !== "running" && run?.status !== "queued";
+  const canRead = run?.status === "done";
+
+  async function analyze() {
+    setBusy(true);
+    try { setRun(await api.analyze(d.id)); } finally { setBusy(false); }
+  }
 
   return (
     <Split
       left={
         <>
-          <Card title="촬영 파일 업로드"
-                right={<><Chip tone="fill">파일 업로드</Chip><Chip>업로드 가이드</Chip></>}>
-            <div className="grid2">
-              <Drop title="낱장 파일 올리기" note="WSI 파일을 하나씩 업로드합니다."
-                    accept=".svs, .tiff, .ndpi" max="4GB" />
-              <Drop title="ZIP 파일 올리기" note="여러 슬라이드를 한 번에 업로드합니다."
-                    accept=".zip" max="20GB" />
+          <Card title="조직 이미지"
+                right={<span className="src">크롭 {d.crops.length}장</span>}>
+            <div className="drop">
+              <i aria-hidden="true">↥</i>
+              <b>조직 이미지를 드래그하세요 (여러 장 가능)</b>
+              <span>크롭한 조직 이미지를 올립니다. 슬라이드 통파일이 아닙니다.</span>
+              <Btn>파일 선택</Btn>
+              <small>지원 형식: {d.accept}</small>
             </div>
-            <Bar value={all ? Math.round((done / all) * 100) : 0}
-                 label={`업로드 진행률 — ${done} / ${all} 완료`} />
+
+            <Fold title="업로드 주의사항" open={false}>
+              <ul className="bul">
+                {d.notes.map((n) => <li key={n}>{n}</li>)}
+              </ul>
+            </Fold>
           </Card>
 
-          <Card title="업로드된 파일 목록"
-                right={<><span className="src">총 {all}개 파일</span>
-                         <Btn>선택 삭제</Btn></>} pad={false}>
-            <Table cols={FCOLS} rows={d.files.map((f) => ({
-              ...f,
-              state: f.done
-                ? <Chip tone="line">완료</Chip>
-                : <Chip tone="dot">업로드 중</Chip>,
-              memo: f.done ? "—" : `${f.pct}%`,
-            }))} />
-            <div className="tbl-foot">
-              {/* 누르기 전에 무엇이 도는지 · 얼마나 걸리는지 */}
-              <span>분석을 시작하면 {d.pipeline} 이(가) 실행됩니다 (약 {d.eta}).</span>
-              <Btn kind="fill" disabled={done < all || busy}
-                   onClick={() => { setBusy(true); api.analyze(d.id).finally(() => setBusy(false)); }}>
-                분석
-              </Btn>
-            </div>
+          <Card title="올린 이미지 목록" pad={false}>
+            <ul className="crops">
+              {d.crops.map((c, i) => (
+                <li key={c.id}>
+                  <i className="thumb sm" aria-hidden="true" />
+                  <span className="crop-tx">
+                    <b>크롭 {i + 1}</b>
+                    <span>{c.name} · {c.size}</span>
+                  </span>
+                  {c.done
+                    ? <Chip tone="line">업로드 완료</Chip>
+                    : <span className="crop-bar"><Bar value={c.pct} /></span>}
+                </li>
+              ))}
+              {d.crops.length === 0 && (
+                <li><div className="q-empty">아직 올린 이미지가 없습니다</div></li>
+              )}
+            </ul>
           </Card>
         </>
       }
       right={
-        <Card title="환자 정보" right={<Btn>환자 상세 보기</Btn>}>
-          <div className="ph">
-            <span className="ava" aria-hidden="true">{d.patient.name[0]}</span>
-            <div className="ph-tx">
-              <b>{d.patient.name} <span className="src">({d.patient.sex} / {d.patient.age}세)</span></b>
-              <span>{d.patient.patient_no} · {d.patient.specimen_no}</span>
+        <>
+          <Card title="AI 분석">
+            {run ? (
+              <>
+                <div className="ph-tx">
+                  <b>{RUN[run.status]?.label ?? run.status}</b>
+                  <span>{run.note}</span>
+                </div>
+                <Bar value={run.pct ?? 0} />
+              </>
+            ) : (
+              <p className="note">아직 분석하지 않았습니다.</p>
+            )}
+            <div className="rowb">
+              <Btn to={go.queue()}>이전 단계</Btn>
+              {canRead
+                ? <Btn kind="fill" onClick={() => nav(go.read(d.id))}>판독으로</Btn>
+                : <Btn kind="fill" disabled={!canAnalyze || busy} onClick={analyze}>
+                    AI 분석 시작
+                  </Btn>}
             </div>
-          </div>
-          <dl className="kv wide">
-            <div><dt>성별 · 나이</dt><dd>{d.patient.sex} · {d.patient.age}세 ({d.patient.birth_date})</dd></div>
-            <div><dt>등록번호</dt><dd>{d.patient.patient_no}</dd></div>
-            <div><dt>Accession No.</dt><dd>{d.patient.specimen_no}</dd></div>
-            <div><dt>요청 검사</dt><dd className="row-chips">
-              {d.requested.map((r) => <Chip key={r} tone="fill">{r}</Chip>)}
-            </dd></div>
-            <div><dt>주치의</dt><dd>{d.doctor}</dd></div>
-            <div><dt>요청일</dt><dd>{d.requested_at}</dd></div>
-            <div><dt>검사 목적</dt><dd>{d.purpose}</dd></div>
-            <div><dt>특이사항</dt><dd>{d.remark || "없음"}</dd></div>
-          </dl>
-        </Card>
+            <p className="hint">
+              올린 이미지를 전부 분석합니다. 한 장에 약 {d.eta} 걸립니다.
+            </p>
+          </Card>
+
+          <Card title="검체 정보">
+            <div className="ph">
+              <span className="ava" aria-hidden="true">{d.patient.name[0]}</span>
+              <div className="ph-tx">
+                <b>{d.patient.name}</b>
+                <span>{d.patient.patient_no} · {d.patient.sex} / {d.patient.age}세</span>
+              </div>
+            </div>
+            <dl className="kv wide">
+              <div><dt>검체번호</dt><dd>{d.specimen.no}</dd></div>
+              <div><dt>검체 종류</dt><dd>{d.specimen.kind}</dd></div>
+              <div><dt>검체 상태</dt><dd>{d.specimen.state}</dd></div>
+              <div><dt>병변 위치</dt><dd>{d.specimen.lesion}</dd></div>
+            </dl>
+            {d.imaging && (
+              <>
+                <h3 className="seck">영상 판독 요약</h3>
+                <dl className="kv wide">
+                  <div><dt>{d.imaging.modality}</dt><dd>{d.imaging.finding}</dd></div>
+                  <div><dt>BI-RADS</dt><dd>{d.imaging.birads}</dd></div>
+                </dl>
+              </>
+            )}
+            {d.guide_images?.length > 0 && (
+              <>
+                <h3 className="seck">유도 영상</h3>
+                <div className="thumbs">
+                  {d.guide_images.map((g) => (
+                    <span className="thumb" key={g.label}><i aria-hidden="true" />{g.label}</span>
+                  ))}
+                </div>
+              </>
+            )}
+          </Card>
+        </>
       }
     />
   );

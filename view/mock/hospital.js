@@ -41,24 +41,72 @@ const send = (res, obj, code = 200) => {
   res.end(JSON.stringify(obj));
 };
 
-/* "…/cases/{id}/read" 를 실제 경로에 맞춰 본다 */
-function match(pattern, path) {
+/* 열쇠와 실제 주소를 맞춰 본다.
+
+   ⚠ **물음표 뒤도 본다.** 접수 대기 큐와 전체 목록이 경로는 같고 질의만
+     다르다(?status=bound&assigned=none). 경로만 보면 둘이 한 곳이 된다.
+
+   규칙
+     · 경로 조각의 {id} 는 아무 값이나 맞는다
+     · 열쇠에 질의가 있으면 **그 값들이 전부 들어 있어야** 맞는다
+     · 열쇠에 질의가 없으면 질의는 안 본다 — 정렬·검색 같은 것이
+       붙어도 같은 곳으로 간다
+   ────────────────────────────────────────────────────────────── */
+const isVar = (seg) => seg.startsWith("{") && seg.endsWith("}");
+
+function matchPath(pattern, path) {
   const a = pattern.split("/");
   const b = path.split("/");
-  if (a.length !== b.length) return false;
-  return a.every((seg, i) => (seg.startsWith("{") && seg.endsWith("}")) || seg === b[i]);
+  return a.length === b.length && a.every((seg, i) => isVar(seg) || seg === b[i]);
 }
 
-function pick(db, method, path) {
-  const exact = db[`${method} ${path}`];
+function matchQuery(pattern, query) {
+  if (!pattern) return true;                       // 열쇠에 질의가 없다
+  const want = new URLSearchParams(pattern);
+  const got  = new URLSearchParams(query || "");
+  for (const [k, v] of want) {
+    const g = got.get(k);
+    if (g === null) return false;
+    if (!isVar(v) && g !== v) return false;
+  }
+  return true;
+}
+
+function pick(db, method, url) {
+  const exact = db[`${method} ${url}`];
   if (exact !== undefined) return exact;
+
+  const [path, query] = url.split("?");
+  let loose;                                       // 질의 없는 열쇠는 뒤로 미룬다
   for (const key of Object.keys(db)) {
     const sp = key.indexOf(" ");
-    if (sp < 0) continue;
-    if (key.slice(0, sp) !== method) continue;
-    if (match(key.slice(sp + 1), path)) return db[key];
+    if (sp < 0 || key.slice(0, sp) !== method) continue;
+    const [kp, kq] = key.slice(sp + 1).split("?");
+    if (!matchPath(kp, path)) continue;
+    if (!matchQuery(kq, query)) continue;
+    /* 질의까지 맞는 열쇠가 이긴다. 큐(?status=bound)와 전체 목록이
+       같은 경로라, 질의 있는 쪽을 먼저 집어야 한다 */
+    if (kq) return db[key];
+    if (loose === undefined) loose = db[key];
   }
-  return undefined;
+  return loose;
+}
+
+export function hospitalRoutes() {
+  return {
+    name: "empatho-hospital-routes",
+    apply: "serve",
+    configureServer(server) {
+      server.middlewares.use((req, _res, next) => {
+        const path = (req.url || "").split("?")[0];
+        if (path === "/hospital" || path.startsWith("/hospital/")) {
+          const last = path.slice(path.lastIndexOf("/") + 1);
+          if (!last.includes(".")) req.url = "/hospital.html";
+        }
+        next();
+      });
+    },
+  };
 }
 
 export default function hospitalMock() {
@@ -91,7 +139,7 @@ export default function hospitalMock() {
           return send(res, { code: "MOCK_BROKEN", detail: String(e) }, 500);
         }
 
-        const hit = pick(db, req.method, path);
+        const hit = pick(db, req.method, req.url);
         if (hit === undefined) {
           return send(res, {
             code: "NOT_IN_MOCK",

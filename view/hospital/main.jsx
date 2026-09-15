@@ -1,10 +1,9 @@
 import { StrictMode, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { BrowserRouter, Link, Outlet, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Link, Navigate, Outlet, Route, Routes } from "react-router-dom";
 
-import { DEPTS, HOSPITAL, PRODUCT, ROOT, deptPath, findDept, screenCount,
-         screenPath } from "./nav";
-import Skeleton from "./Skeleton";
+import { apiInfo } from "./api";
+import { HOME, ROOT, deptPath } from "./nav";
 import PathAmend from "./screens/path/Amend";
 import PathPatients from "./screens/path/Patients";
 import PathRead from "./screens/path/Read";
@@ -38,58 +37,14 @@ function Shell() {
     <div className="app">
       <Top now={now} />
       <Outlet />
-    </div>
-  );
-}
-
-/* 부서 고르기 — 설계서 첫 장이 하는 일이다. 어느 부서로 들어갈지
-   고르고, 그 부서가 가진 화면을 미리 보여 준다. */
-function Index() {
-  return (
-    <div className="app">
-      <header className="top bare">
-        <div className="top-l">
-          <span className="mark" aria-hidden="true">◈</span>
-          <b>{HOSPITAL} {PRODUCT}</b>
-        </div>
-      </header>
-
-      <main className="page">
-        <div className="phead">
-          <div className="phead-l">
-            <h1>화면 설계<span className="badge">{screenCount}개 화면</span></h1>
-            <p className="sub">
-              부서를 골라 들어가면 화면 사이를 오가며 흐름을 확인할 수 있습니다.
-            </p>
-          </div>
-        </div>
-
-        <p className="flow">
-          로그인 → 원무과 접수·예약 → 간호과 문진·추적 → 유방외과 진료 →
-          영상의학과 촬영·판독 → 병리과 검체·판독 → 수술 결정·환자 설명
-        </p>
-
-        <div className="depts">
-          {DEPTS.map((d) => (
-            <section className="dcard" key={d.key}>
-              <span className="en">{d.en}</span>
-              <h2>{d.name}</h2>
-              <p className="who">
-                {d.who ? `${d.who.name} ${d.who.role} · ${d.note}` : d.note}
-              </p>
-              <ul>
-                {d.screens.map((s) => (
-                  <li key={s.key || "_"}>
-                    <Link to={screenPath(d, s)}>{s.title}</Link>
-                    <span className="src">p.{s.page}</span>
-                  </li>
-                ))}
-              </ul>
-              <Link className="btn line" to={deptPath(d)}>열기</Link>
-            </section>
-          ))}
-        </div>
-      </main>
+      {/* **목업을 보면서 진짜인 줄 아는 일**을 막는다. 시연 자리에서
+          「이거 실제 자료인가요」를 들었을 때 화면이 대신 답한다.
+          진짜 서버에 붙으면 이 줄이 사라진다 */}
+      {apiInfo.mock && (
+        <footer className="mockbar">
+          목업 자료 — 지어낸 값입니다 · {apiInfo.base}
+        </footer>
+      )}
     </div>
   );
 }
@@ -110,26 +65,9 @@ function Missing() {
    여기 없는 것은 뼈대(Skeleton)가 대신 그린다 — 자리는 잡혀 있고
    내용만 안 들어간 상태다. 화면 하나가 완성될 때마다 여기 한 줄씩
    더하면 되고, 라우팅은 안 건드린다. */
-const REAL = {
-  "pathology/":         PathSpecimens,
-  "pathology/patients": PathPatients,
-  "pathology/upload":   PathUpload,
-  "pathology/read":     PathRead,
-  "pathology/amend":    PathAmend,
-};
 
-/* 표 한 줄 → Route 하나 */
-function routesOf(d) {
-  return d.screens.map((s) => {
-    const Real = REAL[`${d.key}/${s.key}`];
-    return (
-      <Route key={s.key || "_"}
-             path={s.key || undefined}
-             index={!s.key}
-             element={Real ? <Real /> : <Skeleton dept={d} screen={s} />} />
-    );
-  });
-}
+
+
 
 const p2 = (n) => String(n).padStart(2, "0");
 const WD = ["일", "월", "화", "수", "목", "금", "토"];
@@ -143,11 +81,20 @@ createRoot(document.getElementById("root")).render(
   <StrictMode>
     <BrowserRouter>
       <Routes>
-        <Route path={ROOT} element={<Index />} />
+        {/* /hospital 로 들어오면 첫 부서로 보낸다. 부서 고르기 화면을
+            따로 두지 않는다 — 부서가 하나뿐이라 한 번 더 누르게 할
+            이유가 없다. 부서가 늘면 그때 만든다. */}
+        <Route path={ROOT} element={<Navigate to={deptPath(HOME)} replace />} />
         <Route path={ROOT} element={<Shell />}>
-          {DEPTS.map((d) => (
-            <Route key={d.key} path={d.key}>{routesOf(d)}</Route>
-          ))}
+          {/* 병리과 — 명세의 라우트 그대로.
+              검체 번호가 주소에 들어간다(:id). 물음표 뒤가 아니라 경로다. */}
+          <Route path="pathology">
+            <Route index                         element={<PathSpecimens />} />
+            <Route path="specimens"              element={<PathPatients />} />
+            <Route path="specimens/:id/upload"   element={<PathUpload />} />
+            <Route path="read/:id"               element={<PathRead />} />
+            <Route path="read/:id/amend"         element={<PathAmend />} />
+          </Route>
         </Route>
         {/* ⚠ 뿌리 주소를 여기서 다루지 않는다. 그 자리는 환자 앱 것이다.
             병원 웹은 /hospital 아래만 맡는다 — 한 저장소에 있을 뿐

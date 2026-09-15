@@ -1,5 +1,5 @@
 import { NavLink, useParams } from "react-router-dom";
-import { HOSPITAL, PRODUCT, ROOT, findDept, screenPath } from "../nav";
+import { HOSPITAL, PRODUCT, findDept, screenPath } from "../nav";
 
 /* 상단바 — 부서 안의 화면을 오가는 곳.
  *
@@ -51,7 +51,6 @@ export default function Top({ now }) {
             </span>
           </span>
         )}
-        <NavLink className="out" to={ROOT} title="부서 고르기">⌂</NavLink>
       </div>
     </header>
   );

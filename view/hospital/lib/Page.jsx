@@ -53,17 +53,6 @@ export function Card({ title, right, pad = true, className = "", children }) {
   );
 }
 
-/* 아직 안 만든 자리. **무엇이 들어올 자리인지 적어 둔다** —
-   빈 상자만 있으면 나중에 보고 무엇을 만들다 만 것인지 모른다 */
-export function Slot({ what, note, h }) {
-  return (
-    <div className="slot" style={h ? { minHeight: h } : undefined}>
-      <b>{what}</b>
-      {note && <span>{note}</span>}
-    </div>
-  );
-}
-
 export function Btn({ kind = "line", to, children, ...rest }) {
   const cls = `btn ${kind}`;
   return to
