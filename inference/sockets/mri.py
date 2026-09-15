@@ -5,9 +5,9 @@
   ① 파일이 둘이다. 조영 전(pre)과 조영 후(post)를 함께 받아 (2,Z,Y,X) 로
      쌓는다. 정규화가 두 phase 를 합쳐서 mean/std 를 내므로 채널을 따로
      만들어 붙이면 학습 때와 분포가 달라진다.
-  ② dataset_tag 를 호출부가 정해 준다. 값에 따라 내는 것이 통째로 다르다 —
-     mamamia 는 종양 위치, duke 는 유방 밀도. 잘못 넘기면 오류가 아니라
-     엉뚱한 값이 나온다. 우리가 짐작하지 않는다.
+  ② 무엇을 내는지는 파일 수가 정한다. 조영 전만 오면 유방 밀도만(phases=1),
+     조영 후까지 오면 병변과 밀도를 함께 낸다(phases=2).
+     호출부가 고르던 dataset_tag(mamamia/duke)는 2026-09-04 에 없어졌다.
 
 슬라이스가 150~250장이고 그만큼 추론을 반복한다. 초음파(장당 1회)나
 맘모(20초)와 달리 분 단위가 될 수 있다. 담당자 README 에도 아직 TBD 다.
@@ -111,11 +111,10 @@ def _load() -> dict:
         "adapter": str(bundle["paths"]["weights"]),
     }
 
-def _run(state, data, filename, post=None, post_filename=None, dataset_tag=None, **over) :
+def _run(state, data, filename, post=None, post_filename=None, **over) :
     """MRI 고유 부분. 락은 base 가 잡는다.
 
       post / post_filename   조영 후 볼륨. 없으면 밀도만 낸다 (phases=1)
-      dataset_tag            09-04 에 폐지됐다. main.py 가 아직 넘기므로 받아서 버린다
 
     임시 폴더 안에서 읽어야 한다 — with 를 벗어나면 폴더가 지워진다.
     전처리까지 락 안에서 하는 이유 — 락 밖이면 그 사이 수거자가 프로세스를 끝낼 수 있다.

@@ -33,7 +33,7 @@ import os
 import pathlib
 import traceback
 import yaml
-from fastapi import FastAPI, File, Form, UploadFile
+from fastapi import FastAPI, File, UploadFile
 
 from sockets import gpu, mammo, mri, pathology, us
 
@@ -194,7 +194,7 @@ def healthz():
 
 
 @app.post("/analyze/{socket_id}")
-async def analyze(socket_id: str, image: UploadFile = File(...), post: UploadFile | None = File(None), dataset_tag: str | None = Form(None)):
+async def analyze(socket_id: str, image: UploadFile = File(...), post: UploadFile | None = File(None)):
     """영상 한 장을 받아 소켓 번호에 맞는 모델로 보낸다.
 
     앱 서버(Celery 워커)가 부르는 유일한 판독 창구다. 어느 모달리티인지는
@@ -271,15 +271,13 @@ async def analyze(socket_id: str, image: UploadFile = File(...), post: UploadFil
     #
     #    THRESHOLDS[모듈이름] 이 없으면 {} 라서 번들 기본값으로 돈다.
     try:
-        # MRI 만 두 번째 파일과 dataset_tag 를 쓴다. 값이 있을 때만 넣는다 —
+        # MRI 만 두 번째 파일(조영 후)을 쓴다. 값이 있을 때만 넣는다 —
         # 다른 소켓의 predict 는 **over 를 아래 라이브러리로 그대로 넘기므로
         # 모르는 인자가 들어가면 거기서 터진다.
-        extra = {} 
+        extra = {}
         if post is not None:
-            extra["post"] = await post.read() 
+            extra["post"] = await post.read()
             extra["post_filename"] = post.filename
-        if dataset_tag is not None: 
-            extra["dataset_tag"] = dataset_tag
         result = mod.predict(data, filename=image.filename, **extra, **(THRESHOLDS.get(mod.NAME) or {}))
         
     # 판독 실패도 기권이다. GPU 가 모자라면 지금 못 할 뿐 코드가 틀린 게 아니고,
