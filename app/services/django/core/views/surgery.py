@@ -69,13 +69,19 @@ class PatientTimelineView(AuditMixin, viewsets.ViewSet):
         return Response(events)
 
 
-class SurgeryReportViewSet(AuditMixin, viewsets.ModelViewSet):
+class SurgeryReportViewSet(AuditMixin, OwnedOnlyMixin, viewsets.ModelViewSet):
     """§2·§3 GET/PUT /reports/{id}, GET /reports?patient=&type=final."""
 
     resource = "report"
     permission_classes = [MatrixPermission]
     queryset = models.Report.objects.all()
     serializer_class = serializers.ReportSerializer
+    
+    def owned_queryset(self, queryset, account):
+        return queryset.filter(patient__account=account)
+    
+    def is_owned_by(self, obj, account):
+        return obj.patient.account_id == account.account_id
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -212,10 +218,13 @@ class SpecimenBindViewSet(AuditMixin, viewsets.ViewSet):
     §4(병리과) GET /specimens — 전체 목록 + 필터/정렬.
     """
 
-    resource = "specimen"
-    permission_classes = [CanBindSpecimen]
-    # TODO: 단독 권한 CanBindSpecimen 적용 (간호·유방외과) — permissions import 확인 후 교체
+    resource = "specimen_pathology"
 
+    def get_permissions(self):
+        if self.action == "create":
+            return [CanBindSpecimen()]
+        return [MatrixPermission()]
+    
     def list(self, request):
         qs = models.Specimen.objects.select_related("patient").all()
         ordering = request.query_params.get("ordering")

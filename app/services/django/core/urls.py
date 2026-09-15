@@ -81,7 +81,7 @@ urlpatterns = [
         name="radiology-study-read",
     ),
     path("studies/<int:pk>/ai-results", views.AiResultQueueView.as_view({"post": "start"}), name="study-ai-results-start"),
-    path("ai-results", views.AiResultListView.as_view(), name="ai-results-list"),
+    path("ai-results", views.AiResultListView.as_view({"get": "list"}), name="ai-results-list"),
     path("studies/<int:pk>/assessment/draft", views.AssessmentDraftView.as_view({"put": "update"}), name="study-assessment-draft"),
     path("studies/<int:pk>/finalize", views.StudyFinalizeView.as_view({"patch": "partial_update"}), name="study-finalize"),
     path("assessments", views.AssessmentHistoryView.as_view(), name="assessment-history"),

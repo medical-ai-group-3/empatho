@@ -173,22 +173,48 @@ class AiResultQueueView(AuditMixin, viewsets.ViewSet):
 
 
 # views/radiology.py 의 AiResultListView 수정
-class AiResultListView(generics.ListAPIView):
-    """GET /ai-results?study={id} 또는 ?specimen={id}"""
+class AiResultListView(viewsets.ViewSet):
+    """GET /ai-results?study={id} 또는 ?specimen={id}
+
+    검체/검사 전체의 통합 진행 상태를 하나로 돌려준다.
+    {"status": "queued"|"running"|"done"|"failed", "pct": 0~100}
+    """
 
     resource = "ai_result"
     permission_classes = [MatrixPermission]
-    serializer_class = serializers.AiResultSerializer
 
-    def get_queryset(self):
-        qs = models.AiResult.objects.all().order_by("-created_at")
-        study_id = self.request.query_params.get("study")
-        specimen_id = self.request.query_params.get("specimen")
+    def list(self, request):
+        qs = models.AiResult.objects.all()
+        study_id = request.query_params.get("study")
+        specimen_id = request.query_params.get("specimen")
+
         if study_id:
             qs = qs.filter(study_id=study_id)
         if specimen_id:
             qs = qs.filter(source_object__specimen_id=specimen_id)
-        return qs
+
+        results = list(qs)
+        if not results:
+            return Response({"status": "queued", "pct": 0})
+
+        total = len(results)
+        done = sum(1 for r in results if r.run_status == "done")
+        failed = sum(1 for r in results if r.run_status == "failed")
+        running = sum(1 for r in results if r.run_status == "running")
+
+        if failed > 0:
+            overall = "failed"
+        elif done == total:
+            overall = "done"
+        elif running > 0 or done > 0:
+            overall = "running"
+        else:
+            overall = "queued"
+
+        pct = int((done / total) * 100) if total else 0
+
+        return Response({"status": overall, "pct": pct})
+
 
 class AssessmentDraftView(AuditMixin, viewsets.ViewSet):
     """PUT /studies/{id}/assessment/draft — 임시저장(덮어쓰기)."""
