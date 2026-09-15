@@ -9,6 +9,9 @@ from .reception import (
     ExamOrderQueryView,
     StaffListView,
     PatientTodayStatusView,
+    PatientRegisterView,     
+    CheckInView,               
+    ExamOrderScheduleView,     
 )
 from .nursing import (
     VisitTodayViewSet,

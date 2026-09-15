@@ -104,5 +104,8 @@ urlpatterns = [
     path("staff",views.StaffListView.as_view(), name ="staff-list"),
     path("followups/new", views.FollowupCreateView.as_view({"post": "create"}), name="followup-create"),
     path("followups/<int:pk>/call", views.FollowupCallView.as_view({"patch": "partial_update"}), name="followup-call"),
-    ]
+    path("patients/register", views.PatientRegisterView.as_view({"post": "create"}), name="patient-register"),
+    path("exam-orders/checkin", views.CheckInView.as_view({"post": "create"}), name="exam-order-checkin"),
+    path("exam-orders/schedule", views.ExamOrderScheduleView.as_view({"post": "create"}), name="exam-order-schedule"),
+]
 

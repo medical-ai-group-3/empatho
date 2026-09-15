@@ -14,7 +14,10 @@ from .reception import (
     ExamOrderItemSerializer,
     ReservationCreateSerializer,
     ReservationRequestCreateSerializer,
-    StaffSerializer
+    StaffSerializer,
+    PatientRegisterSeializer,
+    CheckInSerializer,
+    ExamOrderScheduleSerializer,
 )
 from .nursing import (
     FollowupSerializer,

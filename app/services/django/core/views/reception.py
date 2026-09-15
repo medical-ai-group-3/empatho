@@ -4,13 +4,22 @@ from rest_framework import viewsets, status, generics
 from rest_framework.response import Response
 
 from django.db.models import Q
+from django.utils import timezone 
 
 from .. import models, serializers
 from ..mixins import AuditMixin
 from core.api.permissions import MatrixPermission, OwnedOnlyMixin
 from core.api.errors import ApiError
 
-
+def _is_date(value):
+    from datetime import date
+    try:
+        date.fromisoformat(value)
+        return True
+    except (ValueError, TypeError):
+        return False
+    
+    
 class PatientViewSet(AuditMixin, OwnedOnlyMixin, viewsets.ModelViewSet):
 
     resource = "patient"
@@ -19,23 +28,30 @@ class PatientViewSet(AuditMixin, OwnedOnlyMixin, viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
-        
-        primary_staff_param = self.request.query_params.get("primaty_staff")
+
+        primary_staff_param = self.request.query_params.get("primary_staff")
         if primary_staff_param == "me":
             staff = getattr(self.request.user, "staff", None)
             if staff is None:
                 return qs.none()
             return qs.filter(primary_staff=staff)
-        
-        q = self.request.query_params.get("q", "").strip()
-        if not q:
-            return qs.none()
-        return qs.filter(
-            Q(patient_number=q) |
-            Q(pii__name__icontains=q) |
-            Q(pii__phone__icontains=q)
-        )
 
+        q = self.request.query_params.get("q", "").strip()
+        status_param = self.request.query_params.get("status")
+
+        if not q and not status_param:
+            return qs.none()
+
+        result = qs
+        if q:
+            result = result.filter(
+                Q(patient_number=q) |
+                Q(pii__name__icontains=q) |
+                Q(pii__phone__icontains=q) |
+                Q(pii__birth_date=q if _is_date(q) else None)
+            )
+        return result
+    
     def owned_queryset(self, queryset, account):
         return queryset.filter(account=account)
 
@@ -263,3 +279,64 @@ class PatientTodayStatusView(viewsets.ViewSet):
                 stage = o.order_status
             result.append({"exam_order_id": o.exam_order_id, "patient_id": o.patient_id, "stage": stage})
         return Response(result)
+    
+class PatientRegisterView(AuditMixin, viewsets.ViewSet):
+    """§1 [+] 등록 — POST /patients. (기존 PatientCreateSerializer 와 별개 — 간소화된 접수용)"""
+    resource = "patient"
+    permission_classes = [MatrixPermission]
+    
+    def create(self, request):
+        serializer = serializers.PatientRegisterSerializer(data = request.data)
+        serializer.is_valid(raise_exception=True)
+        patient = serializer.save(
+            created_by = self._current_account(),
+            updated_by=self._current_account(),
+        )
+        out = serializers.PatientDetailSerializer(patient)
+        return Response(out.data, status=status.HTTP_201_CREATED)
+    
+class CheckInView(AuditMixin, viewsets.ViewSet):
+    """§1 [접수하기] — POST /exam-orders (requested + visited_at)."""
+    
+    resource = "exam_order"
+    permission_classes = [MatrixPermission]
+    
+    def create(self, request):
+        serializer = serializers.CheckInSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        patient_id = serializer.validated_data["patient_id"]
+        
+        order = models.ExamOrder.objects.create(
+            patient_id=patient_id,
+            order_status="requested",
+            visited_at=timezone.now(),
+            created_by=self._current_account(),
+            updated_by=self._current_account()
+        )
+        
+        patient = models.Patient.objects.get(pk=patient_id)
+        if not getattr(patient, "first_visited_at", None):
+            pass
+        
+        out = serializers.ExamOrderSerializer(order)
+        return Response(out.data, status= status.HTTP_201_CREATED)
+    
+class ExamOrderScheduleView(AuditMixin, viewsets.ViewSet):
+    """§3 [예약 완료] — POST /exam-orders (원무가 날짜만 정함, 검사종류는 안 정함)."""
+    resource = "exam_order"
+    permission_classes = [MatrixPermission]
+    
+    def create(self, request):
+        serializer = serializers.ExamOrderScheduleSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        
+        order = models.ExamOrder.objects.create(
+            patient_id=data["patient_id"],
+            scheduled_at = data["scheduled_at"],
+            order_status= "requested",
+            created_by = self._current_account(),
+            updated_by = self._current_account(),
+        )
+        out = serializers.ExamOrderSerializer(order)
+        return Response(out.data, status = status.HTTP_201_CREATED)
