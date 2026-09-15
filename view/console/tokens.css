@@ -1,0 +1,197 @@
+/* ─────────────────────────────────────────────────────────────
+   EMPATHO 콘솔 — 다이얼 판  (의료진용)
+
+   **디자인 수치는 전부 여기 있다.** console.css 에는 숫자를 쓰지 않는다.
+
+   ── 환자 앱과 왜 따로인가 ────────────────────────────────────
+   보는 사람이 다르고 쓰는 자리가 다르다. 환자 앱은 한 손에 들고 보는
+   폰이고 브랜드 색(핑크)이 앞에 선다. 이쪽은 하루 종일 보는 업무
+   화면이라 **색이 뒤로 물러나야 한다** — 판독 영상이 주인공이고 화면은
+   그것을 담는 그릇이다.
+
+   토큰 이름도 겹친다(--ink 가 양쪽에 있다). 그래서 입구를 나눴다.
+   index.html 은 환자 앱, console.html 은 이 화면이다. 한 저장소에
+   있지만 서로의 CSS 를 안 읽는다.
+
+   ── 두 손잡이 ────────────────────────────────────────────────
+   --sp  여백 배율 · --ft  글씨 배율. 1 이면 지금 그대로다.
+
+   ── 색 규칙 (설계서 그대로) ──────────────────────────────────
+     · 버튼은 모두 pill
+     · **시안 채움 버튼은 화면당 하나.** 그 화면에서 할 일 하나를 가리킨다
+     · 카드는 1px 헤어라인 + 16px 블러 그림자
+     · **soot 다크 서피스는 뷰어 안에서만**
+     · 상태 색을 따로 만들지 않는다 — soot 채움 · 외곽선 · 시안 점으로 가른다
+
+   마지막 줄이 중요하다. 빨강·노랑·초록을 들이면 판독 영상 위에서 그
+   색들이 병변 표시와 싸운다. 상태는 **모양**으로 말한다.
+   ───────────────────────────────────────────────────────────── */
+
+:root{
+  color-scheme: light;
+
+  /* ══ 손잡이 ═══════════════════════════════════════════════ */
+  --sp: 1;
+  --ft: 1;
+
+  /* ══ 색 — 설계서의 여덟 ════════════════════════════════════ */
+  --canvas: #FAFAF9;   /* 화면 바탕 */
+  --card:   #FFFFFF;   /* 카드 · 패널 */
+  --border: #E8E6E5;   /* 헤어라인 */
+  --warm:   #78716C;   /* 보조 글자 */
+  --ink:    #0C0A09;   /* 주요 글자 */
+  --soot:   #1C1917;   /* 채움 · 뷰어 바탕 */
+  --wash:   #C1E1F7;   /* 옅은 시안 — 배경 강조 */
+  --cyan:   #3BA6F1;   /* 강조 · 화면당 하나 */
+
+  /* 위에서 갈라 쓰는 것 */
+  --ink-2:  #44403C;   /* ink 와 warm 사이 */
+  --faint:  #A8A29E;   /* 비활성 · 플레이스홀더 */
+  --line-2: #F0EEED;   /* 목록 사이 더 옅은 줄 */
+  --soot-ink: #FAFAF9; /* soot 위에 얹는 글자 */
+  --cyan-ink: #FFFFFF; /* cyan 위에 얹는 글자 */
+
+  /* 뷰어 안 — 여기서만 어둡다 */
+  --v-bg:   #1C1917;
+  --v-card: #292524;
+  --v-line: #44403C;
+  --v-ink:  #FAFAF9;
+  --v-warm: #A8A29E;
+
+  /* ══ 선 · 모션 ════════════════════════════════════════════ */
+  --hair:    1px;                       /* 헤어라인 */
+  --focus-w: 2px;
+  --motion:  .14s;
+
+  /* ══ 글꼴 ═════════════════════════════════════════════════
+     제목은 Inter Tight(설계서의 Roobert 대체), 본문은 Inter.
+     한글은 Noto Sans KR 이 받는다 — Inter 에 한글이 없다. */
+  --font-head: "Inter Tight", "Noto Sans KR", system-ui, sans-serif;
+  --font-ui:   "Inter", "Noto Sans KR", system-ui, sans-serif;
+
+  --body-fs: calc(14px * var(--ft));
+  --body-lh: 1.64;
+
+  /* ══ 틀 ═══════════════════════════════════════════════════ */
+  --max:        1440px;                    /* 본문 최대 폭 */
+  --page-pad-x: calc(28px * var(--sp));
+  --page-pad-y: calc(22px * var(--sp));
+  --gap:        calc(18px * var(--sp));    /* 카드 사이 */
+  --gap-sm:     calc(10px * var(--sp));
+
+  /* ══ 상단바 ═══════════════════════════════════════════════ */
+  --top-h:       calc(44px * var(--sp));
+  --top-pad-x:   calc(20px * var(--sp));
+  --top-gap:     calc(18px * var(--sp));
+  --top-fs:      calc(13px * var(--ft));
+  --brand-fs:    calc(13.5px * var(--ft));
+  --menu-fs:     calc(13px * var(--ft));
+  --menu-pad-y:  calc(5px * var(--sp));
+  --menu-pad-x:  calc(12px * var(--sp));
+  --avatar:      26px;
+  --avatar-fs:   calc(11px * var(--ft));
+  --bell:        18px;
+  --bell-dot:    14px;                     /* 안 읽은 수 뱃지 */
+  --bell-dot-fs: calc(9px * var(--ft));
+
+  /* ══ 쪽 머리 ══════════════════════════════════════════════ */
+  --crumb-fs:  calc(11.5px * var(--ft));
+  --crumb-gap: calc(6px * var(--sp));
+  --h1-fs:     calc(26px * var(--ft));
+  --h1-gap:    calc(10px * var(--sp));
+  --sub-fs:    calc(12.5px * var(--ft));
+  --badge-fs:  calc(12px * var(--ft));
+  --badge-pad-y: calc(3px * var(--sp));
+  --badge-pad-x: calc(9px * var(--sp));
+  --badge-radius: 6px;
+
+  /* ══ 카드 ═════════════════════════════════════════════════ */
+  --card-radius: 12px;
+  --card-pad:    calc(18px * var(--sp));
+  --card-pad-sm: calc(14px * var(--sp));
+  --card-shadow: 0 1px 16px rgba(12,10,9,.05);
+  --card-h-fs:   calc(14.5px * var(--ft));   /* 카드 제목 */
+  --card-gap:    calc(12px * var(--sp));
+
+  /* ══ 단추 — 전부 pill ═════════════════════════════════════ */
+  --btn-radius: 999px;
+  --btn-pad-y:  calc(8px * var(--sp));
+  --btn-pad-x:  calc(16px * var(--sp));
+  --btn-fs:     calc(13px * var(--ft));
+  --btn-gap:    calc(8px * var(--sp));
+
+  /* ══ 칩 · 정렬 pill ═══════════════════════════════════════ */
+  --chip-pad-y:  calc(4px * var(--sp));
+  --chip-pad-x:  calc(10px * var(--sp));
+  --chip-fs:     calc(11.5px * var(--ft));
+  --chip-dot:    5px;                       /* 상태를 가르는 시안 점 */
+  --chip-gap:    calc(6px * var(--sp));
+
+  /* ══ 목록 · 표 ════════════════════════════════════════════ */
+  --row-pad-y:  calc(11px * var(--sp));
+  --row-pad-x:  calc(14px * var(--sp));
+  --row-fs:     calc(13px * var(--ft));
+  --th-fs:      calc(11.5px * var(--ft));
+  --row-mark:   3px;                        /* 고른 행 왼쪽 굵은 선 */
+
+  /* ══ 두 단 — 목록 + 오른쪽 상세 ═══════════════════════════ */
+  --pane-gap:   calc(18px * var(--sp));
+  --pane-side:  380px;                      /* 오른쪽 상세 폭 */
+  --pane-side-wide: 440px;
+
+  /* ══ 대기열 ═══════════════════════════════════════════════ */
+  --q-pad-y:    calc(11px * var(--sp));
+  --q-no:       22px;                       /* 순번 동그라미 */
+  --q-no-fs:    calc(11px * var(--ft));
+  --q-grip:     14px;                       /* 끌어 옮기는 손잡이 */
+
+  /* ══ 입력 ═════════════════════════════════════════════════ */
+  --in-radius:  8px;
+  --in-pad-y:   calc(9px * var(--sp));
+  --in-pad-x:   calc(11px * var(--sp));
+  --in-fs:      calc(13px * var(--ft));
+  --hint-fs:    calc(11px * var(--ft));
+
+  /* ══ 뷰어 ═════════════════════════════════════════════════ */
+  --v-radius:   12px;
+  --v-min-h:    420px;
+  --v-tool:     30px;                       /* 왼쪽 도구 단추 */
+  --v-side:     300px;                      /* 접히는 사이드패널 */
+  --v-tab-w:    26px;                       /* 접었을 때 남는 손잡이 */
+  --v-pad:      calc(12px * var(--sp));
+  --v-fs:       calc(12px * var(--ft));
+
+  /* ══ 업로드 ═══════════════════════════════════════════════ */
+  --up-h:       160px;                      /* 파일 끌어 놓는 칸 */
+  --up-radius:  12px;
+  --bar-h:      5px;
+  --bar-radius: 999px;
+
+  /* ══ 팝업 ═════════════════════════════════════════════════ */
+  --modal-w:      560px;
+  --modal-radius: 14px;
+  --modal-pad:    calc(22px * var(--sp));
+  --veil:         rgba(12,10,9,.42);
+
+  /* ══ 잔여백 — 부품 안에서 요소끼리 벌어지는 거리 ════════════
+     여기 있는 것은 «무엇과 무엇 사이»가 정해져 있어 배율을 따라
+     움직이면 오히려 어긋난다. 환자 앱과 같은 취급이다. */
+  --gap-xs:     4px;                        /* 아이콘과 글자 */
+  --gap-xxs:    2px;                        /* 메뉴 사이 · 통계 숫자와 이름 */
+  --gap-tight:  7px;                        /* 아바타와 이름 · 카드 안 줄 */
+  --gap-5:      5px;                        /* 목록 줄 사이 */
+  --sub-gap:    6px;                        /* 제목과 한 줄 설명 */
+  --radius-xs:  4px;                        /* 초점 테두리 */
+  --round:      999px;                      /* 완전히 둥근 것 */
+  --ai-no:      18px;                       /* 병변 번호 동그라미 */
+  --form-w:     640px;                      /* 서식 한 단 폭 */
+  --slot-h:     320px;                      /* 빈 자리 기본 높이 */
+  --stage-h:    240px;                      /* 영상이 들어올 최소 높이 */
+  --grid:       14px;                       /* 뷰어 바탕 격자 */
+  --ai-ax:      64px;                       /* AI 패널 축 이름 칸 */
+
+  /* ══ AI 소견 패널 ═════════════════════════════════════════ */
+  --ai-k-fs:  calc(11.5px * var(--ft));    /* 항목 이름 */
+  --ai-v-fs:  calc(13px * var(--ft));      /* 값 */
+  --ai-gap:   calc(9px * var(--sp));
+}
