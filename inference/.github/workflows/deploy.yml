@@ -41,6 +41,20 @@ jobs:
           tail -50 inference.err.log
           exit 1
 
+      # 리포트 서버는 별도 프로세스라 8001 이 살아 있어도 죽어 있을 수 있다.
+      # supervisor 의 restart 는 기동 실패 전에 돌아오고, 배포의 다른 단계는
+      # 8002 를 한 번도 안 본다 — 09-16 에 두 번 그냥 통과했다.
+      - name: 리포트 서버 헬스체크
+        run: |
+          cd /home/wsuser/app
+          for i in $(seq 1 20); do
+            curl -fsS http://127.0.0.1:8002/health && exit 0
+            sleep 3
+          done
+          echo "리포트 서버 헬스체크 실패"
+          tail -50 report.err.log
+          exit 1
+
       - name: /analyze 점검
         run: |
           cd /home/wsuser/app
@@ -64,5 +78,6 @@ jobs:
           supervisorctl -c supervisord.conf restart inference report 
           sleep 5
           curl -fsS http://127.0.0.1:8001/healthz \
+            && curl -fsS http://127.0.0.1:8002/health \
             && echo "롤백 후 정상 동작 확인" \
             || echo "롤백 후에도 비정상 — 수동 확인 필요"
