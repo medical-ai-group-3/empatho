@@ -154,7 +154,7 @@ export default function hospitalMock() {
         } else if (path === `${PREFIX}/auth/logout`) {
           res.setHeader("Set-Cookie", `${COOKIE}=; Path=/; SameSite=Lax; Max-Age=0`);
         } else if (!OPEN_ALL && !signedIn && !OPEN.has(path)) {
-          return fail(res, "NOT_AUTHENTICATED", "로그인이 필요합니다", 401);
+          return fail(res, "UNAUTHENTICATED", "로그인이 필요합니다", 401);
         }
 
         /* 요청마다 새로 읽는다 — 고치고 새로고침만 하면 반영된다 */

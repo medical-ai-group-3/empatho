@@ -121,6 +121,9 @@ const P = `${ROOT}/pathology`;
 const R = `${ROOT}/radiology`;
 
 export const go = {
+  /* ⚠ 과 바깥이다. 사람은 과에 딸린 것이 아니라서 /hospital/me 로 둔다 */
+  me: () => `${ROOT}/me`,
+
   pathology: {
     queue:  () => P,
     list:   () => `${P}/specimens`,

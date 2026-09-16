@@ -754,3 +754,84 @@ td.none,tr.none td{text-align:center; padding:var(--card-pad) 0}
 /* 뷰어 아래 손잡이들 — 투명도 · 밝기 · 대비 */
 .vknobs{display:flex; flex-direction:column; gap:var(--gap-xs)}
 .vknobs .muted{color:var(--v-warm)}
+
+/* ── 내 정보 ──────────────────────────────────────────────────
+   상단바의 이름이 여기로 오는 링크가 된다. 누를 수 있다는 것이 보여야
+   하지만, 상단바는 이미 빽빽해서 테두리를 더 두르면 시끄럽다. 그래서
+   평소에는 지금 모습 그대로 두고 **얹었을 때만** 바탕을 깐다. */
+.top-r a.me{padding:var(--gap-xxs) var(--gap-xs); border-radius:var(--radius-sm);
+  color:inherit; text-decoration:none;
+  transition:background var(--motion)}
+.top-r a.me:hover{background:var(--line-2)}
+.top-r a.me.on{background:var(--line-2)}
+
+/* 계정 카드 — 아바타를 크게 한 번 더 */
+.me-head{display:flex; align-items:center; gap:var(--gap)}
+.me-head .ava.lg{width:calc(var(--avatar) * 2); height:calc(var(--avatar) * 2);
+  font-size:calc(var(--avatar-fs) * 1.7); flex:none}
+.me-head .kv{flex:1; min-width:0}
+
+/* 권한 묶음 */
+.perm-g{margin-top:var(--gap)}
+.perm-g h3{display:flex; align-items:baseline; gap:var(--gap-sm);
+  font-size:var(--card-h-fs); margin-bottom:var(--gap-sm)}
+
+.perms{display:flex; flex-direction:column}
+.perms li{display:flex; align-items:flex-start; gap:var(--gap-sm);
+  padding:var(--gap-sm) 0; border-top:var(--hair) solid var(--line-2)}
+.perms li:first-child{border-top:0}
+
+/* ⚠ 가진 것과 없는 것을 **색으로만** 가르지 않는다. ●/○ 로 모양이
+   다르고, 오른쪽에 글자로도 적는다 — 이 판의 규칙이다 */
+.perms .mk{font-style:normal; line-height:var(--body-lh); flex:none}
+.perms li.on  .mk{color:var(--ink)}
+.perms li.off .mk{color:var(--faint)}
+
+.perm-tx{display:flex; flex-direction:column; gap:var(--gap-xxs);
+  flex:1; min-width:0}
+.perm-tx b{font-weight:600}
+.perm-tx small{font-size:var(--hint-fs); color:var(--warm)}
+
+/* 없는 권한은 **지우지 않고 흐리게** 남긴다. 없는 줄이 보여야 관리자에게
+   무엇을 요청할지 알 수 있다 */
+.perms li.off .perm-tx b{color:var(--warm); font-weight:400}
+
+.perm-st{flex:none; font-size:var(--hint-fs); color:var(--warm);
+  font-variant-numeric:tabular-nums}
+.perms li.on .perm-st{color:var(--ink-2)}
+.perm-note{margin-bottom:var(--gap-sm)}
+
+/* ── 과 전환 ──────────────────────────────────────────────────
+   상단 메뉴는 «지금 과의 화면»만 만든다. 그래서 과를 바꿀 자리가 따로
+   없으면 한 과에 들어간 뒤로 못 빠져나온다. 과 이름 자체를 그 자리로
+   쓴다 — 이미 «지금 어느 과인지»를 적고 있던 자리라 새 버튼을 늘리지
+   않아도 된다. */
+.top-l .brand{display:flex; align-items:center; gap:var(--gap-sm);
+  color:inherit; text-decoration:none}
+.top-l .brand:hover b{color:var(--cyan)}
+
+.deptpick{position:relative; display:flex; align-items:center}
+.top-l button.dept{display:flex; align-items:center; gap:var(--gap-xs);
+  padding:var(--gap-xxs) var(--gap-xs); border-radius:var(--radius-sm);
+  color:var(--warm); font-size:var(--top-fs);
+  transition:background var(--motion), color var(--motion)}
+.top-l button.dept:hover{background:var(--canvas); color:var(--ink)}
+.top-l button.dept[aria-expanded="true"]{background:var(--canvas); color:var(--ink)}
+.top-l button.dept i{font-style:normal; font-size:var(--hint-fs);
+  color:var(--faint)}
+
+/* 갈 수 있는 과가 하나뿐일 때 — 누를 수 없으니 버튼처럼 안 보인다 */
+.top-l .dept.flat{padding:var(--gap-xxs) var(--gap-xs)}
+
+.deptmenu{position:absolute; top:calc(100% + var(--gap-xs)); left:0; z-index:30;
+  min-width:150px; padding:var(--gap-xs); margin:0; list-style:none;
+  background:var(--card); border:var(--hair) solid var(--border);
+  border-radius:var(--radius-sm); box-shadow:var(--card-shadow)}
+.deptmenu a{display:block; padding:var(--menu-pad-y) var(--menu-pad-x);
+  border-radius:var(--radius-xs); font-size:var(--menu-fs); color:var(--warm);
+  text-decoration:none; white-space:nowrap;
+  transition:background var(--motion), color var(--motion)}
+.deptmenu a:hover{background:var(--canvas); color:var(--ink)}
+/* 지금 과 — 메뉴와 같은 규칙으로 **테두리**다. 채움은 화면당 하나다 */
+.deptmenu a.on{color:var(--ink);
+  box-shadow:inset 0 0 0 var(--hair) var(--border)}

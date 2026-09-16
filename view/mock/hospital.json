@@ -228,7 +228,7 @@
     ],
     "ai": null
   },
-  "GET /api/v1/hospital/specimens": {
+  "GET /api/v1/hospital/specimens/": {
     "total": 5,
     "items": [
       {

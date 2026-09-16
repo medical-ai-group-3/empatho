@@ -18,6 +18,7 @@ import UploadScreen from "./screens/Upload";
 import ReadScreen from "./screens/Read";
 import ListScreen from "./screens/List";
 import AmendScreen from "./screens/Amend";
+import MeScreen from "./screens/Me";
 
 import { pathology } from "./dept/pathology";
 import { radiology } from "./dept/radiology";
@@ -39,6 +40,8 @@ import { radiology } from "./dept/radiology";
  *   /hospital/radiology/studies/:id/upload     2장 업로드
  *   /hospital/radiology/read/:id      3장 판독
  *   /hospital/radiology/read/:id/amend 5장 판독 정정
+ *
+ *   /hospital/me                      내 정보 (과 바깥 — 사람은 과에 안 딸린다)
  *
  * ⚠ **뿌리 주소를 가로채지 않는다.** 그 자리는 환자 앱이다.
  */
@@ -116,6 +119,10 @@ function App() {
         <Routes>
           <Route path={ROOT} element={<Navigate to={deptPath(HOME)} replace />} />
           <Route path={ROOT} element={<Shell />}>
+            {/* ⚠ 과 바깥에 있는 유일한 화면이다. Shell 은 그대로 쓰되
+                :dept 가 없어서 findDept 가 null 을 주고, 상단 메뉴가
+                자동으로 빈다 — Top 이 dept 없을 때를 이미 다룬다 */}
+            <Route path="me" element={<MeScreen />} />
             {DEPTS.map((d) => deptRoutes(d.key))}
           </Route>
           <Route path={`${ROOT}/*`} element={<Navigate to={deptPath(HOME)} replace />} />

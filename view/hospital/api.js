@@ -31,6 +31,19 @@
  *     업로드 조회를 합쳐 쓴다 — dept/pathology.jsx 의 read 참고
  *   · 저장 파일 목록은 **업로드 조회에만** 있다. 판독 화면이 한 번 더 부른다
  *   · 정정 사유는 판정 표의 decision_reason (250자)
+ *
+ * 2026-09-16 3차 · 다희님(병리) 경로표 대조 결과
+ *   · 에러 코드 철자를 명세표대로 맞췄다 — FORBIDDEN 이 아니라 ROLE_FORBIDDEN
+ *   · 큐는 **서버가 안 걸러 준다.** ?status=bound&assigned=none 을 우리가 담는다
+ *   · 슬래시는 **목록·생성에만** 붙는다. 나머지는 지금처럼 안 붙이는 게 맞다
+ *   · 진행 상태는 status 가 맞다. run_status 는 서버 DB 컬럼명이라 안 나온다
+ *   · POST /tickets 는 **있다** (다희님 문서에서 빠졌던 것)
+ *
+ *   ⚠ 아직 서버에 없다 — «만드는 중» 이라고 회신받았다. 생기기 전에는
+ *     실서버(npm run dev)로 화면이 안 뜬다. 목업에는 셋 다 있다
+ *       GET /me                      없으면 main.jsx 의 Boot 에서 앱이 멈춘다
+ *       GET /specimens/{id}          1·3·4·5장
+ *       GET /specimens/{id}/upload   2·3장 (올린 파일 목록은 여기에만 있다)
  */
 
 /* ⚠1 ── 주소 앞머리 ───────────────────────────────────────────
@@ -91,10 +104,22 @@ function unwrapError(o, status, statusText, traceId) {
   );
 }
 
+/* 서버가 쓰는 error.code 목록 — 2026-09-16 다희님 명세표 그대로다.
+ *
+ * ⚠ 이름을 마음대로 줄이지 않는다. 전에 ROLE_FORBIDDEN 을 FORBIDDEN 으로
+ *   적어 뒀었는데, 이러면 e.code 비교가 **조용히 안 걸린다**. 오류가 나는
+ *   게 아니라 그냥 분기를 안 타서, 화면에서는 아무 일도 안 일어난 것처럼
+ *   보인다. 서버가 보내는 철자를 그대로 적는다.
+ *
+ * NETWORK 만 우리가 만든 것이다 — 서버에 닿지도 못한 경우라 서버가 코드를
+ * 줄 수가 없다. call() 의 catch 에서 붙인다. */
 export const ERR = {
+  VALIDATION_ERROR: "VALIDATION_ERROR",   // 400 · 입력값 문제 (fields 를 본다)
+  UNAUTHENTICATED:  "UNAUTHENTICATED",    // 401 · 토큰 없음/만료
+  ROLE_FORBIDDEN:   "ROLE_FORBIDDEN",     // 403 · 권한 없음
+  NOT_FOUND:        "NOT_FOUND",          // 404 · 대상 없음
   ALREADY_ASSIGNED: "ALREADY_ASSIGNED",   // 409 · 다른 사람이 먼저 집었다
-  FORBIDDEN: "FORBIDDEN",                 // 403 · 권한 없음
-  NETWORK: "NETWORK",                     // status 0 · 서버에 못 닿았다
+  NETWORK:          "NETWORK",            // status 0 · 서버에 못 닿았다 (우리가 만든 것)
 };
 
 async function call(method, path, body) {
@@ -150,7 +175,10 @@ export const me = () => get("/me");
 /* ── 병리과 ───────────────────────────────────────────────────
  * 판독 단위는 검체(specimen) 다. */
 export const path = {
-  queue:      ()       => get("/specimens/queue"),
+  /* ⚠ 서버는 큐를 **기본 필터 없이** 준다 (2026-09-16 다희님 확인).
+     이 두 조건을 안 담으면 이미 남이 집어간 검체까지 대기 큐에 뜬다.
+     기본값이 아니라 **우리가 정하는 조건**이라 여기 적어 둔다 */
+  queue:      ()       => get(`/specimens/queue${qs({ status: "bound", assigned: "none" })}`),
   specimen:   (id)     => get(`/specimens/${id}`),
   assign:     (id)     => patch(`/specimens/${id}/assign`),
 
@@ -165,7 +193,11 @@ export const path = {
   draft:      (id, b)  => put(`/specimens/${id}/draft`, b),
   finalize:   (id, b)  => patch(`/specimens/${id}/finalize`, b),
 
-  list:       (o = {}) => get(`/specimens${qs(o)}`),
+  /* ⚠ 슬래시가 붙는다. **목록·생성만** 그렇다 (2026-09-16 확인).
+     queue·assign·upload·draft·finalize·amend 는 슬래시가 없는 게 맞다.
+     Django APPEND_SLASH 가 GET 은 301 로 넘겨 주지만 POST 는 그 과정에서
+     본문이 날아가므로, 붙는 자리는 처음부터 붙여 둔다 */
+  list:       (o = {}) => get(`/specimens/${qs(o)}`),
   amend:      (id, b)  => post(`/specimens/${id}/amend`, b),
 };
 
