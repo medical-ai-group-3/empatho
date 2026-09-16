@@ -51,3 +51,8 @@ conf/ws/
 
 # 테스트가 만드는 고정값
 services/django/test_*.json
+
+# TLS 인증서 — **개인키가 들어 있다.** 절대 올리지 않는다.
+# certbot 이 서버에서 직접 만들고, 배포 때도 안 지워진다(checkout 은
+# 추적되는 파일만 건드린다). 발급 절차는 docs/nginx.md 참고.
+conf/certbot/

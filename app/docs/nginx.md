@@ -3,7 +3,7 @@
 앱 서버의 HTTP 서비스 넷을 nginx 뒤로 모았다. 밖에서 들어오는 문이 하나다.
 
 ```
-http://app-host/
+https://empatho.example.com/
 ```
 
 2026-09-09 배포. 「앱 서버 nginx 작업 요청서」(2026-09-09) 구현.
@@ -33,7 +33,7 @@ http://app-host/
 
 ```js
 fetch("/svc/v1/files")                              // ○
-fetch("http://app-host:8091/svc/v1/files")      // ✗
+fetch("https://empatho.example.com:8091/svc/v1/files")      // ✗
 ```
 
 이유는 두 가지다.
@@ -54,10 +54,10 @@ fetch("http://app-host:8091/svc/v1/files")      // ✗
 ## 3. 확인
 
 ```bash
-curl -s -o /dev/null -w "%{http_code}\n" http://app-host/svc/v1/health
+curl -s -o /dev/null -w "%{http_code}\n" https://empatho.example.com/svc/v1/health
 ```
 
-`200` 이면 정상이다. 브라우저로 `http://app-host/admin/` 을 열면 Django
+`200` 이면 정상이다. 브라우저로 `https://empatho.example.com/admin/` 을 열면 Django
 로그인 화면이 나온다.
 
 `/admin/` 이 **400** 이면 러너 홈 `~/empatho-conf/web.env` 의
@@ -71,7 +71,7 @@ Host 를 그대로 Django 에 넘긴다.
 
 ## 4. 아직 안 되는 것
 
-`http://app-host/` 을 그냥 열면 **404** 다. 프런트 빌드 결과를 넣을
+`https://empatho.example.com/` 을 그냥 열면 **404** 다. 프런트 빌드 결과를 넣을
 자리(`web-dist/`)만 만들어 뒀고 비어 있다.
 
 프런트 레포 위치와 담당이 정해지면 `deploy.yml` 에 빌드 단계를 붙인다.
@@ -99,20 +99,120 @@ postgres · garage · orthanc 는 nginx 대상이 아니다. postgres 는 HTTP �
 
 ---
 
-## 6. HTTP 다 — TLS 가 아니다
+## 6. TLS (HTTPS)
 
-사내망 IP 로는 공인 인증서를 받을 수 없다. 도메인이 있어야 한다. 자체 서명
-인증서를 쓰면 접속할 때마다 브라우저 경고 화면을 넘겨야 해서, 시연 첫 화면이
-경고문이 된다. 그래서 시연까지는 HTTP 로 간다.
+**HTTPS 로 간다.** 예전에는 HTTP 였다 — 사내망 IP 로는 공인 인증서를 못 받고,
+자체 서명은 접속할 때마다 경고 화면이라 시연 첫 인상이 경고문이 되기 때문이었다.
+도메인이 생기면서 그 이유가 없어졌다.
 
-**운영 병원 배포에서는 TLS 가 필수다.** 환자 이름·전화번호, 판독 결과,
-영상, 티켓(`Authorization` 헤더)이 지나가는 경로다.
+### 왜 필요한가 — 취향이 아니라 막힘의 문제다
 
-`conf/nginx/default.conf` 하단에 TLS 설정과 인증서 생성 명령을 주석으로 넣어 뒀다.
-주석만 풀면 된다.
+환자 이름·전화번호, 판독 결과, 영상, `Authorization` 헤더가 지나가는 경로다.
+그것만으로도 이유가 되지만, **지금은 HTTP 면 로그인 자체가 안 된다.**
 
-브라우저의 카메라·위치·서비스워커·웹푸시는 HTTPS 에서만 동작한다. 알림은
-SSE 라 HTTP 로 되지만, 그런 기능을 쓸 계획이 생기면 그때는 인증서가 필요하다.
+refresh 토큰이 이렇게 내려온다 (`core/api/views.py`).
+
+```python
+response.set_cookie("refresh_token", ...,
+    httponly=True, secure=True, samesite="None")
+```
+
+`secure=True` 는 「HTTPS 일 때만 이 쿠키를 보내라」는 뜻이고, `SameSite=None`
+은 규격상 `Secure` 가 필수라 뗄 수도 없다. HTTP 로 올리면:
+
+```
+로그인은 된다 → refresh 쿠키가 저장되지 않는다
+→ 30분 뒤 access 만료 → 갱신 실패 → 판독 중에 통째로 로그아웃
+```
+
+화면 쪽 401 자동 갱신(`empatho-view` 의 `hospital/api.js`)도 같이 무용지물이 된다.
+
+> 개발자 PC 에서 멀쩡한 이유는 브라우저가 `localhost` 만 예외로 봐주기
+> 때문이다. **서버에 올리는 순간 조용히 안 된다.**
+
+### Django 쪽에 짝이 필요하다
+
+```python
+# settings.py
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+```
+
+Django 는 nginx 뒤에 있어서 자기에게 오는 요청을 http 로 본다. 그러면
+**Secure 쿠키를 「https 가 아니니」 하며 안 내려보낸다.** nginx 가
+`X-Forwarded-Proto` 를 붙이고(설정에 있다) Django 가 그것을 믿게 하는 줄이
+이것이다. **둘 중 하나만 있으면 로그인이 안 된다.**
+
+### 처음 한 번 — 인증서 발급
+
+도메인이 이 서버를 가리키고 80 이 밖에서 닿아야 한다. 확인:
+
+```bash
+dig +short empatho.example.com          # 서버 IP 가 나와야 한다
+curl -I http://empatho.example.com/nginx-health
+```
+
+**닭과 달걀 문제가 하나 있다.** nginx 는 인증서 파일이 없으면 뜨지 않고,
+certbot 은 확인 파일을 받아 줄 nginx 가 있어야 한다. 그래서 임시 인증서로
+한 번 띄운 뒤 진짜 것으로 바꾼다.
+
+```bash
+# 1) 자리를 만들고 임시 인증서를 넣는다 (진짜가 오기 전까지만 쓴다)
+mkdir -p conf/certbot/etc/live/empatho conf/certbot/www
+openssl req -x509 -nodes -days 1 -newkey rsa:2048 \
+  -keyout conf/certbot/etc/live/empatho/privkey.pem \
+  -out    conf/certbot/etc/live/empatho/fullchain.pem \
+  -subj "/CN=temp"
+
+# 2) nginx 를 띄운다 — 이제 80 이 열려 확인 파일을 받을 수 있다
+docker compose up -d nginx
+
+# 3) 진짜 인증서를 받는다
+docker compose run --rm --entrypoint certbot certbot \
+  certonly --webroot -w /var/www/certbot \
+  --cert-name empatho \
+  -d empatho.example.com \
+  --agree-tos -m 담당자@메일 --no-eff-email
+
+# 4) nginx 가 새 인증서를 읽게 한다
+docker compose exec nginx nginx -s reload
+```
+
+> **`--cert-name empatho` 를 빠뜨리지 말 것.** 이것 때문에 인증서 경로가
+> `/etc/letsencrypt/live/empatho/` 로 고정된다. 안 주면 도메인 이름으로
+> 폴더가 생겨서, 도메인이 바뀔 때마다 `default.conf` 를 고쳐야 한다.
+
+확인:
+
+```bash
+curl -I https://empatho.example.com/nginx-health        # 200
+curl -I http://empatho.example.com/                     # 301 → https
+echo | openssl s_client -connect empatho.example.com:443 2>/dev/null \
+  | openssl x509 -noout -dates                      # 만료일
+```
+
+### 갱신은 자동이다
+
+Let's Encrypt 인증서는 **90일**이다. 시연이 끝나도 계속 돈다.
+
+* `certbot` 컨테이너가 12시간마다 깨어나 만료 30일 전인지 본다. 아니면 아무
+  일도 안 하고 다시 잔다.
+* `nginx` 컨테이너는 6시간마다 스스로 `reload` 한다. 갱신된 파일을 읽으려면
+  필요하다 — **이게 없으면 갱신은 됐는데 브라우저에는 만료된 인증서가
+  내려간다.** 90일 뒤 조용히 터지고, 그때는 아무도 이 문서를 안 보고 있다.
+
+갱신이 실제로 되는지 미리 확인:
+
+```bash
+docker compose run --rm --entrypoint certbot certbot renew --dry-run
+```
+
+### 인증서는 git 에 없다
+
+`conf/certbot/` 은 `.gitignore` 에 있다 — **개인키가 들어 있다.** 서버에서
+certbot 이 직접 만들고, 배포가 지우지도 않는다(checkout 은 추적되는 파일만
+건드린다).
+
+> 서버를 새로 세우면 위 「처음 한 번」을 다시 밟는다.
 
 ---
 
