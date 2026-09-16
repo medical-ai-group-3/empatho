@@ -33,6 +33,22 @@ from rest_framework.routers import DefaultRouter
 
 from . import views
 
+# 같은 경로 문자열로 path() 를 두 번 등록하면 Django 는 메서드와 상관없이
+# 목록의 첫 항목만 매칭한다 — 뒤에 등록한 메서드는 항상 405 로 막힌다.
+# GET/POST 를 같은 경로에서 서로 다른 뷰가 나눠 맡는 곳은 여기서 메서드로
+# 직접 갈라 둘 다 실제로 닿게 한다.
+def _exam_orders_dispatch(request, *args, **kwargs):
+    if request.method == "POST":
+        return views.ExamOrderRequestView.as_view({"post": "create"})(request, *args, **kwargs)
+    return views.ExamOrderQueryView.as_view({"get": "list"})(request, *args, **kwargs)
+
+
+def _assessments_dispatch(request, *args, **kwargs):
+    if request.method == "POST":
+        return views.SurgeryDecisionView.as_view({"post": "create"})(request, *args, **kwargs)
+    return views.AssessmentHistoryView.as_view()(request, *args, **kwargs)
+
+
 router = DefaultRouter()
 router.register(r"patients", views.PatientViewSet, basename="patient")
 router.register(r"reservations", views.ReservationViewSet, basename="reservation")
@@ -53,7 +69,7 @@ urlpatterns = [
         views.ReservationRequestQueueView.as_view(),
         name="reservation-request-queue",
     ),
-    path("exam-orders", views.ExamOrderQueryView.as_view({"get": "list"}), name="exam-order-query"),
+    path("exam-orders", _exam_orders_dispatch, name="exam-order-query"),
     path(
         "exam-orders/<int:pk>",
         views.ExamOrderQueryView.as_view({"get": "retrieve"}),
@@ -111,7 +127,7 @@ urlpatterns = [
     path("ai-results", views.AiResultListView.as_view({"get": "list"}), name="ai-results-list"),
     path("studies/<int:pk>/assessment/draft", views.AssessmentDraftView.as_view({"put": "update"}), name="study-assessment-draft"),
     path("studies/<int:pk>/finalize", views.StudyFinalizeView.as_view({"patch": "partial_update"}), name="study-finalize"),
-    path("assessments", views.AssessmentHistoryView.as_view(), name="assessment-history"),
+    path("assessments", _assessments_dispatch, name="assessment-history"),
     path("assessments/<int:pk>/amend", views.AssessmentAmendView.as_view({"post": "create"}), name="assessment-amend"),
     path("patients/<int:pk>/timeline", views.PatientTimelineView.as_view({"get": "retrieve"}), name="patient-timeline"),
     path("reports/<int:pk>/explain", views.ReportExplainView.as_view({"patch": "partial_update"}), name="report-explain"),
@@ -119,7 +135,6 @@ urlpatterns = [
     path("reports/<int:pk>/unlock", views.ReportUnlockView.as_view({"patch": "partial_update"}), name="report-unlock"),
     path("discordances", views.DiscordanceListView.as_view(), name="discordance-list"),
     path("discordances/<int:pk>", views.DiscordanceDisposeView.as_view({"get": "retrieve", "patch": "partial_update"}), name="discordance-detail"),
-    path("exam-orders", views.ExamOrderRequestView.as_view({"post": "create"}), name="exam-order-request"),
     path("specimens/queue", views.SpecimenQueueView.as_view(), name="specimen-queue"),
     path("specimens/<int:pk>/assign", views.SpecimenAssignView.as_view({"patch": "partial_update"}), name="specimen-assign"),
     path("specimens/<int:pk>/ai-results", views.SpecimenAiResultView.as_view({"post": "start"}), name="specimen-ai-results-start"),

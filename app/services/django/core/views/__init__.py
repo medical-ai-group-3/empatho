@@ -20,7 +20,6 @@ from .nursing import (
     QuestionnaireView,
     FollowupCreateView,
     FollowupCallView,
-    PrimaryStaffAssignView,
 )
 
 from .radiology import (

@@ -160,25 +160,3 @@ class FollowupCallView(AuditMixin, viewsets.ViewSet):
 
         out = serializers.FollowupSerializer(followup)
         return Response(out.data)
-
-
-class PrimaryStaffAssignView(AuditMixin, viewsets.ViewSet):
-    """§1 PATCH /patients/{id} — 주치의 지정.
-
-    PatientViewSet.partial_update 가 이미 있으면 그쪽으로 흡수해도 된다.
-    """
-
-    resource = "patient"
-    permission_classes = [MatrixPermission]
-
-    def partial_update(self, request, pk=None):
-        patient = models.Patient.objects.get(pk=pk)
-        serializer = serializers.PrimaryStaffAssignSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        patient.primary_staff_id = serializer.validated_data["primary_staff"]
-        patient.updated_by = self._current_account()
-        patient.save()
-
-        out = serializers.PatientDetailSerializer(patient)
-        return Response(out.data)
