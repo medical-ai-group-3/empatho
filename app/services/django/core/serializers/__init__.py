@@ -9,6 +9,7 @@ from .reception import (
     PatientSerializer,
     PatientDetailSerializer,
     ExamOrderSerializer,
+    PatientExamOrderSerializer,
     PatientListSerializer,
     PatientCreateSerializer,
     ExamOrderItemSerializer,

@@ -69,6 +69,9 @@ class SpecimenAiResultView(AuditMixin, viewsets.ViewSet):
         specimen = models.Specimen.objects.get(pk=pk)
         results = []
         for storage_object in models.StorageObject.objects.filter(specimen=specimen):
+            # 팀 결정 대기 — 검체 직접 참조 경로 필요.
+            # AiResult.study/specimen 은 정확히 하나가 있어야 하는데(ai_result_owner_ck),
+            # 여기는 source_object 만 넣고 specimen 을 직접 채우지 않는다.
             result = models.AiResult.objects.create(
                 patient=specimen.patient,
                 source_object=storage_object,

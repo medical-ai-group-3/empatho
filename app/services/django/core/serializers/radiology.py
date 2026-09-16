@@ -16,7 +16,7 @@ class StudySerializer(serializers.ModelSerializer):
 class LesionSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Lesion
-        exclude = AUDIT_FIELDS
+        exclude = AUDIT_FIELDS + ("malignancy_p",)
 
 
 class AssessmentSerializer(serializers.ModelSerializer):
@@ -69,6 +69,6 @@ class StudyUploadReviewSerializer(serializers.Serializer):
 class AssessmentAmendSerializer(serializers.Serializer):
     """POST /assessments/{id}/amend — 판독 정정. 새 행 생성 + 옛 행 superseded_by."""
 
-    decision_reason = serializers.CharField(max_length=500)
+    decision_reason = serializers.CharField(max_length=250)
     category = serializers.CharField()
     finding_note = serializers.CharField(max_length=1000)

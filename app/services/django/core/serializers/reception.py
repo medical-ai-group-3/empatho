@@ -37,6 +37,16 @@ class ExamOrderSerializer(serializers.ModelSerializer):
         exclude = AUDIT_FIELDS
 
 
+class PatientExamOrderSerializer(serializers.ModelSerializer):
+    """환자 role 조회/응답용 — 문진 · 취소 사유 · 취소자 · 지시자는 뺀다."""
+
+    class Meta:
+        model = models.ExamOrder
+        exclude = AUDIT_FIELDS + (
+            "questionnaire", "cancel_reason", "cancelled_by", "ordered_by",
+        )
+
+
 class PatientListSerializer(serializers.ModelSerializer):
     """GET /patients/?q= 검색 결과용. pii 이름전화를 얕게 끌어온다."""
 

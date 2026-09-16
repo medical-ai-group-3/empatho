@@ -159,6 +159,11 @@ class AiResultQueueView(AuditMixin, viewsets.ViewSet):
 
     POST /studies/{id}/ai-results   분석 시작 (즉시 202 + 작업 등록)
     GET  /ai-results?study={id}     run_status 폴링
+
+    현재 start() 는 AiResult 행만 만들고 실제 작업 대기열(Celery 등)에는
+    등록하지 않는다. run_status="queued" 인 채로 행이 남는 것은 워커 연동
+    전까지의 의도된 임시 상태다 — running/done/failed 로의 전이는 아직
+    아무 코드도 하지 않는다.
     """
 
     resource = "ai_result"
@@ -173,7 +178,9 @@ class AiResultQueueView(AuditMixin, viewsets.ViewSet):
             created_by=self._current_account(),
             updated_by=self._current_account(),
         )
-        # TODO: Celery task 등록 — run_status 를 running → done/failed 로 갱신
+        # TODO: Celery task 등록 필요 — 지금은 여기서 대기열에 넣는 코드가
+        # 전혀 없어 이 행이 running 으로 못 넘어간다. 워커 연동 전까지는
+        # run_status="queued" 로 남는 게 정상(의도된 상태)이다.
 
         out = serializers.AiResultSerializer(result)
         return Response(out.data, status=status.HTTP_202_ACCEPTED)

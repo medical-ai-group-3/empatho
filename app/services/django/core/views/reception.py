@@ -91,11 +91,19 @@ class ReservationViewSet(AuditMixin, OwnedOnlyMixin, viewsets.ViewSet):
         return obj.patient.account_id == account.account_id
 
     def create(self, request):
-        serializer = serializers.ReservationCreateSerializer(data=request.data)
+        patient = getattr(request.user, "patient", None)
+        payload = request.data
+        if patient is not None:
+            payload = {**request.data, "patient_id": patient.patient_id}
+        serializer = serializers.ReservationCreateSerializer(data=payload)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         rows = serializer.instance
-        out = serializers.ExamOrderSerializer(rows, many=True)
+        out_serializer_class = (
+            serializers.PatientExamOrderSerializer if patient is not None
+            else serializers.ExamOrderSerializer
+        )
+        out = out_serializer_class(rows, many=True)
         return Response(out.data, status=status.HTTP_201_CREATED)
 
 
@@ -123,7 +131,7 @@ class ReservationRequestViewSet(AuditMixin, viewsets.ViewSet):
             created_by=self._current_account(),
             updated_by=self._current_account(),
         )
-        out = serializers.ExamOrderSerializer(serializer.instance)
+        out = serializers.PatientExamOrderSerializer(serializer.instance)
         return Response(out.data, status=status.HTTP_201_CREATED)
 
 
@@ -337,6 +345,7 @@ class ExamOrderScheduleView(AuditMixin, viewsets.ViewSet):
             patient_id=data["patient_id"],
             scheduled_at = data["scheduled_at"],
             order_status= "requested",
+            ordered_at = timezone.now(),
             created_by = self._current_account(),
             updated_by = self._current_account(),
         )
