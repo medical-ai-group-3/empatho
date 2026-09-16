@@ -83,12 +83,13 @@ def facts(r: dict) -> list[str]:
         out.append(f"종횡비 {s.get('height_width_ratio')}, 볼록성 {s.get('solidity')}, "
                    f"경계 요철도 {s.get('boundary_irregularity')}, "
                    f"원형도 {s.get('circularity')} 입니다.")
-        if r.get("orientation_label"): 
-            out.append(f"{r['orientation_label']}입니다.")
-        out.append(f"BI-RADS {g.get('display')} 이며 "
-                   f"등급 확신도는 {g.get('confidence')}입니다")
-        out.append(f"마스크 신뢰도는 {(r.get('mask_reliability') or {}).get('level')}입니다.")
-        return out
+        
+    if r.get("orientation_label"): 
+        out.append(f"{r['orientation_label']}입니다.")
+    out.append(f"BI-RADS {g.get('display')} 이며 "
+                f"등급 확신도는 {g.get('confidence')}입니다")
+    out.append(f"마스크 신뢰도는 {(r.get('mask_reliability') or {}).get('level')}입니다.")
+    return out
     
 # 안내 문구표. 모델을 거치지 않고 이 문장이 그래도 나간다 
 # 문구를 고치면 VERSION 도 올린다 
