@@ -157,22 +157,30 @@ def report(socket_id: str, result: dict, evidence: list[str] = []):
     fact_lines = p.facts(result)
     note_lines = p.notes(result)
     skeleton = " ".join(fact_lines)
-
-    try:
+    
+    # 지킬 수치가 하나도 없으면 모델 출력을 검사할 방법이 없다. 맘모 기권 ·
+    # 초음파 병변 없음 · 병리 간질 없음이 그렇다. 그대로 모델을 태우면
+    # 「임계값을 넘는 검출이 없어 판정하지 않았습니다」가 「정상 소견입니다」로
+    # 바뀌어도 걸러낼 수 없다 — 검사망이 없는 유일한 구간이었다.
+    #
+    # 이 세 경우의 뼈대는 한두 문장이라 다듬을 여지도 적다. 모델을 건너뛴다.
+    keep = p.numbers(result)
+    if not keep:
+        return _done(socket_id, p, skeleton, note_lines, "no_numbers_to_verify")
+    
+    try :
         out = _ask(base.SYSTEM, base.build(p.values(result)), base.SCHEMA)
         text = (out.get("소견") or "").strip()
-    except Exception as exc:
-        # 모델이 없어도 리포트는 나간다. 뼈대는 완성된 문장이다
-        return _done(socket_id, p, skeleton, note_lines, f"llm_failed: {type(exc).__name__}")
+    except Exception as exc :
+        return _done(socket_id, p, skeleton, note_lines, f"llm_failed:{type(exc).__name__}")
 
     # 넘긴 수치가 소견문에 그대로 남아 있는지 본다. 글자열로 찾는 단순한 검사다.
     # 값을 바꿔 쓰면 그 값은 사라지므로 여기서 걸린다. 반대로 문장을 어떻게
     # 다듬든 숫자만 그대로면 통과한다 — 우리가 막으려는 것은 문체가 아니다.
     # 숫자 경계를 본다. 부분문자열로 찾으면 0.0 이 100.0 안에서 걸려
     # 「종양 면적 비율 0.0%」가 빠진 것을 못 잡는다(09-09 병리에서 실제 발생).
-    missing = [n for n in p.numbers(result)
+    missing = [n for n in keep
                if not re.search(rf"(?<![\d.]){re.escape(n)}(?![\d.])", text)]
-    missing = [n for n in p.numbers(result) if not re.search(rf"(?<![\d.]){re.escape(n)}(?![\d.])", text)]
     if missing:
         # 모델이 수치를 바꿨다. 그 출력은 통째로 버린다.
         # 어느 값이 사라졌는지 fallback 에 남겨 나중에 프롬프트를 고칠 단서로 쓴다.
