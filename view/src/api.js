@@ -104,24 +104,82 @@ function sleep(ms, signal) {
 
 /* ── 실시간 알림 ───────────────────────────────────────────────────
    notify 가 SSE 로 흘려 준다. nginx 쪽은 버퍼링을 꺼 두었고 24시간까지
-   열어 둔다(conf/nginx.conf).
+   열어 둔다(conf/nginx/default.conf).
 
    끊기면 브라우저가 알아서 다시 붙는다. 다만 **버퍼가 넘치면 서버가
    resync 를 보낸다** — 그때는 목록을 통째로 다시 받아야 한다. 놓친
    알림을 이어붙이려 하면 안 된다.
+
+   ── 티켓을 주소에 싣는다 ─────────────────────────────────────────
+   ⚠ **EventSource 는 헤더를 못 붙인다.** 규격에 그런 자리가 없어서
+     Authorization 을 쓸 수가 없다. 그래서 구독만 ?ticket= 으로 받는다
+     (gosvc 의 streamTicket). 서버도 이 경로의 접근 로그를 꺼 두었다.
+
+   ── 티켓이 만료되면 ─────────────────────────────────────────────
+   ⚠ EventSource 의 자동 재연결은 **같은 주소로** 다시 붙는다. 티켓이
+     만료되면 옛 티켓으로 영원히 401 을 맞는다 — 화면은 「다시 붙는 중」
+     으로 보이고 알림만 조용히 안 온다.
+
+     그래서 자동 재연결에 맡기지 않고, 끊기면 **티켓을 새로 받아** 다시
+     연다. 판독 화면을 하루 종일 켜 두는 자리라 이게 없으면 오후에는
+     알림이 안 온다.
    ───────────────────────────────────────────────────────────────── */
-export function openNotifications({ onEvent, onResync, onError } = {}) {
-  const es = new EventSource("/svc/v1/notify/stream");
+export function openNotifications({ issue, onEvent, onResync, onError } = {}) {
+  let es = null;
+  let closed = false;
+  let tries = 0;
+  let timer = null;
 
-  es.onmessage = (e) => {
-    let d = null;
-    try { d = JSON.parse(e.data); } catch { return; }
-    if (d?.type === "resync") onResync?.(d);
-    else onEvent?.(d);
+  async function open() {
+    if (closed) return;
+    let url = "/svc/v1/notify/stream";
+    try {
+      /* issue 가 없으면 티켓 없이 연다 — 목업은 인증을 안 본다 */
+      if (issue) {
+        const t = await issue({ purpose: "notify" });
+        url += `?ticket=${encodeURIComponent(t.token)}`;
+      }
+    } catch (e) {
+      onError?.(e);
+      return retry();
+    }
+    if (closed) return;
+
+    es = new EventSource(url);
+
+    es.onopen = () => { tries = 0; };   /* 붙었으면 기다린 시간을 되돌린다 */
+
+    es.onmessage = (e) => {
+      let d = null;
+      try { d = JSON.parse(e.data); } catch { return; }
+      if (d?.type === "resync") onResync?.(d);
+      else onEvent?.(d);
+    };
+
+    es.onerror = (e) => {
+      onError?.(e);
+      /* ⚠ 여기서 브라우저에 맡기지 않고 우리가 닫는다. 안 닫으면 옛 티켓으로
+         계속 다시 붙으려 한다 */
+      es.close();
+      es = null;
+      retry();
+    };
+  }
+
+  /* 1·2·4·8…초, 최대 30초. 서버가 죽었을 때 초당 한 번씩 두드리지 않는다 */
+  function retry() {
+    if (closed) return;
+    const wait = Math.min(30000, 1000 * 2 ** tries++);
+    timer = setTimeout(open, wait);
+  }
+
+  open();
+
+  return () => {
+    closed = true;
+    clearTimeout(timer);
+    es?.close();
   };
-  es.onerror = (e) => onError?.(e);
-
-  return () => es.close();
 }
 
 /* ── 화면이 부르는 것들 ────────────────────────────────────────────
