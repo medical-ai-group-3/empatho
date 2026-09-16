@@ -55,19 +55,7 @@
     "detail": "로그아웃되었습니다"
   },
 
-  "POST /api/v1/hospital/signup/verify-phone": {
-    "expires_in_sec": 180,
-    "detail": "인증번호를 보냈습니다"
-  },
-  "POST /api/v1/hospital/signup/verify-code": {
-    "verify_token": "mock.verify.staff",
-    "detail": "본인 확인이 끝났습니다"
-  },
-  "GET /api/v1/hospital/signup/check-id": {
-    "available": true,
-    "detail": "사용할 수 있는 아이디입니다"
-  },
-  "POST /api/v1/hospital/signup/request": {
+  "POST /api/v1/hospital/signup/staff": {
     "detail": "가입 신청이 접수되었습니다. 관리자 승인 후 로그인할 수 있습니다."
   },
 

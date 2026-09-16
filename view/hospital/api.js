@@ -432,24 +432,26 @@ export const breast = {
 export const byDept = { pathology: path, radiology: rad, breast };
 
 /* ── 직원 회원가입 ────────────────────────────────────────────
- * ⚠ 아직 서버 미확정 — 계약만 정해 프런트를 먼저 만든다. 백엔드가
- *   붙으면 경로 · 필드명만 맞추면 된다 (담당자 본인 구현 예정).
+ * 2026-09-16 백엔드 확정 — core/api/views.py 의 signup_staff.
+ *
+ *   POST /signup/staff
+ *   b:{staff_number, name, login_id, password, role}
+ *   role 은 다섯 값만 허용 — reception · nursing · radiology · surgery ·
+ *   pathology (admin · patient 를 보내면 VALIDATION_ERROR)
  *
  * 환자 가입(src/api.js)과 다른 점 — 마지막 submit 이 로그인으로 안
- * 이어진다. 계정이 pending 상태로 만들어지고, 관리자 승인 후에야
- * 로그인된다 (Login.jsx 의 account_status 처리와 같은 결).
+ * 이어진다. login_id/staff_number 중복이면 서버가 이 호출에서 바로
+ * VALIDATION_ERROR 를 준다(별도 중복확인 API 없음). 성공하면
+ * account_status=pending · is_active=False 로 만들어지고 토큰은 안
+ * 온다 — 관리자 승인 후에야 로그인된다 (Login.jsx 의 account_status
+ * 처리와 같은 결).
+ *
+ * ⚠ 휴대전화 인증 없음. Account 에 phone 컬럼 자체가 없다
+ *   (phone_verified 만 미리 파 둔 빈 컬럼) — 요청 본문에도 없다.
  */
 export const staffSignup = {
-  sendCode:   (b) => post("/signup/verify-phone", b),
-  // b:{phone} → {expires_in_sec, detail}
-  verifyCode: (b) => post("/signup/verify-code", b),
-  // b:{phone, code} → {verify_token, detail}
-  checkId:    (v) => get(`/signup/check-id${qs({ value: v })}`),
-  // → {available, detail}
-  submit:     (b) => post("/signup/request", b),
-  // b:{employee_no, name, login_id, password, dept, phone, verify_token,
-  //    agree_privacy} → {detail}
-  // ⚠ 성공해도 access 가 안 온다 — 승인 전이라 로그인할 수 없다
+  submit: (b) => post("/signup/staff", b),
+  // → {detail}
 };
 
 export const apiInfo = { base: BASE, mock: BASE === MOCK };

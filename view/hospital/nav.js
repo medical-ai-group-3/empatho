@@ -126,12 +126,15 @@ export const HOME = DEPTS[0];
 
 /* 회원가입 폼의 부서 선택지 — 위 DEPTS 와 다른 목록이다.
    DEPTS 는 「화면이 있는 과」만 담는 라우팅 표라 원무·간호가 없다.
-   가입은 병원 전체 직원이 하는 것이라 다섯 과 모두 있어야 한다. */
+   가입은 병원 전체 직원이 하는 것이라 다섯 과 모두 있어야 한다.
+
+   ⚠ key 는 화면 라우팅 키(breast)가 아니라 signup_staff 의 role
+   값이다 (2026-09-16 백엔드 확인) — 유방외과가 "surgery" 다. */
 export const STAFF_DEPTS = [
   { key: "reception", name: "원무과" },
   { key: "nursing",   name: "간호과" },
   { key: "radiology", name: "영상의학과" },
-  { key: "breast",    name: "유방외과" },
+  { key: "surgery",   name: "유방외과" },
   { key: "pathology", name: "병리과" },
 ];
 

@@ -13,79 +13,47 @@ import { HOSPITAL, PRODUCT, STAFF_DEPTS } from "../../nav";
  * 안 되기 때문이다. 환자 가입(src/screens/Signup.jsx)처럼 끝나자마자
  * 로그인 상태로 들어가는 것과 다른 지점이다.
  *
- * 휴대전화 인증은 화면을 옮기지 않는다. 「인증번호 받기」를 누르면
- * 그 아래에 인증번호 칸이 열린다 — 아이디 중복확인과 같은 자리에서
- * 끝나는 일이라 별도 단계로 화면을 넘길 이유가 없다.
+ * ⚠ 휴대전화 인증 없음. Account 모델에 phone 컬럼 자체가 없고
+ *   (phone_verified 만 미리 파 둔 빈 컬럼), signup_staff 요청 본문에도
+ *   전화번호 필드가 없다 — 2026-09-16 백엔드 확인. 나중에 흐름이
+ *   생기면 그때 이 화면에 다시 붙인다.
+ *
+ * 아이디·직원번호 중복은 서버가 제출 시점에 같이 본다. 별도 중복확인
+ * API 가 없어서, 여기서는 형식만 확인하고 겹치면 서버가 주는
+ * VALIDATION_ERROR 를 그대로 보여준다.
  */
 export default function Signup({ onBack }) {
   const [f, setF] = useState({
-    employeeNo: "", name: "", loginId: "", password: "", password2: "",
-    dept: "", phone: "", code: "",
+    staffNumber: "", name: "", loginId: "", password: "", password2: "",
+    role: "",
   });
   const [agree, setAgree] = useState(false);
 
-  const [idOk, setIdOk] = useState(null);
-  const [verifyToken, setVerifyToken] = useState(null);
-  const [codeSent, setCodeSent] = useState(false);
-
-  const [busy, setBusy] = useState(null);   // 지금 도는 일의 이름
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [done, setDone] = useState(null);   // 접수 완료 후 서버 안내문
 
-  const set = (k) => (e) => {
-    setF((v) => ({ ...v, [k]: e.target.value }));
-    if (k === "loginId") setIdOk(null);              // 고치면 확인이 무효다
-    if (k === "phone") { setCodeSent(false); setVerifyToken(null); }
-  };
+  const set = (k) => (e) => setF((v) => ({ ...v, [k]: e.target.value }));
 
   const ready =
-    f.employeeNo.trim() && f.name.trim() && f.loginId.trim() &&
+    f.staffNumber.trim() && f.name.trim() && f.loginId.trim() &&
     f.password.length >= 8 && f.password === f.password2 &&
-    f.dept && idOk?.available === true && verifyToken && agree;
-
-  async function checkId() {
-    if (f.loginId.length < 4) return;
-    setBusy("checkId"); setError(null);
-    try {
-      setIdOk(await staffSignup.checkId(f.loginId));
-    } catch (e) { setError(e); } finally { setBusy(null); }
-  }
-
-  async function sendCode(e) {
-    e.preventDefault();
-    setBusy("sendCode"); setError(null);
-    try {
-      await staffSignup.sendCode({ phone: f.phone });
-      setCodeSent(true);
-    } catch (e2) { setError(e2); } finally { setBusy(null); }
-  }
-
-  async function verifyCode(e) {
-    e.preventDefault();
-    setBusy("verifyCode"); setError(null);
-    try {
-      const r = await staffSignup.verifyCode({ phone: f.phone, code: f.code });
-      setVerifyToken(r.verify_token);
-    } catch (e2) { setError(e2); } finally { setBusy(null); }
-  }
+    f.role && agree;
 
   async function submit(e) {
     e.preventDefault();
     if (!ready) return;
-    setBusy("submit"); setError(null);
+    setBusy(true); setError(null);
     try {
       const r = await staffSignup.submit({
-        employee_no: f.employeeNo.trim(),
+        staff_number: f.staffNumber.trim(),
         name: f.name.trim(),
         login_id: f.loginId.trim(),
         password: f.password,
-        dept: f.dept,
-        phone: f.phone,
-        verify_token: verifyToken,
-        agree_privacy: agree,
+        role: f.role,
       });
       setDone(r?.detail || "가입 신청이 접수되었습니다. 관리자 승인 후 로그인할 수 있습니다.");
-    } catch (e2) { setError(e2); } finally { setBusy(null); }
+    } catch (e2) { setError(e2); } finally { setBusy(false); }
   }
 
   if (done) {
@@ -121,50 +89,40 @@ export default function Signup({ onBack }) {
           <form onSubmit={submit}>
             <label className="field">
               <span>직원번호</span>
-              <input value={f.employeeNo} onChange={set("employeeNo")}
-                     placeholder="사내 직원 등록번호를 입력하세요." disabled={busy === "submit"} />
+              <input value={f.staffNumber} onChange={set("staffNumber")}
+                     placeholder="사내 직원 등록번호를 입력하세요." disabled={busy} />
             </label>
 
             <label className="field">
               <span>이름</span>
               <input value={f.name} onChange={set("name")}
-                     autoComplete="name" disabled={busy === "submit"} />
+                     autoComplete="name" disabled={busy} />
             </label>
 
-            <div className="field">
+            <label className="field">
               <span>아이디</span>
-              <div className="pair">
-                <input value={f.loginId} onChange={set("loginId")}
-                       autoComplete="username" autoCapitalize="off"
-                       placeholder="로그인에 사용할 아이디" disabled={busy === "submit"} />
-                <button className="btn line" type="button"
-                        disabled={f.loginId.length < 4 || busy === "checkId"}
-                        onClick={checkId}>
-                  중복 확인
-                </button>
-              </div>
-              {idOk && (
-                <em>{idOk.available ? idOk.detail : "이미 쓰이고 있는 아이디입니다"}</em>
-              )}
-            </div>
+              <input value={f.loginId} onChange={set("loginId")}
+                     autoComplete="username" autoCapitalize="off"
+                     placeholder="로그인에 사용할 아이디" disabled={busy} />
+            </label>
 
             <label className="field">
               <span>비밀번호</span>
               <input type="password" value={f.password} onChange={set("password")}
-                     autoComplete="new-password" disabled={busy === "submit"} />
+                     autoComplete="new-password" disabled={busy} />
               <em>여덟 자 이상</em>
             </label>
 
             <label className="field">
               <span>비밀번호 확인</span>
               <input type="password" value={f.password2} onChange={set("password2")}
-                     autoComplete="new-password" disabled={busy === "submit"} />
+                     autoComplete="new-password" disabled={busy} />
               {f.password2 && f.password !== f.password2 && <em>두 번 넣으신 값이 다릅니다</em>}
             </label>
 
             <label className="field">
               <span>부서</span>
-              <select value={f.dept} onChange={set("dept")} disabled={busy === "submit"}>
+              <select value={f.role} onChange={set("role")} disabled={busy}>
                 <option value="">부서를 선택하세요.</option>
                 {STAFF_DEPTS.map((d) => (
                   <option key={d.key} value={d.key}>{d.name}</option>
@@ -172,42 +130,12 @@ export default function Signup({ onBack }) {
               </select>
             </label>
 
-            <div className="field">
-              <span>휴대전화 본인인증</span>
-              <div className="pair">
-                <input value={f.phone} onChange={set("phone")}
-                       inputMode="tel" autoComplete="tel"
-                       placeholder="휴대전화 번호를 입력하세요." disabled={busy === "submit" || !!verifyToken} />
-                <button className="btn line" type="button"
-                        disabled={f.phone.length < 10 || busy === "sendCode" || !!verifyToken}
-                        onClick={sendCode}>
-                  인증번호 받기
-                </button>
-              </div>
-              <em>인증 성공 여부만 저장되며 전화번호는 별도 보관하지 않습니다.</em>
-
-              {codeSent && !verifyToken && (
-                <div className="pair">
-                  <input value={f.code} onChange={set("code")}
-                         inputMode="numeric" maxLength={6}
-                         autoComplete="one-time-code" placeholder="인증번호 6자리"
-                         disabled={busy === "verifyCode"} />
-                  <button className="btn line" type="button"
-                          disabled={f.code.length < 4 || busy === "verifyCode"}
-                          onClick={verifyCode}>
-                    확인
-                  </button>
-                </div>
-              )}
-              {verifyToken && <em>휴대전화 인증이 완료되었습니다.</em>}
-            </div>
-
             <ul className="checks">
               <li>
                 <label>
                   <input type="checkbox" checked={agree}
                          onChange={(e) => setAgree(e.target.checked)}
-                         disabled={busy === "submit"} />
+                         disabled={busy} />
                   <span>개인정보 수집 및 이용에 동의합니다. (필수)</span>
                 </label>
               </li>
@@ -215,8 +143,8 @@ export default function Signup({ onBack }) {
 
             {error && <Failed error={error} />}
 
-            <button className="btn fill" type="submit" disabled={!ready || busy === "submit"}>
-              {busy === "submit" ? "신청하는 중…" : "가입 신청"}
+            <button className="btn fill" type="submit" disabled={!ready || busy}>
+              {busy ? "신청하는 중…" : "가입 신청"}
             </button>
           </form>
         </Card>
@@ -225,7 +153,7 @@ export default function Signup({ onBack }) {
           제출 후 관리자 승인이 있어야 로그인할 수 있습니다.
         </p>
 
-        <button className="btn ghost" type="button" onClick={onBack} disabled={busy === "submit"}>
+        <button className="btn ghost" type="button" onClick={onBack} disabled={busy}>
           로그인으로
         </button>
       </div>
@@ -233,6 +161,9 @@ export default function Signup({ onBack }) {
   );
 }
 
+/* 아이디·직원번호 중복 · 필드 검증 실패가 여기로 온다. VALIDATION_ERROR 면
+   fields 에 칸별 사유가 실려 오지만, 지금은 한 줄로 뭉쳐 보여준다 —
+   화면에 칸이 몇 안 돼 사람이 바로 알아본다. */
 function Failed({ error }) {
   return (
     <div className="login-err" role="alert">
