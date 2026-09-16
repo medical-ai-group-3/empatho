@@ -103,12 +103,26 @@ class TicketClaimTests(DerivedTestCase):
         self.assertEqual(claims["ai_result_id"], "")
 
     def test_아무도_안_내는_kind_는_거절한다(self):
-        # 초음파는 폴리곤 JSON, 병리 응답에 마스크 없음, 맘모는 분할 안 함
-        for kind in ("mask", "heatmap"):
-            with self.assertRaises(ApiError) as caught:
-                check_derived({"kind": kind, "source_object_id": self.source.pk},
-                              "study", self.study.pk)
-            self.assertEqual(caught.exception.code, "UNSUPPORTED_PURPOSE", kind)
+        # 초음파는 폴리곤 JSON, 맘모는 분할 안 함
+        with self.assertRaises(ApiError) as caught:
+            check_derived({"kind": "heatmap", "source_object_id": self.source.pk},
+                          "study", self.study.pk)
+        self.assertEqual(caught.exception.code, "UNSUPPORTED_PURPOSE")
+
+    def test_병리_마스크는_받는다(self):
+        _, claims, _ = issue("derived_upload", "study", self.study.pk,
+                             derived={"kind": "mask",
+                                      "source_object_id": self.source.pk,
+                                      "ai_result_id": self.ai_result.pk})
+        self.assertEqual(claims["kind"], "mask")
+        self.assertEqual(claims["lesion_id"], "")
+
+    def test_마스크에_ai_result_가_없으면_막힌다(self):
+        # 어느 실행에서 나온 마스크인지 모르면 붙일 자리가 없다
+        with self.assertRaises(ApiError) as caught:
+            check_derived({"kind": "mask", "source_object_id": self.source.pk},
+                          "study", self.study.pk)
+        self.assertIn("ai_result_id", caught.exception.details["missing"])
 
     def test_한덩이_mesh_는_이제_없다(self):
         # 셋으로 나눴다. 옛 이름으로 오면 거절해야 한다.
@@ -118,9 +132,9 @@ class TicketClaimTests(DerivedTestCase):
                           "study", self.study.pk)
         self.assertEqual(caught.exception.code, "UNSUPPORTED_PURPOSE")
 
-    def test_받는_kind_는_다섯이다(self):
+    def test_받는_kind_는_여섯이다(self):
         self.assertEqual(set(DERIVED_REQUIRED),
-                         {"overlay", "thumbnail",
+                         {"overlay", "thumbnail", "mask",
                           "mesh_breast", "mesh_dense", "mesh_lesion"})
 
     def test_검사_메시는_lesion_없이_된다(self):
@@ -208,9 +222,20 @@ class DerivedCallbackTests(DerivedTestCase):
 
     def test_안_정해진_kind_는_422(self):
         with self.assertLogs("core.api.tickets", level="WARNING"):
-            r = self.post(self.payload(derived=self.derived(kind="mask")))
+            r = self.post(self.payload(derived=self.derived(kind="heatmap")))
         self.assertEqual(r.status_code, 422)
         self.assertEqual(r.json()["error"]["code"], "UNSUPPORTED_PURPOSE")
+
+    def test_병리_마스크가_image_행이_된다(self):
+        r = self.post(self.payload(
+            object_key="specimen/1/mask/crop-0.png",
+            derived={"kind": "mask", "source_object_id": self.source.pk,
+                     "ai_result_id": self.ai_result.pk}))
+        self.assertEqual(r.status_code, 200)
+        image = Image.objects.get(object_key="specimen/1/mask/crop-0.png")
+        self.assertEqual(image.kind, "mask")
+        self.assertEqual(image.ai_result_id, self.ai_result.pk)
+        self.assertIsNone(image.lesion_id)
 
     def test_병변_메시가_image_행이_된다(self):
         r = self.post(self.payload(

@@ -34,13 +34,18 @@ MODALITY = ["mammo", "us", "mri"]
 # requested — 환자가 날짜·시간만 넣고 신청한 상태. 원무가 확정하면 ordered 다.
 ORDER_STATUS = ["requested", "ordered", "accepted", "in_progress", "completed",
                 "cancelled"]
-READ_STATUS = ["pending", "first_locked", "ai_revealed", "finalized"]
+# 가입 승인 흐름. 로그인 가능 여부는 account.is_active 가 따로 답한다 —
+# 둘을 한 칸에 담으면 「승인 대기」와 「정지」가 같은 값이 된다.
+ACCOUNT_STATUS = ["pending", "active", "rejected", "suspended"]
+# 1차 판독 게이트가 팀 결정으로 없어져 중간 둘(first_locked · ai_revealed)이
+# 빠지고, 임시저장을 담는 draft 가 들어왔다.
+READ_STATUS = ["pending", "draft", "finalized"]
 # mesh 가 셋인 이유 — MRI 는 유방 전체 · 치밀부위 · 병변 세 종류를 낸다.
 # 앞의 둘은 검사당 1개라 lesion 이 null 이고 뒤는 병변당 1개라 lesion 이 필수다.
 # 한 kind 로 두면 그 차이를 DB 가 못 걸고, lesion 이 null 인 두 행이 구분도 안 된다.
 IMAGE_KIND = ["mask", "overlay", "mesh_breast", "mesh_dense", "mesh_lesion",
               "heatmap", "thumbnail"]
-READ_STAGE = ["first", "final"]
+READ_STAGE = ["draft", "final"]
 ACCESSION_STATUS = ["unbound", "bound", "accessioned"]
 DIAGNOSIS = ["benign", "malignant"]
 B_CATEGORY = ["b1", "b2", "b3", "b4", "b5"]
@@ -106,7 +111,15 @@ class Account(AuditBase):
     login_id = models.CharField(unique=True, max_length=50, blank=True, null=True)
     password_hash = models.CharField(max_length=255, blank=True, null=True)
     role = models.CharField(max_length=20, choices=as_choices(ROLE))
-    is_active = models.BooleanField(default=True, db_default=True,
+    # 가입 승인 흐름. 환자는 승인이 없어 가입 엔드포인트가 'active' 를 명시한다.
+    account_status = models.CharField(max_length=20,
+                                      choices=as_choices(ACCOUNT_STATUS),
+                                      default='pending', db_default='pending')
+    # 로그인 가능 여부. 인증(core/api/auth.py)은 이 칸만 본다 —
+    # 승인 흐름을 거기 섞으면 상태가 늘 때마다 인증 코드를 고쳐야 한다.
+    # 기본이 False 인 것은 빠뜨렸을 때 닫히는 쪽이 맞아서다. 가입 엔드포인트가
+    # 직원이면 False, 환자면 True 로 명시한다.
+    is_active = models.BooleanField(default=False, db_default=False,
                                     blank=True, null=True)
     phone_verified = models.BooleanField(blank=True, null=True)
     push_token = models.CharField(max_length=255, blank=True, null=True)
@@ -116,6 +129,8 @@ class Account(AuditBase):
         db_table = 'account'
         constraints = [
             models.CheckConstraint(condition=Q(role__in=ROLE), name='account_role_ck'),
+            models.CheckConstraint(condition=Q(account_status__in=ACCOUNT_STATUS),
+                                   name='account_status_ck'),
         ]
 
     # DRF 가 request.user 에서 보는 것들. 인증 주체가 auth_user 가 아니라 이
@@ -156,6 +171,9 @@ class Patient(AuditBase):
     patient_number = models.CharField(unique=True, max_length=50)
     sex = models.CharField(max_length=20, blank=True, null=True)
     birth_year = models.IntegerField(blank=True, null=True)
+    # 초진 · 재진 판단. 원무가 처음 접수할 때 찍는다 — 앱을 먼저 가입하고
+    # 나중에 오는 경우가 있어 created_at 으로는 어긋난다.
+    first_visited_at = models.DateTimeField(blank=True, null=True)
     has_allergy = models.BooleanField(blank=True, null=True)
     allergy_note = models.CharField(max_length=250, blank=True, null=True)
     # 최신 1건 캐시. **진실은 exam_order.questionnaire 다** — 문진은 방문 때
@@ -266,6 +284,13 @@ class ExamOrder(AuditBase):
     # 원무가 의사 지시를 대신 입력하면 둘이 갈린다.
     ordered_by = models.ForeignKey(Staff, models.PROTECT, blank=True, null=True,
                                    related_name='+', db_column='ordered_by')
+    # 촬영 · 판독을 맡은 영상의학과 의사. 대기 큐에서 집으면 채워진다 —
+    # 비어 있는 것이 「아직 아무도 안 집음」이라 큐의 조건이 된다.
+    assigned_to = models.ForeignKey(Staff, models.PROTECT, blank=True, null=True,
+                                    related_name='assigned_orders',
+                                    db_column='assigned_to')
+    # 유방외과가 촬영을 요청할 때 쓰는 의견서. 촬영부위는 받지 않는다.
+    order_note = models.TextField(blank=True, null=True)
     ordered_at = models.DateTimeField(blank=True, null=True)
     # requested 일 때는 환자의 희망 시각, ordered 부터는 확정 시각이다.
     # 원무가 다른 시간으로 확정하면 희망 시각이 덮여 사라지므로, 확정 알림에
@@ -280,6 +305,14 @@ class ExamOrder(AuditBase):
     # 방문마다 한 벌이라 이력이 자연히 남는다.
     # {"form_version": "v1", "answers": {"문항code": "선택지id"}}
     questionnaire = models.JSONField(blank=True, null=True)
+    # 물린 사유. 영상의학과가 협진 요청을 돌려보낼 때 유방외과가 「왜 거절됐나」를
+    # 봐야 해서 알림이 아니라 여기 남긴다 — 알림이 안 갔거나 지워져도 사유는 남는다.
+    cancel_reason = models.CharField(max_length=250, blank=True, null=True)
+    # 물린 사람. null = 환자 본인 취소.
+    # 역할은 cancelled_by.account.role 로 나온다 — 원무 거절과 영상의학 거절이
+    # 갈린다. notification.staff_id 로 가르던 방식은 거절 주체가 둘이 되면서 깨졌다.
+    cancelled_by = models.ForeignKey(Staff, models.PROTECT, blank=True, null=True,
+                                     related_name='+', db_column='cancelled_by')
 
     class Meta:
         db_table = 'exam_order'
@@ -304,6 +337,17 @@ class ExamOrder(AuditBase):
                 | (Q(modality__isnull=False) & Q(exam_purpose__isnull=False)
                    & Q(ordered_by__isnull=False)),
                 name='exam_order_requested_fields_ck'),
+            # 의료진이 물렸으면 사유가 반드시 남는다. 「왜 거절됐나」를 유방외과가
+            # 봐야 하는데 API 검증만으로는 admin · Celery 로 들어오는 행을 못 막는다.
+            models.CheckConstraint(
+                condition=Q(cancelled_by__isnull=True)
+                | Q(cancel_reason__isnull=False),
+                name='exam_order_cancel_reason_ck'),
+            # 사유는 물린 행에만. 살아 있는 오더에 사유가 붙어 있으면 안 된다.
+            models.CheckConstraint(
+                condition=Q(cancel_reason__isnull=True)
+                | Q(order_status='cancelled'),
+                name='exam_order_cancel_status_ck'),
         ]
 
 
@@ -393,9 +437,11 @@ class StorageObject(AuditBase):
         db_table = 'storage_object'
         constraints = [
             # 주소가 적어도 하나는 있어야 한다.
-            # 「정확히 하나」가 아니다 — DICOM 은 Garage 와 Orthanc 양쪽에 있는
-            # 것이 정상 흐름이다. Go 가 Garage 에 커밋(I-1)한 뒤 Orthanc 에도
-            # 올리고 I-2 로 그쪽 식별자를 보낸다.
+            # DICOM 은 Orthanc 에, 나머지는 Garage 에 둔다. DICOM 도 I-1 때는
+            # Garage 에 있다가, I-2 로 Orthanc 저장이 확인되면 주소가 그쪽으로
+            # 옮겨가고 Garage 키가 비워진다 (사본은 Go 가 지운다).
+            # 「정확히 하나」로 조이지 않는 것은 전송이 실패해 Orthanc ID 가
+            # 없으면 Garage 키를 남겨야 해서다 — 그 파일은 Garage 에만 있다.
             models.CheckConstraint(
                 condition=Q(orthanc_series_id__isnull=False)
                 | Q(object_key__isnull=False),
@@ -406,9 +452,10 @@ class StorageObject(AuditBase):
             models.CheckConstraint(
                 condition=Exact(NumNonNulls('study', 'specimen', 'report'), 1),
                 name='storage_object_owner_ck'),
-            # I-1 의 멱등키. 모든 행에 있고 I-1 시점에 확정된다 —
-            # Go 의 멱등키 obj:<object_key> 와 같은 자리다.
-            # Orthanc 에 둔 파일은 둘 다 NULL 이라 서로 안 부딪힌다.
+            # I-1 의 멱등키. I-1 시점에 확정된다 — Go 의 멱등키
+            # obj:<object_key> 와 같은 자리다.
+            # Orthanc 로 옮겨간 뒤에는 둘 다 NULL 이 되는데, Postgres 가 NULL 을
+            # UNIQUE 에서 빼므로 그런 행이 여럿이어도 서로 안 부딪힌다.
             models.UniqueConstraint(fields=['bucket', 'object_key'],
                                     name='storage_object_bucket_object_key_uk'),
         ]
@@ -477,7 +524,12 @@ class AiResult(AuditBase):
 
     ai_result_id = models.BigAutoField(primary_key=True)
     patient = models.ForeignKey(Patient, models.PROTECT, related_name='ai_results')
-    study = models.ForeignKey(Study, models.PROTECT, related_name='ai_results')
+    # 주인은 검사 아니면 검체, 정확히 하나다 — 아래 CHECK 이 강제한다.
+    # 병리는 study 가 없다. 크롭 여러 장이면 장마다 한 행이고 specimen 이 묶는다.
+    study = models.ForeignKey(Study, models.PROTECT, blank=True, null=True,
+                              related_name='ai_results')
+    specimen = models.ForeignKey('Specimen', models.PROTECT, blank=True, null=True,
+                                 related_name='ai_results')
     # 맘모 · 초음파는 필수, MRI 는 null 또는 조영 전 시리즈
     source_object = models.ForeignKey(StorageObject, models.PROTECT,
                                       blank=True, null=True,
@@ -504,6 +556,12 @@ class AiResult(AuditBase):
 
     class Meta:
         db_table = 'ai_result'
+        constraints = [
+            # storage_object_owner_ck 와 같은 모양이다.
+            models.CheckConstraint(
+                condition=Exact(NumNonNulls('study', 'specimen'), 1),
+                name='ai_result_owner_ck'),
+        ]
 
 
 class Lesion(AuditBase):
@@ -552,6 +610,13 @@ class Lesion(AuditBase):
 
     class Meta:
         db_table = 'lesion'
+        constraints = [
+            # v10 에서 빠져 있던 것. choices 는 폼 검증이라 DB 는 아무 문자열이나
+            # 받았다. 병리는 여기 없다 — 검체가 병변에 붙지 병변이 병리에서 나지 않는다.
+            models.CheckConstraint(
+                condition=Q(modality__in=MODALITY) | Q(modality__isnull=True),
+                name='lesion_modality_ck'),
+        ]
 
 
 class Assessment(AuditBase):
@@ -561,7 +626,9 @@ class Assessment(AuditBase):
     study = models.ForeignKey(Study, models.PROTECT, related_name='assessments')
     lesion = models.ForeignKey(Lesion, models.PROTECT, blank=True, null=True,
                                related_name='assessments')  # null = study 전체
-    read_stage = models.CharField(max_length=20, choices=as_choices(READ_STAGE))
+    # 임시저장이 먼저다. 확정은 final 로 올린다.
+    read_stage = models.CharField(max_length=20, choices=as_choices(READ_STAGE),
+                                  default='draft', db_default='draft')
     category = models.CharField(max_length=10, choices=as_choices(BIRADS_CATEGORY),
                                 blank=True, null=True)
     category_model = models.CharField(max_length=10, blank=True, null=True)
@@ -613,6 +680,13 @@ class Specimen(AuditBase):
     accessioned_at = models.DateTimeField(blank=True, null=True)
     bound_by = models.ForeignKey(Staff, models.PROTECT, blank=True, null=True,
                                  related_name='+', db_column='bound_by')   # 간호
+    # 검체를 집은 병리의. exam_order.assigned_to 와 같은 구조 —
+    # 비어 있는 것이 「아직 아무도 안 집음」이라 접수 대기 큐의 조건이 된다.
+    assigned_to = models.ForeignKey(Staff, models.PROTECT, blank=True, null=True,
+                                    related_name='assigned_specimens',
+                                    db_column='assigned_to')
+    # 유방외과 의뢰 문구. "좌측 상외측 유방에 만져지는 종괴로 조직검사 의뢰합니다"
+    clinical_note = models.TextField(blank=True, null=True)
     collected_at = models.DateTimeField(blank=True, null=True)
     diagnosis = models.CharField(max_length=20, choices=as_choices(DIAGNOSIS),
                                  blank=True, null=True)
@@ -647,6 +721,12 @@ class Specimen(AuditBase):
                                     related_name='+', db_column='reported_by')
     finalized_at = models.DateTimeField(blank=True, null=True)  # 자동 대조 트리거
     finding_note = models.TextField(blank=True, null=True)
+    # 판독 정정 이력. 영상의학은 새 assessment 행을 만들고 옛 행이 superseded_by
+    # 로 가리키는데, 검체는 물건이라 행을 늘릴 수 없다 — specimen_label 이 UK 고
+    # discordance_flag 가 옛 행을 가리킨 채 남는다. 그래서 옛 값을 배열에 민다.
+    # [{diagnosis, b_category, finding_note, reported_by, finalized_at,
+    #   amend_reason, amended_at}, …]
+    amend_history = models.JSONField(blank=True, null=True)
 
     class Meta:
         db_table = 'specimen'
@@ -741,8 +821,13 @@ class Report(AuditBase):
     explain_method = models.CharField(max_length=20, choices=as_choices(EXPLAIN_METHOD),
                                       blank=True, null=True)
     patient_confirmed = models.BooleanField(blank=True, null=True)
+    # 유방외과 열람. 화면은 「열람 / 미열람」과 정렬에만 쓴다 —
+    # 자동 기록이라 「확인했다」가 아니다.
     last_viewed_at = models.DateTimeField(blank=True, null=True)
-    view_count = models.IntegerField(blank=True, null=True)
+    last_viewed_by = models.ForeignKey(Staff, models.PROTECT, blank=True, null=True,
+                                       related_name='+', db_column='last_viewed_by')
+    # nullable 이면 F('view_count') + 1 이 NULL 에 더해져 계속 NULL 이다.
+    view_count = models.IntegerField(default=0, db_default=0)
 
     class Meta:
         db_table = 'report'
