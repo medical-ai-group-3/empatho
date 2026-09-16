@@ -130,6 +130,7 @@ export default function ReviewViewer({
           {tab === null ? null : tab === "MRI" ? (
             <MRIReviewGrid
               lesions={lesions}
+              study={study}
             />
           ) : (
             <GenericImageViewer
@@ -284,7 +285,9 @@ export default function ReviewViewer({
           align-items: center;
           justify-content: center;
 
-          overflow: hidden;
+          /* 확대(zoom>100%)하면 이미지가 박스보다 커지는데, 그때는
+             스크롤로 이동(pan)할 수 있어야 한다 */
+          overflow: auto;
 
           padding: 16px;
 
@@ -310,7 +313,7 @@ export default function ReviewViewer({
           align-items: center;
           justify-content: center;
 
-          overflow: hidden;
+          flex: none;
         }
 
 
@@ -332,6 +335,9 @@ export default function ReviewViewer({
           user-select: none;
 
           -webkit-user-drag: none;
+
+          transform-origin: center center;
+          transition: transform 0.12s ease;
         }
 
 
@@ -356,7 +362,8 @@ export default function ReviewViewer({
 
           pointer-events: none;
 
-          transition: opacity 0.1s ease;
+          transform-origin: center center;
+          transition: opacity 0.1s ease, transform 0.12s ease;
         }
 
 
@@ -437,14 +444,15 @@ export default function ReviewViewer({
         =================================================== */
 
         .viewer-control {
-          flex: 0 0 50px;
+          flex: 0 0 auto;
 
           min-height: 50px;
 
           display: flex;
           align-items: center;
+          flex-wrap: wrap;
 
-          gap: 12px;
+          gap: 10px 12px;
 
           padding: 7px 12px;
 
@@ -488,6 +496,75 @@ export default function ReviewViewer({
         .mask-toggle.disabled {
           color: #596169;
 
+          cursor: default;
+        }
+
+
+        /* ===================================================
+           확대/축소
+        =================================================== */
+
+        .zoom-wrap {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+        }
+
+        .zoom-btn {
+          width: 24px;
+          height: 24px;
+
+          padding: 0;
+
+          border: 1px solid #343a40;
+          border-radius: 4px;
+
+          background: #1c2024;
+
+          color: #ffffff;
+
+          font-size: 14px;
+          line-height: 1;
+
+          cursor: pointer;
+        }
+
+        .zoom-btn:hover:not(:disabled) {
+          background: #343a40;
+        }
+
+        .zoom-btn:disabled {
+          color: #596169;
+          cursor: default;
+        }
+
+        .zoom-value {
+          min-width: 44px;
+
+          height: 24px;
+
+          padding: 0 4px;
+
+          border: 1px solid transparent;
+          border-radius: 4px;
+
+          background: transparent;
+
+          color: #aeb4ba;
+
+          font-size: 11px;
+          font-variant-numeric: tabular-nums;
+
+          cursor: pointer;
+        }
+
+        .zoom-value:hover:not(:disabled) {
+          color: #ffffff;
+          border-color: #343a40;
+        }
+
+        .zoom-value:disabled {
+          color: #596169;
           cursor: default;
         }
 
@@ -680,6 +757,21 @@ function GenericImageViewer({
   const [maskOpacity, setMaskOpacity] =
     useState(0.45);
 
+  /*
+   * 확대/축소 — 100%는 "박스에 꽉 차게 맞춘 크기"다(원본 픽셀 1:1이
+   * 아니다). 병리 원본처럼 실제 해상도가 큰 이미지를 그대로 100%=원본
+   * 픽셀로 두면 박스 밖으로 넘쳐서 다른 모달리티/옆 패널과 높이가
+   * 안 맞았다 — object-fit:contain으로 박스에 맞춘 크기를 기준(100%)
+   * 삼고, 그 위에서 배율만 곱한다.
+   */
+  const [zoom, setZoom] = useState(100);
+  const ZOOM_MIN = 50;
+  const ZOOM_MAX = 300;
+  const ZOOM_STEP = 25;
+  const zoomIn = () => setZoom((z) => Math.min(ZOOM_MAX, z + ZOOM_STEP));
+  const zoomOut = () => setZoom((z) => Math.max(ZOOM_MIN, z - ZOOM_STEP));
+  const zoomReset = () => setZoom(100);
+
 
   /*
    * 검사 / modality 변경 시 초기화
@@ -688,6 +780,7 @@ function GenericImageViewer({
     setSliceIndex(0);
     setMaskVisible(true);
     setMaskOpacity(0.45);
+    setZoom(100);
   }, [modality, study]);
 
 
@@ -764,7 +857,8 @@ function GenericImageViewer({
             </div>
 
 
-            {/* 원본 + Mask */}
+            {/* 원본 + Mask — 확대해도 둘이 같이 움직이도록 같은
+                transform을 준다 */}
             <div className="generic-image-stack">
 
               {/* 원본 */}
@@ -772,6 +866,7 @@ function GenericImageViewer({
                 className="generic-image"
                 src={imageSrc}
                 alt={`${modality} 검사 영상`}
+                style={{ transform: `scale(${zoom / 100})` }}
               />
 
 
@@ -785,6 +880,7 @@ function GenericImageViewer({
                     aria-hidden="true"
                     style={{
                       opacity: maskOpacity,
+                      transform: `scale(${zoom / 100})`,
                     }}
                   />
                 )}
@@ -802,6 +898,37 @@ function GenericImageViewer({
       ================================================= */}
 
       <div className="viewer-control">
+
+        {/* 확대/축소 — 맘모/초음파/병리도 기본적인 뷰어 기능이라 필요 */}
+        <div className="zoom-wrap">
+          <button
+            type="button"
+            className="zoom-btn"
+            onClick={zoomOut}
+            disabled={!imageSrc || zoom <= ZOOM_MIN}
+            aria-label="축소"
+          >
+            −
+          </button>
+          <button
+            type="button"
+            className="zoom-value"
+            onClick={zoomReset}
+            disabled={!imageSrc}
+            title="100%로 리셋"
+          >
+            {zoom}%
+          </button>
+          <button
+            type="button"
+            className="zoom-btn"
+            onClick={zoomIn}
+            disabled={!imageSrc || zoom >= ZOOM_MAX}
+            aria-label="확대"
+          >
+            ＋
+          </button>
+        </div>
 
         {/* AI Mask */}
         <label

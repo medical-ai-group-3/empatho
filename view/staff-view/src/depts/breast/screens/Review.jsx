@@ -51,19 +51,34 @@ function Inner({ patient, timeline }) {
   }, []);
 
   return (
-    <div className="review-grid">
-      <div className="card">
-        <div className="panel-head">
-          <h3>진료 이력</h3>
-          <button className="collapse-btn" onClick={() => setLeftOpen((v) => !v)}>
-            {leftOpen ? "접기" : "펼치기"}
-          </button>
-        </div>
-        {leftOpen && (
-          <Body loading={timeline.loading} error={timeline.error} onRetry={timeline.reload}>
-            {timeline.data && <Timeline events={timeline.data} />}
-          </Body>
+    <div
+      className="review-grid"
+      style={{
+        "--left-w": leftOpen ? "minmax(190px,0.6fr)" : "34px",
+        "--right-w": rightOpen ? "minmax(280px,1.1fr)" : "34px",
+      }}
+    >
+      <div className={`card side-panel ${leftOpen ? "" : "collapsed"}`}>
+        {leftOpen ? (
+          <>
+            <div className="panel-head"><h3>진료 이력</h3></div>
+            <div className="timeline-scroll">
+              <Body loading={timeline.loading} error={timeline.error} onRetry={timeline.reload}>
+                {timeline.data && <Timeline events={timeline.data} />}
+              </Body>
+            </div>
+          </>
+        ) : (
+          <span className="side-collapsed-label">진료 이력</span>
         )}
+        <button
+          type="button"
+          className="side-toggle left"
+          onClick={() => setLeftOpen((v) => !v)}
+          aria-label={leftOpen ? "진료 이력 접기" : "진료 이력 펼치기"}
+        >
+          {leftOpen ? "‹" : "›"}
+        </button>
       </div>
 
       <ReviewViewer
@@ -72,14 +87,23 @@ function Inner({ patient, timeline }) {
         onModalityChange={handleModalityChange}
       />
 
-      <div className="card">
-        <div className="panel-head">
-          <h3>리포트 확인</h3>
-          <button className="collapse-btn" onClick={() => setRightOpen((v) => !v)}>
-            {rightOpen ? "접기" : "펼치기"}
-          </button>
-        </div>
-        {rightOpen && <ReportTabs patient={patient} currentModality={currentModality} />}
+      <div className={`card side-panel ${rightOpen ? "" : "collapsed"}`}>
+        {rightOpen ? (
+          <>
+            <div className="panel-head"><h3>리포트 확인</h3></div>
+            <ReportPanel patient={patient} currentModality={currentModality} />
+          </>
+        ) : (
+          <span className="side-collapsed-label">리포트 확인</span>
+        )}
+        <button
+          type="button"
+          className="side-toggle right"
+          onClick={() => setRightOpen((v) => !v)}
+          aria-label={rightOpen ? "리포트 확인 접기" : "리포트 확인 펼치기"}
+        >
+          {rightOpen ? "›" : "‹"}
+        </button>
       </div>
     </div>
   );
@@ -103,42 +127,38 @@ function Timeline({ events }) {
   );
 }
 
-const REPORT_TABS = ["모달리티별 AI 리포트", "타 부서 의사 리포트", "유방외과 리포트"];
-
-function ReportTabs({ patient, currentModality }) {
-  const [tab, setTab] = useState(REPORT_TABS[0]);
+/* 예전엔 이 세 리포트를 탭으로 갈아 끼웠는데, 그러면 "지금 보고 있는
+ * 검사에 대한 AI/타부서 소견"과 "유방외과 리포트 작성"을 동시에 볼 수
+ * 없었다 — 비교하려면 탭을 왔다 갔다 해야 했다. 세 구역을 세로로 고정
+ * 배치하고 각자 내부 스크롤을 주면, AI·타부서 리포트(읽기 전용)는 위에
+ * 계속 떠 있고 유방외과 리포트(현재 modality에 맞춰 쓰는 곳)만 아래서
+ * 그때그때 바뀐다. */
+function ReportPanel({ patient, currentModality }) {
   const report = patient.report;
 
   /* 유방외과 소견은 지금 뷰어가 보여주는 모달리티별로 따로 쓴다 —
-   * MRI 탭에서 쓰던 걸 초음파로 넘어갔다가 다시 MRI로 돌아와도 그대로
-   * 남아 있어야 하니, 탭 전환과 무관하게 여기(ReportTabs)에서
-   * modality별 텍스트를 들고 있는다. */
+   * MRI에서 쓰던 걸 초음파로 넘어갔다가 다시 MRI로 돌아와도 그대로
+   * 남아 있어야 하니 modality별 텍스트를 따로 들고 있는다. */
   const [surgeonReports, setSurgeonReports] = useState({});
 
   return (
-    <>
-      <div className="tabs">
-        {REPORT_TABS.map((t) => (
-          <button key={t} className={tab === t ? "on" : ""} onClick={() => setTab(t)}>{t}</button>
-        ))}
-      </div>
+    <div className="report-stack">
+      <ReportBlock title="모달리티별 AI 리포트" fixed>
+        <AIModelResult aiModel={report.ai_model} />
+      </ReportBlock>
 
-      {tab === "모달리티별 AI 리포트" && <AIModelResult aiModel={report.ai_model} />}
+      <ReportBlock title="타 부서 의사 리포트" fixed>
+        {patient.other_reports?.length > 0 ? patient.other_reports.map((r, i) => (
+          <div className="other-report" key={i}>
+            <span className="dept">{r.dept}</span>
+            <span className="author">{r.author}</span>
+            <p className="summary">{r.summary}</p>
+            <p className="at">{r.at?.replace("T", " ").slice(0, 16)}</p>
+          </div>
+        )) : <p style={{ fontSize: 13, color: "var(--muted)" }}>아직 리포트가 없습니다</p>}
+      </ReportBlock>
 
-      {tab === "타 부서 의사 리포트" && (
-        <div>
-          {patient.other_reports?.length > 0 ? patient.other_reports.map((r, i) => (
-            <div className="other-report" key={i}>
-              <span className="dept">{r.dept}</span>
-              <span className="author">{r.author}</span>
-              <p className="summary">{r.summary}</p>
-              <p className="at">{r.at?.replace("T", " ").slice(0, 16)}</p>
-            </div>
-          )) : <p style={{ fontSize: 13, color: "var(--muted)" }}>아직 리포트가 없습니다</p>}
-        </div>
-      )}
-
-      {tab === "유방외과 리포트" && (
+      <ReportBlock title={currentModality ? `유방외과 리포트 · ${currentModality}` : "유방외과 리포트"} grow>
         <FinalReportForm
           report={report}
           modality={currentModality}
@@ -148,8 +168,17 @@ function ReportTabs({ patient, currentModality }) {
             setSurgeonReports((prev) => ({ ...prev, [currentModality]: value }))
           }
         />
-      )}
-    </>
+      </ReportBlock>
+    </div>
+  );
+}
+
+function ReportBlock({ title, fixed, grow, children }) {
+  return (
+    <section className={`report-block ${fixed ? "fixed" : ""} ${grow ? "grow" : ""}`}>
+      <h4>{title}</h4>
+      <div className="report-block-body">{children}</div>
+    </section>
   );
 }
 
@@ -169,18 +198,12 @@ function FinalReportForm({ report, modality, text, onTextChange }) {
   }
 
   return (
-    <div>
-      {modality && (
-        <div className="row" style={{ marginBottom: 8 }}>
-          <span className="k">현재 검사</span>
-          <span className="v">{modality}</span>
-        </div>
-      )}
-      <div className="field" style={{ marginBottom: 8 }}>
+    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+      <div className="field" style={{ flex: 1, minHeight: 0, marginBottom: 8 }}>
         <textarea
           value={text}
           onChange={(e) => onTextChange(e.target.value)}
-          style={{ minHeight: 160 }}
+          style={{ height: "100%", minHeight: 70, resize: "none" }}
           placeholder={
             modality
               ? `${modality} 검사에 대한 유방외과 소견을 작성해 주세요`
@@ -188,7 +211,7 @@ function FinalReportForm({ report, modality, text, onTextChange }) {
           }
         />
       </div>
-      <div className="card-foot split">
+      <div className="card-foot split" style={{ flex: "0 0 auto" }}>
         <span className="note">{msg}</span>
         <button className="btn ghost" onClick={save} disabled={saving || !modality}>
           {saving ? "저장 중…" : "리포트 저장"}
