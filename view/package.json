@@ -8,7 +8,8 @@
     "build": "vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "dev:mock": "vite --mode mock"
+    "dev:mock": "vite --mode mock",
+    "dev:hos": "vite --mode mock --open /hospital"
   },
   "dependencies": {
     "react": "^19.2.8",

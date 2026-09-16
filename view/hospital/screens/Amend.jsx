@@ -1,0 +1,199 @@
+import { useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { Body } from "../lib/Body";
+import { Btn, Card, Page } from "../lib/Page";
+import { Chip, Fold, Locked, Save } from "../lib/Parts";
+import { useApi } from "../lib/useApi";
+import { can } from "../perm";
+
+/* ═══ 5장 · 판독 정정 ════════════════════════════════════════════
+ *
+ * **무엇을 하는 자리인가**
+ *   이미 확정해서 유방외과로 나간 판독을 고친다. 4장에서 들어온다.
+ *
+ * **옛 값은 지워지지 않는다.**
+ *   병리과  specimen.amend_history (JSONB) 에 옛 값을 밀어넣는다.
+ *           검체는 물건이라 행을 늘릴 수 없다 — specimen_label 이
+ *           유일 키이고, 대조 플래그가 옛 행을 가리킨 채 남는다
+ *   영상의학과  새 assessment 행을 만들고 옛 행의 superseded_by 가
+ *           그것을 가리킨다
+ *   어느 쪽이든 「최근 1건」이 아니라 **전부** 남는다.
+ *
+ * **사유 없이는 못 고친다.**
+ *   정정 사유 · 세부 분류 · 세부 소견 셋 다 필수다. 사유가 없으면
+ *   나중에 왜 바뀌었는지 아무도 모른다.
+ *
+ * ── 입력이 셋이다 (2026-09-16 확정) ─────────────────────────
+ *   decision_reason  왜 고치는지. **이력에만** 남는다. 250자
+ *   category         등급. 병리는 B 분류, 영상은 BI-RADS
+ *   finding_note     고쳐 쓴 판독문. **유방외과로 나간다**. 1000자
+ *
+ * 정정 사유는 판정 표의 decision_reason 칸에 따로 저장된다.
+ * finding_note 앞에 붙이지 않는다.
+ *
+ * ⚠ 250자다. 요청 본문 상한이 500자로 잡혀 있어 251~500자를 보내면
+ *   지금은 500 이 난다(앱 서버 수정 대기). 그래서 **화면에서 250자로
+ *   막는다** — 서버가 고쳐져도 250 이 맞는 값이라 그대로 두면 된다.
+ *
+ * 명세 초안에는 긴 칸이 둘이었는데(「세부 소견」과 「정정 판독 내용」)
+ * **같은 것을 두 번 적어 둔 것**이었다. 하나로 합치고, 아래쪽
+ * 「기존 ↔ 정정」 나란히 보기 자리에 두었다. 고치면서 옛 판독을 옆에
+ * 놓고 보는 것이 이 화면의 목적이라 그 자리가 맞다.
+ *
+ * 저장되는 곳
+ *   병리   specimen.amend_history (JSONB) 안에 amend_reason 으로 들어간다
+ *   영상   새 assessment 행. 정정 사유를 담을 칸은 아직 정해지지 않았다
+ *          — 요청 본문은 둘을 따로 보낸다
+ */
+
+export default function AmendScreen({ cfg }) {
+  const c = cfg.amend;
+  const { id } = useParams();
+
+  if (!can(c.need.view)) {
+    return (
+      <Page crumb={[cfg.name, c.title]} title={c.title} sub={c.sub}>
+        <Locked what={c.title} />
+      </Page>
+    );
+  }
+  return <Load cfg={cfg} id={id} />;
+}
+
+function Load({ cfg, id }) {
+  const c = cfg.amend;
+  const { loading, data, error, reload } = useApi(() => cfg.api.read(id), [id]);
+
+  return (
+    <Page crumb={[cfg.name, cfg.list.title, c.title]} title={c.title} sub={c.sub}>
+      <p className="notice">
+        정정된 판독은 기존 판독의 수정 이력을 남기며, 이전 판독 내용은 모두 보존됩니다.
+      </p>
+      <Body loading={loading} error={error} onRetry={reload}>
+        {data && <Inner cfg={cfg} id={id} d={data} />}
+      </Body>
+    </Page>
+  );
+}
+
+function Inner({ cfg, id, d }) {
+  const c = cfg.amend;
+  const nav = useNavigate();
+  const prev = d.doctor ?? {};
+  const history = c.history(d) ?? [];
+
+  const [f, setF] = useState({
+    decision_reason: "",
+    category: "",
+    finding_note: prev.finding_note ?? "",
+  });
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState(null);
+  const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
+
+  const ready = f.decision_reason.trim() && f.category && f.finding_note.trim();
+
+  async function save() {
+    setBusy(true); setMsg(null);
+    try { await cfg.api.amend(id, f); nav(cfg.go.list()); }
+    catch (e) { setMsg(e.detail || "정정 저장에 실패했습니다."); setBusy(false); }
+  }
+
+  return (
+    <div className="amend">
+      {/* ── 위 · 무엇을 고치는가 ───────────────────────────── */}
+      <div className="grid3">
+        <Card title="환자 정보">
+          <c.Info d={d} cfg={cfg} />
+        </Card>
+
+        <Card title={c.imageTitle}>
+          <div className="vart small" />
+          <ul className="thumbs">
+            {(d.images ?? []).map((im, i) => (
+              <li key={im.id ?? i}><span className="thumb" aria-hidden="true" />{im.name}</li>
+            ))}
+            {(d.images ?? []).length === 0 && <li className="none">이미지가 없습니다</li>}
+          </ul>
+        </Card>
+
+        <Card title="정정 내용">
+          {/* 왜 고치는지. 이력에만 남고 유방외과로는 안 나간다 */}
+          <label className="field">
+            <span>정정 사유 <i className="req">*</i></span>
+            <textarea value={f.decision_reason} maxLength={250} rows={4}
+                      placeholder="예: 추가 면역염색 결과 반영"
+                      onChange={(e) => set("decision_reason", e.target.value)} />
+            <span className="count">{f.decision_reason.length} / 250</span>
+          </label>
+
+          <label className="field">
+            <span>{c.categoryLabel} <i className="req">*</i></span>
+            <select value={f.category} onChange={(e) => set("category", e.target.value)}>
+              <option value="">선택하세요</option>
+              {c.categories.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </label>
+
+          <p className="muted small">
+            정정 사유는 이력에만 남습니다. 판독문 본문은 아래 「정정 판독 내용」에 씁니다.
+          </p>
+        </Card>
+      </div>
+
+      {/* ── 아래 · 전과 후 ──────────────────────────────────── */}
+      <div className="grid2">
+        <Card title="기존 판독 내용" right={<Chip tone="line">읽기 전용</Chip>}>
+          <div className="ro">
+            <div><h3>[진단]</h3><p>{prev.diagnosis_label ?? "—"}</p></div>
+            <div><h3>[{c.categoryLabel}]</h3><p>{prev.category_label ?? "—"}</p></div>
+            <div><h3>[소견]</h3><p>{prev.finding_note ?? "—"}</p></div>
+          </div>
+
+          <Fold title={`이전 판독 전문 보기 (${history.length}건)`} open={false}>
+            {history.length === 0 && <p className="muted">이전 정정 이력이 없습니다.</p>}
+            <ol className="hist">
+              {history.map((h, i) => (
+                <li key={i}>
+                  <div className="hist-h">
+                    <b>{h.amended_at ?? h.finalized_at}</b>
+                    <span>{h.reported_by}</span>
+                  </div>
+                  {h.amend_reason && <p className="why">사유 — {h.amend_reason}</p>}
+                  <p>{h.finding_note}</p>
+                </li>
+              ))}
+            </ol>
+          </Fold>
+        </Card>
+
+        <Card title="정정 판독 내용"
+              right={<Btn kind="ghost" disabled title="불러올 템플릿이 아직 정해지지 않았습니다">템플릿 불러오기</Btn>}>
+          <label className="field">
+            <span>수정 후 판독문 <i className="req">*</i></span>
+            <textarea className="lg" value={f.finding_note} rows={12} maxLength={1000}
+                      placeholder="유방외과로 나갈 판독문을 고쳐 씁니다"
+                      onChange={(e) => set("finding_note", e.target.value)} />
+            <span className="count">{f.finding_note.length} / 1000</span>
+          </label>
+        </Card>
+      </div>
+
+      {msg && <div className="notice">{msg}</div>}
+
+      <Save
+        hint={c.saveHint}
+        onDraft={() => nav(cfg.go.read(id))}
+        onSave={save}
+        busy={busy}
+        canSave={Boolean(ready)}
+        draftNeed={cfg.read.need.draft}
+        saveNeed={c.need.save}
+        saveLabel="정정 저장"
+      />
+      {!ready && <p className="muted small">정정 사유 · {c.categoryLabel} · 정정 판독 내용을 모두 채워야 저장할 수 있습니다.</p>}
+    </div>
+  );
+}

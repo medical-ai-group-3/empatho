@@ -1,0 +1,837 @@
+/* ─────────────────────────────────────────────────────────────
+   EMPATHO 병원 웹 — 화면 규칙
+
+   **여기에는 숫자를 쓰지 않는다.** 전부 tokens.css 의 이름을 부른다.
+   예외는 환자 앱과 같은 셋이다.
+
+     · 뜻이 하나뿐인 값 — 0 · 100% · 50% · 1fr · repeat(4,1fr)
+     · 배치에만 쓰는 값 — flex:1 · min-width:0
+     · 광학 보정 — 알림 뱃지를 -6px/-8px 어긋내는 것처럼 눈에 맞춘 값
+
+   여기에 둘을 더 둔다. **@media 는 var() 를 못 읽는다**(미디어 쿼리가
+   CSS 변수보다 먼저 평가된다). 그래서 중단점 두 수는 아래에 그대로
+   적혀 있다. 그림자와 격자선의 1px 도 이름을 붙여 봐야 «무엇을 언제
+   얼마로 바꿔야 하는지» 알 수 없어 그대로 뒀다.
+   ───────────────────────────────────────────────────────────── */
+@import url("./tokens.css");
+
+*{box-sizing:border-box}
+html,body,#root{height:100%}
+body{margin:0; background:var(--canvas); color:var(--ink);
+  font-family:var(--font-ui); font-size:var(--body-fs);
+  line-height:var(--body-lh); -webkit-font-smoothing:antialiased}
+h1,h2,h3{font-family:var(--font-head); font-weight:600; margin:0;
+  letter-spacing:-.015em}
+button{font:inherit; color:inherit; background:none; border:none; padding:0;
+  cursor:pointer; text-align:left}
+a{color:inherit; text-decoration:none}
+input,select,textarea{font:inherit; color:inherit}
+:focus-visible{outline:var(--focus-w) solid var(--cyan); outline-offset:2px;
+  border-radius:var(--radius-xs)}
+
+.app{min-height:100%; display:flex; flex-direction:column}
+
+/* ── 상단바 ─────────────────────────────────────────────────── */
+.top{display:flex; align-items:center; gap:var(--top-gap); flex:none;
+  height:var(--top-h); padding:0 var(--top-pad-x);
+  background:var(--card); border-bottom:var(--hair) solid var(--border);
+  position:sticky; top:0; z-index:20}
+.top-l{display:flex; align-items:center; gap:var(--gap-sm); flex:none}
+.top-l b{font-family:var(--font-head); font-size:var(--brand-fs); font-weight:600}
+.top-l .mark{color:var(--cyan)}
+.top-l .sep{color:var(--border)}
+.top-l .dept{font-size:var(--top-fs); color:var(--warm)}
+
+.menu{display:flex; align-items:center; gap:var(--gap-xxs); flex:1; min-width:0}
+.menu a{font-size:var(--menu-fs); color:var(--warm);
+  padding:var(--menu-pad-y) var(--menu-pad-x); border-radius:var(--btn-radius);
+  white-space:nowrap; transition:background var(--motion)}
+.menu a:hover{background:var(--canvas); color:var(--ink)}
+/* 지금 보는 화면 — 채움이 아니라 **테두리**다. 채움 버튼은 화면당
+   하나뿐이라는 규칙을 메뉴가 쓰면 안 된다 */
+.menu a.on{color:var(--ink); box-shadow:inset 0 0 0 var(--hair) var(--border);
+  background:var(--card)}
+
+.top-r{display:flex; align-items:center; gap:var(--gap-sm); flex:none;
+  margin-left:auto}
+.bell{position:relative; width:var(--bell); height:var(--bell);
+  color:var(--warm); display:flex; align-items:center; justify-content:center}
+.bell i{position:absolute; top:-6px; right:-8px;
+  min-width:var(--bell-dot); height:var(--bell-dot); padding:0 3px;
+  border-radius:var(--round); background:var(--soot); color:var(--soot-ink);
+  font-size:var(--bell-dot-fs); font-style:normal; font-weight:700;
+  display:flex; align-items:center; justify-content:center}
+.when{font-size:var(--top-fs); color:var(--warm);
+  font-variant-numeric:tabular-nums}
+.me{display:flex; align-items:center; gap:var(--gap-tight)}
+.me .ava{width:var(--avatar); height:var(--avatar); border-radius:50%;
+  background:var(--soot); color:var(--soot-ink); font-size:var(--avatar-fs);
+  font-weight:700; display:flex; align-items:center; justify-content:center}
+.me-tx{display:flex; flex-direction:column; line-height:1.25}
+.me-tx b{font-size:var(--top-fs); font-weight:600}
+.me-tx small{font-size:var(--crumb-fs); color:var(--warm)}
+
+/* ── 쪽 ─────────────────────────────────────────────────────── */
+.page{flex:1; width:100%; max-width:var(--max); margin:0 auto;
+  padding:var(--page-pad-y) var(--page-pad-x);
+  display:flex; flex-direction:column; gap:var(--gap)}
+
+.crumb{display:flex; align-items:center; gap:var(--crumb-gap);
+  font-size:var(--crumb-fs); color:var(--warm)}
+.crumb i{font-style:normal; color:var(--border)}
+
+.phead{display:flex; align-items:flex-end; gap:var(--gap);
+  margin-top:calc(-1 * var(--gap-sm))}
+.phead-l{flex:1; min-width:0}
+.phead-r{flex:none}
+.phead h1{font-size:var(--h1-fs); display:flex; align-items:center;
+  gap:var(--h1-gap); flex-wrap:wrap}
+.sub{margin:var(--sub-gap) 0 0; font-size:var(--sub-fs); color:var(--warm)}
+.badge{font-family:var(--font-ui); font-size:var(--badge-fs); font-weight:600;
+  padding:var(--badge-pad-y) var(--badge-pad-x);
+  border-radius:var(--badge-radius); background:var(--wash); color:var(--ink);
+  letter-spacing:0}
+.src{font-size:var(--crumb-fs); color:var(--faint)}
+
+/* ── 카드 ───────────────────────────────────────────────────── */
+.card{background:var(--card); border:var(--hair) solid var(--border);
+  border-radius:var(--card-radius); box-shadow:var(--card-shadow);
+  overflow:hidden}
+.card-h{display:flex; align-items:center; gap:var(--gap-sm);
+  padding:var(--card-pad-sm) var(--card-pad);
+  border-bottom:var(--hair) solid var(--border)}
+.card-h h2{font-size:var(--card-h-fs); flex:1; min-width:0}
+.card-h-r{display:flex; align-items:center; gap:var(--chip-gap); flex:none}
+.card-b{padding:var(--card-pad); display:flex; flex-direction:column;
+  gap:var(--card-gap)}
+.card-b.flush{padding:0}
+.card.callout{background:var(--wash); border-color:transparent;
+  box-shadow:none}
+.card.callout .card-b{padding:var(--card-pad-sm) var(--card-pad);
+  font-size:var(--sub-fs)}
+
+.grid2{display:grid; grid-template-columns:1fr 1fr; gap:var(--gap)}
+.grid3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:var(--gap)}
+
+/* 아직 안 만든 자리 */
+.slot{border:var(--hair) dashed var(--border); border-radius:var(--in-radius);
+  padding:var(--card-pad); display:flex; flex-direction:column; gap:var(--sub-gap);
+  align-items:center; justify-content:center; text-align:center;
+  color:var(--warm); background:var(--canvas)}
+.slot b{font-size:var(--in-fs); font-weight:600; color:var(--ink-2)}
+.slot span{font-size:var(--hint-fs)}
+.slot.big{min-height:var(--slot-h); gap:var(--gap-sm)}
+
+/* ── 단추 — 전부 pill ───────────────────────────────────────── */
+.btn{display:inline-flex; align-items:center; justify-content:center;
+  gap:var(--sub-gap); border-radius:var(--btn-radius);
+  padding:var(--btn-pad-y) var(--btn-pad-x); font-size:var(--btn-fs);
+  font-weight:600; white-space:nowrap; transition:background var(--motion)}
+.btn.line{box-shadow:inset 0 0 0 var(--hair) var(--border); background:var(--card)}
+.btn.line:hover{background:var(--canvas)}
+/* **화면당 하나.** 그 화면에서 할 일 하나를 가리킨다 */
+.btn.fill{background:var(--cyan); color:var(--cyan-ink)}
+.btn.fill:hover{filter:brightness(.95)}
+.btn:disabled{opacity:.45; cursor:not-allowed}
+.rowb{display:flex; gap:var(--btn-gap); justify-content:flex-end}
+
+.pill{border-radius:var(--round); padding:var(--chip-pad-y) var(--chip-pad-x);
+  font-size:var(--chip-fs); font-weight:600; color:var(--warm);
+  box-shadow:inset 0 0 0 var(--hair) var(--border); background:var(--card);
+  white-space:nowrap}
+.pill:hover{color:var(--ink)}
+.pill.on{background:var(--soot); color:var(--soot-ink); box-shadow:none}
+
+/* ── 상태 칩 — 색이 아니라 모양으로 가른다 ──────────────────── */
+.chip{display:inline-flex; align-items:center; gap:var(--chip-gap);
+  border-radius:var(--round); padding:var(--chip-pad-y) var(--chip-pad-x);
+  font-size:var(--chip-fs); font-weight:600; white-space:nowrap; flex:none}
+.chip.fill{background:var(--soot); color:var(--soot-ink)}         /* 지금 하는 중 */
+.chip.line{box-shadow:inset 0 0 0 var(--hair) var(--border); color:var(--warm)}
+.chip.dot{box-shadow:inset 0 0 0 var(--hair) var(--border); color:var(--ink-2)}
+.chip.dot::before{content:""; width:var(--chip-dot); height:var(--chip-dot);
+  border-radius:50%; background:var(--cyan); flex:none}            /* 기계가 도는 중 */
+
+.sorts{display:flex; align-items:center; gap:var(--chip-gap)}
+.sorts-k{font-size:var(--chip-fs); color:var(--warm)}
+.search{display:flex; align-items:center; gap:var(--gap-tight); flex:1; min-width:0;
+  background:var(--canvas); border-radius:var(--in-radius);
+  padding:0 var(--in-pad-x); box-shadow:inset 0 0 0 var(--hair) var(--border)}
+.search span{color:var(--faint)}
+.search input{flex:1; min-width:0; border:none; background:none; outline:none;
+  padding:var(--in-pad-y) 0; font-size:var(--in-fs)}
+.search input::placeholder{color:var(--faint)}
+
+/* ── 두 단 ──────────────────────────────────────────────────── */
+.split{display:grid; grid-template-columns:1fr var(--pane-side);
+  gap:var(--pane-gap); align-items:start}
+.split.wide{grid-template-columns:1fr var(--pane-side-wide)}
+.split-l,.split-r{min-width:0; display:flex; flex-direction:column;
+  gap:var(--gap)}
+
+/* ── 대기열 ─────────────────────────────────────────────────── */
+.queue ul{list-style:none; margin:0; padding:0}
+.queue li{border-bottom:var(--hair) solid var(--line-2)}
+.queue li:last-child{border-bottom:none}
+.q-row{display:flex; align-items:center; gap:var(--gap-sm); width:100%;
+  padding:var(--q-pad-y) var(--row-pad-x); position:relative}
+.queue li:hover .q-row{background:var(--canvas)}
+.queue li.on .q-row{background:var(--canvas)}
+.queue li.on .q-row::before{content:""; position:absolute; left:0; top:0;
+  bottom:0; width:var(--row-mark); background:var(--cyan)}
+.q-row .no{width:var(--q-no); height:var(--q-no); border-radius:50%;
+  background:var(--soot); color:var(--soot-ink); font-size:var(--q-no-fs);
+  font-style:normal; font-weight:700; flex:none;
+  display:flex; align-items:center; justify-content:center}
+.q-tx{flex:1; min-width:0; display:flex; flex-direction:column; line-height:1.35}
+.q-tx b{font-size:var(--row-fs); font-weight:600}
+.q-tx span{font-size:var(--hint-fs); color:var(--warm)}
+.q-foot{display:flex; align-items:center; justify-content:space-between;
+  gap:var(--gap-sm); padding:var(--row-pad-y) var(--row-pad-x);
+  border-top:var(--hair) solid var(--border); font-size:var(--hint-fs);
+  color:var(--warm)}
+
+/* ── 표 ─────────────────────────────────────────────────────── */
+.tbl-wrap{overflow-x:auto}
+.tbl{width:100%; border-collapse:collapse}
+.tbl th{text-align:left; font-size:var(--th-fs); font-weight:600;
+  color:var(--warm); padding:var(--row-pad-y) var(--row-pad-x);
+  border-bottom:var(--hair) solid var(--border); white-space:nowrap}
+.tbl td{font-size:var(--row-fs); padding:var(--row-pad-y) var(--row-pad-x);
+  border-bottom:var(--hair) solid var(--line-2)}
+.tbl tbody tr{cursor:pointer}
+.tbl tbody tr:hover{background:var(--canvas)}
+.tbl tbody tr.on{background:var(--canvas)}
+.tbl tbody tr.on td:first-child{box-shadow:inset var(--row-mark) 0 0 var(--cyan)}
+.tbl-foot{display:flex; align-items:center; justify-content:space-between;
+  gap:var(--gap-sm); padding:var(--row-pad-y) var(--row-pad-x);
+  border-top:var(--hair) solid var(--border); font-size:var(--hint-fs);
+  color:var(--warm)}
+.tbl-foot .slot{border:none; background:none; padding:0}
+
+/* ── 저장 줄 ────────────────────────────────────────────────── */
+.save{display:flex; flex-direction:column; gap:var(--gap-sm);
+  border-top:var(--hair) solid var(--border); padding-top:var(--card-pad-sm)}
+.save-b{display:flex; gap:var(--btn-gap); justify-content:flex-end}
+.hint{margin:0; font-size:var(--hint-fs); color:var(--warm)}
+
+/* ── 팝업 ───────────────────────────────────────────────────── */
+
+/* ── 업로드 ─────────────────────────────────────────────────── */
+.drop{min-height:var(--up-h); border:var(--hair) dashed var(--border);
+  border-radius:var(--up-radius); background:var(--canvas);
+  display:flex; flex-direction:column; align-items:center;
+  justify-content:center; gap:var(--gap-tight); text-align:center; padding:var(--card-pad)}
+.drop i{font-style:normal; font-size:var(--h1-fs); color:var(--faint)}
+.drop b{font-size:var(--in-fs)}
+.drop span{font-size:var(--hint-fs); color:var(--warm)}
+.drop small{font-size:var(--hint-fs); color:var(--faint)}
+.barwrap{display:flex; flex-direction:column; gap:var(--sub-gap)}
+.bar-k{font-size:var(--hint-fs); color:var(--warm)}
+.bar{display:block; height:var(--bar-h); border-radius:var(--bar-radius);
+  background:var(--border); overflow:hidden}
+.bar i{display:block; height:100%; border-radius:var(--bar-radius);
+  background:var(--cyan); transition:width var(--motion)}
+
+/* ── 뷰어 — **이 판에서 어두운 곳은 여기뿐이다** ─────────────── */
+.vwrap{display:flex; align-items:stretch; background:var(--v-bg);
+  border-radius:var(--v-radius); overflow:hidden; min-height:var(--v-min-h);
+  color:var(--v-ink)}
+.viewer{flex:1; min-width:0; display:flex; flex-direction:column}
+.vtabs{display:flex; gap:var(--chip-gap); padding:var(--v-pad);
+  border-bottom:var(--hair) solid var(--v-line); flex-wrap:wrap}
+.vtabs .pill{background:transparent; color:var(--v-warm);
+  box-shadow:inset 0 0 0 var(--hair) var(--v-line)}
+.vtabs .pill.on{background:var(--v-ink); color:var(--v-bg); box-shadow:none}
+.vstage{flex:1; position:relative; display:flex; flex-direction:column;
+  gap:var(--v-pad); padding:var(--v-pad)}
+.vtools{position:absolute; left:var(--v-pad); top:var(--v-pad); z-index:2;
+  display:flex; flex-direction:column; gap:var(--gap-xs)}
+.vtool{width:var(--v-tool); height:var(--v-tool); border-radius:var(--gap-tight);
+  background:var(--v-card); color:var(--v-warm);
+  box-shadow:inset 0 0 0 var(--hair) var(--v-line);
+  display:flex; align-items:center; justify-content:center; font-size:var(--v-fs)}
+.vtool:hover{color:var(--v-ink)}
+/* 영상이 들어올 자리 */
+.vart{flex:1; min-height:var(--stage-h); border-radius:var(--in-radius);
+  background:
+    radial-gradient(closest-side, rgba(250,250,249,.10), transparent 70%) center/60% 70% no-repeat,
+    repeating-linear-gradient(0deg, rgba(250,250,249,.05) 0 1px, transparent 1px var(--grid)),
+    repeating-linear-gradient(90deg, rgba(250,250,249,.05) 0 1px, transparent 1px var(--grid)),
+    var(--v-card)}
+.zoom{display:flex; align-items:center; gap:var(--gap-sm);
+  font-size:var(--v-fs); color:var(--v-warm)}
+.zoom input{flex:1; min-width:0; accent-color:var(--cyan)}
+.zoom b{color:var(--v-ink); font-variant-numeric:tabular-nums}
+
+.vside{width:var(--v-side); flex:none; background:var(--v-card);
+  border-left:var(--hair) solid var(--v-line); display:flex;
+  flex-direction:column; min-width:0}
+.vwrap > .vside:first-child{border-left:none;
+  border-right:var(--hair) solid var(--v-line)}
+.vside-h{display:flex; align-items:center; gap:var(--gap-sm);
+  padding:var(--v-pad); border-bottom:var(--hair) solid var(--v-line);
+  font-size:var(--v-fs)}
+.vside-h b{flex:1; min-width:0}
+.vside-h .x{color:var(--v-warm)}
+.vside-b{flex:1; overflow-y:auto; padding:var(--v-pad);
+  display:flex; flex-direction:column; gap:var(--gap-sm)}
+/* 접었을 때 남는 손잡이 — 완전히 사라지면 다시 못 찾는다 */
+.vtab{width:var(--v-tab-w); flex:none; background:var(--v-card);
+  color:var(--v-warm); font-size:var(--v-fs); writing-mode:vertical-rl;
+  display:flex; align-items:center; justify-content:center; gap:var(--sub-gap);
+  border-left:var(--hair) solid var(--v-line)}
+.vtab:hover{color:var(--v-ink)}
+.vside .slot{border-color:var(--v-line); background:transparent;
+  color:var(--v-warm)}
+.vside .slot b{color:var(--v-ink)}
+.vside .save{border-top-color:var(--v-line)}
+.vside .btn.line{background:transparent; color:var(--v-ink);
+  box-shadow:inset 0 0 0 var(--hair) var(--v-line)}
+
+/* ── AI 소견 패널 ───────────────────────────────────────────── */
+.ai{display:flex; flex-direction:column; gap:var(--ai-gap); font-size:var(--v-fs)}
+.ai-h{display:flex; align-items:center; gap:var(--gap-sm)}
+.ai-h b{flex:1; min-width:0; font-size:var(--in-fs)}
+.ai .chip.line{box-shadow:inset 0 0 0 var(--hair) var(--v-line);
+  color:var(--v-warm)}
+.ai .chip.dot{box-shadow:inset 0 0 0 var(--hair) var(--v-line);
+  color:var(--v-ink)}
+.ai-big{margin:0; font-size:var(--in-fs); font-weight:600; color:var(--v-ink);
+  line-height:1.45}
+.ai-note{margin:0; color:var(--v-warm)}
+.ai-fine{margin:0; font-size:var(--hint-fs); color:var(--v-warm);
+  line-height:1.6}
+.ai-kv{margin:0; display:flex; flex-direction:column; gap:var(--gap-5)}
+.ai-kv > div{display:flex; align-items:baseline; gap:var(--gap-sm)}
+.ai-kv dt{flex:1; min-width:0; font-size:var(--ai-k-fs); color:var(--v-warm)}
+.ai-kv dd{margin:0; font-size:var(--ai-v-fs); font-weight:600}
+
+/* ── 좁은 화면 ────────────────────────────────────────────────
+   ⚠ 여기 두 수는 토큰으로 못 뺀다. @media 는 var() 를 안 받는다 —
+     미디어 쿼리가 CSS 변수보다 먼저 평가되기 때문이다.
+     1180px 에서 두 단이 한 단이 되고, 860px 에서 격자가 한 줄이 된다. */
+@media (max-width: 1180px){
+  .split,.split.wide{grid-template-columns:1fr}
+  .grid3{grid-template-columns:1fr 1fr}
+}
+@media (max-width: 860px){
+  .grid2,.grid3{grid-template-columns:1fr}
+  .menu{overflow-x:auto}
+}
+
+@media (prefers-reduced-motion:reduce){
+  *{transition:none!important; animation:none!important}
+}
+
+/* ── 이름–값 표 ───────────────────────────────────────────────
+   「검체번호 · S-2026-00126」처럼 짝을 늘어놓는 자리. 화면 여럿이 쓴다.
+   항목 이름 칸을 고정 폭으로 두어야 값이 세로로 줄을 맞춘다 — 눈이
+   값만 훑을 수 있다. */
+.kv{margin:0; display:flex; flex-direction:column; gap:var(--kv-gap)}
+.kv > div{display:flex; align-items:baseline; gap:var(--gap-sm)}
+.kv dt{width:var(--kv-k); flex:none; font-size:var(--label-fs);
+  color:var(--warm)}
+.kv.wide dt{width:var(--kv-k-wide)}
+.kv dd{margin:0; flex:1; min-width:0; font-size:var(--kv-fs)}
+.kv dd b{font-weight:600}
+
+/* ── 환자 머리 ───────────────────────────────────────────── */
+.ph{display:flex; align-items:center; gap:var(--gap-sm)}
+.ph .ava{width:var(--ph-ava); height:var(--ph-ava); border-radius:50%;
+  background:var(--wash); color:var(--ink); font-size:var(--ph-ava-fs);
+  font-weight:700; flex:none;
+  display:flex; align-items:center; justify-content:center}
+.ph-tx{flex:1; min-width:0; display:flex; flex-direction:column; line-height:1.35}
+.ph-tx b{font-family:var(--font-head); font-size:var(--ph-nm-fs); font-weight:600}
+.ph-tx span{font-size:var(--hint-fs); color:var(--warm)}
+
+/* ── 알림 상자 — 색이 아니라 옅은 면으로 ─────────────────── */
+
+/* ── 첨부 · 파일 ─────────────────────────────────────────── */
+
+/* ── 썸네일 ──────────────────────────────────────────────── */
+.thumbs{display:flex; gap:var(--gap-sm); flex-wrap:wrap}
+.thumb{display:flex; flex-direction:column; gap:var(--gap-xs);
+  font-size:var(--hint-fs); color:var(--warm); text-align:center}
+.thumb i{display:block; width:var(--thumb); height:var(--thumb);
+  border-radius:var(--file-radius); background:var(--soot)}
+.thumb.lg i{width:var(--thumb-lg); height:calc(var(--thumb-lg) * .72)}
+.thumb.on i{box-shadow:0 0 0 var(--focus-w) var(--cyan)}
+
+/* ── 슬라이드 목록 ───────────────────────────────────────── */
+.slides{list-style:none; margin:0; padding:0; display:flex;
+  flex-direction:column; gap:var(--gap-5)}
+.slides button{display:flex; align-items:center; gap:var(--sub-gap);
+  width:100%; padding:var(--slide-pad); border-radius:var(--file-radius);
+  font-size:var(--kv-fs); position:relative;
+  box-shadow:inset 0 0 0 var(--hair) var(--border)}
+.slides button:hover{background:var(--canvas)}
+.slides .on button{background:var(--wash); box-shadow:none}
+.slides .on button::before{content:""; position:absolute; left:0; top:var(--sub-gap);
+  bottom:var(--sub-gap); width:var(--slide-mark); border-radius:var(--round);
+  background:var(--cyan)}
+
+/* ── 레이어 켜고 끄기 — 뷰어 안 ──────────────────────────── */
+
+/* 뷰어 위에 얹히는 것들 */
+
+/* ── 입력 서식 ───────────────────────────────────────────── */
+.field{display:flex; flex-direction:column; gap:var(--gap-xs)}
+.field > span{font-size:var(--label-fs); color:var(--warm)}
+.field .req{color:var(--cyan)}
+.field input,.field select,.field textarea{width:100%; border:none;
+  background:var(--card); border-radius:var(--in-radius);
+  padding:var(--in-pad-y) var(--in-pad-x); font-size:var(--in-fs);
+  box-shadow:inset 0 0 0 var(--hair) var(--border); outline:none}
+.field textarea{min-height:var(--ta-h); resize:vertical;
+  line-height:var(--body-lh); font-family:inherit}
+.field textarea.lg{min-height:var(--ta-h-lg)}
+.field input:focus,.field select:focus,.field textarea:focus{
+  box-shadow:inset 0 0 0 var(--focus-w) var(--cyan)}
+.field ::placeholder{color:var(--faint)}
+.count{align-self:flex-end; font-size:var(--hint-fs); color:var(--faint)}
+
+/* 갈래 고르기 — 악성 / 양성 / 경계성 */
+.seg{display:flex; gap:var(--chip-gap)}
+.seg button{flex:1; text-align:center; border-radius:var(--round);
+  padding:var(--seg-pad-y) var(--chip-pad-x); font-size:var(--chip-fs);
+  font-weight:600; color:var(--warm);
+  box-shadow:inset 0 0 0 var(--hair) var(--border)}
+.seg button.on{background:var(--soot); color:var(--soot-ink); box-shadow:none}
+
+/* ── 편집기 줄 ───────────────────────────────────────────── */
+.rte{border-radius:var(--in-radius);
+  box-shadow:inset 0 0 0 var(--hair) var(--border); overflow:hidden}
+.rte-bar{display:flex; align-items:center; gap:var(--gap-xxs);
+  height:var(--rte-h); padding:0 var(--sub-gap);
+  border-bottom:var(--hair) solid var(--border); background:var(--canvas)}
+.rte-bar button{width:var(--rte-btn); height:var(--rte-btn); border-radius:var(--radius-xs);
+  color:var(--warm); display:flex; align-items:center; justify-content:center;
+  font-size:var(--chip-fs)}
+.rte-bar button:hover{background:var(--card); color:var(--ink)}
+.rte-bar .div{width:var(--hair); height:var(--rte-btn); background:var(--border);
+  margin:0 var(--gap-xs)}
+.rte textarea{border-radius:0; box-shadow:none; min-height:var(--ta-h-lg)}
+.rte textarea:focus{box-shadow:none}
+
+/* ── 쪽 넘김 ─────────────────────────────────────────────── */
+.pg{display:flex; align-items:center; gap:var(--gap-xxs)}
+.pg button{min-width:var(--pg-btn); height:var(--pg-btn); border-radius:var(--radius-sm);
+  font-size:var(--chip-fs); color:var(--warm); padding:0 var(--gap-xs);
+  display:flex; align-items:center; justify-content:center}
+.pg button:hover{background:var(--canvas); color:var(--ink)}
+.pg button.on{background:var(--soot); color:var(--soot-ink)}
+
+/* ── 읽기 전용 소견 ──────────────────────────────────────── */
+.readout{font-size:var(--kv-fs); line-height:1.75; display:flex;
+  flex-direction:column; gap:var(--card-gap)}
+.readout h3{font-size:var(--label-fs); color:var(--warm); font-weight:600;
+  font-family:var(--font-ui); letter-spacing:.02em}
+.readout p{margin:0}
+.readout ul{margin:0; padding-left:1.1em; display:flex;
+  flex-direction:column; gap:var(--gap-xs)}
+.readout .by{font-size:var(--hint-fs); color:var(--warm)}
+
+/* ── 카드 안 작은 구역 제목 ───────────────────────────────────
+   「검체 정보 (요청 정보)」처럼 한 카드 안에서 묶음을 가르는 자리.
+   카드 제목(.card-h h2)보다 작고 조용하다 — 카드가 하나의 주제이고
+   이건 그 안의 소제목이라 위계가 한 단 아래여야 한다. */
+.seck{margin:var(--gap-sm) 0 0; font-family:var(--font-ui);
+  font-size:var(--label-fs); font-weight:600; color:var(--warm);
+  letter-spacing:.02em}
+.card-b > .seck:first-child{margin-top:0}
+
+/* 본문 한 줄 — 임상 정보처럼 문장으로 오는 것 */
+.note{margin:0; font-size:var(--kv-fs); color:var(--ink-2);
+  line-height:var(--body-lh)}
+
+/* 칩을 나란히 */
+
+/* ── 접는 덩어리 ──────────────────────────────────────────────
+   판독 화면의 세 패널(검체 정보 · AI 소견 · 의사 소견)이 쓴다.
+   머리를 통째로 누르게 한다 — 작은 삼각형만 눌러야 하면 손이 자꾸 빗나간다. */
+.fold{background:var(--card); border:var(--hair) solid var(--border);
+  border-radius:var(--card-radius); box-shadow:var(--card-shadow);
+  overflow:hidden}
+.fold-h{display:flex; align-items:center; gap:var(--sub-gap); width:100%;
+  height:var(--fold-h); padding:0 var(--fold-pad); background:var(--card)}
+.fold-h:hover{background:var(--canvas)}
+.fold-h i{font-style:normal; color:var(--warm); flex:none}
+.fold-h b{flex:1; min-width:0; font-size:var(--card-h-fs); font-weight:600;
+  font-family:var(--font-head); text-align:left}
+.fold-r{flex:none; font-size:var(--hint-fs); color:var(--warm)}
+.fold-b{padding:var(--fold-pad); border-top:var(--hair) solid var(--border);
+  display:flex; flex-direction:column; gap:var(--card-gap)}
+.fold.shut{box-shadow:none}
+
+/* 뷰어 안에서는 면을 안 깐다 — 어두운 판이라 카드가 뜨면 눈이 그리 간다 */
+.vside .fold{background:transparent; border-color:var(--v-line);
+  box-shadow:none}
+.vside .fold-h{background:transparent; color:var(--v-ink)}
+.vside .fold-h:hover{background:transparent}
+.vside .fold-h i,.vside .fold-r{color:var(--v-warm)}
+.vside .fold-b{border-top-color:var(--v-line)}
+
+/* ── 대기열 — 검색과 빈 자리 ─────────────────────────────── */
+.q-search{padding:var(--gap-sm) var(--row-pad-x);
+  border-bottom:var(--hair) solid var(--border)}
+.q-empty{padding:var(--card-pad); text-align:center; color:var(--warm);
+  font-size:var(--hint-fs)}
+
+/* ── 올린 크롭 목록 ───────────────────────────────────────── */
+.crops{list-style:none; margin:0; padding:0}
+.crops li{display:flex; align-items:center; gap:var(--gap-sm);
+  padding:var(--crop-pad) var(--row-pad-x);
+  border-bottom:var(--hair) solid var(--line-2)}
+.crops li:last-child{border-bottom:none}
+.crop-tx{flex:1; min-width:0; display:flex; flex-direction:column; line-height:1.35}
+.crop-tx b{font-size:var(--row-fs); font-weight:600}
+.crop-tx span{font-size:var(--hint-fs); color:var(--warm)}
+.crop-bar{width:var(--crop-bar); flex:none}
+.thumb.sm i,i.thumb.sm{width:var(--crop-th); height:var(--crop-th); flex:none}
+
+/* ── 잴 수 없는 값 ────────────────────────────────────────────
+   간질이 없으면 sTIL 이 null 이다. **0% 가 아니다** — 잴 수 없는 것이지
+   TIL 이 없는 것이 아니다. 숫자 자리에 글자를 넣어 구분한다. */
+.ai-na{color:var(--v-warm); font-weight:400}
+
+/* 점 목록 — 업로드 주의사항 */
+.bul{margin:0; padding-left:1.1em; display:flex; flex-direction:column;
+  gap:var(--gap-xs); font-size:var(--kv-fs); color:var(--ink-2);
+  line-height:var(--body-lh)}
+
+/* 뷰어를 화면 가득 — 오른쪽 패널을 접는다 */
+.split.full{grid-template-columns:1fr}
+.split.full .split-r{display:none}
+
+/* ── 목업 표시 줄 ─────────────────────────────────────────────
+   목업을 보면서 진짜인 줄 아는 일을 막는다. 눈에 띄되 일을 가리지
+   않도록 바닥에 얇게 붙인다. 진짜 서버에 붙으면 아예 안 그려진다. */
+.mockbar{position:sticky; bottom:0; z-index:15; flex:none;
+  height:var(--mock-h); display:flex; align-items:center;
+  justify-content:center; gap:var(--sub-gap);
+  background:var(--soot); color:var(--soot-ink);
+  font-size:var(--mock-fs); letter-spacing:.02em}
+
+/* ══════════════════════════════════════════════════════════════
+   두 과 공통 화면에서 새로 쓰는 것들
+   (병리과 · 영상의학과 다섯 장이 같이 쓴다)
+   ══════════════════════════════════════════════════════════════ */
+
+/* 화면 전체 뼈대 — 상단바 · 본문 · 목업 띠 */
+.shell{min-height:100%; display:flex; flex-direction:column}
+
+/* 앱이 켜지는 동안, 그리고 그리다 멈췄을 때 */
+.boot{min-height:60vh; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:var(--gap-sm);
+  text-align:center; padding:var(--page-pad-y) var(--page-pad-x)}
+.boot b{font-family:var(--font-head); font-size:var(--in-fs)}
+.boot span{font-size:var(--hint-fs); color:var(--warm); max-width:36em}
+
+/* 작은 보조 글자 — 「왜 이런가」를 덧붙이는 자리 */
+.muted{color:var(--warm)}
+.small{font-size:var(--hint-fs); line-height:var(--body-lh)}
+p.muted{margin:0; font-size:var(--kv-fs)}
+
+/* 목록이 비었을 때 한 줄 */
+.none{color:var(--faint); font-size:var(--hint-fs); padding:var(--gap-sm) 0;
+  list-style:none; text-align:center}
+td.none,tr.none td{text-align:center; padding:var(--card-pad) 0}
+
+/* 알림 한 줄 — 실패 사유나 안내를 본문 위에 얹는다.
+   상태 색을 새로 만들지 않고 옅은 시안 바탕으로 세운다 */
+.notice{margin:0 0 var(--gap) 0; padding:var(--gap-sm) var(--card-pad-sm);
+  background:var(--wash); border-radius:var(--in-radius);
+  font-size:var(--kv-fs); color:var(--ink)}
+
+/* 반드시 보여야 하는 경고 — 조영제 알레르기처럼 촬영 전에 놓치면
+   안 되는 값. 색을 더하지 않고 soot 채움으로 세운다 */
+.warnline{margin:0 0 var(--gap-sm) 0; padding:var(--gap-sm) var(--card-pad-sm);
+  background:var(--soot); color:var(--soot-ink); border-radius:var(--in-radius);
+  font-size:var(--kv-fs); font-weight:600; display:flex; gap:var(--sub-gap)}
+.vside .warnline{background:var(--v-line); color:var(--v-ink)}
+
+/* 버튼 셋째 모양 — 테두리 없는 보조 동작 */
+.btn.ghost{background:transparent; border:var(--hair) solid transparent;
+  color:var(--warm)}
+.btn.ghost:hover:not(:disabled){background:var(--line-2); color:var(--ink)}
+
+/* 버튼 몇 개를 가로로 세우는 자리 */
+.stack{display:flex; align-items:center; gap:var(--btn-gap); flex-wrap:wrap}
+.stack.top{margin-top:var(--gap-sm); padding-top:var(--gap-sm);
+  border-top:var(--hair) solid var(--border)}
+
+/* 인용 — 유방외과 의뢰 문구, 판독문 본문 */
+.quote{margin:0; padding:var(--gap-sm) var(--card-pad-sm);
+  background:var(--canvas); border-radius:var(--in-radius);
+  border-left:2px solid var(--border);
+  font-size:var(--kv-fs); line-height:var(--body-lh); white-space:pre-wrap}
+
+/* ── 1장 · 큐 바닥의 「다음은 누구」 ─────────────────────────
+   버튼이 집는 대상은 화면 맨 위가 아니라 큐 선두다. 검색으로 걸러
+   놓으면 둘이 달라 보이므로 이름을 적어 둔다 */
+.q-next{font-size:var(--hint-fs); color:var(--warm)}
+.q-next b{color:var(--ink); font-weight:600}
+
+/* ── 2장 · 업로드 ──────────────────────────────────────────── */
+.drop-t{margin:0 0 var(--gap-sm) 0; font-size:var(--kv-fs); color:var(--warm)}
+
+.files{list-style:none; margin:var(--gap-sm) 0 0 0; padding:0;
+  display:flex; flex-direction:column; gap:var(--gap-xs)}
+.files li{display:flex; align-items:center; gap:var(--sub-gap);
+  padding:var(--gap-xs) var(--gap-sm); border-radius:var(--file-radius);
+  background:var(--canvas); font-size:var(--kv-fs)}
+.files li b{flex:1; min-width:0; font-weight:500; overflow:hidden;
+  text-overflow:ellipsis; white-space:nowrap}
+.files li span{color:var(--warm); font-size:var(--hint-fs); flex:none}
+
+/* 시리즈 고르는 체크박스 */
+.ck{display:flex; align-items:center; gap:var(--sub-gap); width:100%;
+  font-size:var(--kv-fs); cursor:pointer}
+.ck input{accent-color:var(--cyan); flex:none}
+.ck span{flex:1; min-width:0}
+.ck small{color:var(--warm); font-size:var(--hint-fs)}
+
+/* ── 3장 · 뷰어 아래 · 오른쪽 패널 ─────────────────────────── */
+.vunder{padding:var(--v-pad); border-top:var(--hair) solid var(--v-line);
+  background:var(--v-card)}
+
+.vside.wide{width:var(--pane-side-wide); display:flex; flex-direction:column;
+  gap:0}
+.vpanel{display:flex; flex-direction:column; min-height:0;
+  border-bottom:var(--hair) solid var(--v-line)}
+.vpanel.grow{flex:1}
+.vpanel .vside-b{overflow:auto}
+
+/* 접힌 패널의 손잡이 — 오른쪽 기둥 안에서 가로로 눕는다 */
+.vrow{display:flex; align-items:center; gap:var(--sub-gap);
+  padding:var(--gap-sm) var(--v-pad); background:var(--v-card);
+  border:none; border-bottom:var(--hair) solid var(--v-line);
+  color:var(--v-warm); font:inherit; font-size:var(--v-fs);
+  text-align:left; cursor:pointer}
+.vrow:hover{color:var(--v-ink)}
+
+/* 둘 다 접으면 기둥이 손잡이 폭으로 줄고 뷰어가 넓어진다 */
+.vtabs-r{display:flex; flex-direction:column; flex:none}
+
+/* ── AI 소견 ───────────────────────────────────────────────── */
+.ai{display:flex; flex-direction:column; gap:var(--ai-gap)}
+
+.ai-top{display:flex; align-items:baseline; gap:var(--sub-gap)}
+.grade{font-family:var(--font-head); font-size:var(--h1-fs);
+  line-height:1; color:var(--v-ink)}
+
+.ai-card{display:flex; flex-direction:column; gap:var(--gap-sm);
+  padding:var(--card-pad-sm); border-radius:var(--in-radius);
+  background:rgba(250,250,249,.04)}
+.ai-card .ai-h{display:flex; align-items:center; justify-content:space-between;
+  gap:var(--sub-gap)}
+.ai-card .ai-h b{font-size:var(--ai-k-fs); color:var(--v-ink)}
+
+/* 지표 목록 — 이름과 값. 둘씩 놓을 때는 .two */
+.ai-m{margin:0; display:flex; flex-direction:column; gap:var(--gap-xs)}
+.ai-m.two{display:grid; grid-template-columns:1fr 1fr; gap:var(--gap-xs) var(--gap-sm)}
+.ai-m > div{display:flex; align-items:baseline; justify-content:space-between;
+  gap:var(--sub-gap)}
+.ai-m dt{font-size:var(--ai-k-fs); color:var(--v-warm)}
+.ai-m dd{margin:0; font-size:var(--ai-v-fs); color:var(--v-ink);
+  font-variant-numeric:tabular-nums; text-align:right}
+.ai-m dd i{font-style:normal; font-size:var(--ai-k-fs); color:var(--v-warm)}
+.ai-m dd em{font-style:normal; font-size:var(--ai-k-fs); color:var(--v-warm)}
+
+.cells{display:flex; flex-wrap:wrap; gap:var(--sub-gap); justify-content:flex-end}
+.cells span{font-size:var(--ai-k-fs); color:var(--v-ink)}
+
+/* 서술어 표 — 값·확신도·검증 여부를 그대로 낸다. 문장을 만들지 않는다 */
+.ai-tbl{width:100%; border-collapse:collapse; font-size:var(--ai-k-fs)}
+.ai-tbl th{text-align:left; padding:var(--gap-xxs) 0; color:var(--v-warm);
+  font-weight:500; border-bottom:var(--hair) solid var(--v-line)}
+.ai-tbl td{padding:var(--gap-xxs) 0; color:var(--v-ink);
+  border-bottom:var(--hair) solid var(--v-line);
+  font-variant-numeric:tabular-nums}
+
+/* 「평가 불가」를 값 자리에 그대로 쓸 때 */
+.ai-na.inline{display:inline; font-size:var(--ai-v-fs)}
+.ai-na b{display:block; color:var(--v-ink); font-size:var(--ai-v-fs)}
+.ai-na span{display:block}
+
+/* 뷰어 밖(정정 화면)에서도 AI 카드를 쓰면 밝은 판에 맞춘다 */
+.card .ai-card{background:var(--canvas)}
+.card .ai-m dt,.card .ai-m dd i,.card .ai-m dd em{color:var(--warm)}
+.card .ai-m dd,.card .ai-card .ai-h b,.card .cells span{color:var(--ink)}
+.card .grade{color:var(--ink)}
+
+/* ── 4장 · 목록 위 정렬 줄 ─────────────────────────────────── */
+.tbl-top{display:flex; align-items:center; justify-content:space-between;
+  gap:var(--gap-sm); padding:var(--gap-sm) var(--card-pad-sm);
+  border-bottom:var(--hair) solid var(--border); flex-wrap:wrap}
+
+/* ── 5장 · 정정 ────────────────────────────────────────────── */
+.amend{display:flex; flex-direction:column; gap:var(--gap)}
+
+/* 기존 판독 — 읽기 전용 덩어리 */
+.ro{display:flex; flex-direction:column; gap:var(--gap-sm)}
+.ro h3{margin:0 0 var(--gap-xxs) 0; font-size:var(--label-fs);
+  font-weight:500; color:var(--warm)}
+.ro p{margin:0; font-size:var(--kv-fs); line-height:var(--body-lh);
+  white-space:pre-wrap}
+
+/* 정정 이력 — 전부 남는다. 「최근 1건」이 아니다 */
+.hist{list-style:none; margin:0; padding:0; display:flex;
+  flex-direction:column; gap:var(--gap-sm)}
+.hist li{padding:var(--gap-sm) var(--card-pad-sm); background:var(--canvas);
+  border-radius:var(--in-radius)}
+.hist-h{display:flex; align-items:baseline; justify-content:space-between;
+  gap:var(--sub-gap); margin-bottom:var(--gap-xxs)}
+.hist-h b{font-size:var(--kv-fs); font-variant-numeric:tabular-nums}
+.hist-h span{font-size:var(--hint-fs); color:var(--warm)}
+.hist p{margin:0; font-size:var(--kv-fs); line-height:var(--body-lh);
+  white-space:pre-wrap}
+.why{color:var(--warm); font-size:var(--hint-fs) !important;
+  margin-bottom:var(--gap-xxs) !important}
+
+/* 좁은 화면 */
+@media (max-width: 900px){
+  .ai-m.two{grid-template-columns:1fr}
+  .vside.wide{width:var(--pane-side)}
+}
+
+/* ══════════════════════════════════════════════════════════════
+   판독 뷰어 — 원본 + 오버레이
+   ══════════════════════════════════════════════════════════════ */
+
+.stage{position:relative; flex:1; display:flex; min-height:0}
+
+/* 원본이 놓이는 상자. 여기서 확대·이동이 일어난다 */
+.stage-box{flex:1; min-height:var(--stage-h); position:relative;
+  overflow:hidden; background:var(--v-bg); cursor:grab;
+  border-radius:var(--in-radius)}
+.stage-box.grabbing{cursor:grabbing}
+
+/* 확대·이동을 한 번에 먹이는 자리. 원본과 오버레이가 **같이** 움직여야
+   좌표가 안 어긋나므로 둘을 이 안에 함께 넣는다 */
+.stage-tf{position:absolute; top:0; left:0; transform-origin:0 0;
+  will-change:transform}
+.stage-img{display:block; user-select:none; -webkit-user-drag:none}
+
+/* PNG 마스크 (병리) — 원본과 같은 크기로 정확히 겹친다 */
+.stage-mask{position:absolute; top:0; left:0; pointer-events:none;
+  user-select:none; -webkit-user-drag:none}
+
+/* SVG 도형 (초음파 폴리곤 · 맘모 박스) */
+.stage-svg{position:absolute; top:0; left:0; overflow:visible}
+.shp{cursor:pointer}
+.shp rect,.shp polygon{fill:none; stroke:var(--cyan);
+  vector-effect:non-scaling-stroke}
+.shp text{fill:var(--cyan); font-family:var(--font-ui); font-weight:600;
+  paint-order:stroke; stroke:rgba(28,25,23,.8); stroke-width:3px}
+.shp:hover rect,.shp:hover polygon{stroke:var(--soot-ink)}
+.shp.on rect,.shp.on polygon{stroke:var(--soot-ink); fill:rgba(59,166,241,.12)}
+.shp.on text{fill:var(--soot-ink)}
+
+/* 배율 숫자 */
+.vzoom{font-size:var(--v-fs); color:var(--v-warm);
+  font-variant-numeric:tabular-nums; padding:0 var(--gap-xs)}
+
+/* 원본이 아직 없을 때 — 격자에 이유를 적는다 */
+.vart{display:flex; align-items:center; justify-content:center}
+.vart p{margin:0; color:var(--v-warm); font-size:var(--v-fs)}
+
+/* 전체화면 — 뷰어만 남긴다 */
+.readfull .save{display:none}
+.readfull .stage-box{min-height:calc(100vh - var(--top-h) - 120px)}
+
+/* 크롭 목록에 「마스크 없음」 */
+.slides small{color:var(--warm); font-size:var(--hint-fs)}
+
+/* trace_id — 오류 화면에 작게. 서버 로그를 찾을 때 쓴다 */
+.trace{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  font-size:var(--hint-fs); color:var(--faint); user-select:all;
+  padding:var(--gap-xxs) var(--gap-xs); background:var(--line-2);
+  border-radius:var(--radius-xs)}
+
+/* 뷰어 아래 손잡이들 — 투명도 · 밝기 · 대비 */
+.vknobs{display:flex; flex-direction:column; gap:var(--gap-xs)}
+.vknobs .muted{color:var(--v-warm)}
+
+/* ── 내 정보 ──────────────────────────────────────────────────
+   상단바의 이름이 여기로 오는 링크가 된다. 누를 수 있다는 것이 보여야
+   하지만, 상단바는 이미 빽빽해서 테두리를 더 두르면 시끄럽다. 그래서
+   평소에는 지금 모습 그대로 두고 **얹었을 때만** 바탕을 깐다. */
+.top-r a.me{padding:var(--gap-xxs) var(--gap-xs); border-radius:var(--radius-sm);
+  color:inherit; text-decoration:none;
+  transition:background var(--motion)}
+.top-r a.me:hover{background:var(--line-2)}
+.top-r a.me.on{background:var(--line-2)}
+
+/* 계정 카드 — 아바타를 크게 한 번 더 */
+.me-head{display:flex; align-items:center; gap:var(--gap)}
+.me-head .ava.lg{width:calc(var(--avatar) * 2); height:calc(var(--avatar) * 2);
+  font-size:calc(var(--avatar-fs) * 1.7); flex:none}
+.me-head .kv{flex:1; min-width:0}
+
+/* 권한 묶음 */
+.perm-g{margin-top:var(--gap)}
+.perm-g h3{display:flex; align-items:baseline; gap:var(--gap-sm);
+  font-size:var(--card-h-fs); margin-bottom:var(--gap-sm)}
+
+.perms{display:flex; flex-direction:column}
+.perms li{display:flex; align-items:flex-start; gap:var(--gap-sm);
+  padding:var(--gap-sm) 0; border-top:var(--hair) solid var(--line-2)}
+.perms li:first-child{border-top:0}
+
+/* ⚠ 가진 것과 없는 것을 **색으로만** 가르지 않는다. ●/○ 로 모양이
+   다르고, 오른쪽에 글자로도 적는다 — 이 판의 규칙이다 */
+.perms .mk{font-style:normal; line-height:var(--body-lh); flex:none}
+.perms li.on  .mk{color:var(--ink)}
+.perms li.off .mk{color:var(--faint)}
+
+.perm-tx{display:flex; flex-direction:column; gap:var(--gap-xxs);
+  flex:1; min-width:0}
+.perm-tx b{font-weight:600}
+.perm-tx small{font-size:var(--hint-fs); color:var(--warm)}
+
+/* 없는 권한은 **지우지 않고 흐리게** 남긴다. 없는 줄이 보여야 관리자에게
+   무엇을 요청할지 알 수 있다 */
+.perms li.off .perm-tx b{color:var(--warm); font-weight:400}
+
+.perm-st{flex:none; font-size:var(--hint-fs); color:var(--warm);
+  font-variant-numeric:tabular-nums}
+.perms li.on .perm-st{color:var(--ink-2)}
+.perm-note{margin-bottom:var(--gap-sm)}
+
+/* ── 과 전환 ──────────────────────────────────────────────────
+   상단 메뉴는 «지금 과의 화면»만 만든다. 그래서 과를 바꿀 자리가 따로
+   없으면 한 과에 들어간 뒤로 못 빠져나온다. 과 이름 자체를 그 자리로
+   쓴다 — 이미 «지금 어느 과인지»를 적고 있던 자리라 새 버튼을 늘리지
+   않아도 된다. */
+.top-l .brand{display:flex; align-items:center; gap:var(--gap-sm);
+  color:inherit; text-decoration:none}
+.top-l .brand:hover b{color:var(--cyan)}
+
+.deptpick{position:relative; display:flex; align-items:center}
+.top-l button.dept{display:flex; align-items:center; gap:var(--gap-xs);
+  padding:var(--gap-xxs) var(--gap-xs); border-radius:var(--radius-sm);
+  color:var(--warm); font-size:var(--top-fs);
+  transition:background var(--motion), color var(--motion)}
+.top-l button.dept:hover{background:var(--canvas); color:var(--ink)}
+.top-l button.dept[aria-expanded="true"]{background:var(--canvas); color:var(--ink)}
+.top-l button.dept i{font-style:normal; font-size:var(--hint-fs);
+  color:var(--faint)}
+
+/* 갈 수 있는 과가 하나뿐일 때 — 누를 수 없으니 버튼처럼 안 보인다 */
+.top-l .dept.flat{padding:var(--gap-xxs) var(--gap-xs)}
+
+.deptmenu{position:absolute; top:calc(100% + var(--gap-xs)); left:0; z-index:30;
+  min-width:150px; padding:var(--gap-xs); margin:0; list-style:none;
+  background:var(--card); border:var(--hair) solid var(--border);
+  border-radius:var(--radius-sm); box-shadow:var(--card-shadow)}
+.deptmenu a{display:block; padding:var(--menu-pad-y) var(--menu-pad-x);
+  border-radius:var(--radius-xs); font-size:var(--menu-fs); color:var(--warm);
+  text-decoration:none; white-space:nowrap;
+  transition:background var(--motion), color var(--motion)}
+.deptmenu a:hover{background:var(--canvas); color:var(--ink)}
+/* 지금 과 — 메뉴와 같은 규칙으로 **테두리**다. 채움은 화면당 하나다 */
+.deptmenu a.on{color:var(--ink);
+  box-shadow:inset 0 0 0 var(--hair) var(--border)}
