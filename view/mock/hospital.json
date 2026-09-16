@@ -375,7 +375,7 @@
     "purpose": "검진에서 좌측 미세석회 군집 발견. 확대 촬영 포함 재평가 요청.",
     "contrast_allergy": null
   },
-  "GET /api/v1/hospital/studies/{id}/upload": {
+  "GET /api/v1/hospital/radiology/studies/{id}/upload": {
     "patient_name": "김하늘",
     "age": 44,
     "sex": "여",
@@ -451,7 +451,7 @@
     ],
     "ai": null
   },
-  "GET /api/v1/hospital/studies/{id}": {
+  "GET /api/v1/hospital/studies/{id}/": {
     "id": "st-301",
     "patient_name": "김하늘",
     "age": 44,
@@ -468,7 +468,7 @@
     "category": "4b",
     "finding_note": "좌측 상외측 미세석회 군집. 다형성 형태로 악성 의심."
   },
-  "GET /api/v1/hospital/studies": {
+  "GET /api/v1/hospital/studies/": {
     "total": 4,
     "items": [
       {
@@ -550,6 +550,21 @@
     "ticket": "mock-ticket",
     "url": "/svc/v1/upload/mock"
   },
+  "POST /api/v1/hospital/lesions/": {
+    "id": "les-new",
+    "study": "st-1",
+    "birads": "4a",
+    "size_mm": 11,
+    "site": "좌측 상외측",
+    "source": "doctor",
+    "is_false_positive": false
+  },
+
+  "PATCH /api/v1/hospital/lesions/{id}/": {
+    "id": "les-2",
+    "is_false_positive": true
+  },
+
   "GET /api/v1/hospital/radiology/studies/{id}/read": {
     "patient": {
       "name": "김하늘",

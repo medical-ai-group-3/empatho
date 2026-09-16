@@ -323,13 +323,22 @@ export const path = {
 const RAD = "/radiology";
 
 export const rad = {
-  /* 병리와 같은 모양으로 통일됐다 (2026-09-16 확인).
-     명세에 질의로 적혀 있던 것은 통일 전 표기다 */
-  queue:      ()       => get("/exam-orders/queue"),
+  /* ⚠ 서버는 큐를 **기본 필터 없이** 준다 (2026-09-16 다희님 확인).
+     병리와 같은 사정인데 값이 다르다 — 영상은 status=ordered 다.
+     안 담으면 이미 촬영·배정이 끝난 건까지 대기 큐에 섞인다.
+
+     ⚠ 다희님 회신에 이 경로가 두 가지로 적혀 있었다. 표에는
+       GET /exam-orders/queue, 접두 설명에는 radiology/queue 다.
+       어느 쪽인지 되물어 두었고, 답이 올 때까지 표 쪽을 따른다 —
+       지금까지 쓰던 것이고 목업도 그 모양이다. */
+  queue:      ()       => get(`/exam-orders/queue${qs({ status: "ordered", assigned: "none" })}`),
   order:      (id)     => get(`/exam-orders/${id}`),
   assign:     (id)     => patch(`/exam-orders/${id}/assign`),
 
-  uploadInfo: (id)     => get(`/studies/${id}/upload`),
+  /* ⚠ **과 이름이 붙는다.** /studies/{id}/upload 가 아니라
+     /radiology/studies/{id}/upload 다 (2026-09-16 정정). 판독 조회와
+     같은 자리에 있다. 전에 「판독 조회만 붙는다」고 들었던 것이 틀렸다. */
+  uploadInfo: (id)     => get(`${RAD}/studies/${id}/upload`),
   ticket:     (b)      => post("/tickets", b),
   complete:   (id)     => patch(`/exam-orders/${id}/complete`),
   analyze:    (id)     => post(`/studies/${id}/ai-results`),
@@ -340,11 +349,20 @@ export const rad = {
   draft:      (id, b)  => put(`/studies/${id}/assessment/draft`, b),
   finalize:   (id, b)  => patch(`/studies/${id}/finalize`, b),
 
-  addLesion:  (b)      => post("/lesions", b),
-  falsePos:   (id)     => patch(`/lesions/${id}`, { is_false_positive: true }),
+  /* ⚠ 여기 넷만 슬래시가 붙는다 (2026-09-16 다희님이 경로를 콕 집어 주심).
+     ⚠ 다만 회신 안에 모순이 있어 되물어 두었다 — 「병리와 같은 규칙,
+       목록·생성만」이라고 하시면서 정작 상세(/studies/{id}/)와
+       수정(/lesions/{id}/)을 같이 적으셨다. 병리는 상세에 슬래시가 없다.
 
-  study:      (id)     => get(`/studies/${id}`),
-  list:       (o = {}) => get(`/studies${qs(o)}`),
+       **PATCH 가 걸리면 조용히 깨진다.** Django APPEND_SLASH 는 슬래시가
+       모자라면 301 로 넘겨 주는데, 그 과정에서 본문이 사라진다. falsePos 가
+       200 을 받고도 아무것도 안 바뀌는 모양이 된다.
+       일단 적어 주신 그대로 따른다. */
+  addLesion:  (b)      => post("/lesions/", b),
+  falsePos:   (id)     => patch(`/lesions/${id}/`, { is_false_positive: true }),
+
+  study:      (id)     => get(`/studies/${id}/`),
+  list:       (o = {}) => get(`/studies/${qs(o)}`),
   history:    (id)     => get(`/assessments${qs({ study: id })}`),
   amend:      (id, b)  => post(`/assessments/${id}/amend`, b),
 };
