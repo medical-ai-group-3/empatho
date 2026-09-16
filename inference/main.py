@@ -34,6 +34,8 @@ import pathlib
 import traceback
 import yaml
 from fastapi import FastAPI, File, UploadFile
+from fastapi.encoders import jsonable_encoder
+from fastapi.responses import JSONResponse
 
 from sockets import gpu, mammo, mri, pathology, us
 
@@ -299,7 +301,7 @@ async def analyze(socket_id: str, image: UploadFile = File(...), post: UploadFil
     # ⑥ 성공. versions() 로 어떤 가중치가 낸 결과인지 함께 실어 보낸다.
     #    학습이 같은 이름으로 덮어쓰기 때문에 파일 이름만으로는 부족하다.
     #    나중에 「이 결과는 어느 모델이 냈나」에 답할 수 있는 유일한 단서다.
-    return {
+    payload = {
         "socket_id": socket_id,
         # 4·2 로 불렀으면 어디로 넘어갔는지 보인다. 같은 번호면 안 싣는다.
         **({"requested_socket_id": requested} if requested != socket_id else {}),
@@ -310,3 +312,28 @@ async def analyze(socket_id: str, image: UploadFile = File(...), post: UploadFil
         "image": info,
         "result": result,
     }
+        
+    # ⑦ JSON 으로 못 만드는 값이 결과에 남아 있으면 여기서 터진다.
+    #    그냥 돌려주면 FastAPI 가 우리 손 밖에서 인코딩하다 500 을 낸다 —
+    #    판독은 이미 끝났는데 앱 서버에는 오류로 보이고, 배포 점검에서는
+    #    롤백까지 간다. 그래서 인코딩을 여기서 직접 하고 실패는 기권으로 돌린다.
+    #
+    #    numpy 배열이 대표적이다. 초음파는 _mask, 병리는 tissue_mask 를
+    #    소켓이 지우지만 맘모 · MRI 는 지우는 목록이 비어 있다.
+    
+    # 인코딩도 시간이 든다. MRI 는 42MB 라 그동안 시계가 멈춰 있으면
+    # 수거자가 유휴로 보고 응답 전에 프로세스를 끝낸다(gpu.py 수거자).
+    gpu.touch()
+    try :
+        return JSONResponse(content=jsonable_encoder(payload))
+    except Exception as exc :
+        print(f"[encode_failed] socket={socket_id} file={image.filename}", flush=True)
+        traceback.print_exc()
+        return {
+            "socket_id": socket_id,
+            "abstained":True,
+            # 사유는 짧게 둔다 — 앱 서버의 사유 칸이 100자라 긴 메시지는
+            # 잘려서 오히려 원인을 못 읽는다. 자세한 내용은 위 로그에 있다.
+            "reason": f"encode_failed : {type(exc).__name__}",
+            "image": info,
+        }
