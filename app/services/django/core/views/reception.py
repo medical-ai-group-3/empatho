@@ -277,7 +277,7 @@ class PatientTodayStatusView(viewsets.ViewSet):
         today = timezone.localdate()
         orders = models.ExamOrder.objects.filter(
             visited_at__date=today
-        ).select_related("patient", "assigned_to")
+        ).select_related("patient__pii", "assigned_to")
 
         result = []
         for o in orders:
@@ -290,7 +290,13 @@ class PatientTodayStatusView(viewsets.ViewSet):
                 stage = "영상의학과 촬영중" if not has_study else "AI 분석중"
             else:
                 stage = o.order_status
-            result.append({"exam_order_id": o.exam_order_id, "patient_id": o.patient_id, "stage": stage})
+            pii = getattr(o.patient, "pii", None)
+            result.append({
+                "exam_order_id": o.exam_order_id,
+                "patient_id": o.patient_id,
+                "patient_name": pii.name if pii else None,
+                "stage": stage,
+            })
         return Response(result)
     
 class PatientRegisterView(AuditMixin, viewsets.ViewSet):

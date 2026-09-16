@@ -33,6 +33,10 @@ class PatientDetailSerializer(PatientSerializer):
 
 
 class ExamOrderSerializer(serializers.ModelSerializer):
+    patient_name = serializers.CharField(
+        source="patient.pii.name", read_only=True, default=None
+    )
+
     class Meta:
         model = models.ExamOrder
         exclude = AUDIT_FIELDS
@@ -53,10 +57,11 @@ class PatientListSerializer(serializers.ModelSerializer):
 
     name = serializers.CharField(source="pii.name", read_only=True)
     phone = serializers.CharField(source="pii.phone", read_only=True)
+    birth_date = serializers.DateField(source="pii.birth_date", read_only=True, default=None)
 
     class Meta:
         model = models.Patient
-        fields = ("patient_id", "patient_number", "name", "phone", "birth_year", "sex")
+        fields = ("patient_id", "patient_number", "name", "phone", "birth_date", "birth_year", "sex")
 
 
 # ── 워크플로 액션 전용 (쓰기) ──────────────────────────────────
