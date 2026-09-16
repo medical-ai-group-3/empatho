@@ -1,8 +1,12 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { api } from "../../../api";
+import { breast as api } from "../../../api";
 import { useApi } from "../../../lib/useApi";
-import { Head, Body } from "../../../lib/Screen";
+import { Page } from "../../../lib/Page";
+import { Body } from "../../../lib/Body";
+import { go } from "../../../nav";
+import "../breast.css";   /* 유방외과 전용 — .breast 안에 갇혀 있다. 네 화면이 각자
+                             끌고 온다: 주소로 곧장 들어와도 스타일이 빠지면 안 된다 */
 import ExamOrderModal from "../components/ExamOrderModal";
 import SpecimenBindingModal from "../components/SpecimenBindingModal";
 
@@ -49,8 +53,8 @@ export default function Waiting() {
   const detail = usePatient(selectedId);
 
   return (
-    <>
-      <Head title="대기 환자" sub="내 환자 목록 · 진료 시작" />
+    <Page className="breast" crumb={["유방외과", "대기 환자"]}
+            title="대기 환자" sub="내 환자 목록 · 진료 시작">
       <div className="pane">
         <Body loading={loading} error={error} onRetry={reload}>
           {list && (
@@ -91,9 +95,9 @@ export default function Waiting() {
                       onNext={() => setSelectedId(nextAfter(list, selectedId))}
                       onExamOrder={() => setModal("exam")}
                       onSpecimen={() => setModal("specimen")}
-                      onReview={() => nav(`/patients/${detail.data.patient_id}/review`)}
+                      onReview={() => nav(go.breast.review(detail.data.patient_id))}
                       onDiscordance={() =>
-                        nav(`/discordances/${detail.data.open_discordance.discordance_id}`)}
+                        nav(go.breast.discordance(detail.data.open_discordance.discordance_id))}
                     />
                   )}
                 </Body>
@@ -114,7 +118,7 @@ export default function Waiting() {
             setSelectedId((cur) => nextAfter(list, cur));
           }} />
       )}
-    </>
+    </Page>
   );
 }
 

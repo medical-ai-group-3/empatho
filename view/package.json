@@ -12,9 +12,15 @@
     "dev:hos": "vite --mode mock --open /hospital"
   },
   "dependencies": {
+    "@cornerstonejs/core": "^5.10.4",
+    "@cornerstonejs/dicom-image-loader": "^5.10.4",
+    "@cornerstonejs/tools": "^5.10.4",
+    "events": "^3.3.0",
+    "nifti-reader-js": "^0.8.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "react-router-dom": "^7.18.3"
+    "react-router-dom": "^7.18.3",
+    "three": "^0.186.0"
   },
   "devDependencies": {
     "@types/react": "^19.2.18",

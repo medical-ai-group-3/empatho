@@ -12,6 +12,11 @@
  *   3장  판독         원본 + 마스크를 보고 소견을 쓴다. 저장하면 유방외과로
  *   4장  전체 목록    지난 것까지 전부. 찾아보는 자리
  *   5장  판독 정정    이미 확정한 판독을 고친다. 이력이 남는다
+ *
+ * ⚠ **유방외과는 이 다섯 장과 모양이 다르다.** 집는 절차가 없고(내 환자가
+ *   곧 큐다) 올리는 단계도 없다. 대신 검사 오더 · 검체 바인딩 · 수술 결정 ·
+ *   불일치 처분이 있다. 그래서 화면 수도 구성도 다르다 — 이걸 담으려고
+ *   라우트를 「다섯 장 고정」에서 use 기반으로 바꿨다 (main.jsx 참고).
  */
 
 export const HOSPITAL = "미래 대학병원";
@@ -91,6 +96,29 @@ const DEPTS = [
         need: "radiology.amend.view", deep: true },
     ],
   },
+
+  {
+    key: "breast",
+    name: "유방외과",
+    who: { name: "서나영", role: "교수" },
+    screens: [
+      { key: "", use: "breast.waiting", menu: "대기 환자", title: "대기 환자",
+        sub: "내 환자 목록입니다. 병리·영상과 달리 집는 절차가 없습니다 — 주치의로 배정된 환자가 곧 큐입니다.",
+        need: "breast.waiting.view" },
+
+      { key: "patients/:id/review", use: "breast.review", menu: "검사 종합", title: "검사 종합 확인",
+        sub: "영상과 병리 결과를 함께 놓고 봅니다.",
+        need: "breast.review.view", deep: true },
+
+      { key: "patients/:id/decision", use: "breast.decision", menu: "수술 결정", title: "수술 결정",
+        sub: "치료 방침을 정하고 리포트를 확정합니다.",
+        need: "breast.decision.view", deep: true },
+
+      { key: "discordances/:id", use: "breast.discordance", menu: "판정 불일치", title: "판정 불일치 처분",
+        sub: "영상 판정과 병리 확진이 갈린 건입니다. 어느 쪽을 따를지 정합니다.",
+        need: "breast.discordance.view", deep: true },
+    ],
+  },
 ];
 
 export { DEPTS };
@@ -123,6 +151,7 @@ export function menuScreens(d) {
  */
 const P = `${ROOT}/pathology`;
 const R = `${ROOT}/radiology`;
+const B = `${ROOT}/breast`;
 
 export const go = {
   /* ⚠ 과 바깥이다. 사람은 과에 딸린 것이 아니라서 /hospital/me 로 둔다 */
@@ -141,5 +170,15 @@ export const go = {
     upload: (id) => `${R}/studies/${id}/upload`,
     read:   (id) => `${R}/read/${id}`,
     amend:  (id) => `${R}/read/${id}/amend`,
+  },
+
+  /* ⚠ 유방외과는 이름이 다르다. queue/list/upload/read/amend 를 억지로
+     맞추면 「read 가 뭐였지」를 매번 되묻게 된다 */
+  breast: {
+    queue:       () => B,
+    waiting:     () => B,
+    review:      (id) => `${B}/patients/${id}/review`,
+    decision:    (id) => `${B}/patients/${id}/decision`,
+    discordance: (id) => `${B}/discordances/${id}`,
   },
 };

@@ -1,8 +1,12 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { api } from "../../../api";
+import { breast as api } from "../../../api";
 import { useApi } from "../../../lib/useApi";
-import { Head, Body } from "../../../lib/Screen";
+import { Page } from "../../../lib/Page";
+import { Body } from "../../../lib/Body";
+import { go } from "../../../nav";
+import "../breast.css";   /* 유방외과 전용 — .breast 안에 갇혀 있다. 네 화면이 각자
+                             끌고 온다: 주소로 곧장 들어와도 스타일이 빠지면 안 된다 */
 
 /* 화면 5 · 영상-병리 불일치 처분 ("/discordances/:id")
  *
@@ -29,16 +33,16 @@ export default function Discordance() {
   const { loading, data, error, reload } = useApi(() => api.discordance(id), [id]);
 
   return (
-    <>
-      <Head title="영상-병리 불일치 처분"
-        sub={data ? `${data.patient.name} · ${data.lesion.site}` : ""}
-        back={() => nav("/")} />
+    <Page className="breast" crumb={["유방외과", "판정 불일치 처분"]}
+            title="영상-병리 불일치 처분"
+            sub={data ? `${data.patient.name} · ${data.lesion.site}` : ""}
+            back={() => nav(go.breast.waiting())}>
       <div className="pane">
         <Body loading={loading} error={error} onRetry={reload}>
-          {data && <Inner d={data} onDisposed={() => nav("/", { state: { advance: true, from: data.patient.patient_id } })} />}
+          {data && <Inner d={data} onDisposed={() => nav(go.breast.waiting(), { state: { advance: true, from: data.patient.patient_id } })} />}
         </Body>
       </div>
-    </>
+    </Page>
   );
 }
 

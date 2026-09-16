@@ -54,9 +54,36 @@ function deptPerms(dept, name) {
   ];
 }
 
+/* 유방외과는 deptPerms 의 열두 줄을 못 쓴다.
+   병리·영상은 「대기 큐에서 집어 → 올리고 → 판독」이 같은 모양인데,
+   유방외과는 **집는 절차가 없다** (내 환자가 곧 큐다) 고 올리는 단계도
+   없다. 대신 오더 발행 · 검체 바인딩 · 수술 결정 · 불일치 처분이 있다.
+   모양이 다른 과를 억지로 같은 틀에 넣으면 쓰지 않는 권한이 생긴다. */
+const BREAST = [
+  { key: "breast.waiting.view",      label: "유방외과 대기 환자 보기",
+    where: "1장 화면 자체" },
+  { key: "breast.exam.order",        label: "유방외과 영상 검사 오더",
+    where: "1장 [검사 오더] — 영상의학과 대기 큐에 새 오더를 만든다" },
+  { key: "breast.specimen.bind",     label: "유방외과 검체 바인딩",
+    where: "1장 [검체 등록] — 병리과 대기 큐에 검체를 올린다" },
+  { key: "breast.review.view",       label: "유방외과 검사 종합 확인",
+    where: "2장 화면 자체 — 영상·병리 결과를 함께 본다" },
+  { key: "breast.decision.view",     label: "유방외과 수술 결정 보기",
+    where: "3장 화면 자체" },
+  { key: "breast.decision.save",     label: "유방외과 수술 결정 저장",
+    where: "3장 [저장] — 되돌릴 수 없다" },
+  { key: "breast.report.unlock",     label: "유방외과 리포트 잠금 해제",
+    where: "3장 [잠금 해제] — 환자에게 나간 리포트를 다시 연다" },
+  { key: "breast.discordance.view",  label: "유방외과 판정 불일치 보기",
+    where: "4장 화면 자체 — 영상과 병리 판정이 갈린 건" },
+  { key: "breast.discordance.dispose", label: "유방외과 판정 불일치 처분",
+    where: "4장 [처분] — 어느 쪽을 따를지 정한다" },
+];
+
 export const CATALOG = [
   ...deptPerms("pathology", "병리"),
   ...deptPerms("radiology", "영상"),
+  ...BREAST,
 
   /* 영상의학과에만 있는 것 — 병리에는 해당 동작이 없다 */
   { key: "radiology.retake",     label: "영상 재촬영 요청",
