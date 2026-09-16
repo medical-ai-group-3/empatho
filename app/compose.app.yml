@@ -16,6 +16,47 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+  
+# 판독 대기열
+# 포트를 호스트에 내보내지 않는다 — 도커망 안에서 web·worker 만 부른다.
+# 볼륨도 붙이지 않는다. 큐가 날아가도 ai_result 가 queued 로 DB 에 남아
+# 있으므로 다시 넣으면 된다 — 진짜 기록은 Postgres 에 있다.
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    restart: unless-stopped
+    # 대기 중인 판독 태스크를 재시작 재생성에도 남긴다 
+    # appendonly - 들어온 명령을 파일에 이어 적는다(1초 단위 반영) 없으면 스냅숏 사이의 태스트가 사라진다 
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s 
+      retries: 5
+
+# Celery 워커 — 큐에서 판독을 꺼내 워크스테이션으로 보낸다
+#
+# web 과 같은 이미지다. models.py·settings.py 를 그대로 써야 해서 따로
+# 만들 이유가 없고, 실행 명령만 다르다.
+#
+# concurrency 1 인 이유 — 워크스테이션 GPU 가 직렬이라 여러 건을 한꺼번에
+# 보내도 거기서 줄을 선다. 늘리면 터널에 연결만 쌓인다.
+  worker:
+    build: ./services/django
+    container_name: worker
+    restart: unless-stopped
+    command: celery -A cdss_backend worker --loglevel=info --concurrency=1
+    env_file:
+      - ./conf/web.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
 # Go service 
   file-gateway:
@@ -42,6 +83,13 @@ services:
       - ./conf/gosvc.env
     environment:
       LLM_ADDR: ":8090"
+      # 워크스테이션 리포트 서버. tunnel 컨테이너를 거쳐 나간다.
+      # 비면 llm-proxy 가 log.Fatal 로 죽고 재시작을 반복한다 —
+      # nginx 는 그때 /svc/v1/llm/* 을 502 로 돌려준다.
+      #
+      # conf/gosvc.env 에 값이 있으면 그것이 이긴다.
+      REPORT_BASE: ${REPORT_BASE:-http://tunnel:8002}
+      REPORT_TIMEOUT: ${REPORT_TIMEOUT:-2m}
     ports:
       - "127.0.0.1:8090:8090"
 
@@ -57,5 +105,38 @@ services:
     ports:
       - "127.0.0.1:8092:8092"
 
+# 워크스테이션(추론 서버)으로 나가는 SSH 터널.
+#
+# 09-02 에 만들어져 돌고 있었지만 정의가 저장소에 없어 고아 컨테이너였다.
+# --remove-orphans 한 번이면 사라지고 다시 만들 방법도 없었다. 2026-09-09 에
+# Dockerfile 과 함께 되살리면서 11434(Ollama)를 더 열었다.
+#
+# 포트를 호스트에 내보내지 않는다 — 도커 네트워크 안에서 web·llm-proxy·worker 가
+# tunnel:8001 처럼 이름으로 부른다.
+  tunnel:
+    build: ./services/tunnel
+    container_name: tunnel
+    restart: unless-stopped
+    environment:
+      WS_HOST: "ws-host"
+      WS_PORT: "22"
+      WS_USER: "wsuser"
+    volumes:
+      # 개인키는 저장소에 없다(.gitignore). 서버 담당에게 받아 conf/ws/ 에 둔다.
+      #
+      # ⚠ 이 폴더가 없으면 Docker 가 그 자리에 빈 디렉터리를 만들고, 터널이
+      #   `cp: omitting directory` 로 죽는다. 09-10 에 배포 세 번 연속으로
+      #   그랬다 — 배포 스크립트가 .env·.toml 만 복사해서 ws/ 가 매번
+      #   사라졌다. 워크플로에 복사 줄을 넣어 고쳤다.
+      #
+      #   폴더째 마운트하는 이유 — 파일 단위로 걸면 원본이 없을 때 빈 디렉터리가
+      #   생겨 「파일 자리에 폴더」라는 헷갈리는 오류가 난다. 폴더로 걸면
+      #   `can't stat '/ws/key'` 로 무엇이 없는지 바로 보인다.
+      #
+      #   conf/ 전체가 아니라 하위 폴더를 쓰는 이유 — DB 비밀번호가 든
+      #   web.env·postgres.env 를 터널 컨테이너에 들여보내지 않는다.
+      - ./conf/ws:/ws:ro
+
 volumes:
   gw-spool: 
+  redis-data: 

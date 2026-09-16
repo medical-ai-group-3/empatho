@@ -19,3 +19,6 @@ PyYAML==6.0.3
 gunicorn==23.0.0
 # gunicorn 이 정적 파일을 서빙하지 않아 admin CSS 가 깨진다. 그걸 메운다.
 whitenoise==6.9.0
+
+celery==5.5.3
+redis==6.4.0

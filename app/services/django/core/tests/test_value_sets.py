@@ -115,31 +115,16 @@ class AbstainReasonTests(Base):
         self.assertEqual(result.abstain_reason, long)
 
 
-class PreviewKindTests(Base):
-    """판독 화면이 띄우는 원본 크기 그림."""
+class ImageKindTests(Base):
+    """image.kind 는 수용님 0013 이 맡는다 — 여기서는 막히는지만 본다."""
 
     def make(self, kind, key):
         return Image.objects.create(kind=kind, source_object=self.source,
                                     bucket="empatho-derived", object_key=key)
 
-    def test_preview_가_들어간다(self):
-        self.assertEqual(self.make("preview", "study/1/preview/0001.png").kind,
-                         "preview")
-
-    def test_thumbnail_과_다른_값이다(self):
-        # thumbnail 은 목록용 작은 그림, preview 는 판독 화면용 원본 크기
-        a = self.make("preview", "study/1/preview/0001.png")
-        b = self.make("thumbnail", "study/1/thumb.png")
-        self.assertNotEqual(a.kind, b.kind)
-
     def test_모르는_kind_는_막힌다(self):
         with self.blocked(), transaction.atomic():
             self.make("bigimage", "study/1/x.png")
-
-    def test_티켓이_preview_를_받는다(self):
-        # 원본을 변환한 것이라 ai_result_id 는 안 받는다
-        self.assertEqual(DERIVED_REQUIRED["preview"], ("source_object_id",))
-        self.assertNotIn("ai_result_id", DERIVED_REQUIRED["preview"])
 
 
 class DetVersionTests(Base):

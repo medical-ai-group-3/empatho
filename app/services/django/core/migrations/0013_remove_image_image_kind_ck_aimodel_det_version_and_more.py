@@ -9,11 +9,18 @@ class Migration(migrations.Migration):
         ("core", "0012_remove_assessment_assessment_read_stage_ck_and_more"),
     ]
 
+    # ⚠ image.kind 를 건드리던 세 연산(RemoveConstraint · AlterField ·
+    #   AddConstraint)을 걷어냈다.
+    #
+    #   같은 시각에 0013 이 둘 만들어졌다 — 이쪽과 수용님의
+    #   0013_..._alter_image_kind_and_more 다. 둘 다 image_kind_ck 를 다시
+    #   만드는데 값이 달라서(preview 대 mesh_body), 나중에 적용된 쪽이 앞의
+    #   값을 조용히 지웠다. 라이브에서도 그렇게 됐다.
+    #
+    #   image.kind 는 수용님 0013 이 맡는 것으로 정리했고, 이 파일은 겹치지
+    #   않는 넷만 남긴다. 이미 적용된 마이그레이션을 고치는 것이지만 결과는
+    #   같다 — 어차피 이쪽 CHECK 은 9 분 뒤에 덮였다.
     operations = [
-        migrations.RemoveConstraint(
-            model_name="image",
-            name="image_kind_ck",
-        ),
         migrations.AddField(
             model_name="aimodel",
             name="det_version",
@@ -23,23 +30,6 @@ class Migration(migrations.Migration):
             model_name="airesult",
             name="abstain_reason",
             field=models.TextField(blank=True, null=True),
-        ),
-        migrations.AlterField(
-            model_name="image",
-            name="kind",
-            field=models.CharField(
-                choices=[
-                    ("mask", "mask"),
-                    ("overlay", "overlay"),
-                    ("mesh_breast", "mesh_breast"),
-                    ("mesh_dense", "mesh_dense"),
-                    ("mesh_lesion", "mesh_lesion"),
-                    ("heatmap", "heatmap"),
-                    ("thumbnail", "thumbnail"),
-                    ("preview", "preview"),
-                ],
-                max_length=20,
-            ),
         ),
         migrations.AlterField(
             model_name="notification",
@@ -64,27 +54,6 @@ class Migration(migrations.Migration):
                 choices=[("1", "1"), ("3", "3"), ("4b", "4b"), ("5", "5"), ("7", "7")],
                 max_length=5,
                 null=True,
-            ),
-        ),
-        migrations.AddConstraint(
-            model_name="image",
-            constraint=models.CheckConstraint(
-                condition=models.Q(
-                    (
-                        "kind__in",
-                        [
-                            "mask",
-                            "overlay",
-                            "mesh_breast",
-                            "mesh_dense",
-                            "mesh_lesion",
-                            "heatmap",
-                            "thumbnail",
-                            "preview",
-                        ],
-                    )
-                ),
-                name="image_kind_ck",
             ),
         ),
         migrations.AddConstraint(

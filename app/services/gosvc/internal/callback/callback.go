@@ -58,16 +58,45 @@ func New(base string, secret []byte, certFile, keyFile string, retries int) *Cli
 	}
 }
 
-// Narrative 는 I-4 로 보내는 본문이다. 명세 21장 I-4 행 그대로다.
+// Narrative 는 I-4 로 보내는 본문이다. 명세 21장 I-4 행에 세 칸을 더했다.
+//
+// 더한 이유 — 소견 생성이 리포트 서버로 옮겨가면서, **어느 규칙으로 쓴
+// 글인지가 우리 쪽 코드에 더는 안 남는다.** 나중에 "이 소견은 왜 이렇게
+// 나왔나" 를 물으면 답할 근거가 있어야 한다. 판독 기록이라 더 그렇다.
+//
+//	PromptVersion  리포트 서버가 쓴 문구·규칙의 판. 문구가 바뀌면 올라간다
+//	Fallback       모델 출력을 버리고 뼈대 문장으로 되돌렸는가
+//	FallbackReason 되돌린 사유. v10 에 칸이 없어 content_json 으로 간다
+//	Notes          코드가 붙인 고정 안내 문구. 모델이 쓴 글이 아니다
+//
+// ⚠ Django 쪽 report 테이블에 세 칸이 있어야 한다. 없으면 조용히 버려진다.
 type Narrative struct {
 	NarrativeText      string   `json:"narrative_text"`
 	EvidenceLinks      []string `json:"evidence_links"`
 	DroppedSentenceLog []Drop   `json:"dropped_sentence_log"`
+	Notes              []Note   `json:"notes,omitempty"`
+	PromptVersion      string   `json:"prompt_version,omitempty"`
+
+	// v10 의 report.fallback 은 boolean 이라 그 모양으로 보낸다. 사유는
+	// 값이 아니라 설명이라 칸을 따로 냈다 — Django 가 content_json 에
+	// 넣는다. 스키마는 안 바꾼다.
+	//
+	// ⚠ Fallback 에 omitempty 를 붙이지 않는다. 안 되돌렸으면 false 가
+	//   **와야** 한다. 키가 빠지면 「안 되돌림」과 「모름」이 같아진다.
+	Fallback       bool   `json:"fallback"`
+	FallbackReason string `json:"fallback_reason,omitempty"`
 }
 
 type Drop struct {
 	Sentence string `json:"sentence"`
 	Reason   string `json:"reason"`
+}
+
+// Note — 고정 안내 문구. 모델이 만든 문장이 아니라 미리 정해 둔 표에서
+// ID 로 골라 온 것이다. 그래서 근거 검사를 안 탄다.
+type Note struct {
+	ID   string `json:"id"` // "MG-N01" 등
+	Text string `json:"text"`
 }
 
 // StorageObject 는 I-1 로 보내는 본문이다. 명세 21장 I-1 행 그대로다.
@@ -80,6 +109,22 @@ type StorageObject struct {
 	StorageClass   string `json:"storage_class"`
 	PatientID      string `json:"patient_id,omitempty"`
 	ScopeID        string `json:"scope_id,omitempty"`
+
+	// scope_id 가 무엇을 가리키는지. 티켓 클레임을 그대로 넘긴다.
+	//
+	// Django 의 storage_object 는 study_id · specimen_id 중 하나만
+	// 채우라는 CHECK 을 갖고 있는데, scope_id 만으로는 어느 쪽인지
+	// 알 수 없다 — 셋 다 bigint 시퀀스라 값이 겹친다.
+	//
+	// **어느 칸에 넣을지는 Go 가 정하지 않는다.** 티켓을 발급하는 쪽도
+	// CHECK 을 가진 쪽도 Django 다. 여기서 study/specimen 을 판정하면
+	// purpose 가 늘 때마다 두 곳을 고쳐야 한다.
+	//
+	// 지금 오는 값 다섯 — dicom_upload · wsi_upload · report_pdf ·
+	// prescription_pdf · derived_upload (cmd/file-gateway 의 auth 호출부)
+	Purpose string `json:"purpose"`
+	// 파생물이면 티켓 클레임을 그대로 옮긴다. Django 는 이 블록이 없으면 422로 거절
+	Derived map[string]string `json:"derived,omitempty"`
 }
 
 // PostStorageObject — I-1  POST /internal/v1/storage-objects
@@ -127,11 +172,24 @@ type DicomMetadata struct {
 	PixelSpacing      []float64 `json:"pixel_spacing,omitempty"`
 	PixelSpacingTag   string    `json:"pixel_spacing_tag,omitempty"`
 
+	// MRI 3D 재구성용 기하 (MRI 팀 요청 2026-09-02).
+	// 맘모는 낱장 2D 라 전부 빈 값으로 간다 — 오류가 아니다.
+	ImagePositionPatient    []float64 `json:"image_position_patient,omitempty"`
+	ImageOrientationPatient []float64 `json:"image_orientation_patient,omitempty"`
+	SliceThickness          float64   `json:"slice_thickness,omitempty"`
+	SpacingBetweenSlices    float64   `json:"spacing_between_slices,omitempty"`
+
 	TransferSyntaxUID  string `json:"transfer_syntax_uid,omitempty"`
 	BurnedInAnnotation string `json:"burned_in_annotation,omitempty"`
 
 	// Orthanc 에 올렸으면 그쪽 식별자. 안 올렸으면 빈 값이다.
+	//
+	// 넷을 다 넘긴다. 인스턴스 ID 만으로는 뷰어가 검사 하나를 통째로 못 연다 —
+	// Cornerstone3D 처럼 study 단위로 여는 뷰어는 ParentStudy 가 있어야 한다.
 	OrthancInstanceID string `json:"orthanc_instance_id,omitempty"`
+	OrthancSeriesID   string `json:"orthanc_series_id,omitempty"`
+	OrthancStudyID    string `json:"orthanc_study_id,omitempty"`
+	OrthancPatientID  string `json:"orthanc_patient_id,omitempty"`
 
 	// 티켓에서 온 우리 쪽 식별자 — DICOM 안의 값과 다를 수 있다
 	PatientID string `json:"patient_id,omitempty"`

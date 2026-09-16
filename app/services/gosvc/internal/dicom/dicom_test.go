@@ -311,10 +311,10 @@ func TestNoPreamble(t *testing.T) {
 
 func TestRejectsNonDICOM(t *testing.T) {
 	for name, raw := range map[string][]byte{
-		"빈 파일":  {},
-		"PDF":   []byte("%PDF-1.7\n" + strings.Repeat("x", 300)),
-		"짧은 것":  []byte("DIC"),
-		"서두만":   make([]byte, 200),
+		"빈 파일": {},
+		"PDF":  []byte("%PDF-1.7\n" + strings.Repeat("x", 300)),
+		"짧은 것": []byte("DIC"),
+		"서두만":  make([]byte, 200),
 	} {
 		if _, err := Parse(bytes.NewReader(raw), 0); err == nil {
 			t.Errorf("%s 를 DICOM 으로 받았다", name)
@@ -375,4 +375,173 @@ func (c *counting) Read(p []byte) (int, error) {
 	n, err := c.r.Read(p)
 	c.n += int64(n)
 	return n, err
+}
+
+// ── MRI 3D 기하 (MRI 팀 요청 2026-09-02) ────────────────────────────
+
+// mri — 슬라이스 하나. 축상면(axial) 기준이다.
+func mri(explicit bool, bo binary.ByteOrder, pos, orient, thick, spacing string) []byte {
+	b := newB(explicit, bo)
+	// 머리말이 알리는 전송 구문과 실제 본문 부호화가 같아야 한다.
+	// 어긋나면 본문 첫 요소부터 어긋나서 파일 전체를 못 읽는다.
+	ts := "1.2.840.10008.1.2" // 암시적 VR 리틀 엔디안
+	if explicit {
+		ts = "1.2.840.10008.1.2.1"
+	}
+	b.meta(ts)
+	b.el(0x0008, 0x0016, "UI", "1.2.840.10008.5.1.4.1.1.4") // MR Image Storage
+	b.el(0x0008, 0x0018, "UI", "1.2.3.4.5.6.8")
+	b.el(0x0008, 0x0060, "CS", "MR")
+	b.el(0x0010, 0x0020, "LO", "P-88")
+	if thick != "" {
+		b.el(0x0018, 0x0050, "DS", thick)
+	}
+	if spacing != "" {
+		b.el(0x0018, 0x0088, "DS", spacing)
+	}
+	b.el(0x0020, 0x000D, "UI", "1.2.3.9")
+	b.el(0x0020, 0x000E, "UI", "1.2.3.9.1")
+	if pos != "" {
+		b.el(0x0020, 0x0032, "DS", pos)
+	}
+	if orient != "" {
+		b.el(0x0020, 0x0037, "DS", orient)
+	}
+	b.el(0x0028, 0x0004, "CS", "MONOCHROME2")
+	b.us(0x0028, 0x0010, 256)
+	b.us(0x0028, 0x0011, 256)
+	b.el(0x0028, 0x0030, "DS", `0.7\0.7`)
+	b.raw(0x7FE0, 0x0010, "OW", bytes.Repeat([]byte{0x11}, 512))
+	return b.bytes()
+}
+
+func TestMRIGeometry(t *testing.T) {
+	m := mustParse(t, mri(true, binary.LittleEndian,
+		`-95.5\-120.0\32.25`, `1\0\0\0\1\0`, "3.0", "3.6"))
+
+	if m.Modality != "MR" {
+		t.Fatalf("modality=%q", m.Modality)
+	}
+	want := []float64{-95.5, -120.0, 32.25}
+	if len(m.ImagePositionPatient) != 3 {
+		t.Fatalf("위치가 3개여야 한다. got=%v", m.ImagePositionPatient)
+	}
+	for i, w := range want {
+		if m.ImagePositionPatient[i] != w {
+			t.Errorf("위치[%d]=%v, want %v", i, m.ImagePositionPatient[i], w)
+		}
+	}
+	if len(m.ImageOrientationPatient) != 6 {
+		t.Fatalf("방향이 6개여야 한다. got=%v", m.ImageOrientationPatient)
+	}
+	if m.SliceThickness != 3.0 {
+		t.Errorf("두께=%v, want 3.0", m.SliceThickness)
+	}
+	if m.SpacingBetweenSlices != 3.6 {
+		t.Errorf("간격=%v, want 3.6", m.SpacingBetweenSlices)
+	}
+	if !m.HasGeometry() {
+		t.Error("HasGeometry 가 true 여야 한다")
+	}
+}
+
+// ⚠ 이게 이 묶음에서 제일 중요한 시험이다.
+//
+// 환자 좌표는 **음수가 정상값**이고, 축상면 방향 코사인(1\0\0\0\1\0)은
+// 여섯 값 중 넷이 0 이다. 화소 간격용 파서(양수만 통과)를 그대로 쓰면
+// 이 둘이 통째로 버려지고, MRI 재구성이 "태그가 없다" 로 실패한다.
+// 겉보기에는 파싱이 성공하므로 아무 오류도 안 난다.
+func TestMRIGeometryAcceptsNegativeAndZero(t *testing.T) {
+	m := mustParse(t, mri(true, binary.LittleEndian,
+		`-95.5\-120.0\0`, `0\-1\0\0\0\-1`, "", ""))
+
+	if len(m.ImagePositionPatient) != 3 {
+		t.Fatal("음수·0 이 섞인 위치가 버려졌다")
+	}
+	if m.ImagePositionPatient[2] != 0 {
+		t.Errorf("0 이 살아 있어야 한다. got=%v", m.ImagePositionPatient[2])
+	}
+	if len(m.ImageOrientationPatient) != 6 {
+		t.Fatal("음수·0 이 섞인 방향이 버려졌다")
+	}
+	if m.ImageOrientationPatient[1] != -1 {
+		t.Errorf("음수가 살아 있어야 한다. got=%v", m.ImageOrientationPatient[1])
+	}
+	if !m.HasGeometry() {
+		t.Error("위치·방향이 다 있으면 HasGeometry 가 true 여야 한다")
+	}
+}
+
+// 일부 장비가 음수 간격을 낸다(슬라이스 순서가 좌표 반대 방향일 때).
+// 부호를 버리면 쌓는 순서가 뒤집힌다.
+func TestMRINegativeSpacingKept(t *testing.T) {
+	m := mustParse(t, mri(true, binary.LittleEndian,
+		`0\0\0`, `1\0\0\0\1\0`, "3.0", "-3.0"))
+	if m.SpacingBetweenSlices != -3.0 {
+		t.Errorf("음수 간격이 그대로 와야 한다. got=%v", m.SpacingBetweenSlices)
+	}
+}
+
+// 반쪽은 통과시키지 않는다. 위치만 있으면 어느 방향 단면인지 모르고,
+// 방향만 있으면 어디에 놓을지 모른다. 둘 중 하나면 재구성을 못 한다.
+func TestMRIGeometryPartialIsNotEnough(t *testing.T) {
+	only := mustParse(t, mri(true, binary.LittleEndian, `1\2\3`, "", "", ""))
+	if only.HasGeometry() {
+		t.Error("위치만 있으면 false 여야 한다")
+	}
+	orient := mustParse(t, mri(true, binary.LittleEndian, "", `1\0\0\0\1\0`, "", ""))
+	if orient.HasGeometry() {
+		t.Error("방향만 있으면 false 여야 한다")
+	}
+}
+
+// 개수가 어긋난 값은 받지 않는다. 3개여야 할 좌표가 2개면 파일이 깨진
+// 것이고, 반쪽으로 받아 두면 엉뚱한 위치에 슬라이스가 놓인다.
+func TestMRIGeometryWrongCount(t *testing.T) {
+	m := mustParse(t, mri(true, binary.LittleEndian, `1\2`, `1\0\0\0\1`, "", ""))
+	if m.ImagePositionPatient != nil {
+		t.Errorf("2개짜리 위치는 버려야 한다. got=%v", m.ImagePositionPatient)
+	}
+	if m.ImageOrientationPatient != nil {
+		t.Errorf("5개짜리 방향은 버려야 한다. got=%v", m.ImageOrientationPatient)
+	}
+	if m.HasGeometry() {
+		t.Error("HasGeometry 가 false 여야 한다")
+	}
+}
+
+// 암시적 VR 파일에도 붙어야 한다. 이 태그들은 VR 사전에 없어서 UN 으로
+// 떨어지는데, 값 바이트는 그대로 읽히므로 문자열로 파싱된다.
+func TestMRIGeometryImplicitVR(t *testing.T) {
+	m := mustParse(t, mri(false, binary.LittleEndian,
+		`-1.5\2.5\3.5`, `1\0\0\0\1\0`, "2.0", "2.0"))
+	if !m.HasGeometry() {
+		t.Fatalf("암시적 VR 에서도 읽혀야 한다. pos=%v orient=%v",
+			m.ImagePositionPatient, m.ImageOrientationPatient)
+	}
+	if m.SliceThickness != 2.0 {
+		t.Errorf("두께=%v, want 2.0", m.SliceThickness)
+	}
+}
+
+// 맘모에는 이 값들이 없다. 없는 것이 정상이고 오류가 아니다.
+func TestMammoHasNoGeometry(t *testing.T) {
+	m := mustParse(t, mammo(true, binary.LittleEndian, "1.2.840.10008.1.2.1"))
+	if m.HasGeometry() {
+		t.Error("맘모는 3D 기하가 없어야 한다")
+	}
+	if m.SliceThickness != 0 {
+		t.Errorf("두께가 0 이어야 한다. got=%v", m.SliceThickness)
+	}
+}
+
+// 두께 0 은 "값 없음" 이지 "두께가 0" 이 아니다.
+func TestMRIZeroThicknessRejected(t *testing.T) {
+	m := mustParse(t, mri(true, binary.LittleEndian, `0\0\0`, `1\0\0\0\1\0`, "0", "0"))
+	if m.SliceThickness != 0 {
+		t.Errorf("0 은 안 담아야 한다. got=%v", m.SliceThickness)
+	}
+	if m.SpacingBetweenSlices != 0 {
+		t.Errorf("0 은 안 담아야 한다. got=%v", m.SpacingBetweenSlices)
+	}
 }

@@ -140,3 +140,52 @@ func TestHealthy(t *testing.T) {
 		t.Errorf("%v", err)
 	}
 }
+
+func TestLookupFindsInstance(t *testing.T) {
+	c := fake(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/tools/lookup" {
+			t.Errorf("경로 = %s", r.URL.Path)
+		}
+		if b, _ := io.ReadAll(r.Body); string(b) != "1.2.3.SOP" {
+			t.Errorf("본문 = %q", b)
+		}
+		w.Write([]byte(`[{"ID": "inst-1", "Path":"/instances/inst-1", "Type":"Instance"}]`))
+	})
+	id, err := c.Lookup(context.Background(), "1.2.3.SOP")
+	if err != nil || id != "inst-1" {
+		t.Fatalf("id=%q err=%v", id, err)
+	}
+}
+
+// 없는 UID 에 Orthanc는 404 가 아니라 200 + [] 을 준다
+func TestLookupEmptyIsNotFound(t *testing.T) {
+	c := fake(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`[]`))
+	})
+	if _, err := c.Lookup(context.Background(), "x"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestGetStreamsBodyAndMaps404(t *testing.T) {
+	c := fake(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/instances/nope/file" {
+			w.WriteHeader(404)
+			return
+		}
+		w.Header().Set("Content-Type", "application/dicom")
+		w.Write([]byte("DICOM원본"))
+	})
+	res, err := c.Get(context.Background(), "/instances/inst-1/file")
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, _ := io.ReadAll(res.Body)
+	res.Body.Close()
+	if string(b) != "DICOM원본" || res.Header.Get("Content-Type") != "application/dicom" {
+		t.Errorf("본문 %q 형식 %q", b, res.Header.Get("Content-Type"))
+	}
+	if _, err := c.Get(context.Background(), "/instances/nope/file"); !errors.Is(err, ErrNotFound) {
+		t.Errorf("404-> %v", err)
+	}
+}

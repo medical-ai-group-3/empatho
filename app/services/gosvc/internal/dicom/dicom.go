@@ -64,8 +64,37 @@ type Meta struct {
 	PixelSpacing      []float64 `json:"pixel_spacing,omitempty"`     // mm/px
 	PixelSpacingTag   string    `json:"pixel_spacing_tag,omitempty"` // 어느 태그에서 왔나
 
+	// MRI 3D 재구성용 기하 정보 (MRI 팀 요청 2026-09-02)
+	//
+	// 슬라이스를 Z축으로 쌓으려면 이 넷이 있어야 한다. 없으면 낱장이
+	// **어느 위치의 어느 방향 단면인지** 알 수 없어서 후처리가 시작조차 안 된다.
+	//
+	//	ImagePositionPatient    첫 화소의 환자 좌표 (x,y,z) mm
+	//	ImageOrientationPatient 행·열 방향 코사인 6개 — 단면이 어느 쪽을 향하나
+	//	SliceThickness          단면 두께 mm
+	//	SpacingBetweenSlices    단면 중심 간 거리 mm. 두께와 다를 수 있다
+	//	                        (겹쳐 찍으면 간격 < 두께, 띄워 찍으면 반대)
+	//
+	// 맘모는 이 값들이 없다. 낱장 2D 촬영이라 쌓을 것이 없기 때문이다.
+	ImagePositionPatient    []float64 `json:"image_position_patient,omitempty"`
+	ImageOrientationPatient []float64 `json:"image_orientation_patient,omitempty"`
+	SliceThickness          float64   `json:"slice_thickness,omitempty"`
+	SpacingBetweenSlices    float64   `json:"spacing_between_slices,omitempty"`
+
 	TransferSyntaxUID  string `json:"transfer_syntax_uid"`
 	BurnedInAnnotation string `json:"burned_in_annotation,omitempty"` // YES 면 화면에 글자가 박혀 있다
+}
+
+// HasGeometry — 3D 로 쌓을 수 있는가.
+//
+// 위치와 방향이 **둘 다** 있어야 한다. 위치만 있으면 어느 방향 단면인지
+// 모르고, 방향만 있으면 어디에 놓을지 모른다. 하나라도 없으면 재구성은
+// 못 한다 — 그래서 반쪽으로 통과시키지 않는다.
+//
+// 두께·간격은 여기서 안 본다. 없어도 위치들로 간격을 역산할 수 있고,
+// 실제로 그렇게 하는 뷰어가 많다.
+func (m *Meta) HasGeometry() bool {
+	return len(m.ImagePositionPatient) == 3 && len(m.ImageOrientationPatient) == 6
 }
 
 // HasSpacing — 화소 간격을 아는가.
@@ -384,6 +413,32 @@ func (p *parser) assign(m *Meta, t tag, vr string, v []byte) {
 		if sp := parseDS2(s()); sp != nil {
 			m.PixelSpacing, m.PixelSpacingTag = sp, "ImagerPixelSpacing"
 		}
+	// ── MRI 3D 기하 ──────────────────────────────────────────────
+	//
+	// ⚠ parseDS2 를 쓰면 안 된다. 그건 값이 양수일 때만 통과시킨다
+	//   (화소 간격은 음수일 수 없으니 맞는 검사였다). 하지만 환자 좌표와
+	//   방향 코사인은 **음수와 0 이 정상값이다.** 양수만 받으면 왼쪽 절반이나
+	//   특정 방향 단면이 통째로 버려진다.
+	case tag{0x0020, 0x0032}: // ImagePositionPatient
+		if v := parseDSn(s(), 3); v != nil {
+			m.ImagePositionPatient = v
+		}
+	case tag{0x0020, 0x0037}: // ImageOrientationPatient
+		if v := parseDSn(s(), 6); v != nil {
+			m.ImageOrientationPatient = v
+		}
+	case tag{0x0018, 0x0050}: // SliceThickness
+		// 두께는 양수여야 한다. 0 은 값이 없다는 뜻이지 두께가 0 인 것이 아니다.
+		if f, err := strconv.ParseFloat(strings.TrimSpace(s()), 64); err == nil && f > 0 {
+			m.SliceThickness = f
+		}
+	case tag{0x0018, 0x0088}: // SpacingBetweenSlices
+		// 일부 장비가 음수를 낸다(슬라이스 순서가 좌표 반대 방향일 때).
+		// 부호를 버리지 않고 그대로 넘긴다 — 쌓는 쪽이 판단할 일이다.
+		if f, err := strconv.ParseFloat(strings.TrimSpace(s()), 64); err == nil && f != 0 {
+			m.SpacingBetweenSlices = f
+		}
+
 	case tag{0x0028, 0x0030}: // PixelSpacing
 		if m.PixelSpacingTag == "" {
 			if sp := parseDS2(s()); sp != nil {
@@ -403,6 +458,31 @@ func parseDS2(s string) []float64 {
 	for i, p := range parts {
 		f, err := strconv.ParseFloat(strings.TrimSpace(p), 64)
 		if err != nil || f <= 0 {
+			return nil
+		}
+		out[i] = f
+	}
+	return out
+}
+
+// parseDSn — 값이 정확히 n 개인 DS 를 읽는다. 음수와 0 을 그대로 받는다.
+//
+// parseDS2 와 나눠 둔 이유가 그것이다. 화소 간격은 양수여야 맞지만
+// 환자 좌표(ImagePositionPatient)와 방향 코사인(ImageOrientationPatient)은
+// 음수·0 이 정상값이다. 예를 들어 축상면의 방향 코사인은 1\0\0\0\1\0 이라
+// 여섯 값 중 넷이 0 이다. 양수만 받으면 이게 통째로 버려진다.
+//
+// 개수가 다르면 nil 을 낸다. 3 개여야 할 좌표가 2 개면 파일이 깨진 것이고,
+// 그걸 반쪽으로 받아 두면 쌓는 쪽에서 엉뚱한 위치에 놓인다.
+func parseDSn(s string, n int) []float64 {
+	parts := strings.Split(s, `\`)
+	if len(parts) != n {
+		return nil
+	}
+	out := make([]float64, n)
+	for i, p := range parts {
+		f, err := strconv.ParseFloat(strings.TrimSpace(p), 64)
+		if err != nil {
 			return nil
 		}
 		out[i] = f
