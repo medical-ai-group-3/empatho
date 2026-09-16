@@ -3,6 +3,102 @@
     "access": "mock.staff"
   },
 
+  "__원무": [
+    "원무 1장 접수. 응답 모양은 다희님 serializer 그대로다 — 목업이 없는",
+    "칸을 지어내면 붙이는 날 화면을 고치게 된다.",
+    "",
+    "⚠ today-status 에 **환자 이름이 없다.** 서버가 exam_order_id · patient_id ·",
+    "  stage 셋만 준다(views/reception.py 의 PatientTodayStatusView). 화면이",
+    "  번호만 보여주는 이유가 그것이고, 이름은 다희님께 요청 중이다.",
+    "POST /patients/register 는 이름·생년월일·전화 셋만 받는다. 셋이 다 같은",
+    "환자가 있으면 **새로 만들지 않고 그 환자를 돌려준다** — 화면은 신규와",
+    "기존을 응답만으로 구분할 수 없다(둘 다 같은 모양이다).",
+    "patient_number 는 서버가 P + 16진수 10자리로 만든다."
+  ],
+
+  "__accounts": {
+    "__README": [
+      "GET /me 가 돌려줄 사람. **아이디 앞머리로 과가 갈린다**(mock/hospital.js).",
+      "  rec1 → 원무 · nur1 → 간호 · path1 → 병리 · rad1 → 영상 · sur1 → 유방외과",
+      "고정 응답 하나만 두면 어느 아이디로 들어와도 같은 사람이라 원무·간호",
+      "화면을 열어 볼 수가 없었다.",
+      "",
+      "여기 없는 과는 아래 'GET …/me' 고정 응답으로 떨어진다.",
+      "⚠ 진짜 서버의 /me 는 staff_id 를 안 준다 — name · role · dept ·",
+      "  dept_name · perms 다섯뿐이다 (serializers/reception.py 의 MeSerializer).",
+      "  role 에는 '교수' 같은 직책이 아니라 'nursing' 같은 값이 온다."
+    ],
+
+    "reception": {
+      "name": "한지우", "role": "reception",
+      "dept": "reception", "dept_name": "원무과",
+      "perms": [
+        "reception.intake.view",
+        "reception.patient.search",
+        "reception.patient.create",
+        "reception.checkin"
+      ]
+    },
+
+    "nursing": {
+      "name": "오세라", "role": "nursing",
+      "dept": "nursing", "dept_name": "간호과",
+      "perms": []
+    }
+  },
+
+  "GET /api/v1/hospital/patients?q={q}": [
+    { "patient_id": 41, "patient_number": "E_1029304", "name": "김영희",
+      "phone": "010-1234-5678", "birth_year": 1985, "sex": "female" },
+    { "patient_id": 42, "patient_number": "E_1029311", "name": "김영희",
+      "phone": "010-0000-0000", "birth_year": 1971, "sex": "female" },
+    { "patient_id": 43, "patient_number": "E_1029355", "name": "김영수",
+      "phone": "010-7777-1234", "birth_year": 1964, "sex": "male" }
+  ],
+
+  "POST /api/v1/hospital/patients/register": {
+    "patient_id": 77,
+    "patient_number": "P3F9A21C0D4",
+    "sex": null,
+    "birth_year": null,
+    "has_allergy": null,
+    "allergy_note": null,
+    "first_visited_at": null,
+    "questionnaire": null,
+    "account": null,
+    "primary_staff": null,
+    "primary_staff_name": null,
+    "pii": { "patient_id": 77, "name": "새환자",
+             "birth_date": "1990-03-14", "phone": "010-2222-3333" }
+  },
+
+  "POST /api/v1/hospital/exam-orders/checkin": {
+    "exam_order_id": 512,
+    "patient": 41,
+    "exam_purpose": null,
+    "modality": null,
+    "order_status": "requested",
+    "ordered_by": null,
+    "ordered_at": null,
+    "assigned_to": null,
+    "order_note": null,
+    "scheduled_at": null,
+    "visited_at": "2026-09-16T09:12:00+09:00",
+    "parent_order": null,
+    "followup": null,
+    "questionnaire": null,
+    "cancel_reason": null,
+    "cancelled_by": null
+  },
+
+  "GET /api/v1/hospital/patients/today-status": [
+    { "exam_order_id": 501, "patient_id": 41, "stage": "접수 대기" },
+    { "exam_order_id": 502, "patient_id": 42, "stage": "영상의학과 대기" },
+    { "exam_order_id": 503, "patient_id": 43, "stage": "영상의학과 촬영중" },
+    { "exam_order_id": 504, "patient_id": 44, "stage": "AI 분석중" }
+  ],
+
+
   "POST /api/v1/hospital/token/refresh": {
     "access": "mock.staff.renewed"
   },

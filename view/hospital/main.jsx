@@ -21,6 +21,7 @@ import ReadScreen from "./screens/Read";
 import ListScreen from "./screens/List";
 import AmendScreen from "./screens/Amend";
 import MeScreen from "./screens/Me";
+import ReceptionIntake from "./screens/reception/Intake";
 
 /* 유방외과 — 병리·영상과 화면 구성이 달라 자기 화면을 직접 들고 온다.
  *
@@ -36,6 +37,7 @@ const BreastDiscordance = lazy(() => import("./dept/breast/screens/Discordance")
 import { pathology } from "./dept/pathology";
 import { breast } from "./dept/breast";
 import { radiology } from "./dept/radiology";
+import { reception } from "./dept/reception";
 
 /* 병원 웹 — 라우트
  * ════════════════════════════════════════════════════════════════
@@ -65,7 +67,7 @@ import { radiology } from "./dept/radiology";
  * ⚠ **뿌리 주소를 가로채지 않는다.** 그 자리는 환자 앱이다.
  */
 
-const CFG = { pathology, radiology, breast };
+const CFG = { pathology, radiology, breast, reception };
 
 function Shell() {
   const { dept } = useParams();
@@ -156,6 +158,10 @@ const SCREENS = {
   "breast.review":      BreastReview,
   "breast.decision":    BreastDecision,
   "breast.discordance": BreastDiscordance,
+
+  /* 원무과. 다섯 장 틀을 안 쓴다 — 집는 절차도 판독도 없고
+     환자를 시스템에 들여보내는 입구다 */
+  "reception.intake":   ReceptionIntake,
 };
 
 /* 과 하나의 화면들 — 몇 장이든 nav.js 의 표대로 만들어진다 */

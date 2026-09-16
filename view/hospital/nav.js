@@ -119,6 +119,17 @@ const DEPTS = [
         need: "breast.discordance.view", deep: true },
     ],
   },
+
+  {
+    key: "reception",
+    name: "원무과",
+    who: { name: "한지우", role: "주임" },
+    screens: [
+      { key: "", use: "reception.intake", menu: "접수", title: "접수 · 방문 환자 모니터링",
+        sub: "환자를 찾아 접수하면 간호 큐로 넘어갑니다. 검사 종류는 정하지 않습니다 — 의학적 판단이라 유방외과 몫입니다.",
+        need: "reception.intake.view" },
+    ],
+  },
 ];
 
 export { DEPTS };
@@ -180,5 +191,10 @@ export const go = {
     review:      (id) => `${B}/patients/${id}/review`,
     decision:    (id) => `${B}/patients/${id}/decision`,
     discordance: (id) => `${B}/discordances/${id}`,
+  },
+
+  /* 원무는 지금 화면이 하나다. 캘린더 · 환자 목록 · 예약 확인이 뒤에 온다 */
+  reception: {
+    intake: () => `${ROOT}/reception`,
   },
 };

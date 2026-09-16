@@ -116,8 +116,15 @@ export default function Top({ dept, now }) {
                    title="내 정보">
             <span className="ava" aria-hidden="true">{me.name?.[0]}</span>
             <span className="me-tx">
-              <b>{me.name} {me.role}</b>
-              <small>{me.dept_name ?? dept?.name}</small>
+              {/* ⚠ role 은 직책이 아니라 **역할 값**이다 — 진짜 서버는
+                  "pathology" 같은 값을 준다(MeSerializer 의 role). 그대로
+                  찍으면 「한지우 reception」이 된다. 한글 이름은 dept_name 이다 */}
+              <b>{me.name} {me.dept_name}</b>
+              {/* 보고 있는 과와 내 과가 다를 때만 적는다. 같으면 같은 말이
+                  두 줄로 겹친다 */}
+              {dept && dept.name !== me.dept_name && (
+                <small>{dept.name} 보는 중</small>
+              )}
             </span>
           </NavLink>
         ) : (

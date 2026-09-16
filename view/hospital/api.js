@@ -429,6 +429,24 @@ export const breast = {
 };
 
 /* 부서 key 로 골라 쓴다 — 공통 화면들이 이걸로 갈라 부른다 */
-export const byDept = { pathology: path, radiology: rad, breast };
+/* ── 원무과 ───────────────────────────────────────────────────
+ * 경로를 다희님 구현에 맞췄다. 명세는 POST /exam-orders 하나였는데
+ * 동사별로 갈라 두셨다 — 접수 · 예약 · 촬영요청이 하는 일이 달라서
+ * 그쪽이 맞다.
+ *
+ * ⚠ search 는 q 가 없으면 서버가 **빈 목록**을 준다(qs.none()). 전체
+ *   환자를 실수로 긁지 않게 한 것이라 화면도 빈 검색어를 안 보낸다.
+ * ⚠ register 는 서버가 지금 깨져 있다 — serializers/__init__.py 가
+ *   PatientRegisterSeializer(r 빠짐)를 import 하는데 그 클래스가 없다.
+ *   목업으로만 돈다.
+ */
+export const reception = {
+  search:      (q)  => get(`/patients${qs({ q })}`),
+  register:    (b)  => post("/patients/register", b),
+  checkIn:     (b)  => post("/exam-orders/checkin", b),
+  todayStatus: ()   => get("/patients/today-status"),
+};
+
+export const byDept = { pathology: path, radiology: rad, breast, reception };
 
 export const apiInfo = { base: BASE, mock: BASE === MOCK };

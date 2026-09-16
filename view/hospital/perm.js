@@ -80,10 +80,24 @@ const BREAST = [
     where: "4장 [처분] — 어느 쪽을 따를지 정한다" },
 ];
 
+/* 원무과 — 다섯 장 틀을 안 쓴다. 집는 절차도 판독도 없고,
+   환자를 시스템에 들여보내는 입구다 */
+const RECEPTION = [
+  { key: "reception.intake.view",   label: "원무 접수 화면 보기",
+    where: "1장 화면 자체" },
+  { key: "reception.patient.search", label: "원무 환자 검색",
+    where: "1장 검색창 — 이름 · 전화 · 생년월일" },
+  { key: "reception.patient.create", label: "원무 환자 등록",
+    where: "1장 [+] 등록 — 앱을 못 쓰는 환자를 위한 예외 경로" },
+  { key: "reception.checkin",       label: "원무 접수하기",
+    where: "1장 [접수하기] — 간호 큐에 올린다" },
+];
+
 export const CATALOG = [
   ...deptPerms("pathology", "병리"),
   ...deptPerms("radiology", "영상"),
   ...BREAST,
+  ...RECEPTION,
 
   /* 영상의학과에만 있는 것 — 병리에는 해당 동작이 없다 */
   { key: "radiology.retake",     label: "영상 재촬영 요청",

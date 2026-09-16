@@ -120,6 +120,43 @@ function pick(db, method, url) {
   return loose;
 }
 
+/* 요청 본문을 JSON 으로 읽는다. 깨진 본문은 빈 객체로 둔다 —
+   목업이 본문 파싱에서 500 을 내면 화면 쪽 문제와 구분이 안 된다. */
+function readBody(req, done) {
+  let raw = "";
+  req.on("data", (c) => { raw += c; });
+  req.on("end", () => {
+    let body = {};
+    try { body = JSON.parse(raw || "{}"); } catch { /* 빈 객체로 둔다 */ }
+    done(body);
+  });
+}
+
+/* 목업 토큰에서 아이디를 되꺼낸다. 진짜 서버는 JWT 를 푼다 */
+function bearerId(req) {
+  const h = req.headers.authorization || "";
+  if (!h.startsWith("Bearer ")) return "";
+  const t = h.slice(7).trim();
+  return t.startsWith("mock.") ? t.slice(5) : "";
+}
+
+/* 아이디 앞머리로 과를 고른다. 긴 이름이 먼저다 —
+   "reception" 을 "rec" 로 먼저 걸러 버리면 안 된다 */
+const ROLE_HINT = [
+  ["reception", "reception"], ["radiology", "radiology"],
+  ["pathology", "pathology"], ["nursing", "nursing"],
+  ["surgery", "surgery"], ["admin", "admin"],
+  ["rec", "reception"], ["rad", "radiology"], ["path", "pathology"],
+  ["nur", "nursing"], ["sur", "surgery"],
+];
+function roleOf(id) {
+  const low = String(id).toLowerCase();
+  for (const [prefix, role] of ROLE_HINT) {
+    if (low.startsWith(prefix)) return role;
+  }
+  return "";
+}
+
 export function hospitalRoutes() {
   return {
     name: "empatho-hospital-routes",
@@ -165,6 +202,41 @@ export default function hospitalMock() {
           db = JSON.parse(readFileSync(resolve(here, "hospital.json"), "utf-8"));
         } catch (e) {
           return fail(res, "MOCK_BROKEN", String(e), 500);
+        }
+
+        /* ── 로그인 · 나 ──────────────────────────────────────────
+           **아이디에 따라 과가 갈린다.** 고정 응답 하나만 두면 어느 아이디로
+           들어와도 같은 사람이라, 원무·간호 화면을 열어 볼 수가 없다.
+
+           진짜 서버는 JWT 를 준다. 목업은 그 흉내만 낸다 — 아이디를 토큰에
+           담아 두고 /me 에서 되꺼내 그 과의 사람을 돌려준다.
+
+             rec1 · reception…   → 원무과      nur1 · nursing…   → 간호과
+             path1 · pathology…  → 병리과      rad1 · radiology… → 영상의학과
+             sur1 · surgery…     → 유방외과    admin1            → 관리자
+
+           못 알아보는 아이디는 hospital.json 의 GET …/me 를 그대로 준다. */
+        if (path === `${PREFIX}/login` && req.method === "POST") {
+          return readBody(req, (body) => {
+            const id = String(body.login_id || "").trim();
+            if (!id || !body.password) {
+              return fail(res, "UNAUTHENTICATED",
+                "아이디 또는 비밀번호가 올바르지 않습니다.", 401);
+            }
+            /* 승인 대기 계정을 볼 수 있게 남긴 자리 — 0012 의 account_status
+               가 pending 이면 is_active 가 False 라 로그인이 막힌다 */
+            if (id.startsWith("pending")) {
+              return fail(res, "UNAUTHENTICATED",
+                "승인 대기 중인 계정입니다. 관리자 승인 후 이용할 수 있습니다.", 401);
+            }
+            send(res, { access: `mock.${id}` });
+          });
+        }
+
+        if (path === `${PREFIX}/me` && req.method === "GET") {
+          const who = db.__accounts?.[roleOf(bearerId(req))];
+          if (who) return send(res, who);
+          /* 목록에 없으면 기존 고정 응답으로 떨어진다 */
         }
 
         const hit = pick(db, req.method, req.url);
