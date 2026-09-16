@@ -1006,3 +1006,16 @@ func TestGetDerived(t *testing.T) {
 		t.Errorf("원본 경로에서는 404 여야 한다. got=%d", o.Code)
 	}
 }
+
+func TestSameTicket(t *testing.T) {
+	a := &ticket.Claims{Purpose: "wsi_upload", ScopeID: "sp-1", PatientID: "p-1"}
+	b := &ticket.Claims{Purpose: "wsi_upload", ScopeID: "sp-2", PatientID: "p-2"}
+	s := &upload.Session{Purpose: a.Purpose, ScopeID: a.ScopeID, PatientID: a.PatientID}
+
+	if !sameTicket(a, s) {
+		t.Fatal("같은 티켓인데 막혔다")
+	}
+	if sameTicket(b, s) {
+		t.Fatal("다른 검체 티켓이 통과했다")
+	}
+}

@@ -207,19 +207,43 @@ func (g *gw) auth(w http.ResponseWriter, r *http.Request, want ...string) *ticke
 	return cl
 }
 
-// keyFor — object_key 는 **티켓 접두사 + 우리가 만든 이름** 이다.
-// 클라이언트가 준 파일명은 확장자만 참고하고 경로로 쓰지 않는다.
-// 그래야 남의 자리에 못 쓴다.
+// keyFor — object_key 는 «티켓 앞머리 + 이름» 이다.
+//
+// 이름을 앱이 정해 주면 그것을 쓴다. 같은 대상을 다시 올려도 같은
+// 키가 나오므로 콜백의 (버킷, 키) 멱등이 그제야 실제로 동작하고,
+// 앱이 주소를 미리 알 수 있어 스텁에 예정 주소를 심을 수 있다.
+//
+// 안 주면 지금까지처럼 난수다. 파생물만 이름을 싣고 DICOM 은 안 싣는다.
 func keyFor(cl *ticket.Claims, filename string) string {
-	// 확장자만 뽑는다. 경로 구분자·상위 참조가 섞여 들어오면 버린다.
 	ext := strings.ToLower(path.Ext(path.Base(filepath.ToSlash(filename))))
 	if len(ext) > 12 || strings.ContainsAny(ext, `/\`) || strings.Contains(ext, "..") {
 		ext = ""
 	}
-	var b [12]byte
-	rand.Read(b[:])
-	return strings.TrimSuffix(cl.ObjectKeyPrefix, "/") + "/" +
-		hex.EncodeToString(b[:]) + ext
+
+	name := cl.ObjectName
+	if name == "" {
+		var b [12]byte
+		rand.Read(b[:])
+		name = hex.EncodeToString(b[:]) + ext
+	} else if strings.ContainsAny(name, `/\`) || strings.Contains(name, "..") {
+		// 앞머리 밖으로 나가는 이름은 안 받는다. 앞머리가 유일한 경계다
+		return ""
+	}
+	return strings.TrimSuffix(cl.ObjectKeyPrefix, "/") + "/" + name
+}
+
+// sameTicket — 조각 쓰기·완료에 쓰는 티켓이 개시할 때의 티켓과 같은
+// 대상인지 본다.
+//
+// 이 검사가 없으면 purpose 만 맞으면 통과한다. A 검체용 티켓으로 B
+// 검체의 업로드 세션에 조각을 쓸 수 있고, 그러면 다른 환자 자리에
+// 바이트가 들어간다.
+//
+// 세션에 값은 개시할 때부터 다 들어 있었다. 읽지만 않고 있었다.
+func sameTicket(cl *ticket.Claims, s *upload.Session) bool {
+	return cl.Purpose == s.Purpose &&
+		cl.ScopeID == s.ScopeID &&
+		cl.PatientID == s.PatientID
 }
 
 // ── G-F1 ────────────────────────────────────────────────────────────
@@ -236,7 +260,12 @@ func (g *gw) initUpload(w http.ResponseWriter, r *http.Request) {
 	var b [16]byte
 	rand.Read(b[:])
 	id := hex.EncodeToString(b[:])
-	s := g.up.Init(id, keyFor(cl, req.Filename), cl.ContentType,
+	key := keyFor(cl, req.Filename)
+	if key == "" {
+		fail(w, 400, "BAD_OBJECT_NAME", "티켓의 object_name 을 쓸 수 없습니다")
+		return
+	}
+	s := g.up.Init(id, key, cl.ContentType,
 		cl.PatientID, cl.ScopeID, cl.Purpose, cl.MaxBytes)
 	log.Printf("[G-F1] upload=%s scope=%s max=%d", id, cl.ScopeID, cl.MaxBytes)
 	writeJSON(w, 200, map[string]any{
@@ -247,12 +276,17 @@ func (g *gw) initUpload(w http.ResponseWriter, r *http.Request) {
 
 // ── G-F2 ────────────────────────────────────────────────────────────
 func (g *gw) putPart(w http.ResponseWriter, r *http.Request) {
-	if g.auth(w, r, "wsi_upload", "dicom_upload") == nil {
+	cl := g.auth(w, r, "wsi_upload", "dicom_upload")
+	if cl == nil {
 		return
 	}
 	s, ok := g.up.Get(r.PathValue("id"))
 	if !ok {
 		fail(w, 404, "UPLOAD_NOT_FOUND", "개시되지 않은 업로드다")
+		return
+	}
+	if !sameTicket(cl, s) {
+		fail(w, 403, "TICKET_SCOPE_MISMATCH", "이 티켓으로는 이 업로드를 이어갈 수 없습니다")
 		return
 	}
 	n, err := upload.ParsePart(r.PathValue("n"))
@@ -275,12 +309,17 @@ func (g *gw) putPart(w http.ResponseWriter, r *http.Request) {
 
 // ── G-F3 ────────────────────────────────────────────────────────────
 func (g *gw) complete(w http.ResponseWriter, r *http.Request) {
-	if g.auth(w, r, "wsi_upload", "dicom_upload") == nil {
+	cl := g.auth(w, r, "wsi_upload", "dicom_upload")
+	if cl == nil {
 		return
 	}
 	s, ok := g.up.Get(r.PathValue("id"))
 	if !ok {
 		fail(w, 404, "UPLOAD_NOT_FOUND", "개시되지 않은 업로드다")
+		return
+	}
+	if !sameTicket(cl, s) {
+		fail(w, 403, "TICKET_SCOPE_MISMATCH", "이 티켓으로는 이 업로드를 이어갈 수 없습니다")
 		return
 	}
 	// 성공하든 실패하든 조각은 지운다
