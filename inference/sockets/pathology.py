@@ -25,6 +25,7 @@ import os
 import io 
 import pathlib 
 import sys 
+import base64
 
 from PIL import Image 
 from sockets import base, gpu 
@@ -72,9 +73,11 @@ def _load() -> dict:
         "cell_head": str(MODEL_ROOT / "pathology/candidates/socket2/model_best.pth"),
         "cellvit_path": str(MODEL_ROOT / "base/cellvit/checkpoints"
                             "/CellViT-SAM-H-x40-AMP.pth"),
-        # 마스크는 (H,W) numpy 라 JSON 으로 못 나가고, 저장할 DB 칸도 없다.
-        # 아예 안 받으면 계산과 전송이 둘 다 준다.
-        "return_tissue_mask": False,
+        # 마스크는 (H,W) numpy 0·1·2 다. 모델이 sTIL 을 낼 때 이미 만들어 쓰므로
+        # 켜도 계산이 늘지 않는다 — 늘어나는 것은 전달량뿐이다.
+        # JSON 으로는 못 나가서 아래 _run 이 PNG 로 만들고, 원본은 drop 이 뺀다.
+        # 앱 서버는 이 PNG 를 파생물(kind=mask)로 저장한다(2026-09-16).
+        "return_tissue_mask": True,
     })
     return {
         "bundle": bundle, 
@@ -87,6 +90,16 @@ def _load() -> dict:
     
 
 def _run(state, data, filename, **over) :
-    return state["predict"](state["bundle"], Image.open(io.BytesIO(data)), **over)
+    result = state["predict"](state["bundle"], Image.open(io.BytesIO(data)), **over)
+    
+    # 조직 마스크를 PNG 로 만들어 싣는다. 값이 0·1·2 셋뿐이라 PNG 가 잘 줄고,
+    # 뜻은 tissue_mask_legend 가 함께 온다. 원본 numpy 는 JSON 으로 못 나가므로
+    # SOCKET 의 drop 이 응답 직전에 뺀다.
+    mask = result.get("tissue_mask")
+    if mask is not None :
+        buf = io.BytesIO()
+        Image.fromarray(mask.astype("uint8"), mode="L").save(buf, format="PNG", optimize=True)
+        result["tissue_mask_png"] = base64.b64encode(buf.getvalue()).decode()
+    return result
 
 SOCKET = base.Socket(NAME, SOCKET_IDS, ENABLED, _load, _run, drop=("tissue_mask",))
