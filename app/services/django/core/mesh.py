@@ -26,9 +26,13 @@ from .api.errors import ApiError
 logger = logging.getLogger(__name__)
 
 #: 검사당 1개인 메시. (image.kind, 응답에서의 경로)
+#: 경로는 판독값(응답의 result) 기준이다 — split() 에 봉투가 아니라 그 안쪽을 넘긴다.
+#: body_mesh 는 조영 후 볼륨까지 보낸 판독(phases=2)에서만 나온다. 조영 전만
+#: 보내면 tumor 자체가 null 이라 아래 세 줄 중 셋째와 병변 메시가 없다.
 STUDY_MESHES = (
     ("mesh_breast", ("density", "breast_mesh")),
     ("mesh_dense", ("density", "dense_tissue_mesh")),
+    ("mesh_body", ("tumor", "body_mesh")),
 )
 
 #: 병변당 1개인 메시. 이 배열의 원소마다 "mesh" 키를 본다.
@@ -147,9 +151,19 @@ def _dig(node, path):
 
 
 def _vertex_count(mesh):
-    """소견문이 메시를 안 받고도 「메시 있음」을 말할 수 있게 남긴다."""
-    vertices = mesh.get("vertices")
-    return len(vertices) if isinstance(vertices, list) else None
+    """소견문이 메시를 안 받고도 「메시 있음」을 말할 수 있게 남긴다.
+
+    모델이 vertex_count 를 직접 넣어 준다(09-16 확인). 좌표 배열의 키는
+    vertices 가 아니라 positions 라서, 그 이름으로 세면 늘 None 이 된다.
+    """
+    counted = mesh.get("vertex_count")
+    if isinstance(counted, int):
+        return counted
+    for key in ("positions", "vertices"):
+        value = mesh.get(key)
+        if isinstance(value, list):
+            return len(value)
+    return None
 
 
 def _guard(stripped, study_id, parts):

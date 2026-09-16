@@ -9,3 +9,5 @@
 
 # 비밀값
 .env
+conf/ws_key
+conf/ws_known_hosts

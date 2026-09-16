@@ -160,6 +160,13 @@ _TICKET_TTL_DEFAULT = {
     "wsi_upload": 300,
     "derived_upload": 300,
     "report_pdf": 300,
+    # 리포트 서버가 문장을 만드는 동안 열려 있어야 한다.
+    # llm-proxy 의 REPORT_TIMEOUT 이 2 분이라 그보다 넉넉하게 둔다.
+    "report_narrative": 300,
+    # 알림 스트림을 **여는 데만** 쓴다. 연결은 그 뒤로 계속 열려 있고
+    # 티켓은 붙을 때 한 번만 검사된다. 끊겨 다시 붙으면 새로 받아야 한다 —
+    # notify 는 nonce 를 소진한다(Go 의 NewVerifier 에 reusable 이 없다).
+    "notify": 300,
 }
 TICKET_TTL_SEC = {
     p: int(os.environ.get("TICKET_TTL_%s" % p.upper(), d))
@@ -191,3 +198,18 @@ SPECTACULAR_SETTINGS = {
     # 응답에 봉투가 씌워지므로 스키마도 같이 감싼다. 안 하면 문서와 실제가 다르다.
     "POSTPROCESSING_HOOKS": ["core.api.schema.wrap_responses"],
 }
+
+# -- CELERY 
+# Redis 컨테이너를 브로커로 사용. redis 는 docker 안에 있으니까 찾는다 
+CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", "redis://redis:6379/0")
+CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", "redis://redis:6379/1")
+
+# 판독은 한 건이 오래걸림. 기본값은 제한이 없이 가지고 있어서 워크스테이션이 멈추면 워커가 영원히 돌고있다 
+# soft : 예외를 던짐 = 기권으로 처리
+# hard : 예외를 던졌는데 안 끝나면 그냥 kill함 
+CELERY_TASK_SOFT_TIME_LIMIT = 840
+CELERY_TASK_TIME_LIMIT = 900
+
+# 일이 끝나면 큐에서 삭제, 기본값은 꺼내자마자 삭제 
+# 워커가 중간에 죽으면 그 일이 전부 사라짐 
+CELERY_TASK_ACKS_LATE = True

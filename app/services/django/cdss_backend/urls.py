@@ -9,7 +9,7 @@
 Go 계층의 /svc/v1 은 다른 서비스라 여기 없다.
 
 /internal/v1 은 밖에서 닿으면 안 된다. compose 에서 web 은 127.0.0.1:8000 이고
-conf/nginx.conf 가 location /internal/ 을 404 로 잘라낸다.
+conf/nginx/default.conf 가 location /internal/ 을 404 로 잘라낸다.
 """
 
 from django.contrib import admin

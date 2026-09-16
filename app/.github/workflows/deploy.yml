@@ -5,10 +5,10 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# 두 파일을 매번 -f 로 넘기면 길어지고 한 곳만 빠뜨리기 쉽다.
+# 세 파일을 매번 -f 로 넘기면 길어지고 한 곳만 빠뜨리기 쉽다.
 # docker compose 가 이 변수를 알아서 읽는다.
 env:
-  COMPOSE_FILE: compose.server.yml:compose.app.yml
+  COMPOSE_FILE: compose.server.yml:compose.app.yml:compose.proxy.yml
 
 jobs:
   deploy:
@@ -16,8 +16,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # 비밀값은 git 에 없다. 러너 홈에 둔 것을 가져온다
-      - run: cp ~/empatho-conf/*.env ~/empatho-conf/*.toml conf/
+      # 비밀값은 git 에 없다. 러너 홈에 둔 것을 가져온다.
+      #
+      # ws/ 를 따로 복사하는 이유 — 워크스테이션 SSH 자격은 .env 도 .toml 도
+      # 아니라 위 패턴에 안 걸린다. checkout 이 작업 폴더를 청소하므로 이 줄이
+      # 없으면 배포마다 사라지고, 터널이 마운트할 원본이 없어 죽는다.
+      # 09-10 에 배포 세 번 연속으로 터널이 죽었다.
+      #
+      # garage/ 도 같은 이유다 — garage 는 설정을 폴더째 붙이도록 바뀌었다(09-15).
+      - run: cp ~/empatho-conf/*.env conf/
+      - run: mkdir -p conf/ws && cp ~/empatho-conf/ws/* conf/ws/ && chmod 600 conf/ws/*
+      - run: mkdir -p conf/garage && cp ~/empatho-conf/garage/garage.toml conf/garage/
 
       # --build 가 붙는 이유 — Django 와 Go 는 우리 코드로 이미지를 만든다.
       # postgres 처럼 받아 쓰는 것과 다르다.
@@ -34,3 +43,63 @@ jobs:
           docker compose ps
           bad=$(docker compose ps --status restarting -q)
           if [ -n "$bad" ]; then docker compose logs --tail 30 $bad; exit 1; fi
+
+      # ── 여기부터 nginx (요청서 6절) ──────────────────────────────
+      #
+      # nginx 는 설정이 틀려도 컨테이너가 살아 있는 채로 502 만 뱉는
+      # 경우가 있다. 위 「재시작 반복」 검사로는 안 잡힌다.
+      - name: nginx 설정 문법
+        run: docker compose exec -T nginx nginx -t
+        # 설정만 바뀐 배포에서는 compose 가 nginx 를 다시 만들지 않은다 
+        # 폴더 마운트라 파일은 새것이지만 nginx는 옛 설정으로 돈다 
+        # 새 경로가 404로 남았다 
+        # 문법이 통과한 뒤에만 다시 읽는다. 연결은 끊기지 않는다 
+      - name: nginx 설정 다시 읽기 
+        run: docker compose exec -T nginx nginx -s reload
+
+      - name: 인수 조건 확인
+        run: |
+          set -eu
+          B=http://127.0.0.1
+          code() { curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$@"; }
+
+          # ① nginx 자신. 업스트림을 안 거친다
+          [ "$(code $B/nginx-health)" = 200 ] || { echo "nginx 죽음"; exit 1; }
+
+          # ② Go 3종 — 각자 health 를 갖고 있다
+          for p in /svc/v1/health /svc/v1/llm/health /svc/v1/notify/health; do
+            c=$(code "$B$p")
+            [ "$c" = 200 ] || { echo "$p → $c"; exit 1; }
+          done
+
+          # ③ Django — 로그인으로 넘기는 302 가 정상이다
+          c=$(code $B/admin/)
+          case "$c" in
+            200|302) ;;
+            400) echo "/admin/ → 400 · ~/empatho-conf/web.env 의 DJANGO_ALLOWED_HOSTS 에 서버 IP 가 없다"; exit 1 ;;
+            *)   echo "/admin/ → $c"; exit 1 ;;
+          esac
+
+          # ④ 내부 콜백 차단. Go → Django 전용이라 밖에 열리면 안 된다
+          c=$(code $B/internal/v1/ping)
+          case "$c" in
+            403|404) ;;
+            *) echo "/internal/v1/ 이 $c 로 열려 있다"; exit 1 ;;
+          esac
+
+          # ⑤ 대용량 업로드 — 413 이 안 나야 한다.
+          #    티켓이 없으니 401·403 이 정상이다. **본문을 다 받고 나서**
+          #    거절해야 통과다. 413 이면 nginx 가 먼저 자른 것이다.
+          head -c 104857600 /dev/zero > /tmp/100mb.bin
+          c=$(code -X POST -H 'Content-Type: application/octet-stream' \
+                   --data-binary @/tmp/100mb.bin $B/svc/v1/files)
+          rm -f /tmp/100mb.bin
+          [ "$c" != 413 ] || { echo "100MB 에서 413 · client_max_body_size 확인"; exit 1; }
+
+          echo "인수 조건 통과"
+
+      # SSE 가 흘러나오는지. 티켓이 없어 401 로 끊길 수 있으므로
+      # **실패해도 배포는 안 막는다** — 로그로만 남긴다.
+      - name: SSE 확인 (참고)
+        continue-on-error: true
+        run: timeout 65 curl -N -s http://127.0.0.1/svc/v1/notify/stream | head -c 400 || true

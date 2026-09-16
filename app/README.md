@@ -16,6 +16,12 @@ Django · worker · gateway 는 아직 없다.
 
 ## 접속 정보
 
+HTTP 서비스 넷(Django · file-gateway · llm-proxy · notify)은 nginx 뒤에 있다 —
+`http://app-host/` 하나로 들어간다. 자세한 것은 `docs/nginx.md` 참고.
+
+아래는 postgres · garage · orthanc 이야기다. 이 셋은 nginx 대상이 아니라
+계속 터널로만 붙는다.
+
 포트가 전부 `127.0.0.1` 에 묶여 있다. **사내망에서 직접 못 붙는다.**
 서버 것에 붙어야 하면 SSH 터널을 쓴다.
 
@@ -88,7 +94,7 @@ ssh -L 18001:127.0.0.1:8001 -L 18002:127.0.0.1:8002 -p 22 wsuser@ws-host
 
 ## 비밀값
 
-`conf/postgres.env` · `conf/orthanc.env` · `conf/garage.toml` 은 git 에 없다.
+`conf/postgres.env` · `conf/orthanc.env` · `conf/garage/garage.toml` 은 git 에 없다.
 `.example` 을 복사해서 채운다. 값은 서버 담당에게 받는다.
 
 ```bash

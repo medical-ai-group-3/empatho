@@ -10,7 +10,7 @@ import (
 
 // S3 — Garage. S3 호환이라 minio-go 로 붙는다.
 //
-// Garage 는 리전 개념이 약하지만 서명 계산에 값이 필요하다. conf/garage.toml
+// Garage 는 리전 개념이 약하지만 서명 계산에 값이 필요하다. conf/garage/garage.toml
 // 의 s3_api.s3_region 과 같은 값을 넣어야 SignatureDoesNotMatch 가 안 난다.
 type S3 struct {
 	cli    *minio.Client

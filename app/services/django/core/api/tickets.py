@@ -32,13 +32,17 @@ from drf_spectacular.utils import extend_schema
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from ..models import Report, Specimen, Study
+from ..models import Account, Report, Specimen, Study
 from .errors import ApiError
-from .permissions import (IsAuthenticatedAccount, NURSING, PATHOLOGY, PATIENT,
-                          RADIOLOGY, SURGERY, rule_for)
+from .permissions import (ADMIN, IsAuthenticatedAccount, NURSING, PATHOLOGY,
+                          PATIENT, RADIOLOGY, RECEPTION, SURGERY, rule_for)
 from .trace import get_trace_id
 
 logger = logging.getLogger(__name__)
+
+#: 자기 알림 스트림을 여는 티켓. scope 가 대상이 아니라 **사람**이라
+#: 아래 여러 곳에서 갈라진다.
+NOTIFY = "notify"
 
 # 어느 역할이 그 purpose 의 티켓을 낼 수 있나.
 # 비어 있으면 사람은 못 낸다 — Celery 가 issue() 를 직접 부른다.
@@ -47,8 +51,12 @@ PURPOSE_ROLES = {
     "wsi_upload": frozenset({PATHOLOGY}),
     "report_pdf": frozenset({SURGERY}),
     "derived_upload": frozenset(),                       # 시스템 전용
+    "report_narrative": frozenset(),                     # 시스템 전용 — Celery
     "download": frozenset({RADIOLOGY, PATHOLOGY, SURGERY, NURSING, PATIENT}),
     "tile": frozenset({RADIOLOGY, PATHOLOGY, SURGERY}),
+    # 로그인한 누구나 낼 수 있다. 다만 **자기 것만** 나온다 — 아래 TicketView.
+    NOTIFY: frozenset({RADIOLOGY, PATHOLOGY, SURGERY, NURSING, RECEPTION,
+                       ADMIN, PATIENT}),
 }
 
 # purpose 가 붙을 수 있는 대상. 하나뿐이면 요청에 scope_kind 가 없어도 된다.
@@ -57,15 +65,22 @@ PURPOSE_SCOPES = {
     "wsi_upload": ("specimen",),
     "report_pdf": ("report",),
     "derived_upload": ("study", "specimen"),
+    # llm-proxy 가 RequireScope("report_narrative", req.ReportID) 로 본다.
+    "report_narrative": ("report",),
     "download": ("study", "specimen", "report"),
     "tile": ("study", "specimen"),
+    # notify 는 대상이 아니라 사람이다 — Go 가 scope_id 를 그대로 사용자
+    # 식별자로 쓴다 (hub.Subscribe(cl.ScopeID)).
+    NOTIFY: ("account",),
 }
 
 # 처방 표가 MVP 밖이라 티켓을 내줘도 파일이 갈 곳이 없다. 콜백도 422 로 막는다.
 UNSUPPORTED_PURPOSES = frozenset({"prescription_pdf"})
 
-SCOPE_MODEL = {"study": Study, "specimen": Specimen, "report": Report}
+SCOPE_MODEL = {"study": Study, "specimen": Specimen, "report": Report,
+               "account": Account}
 # 대상에 접근할 수 있는지는 §15 매트릭스로 본다.
+# account 는 여기 없다 — 대상이 자기 자신이라 물을 것이 없다.
 SCOPE_RESOURCE = {"study": "study", "specimen": "specimen_pathology",
                   "report": "report"}
 
@@ -82,8 +97,9 @@ def object_key_prefix(scope_kind, scope_id):
 
 #: 파생물 kind 별 필수 FK. 여기 없는 kind 는 아직 정해지지 않아 거절한다.
 #: 맘모는 overlay · thumbnail 둘뿐이고 영상당 1 장이다 (09-10 확인).
-#: mesh 는 MRI 만 내고 세 종류다 — 유방 전체 · 치밀부위는 검사당 1개라 lesion 이
-#: 없고, 병변 메시는 병변당 1개라 lesion 이 필수다 (09-10 MRI 담당 확인).
+#: mesh 는 MRI 만 내고 네 종류다 — 유방 전체 · 치밀부위 · 몸통은 검사당 1개라
+#: lesion 이 없고, 병변 메시는 병변당 1개라 lesion 이 필수다 (09-10 MRI 담당 확인).
+#: mesh_body 는 09-16 두 볼륨 판독에서 확인했다 — result.tumor.body_mesh 다.
 #: mask 는 병리만 낸다 — 조직 분할 결과를 크롭 한 장당 PNG 한 장으로 올린다.
 #: heatmap 은 아무도 내지 않는다. 초음파는 폴리곤 JSON 이고 맘모는 분할을 하지
 #: 않아서, 받아 두면 어디에도 안 붙은 image 행이 생긴다.
@@ -93,6 +109,7 @@ DERIVED_REQUIRED = {
     "mask": ("source_object_id", "ai_result_id"),
     "mesh_breast": ("source_object_id", "ai_result_id"),
     "mesh_dense": ("source_object_id", "ai_result_id"),
+    "mesh_body": ("source_object_id", "ai_result_id"),
     "mesh_lesion": ("source_object_id", "ai_result_id", "lesion_id"),
 }
 
@@ -241,13 +258,21 @@ class TicketView(APIView):
                            details={"missing": ["scope_id"]})
 
         if account.role not in PURPOSE_ROLES[purpose]:
-            # derived_upload 는 아무 역할도 못 낸다 — Celery 가 issue() 를 직접 쓴다.
+            # derived_upload · report_narrative 는 아무 역할도 못 낸다 —
+            # Celery 가 issue() 를 직접 쓴다.
             raise ApiError("ROLE_FORBIDDEN",
                            details={"purpose": purpose, "role": account.role})
 
         scope_kind = self._scope_kind(purpose, request.data.get("scope_kind"))
-        target = self._target(scope_kind, scope_id)
-        self._may_touch(account, scope_kind, target)
+        if purpose == NOTIFY:
+            # 요청이 보낸 scope_id 를 **버린다.** Go 는 이 값을 사용자
+            # 식별자로 그대로 믿고 그 사람의 스트림에 붙여준다 — 받아 쓰면
+            # 남의 알림을 구독할 수 있다.
+            target = account
+            # 매트릭스를 안 본다. 대상이 자기 자신이라 물을 것이 없다.
+        else:
+            target = self._target(scope_kind, scope_id)
+            self._may_touch(account, scope_kind, target)
 
         token, claims, expires_at = issue(
             purpose=purpose, scope_kind=scope_kind, scope_id=target.pk,

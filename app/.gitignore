@@ -1,5 +1,5 @@
 # 비밀번호가 들어간다
-conf/garage.toml
+conf/garage/garage.toml
 conf/orthanc.env
 
 __pycache__/
@@ -30,4 +30,24 @@ services/gosvc/bin/
 # vendor 는 커밋하지 않는다 — minio-go 때문에 17MB 다.
 # 처음 받는 사람은 `go mod download` 한 번이면 된다.
 services/gosvc/vendor/
+web-dist/*
+!web-dist/.gitkeep
+
+# 웹 — npm 산출물은 커밋하지 않는다.
+#
+# 한 번 들어온 적이 있다. services/web/.gitignore 가 web-scaffold 에만
+# 있어서, 그 브랜치를 떠나는 순간 node_modules 가 무시 대상에서 풀리고
+# 616개가 통째로 커밋됐다. 브랜치마다 규칙이 다른 것이 화근이었으므로
+# 여기 루트에 둔다 — 어느 브랜치에 있든 걸린다.
+#
+# 받는 사람은 `npm install` 한 번이면 된다.
+services/web/node_modules/
+services/web/dist/
+services/web/.vite/
+
+# tunnel 컨테이너가 워크스테이션에 붙을 때 쓰는 SSH 개인키
+# 워크스테이션 SSH 자격. 폴더째 제외한다 — 파일이 늘어도 새는 일이 없다.
+conf/ws/
+
+# 테스트가 만드는 고정값
 services/django/test_*.json

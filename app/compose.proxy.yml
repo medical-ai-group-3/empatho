@@ -1,0 +1,39 @@
+# 앞단. 다른 둘과 이름이 같아야 한 네트워크에 들어간다.
+name: empatho-server
+
+services:
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: nginx
+    restart: unless-stopped
+
+    # **밖에 열리는 유일한 포트다.**
+    # 다른 서비스의 127.0.0.1 바인딩은 그대로 둔다 — 지우면 안 된다.
+    ports:
+      - "80:80"
+
+    volumes:
+      # 폴더째 붙인다. 파일 하나를 붙이면 Docker Desktop 재시작 때 마운트가 끊겨
+      # nginx 가 안 뜬다(2026-09-14). conf/nginx/ 에는 default.conf 하나만 둔다.
+      - ./conf/nginx:/etc/nginx/conf.d:ro
+      # Vite 빌드 결과. 네이티브 앱으로 가면 이 줄과 nginx.conf 의
+      # 프런트 구역을 같이 지운다.
+      - ./web-dist:/usr/share/nginx/html:ro
+      # Django 정적 파일은 붙이지 않는다 — whitenoise 가 Django 안에서
+      # 준다(settings.py). nginx 는 /static/ 을 web 으로 넘기기만 한다.
+
+    # 이름을 풀 수 있으면 되므로 기동 순서까지 맞출 필요는 없다.
+    # nginx 는 못 붙으면 502 를 내고 다음 요청에 다시 시도한다.
+    depends_on:
+      - web
+      - llm-proxy
+      - file-gateway
+      - notify
+
+    # nginx 자신만 본다. /svc/v1/health 를 보면 file-gateway 가 죽었을 때
+    # nginx 가 불건강으로 표시돼 원인을 엉뚱한 데서 찾게 된다.
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/nginx-health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3

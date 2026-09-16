@@ -21,7 +21,7 @@ Go 는 Postgres 에 직접 쓰지 않는다. 파일을 저장하거나 알림을
            DB 오류처럼 다음에 될 수도 있는 것은 5xx 로 둬서 재시도를 받는다.
 
 밖에서는 닿지 않는다. compose 에서 web 은 127.0.0.1:8000 이고,
-conf/nginx.conf 가 location /internal/ 을 404 로 잘라낸다.
+conf/nginx/default.conf 가 location /internal/ 을 404 로 잘라낸다.
 """
 
 import hmac
@@ -288,7 +288,13 @@ class DicomInstanceCallback(InternalCallbackView):
         obj.pixel_spacing_mm = self._spacing(p.get("pixel_spacing"), object_key)
         obj.has_geometry = self._has_geometry(p)
         # Garage 와 Orthanc 양쪽에 있는 것이 정상이다 (0008 에서 제약 완화).
+        # DICOM 은 Orthanc 에만 둔다. Orthanc 에 저장이 확인되면 주소를 Orthanc 로 옮기고
+        # Garage 키를 비운다 — Go 가 I-2 성공 뒤 Garage 사본을 지운다.
+        # 전송이 실패해 ID 가 없으면 키를 남긴다. 그 파일은 Garage 에만 있다.
         obj.orthanc_series_id = p.get("orthanc_series_id") or None
+        if obj.orthanc_series_id:
+            obj.bucket = None
+            obj.object_key = None
 
         with transaction.atomic():
             obj.save()
@@ -392,13 +398,32 @@ class ReportNarrativeCallback(InternalCallbackView):
     def post(self, request, report_id):
         report = self.target(Report, report_id, "report")
         p = self.payload
+        changed = []
 
-        report.narrative_text = p.get("narrative_text") or None
-        report.evidence_links = p.get("evidence_links")      # Go 는 문자열 배열
-        report.dropped_sentences = p.get("dropped_sentence_log")
-        report.notes = p.get("notes")
-        report.prompt_version = p.get("prompt_version") or None
-        report.fallback = bool(p.get("fallback"))
+        def take(field, key, empty_to_none=False):
+            """키가 있을 때만 쓴다.
+
+            Go 는 값이 없으면 키를 뺀다(omitempty — notes · prompt_version ·
+            fallback_reason). 없는 키까지 대입하면 앞서 채운 값이 조용히
+            지워진다. 재시도와 부분 응답에서 그렇게 된다.
+
+            JSON 칸에는 `or None` 을 걸지 않는다 — 빈 배열은 「근거 없음」이고
+            None 은 「모름」이라 뜻이 다르다.
+            """
+            if key not in p:
+                return
+            value = p[key]
+            setattr(report, field, (value or None) if empty_to_none else value)
+            changed.append(field)
+
+        take("narrative_text", "narrative_text", empty_to_none=True)
+        take("evidence_links", "evidence_links")          # Go 는 문자열 배열
+        take("dropped_sentences", "dropped_sentence_log")
+        take("notes", "notes")
+        take("prompt_version", "prompt_version", empty_to_none=True)
+        # Go 가 fallback 에만 omitempty 를 뺐다 — 안 되돌렸으면 false 가
+        # **와야** 한다. 없는 키를 False 로 읽으면 그 구분이 무너진다.
+        take("fallback", "fallback")
 
         # v10 에 사유 칸이 없다. 스키마를 늘리지 않고 본문에 넣는다.
         reason = p.get("fallback_reason")
@@ -406,10 +431,13 @@ class ReportNarrativeCallback(InternalCallbackView):
             content = dict(report.content_json or {})
             content["fallback_reason"] = reason
             report.content_json = content
+            changed.append("content_json")
 
-        report.save()
-        logger.info("[I-4] 서술 채움 report=%s fallback=%s idem=%s",
-                    report.pk, report.fallback, self.idempotency_key)
+        if changed:
+            report.save(update_fields=changed + ["updated_at"])
+        logger.info("[I-4] 서술 채움 report=%s 칸=%d fallback=%s idem=%s",
+                    report.pk, len(changed), report.fallback,
+                    self.idempotency_key)
         return Response({"report_id": report.pk})
 
 

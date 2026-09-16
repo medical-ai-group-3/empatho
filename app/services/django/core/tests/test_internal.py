@@ -243,12 +243,17 @@ class DicomInstanceCallbackTests(Fixtures):
         self.assertEqual(self.obj.height_px, 512)           # rows
         self.assertEqual(float(self.obj.pixel_spacing_mm), 0.83)
 
-    def test_Orthanc_시리즈_ID_가_채워진다(self):
-        # Garage 에 이미 object_key 가 있는 행이다. 양쪽에 있는 게 정상이다.
-        self.post("dicom-instances",
-                  self.dicom_payload(orthanc_series_id="orthanc-series-1"))
+    def test_Orthanc_에_저장되면_주소가_Orthanc_로_옮겨진다(self) :
+        self.post("dicom-instances", self.dicom_payload(orthanc_series_id="orthanc-series-1"))
         self.obj.refresh_from_db()
         self.assertEqual(self.obj.orthanc_series_id, "orthanc-series-1")
+        self.assertIsNone(self.obj.object_key)
+        self.assertIsNone(self.obj.bucket)
+    
+    def test_Orthanc_ID_가_없으면_Garage_키를_남긴다(self):
+        # 전송 실패 
+        self.post("dicom-instances", self.dicom_payload(orthanc_series_id=None))
+        self.obj.refresh_from_db()
         self.assertEqual(self.obj.object_key, "mri/0001.dcm")
 
     def test_study_에_UID_와_Orthanc_ID_가_채워진다(self):
