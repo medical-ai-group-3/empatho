@@ -32,8 +32,11 @@ FOLLOWUP_STATUS = ["open", "resolved", "escalated", "declined", "overdue"]
 EXAM_PURPOSE = ["screening", "diagnostic"]
 MODALITY = ["mammo", "us", "mri"]
 # requested — 환자가 날짜·시간만 넣고 신청한 상태. 원무가 확정하면 ordered 다.
-ORDER_STATUS = ["requested", "ordered", "accepted", "in_progress", "completed",
-                "cancelled"]
+# requested   환자가 앱에서 신청. 날짜도 검사 종류도 아직
+# scheduled   원무가 날짜를 확정. **검사 종류는 아직 없다**
+# ordered     유방외과가 검사 종류·목적·지시의까지 정함
+ORDER_STATUS = ["requested", "scheduled", "ordered", "accepted", "in_progress",
+                "completed", "cancelled"]
 # 가입 승인 흐름. 로그인 가능 여부는 account.is_active 가 따로 답한다 —
 # 둘을 한 칸에 담으면 「승인 대기」와 「정지」가 같은 값이 된다.
 ACCOUNT_STATUS = ["pending", "active", "rejected", "suspended"]
@@ -334,14 +337,18 @@ class ExamOrder(AuditBase):
                 name='exam_order_modality_ck'),
             models.CheckConstraint(condition=Q(order_status__in=ORDER_STATUS),
                                    name='exam_order_status_ck'),
-            # 신청 · 취소일 때만 검사 종류 · 목적 · 지시자가 비어도 된다.
+            # 신청 · 날짜확정 · 취소일 때만 검사 종류 · 목적 · 지시자가 비어도 된다.
+            #
+            # scheduled 가 여기 있는 이유 — **원무가 날짜만 확정하는 자리다.
+            # 검사 종류는 유방외과가 정한다.**
+            #
             # 확정 전에 물린 신청은 requested → cancelled 로 가는데 세 칸이 비어
             # 있고, PROTECT 정책이라 행을 지울 수도 없다. 확정 후 취소는 세 칸이
             # 이미 차 있어 느슨해지는 것이 없다.
             # API 계층이 아니라 DB 로 막는다 — Celery 나 admin 으로 들어오는 행은
             # API 검증을 거치지 않는다.
             models.CheckConstraint(
-                condition=Q(order_status__in=['requested', 'cancelled'])
+                condition=Q(order_status__in=['requested', 'scheduled', 'cancelled'])
                 | (Q(modality__isnull=False) & Q(exam_purpose__isnull=False)
                    & Q(ordered_by__isnull=False)),
                 name='exam_order_requested_fields_ck'),
