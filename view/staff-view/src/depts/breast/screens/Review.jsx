@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../../../api";
 import { useApi } from "../../../lib/useApi";
@@ -40,6 +40,16 @@ function Inner({ patient, timeline }) {
   const [leftOpen, setLeftOpen] = useState(true);
   const [rightOpen, setRightOpen] = useState(true);
 
+  /* 뷰어가 지금 어느 모달리티(맘모/초음파/MRI/병리)를 보여주고 있는지 —
+   * 오른쪽 "유방외과 리포트" 작성란이 이 값을 그대로 따라간다(검사
+   * 종합 확인 화면의 핵심 요구사항). ReviewViewer가 매 렌더마다 새
+   * 함수를 받으면 그 안의 자동 탭 선택 useEffect가 다시 도는 걸 막기
+   * 위해 useCallback으로 감싼다. */
+  const [currentModality, setCurrentModality] = useState(null);
+  const handleModalityChange = useCallback((modality) => {
+    setCurrentModality(modality);
+  }, []);
+
   return (
     <div className="review-grid">
       <div className="card">
@@ -56,7 +66,11 @@ function Inner({ patient, timeline }) {
         )}
       </div>
 
-      <ReviewViewer patientId={patient.patient_id} lesions={patient.lesions ?? []} />
+      <ReviewViewer
+        patientId={patient.patient_id}
+        lesions={patient.lesions ?? []}
+        onModalityChange={handleModalityChange}
+      />
 
       <div className="card">
         <div className="panel-head">
@@ -65,7 +79,7 @@ function Inner({ patient, timeline }) {
             {rightOpen ? "접기" : "펼치기"}
           </button>
         </div>
-        {rightOpen && <ReportTabs patient={patient} />}
+        {rightOpen && <ReportTabs patient={patient} currentModality={currentModality} />}
       </div>
     </div>
   );
@@ -91,9 +105,15 @@ function Timeline({ events }) {
 
 const REPORT_TABS = ["모달리티별 AI 리포트", "타 부서 의사 리포트", "유방외과 리포트"];
 
-function ReportTabs({ patient }) {
+function ReportTabs({ patient, currentModality }) {
   const [tab, setTab] = useState(REPORT_TABS[0]);
   const report = patient.report;
+
+  /* 유방외과 소견은 지금 뷰어가 보여주는 모달리티별로 따로 쓴다 —
+   * MRI 탭에서 쓰던 걸 초음파로 넘어갔다가 다시 MRI로 돌아와도 그대로
+   * 남아 있어야 하니, 탭 전환과 무관하게 여기(ReportTabs)에서
+   * modality별 텍스트를 들고 있는다. */
+  const [surgeonReports, setSurgeonReports] = useState({});
 
   return (
     <>
@@ -118,20 +138,30 @@ function ReportTabs({ patient }) {
         </div>
       )}
 
-      {tab === "유방외과 리포트" && <FinalReportForm report={report} />}
+      {tab === "유방외과 리포트" && (
+        <FinalReportForm
+          report={report}
+          modality={currentModality}
+          text={currentModality ? (surgeonReports[currentModality] ?? "") : ""}
+          onTextChange={(value) =>
+            currentModality &&
+            setSurgeonReports((prev) => ({ ...prev, [currentModality]: value }))
+          }
+        />
+      )}
     </>
   );
 }
 
-function FinalReportForm({ report }) {
-  const [text, setText] = useState(report.doctor_summary ?? "");
+function FinalReportForm({ report, modality, text, onTextChange }) {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState(null);
 
   async function save() {
     setSaving(true);
+    setMsg(null);
     try {
-      await api.saveFinalReport(report.report_id, { doctor_summary: text });
+      await api.saveFinalReport(report.report_id, { modality, doctor_summary: text });
       setMsg("저장되었습니다");
     } finally {
       setSaving(false);
@@ -140,13 +170,27 @@ function FinalReportForm({ report }) {
 
   return (
     <div>
+      {modality && (
+        <div className="row" style={{ marginBottom: 8 }}>
+          <span className="k">현재 검사</span>
+          <span className="v">{modality}</span>
+        </div>
+      )}
       <div className="field" style={{ marginBottom: 8 }}>
-        <textarea value={text} onChange={(e) => setText(e.target.value)}
-          style={{ minHeight: 160 }} placeholder="유방외과 종합 소견을 작성해 주세요" />
+        <textarea
+          value={text}
+          onChange={(e) => onTextChange(e.target.value)}
+          style={{ minHeight: 160 }}
+          placeholder={
+            modality
+              ? `${modality} 검사에 대한 유방외과 소견을 작성해 주세요`
+              : "유방외과 종합 소견을 작성해 주세요"
+          }
+        />
       </div>
       <div className="card-foot split">
         <span className="note">{msg}</span>
-        <button className="btn ghost" onClick={save} disabled={saving}>
+        <button className="btn ghost" onClick={save} disabled={saving || !modality}>
           {saving ? "저장 중…" : "리포트 저장"}
         </button>
       </div>

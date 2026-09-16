@@ -39,8 +39,10 @@
     "address": "서울시 강남구 ○○로 10", "referral_date": "2026-09-05",
     "clinical_note": "타원 초음파 결과 지참, 우측 유방 종괴 촉지",
     "lesions": [
-      { "lesion_id": "L-1001-A", "site": "우측 유방 상외측(UOQ)", "size_mm": 14, "specimen_id": null },
-      { "lesion_id": "L-1001-B", "site": "좌측 유방 상내측(UIQ)", "size_mm": 9,  "specimen_id": "SP-3001" }
+      { "lesion_id": "L-1001-A", "site": "우측 유방 상외측(UOQ)", "size_mm": 14, "specimen_id": null,
+        "mesh_url": "/models/duke/DUKE_001_tumor_lesion01.stl", "color": "#C9828C" },
+      { "lesion_id": "L-1001-B", "site": "좌측 유방 상내측(UIQ)", "size_mm": 9,  "specimen_id": "SP-3001",
+        "mesh_url": "/models/duke/DUKE_001_tumor_lesion02.stl", "color": "#8FA8C2" }
     ],
     "open_discordance": {
       "discordance_id": "D-2001", "lesion_id": "L-1001-A",
@@ -101,7 +103,8 @@
     "address": "서울시 마포구 ○○로 22", "referral_date": "2026-09-03",
     "clinical_note": "정기 검진 중 발견된 병변",
     "lesions": [
-      { "lesion_id": "L-1002-A", "site": "좌측 유방 상외측(UOQ)", "size_mm": 11, "specimen_id": "SP-3002" }
+      { "lesion_id": "L-1002-A", "site": "좌측 유방 상외측(UOQ)", "size_mm": 11, "specimen_id": "SP-3002",
+        "mesh_url": "/models/duke/DUKE_001_tumor_lesion03.stl", "color": "#B59A6A" }
     ],
     "open_discordance": null,
     "other_reports": [
@@ -152,7 +155,8 @@
     "address": "경기도 성남시 ○○구 ○○로 5", "referral_date": "2026-09-02",
     "clinical_note": "타원 조직검사 결과 지참, 우측 유방 종괴",
     "lesions": [
-      { "lesion_id": "L-1003-A", "site": "우측 유방 상외측(UOQ)", "size_mm": 18, "specimen_id": "SP-3003" }
+      { "lesion_id": "L-1003-A", "site": "우측 유방 상외측(UOQ)", "size_mm": 18, "specimen_id": "SP-3003",
+        "mesh_url": "/models/duke/DUKE_001_tumor_lesion04.stl", "color": "#9B8FB5" }
     ],
     "open_discordance": null,
     "other_reports": [

@@ -156,6 +156,7 @@ export default function MRIReviewGrid({
                 }}
                 title={
                   lesion.location ||
+                  lesion.site ||
                   lesion.lesion_id ||
                   `병변 ${index + 1}`
                 }

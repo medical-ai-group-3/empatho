@@ -18,6 +18,7 @@ const SAMPLE_IMAGES = {
 export default function ReviewViewer({
   patientId,
   lesions = [],
+  onModalityChange,
 }) {
   const {
     loading,
@@ -29,11 +30,52 @@ export default function ReviewViewer({
     [patientId]
   );
 
-  const [tab, setTab] = useState("맘모");
+  /*
+   * 실제로 촬영한(performed_at이 있는) modality만 탭으로 보여준다 —
+   * 이 환자가 맘모만 찍었으면 맘모만, 초음파까지 찍었으면 그것까지만.
+   * 전체 MODALITIES를 항상 다 보여주면 안 찍은 검사까지 탭이 떠서
+   * "표시할 영상이 없습니다" 빈 화면만 늘어난다.
+   */
+  const availableModalities = Array.isArray(studies)
+    ? MODALITIES.filter((modality) =>
+        studies.some(
+          (item) =>
+            item.modality === modality &&
+            item.performed_at
+        )
+      )
+    : [];
+
+  const [tab, setTab] = useState(null);
 
   useEffect(() => {
-    setTab("맘모");
+    setTab(null);
   }, [patientId]);
+
+  /*
+   * 환자가 바뀌면(또는 처음 로딩되면) 가장 최근에 촬영한 검사를 기본
+   * 탭으로 연다 — 오른쪽 유방외과 리포트가 이 modality를 그대로
+   * 따라가므로(onModalityChange), "최근 검사"와 "리포트 작성 대상"이
+   * 항상 같은 걸 가리키게 된다.
+   */
+  useEffect(() => {
+    if (tab !== null) return;
+    if (!Array.isArray(studies) || availableModalities.length === 0) return;
+
+    const completed = studies.filter(
+      (study) =>
+        study?.performed_at &&
+        MODALITIES.includes(study.modality)
+    );
+
+    const latest = [...completed].sort(
+      (a, b) => new Date(b.performed_at) - new Date(a.performed_at)
+    )[0];
+
+    const next = latest?.modality ?? availableModalities[0];
+    setTab(next);
+    onModalityChange?.(next);
+  }, [tab, studies, availableModalities.join(","), onModalityChange]);
 
   /*
    * API에서 해당 modality 검사 결과를 찾는다.
@@ -53,18 +95,25 @@ export default function ReviewViewer({
       ===================================================== */}
 
       <div className="viewer-tabs">
-        {MODALITIES.map((modality) => (
-          <button
-            key={modality}
-            type="button"
-            className={
-              tab === modality ? "on" : ""
-            }
-            onClick={() => setTab(modality)}
-          >
-            {modality}
-          </button>
-        ))}
+        {availableModalities.length === 0 && !loading ? (
+          <span className="viewer-tabs-empty">촬영한 검사가 없습니다</span>
+        ) : (
+          availableModalities.map((modality) => (
+            <button
+              key={modality}
+              type="button"
+              className={
+                tab === modality ? "on" : ""
+              }
+              onClick={() => {
+                setTab(modality);
+                onModalityChange?.(modality);
+              }}
+            >
+              {modality}
+            </button>
+          ))
+        )}
       </div>
 
 
@@ -78,7 +127,7 @@ export default function ReviewViewer({
           error={error}
           onRetry={reload}
         >
-          {tab === "MRI" ? (
+          {tab === null ? null : tab === "MRI" ? (
             <MRIReviewGrid
               lesions={lesions}
             />
@@ -163,6 +212,12 @@ export default function ReviewViewer({
         .viewer-tabs button:hover {
           color: #ffffff;
           background: #22272c;
+        }
+
+        .viewer-tabs-empty {
+          padding: 0 8px;
+          color: #596169;
+          font-size: 12px;
         }
 
         .viewer-tabs button.on {
