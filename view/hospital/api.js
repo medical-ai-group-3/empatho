@@ -436,16 +436,95 @@ export const breast = {
  *
  * ⚠ search 는 q 가 없으면 서버가 **빈 목록**을 준다(qs.none()). 전체
  *   환자를 실수로 긁지 않게 한 것이라 화면도 빈 검색어를 안 보낸다.
- * ⚠ register 는 서버가 지금 깨져 있다 — serializers/__init__.py 가
- *   PatientRegisterSeializer(r 빠짐)를 import 하는데 그 클래스가 없다.
- *   목업으로만 돈다.
  */
 export const reception = {
   search:      (q)  => get(`/patients${qs({ q })}`),
   register:    (b)  => post("/patients/register", b),
   checkIn:     (b)  => post("/exam-orders/checkin", b),
   todayStatus: ()   => get("/patients/today-status"),
+
+  /* 예약 캘린더 — 한 달 치를 한 번에 받는다. 조회 전용이다.
+     GET /exam-orders 는 한 경로에서 메서드로 갈린다(urls.py 의
+     _exam_orders_dispatch). GET 은 ExamOrderQueryView.list 로 간다.
+
+     ⚠ **끝 경계에 시각을 붙여야 한다.** 서버가 이렇게 거른다 —
+
+         qs.filter(scheduled_at__lte=p["scheduled_to"])
+
+       scheduled_at 은 DateTimeField 라 scheduled_to=2026-09-30 은
+       «30일 00:00:00» 이 된다. 그대로 보내면 **그 달 마지막 날 예약이
+       통째로 빠진다.** 날짜만 넘겨받아 여기서 시각을 붙인다.
+
+     ⚠ ordering 을 안 주면 서버 기본값이 visited_at 이다. 달력인데
+       내원 시각 순으로 와서 날짜별로 묶을 수가 없다. */
+  schedule: (from, to) =>
+    get(`/exam-orders${qs({
+      scheduled_from: `${from}T00:00:00`,
+      scheduled_to:   `${to}T23:59:59`,
+      ordering:       "scheduled_at",
+    })}`),
+
+  /* ── 3장 환자 목록 · 예약 ────────────────────────────────────
+   *
+   * ⚠ **검색어가 없으면 서버가 빈 목록을 준다.**
+   *
+   *     if not q and not status_param:
+   *         return qs.none()
+   *
+   *   그런데 status_param 은 «있는지»만 보고 **걸지는 않는다** — 아래로
+   *   내려가도 status 로 거르는 줄이 없다. 그래서 아무 값이나 status 에
+   *   넣으면 전체 목록이 온다. 목록 화면이 첫 그림에서 비지 않으려면
+   *   지금은 이 길뿐이다.
+   *   → 다희님께 «목록 전체를 받는 공식 방법»을 요청해 두었다. 생기면
+   *     아래 ALL 을 그것으로 바꾼다. */
+  list:   (p)      => get(`/patients${qs(p)}`),
+  detail: (id)     => get(`/patients/${id}/`),
+  /* ⚠ 여기로는 **이름·생년월일·전화를 못 고친다.** 그 셋은 patient_pii 에
+     있고 PatientSerializer 는 patient 표만 다룬다 (상세의 pii 는 읽기 전용).
+     고칠 수 있는 것은 성별 · 출생연도 · 알레르기 둘 · 주치의다 */
+  update: (id, b)  => patch(`/patients/${id}/`, b),
+
+  /* 같은 환자의 예약을 전부 본다 — 같은 날 중복 예약을 잡으려고 */
+  ordersOf: (id)   => get(`/exam-orders${qs({ patient: id, ordering: "scheduled_at" })}`),
+
+  /* [예약 완료]. **원무는 날짜만 정한다** — modality · exam_purpose ·
+     ordered_by 는 안 보낸다. 서버도 그 셋을 안 받는다
+     (ExamOrderScheduleSerializer 는 patient_id · scheduled_at 둘뿐) */
+  reserve: (b)     => post("/exam-orders/schedule", b),
 };
+
+/* 검색어 없이 목록 전체를 받는 열쇠 — 위 list 의 ⚠ 참고 */
+export const ALL_PATIENTS = { status: "all" };
+
+/* ── 4장 예약 확인 (앱 신청분) ──────────────────────────────────
+ *
+ * 3장과 다르다.
+ *   3장  원무가 새로 만든다      POST /exam-orders/schedule
+ *   4장  앱 신청을 확정한다      PATCH /exam-orders/{id}/confirm
+ *
+ * 거르는 조건 둘 다 서버가 받는다 (ExamOrderQueryView) —
+ *   status=requested   아직 확정 안 된 신청
+ *   visited=none       visited_at 이 빈 것. 차 있으면 이미 창구에 온
+ *                      환자라 예약 확인이 아니라 간호 큐로 간다
+ */
+reception.requests = () =>
+  get(`/exam-orders${qs({
+    status: "requested", visited: "none", ordering: "scheduled_at",
+  })}`);
+
+/* [예약 확인]. **날짜만 보낸다.**
+ *
+ * ⚠ 지금 서버는 modalities · exam_purpose · ordered_by 를 **필수로** 받고
+ *   그게 없으면 VALIDATION_ERROR 를 낸다. 팀 결정은 「원무는 날짜만 확정」
+ *   이라 반대다 — 명세가 반대로 적혀 그대로 구현된 것이고, scheduled_at 만
+ *   받도록 바뀔 예정이다. 그때까지 이 호출은 **목업에서만** 돈다.
+ *
+ * ⚠ 확정하면 order_status 가 **scheduled** 가 된다. ordered 가 아니다 —
+ *   검사 종류가 정해져야 ordered 이고 그건 유방외과 몫이다. 값이 새로
+ *   느는 것이라 DB 쪽은 따로 간다.
+ */
+reception.confirm = (id, scheduledAt) =>
+  patch(`/exam-orders/${id}/confirm`, { scheduled_at: scheduledAt });
 
 export const byDept = { pathology: path, radiology: rad, breast, reception };
 

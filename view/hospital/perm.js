@@ -91,6 +91,16 @@ const RECEPTION = [
     where: "1장 [+] 등록 — 앱을 못 쓰는 환자를 위한 예외 경로" },
   { key: "reception.checkin",       label: "원무 접수하기",
     where: "1장 [접수하기] — 간호 큐에 올린다" },
+  { key: "reception.patients.view", label: "원무 환자 목록 보기",
+    where: "3장 화면 자체" },
+  { key: "reception.patient.edit",  label: "원무 환자 정보 수정",
+    where: "3장 오른쪽 [저장] — 성별 · 출생연도 · 알레르기" },
+  { key: "reception.reserve",       label: "원무 예약 잡기",
+    where: "3장 [예약] · [예약 완료]" },
+  { key: "reception.requests.view", label: "원무 예약 확인 화면 보기",
+    where: "4장 화면 자체 — 앱으로 들어온 신청" },
+  { key: "reception.confirm",       label: "원무 예약 확정",
+    where: "4장 [예약 확인] — requested 를 scheduled 로 옮긴다" },
 ];
 
 export const CATALOG = [

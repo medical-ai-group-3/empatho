@@ -124,6 +124,11 @@ function pick(db, method, url) {
    목업이 본문 파싱에서 500 을 내면 화면 쪽 문제와 구분이 안 된다. */
 function readBody(req, done) {
   let raw = "";
+  /* ⚠ **인코딩을 먼저 정한다.** 안 정하면 조각이 Buffer 로 와서 조각마다
+     따로 문자열이 된다. 한글은 세 바이트라 조각 경계에 걸리면 그 글자가
+     깨진다 — 「김서연」이 「김<0xEC>…」가 된다. setEncoding 을 주면 Node 가
+     경계에 걸친 바이트를 다음 조각까지 들고 간다. */
+  req.setEncoding("utf8");
   req.on("data", (c) => { raw += c; });
   req.on("end", () => {
     let body = {};
@@ -156,6 +161,11 @@ function roleOf(id) {
   }
   return "";
 }
+
+/* 이미 확정한 신청. **두 번 확정하면 409** 를 내려고 들고 있는다 —
+   실제 서버도 order_status 가 requested 가 아니면 ALREADY_CONFIRMED 다.
+   ⚠ 메모리라 vite 를 다시 띄우면 비워진다. 목업이라 그래도 된다 */
+const confirmed = new Set();
 
 export function hospitalRoutes() {
   return {
@@ -237,6 +247,65 @@ export default function hospitalMock() {
           const who = db.__accounts?.[roleOf(bearerId(req))];
           if (who) return send(res, who);
           /* 목록에 없으면 기존 고정 응답으로 떨어진다 */
+        }
+
+        /* ── 환자 등록 ────────────────────────────────────────────
+           **보낸 것을 돌려준다.** 고정 응답을 주면 홍길동을 등록해도 화면에
+           「새환자」가 채워져서 등록 → 칸 채움 → 접수 흐름을 볼 수가 없다.
+
+           환자번호는 서버가 발급한다 — 진짜 서버는 "P" + uuid4 앞 열 자리다
+           (PatientRegisterSerializer). 모양만 맞춰 흉내 낸다.
+
+           ⚠ 중복 판정은 여기서 안 한다. 진짜 서버도 새로 만든 것과 있던 것을
+             **똑같이 201 로** 주고 구분할 칸이 없어서, 화면이 등록 전에
+             GET /patients?q= 로 먼저 본다 (screens/reception/Register.jsx). */
+        if (path === `${PREFIX}/patients/register` && req.method === "POST") {
+          return readBody(req, (body) => {
+            const base = db[`POST ${PREFIX}/patients/register`] ?? {};
+            const id = 900 + Math.floor(Math.random() * 90);
+            const no = (Date.now().toString(36) + Math.random().toString(36).slice(2))
+              .slice(0, 10).toUpperCase();
+            send(res, {
+              ...base,
+              patient_id: id,
+              patient_number: `P${no}`,
+              pii: {
+                patient_id: id,
+                name: body.name ?? null,
+                birth_date: body.birth_date ?? null,
+                phone: body.phone ?? null,
+              },
+            });
+          });
+        }
+
+        /* ── 예약 확정 (4장) ────────────────────────────────────
+           **날짜만 받는다.** 원무가 날짜만 확정하는 자리라 modality ·
+           exam_purpose · ordered_by 는 안 온다 — 그건 유방외과가 정한다.
+
+           확정하면 order_status 는 **scheduled** 다. ordered 가 아니다 —
+           검사 종류가 정해져야 ordered 이고 그건 유방외과 몫이다.
+
+           ⚠ 진짜 서버(ExamOrderConfirmView)는 아직 그 셋을 필수로 받는다.
+             scheduled_at 만 받도록 바뀔 예정이고, 여기는 바뀐 뒤의 모양이다. */
+        const wantConfirm = path.match(
+          new RegExp(`^${PREFIX}/exam-orders/([^/]+)/confirm$`));
+        if (wantConfirm && req.method === "PATCH") {
+          const id = wantConfirm[1];
+          if (confirmed.has(id)) {
+            return fail(res, "ALREADY_CONFIRMED", "이미 확정된 예약입니다.", 409);
+          }
+          return readBody(req, (body) => {
+            confirmed.add(id);
+            send(res, {
+              exam_order_id: Number(id),
+              order_status: "scheduled",
+              scheduled_at: body.scheduled_at ?? null,
+              modality: null,
+              exam_purpose: null,
+              ordered_by: null,
+            });
+          });
         }
 
         const hit = pick(db, req.method, req.url);

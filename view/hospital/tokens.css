@@ -239,4 +239,15 @@
   --ai-k-fs:  calc(11.5px * var(--ft));    /* 항목 이름 */
   --ai-v-fs:  calc(13px * var(--ft));      /* 값 */
   --ai-gap:   calc(9px * var(--sp));
+
+  /* ══ 예약 캘린더 ══════════════════════════════════════════
+     칸 높이는 **안에 세 줄이 들어가는 높이**다. 그보다 낮추면 훑어보는
+     화면이 아니라 눌러 봐야 아는 화면이 된다. */
+  --cal-cell-h:  calc(104px * var(--sp));
+  --cal-tree-w:  268px;                     /* 오른쪽 계층 목록 폭 */
+  --cal-d-fs:    calc(12px * var(--ft));    /* 칸 왼쪽 위 날짜 */
+  --cal-in-fs:   calc(11px * var(--ft));    /* 칸 안 「09:30 김서연」 */
+  --cal-wk-fs:   calc(11px * var(--ft));    /* 요일 머리 */
+  --cal-mv:      24px;                      /* ‹ › 단추 */
+  --cal-pad:     calc(6px * var(--sp));     /* 칸 안쪽 여백 */
 }

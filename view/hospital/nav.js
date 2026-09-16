@@ -19,6 +19,8 @@
  *   라우트를 「다섯 장 고정」에서 use 기반으로 바꿨다 (main.jsx 참고).
  */
 
+import { can } from "./perm";
+
 export const HOSPITAL = "미래 대학병원";
 export const PRODUCT = "EMPATHO";
 export const ROOT = "/hospital";
@@ -128,6 +130,14 @@ const DEPTS = [
       { key: "", use: "reception.intake", menu: "접수", title: "접수 · 방문 환자 모니터링",
         sub: "환자를 찾아 접수하면 간호 큐로 넘어갑니다. 검사 종류는 정하지 않습니다 — 의학적 판단이라 유방외과 몫입니다.",
         need: "reception.intake.view" },
+
+      { key: "patients", use: "reception.patients", menu: "환자 목록", title: "환자 목록 · 예약",
+        sub: "환자를 찾아 정보를 고치거나 예약을 잡습니다.",
+        need: "reception.patients.view" },
+
+      { key: "requests", use: "reception.requests", menu: "예약 확인", title: "예약 확인",
+        sub: "앱으로 들어온 예약 신청을 확정합니다. 날짜와 시간만 정합니다.",
+        need: "reception.requests.view" },
     ],
   },
 ];
@@ -150,6 +160,29 @@ export function screenPath(d, s) {
 /* 상단 메뉴에 띄울 화면만 — :id 가 들어가는 화면은 뺀다 */
 export function menuScreens(d) {
   return d.screens.filter((s) => !s.deep);
+}
+
+/* ── 내가 갈 수 있는 곳 ────────────────────────────────────────
+ *
+ * 화면이 하나라도 열리면 그 과는 보인다. 권한이 하나도 없는 과는 아예
+ * 안 띄운다 — 눌러 봐야 「열람 권한이 없습니다」만 나온다.
+ */
+export function myDepts() {
+  return DEPTS.filter((d) => d.screens.some((s) => can(s.need)));
+}
+
+/* 첫 화면으로 갈 곳.
+ *
+ * ⚠ **DEPTS[0] 로 고정하면 안 된다.** 그러면 원무 계정이 로그인하자마자
+ *   병리과로 떨어진다. 그 과에는 권한이 없어 메뉴가 비고, 갈 수 있는 과가
+ *   하나뿐이라 과 전환 드롭다운도 안 뜬다(Top.jsx) — 주소를 직접 치지
+ *   않는 한 빠져나올 수가 없다.
+ *
+ * 권한이 하나도 없으면 HOME 으로 떨어뜨린다. 거기서 「열람 권한이
+ * 없습니다」를 보는 편이 빈 화면보다 낫다.
+ */
+export function homeDept() {
+  return myDepts()[0] ?? HOME;
 }
 
 /* ── 주소 만들기 ───────────────────────────────────────────────
@@ -195,6 +228,8 @@ export const go = {
 
   /* 원무는 지금 화면이 하나다. 캘린더 · 환자 목록 · 예약 확인이 뒤에 온다 */
   reception: {
-    intake: () => `${ROOT}/reception`,
+    intake:   () => `${ROOT}/reception`,
+    patients: () => `${ROOT}/reception/patients`,
+    requests: () => `${ROOT}/reception/requests`,
   },
 };

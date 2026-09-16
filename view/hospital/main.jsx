@@ -1,14 +1,14 @@
 import { StrictMode, Suspense, lazy, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
-  BrowserRouter, Navigate, Outlet, Route, Routes, useParams,
+  BrowserRouter, Navigate, Outlet, Route, Routes, useLocation,
 } from "react-router-dom";
 
 import "./tokens.css";
 import "./hospital.css";
 
 import { apiInfo } from "./api";
-import { DEPTS, HOME, ROOT, deptPath, findDept } from "./nav";
+import { DEPTS, ROOT, deptPath, findDept, homeDept } from "./nav";
 import Top from "./lib/Top";
 import { useLoadMe } from "./lib/useMe";
 import { useSignedIn } from "./lib/session";
@@ -22,6 +22,8 @@ import ListScreen from "./screens/List";
 import AmendScreen from "./screens/Amend";
 import MeScreen from "./screens/Me";
 import ReceptionIntake from "./screens/reception/Intake";
+import ReceptionPatients from "./screens/reception/Patients";
+import ReceptionRequests from "./screens/reception/Requests";
 
 /* 유방외과 — 병리·영상과 화면 구성이 달라 자기 화면을 직접 들고 온다.
  *
@@ -69,9 +71,26 @@ import { reception } from "./dept/reception";
 
 const CFG = { pathology, radiology, breast, reception };
 
+/* 주소에서 과를 읽는다 — /hospital/reception/patients → "reception"
+ *
+ * ⚠ **useParams() 를 쓰면 안 된다.** Shell 이 걸린 라우트는 path="/hospital"
+ *   이고 그 아래가 path="reception" 처럼 리터럴이라, 어디에도 :dept 파라미터가
+ *   없다. useParams() 는 늘 빈 객체를 주고 findDept 가 null 을 돌려줘서
+ *   **상단 메뉴와 과 이름이 다섯 과 모두 통째로 사라진다.**
+ *   라우트를 «다섯 장 고정»에서 선언 기반으로 바꿀 때(6176ec0) 생긴 구멍이다.
+ *
+ *   라우트에 :dept 를 넣는 길도 있지만 그러면 과마다 화면 표를 따로 쓰는
+ *   지금 구조(deptRoutes)를 다시 손봐야 한다. 주소는 이미 과를 담고 있으니
+ *   읽기만 한다.
+ */
+function deptFromPath(pathname) {
+  /* "/hospital/reception/patients" → ["", "hospital", "reception", …] */
+  return findDept(pathname.split("/")[2] ?? "");
+}
+
 function Shell() {
-  const { dept } = useParams();
-  const d = findDept(dept);
+  const { pathname } = useLocation();
+  const d = deptFromPath(pathname);
   const [now, setNow] = useState(stamp);
 
   useEffect(() => {
@@ -162,6 +181,8 @@ const SCREENS = {
   /* 원무과. 다섯 장 틀을 안 쓴다 — 집는 절차도 판독도 없고
      환자를 시스템에 들여보내는 입구다 */
   "reception.intake":   ReceptionIntake,
+  "reception.patients": ReceptionPatients,
+  "reception.requests": ReceptionRequests,
 };
 
 /* 과 하나의 화면들 — 몇 장이든 nav.js 의 표대로 만들어진다 */
@@ -193,15 +214,18 @@ function App() {
       <Gate>
       <Boot>
         <Routes>
-          <Route path={ROOT} element={<Navigate to={deptPath(HOME)} replace />} />
+          {/* ⚠ **Boot 안쪽이라서** homeDept() 가 제 답을 준다. 밖이면 아직
+              perms 가 없어 전부 false 로 보이고 늘 첫 과로 떨어진다 */}
+          <Route path={ROOT} element={<Navigate to={deptPath(homeDept())} replace />} />
           <Route path={ROOT} element={<Shell />}>
             {/* ⚠ 과 바깥에 있는 유일한 화면이다. Shell 은 그대로 쓰되
-                :dept 가 없어서 findDept 가 null 을 주고, 상단 메뉴가
-                자동으로 빈다 — Top 이 dept 없을 때를 이미 다룬다 */}
+                주소가 /hospital/me 라 deptFromPath 가 "me" 를 찾다 null 을
+                주고, 상단 메뉴가 자동으로 빈다 — Top 이 dept 없을 때를
+                이미 다룬다 */}
             <Route path="me" element={<MeScreen />} />
             {DEPTS.map((d) => deptRoutes(d.key))}
           </Route>
-          <Route path={`${ROOT}/*`} element={<Navigate to={deptPath(HOME)} replace />} />
+          <Route path={`${ROOT}/*`} element={<Navigate to={deptPath(homeDept())} replace />} />
         </Routes>
       </Boot>
       </Gate>

@@ -1,11 +1,15 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { reception as api } from "../../api";
+import { go } from "../../nav";
 import { Page, Card, Btn } from "../../lib/Page";
 import { Body } from "../../lib/Body";
 import Dialog from "../../lib/Dialog";
 import { Chip, Table, Warn } from "../../lib/Parts";
 import { useApi } from "../../lib/useApi";
 import { can } from "../../perm";
+import Calendar from "./Calendar";
+import Register from "./Register";
 
 /* 원무 1장 — 접수 · 방문 환자 모니터링
  * ════════════════════════════════════════════════════════════════
@@ -34,6 +38,7 @@ import { can } from "../../perm";
 const EMPTY = { name: "", phone: "", birth_date: "" };
 
 export default function Intake() {
+  const navigate = useNavigate();
   const [form, setForm] = useState(EMPTY);
   /* 고른 환자. 칸을 손으로 고치면 비운다 — 칸과 번호가 어긋난 채로
      접수되면 엉뚱한 사람이 큐에 오른다 */
@@ -43,6 +48,10 @@ export default function Intake() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [done, setDone] = useState(null);
+  const [regOpen, setRegOpen] = useState(false);
+  /* 등록 팝업이 무엇을 하고 닫혔나 — "created" 면 새로 만든 것,
+     "exists" 면 이미 있던 사람을 찾아 온 것. 안내 문구가 갈린다 */
+  const [regDone, setRegDone] = useState(null);
 
   const today = useApi(() => api.todayStatus(), []);
   useEffect(() => {
@@ -56,21 +65,35 @@ export default function Intake() {
     setPicked(null);          // 손으로 고치면 고른 사람과 어긋난다
     setEmpty(false);
     setDone(null);
+    setRegDone(null);
   }
 
   /* 고른 사람으로 칸을 채운다.
-     ⚠ **생년월일 칸은 못 채운다.** 서버 검색 결과에 birth_year 만 있고
-       birth_date 가 없다 (PatientListSerializer). 연도만으로 날짜 칸을
-       채울 수 없어 비운다 — 아래 확인 블록에 연도를 대신 보여준다. */
+     ⚠ **검색으로 고른 사람은 생년월일 칸을 못 채운다.** 검색 결과에
+       birth_year 만 있고 birth_date 가 없다 (PatientListSerializer).
+       연도만으로 날짜 칸을 채울 수 없어 비운다 — 아래 확인 블록에 연도를
+       대신 보여준다.
+       방금 등록한 사람은 다르다. 등록 응답(PatientDetailSerializer)에는
+       pii.birth_date 가 있어서 그대로 채워진다. */
   function fill(patient) {
     setForm({
       name: patient.name ?? "",
       phone: patient.phone ?? "",
-      birth_date: "",
+      birth_date: patient.birth_date ?? "",
     });
     setPicked(patient);
     setChoices(null);
     setEmpty(false);
+  }
+
+  /* 등록 팝업이 끝났다. 어느 갈래든 **그 환자를 고른 상태로** 두고 닫는다 —
+     등록이 끝이 아니라 [접수하기] 로 이어지는 흐름이다 */
+  function registered(patient, how) {
+    fill(patient);
+    setRegOpen(false);
+    setRegDone(how);
+    setDone(null);
+    setError(null);
   }
 
   /* 채운 칸 중 하나를 q 로 보낸다. 서버가 q 하나만 받아서 여러 칸을
@@ -133,7 +156,7 @@ export default function Intake() {
           <Card
             title="접수"
             right={can("reception.patient.create")
-              ? <Btn onClick={() => alert("등록 화면은 다음에 만듭니다")}>+ 등록</Btn>
+              ? <Btn onClick={() => setRegOpen(true)}>+ 등록</Btn>
               : null}
           >
             <form onSubmit={search}>
@@ -162,7 +185,9 @@ export default function Intake() {
 
             {error && <Failed error={error} />}
             {done && <Done done={done} />}
-            {empty && <NotFound />}
+            {empty && <NotFound onAdd={can("reception.patient.create")
+              ? () => setRegOpen(true) : null} />}
+            {regDone && <Registered how={regDone} />}
 
             {picked && <Picked patient={picked} busy={busy} onCheckIn={checkIn} />}
           </Card>
@@ -177,12 +202,23 @@ export default function Intake() {
         </div>
       </div>
 
+      {/* 날짜를 더블클릭하면 3장으로 가면서 그 날짜가 채워진다.
+          **주소에 담는다** — 화면 상태로 넘기면 붙여 넣은 주소로 같은 자리가
+          다시 안 열린다 */}
+      <Calendar onOpenDate={(date) =>
+        navigate(`${go.reception.patients()}?date=${date}`)} />
+
       {choices && (
         <Choose rows={choices} onPick={fill} onClose={() => setChoices(null)} />
+      )}
+
+      {regOpen && (
+        <Register onClose={() => setRegOpen(false)} onDone={registered} />
       )}
     </Page>
   );
 }
+
 
 /* 여럿일 때 고르는 팝업. **더블클릭으로 고른다** — 한 번 눌러 바로
    정해지면 스치듯 누른 사람이 그대로 들어간다.
@@ -241,11 +277,30 @@ function Picked({ patient, busy, onCheckIn }) {
 
 const SEX = { female: "여", male: "남" };
 
-function NotFound() {
+/* 못 찾았을 때. **여기서 바로 등록으로 갈 수 있게 한다** — 「위 [+ 등록]
+   을 누르세요」로 안내만 하면 눈이 다시 위로 올라갔다 와야 한다 */
+function NotFound({ onAdd }) {
   return (
     <div className="slot">
       <b>등록된 환자가 없습니다</b>
-      <span>앱을 안 쓰는 분이면 위 [+ 등록] 으로 만들 수 있습니다.</span>
+      <span>앱을 안 쓰는 분이면 새로 등록할 수 있습니다.</span>
+      {onAdd && <Btn onClick={onAdd}>+ 등록</Btn>}
+    </div>
+  );
+}
+
+/* 등록 팝업이 끝난 뒤의 안내. **두 갈래를 다르게 적는다** — 이미 있던
+   사람인데 「등록했습니다」라고 하면 같은 사람을 두 번 만든 줄 안다 */
+function Registered({ how }) {
+  return how === "exists" ? (
+    <div className="slot" role="status">
+      <b>이미 등록된 환자입니다</b>
+      <span>새로 만들지 않고 그 환자를 골랐습니다. 확인 후 접수하세요.</span>
+    </div>
+  ) : (
+    <div className="slot ok" role="status">
+      <b>환자를 등록했습니다</b>
+      <span>검색 칸에 채웠습니다. 확인 후 접수하세요.</span>
     </div>
   );
 }

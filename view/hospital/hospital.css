@@ -969,7 +969,13 @@ td.none,tr.none td{text-align:center; padding:var(--card-pad) 0}
 .dlg-x:focus-visible{outline:var(--focus-w) solid var(--cyan); outline-offset:2px}
 
 /* 내용만 굴러간다. 머리와 발은 붙어 있어야 [×] 를 늘 누를 수 있다 */
-.dlg-body{flex:1; min-height:0; overflow:auto}
+/* 팝업 속은 **기본으로 여백을 준다.** 안 주면 글자와 입력칸이 벽에 닿는다.
+   표만 예외다 — 줄 구분선이 팝업 폭을 가로질러야 한 줄로 읽히고, 여백을
+   주면 머리 고정(sticky)이 그만큼 내려앉아 그 틈으로 스크롤된 줄이 비친다.
+   그래서 «여백이 기본, 표가 예외» 로 둔다. 반대로 두면 팝업을 만들 때마다
+   여백을 기억해서 넣어야 한다 */
+.dlg-body{flex:1; min-height:0; overflow:auto; padding:var(--card-pad)}
+.dlg-body:has(> .tbl-wrap){padding:0}
 .dlg-body > .tbl-wrap .tbl th{position:sticky; top:0; z-index:1;
   background:var(--card)}
 .dlg-body > .tbl-wrap .tbl tr:last-child td{border-bottom:none}
@@ -987,3 +993,157 @@ td.none,tr.none td{text-align:center; padding:var(--card-pad) 0}
   box-shadow:inset var(--row-mark) 0 0 var(--cyan)}
 .dlg .tbl td.num{font-variant-numeric:tabular-nums}
 .dlg .tbl td.dim{color:var(--warm)}
+
+/* ── 예약 캘린더 (screens/reception/Calendar.jsx) ─────────────────
+   왼쪽 격자 + 오른쪽 계층 목록. 좁아지면 목록이 격자 아래로 내려간다 */
+.cal{display:grid; grid-template-columns:1fr var(--cal-tree-w);
+  gap:var(--pane-gap); align-items:start}
+@media (max-width:1100px){ .cal{grid-template-columns:1fr} }
+
+/* 달 넘김 — 카드 머리 오른쪽 */
+.cal-nav{display:flex; align-items:center; gap:var(--gap-xs)}
+.cal-nav b{min-width:calc(7ch); text-align:center; font-size:var(--in-fs);
+  font-weight:600; font-variant-numeric:tabular-nums}
+.cal-mv{width:var(--cal-mv); height:var(--cal-mv); flex:none;
+  display:flex; align-items:center; justify-content:center;
+  border:none; border-radius:var(--round); background:transparent;
+  color:var(--warm); cursor:pointer; font-size:var(--in-fs);
+  transition:background var(--motion), color var(--motion)}
+.cal-mv:hover{background:var(--canvas); color:var(--ink)}
+.cal-today{margin-left:var(--gap-xs); padding:var(--badge-pad-y) var(--badge-pad-x);
+  border:var(--hair) solid var(--border); border-radius:var(--round);
+  background:var(--card); color:var(--ink-2); cursor:pointer;
+  font:inherit; font-size:var(--chip-fs);
+  transition:background var(--motion), color var(--motion)}
+.cal-today:hover{background:var(--canvas); color:var(--ink)}
+
+/* ── 격자 ───────────────────────────────────────────────────
+   칸 사이 선은 **테두리가 아니라 바탕색이 비치는 틈**이다. 칸마다
+   border 를 주면 맞닿은 자리가 두 겹이 되어 굵기가 들쭉날쭉해진다 */
+.cal-grid{min-width:0}
+.cal-wk{display:grid; grid-template-columns:repeat(7,1fr);
+  gap:var(--hair); margin-bottom:var(--hair)}
+.cal-wk span{padding:var(--gap-xs) 0; text-align:center;
+  font-size:var(--cal-wk-fs); color:var(--warm)}
+.cal-wk span:first-child,.cal-wk span:last-child{color:var(--faint)}
+
+.cal-body{display:grid; grid-template-columns:repeat(7,1fr);
+  gap:var(--hair); background:var(--border);
+  border:var(--hair) solid var(--border); border-radius:var(--card-radius);
+  overflow:hidden}
+
+.cal-c{position:relative; display:flex; flex-direction:column;
+  gap:var(--gap-xxs); min-height:var(--cal-cell-h); min-width:0;
+  padding:var(--cal-pad); background:var(--card); cursor:pointer;
+  transition:background var(--motion)}
+.cal-c.out{background:var(--canvas); cursor:default}   /* 1일 앞의 빈 칸 */
+.cal-c:not(.out):hover{background:var(--canvas)}
+.cal-c:focus-visible{outline:none; z-index:1;
+  box-shadow:inset 0 0 0 var(--focus-w) var(--cyan)}
+
+/* 오늘 · 고른 날 — **색을 새로 만들지 않는다.** 오늘은 날짜에 시안 점,
+   고른 날은 칸 왼쪽에 굵은 선이다. 색을 못 가려도 자리가 다르다 */
+.cal-c.today .cal-d{color:var(--ink); font-weight:600}
+.cal-c.today .cal-d::after{content:""; display:inline-block;
+  width:var(--chip-dot); height:var(--chip-dot); margin-left:var(--gap-xs);
+  border-radius:var(--round); background:var(--cyan); vertical-align:middle}
+.cal-c.on{background:var(--canvas)}
+.cal-c.on::before{content:""; position:absolute; inset:0 auto 0 0;
+  width:var(--row-mark); background:var(--cyan)}
+
+.cal-d{font-style:normal; font-size:var(--cal-d-fs); color:var(--warm);
+  font-variant-numeric:tabular-nums}
+
+.cal-in{display:flex; flex-direction:column; gap:var(--gap-xxs);
+  margin:0; padding:0; list-style:none; min-width:0}
+.cal-in li{display:flex; gap:var(--gap-xs); align-items:baseline; min-width:0;
+  padding:var(--gap-xxs) var(--gap-xs); border-radius:var(--radius-xs);
+  background:var(--wash); font-size:var(--cal-in-fs); line-height:1.35}
+.cal-in li b{flex:none; font-weight:600; color:var(--ink);
+  font-variant-numeric:tabular-nums}
+.cal-in li span{min-width:0; overflow:hidden; text-overflow:ellipsis;
+  white-space:nowrap; color:var(--ink-2)}
+.cal-more{margin-top:auto; font-size:var(--cal-in-fs); color:var(--warm)}
+
+/* ── 오른쪽 계층 목록 ───────────────────────────────────────── */
+.cal-tree{min-width:0; padding:var(--card-pad-sm);
+  border:var(--hair) solid var(--border); border-radius:var(--card-radius);
+  background:var(--canvas)}
+.cal-tree-h{display:flex; align-items:center; justify-content:space-between;
+  gap:var(--gap-sm); margin-bottom:var(--gap-sm)}
+.cal-tree-h b{font-size:var(--in-fs); font-weight:600;
+  font-variant-numeric:tabular-nums}
+.cal-tree .slot{min-height:auto; padding:var(--card-pad-sm) 0}
+
+.tree,.tree ul{margin:0; padding:0; list-style:none}
+.tree > li{padding:var(--gap-5) 0; border-bottom:var(--hair) solid var(--line-2)}
+.tree > li:last-child{border-bottom:none}
+.tree > li.on{box-shadow:inset var(--row-mark) 0 0 var(--cyan)}
+.tree > li.on .tree-d{padding-left:var(--gap-sm)}
+
+.tree-d{display:flex; align-items:center; gap:var(--gap-xs); width:100%;
+  padding:var(--gap-xxs) 0; border:none; background:none; cursor:pointer;
+  font:inherit; font-size:var(--row-fs); font-weight:600; color:var(--ink);
+  text-align:left; transition:padding var(--motion)}
+.tree-d i{font-style:normal; font-size:var(--chip-fs); font-weight:400;
+  color:var(--warm)}
+
+/* 가지 — 「└」를 글자로 찍지 않고 선으로 긋는다. 글자로 넣으면 복사할 때
+   따라붙고, 화면 읽기 프로그램이 매 줄 읽는다 */
+.tree-r{position:relative; display:flex; align-items:baseline;
+  gap:var(--gap-xs); padding:var(--gap-xxs) 0 var(--gap-xxs) var(--card-pad-sm);
+  font-size:var(--kv-fs)}
+.tree-r::before{content:""; position:absolute; left:var(--gap-sm); top:0;
+  bottom:50%; width:var(--gap-xs); border-left:var(--hair) solid var(--border);
+  border-bottom:var(--hair) solid var(--border)}
+.tree-r b{flex:none; font-weight:600; color:var(--ink);
+  font-variant-numeric:tabular-nums}
+.tree-r span{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis;
+  white-space:nowrap; color:var(--ink-2)}
+.tree-r em{flex:none; font-style:normal; font-size:var(--chip-fs);
+  color:var(--warm)}
+
+/* ── 환자 등록 팝업 (screens/reception/Register.jsx) ──────────────
+   칸을 한 줄에 하나씩 세로로 쌓는다. 검색 칸(.find)은 셋을 나란히 두지만
+   이쪽은 **빠짐없이 채우는 서식**이라 눈이 한 줄씩 내려가야 한다 */
+.reg{display:flex; flex-direction:column; gap:var(--card-gap)}
+.reg .hint{margin:0}
+
+/* 팝업 안의 안내 덩어리는 왼쪽 정렬이다. 가운데 정렬은 한 줄짜리
+   「없습니다」에 맞는 모양이고, 여러 줄 설명이 들어오면 읽기 나쁘다 */
+.reg .slot{align-items:flex-start; text-align:left; gap:var(--gap-xs)}
+.reg .slot .warnline{margin:var(--gap-xs) 0 0}
+
+/* ── 환자 목록 · 예약 (screens/reception/Patients.jsx) ────────────
+   칸 둘을 나란히 — 성별·출생연도처럼 짧은 것끼리 */
+.fields{display:grid; grid-template-columns:1fr 1fr; gap:var(--gap-sm);
+  margin-bottom:var(--card-gap)}
+.card .field + .field,.card .fields + .field{margin-top:var(--card-gap)}
+
+/* 한 줄짜리 체크. .checks 는 여러 줄 목록용이라 따로 둔다 */
+.check{display:flex; align-items:center; gap:var(--gap-sm);
+  margin-bottom:var(--card-gap); cursor:pointer}
+.check input{width:15px; height:15px; accent-color:var(--cyan); flex:none}
+.check span{font-size:var(--in-fs)}
+
+/* 표 안의 단추 둘. **줄 클릭과 겹치므로** 단추는 자기 일만 하게
+   stopPropagation 을 건다(Patients.jsx) — 여기서는 크기만 줄인다 */
+.rowacts{display:flex; gap:var(--gap-xs); justify-content:flex-end}
+.rowacts .btn{padding:var(--gap-xxs) var(--chip-pad-x); font-size:var(--chip-fs)}
+
+/* 같은 날 이미 잡힌 예약 — 경고 상자 안의 목록 */
+.dup{display:flex; flex-direction:column; gap:var(--gap-xs);
+  margin:var(--gap-xs) 0 0; padding:0; list-style:none; width:100%}
+.dup li{display:flex; align-items:baseline; gap:var(--gap-sm);
+  padding:var(--gap-xxs) var(--gap-xs); border-radius:var(--radius-xs);
+  background:var(--card); font-size:var(--kv-fs)}
+.dup li b{flex:none; font-weight:600; color:var(--ink);
+  font-variant-numeric:tabular-nums}
+.dup li span{flex:1; min-width:0; color:var(--ink-2)}
+.dup li em{flex:none; font-style:normal; font-size:var(--chip-fs);
+  color:var(--warm)}
+
+/* 오른쪽 단은 카드 둘(상세 + 예약)이 세로로 쌓인다 */
+.split-r > .card + .card{margin-top:var(--gap)}
+.split-r .tbl-wrap + .warnline,.split-l .tbl-wrap + .warnline{
+  margin:var(--gap-sm) var(--card-pad)}

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, NavLink } from "react-router-dom";
-import { DEPTS, HOSPITAL, HOME, PRODUCT, deptPath, go, menuScreens } from "../nav";
+import { HOSPITAL, PRODUCT, deptPath, go, homeDept, menuScreens, myDepts } from "../nav";
 import { can } from "../perm";
 import { useMe } from "./useMe";
 
@@ -16,12 +16,6 @@ import { useMe } from "./useMe";
  * 왼쪽은 **지금 보는 화면의 과**, 오른쪽은 **로그인한 사람**이다.
  * 둘이 다를 수 있어서 과 이름이 두 번 나오지 않게 오른쪽은 작게만 적는다.
  */
-/* 내가 들어갈 수 있는 과 — 화면이 하나라도 열리면 그 과는 보인다.
-   권한이 하나도 없는 과는 아예 안 띄운다. 눌러 봐야 빈 화면이다 */
-function myDepts() {
-  return DEPTS.filter((d) => d.screens.some((s) => can(s.need)));
-}
-
 export default function Top({ dept, now }) {
   const me = useMe();
   const screens = dept ? menuScreens(dept).filter((s) => can(s.need)) : [];
@@ -51,8 +45,11 @@ export default function Top({ dept, now }) {
     <header className="top">
       <div className="top-l">
         {/* 로고는 첫 화면으로 돌아가는 자리다. 어디서든 빠져나올 구멍이
-            하나는 있어야 한다 */}
-        <Link className="brand" to={deptPath(HOME)}>
+            하나는 있어야 한다.
+            ⚠ **내가 갈 수 있는 과**로 보낸다. 첫 과로 고정하면 원무 계정이
+              누를 때마다 권한 없는 병리과로 끌려간다 — 빠져나오는 구멍이
+              오히려 가두는 구멍이 된다 */}
+        <Link className="brand" to={deptPath(homeDept())}>
           <span className="mark" aria-hidden="true">◈</span>
           <b>{HOSPITAL} {PRODUCT}</b>
         </Link>
