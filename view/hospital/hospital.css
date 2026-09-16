@@ -513,3 +513,244 @@ input,select,textarea{font:inherit; color:inherit}
   justify-content:center; gap:var(--sub-gap);
   background:var(--soot); color:var(--soot-ink);
   font-size:var(--mock-fs); letter-spacing:.02em}
+
+/* ══════════════════════════════════════════════════════════════
+   두 과 공통 화면에서 새로 쓰는 것들
+   (병리과 · 영상의학과 다섯 장이 같이 쓴다)
+   ══════════════════════════════════════════════════════════════ */
+
+/* 화면 전체 뼈대 — 상단바 · 본문 · 목업 띠 */
+.shell{min-height:100%; display:flex; flex-direction:column}
+
+/* 앱이 켜지는 동안, 그리고 그리다 멈췄을 때 */
+.boot{min-height:60vh; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:var(--gap-sm);
+  text-align:center; padding:var(--page-pad-y) var(--page-pad-x)}
+.boot b{font-family:var(--font-head); font-size:var(--in-fs)}
+.boot span{font-size:var(--hint-fs); color:var(--warm); max-width:36em}
+
+/* 작은 보조 글자 — 「왜 이런가」를 덧붙이는 자리 */
+.muted{color:var(--warm)}
+.small{font-size:var(--hint-fs); line-height:var(--body-lh)}
+p.muted{margin:0; font-size:var(--kv-fs)}
+
+/* 목록이 비었을 때 한 줄 */
+.none{color:var(--faint); font-size:var(--hint-fs); padding:var(--gap-sm) 0;
+  list-style:none; text-align:center}
+td.none,tr.none td{text-align:center; padding:var(--card-pad) 0}
+
+/* 알림 한 줄 — 실패 사유나 안내를 본문 위에 얹는다.
+   상태 색을 새로 만들지 않고 옅은 시안 바탕으로 세운다 */
+.notice{margin:0 0 var(--gap) 0; padding:var(--gap-sm) var(--card-pad-sm);
+  background:var(--wash); border-radius:var(--in-radius);
+  font-size:var(--kv-fs); color:var(--ink)}
+
+/* 반드시 보여야 하는 경고 — 조영제 알레르기처럼 촬영 전에 놓치면
+   안 되는 값. 색을 더하지 않고 soot 채움으로 세운다 */
+.warnline{margin:0 0 var(--gap-sm) 0; padding:var(--gap-sm) var(--card-pad-sm);
+  background:var(--soot); color:var(--soot-ink); border-radius:var(--in-radius);
+  font-size:var(--kv-fs); font-weight:600; display:flex; gap:var(--sub-gap)}
+.vside .warnline{background:var(--v-line); color:var(--v-ink)}
+
+/* 버튼 셋째 모양 — 테두리 없는 보조 동작 */
+.btn.ghost{background:transparent; border:var(--hair) solid transparent;
+  color:var(--warm)}
+.btn.ghost:hover:not(:disabled){background:var(--line-2); color:var(--ink)}
+
+/* 버튼 몇 개를 가로로 세우는 자리 */
+.stack{display:flex; align-items:center; gap:var(--btn-gap); flex-wrap:wrap}
+.stack.top{margin-top:var(--gap-sm); padding-top:var(--gap-sm);
+  border-top:var(--hair) solid var(--border)}
+
+/* 인용 — 유방외과 의뢰 문구, 판독문 본문 */
+.quote{margin:0; padding:var(--gap-sm) var(--card-pad-sm);
+  background:var(--canvas); border-radius:var(--in-radius);
+  border-left:2px solid var(--border);
+  font-size:var(--kv-fs); line-height:var(--body-lh); white-space:pre-wrap}
+
+/* ── 1장 · 큐 바닥의 「다음은 누구」 ─────────────────────────
+   버튼이 집는 대상은 화면 맨 위가 아니라 큐 선두다. 검색으로 걸러
+   놓으면 둘이 달라 보이므로 이름을 적어 둔다 */
+.q-next{font-size:var(--hint-fs); color:var(--warm)}
+.q-next b{color:var(--ink); font-weight:600}
+
+/* ── 2장 · 업로드 ──────────────────────────────────────────── */
+.drop-t{margin:0 0 var(--gap-sm) 0; font-size:var(--kv-fs); color:var(--warm)}
+
+.files{list-style:none; margin:var(--gap-sm) 0 0 0; padding:0;
+  display:flex; flex-direction:column; gap:var(--gap-xs)}
+.files li{display:flex; align-items:center; gap:var(--sub-gap);
+  padding:var(--gap-xs) var(--gap-sm); border-radius:var(--file-radius);
+  background:var(--canvas); font-size:var(--kv-fs)}
+.files li b{flex:1; min-width:0; font-weight:500; overflow:hidden;
+  text-overflow:ellipsis; white-space:nowrap}
+.files li span{color:var(--warm); font-size:var(--hint-fs); flex:none}
+
+/* 시리즈 고르는 체크박스 */
+.ck{display:flex; align-items:center; gap:var(--sub-gap); width:100%;
+  font-size:var(--kv-fs); cursor:pointer}
+.ck input{accent-color:var(--cyan); flex:none}
+.ck span{flex:1; min-width:0}
+.ck small{color:var(--warm); font-size:var(--hint-fs)}
+
+/* ── 3장 · 뷰어 아래 · 오른쪽 패널 ─────────────────────────── */
+.vunder{padding:var(--v-pad); border-top:var(--hair) solid var(--v-line);
+  background:var(--v-card)}
+
+.vside.wide{width:var(--pane-side-wide); display:flex; flex-direction:column;
+  gap:0}
+.vpanel{display:flex; flex-direction:column; min-height:0;
+  border-bottom:var(--hair) solid var(--v-line)}
+.vpanel.grow{flex:1}
+.vpanel .vside-b{overflow:auto}
+
+/* 접힌 패널의 손잡이 — 오른쪽 기둥 안에서 가로로 눕는다 */
+.vrow{display:flex; align-items:center; gap:var(--sub-gap);
+  padding:var(--gap-sm) var(--v-pad); background:var(--v-card);
+  border:none; border-bottom:var(--hair) solid var(--v-line);
+  color:var(--v-warm); font:inherit; font-size:var(--v-fs);
+  text-align:left; cursor:pointer}
+.vrow:hover{color:var(--v-ink)}
+
+/* 둘 다 접으면 기둥이 손잡이 폭으로 줄고 뷰어가 넓어진다 */
+.vtabs-r{display:flex; flex-direction:column; flex:none}
+
+/* ── AI 소견 ───────────────────────────────────────────────── */
+.ai{display:flex; flex-direction:column; gap:var(--ai-gap)}
+
+.ai-top{display:flex; align-items:baseline; gap:var(--sub-gap)}
+.grade{font-family:var(--font-head); font-size:var(--h1-fs);
+  line-height:1; color:var(--v-ink)}
+
+.ai-card{display:flex; flex-direction:column; gap:var(--gap-sm);
+  padding:var(--card-pad-sm); border-radius:var(--in-radius);
+  background:rgba(250,250,249,.04)}
+.ai-card .ai-h{display:flex; align-items:center; justify-content:space-between;
+  gap:var(--sub-gap)}
+.ai-card .ai-h b{font-size:var(--ai-k-fs); color:var(--v-ink)}
+
+/* 지표 목록 — 이름과 값. 둘씩 놓을 때는 .two */
+.ai-m{margin:0; display:flex; flex-direction:column; gap:var(--gap-xs)}
+.ai-m.two{display:grid; grid-template-columns:1fr 1fr; gap:var(--gap-xs) var(--gap-sm)}
+.ai-m > div{display:flex; align-items:baseline; justify-content:space-between;
+  gap:var(--sub-gap)}
+.ai-m dt{font-size:var(--ai-k-fs); color:var(--v-warm)}
+.ai-m dd{margin:0; font-size:var(--ai-v-fs); color:var(--v-ink);
+  font-variant-numeric:tabular-nums; text-align:right}
+.ai-m dd i{font-style:normal; font-size:var(--ai-k-fs); color:var(--v-warm)}
+.ai-m dd em{font-style:normal; font-size:var(--ai-k-fs); color:var(--v-warm)}
+
+.cells{display:flex; flex-wrap:wrap; gap:var(--sub-gap); justify-content:flex-end}
+.cells span{font-size:var(--ai-k-fs); color:var(--v-ink)}
+
+/* 서술어 표 — 값·확신도·검증 여부를 그대로 낸다. 문장을 만들지 않는다 */
+.ai-tbl{width:100%; border-collapse:collapse; font-size:var(--ai-k-fs)}
+.ai-tbl th{text-align:left; padding:var(--gap-xxs) 0; color:var(--v-warm);
+  font-weight:500; border-bottom:var(--hair) solid var(--v-line)}
+.ai-tbl td{padding:var(--gap-xxs) 0; color:var(--v-ink);
+  border-bottom:var(--hair) solid var(--v-line);
+  font-variant-numeric:tabular-nums}
+
+/* 「평가 불가」를 값 자리에 그대로 쓸 때 */
+.ai-na.inline{display:inline; font-size:var(--ai-v-fs)}
+.ai-na b{display:block; color:var(--v-ink); font-size:var(--ai-v-fs)}
+.ai-na span{display:block}
+
+/* 뷰어 밖(정정 화면)에서도 AI 카드를 쓰면 밝은 판에 맞춘다 */
+.card .ai-card{background:var(--canvas)}
+.card .ai-m dt,.card .ai-m dd i,.card .ai-m dd em{color:var(--warm)}
+.card .ai-m dd,.card .ai-card .ai-h b,.card .cells span{color:var(--ink)}
+.card .grade{color:var(--ink)}
+
+/* ── 4장 · 목록 위 정렬 줄 ─────────────────────────────────── */
+.tbl-top{display:flex; align-items:center; justify-content:space-between;
+  gap:var(--gap-sm); padding:var(--gap-sm) var(--card-pad-sm);
+  border-bottom:var(--hair) solid var(--border); flex-wrap:wrap}
+
+/* ── 5장 · 정정 ────────────────────────────────────────────── */
+.amend{display:flex; flex-direction:column; gap:var(--gap)}
+
+/* 기존 판독 — 읽기 전용 덩어리 */
+.ro{display:flex; flex-direction:column; gap:var(--gap-sm)}
+.ro h3{margin:0 0 var(--gap-xxs) 0; font-size:var(--label-fs);
+  font-weight:500; color:var(--warm)}
+.ro p{margin:0; font-size:var(--kv-fs); line-height:var(--body-lh);
+  white-space:pre-wrap}
+
+/* 정정 이력 — 전부 남는다. 「최근 1건」이 아니다 */
+.hist{list-style:none; margin:0; padding:0; display:flex;
+  flex-direction:column; gap:var(--gap-sm)}
+.hist li{padding:var(--gap-sm) var(--card-pad-sm); background:var(--canvas);
+  border-radius:var(--in-radius)}
+.hist-h{display:flex; align-items:baseline; justify-content:space-between;
+  gap:var(--sub-gap); margin-bottom:var(--gap-xxs)}
+.hist-h b{font-size:var(--kv-fs); font-variant-numeric:tabular-nums}
+.hist-h span{font-size:var(--hint-fs); color:var(--warm)}
+.hist p{margin:0; font-size:var(--kv-fs); line-height:var(--body-lh);
+  white-space:pre-wrap}
+.why{color:var(--warm); font-size:var(--hint-fs) !important;
+  margin-bottom:var(--gap-xxs) !important}
+
+/* 좁은 화면 */
+@media (max-width: 900px){
+  .ai-m.two{grid-template-columns:1fr}
+  .vside.wide{width:var(--pane-side)}
+}
+
+/* ══════════════════════════════════════════════════════════════
+   판독 뷰어 — 원본 + 오버레이
+   ══════════════════════════════════════════════════════════════ */
+
+.stage{position:relative; flex:1; display:flex; min-height:0}
+
+/* 원본이 놓이는 상자. 여기서 확대·이동이 일어난다 */
+.stage-box{flex:1; min-height:var(--stage-h); position:relative;
+  overflow:hidden; background:var(--v-bg); cursor:grab;
+  border-radius:var(--in-radius)}
+.stage-box.grabbing{cursor:grabbing}
+
+/* 확대·이동을 한 번에 먹이는 자리. 원본과 오버레이가 **같이** 움직여야
+   좌표가 안 어긋나므로 둘을 이 안에 함께 넣는다 */
+.stage-tf{position:absolute; top:0; left:0; transform-origin:0 0;
+  will-change:transform}
+.stage-img{display:block; user-select:none; -webkit-user-drag:none}
+
+/* PNG 마스크 (병리) — 원본과 같은 크기로 정확히 겹친다 */
+.stage-mask{position:absolute; top:0; left:0; pointer-events:none;
+  user-select:none; -webkit-user-drag:none}
+
+/* SVG 도형 (초음파 폴리곤 · 맘모 박스) */
+.stage-svg{position:absolute; top:0; left:0; overflow:visible}
+.shp{cursor:pointer}
+.shp rect,.shp polygon{fill:none; stroke:var(--cyan);
+  vector-effect:non-scaling-stroke}
+.shp text{fill:var(--cyan); font-family:var(--font-ui); font-weight:600;
+  paint-order:stroke; stroke:rgba(28,25,23,.8); stroke-width:3px}
+.shp:hover rect,.shp:hover polygon{stroke:var(--soot-ink)}
+.shp.on rect,.shp.on polygon{stroke:var(--soot-ink); fill:rgba(59,166,241,.12)}
+.shp.on text{fill:var(--soot-ink)}
+
+/* 배율 숫자 */
+.vzoom{font-size:var(--v-fs); color:var(--v-warm);
+  font-variant-numeric:tabular-nums; padding:0 var(--gap-xs)}
+
+/* 원본이 아직 없을 때 — 격자에 이유를 적는다 */
+.vart{display:flex; align-items:center; justify-content:center}
+.vart p{margin:0; color:var(--v-warm); font-size:var(--v-fs)}
+
+/* 전체화면 — 뷰어만 남긴다 */
+.readfull .save{display:none}
+.readfull .stage-box{min-height:calc(100vh - var(--top-h) - 120px)}
+
+/* 크롭 목록에 「마스크 없음」 */
+.slides small{color:var(--warm); font-size:var(--hint-fs)}
+
+/* trace_id — 오류 화면에 작게. 서버 로그를 찾을 때 쓴다 */
+.trace{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  font-size:var(--hint-fs); color:var(--faint); user-select:all;
+  padding:var(--gap-xxs) var(--gap-xs); background:var(--line-2);
+  border-radius:var(--radius-xs)}
+
+/* 뷰어 아래 손잡이들 — 투명도 · 밝기 · 대비 */
+.vknobs{display:flex; flex-direction:column; gap:var(--gap-xs)}
+.vknobs .muted{color:var(--v-warm)}

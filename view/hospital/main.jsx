@@ -1,45 +1,66 @@
 import { StrictMode, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { BrowserRouter, Link, Navigate, Outlet, Route, Routes } from "react-router-dom";
+import {
+  BrowserRouter, Navigate, Outlet, Route, Routes, useParams,
+} from "react-router-dom";
 
-import { apiInfo } from "./api";
-import { HOME, ROOT, deptPath } from "./nav";
-import PathAmend from "./screens/path/Amend";
-import PathPatients from "./screens/path/Patients";
-import PathRead from "./screens/path/Read";
-import PathSpecimens from "./screens/path/Specimens";
-import PathUpload from "./screens/path/Upload";
-import Top from "./lib/Top";
+import "./tokens.css";
 import "./hospital.css";
 
-/* 의료진용 콘솔 — 진입점.
+import { apiInfo } from "./api";
+import { DEPTS, HOME, ROOT, deptPath, findDept } from "./nav";
+import Top from "./lib/Top";
+import { useLoadMe } from "./lib/useMe";
+import Boom from "./lib/Boom";
+
+import QueueScreen from "./screens/Queue";
+import UploadScreen from "./screens/Upload";
+import ReadScreen from "./screens/Read";
+import ListScreen from "./screens/List";
+import AmendScreen from "./screens/Amend";
+
+import { pathology } from "./dept/pathology";
+import { radiology } from "./dept/radiology";
+
+/* 병원 웹 — 라우트
+ * ════════════════════════════════════════════════════════════════
  *
- * **라우팅을 손으로 적지 않는다.** nav.js 의 표를 돌며 만든다. 화면을
- * 더하려면 그 표에 줄 하나를 더하면 되고, 메뉴 · 주소 · 쪽 머리가 함께
- * 따라온다.
+ * 과가 둘이고, 과마다 화면이 다섯 장이다. 화면의 뼈대는 screens/ 에
+ * 하나씩만 있고, 과별로 다른 것은 dept/ 의 설정이 들고 온다.
  *
- * 주소는 /console 아래에 둔다. 같은 저장소에 환자 앱이 있고 그쪽이
- * / 를 쓴다 — 입구가 둘이라 CSS 와 토큰은 안 섞이지만 **주소는 한
- * 서버에서 나가므로** 앞머리로 갈라 준다.
+ *   /hospital/pathology               1장 검체 접수 대기
+ *   /hospital/pathology/specimens     4장 전체 환자 목록
+ *   /hospital/pathology/specimens/:id/upload   2장 업로드
+ *   /hospital/pathology/read/:id      3장 판독
+ *   /hospital/pathology/read/:id/amend 5장 판독 정정
  *
- * ⚠ nginx 에 한 줄이 필요하다. /hospital 로 들어온 요청은 hospital.html 을
- *   돌려줘야 새로고침해도 살아난다. 지금 규칙은 전부 index.html 로
- *   보내므로, 그대로 두면 콘솔 주소에서 환자 앱이 뜬다.
+ *   /hospital/radiology               1장 촬영 대기 큐
+ *   /hospital/radiology/patients      4장 전체 환자 목록
+ *   /hospital/radiology/studies/:id/upload     2장 업로드
+ *   /hospital/radiology/read/:id      3장 판독
+ *   /hospital/radiology/read/:id/amend 5장 판독 정정
+ *
+ * ⚠ **뿌리 주소를 가로채지 않는다.** 그 자리는 환자 앱이다.
  */
 
+const CFG = { pathology, radiology };
+
 function Shell() {
-  const [now, setNow] = useState(fmtNow);
+  const { dept } = useParams();
+  const d = findDept(dept);
+  const [now, setNow] = useState(stamp);
+
   useEffect(() => {
-    const t = setInterval(() => setNow(fmtNow()), 30_000);
+    const t = setInterval(() => setNow(stamp()), 30000);
     return () => clearInterval(t);
   }, []);
+
   return (
-    <div className="app">
-      <Top now={now} />
-      <Outlet />
-      {/* **목업을 보면서 진짜인 줄 아는 일**을 막는다. 시연 자리에서
-          「이거 실제 자료인가요」를 들었을 때 화면이 대신 답한다.
-          진짜 서버에 붙으면 이 줄이 사라진다 */}
+    <div className="shell">
+      <Top dept={d} now={now} />
+      <Boom>
+        <Outlet />
+      </Boom>
       {apiInfo.mock && (
         <footer className="mockbar">
           목업 자료 — 지어낸 값입니다 · {apiInfo.base}
@@ -49,58 +70,67 @@ function Shell() {
   );
 }
 
-function Missing() {
-  return (
-    <main className="page">
-      <div className="slot big">
-        <b>없는 화면입니다</b>
-        <span>주소가 잘못되었거나 아직 만들지 않은 화면입니다.</span>
-        <Link className="btn line" to={ROOT}>부서 고르기</Link>
+/* 로그인 응답(perms)이 올 때까지 기다린다. 안 기다리면 첫 그림에서
+   권한이 전부 false 라 메뉴가 비었다가 나타난다 */
+function Boot({ children }) {
+  const { loading, error } = useLoadMe();
+
+  if (loading) {
+    return <div className="boot"><b>불러오는 중…</b></div>;
+  }
+  if (error) {
+    return (
+      <div className="boot">
+        <b>로그인 정보를 가져오지 못했습니다</b>
+        <span>{error.detail || error.message}</span>
+        <span className="muted small">
+          권한을 확인할 수 없어 화면을 열 수 없습니다. 다시 로그인해 주세요.
+        </span>
       </div>
-    </main>
+    );
+  }
+  return children;
+}
+
+/* 과 하나의 화면 다섯 장 — 두 과가 같은 함수로 만들어진다 */
+function deptRoutes(key) {
+  const cfg = CFG[key];
+  const d = findDept(key);
+  const [queue, list, upload, read, amend] = d.screens;
+
+  return (
+    <Route key={key} path={key}>
+      <Route index element={<QueueScreen cfg={cfg} />} />
+      <Route path={list.key} element={<ListScreen cfg={cfg} />} />
+      <Route path={upload.key} element={<UploadScreen cfg={cfg} />} />
+      <Route path={read.key} element={<ReadScreen cfg={cfg} />} />
+      <Route path={amend.key} element={<AmendScreen cfg={cfg} />} />
+    </Route>
   );
 }
 
-/* 진짜로 만든 화면. 표(nav.js)의 «부서/화면» 열쇠로 찾는다.
-   여기 없는 것은 뼈대(Skeleton)가 대신 그린다 — 자리는 잡혀 있고
-   내용만 안 들어간 상태다. 화면 하나가 완성될 때마다 여기 한 줄씩
-   더하면 되고, 라우팅은 안 건드린다. */
+function App() {
+  return (
+    <BrowserRouter>
+      <Boot>
+        <Routes>
+          <Route path={ROOT} element={<Navigate to={deptPath(HOME)} replace />} />
+          <Route path={ROOT} element={<Shell />}>
+            {DEPTS.map((d) => deptRoutes(d.key))}
+          </Route>
+          <Route path={`${ROOT}/*`} element={<Navigate to={deptPath(HOME)} replace />} />
+        </Routes>
+      </Boot>
+    </BrowserRouter>
+  );
+}
 
-
-
-
-const p2 = (n) => String(n).padStart(2, "0");
-const WD = ["일", "월", "화", "수", "목", "금", "토"];
-function fmtNow() {
-  const d = new Date();
-  return `${d.getFullYear()}.${p2(d.getMonth() + 1)}.${p2(d.getDate())} `
-       + `(${WD[d.getDay()]}) ${p2(d.getHours())}:${p2(d.getMinutes())}`;
+function stamp() {
+  return new Date().toLocaleString("ko-KR", {
+    month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit",
+  });
 }
 
 createRoot(document.getElementById("root")).render(
-  <StrictMode>
-    <BrowserRouter>
-      <Routes>
-        {/* /hospital 로 들어오면 첫 부서로 보낸다. 부서 고르기 화면을
-            따로 두지 않는다 — 부서가 하나뿐이라 한 번 더 누르게 할
-            이유가 없다. 부서가 늘면 그때 만든다. */}
-        <Route path={ROOT} element={<Navigate to={deptPath(HOME)} replace />} />
-        <Route path={ROOT} element={<Shell />}>
-          {/* 병리과 — 명세의 라우트 그대로.
-              검체 번호가 주소에 들어간다(:id). 물음표 뒤가 아니라 경로다. */}
-          <Route path="pathology">
-            <Route index                         element={<PathSpecimens />} />
-            <Route path="specimens"              element={<PathPatients />} />
-            <Route path="specimens/:id/upload"   element={<PathUpload />} />
-            <Route path="read/:id"               element={<PathRead />} />
-            <Route path="read/:id/amend"         element={<PathAmend />} />
-          </Route>
-        </Route>
-        {/* ⚠ 뿌리 주소를 여기서 다루지 않는다. 그 자리는 환자 앱 것이다.
-            병원 웹은 /hospital 아래만 맡는다 — 한 저장소에 있을 뿐
-            서로 다른 물건이고, 뿌리를 가로채면 둘이 엉킨다. */}
-        <Route path="*" element={<div className="app"><Missing /></div>} />
-      </Routes>
-    </BrowserRouter>
-  </StrictMode>
+  <StrictMode><App /></StrictMode>,
 );

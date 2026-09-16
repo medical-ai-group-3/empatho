@@ -35,10 +35,36 @@ const COOKIE = "empatho_mock_staff";     // 환자 앱은 empatho_mock_session
 const OPEN_ALL = true;
 const OPEN = new Set([`${PREFIX}/auth/login`, `${PREFIX}/auth/logout`]);
 
-const send = (res, obj, code = 200) => {
+/* ── 응답 봉투 ──────────────────────────────────────────────────
+   실제 서버와 같은 모양으로 싸서 보낸다. 안 싸면 붙이는 날 화면이
+   전부 한 겹씩 어긋난다.
+
+     성공  { success:true,  data:…,   error:null, trace_id:"…" }
+     실패  { success:false, data:null, error:{code,message,details}, trace_id:"…" }
+
+   trace_id 는 헤더 X-Trace-Id 에도 실어 보낸다 — 화면이 헤더에서
+   줍는 길도 같이 시험해 보려고. */
+const traceId = () =>
+  "mock-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+
+const send = (res, data, code = 200) => {
+  const tid = traceId();
   res.statusCode = code;
   res.setHeader("content-type", "application/json; charset=utf-8");
-  res.end(JSON.stringify(obj));
+  res.setHeader("X-Trace-Id", tid);
+  res.end(JSON.stringify({ success: true, data, error: null, trace_id: tid }));
+};
+
+const fail = (res, code, message, status = 400, details = null) => {
+  const tid = traceId();
+  res.statusCode = status;
+  res.setHeader("content-type", "application/json; charset=utf-8");
+  res.setHeader("X-Trace-Id", tid);
+  res.end(JSON.stringify({
+    success: false, data: null,
+    error: { code, message, details },
+    trace_id: tid,
+  }));
 };
 
 /* 열쇠와 실제 주소를 맞춰 본다.
@@ -128,7 +154,7 @@ export default function hospitalMock() {
         } else if (path === `${PREFIX}/auth/logout`) {
           res.setHeader("Set-Cookie", `${COOKIE}=; Path=/; SameSite=Lax; Max-Age=0`);
         } else if (!OPEN_ALL && !signedIn && !OPEN.has(path)) {
-          return send(res, { code: "NOT_AUTHENTICATED", detail: "로그인이 필요합니다" }, 401);
+          return fail(res, "NOT_AUTHENTICATED", "로그인이 필요합니다", 401);
         }
 
         /* 요청마다 새로 읽는다 — 고치고 새로고침만 하면 반영된다 */
@@ -136,15 +162,13 @@ export default function hospitalMock() {
         try {
           db = JSON.parse(readFileSync(resolve(here, "hospital.json"), "utf-8"));
         } catch (e) {
-          return send(res, { code: "MOCK_BROKEN", detail: String(e) }, 500);
+          return fail(res, "MOCK_BROKEN", String(e), 500);
         }
 
         const hit = pick(db, req.method, req.url);
         if (hit === undefined) {
-          return send(res, {
-            code: "NOT_IN_MOCK",
-            detail: `mock/hospital.json 에 "${req.method} ${path}" 가 없다`,
-          }, 404);
+          return fail(res, "NOT_IN_MOCK",
+            `mock/hospital.json 에 "${req.method} ${path}" 가 없다`, 404);
         }
 
         // 사람이 기다리는 느낌. 즉답이면 「불러오는 중」을 못 본다
