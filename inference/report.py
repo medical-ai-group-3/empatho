@@ -12,7 +12,6 @@ import json
 import os
 import re
 import urllib.request
-import re
 
 from fastapi import FastAPI
 
@@ -65,7 +64,7 @@ def _ask(system: str, prompt:str, schema:dict, timeout:int = 100) -> dict:
         return json.loads(json.loads(r.read())["response"])
     
 def _done(socket_id: str, p, text:str, notes:list[str], fallback,
-          cited:list[str] | None = None, dropped:list[dict] | None = None):
+          cited:list[str] | None = None):
     """응답 한 벌을 만든다.
 
       p         이 소켓의 프롬프트 모듈
@@ -73,13 +72,16 @@ def _done(socket_id: str, p, text:str, notes:list[str], fallback,
       notes     안내 문장들. 모델을 거치지 않는다
       fallback  None 이면 모델이 쓴 것, 문자열이면 그 사유로 뼈대를 쓴 것
       cited     소견문이 실제로 인용한 근거 id
-      dropped   근거 검사가 버린 문장과 그 이유
 
     안내(notes)를 모델에 넘기지 않는 이유 — 「형태 지표를 믿지 마십시오」 같은
     문장은 다시 쓰면 뜻이 흐려지고, 받는 쪽이 「문제 없음」으로 읽는다.
 
-    뼈대로 되돌아간 갈래에는 cited·dropped 가 없다. 모델 출력을 통째로 버렸으니
+    뼈대로 되돌아간 갈래에는 cited 가 없다. 모델 출력을 통째로 버렸으니
     인용도 없는 것이 맞다 — 빈 목록으로 나간다.
+
+    dropped 는 늘 빈 목록이다. 「모델이 지어낸 인용을 문장 단위로 버린다」는
+    검사가 아직 없다 — 지금은 수치 검사에서 걸리면 출력을 통째로 버린다.
+    앱 서버의 dropped_sentence_log 자리를 비워 두는 것이라 키는 남긴다.
     """
     return {
         "socket_id": socket_id,
@@ -91,7 +93,7 @@ def _done(socket_id: str, p, text:str, notes:list[str], fallback,
         "fallback": fallback,
         # DB 의 evidence_links · dropped_sentence_log 로 간다.
         "evidence": cited or [],
-        "dropped": dropped or [],
+        "dropped": [],
     }
     
     
