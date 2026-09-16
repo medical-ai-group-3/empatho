@@ -36,6 +36,7 @@ import logging
 import time 
 import urllib.request
 import uuid 
+import base64
 
 from celery import shared_task 
 from .api.tickets import issue 
@@ -184,13 +185,16 @@ def run_inference(ai_result_id) :
         # MRI 응답은 대부분이 3D 메시다. 걷어내지 않으면 jsonb 한 칸이 그 크기가 된다.
         if modality == "mri" :
             out = _store_meshes(out, ai)
+        
+        elif modality == "pathology" :
+            out = _store_mask(out, ai)
             
         # ⑧ 결과를 행에 채운다. 저장은 마지막에 한 번만 한다.
         #    abstained 는 「판독을 못 했다」이고 실패(failed)와 다르다 — 호출은
         #    정상이었고 모델이 판정을 거부한 것이라 done 으로 남긴다.
         ai.result = out
         ai.abstained = bool(out.get("abstained"))
-        ai.abstain_reason = (out.get("reason") or "")[:100] or None
+        ai.abstain_reason = out.get("reason") or None
         ai.run_status = "done"
     except Exception as e:
         # 실패해도 행에 남긴다. 로그만 남기면 화면이 queue 인채로 멈춘다
@@ -199,7 +203,8 @@ def run_inference(ai_result_id) :
         # 자세한 내용은 logger.exception 이 남기는 traceback 에 있다.
         logger.exception("[run_inference] 행 %s 실패", ai.pk)
         ai.run_status = "failed"
-        ai.abstain_reason = f"{type(e).__name__}: {e}"[:100]
+        # 칸이 text 다(0013 이전에는 varchar(100) 이었다). 자르면 원인을 못 읽는다.
+        ai.abstain_reason = f"{type(e).__name__}: {e}"
         
     # ⑨ 성공 · 실패 어느 쪽이든 시간과 시각을 남기고 한 번 저장한다.
     #    try 안에서 저장하지 않는 이유는, 실패 경로에서도 같은 칸을 채워야
@@ -282,6 +287,78 @@ def _ref(ai, modality) :
     # 초음파 · 병리는 Garage 에 그대로 있다.
     return src.object_key
     
+def _upload_derived(ai, kind, payload, content_type, filename, source_id, lesion_id=None):
+    """파생물 하나를 Go 로 올리고 실제 주소를 받아 온다.
+
+    티켓에 꼬리표(종류 · 원본 · 실행)를 실어 서명한다. Go 가 그것을 파일 등록
+    콜백에 그대로 넘기고, Django 가 발급 때와 같은 함수로 다시 검증한다 —
+    파생물이 엉뚱한 실행에 붙지 않게 하는 자리다.
+
+    범위는 검사(영상) 아니면 검체(병리)다. ai_result 가 둘 중 하나만 가리킨다.
+
+    파라미터
+        kind          파생물 종류. mask · mesh_breast 처럼 티켓이 아는 이름
+        payload       올릴 바이트
+        content_type  Go 가 저장할 때 붙일 형식
+        filename      확장자만 쓰인다. 이름 전체는 Go 가 난수로 정한다
+        source_id     이 파생물이 나온 원본 행 번호
+        lesion_id     병변 메시만 쓴다
+
+    돌려주는 값
+        {"bucket": ..., "object_key": ...} — Go 가 실제로 저장한 주소
+    """
+    scope_kind = "study" if ai.study_id else "specimen"
+    scope_id = ai.study_id or ai.specimen_id
+    
+    derived = {
+        "kind": kind,
+        "source_object_id":source_id, 
+        "ai_result_id":ai.pk
+    }
+    if lesion_id:
+        derived["lesion_id"] = lesion_id
+        
+    token, _, _ = issue("derived_upload", scope_kind, scope_id,
+                        content_type=content_type, max_bytes=len(payload), 
+                        derived=derived)
+    req = urllib.request.Request(
+        f"{GATEWAY}/svc/v1/derived", data=payload, method="POST",
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": content_type,
+            "X-Filename" : filename,
+        }
+    )
+    with urllib.request.urlopen(req, timeout=300) as r :
+        saved = json.loads(r.read())
+    logger.info("[derived] %s %d 바이트 -> %s", kind, len(payload), saved["object_key"])
+    return saved
+
+def _store_mask(out, ai) :
+    """병리 조직 마스크 PNG 를 파생물로 보내고 결과에는 주소만 남긴다.
+
+    판독 서버가 (H,W) numpy 를 PNG 로 만들어 base64 로 실어 보낸다. 그 글자열을
+    그대로 결과에 두면 판독할 때마다 같은 그림이 DB 안에 쌓인다 — 파일로 옮기고
+    자리에는 주소를 남긴다. 뜻을 읽을 tissue_mask_legend 는 결과에 그대로 둔다.
+    """
+    res = (out.get("result") or {}) 
+    encoded = res.get("tissue_mask_png")
+    if not encoded :
+        return out 
+    
+    out = dict(out)
+    res = dict(res)
+    out["result"] = res
+    
+    saved = _upload_derived(ai, "mask", base64.b64decode(encoded),
+                            "image/png", "tissue_mask.png", ai.source_object_id)
+    res.pop("tissue_mask_png", None)
+    res["tissue_mask"] = {
+        "bucket": saved["bucket"],
+        "object_key": saved["object_key"], 
+        "content_type": "image/png"
+    }
+    return out 
     
 def _store_meshes(out, ai) :
     """MRI 메시를 파생물 버킷으로 보내고 결과에는 실제 주소만 남긴다.
@@ -336,29 +413,8 @@ def _store_meshes(out, ai) :
         # 함수로 다시 검증한다. 그래야 파생물이 엉뚱한 실행에 붙지 않는다.
         #   content_type  Go 가 저장할 때 붙일 형식
         #   max_bytes     이 파일 크기만큼만 허용. 넘으면 Go 가 받다가 끊는다
-        token, _, _ = issue("derived_upload", "study",
-                            ai.study_id, content_type=part.content_type, 
-                            max_bytes=part.byte_size, 
-                            derived={
-                                "kind": part.kind, 
-                                "source_object_id": source_id,
-                                "ai_result_id": ai.pk})
-        # X-Filename 은 Go 가 확장자를 떼어 쓰는 값이다. 이름 전체는 Go 가
-        # 난수로 정하므로 지금은 확장자만 전달되는 셈이다.
-        req = urllib.request.Request(
-            f"{GATEWAY}/svc/v1/derived", data=part.payload, method="POST",
-            headers={
-                "Authorization": f"Bearer {token}",
-                "Content-Type": part.content_type, 
-                "X-Filename": part.object_key.rsplit("/", 1)[-1]
-            }
-        )
-        with urllib.request.urlopen(req, timeout=300) as r :
-            saved = json.loads(r.read())
-        # 올린 뒤에야 실제 주소를 안다. 그 주소로 스텁을 고쳐야 나중에 이
-        # 결과에서 메시 파일을 찾아갈 수 있다.
+        saved = _upload_derived(ai, part.kind, part.payload, part.content_type, part.object_key.rsplit("/", 1)[-1], source_id)
         _walk_ref(inner, part.object_key, saved)
-        logger.info("[mesh] %s %d바이트 -> %s", part.kind, part.byte_size, saved["object_key"])
     return out
 
 def _walk_ref(node, planned_key, saved) :

@@ -329,7 +329,7 @@ func (h *headTap) Write(p []byte) (int, error) {
 
 // ── G-F4 ────────────────────────────────────────────────────────────
 func (g *gw) putFile(w http.ResponseWriter, r *http.Request) {
-	cl := g.auth(w, r, "dicom_upload", "report_pdf", "prescription_pdf")
+	cl := g.auth(w, r, "dicom_upload", "report_pdf", "prescription_pdf", "wsi_upload")
 	if cl == nil {
 		return
 	}
