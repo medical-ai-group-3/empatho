@@ -105,6 +105,9 @@ def object_key_prefix(scope_kind, scope_id):
 DERIVED_REQUIRED = {
     "overlay": ("source_object_id", "ai_result_id"),   # lesion 은 null 가능
     "thumbnail": ("source_object_id",),
+    # 판독 화면이 띄우는 원본 크기 그림. DICOM 을 워커가 PNG 로 바꾼 것이라
+    # AI 출력이 아니다 — ai_result_id 를 안 받는 이유가 그것이다.
+    "preview": ("source_object_id",),
     "mask": ("source_object_id", "ai_result_id"),
     "mesh_breast": ("source_object_id", "ai_result_id"),
     "mesh_dense": ("source_object_id", "ai_result_id"),

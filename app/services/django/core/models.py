@@ -43,8 +43,11 @@ READ_STATUS = ["pending", "draft", "finalized"]
 # mesh 가 셋인 이유 — MRI 는 유방 전체 · 치밀부위 · 병변 세 종류를 낸다.
 # 앞의 둘은 검사당 1개라 lesion 이 null 이고 뒤는 병변당 1개라 lesion 이 필수다.
 # 한 kind 로 두면 그 차이를 DB 가 못 걸고, lesion 이 null 인 두 행이 구분도 안 된다.
+# preview 와 thumbnail 은 다르다. thumbnail 은 목록에 쓰는 작은 그림이고
+# preview 는 판독 화면에 띄우는 원본 크기다. 개수도 다르다 — MRI 한 시리즈가
+# 176 장이면 preview 가 176 행인데 thumbnail 은 검사당 1 장이다.
 IMAGE_KIND = ["mask", "overlay", "mesh_breast", "mesh_dense", "mesh_lesion",
-              "heatmap", "thumbnail"]
+              "heatmap", "thumbnail", "preview"]
 READ_STAGE = ["draft", "final"]
 ACCESSION_STATUS = ["unbound", "bound", "accessioned"]
 DIAGNOSIS = ["benign", "malignant"]
@@ -83,10 +86,16 @@ FLAG_STATUS = ["pass", "sev1", "sev2", "review", "unbindable"]
 REVIEW_OPINION = ["agree", "object"]
 REPORT_TYPE = ["stage", "final"]
 AUDIENCE = ["clinician", "patient"]
-REPORT_SOCKET_ID = ["1", "3", "4", "4b", "7"]
+# 리포트를 낸 소켓. **실재하는 배치만** 둔다 —
+#   1 병리 · 3 MRI · 4b 맘모 · 5 초음파 · 7 종합
+# 4 는 재배치(4→5) 전의 초음파 번호라 뺐다. 요청 번호를 담는 SOCKET_ID
+# 쪽에는 4 · 2 가 그대로 있다 — 거기는 재배치 전 값이 들어오는 자리다.
+REPORT_SOCKET_ID = ["1", "3", "4b", "5", "7"]
 EXPLAIN_METHOD = ["대면", "유선", "영상"]
 SEVERITY = ["sev1", "normal"]
-NOTIFICATION_CHANNEL = ["app", "sms", "call_queue"]
+# sse 는 Go notify 허브가 I-3 으로 보내는 값이다 (cmd/notify/main.go 의
+# Channel: "sse"). 이미 보내고 있는데 목록에 없었다.
+NOTIFICATION_CHANNEL = ["app", "sms", "call_queue", "sse"]
 REF_TYPE = ["assessment", "discordance_flag", "report", "exam_order"]
 
 
@@ -509,6 +518,9 @@ class AiModel(AuditBase):
                                    blank=True, null=True)
     model_name = models.CharField(max_length=50, blank=True, null=True)
     model_version = models.CharField(max_length=100, blank=True, null=True)
+    # 검출기 판. 분류기(model_version)와 따로 올라가는 소켓이 있어 한 칸에
+    # 담으면 어느 쪽이 바뀌었는지 구분이 안 된다.
+    det_version = models.CharField(max_length=100, blank=True, null=True)
     lora_version = models.CharField(max_length=100, blank=True, null=True)
     threshold_version = models.CharField(max_length=30, blank=True, null=True)
     operating_point = models.CharField(max_length=100, blank=True, null=True)
@@ -545,7 +557,10 @@ class AiResult(AuditBase):
     # Garage 로 보내고, 자리에는 (bucket, object_key) 스텁만 남는다.
     result = models.JSONField(blank=True, null=True)
     abstained = models.BooleanField(blank=True, null=True)      # 봉투 기권
-    abstain_reason = models.CharField(max_length=100, blank=True, null=True)
+    # 100 자로는 모자란다. 추론 서버가 긴 사유를 보내면 varchar 가 DataError 를
+    # 내고 **AI 결과 저장이 통째로 실패한다** — 기권은 정상 종료인데 기록이
+    # 안 남는 셈이다.
+    abstain_reason = models.TextField(blank=True, null=True)
     run_status = models.CharField(max_length=20, choices=as_choices(RUN_STATUS),
                                   blank=True, null=True)
     requested_by = models.ForeignKey(Staff, models.PROTECT, blank=True, null=True,
@@ -565,7 +580,12 @@ class AiResult(AuditBase):
 
 
 class Lesion(AuditBase):
-    """병변 1개. 판정 · 검체 · 대조가 모두 여기에 붙는 허브다."""
+    """병변 1개. 판정 · 검체 · 대조가 모두 여기에 붙는 허브다.
+
+    **병변은 영상이 만든다. 검체가 거기 매달린다.** 그래서 영상 판독 없이
+    병리만 도는 경로는 구조상 없다 — specimen.lesion_id 가 NOT NULL 인 것이
+    그 뜻이고, 사후에 이어 붙일 수 없어서 Hard Stop 으로 둔 것이다.
+    """
 
     lesion_id = models.BigAutoField(primary_key=True)
     study = models.ForeignKey(Study, models.PROTECT, related_name='lesions')
@@ -831,6 +851,14 @@ class Report(AuditBase):
 
     class Meta:
         db_table = 'report'
+        constraints = [
+            # lesion_modality_ck 와 같은 누락이었다 — 값 집합은 정의해 뒀는데
+            # CHECK 을 안 걸어서 DB 가 아무 문자열이나 받았다.
+            models.CheckConstraint(
+                condition=Q(socket_id__in=REPORT_SOCKET_ID)
+                | Q(socket_id__isnull=True),
+                name='report_socket_id_ck'),
+        ]
 
 
 class Notification(AuditBase):
@@ -860,6 +888,12 @@ class Notification(AuditBase):
         constraints = [
             models.CheckConstraint(condition=Q(notification_type__in=NOTIFICATION_TYPE),
                                    name='notification_type_ck'),
+            # choices 만 있고 CHECK 이 없었다. choices 는 폼 검증이라
+            # I-3 콜백처럼 .save() 로 들어오는 값은 아무거나 통과한다.
+            models.CheckConstraint(
+                condition=Q(channel__in=NOTIFICATION_CHANNEL)
+                | Q(channel__isnull=True),
+                name='notification_channel_ck'),
             # 환자 아니면 의료진, 정확히 하나
             models.CheckConstraint(
                 condition=(Q(patient__isnull=False) & Q(staff__isnull=True))
