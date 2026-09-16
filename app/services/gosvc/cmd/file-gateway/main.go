@@ -410,6 +410,14 @@ func (g *gw) putTo(w http.ResponseWriter, r *http.Request, cl *ticket.Claims,
 	// capReader 는 상한을 넘는 순간 읽기를 실패시켜 Put 자체를 중단시킨다.
 	h := sha256.New()
 	key := keyFor(cl, r.Header.Get("X-Filename"))
+	// 앞머리 밖으로 나가는 object_name 이면 keyFor 가 빈 문자열을 낸다.
+	// 그대로 넘기면 앞머리 없이 저장소 뿌리에 쓴다 — 경계가 사라진다.
+	// 티켓은 Django 가 서명하니 클라이언트가 지어낼 수는 없지만,
+	// 이름을 제일 먼저 쓰는 곳이 파생물이라 발급 쪽 실수가 바로 여기로 온다.
+	if key == "" {
+		fail(w, 400, "BAD_OBJECT_NAME", "티켓의 object_name 을 쓸 수 없습니다")
+		return
+	}
 	cr := &capReader{r: r.Body, limit: max}
 	tap := &headTap{max: headBytes}
 	ct := cl.ContentType
