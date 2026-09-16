@@ -17,6 +17,8 @@ https://empatho.example.com/
 | `/api/…` | Django |
 | `/admin/` | Django 관리자 |
 | `/svc/v1/upload/…` · `/svc/v1/files/…` | file-gateway |
+| `/svc/v1/derived/…` | file-gateway (읽기 전용) |
+| `/svc/v1/dicom/…` | file-gateway → **Orthanc** (읽기 전용) |
 | `/svc/v1/llm/…` | llm-proxy |
 | `/svc/v1/notify/…` | notify (`/stream` 은 SSE) |
 | `/internal/…` | **404 로 막는다.** Go → Django 콜백 전용이라 밖에 열릴 이유가 없다 |
@@ -24,6 +26,30 @@ https://empatho.example.com/
 
 `/svc/v1/health` 는 file-gateway 것이다. llm-proxy 와 notify 는
 `/svc/v1/llm/health` · `/svc/v1/notify/health` 를 각자 갖고 있다.
+
+### DICOM 은 Garage 가 아니라 Orthanc 에 있다
+
+맘모와 MRI 만 DICOM 이다. 초음파와 병리는 PNG 로 Garage 에 있다.
+
+```
+GET /svc/v1/dicom/instances/{sop}   맘모 한 장 (원본 DICOM)
+GET /svc/v1/dicom/series/{id}       MRI 시리즈 (zip)
+```
+
+브라우저가 Orthanc 에 직접 가지 않는다. Go 가 감싸서 흘려보낸다 — Orthanc 는
+nginx 밖에 안 열려 있고, 계정도 Go 만 들고 있다.
+
+⚠ **티켓 규칙이 파일과 다르다.** 일반 파일은 티켓의 `ObjectKeyPrefix` 로
+**시작만** 보지만, DICOM 은 **정확히 일치**해야 한다
+(`file-gateway/main.go` 의 `fromOrthanc`).
+
+```
+파일    티켓 하나로 그 검체의 여러 장을 받는다
+DICOM   영상 한 건에 티켓 하나다 — 맘모 4장이면 티켓 4개
+```
+
+`dicom/series/ab` 티켓으로 `ab12` 를 여는 것을 막으려고 그렇게 돼 있다.
+화면에서 티켓을 재사용하려다 403 `TICKET_SCOPE_MISMATCH` 를 만나면 이것이다.
 
 ---
 
