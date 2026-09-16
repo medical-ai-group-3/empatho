@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { api } from "../../../api";
+import { breast as api } from "../../../api";
 
 /* 검체 바인딩 팝업 — 간호과와 완전히 같은 컴포넌트를 재사용하는 것이
  * 원칙이다(§2-4). 간호과 쪽 구현이 아직 이 저장소에 없어 지금은 동일

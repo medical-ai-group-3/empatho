@@ -31,3 +31,15 @@ Thumbs.db
 ehthumbs.db
 Desktop.ini
 $RECYCLE.BIN/
+
+# 샘플 의료 데이터 — 용량이 커서(DICOM 시리즈, GLB/STL 3D 모델, NIfTI 볼륨)
+# 저장소에 올리지 않는다. 유방외과 뷰어를 로컬에서 보려면 이 폴더들을 직접
+# 채워야 한다 (staff-view 를 합치면서 그쪽 .gitignore 에서 옮겨 왔다):
+#   public/dicom/   — DICOM 시리즈(.dcm) + manifest.json
+#   public/mesh/    — 세그멘테이션 병변 메시(.json)
+#   public/models/  — 인체 모델(.glb) · DUKE 흉부/병변 STL
+#   public/samples/ — 맘모/초음파/병리 샘플 이미지, NIfTI(.nii) MRI 볼륨
+public/dicom/
+public/mesh/
+public/models/
+public/samples/

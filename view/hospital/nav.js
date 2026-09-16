@@ -12,6 +12,11 @@
  *   3장  판독         원본 + 마스크를 보고 소견을 쓴다. 저장하면 유방외과로
  *   4장  전체 목록    지난 것까지 전부. 찾아보는 자리
  *   5장  판독 정정    이미 확정한 판독을 고친다. 이력이 남는다
+ *
+ * ⚠ **유방외과는 이 다섯 장과 모양이 다르다.** 집는 절차가 없고(내 환자가
+ *   곧 큐다) 올리는 단계도 없다. 대신 검사 오더 · 검체 바인딩 · 수술 결정 ·
+ *   불일치 처분이 있다. 그래서 화면 수도 구성도 다르다 — 이걸 담으려고
+ *   라우트를 「다섯 장 고정」에서 use 기반으로 바꿨다 (main.jsx 참고).
  */
 
 export const HOSPITAL = "미래 대학병원";
@@ -27,6 +32,10 @@ export const ROOT = "/hospital";
  *
  * screens 의 각 줄
  *   key    라우트 조각. "" 면 그 부서의 첫 화면
+ *   use    **어느 화면 뼈대를 쓰는가.** main.jsx 의 SCREENS 표에 있는 이름.
+ *          과마다 화면 수와 구성이 다를 수 있어서 위치가 아니라 이름으로
+ *          고른다 — 전에는 «다섯 장이 이 순서»라고 박아 두었는데, 그러면
+ *          다섯 장이 아닌 과를 못 넣는다
  *   menu   상단 메뉴에 보일 짧은 이름
  *   title  화면 제목
  *   sub    한 줄 설명 — **이 화면이 무엇을 하는 자리인지**
@@ -39,23 +48,23 @@ const DEPTS = [
     name: "병리과",
     who: { name: "박민재", role: "교수" },
     screens: [
-      { key: "", menu: "검체 접수", title: "검체 접수 대기",
+      { key: "", use: "queue", menu: "검체 접수", title: "검체 접수 대기",
         sub: "간호·유방외과가 바인딩을 끝낸 검체가 순서대로 뜹니다. 집으면 다른 선생님 화면에서 사라집니다.",
         need: "pathology.queue.view" },
 
-      { key: "specimens", menu: "환자 목록", title: "전체 환자 목록",
+      { key: "specimens", use: "list", menu: "환자 목록", title: "전체 환자 목록",
         sub: "지난 검체까지 전부 찾아보는 자리입니다. 판독 정정도 여기서 들어갑니다.",
         need: "pathology.list.view" },
 
-      { key: "specimens/:id/upload", menu: "업로드", title: "조직 이미지 업로드",
+      { key: "specimens/:id/upload", use: "upload", menu: "업로드", title: "조직 이미지 업로드",
         sub: "크롭 조직 이미지를 올리고 AI 분석을 겁니다. 분석이 끝나야 판독으로 넘어갑니다.",
         need: "pathology.upload.view", deep: true },
 
-      { key: "read/:id", menu: "판독", title: "병리 판독",
+      { key: "read/:id", use: "read", menu: "판독", title: "병리 판독",
         sub: "원본 조직 이미지에 AI 분할 마스크를 얹어 보고 소견을 씁니다. 저장하면 유방외과로 전송됩니다.",
         need: "pathology.read.view", deep: true },
 
-      { key: "read/:id/amend", menu: "판독 정정", title: "병리 판독 정정",
+      { key: "read/:id/amend", use: "amend", menu: "판독 정정", title: "병리 판독 정정",
         sub: "이미 확정한 판독을 고칩니다. 옛 값은 지워지지 않고 이력에 남습니다.",
         need: "pathology.amend.view", deep: true },
     ],
@@ -66,25 +75,48 @@ const DEPTS = [
     name: "영상의학과",
     who: { name: "김지현", role: "교수" },
     screens: [
-      { key: "", menu: "촬영 대기", title: "촬영 대기 큐",
+      { key: "", use: "queue", menu: "촬영 대기", title: "촬영 대기 큐",
         sub: "유방외과가 낸 오더 중 아직 아무도 집지 않은 것이 뜹니다. 집으면 다른 선생님 화면에서 사라집니다.",
         need: "radiology.queue.view" },
 
-      { key: "patients", menu: "환자 목록", title: "전체 환자 목록",
+      { key: "patients", use: "list", menu: "환자 목록", title: "전체 환자 목록",
         sub: "지난 검사까지 전부 찾아보는 자리입니다. 판독 정정도 여기서 들어갑니다.",
         need: "radiology.list.view" },
 
-      { key: "studies/:id/upload", menu: "업로드", title: "촬영 업로드",
+      { key: "studies/:id/upload", use: "upload", menu: "업로드", title: "촬영 업로드",
         sub: "촬영본을 올리고 AI 분석을 겁니다. 분석이 끝나야 판독으로 넘어갑니다.",
         need: "radiology.upload.view", deep: true },
 
-      { key: "read/:id", menu: "판독", title: "영상 판독",
+      { key: "read/:id", use: "read", menu: "판독", title: "영상 판독",
         sub: "원본 영상에 AI 오버레이를 얹어 보고 소견을 씁니다. 저장하면 유방외과로 전송됩니다.",
         need: "radiology.read.view", deep: true },
 
-      { key: "read/:id/amend", menu: "판독 정정", title: "영상 판독 정정",
+      { key: "read/:id/amend", use: "amend", menu: "판독 정정", title: "영상 판독 정정",
         sub: "이미 확정한 판독을 고칩니다. 새 판독 행이 생기고 옛 행이 그것을 가리킵니다.",
         need: "radiology.amend.view", deep: true },
+    ],
+  },
+
+  {
+    key: "breast",
+    name: "유방외과",
+    who: { name: "서나영", role: "교수" },
+    screens: [
+      { key: "", use: "breast.waiting", menu: "대기 환자", title: "대기 환자",
+        sub: "내 환자 목록입니다. 병리·영상과 달리 집는 절차가 없습니다 — 주치의로 배정된 환자가 곧 큐입니다.",
+        need: "breast.waiting.view" },
+
+      { key: "patients/:id/review", use: "breast.review", menu: "검사 종합", title: "검사 종합 확인",
+        sub: "영상과 병리 결과를 함께 놓고 봅니다.",
+        need: "breast.review.view", deep: true },
+
+      { key: "patients/:id/decision", use: "breast.decision", menu: "수술 결정", title: "수술 결정",
+        sub: "치료 방침을 정하고 리포트를 확정합니다.",
+        need: "breast.decision.view", deep: true },
+
+      { key: "discordances/:id", use: "breast.discordance", menu: "판정 불일치", title: "판정 불일치 처분",
+        sub: "영상 판정과 병리 확진이 갈린 건입니다. 어느 쪽을 따를지 정합니다.",
+        need: "breast.discordance.view", deep: true },
     ],
   },
 ];
@@ -119,6 +151,7 @@ export function menuScreens(d) {
  */
 const P = `${ROOT}/pathology`;
 const R = `${ROOT}/radiology`;
+const B = `${ROOT}/breast`;
 
 export const go = {
   /* ⚠ 과 바깥이다. 사람은 과에 딸린 것이 아니라서 /hospital/me 로 둔다 */
@@ -137,5 +170,15 @@ export const go = {
     upload: (id) => `${R}/studies/${id}/upload`,
     read:   (id) => `${R}/read/${id}`,
     amend:  (id) => `${R}/read/${id}/amend`,
+  },
+
+  /* ⚠ 유방외과는 이름이 다르다. queue/list/upload/read/amend 를 억지로
+     맞추면 「read 가 뭐였지」를 매번 되묻게 된다 */
+  breast: {
+    queue:       () => B,
+    waiting:     () => B,
+    review:      (id) => `${B}/patients/${id}/review`,
+    decision:    (id) => `${B}/patients/${id}/decision`,
+    discordance: (id) => `${B}/discordances/${id}`,
   },
 };

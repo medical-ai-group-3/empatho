@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import * as cornerstone from "@cornerstonejs/core";
 import * as cornerstoneTools from "@cornerstonejs/tools";
-import { ensureCornerstoneInit } from "../depts/breast/components/cornerstoneInit";
+import { ensureCornerstoneInit } from "./cornerstoneInit";
 
 /* MRIReviewGrid의 오른쪽 2D 세 칸(Axial/Coronal/Sagittal) — 예전엔
  * NiftiSliceViewer(nifti-reader-js + <canvas>)로 만든 임시 뷰어였다.
@@ -49,6 +49,7 @@ export default function DicomMprPanel({ manifestUrl, baseUrl }) {
 
     let cancelled = false;
     let renderingEngine;
+    let resizeObserver;
 
     async function run() {
       setStatus("loading");
@@ -114,6 +115,20 @@ export default function DicomMprPanel({ manifestUrl, baseUrl }) {
 
         renderingEngine.render();
         if (!cancelled) setStatus("ready");
+
+        /* Suspense(지연 로딩)로 마운트되는 화면이라, setViewports 시점에
+         * 컨테이너가 아직 레이아웃을 못 받아 0 크기였을 수 있다 — 그러면
+         * 캔버스가 기본값(300×150)으로 굳어 새까맣게 보인다. 또한 좌우
+         * 슬라이드 패널이 접히고 펼쳐질 때도 뷰포트 크기가 바뀐다.
+         * ResizeObserver로 실제 크기 변화를 감지해 매번 다시 맞춘다. */
+        const observed = [axialRef.current, coronalRef.current, sagittalRef.current]
+          .filter(Boolean);
+        resizeObserver = new ResizeObserver(() => {
+          if (cancelled) return;
+          renderingEngine.resize(true, false);
+          renderingEngine.render();
+        });
+        observed.forEach((el) => resizeObserver.observe(el));
       } catch (e) {
         console.error("[DicomMprPanel]", e);
         if (!cancelled) { setError(e.message || String(e)); setStatus("error"); }
@@ -124,6 +139,7 @@ export default function DicomMprPanel({ manifestUrl, baseUrl }) {
 
     return () => {
       cancelled = true;
+      resizeObserver?.disconnect();
       try {
         cornerstoneTools.ToolGroupManager.getToolGroup(TOOL_GROUP_ID)?.removeViewports(RENDERING_ENGINE_ID);
       } catch { /* 툴그룹이 아직 없을 수 있다 */ }

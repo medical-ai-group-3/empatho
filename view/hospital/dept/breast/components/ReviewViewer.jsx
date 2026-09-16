@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { api } from "../../../api";
+import { breast as api } from "../../../api";
 import { useApi } from "../../../lib/useApi";
-import { Body } from "../../../lib/Screen";
-import MRIReviewGrid from "../../../components/MRIReviewGrid";
+import { Body } from "../../../lib/Body";
+import MRIReviewGrid from "./MRIReviewGrid";
 
 const MODALITIES = ["맘모", "초음파", "MRI", "병리"];
 

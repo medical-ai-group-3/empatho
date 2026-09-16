@@ -122,7 +122,53 @@ export const ERR = {
   NETWORK:          "NETWORK",            // status 0 · 서버에 못 닿았다 (우리가 만든 것)
 };
 
-async function call(method, path, body) {
+/* ── access 만료 시 조용히 갱신 ────────────────────────────────
+ *
+ * access 는 30분이고 판독은 한 건에 20~30분씩 걸린다. 저장을 누르는
+ * 순간이 딱 경계라, 그냥 두면 **써 둔 소견이 날아간다.** 401 을 받으면
+ * 한 번 갱신하고 원래 요청을 다시 보낸다.
+ *
+ *   POST /api/v1/token/refresh   본문 없음 → { access }
+ *
+ * ⚠ **본문에 refresh 를 싣지 않는다.** 서버가 httpOnly 쿠키에서 직접
+ *   읽는다. 그래서 JS 는 refresh 값을 아예 모른다 — credentials:"include"
+ *   가 쿠키를 실어 보내는 것이 전부다. 그게 빠지면 쿠키가 안 가서
+ *   갱신이 401 로 떨어진다 (전에 났던 사고다).
+ *
+ * 한 번에 하나만 돈다. 화면 여러 곳이 동시에 401 을 맞아도 갱신은 한 번만
+ * 부르고 나머지는 그 결과를 기다린다 — 안 그러면 갱신을 네댓 번 부른다.
+ */
+let refreshing = null;
+
+/* 갱신된 access 를 저장소에도 반영해야 한다. 그 일은 lib/session.js 가
+   하는데 그쪽이 이 파일을 import 하고 있어서, 여기서 부르면 서로 물린다.
+   그래서 session.js 가 자기를 등록하고 여기서는 부르기만 한다. */
+let onRefreshed = null;
+export const setOnRefreshed = (fn) => { onRefreshed = fn; };
+
+async function refreshAccess() {
+  refreshing ??= (async () => {
+    try {
+      const d = await call("POST", "/token/refresh", undefined, { noRetry: true });
+      const next = d?.access ?? null;
+      if (!next) return null;
+      setToken(next);
+      onRefreshed?.(next);
+      return next;
+    } catch {
+      return null;               /* 갱신도 실패 — 다시 로그인하는 수밖에 없다 */
+    } finally {
+      refreshing = null;
+    }
+  })();
+  return refreshing;
+}
+
+/* 갱신을 시도하면 안 되는 경로. 로그인·로그아웃은 애초에 토큰이 없거나
+   버리는 중이고, 갱신 자신에게 갱신을 걸면 무한히 돈다 */
+const NO_RETRY = new Set(["/login", "/logout", "/token/refresh"]);
+
+async function call(method, path, body, opt = {}) {
   let res;
   try {
     res = await fetch(BASE + path, {
@@ -132,6 +178,8 @@ async function call(method, path, body) {
         ...(token ? { Authorization: `Bearer ${token}` } : null),
       },
       body: body ? JSON.stringify(body) : undefined,
+      /* ⚠ 빼지 말 것. refresh 가 httpOnly 쿠키에 있어서 이게 없으면
+         쿠키가 안 실린다 — 로그인도 갱신도 못 한다 */
       credentials: "include",
     });
   } catch (e) {
@@ -141,6 +189,13 @@ async function call(method, path, body) {
       status: 0, code: ERR.NETWORK, detail: e?.message ?? null,
       fields: null, traceId: null,
     });
+  }
+
+  /* 401 — access 가 만료됐다. 한 번 갱신하고 그대로 다시 보낸다.
+     갱신도 실패하면 아래로 흘려보내 평소대로 401 오류가 되게 한다 */
+  if (res.status === 401 && !opt.noRetry && !NO_RETRY.has(path)) {
+    const next = await refreshAccess();
+    if (next) return call(method, path, body, { noRetry: true });
   }
 
   const traceId = res.headers.get("X-Trace-Id");
@@ -168,9 +223,65 @@ function qs(o = {}) {
   return e.length ? `?${new URLSearchParams(e)}` : "";
 }
 
+/* ── 로그인 ───────────────────────────────────────────────────
+ * 경로를 다희님 브랜치에서 확인했다 — 맞는 것은 /login 이다.
+ * 환자 앱(src/api.js)이 쓰는 /auth/login 은 백엔드에 없는 경로다.
+ *
+ *   POST /api/v1/login  { login_id, password }  →  { access }
+ *
+ * ⚠ **본문에 refresh 가 없다** (2026-09-16 백엔드 확인). refresh 는
+ *   Set-Cookie 로만 내려온다 — httpOnly · Secure · SameSite=None.
+ *   JS 가 못 읽는 자리라 우리가 들고 있을 것이 없다. 앞뒤 화면이
+ *   다른 origin 이라 Lax 가 아니라 None 이고, 그래서 Secure 가 필수다.
+ *
+ * 받은 access 는 lib/session.js 가 setToken() 에 끼운다.
+ * ⚠ 응답에 role · perms 가 없다. 그건 아래 me() 가 가져온다. */
+export const login = (loginId, password) =>
+  post("/login", { login_id: loginId, password });
+
 /* ── 로그인한 사람 ────────────────────────────────────────────
- * perms 배열이 여기 실려 온다. perm.js 의 setMe() 에 넣어 쓴다. */
+ * perms 배열이 여기 실려 온다. perm.js 의 setMe() 에 넣어 쓴다.
+ *
+ * updateMe 는 **본인이 고칠 수 있는 것만** 보낸다 — 이름 · 이메일 ·
+ * 연락처 · 알림 설정. 소속 · 사번 · 직책 · 권한은 관리자 몫이라 화면에서
+ * 읽기 전용으로 띄우고 여기로 안 보낸다.
+ *
+ * 부분 갱신이라 PUT 이 아니라 **PATCH 가 맞는 모양**이지만, staff-view 가
+ * 이미 PUT 으로 쓰고 있어서 맞춰 둔다. 서버가 정해지면 한 줄만 고친다.
+ */
 export const me = () => get("/me");
+export const updateMe = (b) => put("/me", b);
+
+/* ── 로그아웃 ────────────────────────────────────────────────
+ *
+ * 경로는 POST /api/v1/logout 이 맞다 (2026-09-16 백엔드 확인).
+ *
+ * ⚠ **지금 이 로그아웃은 절반만 한다.** 서버가 refresh 쿠키를 지울 뿐
+ *   서버 쪽 refresh 토큰 자체를 무효화하지 않는다 — 폐기 저장소(Redis)가
+ *   들어와야 성립하고, 그건 이번 판 범위 밖이라고 회신받았다.
+ *   그래서 **쿠키를 손에 넣은 사람은 14일 동안 계속 쓸 수 있다.**
+ *   공용 PC 를 쓰는 화면이라 팀에서 따로 정해야 할 사안이다.
+ *
+ * 서버를 부르는 것이 **핵심이다.** 화면에서 토큰만 버리면 브라우저에서만
+ * 사라지고 서버 쪽 refresh 토큰은 만료까지 살아 있어서, 실제로는
+ * 로그아웃이 안 된 상태가 된다.
+ *
+ * 서버가 실패해도 토큰은 버린다. 「로그아웃을 눌렀는데 로그인된 채로
+ * 남는」 것이 제일 나쁘다 — 공용 PC 에서 자리를 뜬 뒤다.
+ *
+ * ⚠ 여기서 버리는 것은 **이 파일이 들고 있는 토큰뿐이다.** 저장소
+ *   (sessionStorage)는 lib/session.js 가 들고 있다. 화면은 이것과 함께
+ *   session.js 의 signOut() 도 불러야 한다 — 안 그러면 새로고침에
+ *   토큰이 되살아난다. 여기서 session.js 를 부르지 않는 이유는 그쪽이
+ *   이 파일을 import 하고 있어서 서로 물리기 때문이다.
+ */
+export async function logout() {
+  try {
+    return await post("/logout");
+  } finally {
+    setToken(null);
+  }
+}
 
 /* ── 병리과 ───────────────────────────────────────────────────
  * 판독 단위는 검체(specimen) 다. */
@@ -212,13 +323,22 @@ export const path = {
 const RAD = "/radiology";
 
 export const rad = {
-  /* 병리와 같은 모양으로 통일됐다 (2026-09-16 확인).
-     명세에 질의로 적혀 있던 것은 통일 전 표기다 */
-  queue:      ()       => get("/exam-orders/queue"),
+  /* ⚠ 서버는 큐를 **기본 필터 없이** 준다 (2026-09-16 다희님 확인).
+     병리와 같은 사정인데 값이 다르다 — 영상은 status=ordered 다.
+     안 담으면 이미 촬영·배정이 끝난 건까지 대기 큐에 섞인다.
+
+     ⚠ 다희님 회신에 이 경로가 두 가지로 적혀 있었다. 표에는
+       GET /exam-orders/queue, 접두 설명에는 radiology/queue 다.
+       어느 쪽인지 되물어 두었고, 답이 올 때까지 표 쪽을 따른다 —
+       지금까지 쓰던 것이고 목업도 그 모양이다. */
+  queue:      ()       => get(`/exam-orders/queue${qs({ status: "ordered", assigned: "none" })}`),
   order:      (id)     => get(`/exam-orders/${id}`),
   assign:     (id)     => patch(`/exam-orders/${id}/assign`),
 
-  uploadInfo: (id)     => get(`/studies/${id}/upload`),
+  /* ⚠ **과 이름이 붙는다.** /studies/{id}/upload 가 아니라
+     /radiology/studies/{id}/upload 다 (2026-09-16 정정). 판독 조회와
+     같은 자리에 있다. 전에 「판독 조회만 붙는다」고 들었던 것이 틀렸다. */
+  uploadInfo: (id)     => get(`${RAD}/studies/${id}/upload`),
   ticket:     (b)      => post("/tickets", b),
   complete:   (id)     => patch(`/exam-orders/${id}/complete`),
   analyze:    (id)     => post(`/studies/${id}/ai-results`),
@@ -229,16 +349,65 @@ export const rad = {
   draft:      (id, b)  => put(`/studies/${id}/assessment/draft`, b),
   finalize:   (id, b)  => patch(`/studies/${id}/finalize`, b),
 
-  addLesion:  (b)      => post("/lesions", b),
-  falsePos:   (id)     => patch(`/lesions/${id}`, { is_false_positive: true }),
+  /* ⚠ 여기 넷만 슬래시가 붙는다 (2026-09-16 다희님이 경로를 콕 집어 주심).
+     ⚠ 다만 회신 안에 모순이 있어 되물어 두었다 — 「병리와 같은 규칙,
+       목록·생성만」이라고 하시면서 정작 상세(/studies/{id}/)와
+       수정(/lesions/{id}/)을 같이 적으셨다. 병리는 상세에 슬래시가 없다.
 
-  study:      (id)     => get(`/studies/${id}`),
-  list:       (o = {}) => get(`/studies${qs(o)}`),
+       **PATCH 가 걸리면 조용히 깨진다.** Django APPEND_SLASH 는 슬래시가
+       모자라면 301 로 넘겨 주는데, 그 과정에서 본문이 사라진다. falsePos 가
+       200 을 받고도 아무것도 안 바뀌는 모양이 된다.
+       일단 적어 주신 그대로 따른다. */
+  addLesion:  (b)      => post("/lesions/", b),
+  falsePos:   (id)     => patch(`/lesions/${id}/`, { is_false_positive: true }),
+
+  study:      (id)     => get(`/studies/${id}/`),
+  list:       (o = {}) => get(`/studies/${qs(o)}`),
   history:    (id)     => get(`/assessments${qs({ study: id })}`),
   amend:      (id, b)  => post(`/assessments/${id}/amend`, b),
 };
 
+/* ── 유방외과 ─────────────────────────────────────────────────
+ * 판독 단위가 없다. **환자가 단위다.**
+ *
+ * 병리·영상과 결이 다르다 — 집는 절차가 없고(주치의로 배정된 환자가 곧
+ * 큐다) 파일을 올리는 단계도 없다. 대신 다른 과로 일을 **내보내는** 쪽이다:
+ *   검사 오더  → 영상의학과 대기 큐에 오더가 생긴다
+ *   검체 바인딩 → 병리과 대기 큐에 검체가 생긴다
+ * 그래서 queue/upload/read/amend 이름을 억지로 맞추지 않는다.
+ *
+ * 2026-09-16 — staff-view/src/api.js 에서 옮겨 왔다. 그쪽은 봉투를 안
+ * 벗기는 자체 call() 을 쓰고 있었는데, 여기 call() 은 벗겨서 준다.
+ * 화면은 그대로 두고 이 층만 갈아 끼우면 된다. */
+export const breast = {
+  /* 1장 · 대기 환자 */
+  waiting:      ()   => get(`/patients${qs({ primary_staff: "me", status: "waiting" })}`),
+  patient:      (id) => get(`/patients/${id}`),
+  examOrder:    (b)  => post("/exam-orders", b),
+  openDiscords: (pid) => get(`/discordances${qs({ patient: pid, status: "open" })}`),
+
+  /* 검체 바인딩 (팝업) — 병리과 대기 큐로 넘어간다 */
+  lesions:      (pid) => get(`/lesions${qs({ patient: pid })}`),
+  bindSpecimen: (b)  => post("/specimens", b),
+
+  /* 2장 · 검사 종합 확인 */
+  timeline:     (pid) => get(`/patients/${pid}/timeline`),
+  studies:      (pid) => get(`/patients/${pid}/studies`),
+  finalReport:  (pid) => get(`/reports${qs({ patient: pid, type: "final" })}`),
+
+  /* 3장 · 수술 결정 */
+  assess:       (b)  => post("/assessments", b),
+  saveReport:   (rid, b) => put(`/reports/${rid}`, b),
+  explain:      (rid, b) => patch(`/reports/${rid}/explain`, b),
+  unlockStatus: (rid) => get(`/reports/${rid}/unlock-status`),
+  unlock:       (rid) => patch(`/reports/${rid}/unlock`, {}),
+
+  /* 4장 · 판정 불일치 처분 */
+  discordance:  (id) => get(`/discordances/${id}`),
+  dispose:      (id, b) => patch(`/discordances/${id}/dispose`, b),
+};
+
 /* 부서 key 로 골라 쓴다 — 공통 화면들이 이걸로 갈라 부른다 */
-export const byDept = { pathology: path, radiology: rad };
+export const byDept = { pathology: path, radiology: rad, breast };
 
 export const apiInfo = { base: BASE, mock: BASE === MOCK };
