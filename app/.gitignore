@@ -25,3 +25,10 @@ services/gosvc/bin/
 # vendor 는 커밋하지 않는다 — minio-go 때문에 17MB 다.
 # 처음 받는 사람은 `go mod download` 한 번이면 된다.
 services/gosvc/vendor/
+
+# 웹 — npm 산출물은 커밋하지 않는다.
+# 한 번 들어온 적이 있다(aee38f7, node_modules 616개). 받는 사람은
+# `npm install` 한 번이면 된다.
+services/web/node_modules/
+services/web/dist/
+services/web/.vite/
