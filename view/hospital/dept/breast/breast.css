@@ -187,15 +187,50 @@
 @media (max-width:760px) {.breast .cols2 {grid-template-columns:1fr}}
 
 /* ── 검사 종합 확인 (화면2) ─────────────────── */
+/* 좌우 패널 너비를 --left-w/--right-w로 받는다(Review.jsx가 접힘
+   상태에 따라 인라인으로 넣어준다) — 접으면 34px 얇은 띠로 줄고,
+   그만큼 가운데 뷰어(1fr) 열이 자동으로 넓어진다. */
+/* 세 칸(진료 이력 · 뷰어 · 리포트) 높이를 여기서 하나로 고정한다 —
+   그전엔 align-items:start라 각 칸이 자기 내용물 높이대로(병리 원본
+   이미지는 원본 크기, MRI 패널은 자기 min-height 등) 제각각 자라서
+   옆줄이 들쑥날쑥했다. 이제 행 높이를 뷰포트 기준으로 한 번 정하고,
+   stretch로 세 칸을 그 높이에 맞춘 다음 각 칸 안에서 스크롤하게 한다. */
 .breast .review-grid {display:grid;
-  grid-template-columns:minmax(220px,0.9fr) minmax(0,1.6fr) minmax(260px,1fr);
-  gap:var(--gap); align-items:start}
-@media (max-width:1200px) {.breast .review-grid {grid-template-columns:1fr}}
+  grid-template-columns:var(--left-w, minmax(190px,0.6fr)) minmax(0,1.6fr) var(--right-w, minmax(280px,1.1fr));
+  /* height만으로는 그리드 "행" 자체의 크기가 안 정해진다(행은 기본
+     content-based) — grid-template-rows로 행 트랙을 컨테이너 높이에
+     못박아야 자식들의 height:100%/stretch가 실제로 먹는다. */
+  grid-template-rows:clamp(520px, calc(100vh - 230px), 800px);
+  gap:var(--gap); align-items:stretch;
+  height:clamp(520px, calc(100vh - 230px), 800px);
+  transition:grid-template-columns .18s ease}
+@media (max-width:1200px) {.breast .review-grid {grid-template-columns:1fr; grid-template-rows:none; height:auto}}
 
-.breast .panel-head {display:flex; align-items:center; margin-bottom:12px}
+.breast .panel-head {display:flex; align-items:center; margin-bottom:12px; flex:0 0 auto}
 .breast .panel-head h3 {margin-bottom:0}
-.breast .panel-head .collapse-btn {margin-left:auto; font-size:12px; color:var(--muted); font-weight:600}
-.breast .panel-head .collapse-btn:hover {color:var(--ink)}
+
+/* 슬라이드 패널 — 접히면 얇은 띠만 남고, 펼침/접힘 버튼은 그 경계에
+   반쯤 걸치는 작은 탭으로 붙는다(카드 안이 아니라 카드 테두리 위).
+   행 높이가 고정됐으니 카드 자신은 세로 flex로 재구성해서 내용물이
+   넘치면 카드 밖으로 자라는 대신 안에서 스크롤되게 한다. */
+.breast .side-panel {position:relative; min-width:0; min-height:0; overflow:visible;
+  display:flex; flex-direction:column}
+.breast .side-panel.collapsed {padding:12px 4px; display:flex; justify-content:center}
+.breast .side-panel > .body, .breast .side-panel .timeline-scroll, .breast .side-panel .report-stack {
+  flex:1; min-height:0; overflow-y:auto}
+
+.breast .side-collapsed-label {writing-mode:vertical-rl; text-orientation:mixed;
+  font-size:12px; font-weight:600; color:var(--muted); letter-spacing:.02em;
+  padding-top:4px}
+
+.breast .side-toggle {position:absolute; top:50%; transform:translateY(-50%);
+  z-index:5; width:20px; height:52px; padding:0;
+  border:1px solid var(--line); border-radius:var(--radius-sm);
+  background:var(--surface); color:var(--muted); font-size:15px; line-height:1;
+  cursor:pointer}
+.breast .side-toggle:hover {color:var(--ink); border-color:var(--accent)}
+.breast .side-toggle.left {right:-10px}
+.breast .side-toggle.right {left:-10px}
 
 .breast .timeline {display:flex; flex-direction:column}
 .breast .timeline .row {position:relative; padding:0 0 16px 18px; border-left:2px solid var(--line)}
@@ -217,6 +252,30 @@
 .breast .other-report .author {font-size:11.5px; color:var(--muted); margin-left:6px}
 .breast .other-report .summary {font-size:13.5px; margin-top:4px}
 .breast .other-report .at {font-size:11px; color:var(--muted); margin-top:4px}
+
+/* 검사 종합 확인 · 오른쪽 리포트 3단 — 예전엔 탭으로 갈아 끼웠는데,
+   그러면 AI/타부서 소견을 보면서 동시에 유방외과 소견을 못 썼다. 세
+   구역을 세로로 고정하고 각자 내부 스크롤을 준다 — AI·타부서(읽기
+   전용)는 항상 떠 있고, 유방외과 리포트(현재 모달리티 따라감)만 아래서
+   내용이 바뀐다. */
+.breast .report-stack {display:flex; flex-direction:column; gap:12px; min-height:0}
+.breast .report-block {border:1px solid var(--line); border-radius:var(--radius-sm); overflow:hidden}
+.breast .report-block h4 {margin:0; padding:9px 12px; font-size:12.5px; font-weight:700;
+  background:var(--surface-2); border-bottom:1px solid var(--line); color:var(--ink-2)}
+.breast .report-block-body {padding:12px}
+
+/* AI·타부서(읽기 전용)는 고정 높이로 눌러두고(fixed 폭만큼만 차지,
+   나머지는 자기 안에서 스크롤) — 그래야 아래 "유방외과 리포트"가
+   먹을 공간이 항상 남는다. 예전엔 셋 다 내용 크기대로 늘어나서 저장
+   버튼이 패널 아래로 밀려 안 보였다. */
+.breast .report-block.fixed {flex:0 0 150px; display:flex; flex-direction:column}
+.breast .report-block.fixed .report-block-body {flex:1; min-height:0; overflow-y:auto}
+
+/* 유방외과 리포트는 남는 공간을 다 가져가고, 그 안에서 textarea만
+   줄어들고(저장 버튼은 고정) — FinalReportForm이 height:100% flex
+   컬럼으로 그린다. */
+.breast .report-block.grow {flex:1 1 auto; min-height:180px; display:flex; flex-direction:column}
+.breast .report-block.grow .report-block-body {flex:1; min-height:0; display:flex; flex-direction:column; padding-bottom:12px}
 
 /* AIModelResult — 실제 MRI 모델 서빙 결과. 케이스별 기권(abstain)과
    모델 구조상 미지원(not_supported)은 겉모습부터 다르게 둔다 — 기권은

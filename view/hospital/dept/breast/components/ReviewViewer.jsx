@@ -18,6 +18,7 @@ const SAMPLE_IMAGES = {
 export default function ReviewViewer({
   patientId,
   lesions = [],
+  onModalityChange,
 }) {
   const {
     loading,
@@ -29,11 +30,52 @@ export default function ReviewViewer({
     [patientId]
   );
 
-  const [tab, setTab] = useState("맘모");
+  /*
+   * 실제로 촬영한(performed_at이 있는) modality만 탭으로 보여준다 —
+   * 이 환자가 맘모만 찍었으면 맘모만, 초음파까지 찍었으면 그것까지만.
+   * 전체 MODALITIES를 항상 다 보여주면 안 찍은 검사까지 탭이 떠서
+   * "표시할 영상이 없습니다" 빈 화면만 늘어난다.
+   */
+  const availableModalities = Array.isArray(studies)
+    ? MODALITIES.filter((modality) =>
+        studies.some(
+          (item) =>
+            item.modality === modality &&
+            item.performed_at
+        )
+      )
+    : [];
+
+  const [tab, setTab] = useState(null);
 
   useEffect(() => {
-    setTab("맘모");
+    setTab(null);
   }, [patientId]);
+
+  /*
+   * 환자가 바뀌면(또는 처음 로딩되면) 가장 최근에 촬영한 검사를 기본
+   * 탭으로 연다 — 오른쪽 유방외과 리포트가 이 modality를 그대로
+   * 따라가므로(onModalityChange), "최근 검사"와 "리포트 작성 대상"이
+   * 항상 같은 걸 가리키게 된다.
+   */
+  useEffect(() => {
+    if (tab !== null) return;
+    if (!Array.isArray(studies) || availableModalities.length === 0) return;
+
+    const completed = studies.filter(
+      (study) =>
+        study?.performed_at &&
+        MODALITIES.includes(study.modality)
+    );
+
+    const latest = [...completed].sort(
+      (a, b) => new Date(b.performed_at) - new Date(a.performed_at)
+    )[0];
+
+    const next = latest?.modality ?? availableModalities[0];
+    setTab(next);
+    onModalityChange?.(next);
+  }, [tab, studies, availableModalities.join(","), onModalityChange]);
 
   /*
    * API에서 해당 modality 검사 결과를 찾는다.
@@ -53,18 +95,25 @@ export default function ReviewViewer({
       ===================================================== */}
 
       <div className="viewer-tabs">
-        {MODALITIES.map((modality) => (
-          <button
-            key={modality}
-            type="button"
-            className={
-              tab === modality ? "on" : ""
-            }
-            onClick={() => setTab(modality)}
-          >
-            {modality}
-          </button>
-        ))}
+        {availableModalities.length === 0 && !loading ? (
+          <span className="viewer-tabs-empty">촬영한 검사가 없습니다</span>
+        ) : (
+          availableModalities.map((modality) => (
+            <button
+              key={modality}
+              type="button"
+              className={
+                tab === modality ? "on" : ""
+              }
+              onClick={() => {
+                setTab(modality);
+                onModalityChange?.(modality);
+              }}
+            >
+              {modality}
+            </button>
+          ))
+        )}
       </div>
 
 
@@ -78,9 +127,10 @@ export default function ReviewViewer({
           error={error}
           onRetry={reload}
         >
-          {tab === "MRI" ? (
+          {tab === null ? null : tab === "MRI" ? (
             <MRIReviewGrid
               lesions={lesions}
+              study={study}
             />
           ) : (
             <GenericImageViewer
@@ -165,6 +215,12 @@ export default function ReviewViewer({
           background: #22272c;
         }
 
+        .viewer-tabs-empty {
+          padding: 0 8px;
+          color: #596169;
+          font-size: 12px;
+        }
+
         .viewer-tabs button.on {
           color: #ffffff;
 
@@ -229,7 +285,9 @@ export default function ReviewViewer({
           align-items: center;
           justify-content: center;
 
-          overflow: hidden;
+          /* 확대(zoom>100%)하면 이미지가 박스보다 커지는데, 그때는
+             스크롤로 이동(pan)할 수 있어야 한다 */
+          overflow: auto;
 
           padding: 16px;
 
@@ -255,7 +313,7 @@ export default function ReviewViewer({
           align-items: center;
           justify-content: center;
 
-          overflow: hidden;
+          flex: none;
         }
 
 
@@ -277,6 +335,9 @@ export default function ReviewViewer({
           user-select: none;
 
           -webkit-user-drag: none;
+
+          transform-origin: center center;
+          transition: transform 0.12s ease;
         }
 
 
@@ -301,7 +362,8 @@ export default function ReviewViewer({
 
           pointer-events: none;
 
-          transition: opacity 0.1s ease;
+          transform-origin: center center;
+          transition: opacity 0.1s ease, transform 0.12s ease;
         }
 
 
@@ -382,14 +444,15 @@ export default function ReviewViewer({
         =================================================== */
 
         .viewer-control {
-          flex: 0 0 50px;
+          flex: 0 0 auto;
 
           min-height: 50px;
 
           display: flex;
           align-items: center;
+          flex-wrap: wrap;
 
-          gap: 12px;
+          gap: 10px 12px;
 
           padding: 7px 12px;
 
@@ -433,6 +496,75 @@ export default function ReviewViewer({
         .mask-toggle.disabled {
           color: #596169;
 
+          cursor: default;
+        }
+
+
+        /* ===================================================
+           확대/축소
+        =================================================== */
+
+        .zoom-wrap {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+        }
+
+        .zoom-btn {
+          width: 24px;
+          height: 24px;
+
+          padding: 0;
+
+          border: 1px solid #343a40;
+          border-radius: 4px;
+
+          background: #1c2024;
+
+          color: #ffffff;
+
+          font-size: 14px;
+          line-height: 1;
+
+          cursor: pointer;
+        }
+
+        .zoom-btn:hover:not(:disabled) {
+          background: #343a40;
+        }
+
+        .zoom-btn:disabled {
+          color: #596169;
+          cursor: default;
+        }
+
+        .zoom-value {
+          min-width: 44px;
+
+          height: 24px;
+
+          padding: 0 4px;
+
+          border: 1px solid transparent;
+          border-radius: 4px;
+
+          background: transparent;
+
+          color: #aeb4ba;
+
+          font-size: 11px;
+          font-variant-numeric: tabular-nums;
+
+          cursor: pointer;
+        }
+
+        .zoom-value:hover:not(:disabled) {
+          color: #ffffff;
+          border-color: #343a40;
+        }
+
+        .zoom-value:disabled {
+          color: #596169;
           cursor: default;
         }
 
@@ -625,6 +757,21 @@ function GenericImageViewer({
   const [maskOpacity, setMaskOpacity] =
     useState(0.45);
 
+  /*
+   * 확대/축소 — 100%는 "박스에 꽉 차게 맞춘 크기"다(원본 픽셀 1:1이
+   * 아니다). 병리 원본처럼 실제 해상도가 큰 이미지를 그대로 100%=원본
+   * 픽셀로 두면 박스 밖으로 넘쳐서 다른 모달리티/옆 패널과 높이가
+   * 안 맞았다 — object-fit:contain으로 박스에 맞춘 크기를 기준(100%)
+   * 삼고, 그 위에서 배율만 곱한다.
+   */
+  const [zoom, setZoom] = useState(100);
+  const ZOOM_MIN = 50;
+  const ZOOM_MAX = 300;
+  const ZOOM_STEP = 25;
+  const zoomIn = () => setZoom((z) => Math.min(ZOOM_MAX, z + ZOOM_STEP));
+  const zoomOut = () => setZoom((z) => Math.max(ZOOM_MIN, z - ZOOM_STEP));
+  const zoomReset = () => setZoom(100);
+
 
   /*
    * 검사 / modality 변경 시 초기화
@@ -633,6 +780,7 @@ function GenericImageViewer({
     setSliceIndex(0);
     setMaskVisible(true);
     setMaskOpacity(0.45);
+    setZoom(100);
   }, [modality, study]);
 
 
@@ -709,7 +857,8 @@ function GenericImageViewer({
             </div>
 
 
-            {/* 원본 + Mask */}
+            {/* 원본 + Mask — 확대해도 둘이 같이 움직이도록 같은
+                transform을 준다 */}
             <div className="generic-image-stack">
 
               {/* 원본 */}
@@ -717,6 +866,7 @@ function GenericImageViewer({
                 className="generic-image"
                 src={imageSrc}
                 alt={`${modality} 검사 영상`}
+                style={{ transform: `scale(${zoom / 100})` }}
               />
 
 
@@ -730,6 +880,7 @@ function GenericImageViewer({
                     aria-hidden="true"
                     style={{
                       opacity: maskOpacity,
+                      transform: `scale(${zoom / 100})`,
                     }}
                   />
                 )}
@@ -747,6 +898,37 @@ function GenericImageViewer({
       ================================================= */}
 
       <div className="viewer-control">
+
+        {/* 확대/축소 — 맘모/초음파/병리도 기본적인 뷰어 기능이라 필요 */}
+        <div className="zoom-wrap">
+          <button
+            type="button"
+            className="zoom-btn"
+            onClick={zoomOut}
+            disabled={!imageSrc || zoom <= ZOOM_MIN}
+            aria-label="축소"
+          >
+            −
+          </button>
+          <button
+            type="button"
+            className="zoom-value"
+            onClick={zoomReset}
+            disabled={!imageSrc}
+            title="100%로 리셋"
+          >
+            {zoom}%
+          </button>
+          <button
+            type="button"
+            className="zoom-btn"
+            onClick={zoomIn}
+            disabled={!imageSrc || zoom >= ZOOM_MAX}
+            aria-label="확대"
+          >
+            ＋
+          </button>
+        </div>
 
         {/* AI Mask */}
         <label

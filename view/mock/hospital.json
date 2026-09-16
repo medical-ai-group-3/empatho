@@ -765,13 +765,17 @@
         "lesion_id": "L-1001-A",
         "site": "우측 유방 상외측(UOQ)",
         "size_mm": 14,
-        "specimen_id": null
+        "specimen_id": null,
+        "mesh_url": "/models/duke/DUKE_001_tumor_lesion01.stl",
+        "color": "#C9828C"
       },
       {
         "lesion_id": "L-1001-B",
         "site": "좌측 유방 상내측(UIQ)",
         "size_mm": 9,
-        "specimen_id": "SP-3001"
+        "specimen_id": "SP-3001",
+        "mesh_url": "/models/duke/DUKE_001_tumor_lesion02.stl",
+        "color": "#8FA8C2"
       }
     ],
     "open_discordance": {
@@ -891,7 +895,9 @@
         "lesion_id": "L-1002-A",
         "site": "좌측 유방 상외측(UOQ)",
         "size_mm": 11,
-        "specimen_id": "SP-3002"
+        "specimen_id": "SP-3002",
+        "mesh_url": "/models/duke/DUKE_001_tumor_lesion03.stl",
+        "color": "#B59A6A"
       }
     ],
     "open_discordance": null,
@@ -997,7 +1003,9 @@
         "lesion_id": "L-1003-A",
         "site": "우측 유방 상외측(UOQ)",
         "size_mm": 18,
-        "specimen_id": "SP-3003"
+        "specimen_id": "SP-3003",
+        "mesh_url": "/models/duke/DUKE_001_tumor_lesion04.stl",
+        "color": "#9B8FB5"
       }
     ],
     "open_discordance": null,
