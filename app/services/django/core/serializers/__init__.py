@@ -16,7 +16,7 @@ from .reception import (
     ReservationCreateSerializer,
     ReservationRequestCreateSerializer,
     StaffSerializer,
-    PatientRegisterSeializer,
+    PatientRegisterSerializer,
     CheckInSerializer,
     ExamOrderScheduleSerializer,
     MeSerializer,

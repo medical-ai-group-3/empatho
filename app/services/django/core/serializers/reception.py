@@ -168,29 +168,29 @@ class StaffSerializer(serializers.ModelSerializer):
         model = models.Staff
         exclude = ("created_at", "created_by" , "updated_at", "updated_by")
         
-class PatientRegisterSeializer(serializers.Serializer):
-    """POST /patients — §1 접수 화면 등록. 이름·생년월일·전화로 중복 검사."""
-    
+class PatientRegisterSerializer(serializers.Serializer):
+    """POST /patients/register — §1 [+] 등록. 이름·생년월일·전화로 중복 검사."""
+
     name = serializers.CharField(max_length=50)
     birth_date = serializers.DateField()
     phone = serializers.CharField(max_length=30)
-    
+
     def create(self, validated_data):
         existing = models.PatientPii.objects.filter(
-            name = validated_data["name"],
-            birth_date = validated_data["birth_date"],
-            phone = validated_data["phone"],
+            name=validated_data["name"],
+            birth_date=validated_data["birth_date"],
+            phone=validated_data["phone"],
         ).first()
         if existing:
             return existing.patient
-        
+
         audit = {
             "created_by": validated_data.pop("created_by", None),
             "updated_by": validated_data.pop("updated_by", None),
         }
         import uuid
-        patient = models.Patien.objects.create(
-            patient_numver="P" + uuid.uuid4().hex[:10].upper(),
+        patient = models.Patient.objects.create(
+            patient_number="P" + uuid.uuid4().hex[:10].upper(),
             **audit,
         )
         models.PatientPii.objects.create(patient=patient, **validated_data, **audit)
