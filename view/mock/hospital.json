@@ -1,4 +1,9 @@
 {
+  "POST /api/v1/hospital/login": {
+    "access": "mock.staff",
+    "refresh": "mock.staff.r"
+  },
+
   "GET /api/v1/hospital/me": {
     "name": "박민재",
     "role": "교수",
