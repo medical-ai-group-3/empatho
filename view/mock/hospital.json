@@ -1,9 +1,15 @@
 {
   "GET /api/v1/hospital/me": {
+    "staff_id": "S-20250117",
     "name": "박민재",
     "role": "교수",
     "dept": "pathology",
     "dept_name": "병리과",
+    "hospital": "미래 대학병원",
+    "email": "parkminjae@mirae.hospital",
+    "phone": "010-2244-1188",
+    "notify_discordance": true,
+    "notify_specimen": false,
     "perms": [
       "pathology.queue.view",
       "pathology.queue.assign",
@@ -36,6 +42,16 @@
     ],
     "_주의": "목업입니다. 실제로는 관리자가 준 권한만 담겨 옵니다. 두 과를 다 열어 두어 화면 확인이 되게 했습니다."
   },
+  "PUT /api/v1/hospital/me": {
+    "ok": true,
+    "detail": "프로필이 저장되었습니다"
+  },
+
+  "POST /api/v1/hospital/logout": {
+    "ok": true,
+    "detail": "로그아웃되었습니다"
+  },
+
   "GET /api/v1/hospital/specimens/queue": {
     "items": [
       {

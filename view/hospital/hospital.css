@@ -835,3 +835,25 @@ td.none,tr.none td{text-align:center; padding:var(--card-pad) 0}
 /* 지금 과 — 메뉴와 같은 규칙으로 **테두리**다. 채움은 화면당 하나다 */
 .deptmenu a.on{color:var(--ink);
   box-shadow:inset 0 0 0 var(--hair) var(--border)}
+
+/* 내 정보 — 프로필 입력칸 · 카드 발치 · 알림 체크 */
+.me-form{display:flex; flex-direction:column; gap:var(--gap-sm);
+  margin-top:var(--gap-sm); max-width:var(--form-w)}
+
+/* 카드 아래 [저장] 줄. 왼쪽은 알림 문구, 오른쪽은 단추 */
+.me-foot{display:flex; align-items:center; justify-content:space-between;
+  gap:var(--gap); margin-top:var(--gap-sm);
+  padding-top:var(--gap-sm); border-top:var(--hair) solid var(--line-2)}
+
+/* ⚠ 오류에 새 색을 만들지 않는다. 이 판은 색을 안 늘리고 굵기·모양으로
+   가른다(Parts.jsx 의 Warn 과 같은 규칙) */
+.note.err{color:var(--ink); font-weight:600}
+.note.err::before{content:"⚠ "; color:var(--warm)}
+
+.checks{display:flex; flex-direction:column; gap:var(--gap-sm);
+  margin:var(--gap-sm) 0 0}
+.checks li{display:flex; align-items:center; gap:var(--gap-sm)}
+.checks label{display:flex; align-items:center; gap:var(--gap-sm);
+  cursor:pointer}
+.checks input{width:15px; height:15px; accent-color:var(--cyan); flex:none}
+.checks label span{font-size:var(--in-fs)}

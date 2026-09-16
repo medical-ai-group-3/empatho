@@ -33,7 +33,9 @@ const COOKIE = "empatho_mock_staff";     // 환자 앱은 empatho_mock_session
    ⚠ 지금은 로그인 화면이 없어서 전부 열어 둔다. 화면이 생기면
      OPEN 을 좁히고 아래 401 분기를 켠다. */
 const OPEN_ALL = true;
-const OPEN = new Set([`${PREFIX}/auth/login`, `${PREFIX}/auth/logout`]);
+/* ⚠ /auth 접두를 뗐다. 다희님 경로표(9/16)의 로그인이 POST /api/v1/login
+   이라 /auth 를 쓰면 로그아웃만 혼자 튄다 */
+const OPEN = new Set([`${PREFIX}/login`, `${PREFIX}/logout`]);
 
 /* ── 응답 봉투 ──────────────────────────────────────────────────
    실제 서버와 같은 모양으로 싸서 보낸다. 안 싸면 붙이는 날 화면이
@@ -148,10 +150,10 @@ export default function hospitalMock() {
         /* 로그인 상태 — 직원용 쿠키 하나. 환자 앱과 겹치지 않는다 */
         const signedIn =
           new RegExp(`(?:^|;\\s*)${COOKIE}=1`).test(req.headers.cookie || "");
-        if (path === `${PREFIX}/auth/login`) {
+        if (path === `${PREFIX}/login`) {
           res.setHeader("Set-Cookie",
             `${COOKIE}=1; Path=/; SameSite=Lax; Max-Age=43200`);
-        } else if (path === `${PREFIX}/auth/logout`) {
+        } else if (path === `${PREFIX}/logout`) {
           res.setHeader("Set-Cookie", `${COOKIE}=; Path=/; SameSite=Lax; Max-Age=0`);
         } else if (!OPEN_ALL && !signedIn && !OPEN.has(path)) {
           return fail(res, "UNAUTHENTICATED", "로그인이 필요합니다", 401);
