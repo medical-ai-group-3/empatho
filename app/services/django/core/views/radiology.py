@@ -4,10 +4,10 @@
 통합조회는 아래 새 뷰들이 맡는다. ③의 하위 액션(AI 활성화/임시저장/확정)과
 ⑤ 정정은 기존 뷰를 그대로 재사용한다.
 
-read_stage / study.read_status 는 DB CHECK 제약(READ_STAGE=["first","final"],
-READ_STATUS=["pending","first_locked","ai_revealed","finalized"])을 따른다 —
-1차판독 게이트를 안 쓰므로 임시저장은 "first", 확정은 "final" 로 쓰고,
-study.read_status 는 pending → ai_revealed → finalized 로만 옮긴다.
+read_stage / study.read_status 는 DB CHECK 제약(READ_STAGE=["draft","final"],
+READ_STATUS=["pending","draft","finalized"])을 따른다 —
+1차판독 게이트를 안 쓰므로 임시저장은 "draft", 확정은 "final" 로 쓰고,
+study.read_status 는 pending → draft → finalized 로만 옮긴다.
 """
 
 from rest_framework import viewsets, status, generics

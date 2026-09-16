@@ -47,14 +47,16 @@ class StaffApproveView(AuditMixin, viewsets.ViewSet):
         staff.updated_by = admin_account
         staff.save()
 
+        account = staff.account
+        account.is_active = True          # ← 추가
+        account.account_status = "active"  # ← 추가
         if "role" in data:
-            staff.account.role = data["role"]
-            staff.account.updated_by = admin_account
-            staff.account.save()
+            account.role = data["role"]
+        account.updated_by = admin_account
+        account.save()
 
         out = serializers.StaffApprovalSerializer(staff)
         return Response(out.data)
-
 
 class AccountRoleView(AuditMixin, viewsets.ViewSet):
     """§7-1 PATCH /admin/accounts/{id}/role — 부서 재지정."""
