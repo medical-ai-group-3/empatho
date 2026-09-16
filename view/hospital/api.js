@@ -122,7 +122,53 @@ export const ERR = {
   NETWORK:          "NETWORK",            // status 0 · 서버에 못 닿았다 (우리가 만든 것)
 };
 
-async function call(method, path, body) {
+/* ── access 만료 시 조용히 갱신 ────────────────────────────────
+ *
+ * access 는 30분이고 판독은 한 건에 20~30분씩 걸린다. 저장을 누르는
+ * 순간이 딱 경계라, 그냥 두면 **써 둔 소견이 날아간다.** 401 을 받으면
+ * 한 번 갱신하고 원래 요청을 다시 보낸다.
+ *
+ *   POST /api/v1/token/refresh   본문 없음 → { access }
+ *
+ * ⚠ **본문에 refresh 를 싣지 않는다.** 서버가 httpOnly 쿠키에서 직접
+ *   읽는다. 그래서 JS 는 refresh 값을 아예 모른다 — credentials:"include"
+ *   가 쿠키를 실어 보내는 것이 전부다. 그게 빠지면 쿠키가 안 가서
+ *   갱신이 401 로 떨어진다 (전에 났던 사고다).
+ *
+ * 한 번에 하나만 돈다. 화면 여러 곳이 동시에 401 을 맞아도 갱신은 한 번만
+ * 부르고 나머지는 그 결과를 기다린다 — 안 그러면 갱신을 네댓 번 부른다.
+ */
+let refreshing = null;
+
+/* 갱신된 access 를 저장소에도 반영해야 한다. 그 일은 lib/session.js 가
+   하는데 그쪽이 이 파일을 import 하고 있어서, 여기서 부르면 서로 물린다.
+   그래서 session.js 가 자기를 등록하고 여기서는 부르기만 한다. */
+let onRefreshed = null;
+export const setOnRefreshed = (fn) => { onRefreshed = fn; };
+
+async function refreshAccess() {
+  refreshing ??= (async () => {
+    try {
+      const d = await call("POST", "/token/refresh", undefined, { noRetry: true });
+      const next = d?.access ?? null;
+      if (!next) return null;
+      setToken(next);
+      onRefreshed?.(next);
+      return next;
+    } catch {
+      return null;               /* 갱신도 실패 — 다시 로그인하는 수밖에 없다 */
+    } finally {
+      refreshing = null;
+    }
+  })();
+  return refreshing;
+}
+
+/* 갱신을 시도하면 안 되는 경로. 로그인·로그아웃은 애초에 토큰이 없거나
+   버리는 중이고, 갱신 자신에게 갱신을 걸면 무한히 돈다 */
+const NO_RETRY = new Set(["/login", "/logout", "/token/refresh"]);
+
+async function call(method, path, body, opt = {}) {
   let res;
   try {
     res = await fetch(BASE + path, {
@@ -132,6 +178,8 @@ async function call(method, path, body) {
         ...(token ? { Authorization: `Bearer ${token}` } : null),
       },
       body: body ? JSON.stringify(body) : undefined,
+      /* ⚠ 빼지 말 것. refresh 가 httpOnly 쿠키에 있어서 이게 없으면
+         쿠키가 안 실린다 — 로그인도 갱신도 못 한다 */
       credentials: "include",
     });
   } catch (e) {
@@ -141,6 +189,13 @@ async function call(method, path, body) {
       status: 0, code: ERR.NETWORK, detail: e?.message ?? null,
       fields: null, traceId: null,
     });
+  }
+
+  /* 401 — access 가 만료됐다. 한 번 갱신하고 그대로 다시 보낸다.
+     갱신도 실패하면 아래로 흘려보내 평소대로 401 오류가 되게 한다 */
+  if (res.status === 401 && !opt.noRetry && !NO_RETRY.has(path)) {
+    const next = await refreshAccess();
+    if (next) return call(method, path, body, { noRetry: true });
   }
 
   const traceId = res.headers.get("X-Trace-Id");
@@ -172,7 +227,12 @@ function qs(o = {}) {
  * 경로를 다희님 브랜치에서 확인했다 — 맞는 것은 /login 이다.
  * 환자 앱(src/api.js)이 쓰는 /auth/login 은 백엔드에 없는 경로다.
  *
- *   POST /api/v1/login  { login_id, password }  →  { access, refresh }
+ *   POST /api/v1/login  { login_id, password }  →  { access }
+ *
+ * ⚠ **본문에 refresh 가 없다** (2026-09-16 백엔드 확인). refresh 는
+ *   Set-Cookie 로만 내려온다 — httpOnly · Secure · SameSite=None.
+ *   JS 가 못 읽는 자리라 우리가 들고 있을 것이 없다. 앞뒤 화면이
+ *   다른 origin 이라 Lax 가 아니라 None 이고, 그래서 Secure 가 필수다.
  *
  * 받은 access 는 lib/session.js 가 setToken() 에 끼운다.
  * ⚠ 응답에 role · perms 가 없다. 그건 아래 me() 가 가져온다. */
@@ -194,10 +254,13 @@ export const updateMe = (b) => put("/me", b);
 
 /* ── 로그아웃 ────────────────────────────────────────────────
  *
- * ⚠ **경로가 아직 명세에 없다.** 다희님 병리 경로표(9/16)에 로그인은
- *   POST /api/v1/login 으로 있는데 로그아웃이 빠져 있다. 짝이 맞게
- *   /logout 으로 둔다 — staff-view 가 쓰던 /auth/logout 은 /auth 접두가
- *   로그인 쪽에 없어서 혼자 튄다. 확정되면 이 한 줄만 고친다.
+ * 경로는 POST /api/v1/logout 이 맞다 (2026-09-16 백엔드 확인).
+ *
+ * ⚠ **지금 이 로그아웃은 절반만 한다.** 서버가 refresh 쿠키를 지울 뿐
+ *   서버 쪽 refresh 토큰 자체를 무효화하지 않는다 — 폐기 저장소(Redis)가
+ *   들어와야 성립하고, 그건 이번 판 범위 밖이라고 회신받았다.
+ *   그래서 **쿠키를 손에 넣은 사람은 14일 동안 계속 쓸 수 있다.**
+ *   공용 PC 를 쓰는 화면이라 팀에서 따로 정해야 할 사안이다.
  *
  * 서버를 부르는 것이 **핵심이다.** 화면에서 토큰만 버리면 브라우저에서만
  * 사라지고 서버 쪽 refresh 토큰은 만료까지 살아 있어서, 실제로는

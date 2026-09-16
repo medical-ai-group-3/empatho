@@ -18,7 +18,7 @@
  * **둘만** 고치면 된다.
  */
 import { useSyncExternalStore } from "react";
-import { setToken } from "../api";
+import { setToken, setOnRefreshed } from "../api";
 
 const KEY = "empatho_staff_token";
 
@@ -38,29 +38,33 @@ function save(t) {
 }
 
 let token = load();
-let refresh = null;
 const subs = new Set();
 
 /* 새로고침으로 다시 뜬 경우 — 저장해 둔 토큰을 api 층에 도로 끼운다.
    이것을 빠뜨리면 사람은 로그인돼 보이는데 요청마다 401 이 난다. */
 if (token) setToken(token);
 
-function set(next, nextRefresh = null) {
+function set(next) {
   token = next;
-  refresh = nextRefresh;
   setToken(token);
   save(token);
   for (const fn of subs) fn();
 }
 
-/* 로그인 성공.
-   ⚠ 갱신(refresh) 엔드포인트가 아직 백엔드에 없다. 생기면 여기 담아 둔
-     값으로 부른다 — 없으면 access 가 30 분에 만료되고 화면이 통째로
-     로그인으로 돌아간다. */
-export const signIn = ({ access, refresh: r }) => set(access, r);
+/* 로그인 성공 — 본문에 오는 것은 access 하나다.
+ *
+ * ⚠ **refresh 는 우리가 못 들고 있다.** 서버가 httpOnly 쿠키로만 내려주고
+ *   (Secure · SameSite=None) JS 는 읽을 수 없다. 갱신할 때도 본문에 싣지
+ *   않는다 — 서버가 쿠키에서 직접 읽는다. 전에 여기 refresh 를 담아 두던
+ *   자리가 있었는데, 늘 undefined 였다. 지웠다.
+ */
+export const signIn = ({ access }) => set(access);
 export const signOut = () => set(null);
 
-export const refreshToken = () => refresh;
+/* api 층이 401 을 받고 조용히 갱신했을 때, 새 access 를 저장소에도 반영한다.
+   안 하면 새로고침에 **옛 토큰**이 되살아나 바로 401 이 난다.
+   api.js 가 이 파일을 import 하면 서로 물리므로 이쪽에서 등록한다 */
+setOnRefreshed((access) => set(access));
 
 /* 로그인했나. 토큰이 있느냐로만 본다 — 화면이 스스로 「로그인함」을 적어
    두고 그걸 믿으면, 만료된 뒤에도 화면은 열리고 요청만 하나씩 실패한다. */

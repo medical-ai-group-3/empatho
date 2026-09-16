@@ -39,9 +39,11 @@ export default function Login() {
     setBusy(true);
     setError(null);
     try {
-      const { access, refresh } = await doLogin(loginId.trim(), password);
+      /* 본문에는 access 하나만 온다. refresh 는 httpOnly 쿠키로 따로
+         내려와서 JS 가 못 본다 — 받을 것이 없다 */
+      const { access } = await doLogin(loginId.trim(), password);
       /* 토큰이 들어가면 Boot 가 다시 서면서 /me 를 부른다 */
-      signIn({ access, refresh });
+      signIn({ access });
     } catch (e2) {
       setError(e2);
       setBusy(false);

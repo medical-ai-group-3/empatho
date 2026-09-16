@@ -1,7 +1,10 @@
 {
   "POST /api/v1/hospital/login": {
-    "access": "mock.staff",
-    "refresh": "mock.staff.r"
+    "access": "mock.staff"
+  },
+
+  "POST /api/v1/hospital/token/refresh": {
+    "access": "mock.staff.renewed"
   },
 
   "GET /api/v1/hospital/me": {
