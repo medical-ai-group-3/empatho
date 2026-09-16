@@ -160,6 +160,13 @@ _TICKET_TTL_DEFAULT = {
     "wsi_upload": 300,
     "derived_upload": 300,
     "report_pdf": 300,
+    # 리포트 서버가 문장을 만드는 동안 열려 있어야 한다.
+    # llm-proxy 의 REPORT_TIMEOUT 이 2 분이라 그보다 넉넉하게 둔다.
+    "report_narrative": 300,
+    # 알림 스트림을 **여는 데만** 쓴다. 연결은 그 뒤로 계속 열려 있고
+    # 티켓은 붙을 때 한 번만 검사된다. 끊겨 다시 붙으면 새로 받아야 한다 —
+    # notify 는 nonce 를 소진한다(Go 의 NewVerifier 에 reusable 이 없다).
+    "notify": 300,
 }
 TICKET_TTL_SEC = {
     p: int(os.environ.get("TICKET_TTL_%s" % p.upper(), d))
