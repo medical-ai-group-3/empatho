@@ -10,7 +10,7 @@ from .. import models, serializers
 from ..mixins import AuditMixin
 from core.api.permissions import MatrixPermission, OwnedOnlyMixin, CanDisposeDiscordance
 from core.api.errors import ApiError
-from core.api.permissions import CanBindSpecimen
+from core.api.permissions import CanBindSpecimen, CanDecideAssessment
 
 
 class ExamOrderRequestView(AuditMixin, viewsets.ViewSet):
@@ -118,21 +118,19 @@ class SurgeryReportViewSet(AuditMixin, OwnedOnlyMixin, viewsets.ModelViewSet):
 
 
 class SurgeryDecisionView(AuditMixin, viewsets.ViewSet):
-    """§3 POST /assessments — 수술 여부·사유(decision_*)."""
+    """§3 PATCH /assessments/{id}/decision — 수술 여부·사유(decision_*)."""
 
-    resource = "assessment"
-    permission_classes = [MatrixPermission]
+    permission_classes = [CanDecideAssessment]
 
-    def create(self, request):
+    def partial_update(self, request, pk=None):
         serializer = serializers.SurgeryDecisionSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
-        assessment = models.Assessment.objects.filter(
-            lesion_id=data["lesion_id"], read_stage="final"
-        ).order_by("-created_at").first()
-        if assessment is None:
-            raise ApiError("VALIDATION_ERROR", "최종 판정을 찾을 수 없습니다.")
+        try:
+            assessment = models.Assessment.objects.get(pk=pk)
+        except models.Assessment.DoesNotExist:
+            raise ApiError("NOT_FOUND")
 
         assessment.decision_type = data["decision_type"]
         assessment.decision_value = data["decision_value"]

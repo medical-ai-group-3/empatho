@@ -86,6 +86,9 @@ INFRA_ERRORS = [
     # test_errors.py 의 표에도 더한다.
     _spec("ALREADY_CONFIRMED", 409, "이미 확정된 오더입니다."),
     _spec("ALREADY_ASSIGNED", 409, "다른 선생님이 이미 맡았습니다."),
+    # 09-16 일운님 · 다희님 협의 — 수술 결정 기록(PATCH /assessments/{id}/decision)
+    # 단독 권한. 명세 §1-4 25개엔 없어 여기 둔다.
+    _spec("DECISION_ROLE_ONLY_SURGERY", 403, "수술 결정 기록은 유방외과만 할 수 있습니다."),
 ]
 
 # 명세 밖. 영상의학과 라우터 인계 문서(2026-09) 재설계로 추가.

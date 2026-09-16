@@ -43,9 +43,8 @@ class ExamOrderRequestSerializer(serializers.Serializer):
 
 
 class SurgeryDecisionSerializer(serializers.Serializer):
-    """POST /assessments — §3 수술 여부·사유. assessment.decision_* 사용."""
+    """PATCH /assessments/{id}/decision — §3 수술 여부·사유. assessment.decision_* 사용."""
 
-    lesion_id = serializers.IntegerField()
     decision_type = serializers.ChoiceField(choices=models.as_choices(models.DECISION_TYPE))
     decision_value = serializers.ChoiceField(choices=models.as_choices(models.DECISION_VALUE))
     decision_reason = serializers.CharField(required=False, allow_blank=True)

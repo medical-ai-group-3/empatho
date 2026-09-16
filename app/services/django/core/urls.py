@@ -43,12 +43,6 @@ def _exam_orders_dispatch(request, *args, **kwargs):
     return views.ExamOrderQueryView.as_view({"get": "list"})(request, *args, **kwargs)
 
 
-def _assessments_dispatch(request, *args, **kwargs):
-    if request.method == "POST":
-        return views.SurgeryDecisionView.as_view({"post": "create"})(request, *args, **kwargs)
-    return views.AssessmentHistoryView.as_view()(request, *args, **kwargs)
-
-
 router = DefaultRouter()
 router.register(r"patients", views.PatientViewSet, basename="patient")
 router.register(r"reservations", views.ReservationViewSet, basename="reservation")
@@ -127,8 +121,13 @@ urlpatterns = [
     path("ai-results", views.AiResultListView.as_view({"get": "list"}), name="ai-results-list"),
     path("studies/<int:pk>/assessment/draft", views.AssessmentDraftView.as_view({"put": "update"}), name="study-assessment-draft"),
     path("studies/<int:pk>/finalize", views.StudyFinalizeView.as_view({"patch": "partial_update"}), name="study-finalize"),
-    path("assessments", _assessments_dispatch, name="assessment-history"),
+    path("assessments", views.AssessmentHistoryView.as_view(), name="assessment-history"),
     path("assessments/<int:pk>/amend", views.AssessmentAmendView.as_view({"post": "create"}), name="assessment-amend"),
+    path(
+        "assessments/<int:pk>/decision",
+        views.SurgeryDecisionView.as_view({"patch": "partial_update"}),
+        name="assessment-decision",
+    ),
     path("patients/<int:pk>/timeline", views.PatientTimelineView.as_view({"get": "retrieve"}), name="patient-timeline"),
     path("reports/<int:pk>/explain", views.ReportExplainView.as_view({"patch": "partial_update"}), name="report-explain"),
     path("reports/<int:pk>/unlock-status", views.ReportUnlockStatusView.as_view({"get": "retrieve"}), name="report-unlock-status"),
