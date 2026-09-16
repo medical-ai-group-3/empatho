@@ -27,6 +27,10 @@ export const ROOT = "/hospital";
  *
  * screens 의 각 줄
  *   key    라우트 조각. "" 면 그 부서의 첫 화면
+ *   use    **어느 화면 뼈대를 쓰는가.** main.jsx 의 SCREENS 표에 있는 이름.
+ *          과마다 화면 수와 구성이 다를 수 있어서 위치가 아니라 이름으로
+ *          고른다 — 전에는 «다섯 장이 이 순서»라고 박아 두었는데, 그러면
+ *          다섯 장이 아닌 과를 못 넣는다
  *   menu   상단 메뉴에 보일 짧은 이름
  *   title  화면 제목
  *   sub    한 줄 설명 — **이 화면이 무엇을 하는 자리인지**
@@ -39,23 +43,23 @@ const DEPTS = [
     name: "병리과",
     who: { name: "박민재", role: "교수" },
     screens: [
-      { key: "", menu: "검체 접수", title: "검체 접수 대기",
+      { key: "", use: "queue", menu: "검체 접수", title: "검체 접수 대기",
         sub: "간호·유방외과가 바인딩을 끝낸 검체가 순서대로 뜹니다. 집으면 다른 선생님 화면에서 사라집니다.",
         need: "pathology.queue.view" },
 
-      { key: "specimens", menu: "환자 목록", title: "전체 환자 목록",
+      { key: "specimens", use: "list", menu: "환자 목록", title: "전체 환자 목록",
         sub: "지난 검체까지 전부 찾아보는 자리입니다. 판독 정정도 여기서 들어갑니다.",
         need: "pathology.list.view" },
 
-      { key: "specimens/:id/upload", menu: "업로드", title: "조직 이미지 업로드",
+      { key: "specimens/:id/upload", use: "upload", menu: "업로드", title: "조직 이미지 업로드",
         sub: "크롭 조직 이미지를 올리고 AI 분석을 겁니다. 분석이 끝나야 판독으로 넘어갑니다.",
         need: "pathology.upload.view", deep: true },
 
-      { key: "read/:id", menu: "판독", title: "병리 판독",
+      { key: "read/:id", use: "read", menu: "판독", title: "병리 판독",
         sub: "원본 조직 이미지에 AI 분할 마스크를 얹어 보고 소견을 씁니다. 저장하면 유방외과로 전송됩니다.",
         need: "pathology.read.view", deep: true },
 
-      { key: "read/:id/amend", menu: "판독 정정", title: "병리 판독 정정",
+      { key: "read/:id/amend", use: "amend", menu: "판독 정정", title: "병리 판독 정정",
         sub: "이미 확정한 판독을 고칩니다. 옛 값은 지워지지 않고 이력에 남습니다.",
         need: "pathology.amend.view", deep: true },
     ],
@@ -66,23 +70,23 @@ const DEPTS = [
     name: "영상의학과",
     who: { name: "김지현", role: "교수" },
     screens: [
-      { key: "", menu: "촬영 대기", title: "촬영 대기 큐",
+      { key: "", use: "queue", menu: "촬영 대기", title: "촬영 대기 큐",
         sub: "유방외과가 낸 오더 중 아직 아무도 집지 않은 것이 뜹니다. 집으면 다른 선생님 화면에서 사라집니다.",
         need: "radiology.queue.view" },
 
-      { key: "patients", menu: "환자 목록", title: "전체 환자 목록",
+      { key: "patients", use: "list", menu: "환자 목록", title: "전체 환자 목록",
         sub: "지난 검사까지 전부 찾아보는 자리입니다. 판독 정정도 여기서 들어갑니다.",
         need: "radiology.list.view" },
 
-      { key: "studies/:id/upload", menu: "업로드", title: "촬영 업로드",
+      { key: "studies/:id/upload", use: "upload", menu: "업로드", title: "촬영 업로드",
         sub: "촬영본을 올리고 AI 분석을 겁니다. 분석이 끝나야 판독으로 넘어갑니다.",
         need: "radiology.upload.view", deep: true },
 
-      { key: "read/:id", menu: "판독", title: "영상 판독",
+      { key: "read/:id", use: "read", menu: "판독", title: "영상 판독",
         sub: "원본 영상에 AI 오버레이를 얹어 보고 소견을 씁니다. 저장하면 유방외과로 전송됩니다.",
         need: "radiology.read.view", deep: true },
 
-      { key: "read/:id/amend", menu: "판독 정정", title: "영상 판독 정정",
+      { key: "read/:id/amend", use: "amend", menu: "판독 정정", title: "영상 판독 정정",
         sub: "이미 확정한 판독을 고칩니다. 새 판독 행이 생기고 옛 행이 그것을 가리킵니다.",
         need: "radiology.amend.view", deep: true },
     ],

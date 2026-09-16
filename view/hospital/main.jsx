@@ -95,19 +95,43 @@ function Boot({ children }) {
   return children;
 }
 
-/* 과 하나의 화면 다섯 장 — 두 과가 같은 함수로 만들어진다 */
+/* ── 화면 뼈대 표 ──────────────────────────────────────────────
+ *
+ * nav.js 의 각 화면이 use 로 여기 이름 하나를 고른다.
+ *
+ * ⚠ 전에는 «과마다 정확히 다섯 장, 이 순서»를 박아 두었다 —
+ *     const [queue, list, upload, read, amend] = d.screens;
+ *   병리와 영상이 우연히 같은 모양이라 굴러갔지만, 화면 수나 구성이
+ *   다른 과는 **아예 못 넣는다.** 순서 대신 이름으로 고르게 바꾼다.
+ *   과를 더할 때 이 파일에서 고칠 것은 아래 표에 한 줄 더하는 것뿐이다.
+ */
+const SCREENS = {
+  queue:  QueueScreen,
+  list:   ListScreen,
+  upload: UploadScreen,
+  read:   ReadScreen,
+  amend:  AmendScreen,
+};
+
+/* 과 하나의 화면들 — 몇 장이든 nav.js 의 표대로 만들어진다 */
 function deptRoutes(key) {
   const cfg = CFG[key];
   const d = findDept(key);
-  const [queue, list, upload, read, amend] = d.screens;
 
   return (
     <Route key={key} path={key}>
-      <Route index element={<QueueScreen cfg={cfg} />} />
-      <Route path={list.key} element={<ListScreen cfg={cfg} />} />
-      <Route path={upload.key} element={<UploadScreen cfg={cfg} />} />
-      <Route path={read.key} element={<ReadScreen cfg={cfg} />} />
-      <Route path={amend.key} element={<AmendScreen cfg={cfg} />} />
+      {d.screens.map((s) => {
+        const El = SCREENS[s.use];
+        /* 표에 없는 이름을 적으면 조용히 빈 화면이 되는 대신 여기서 걸린다 */
+        if (!El) {
+          throw new Error(
+            `nav.js: ${key} 의 "${s.key}" 가 use:"${s.use}" 라고 적었는데 ` +
+            `main.jsx 의 SCREENS 표에 그런 이름이 없다`);
+        }
+        return s.key
+          ? <Route key={s.key} path={s.key} element={<El cfg={cfg} />} />
+          : <Route key="_index" index element={<El cfg={cfg} />} />;
+      })}
     </Route>
   );
 }
