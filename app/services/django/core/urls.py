@@ -13,7 +13,7 @@ cdss_backend/urls.py 에서 path("api/v1/", include("core.urls")) 로 물린다.
              PATCH     api/v1/followups/{id}/
              PATCH     api/v1/patients/{id}/questionnaire/   QuestionnaireView
 
-  radiology  GET       api/v1/radiology/queue                     ExamOrderQueueView
+  radiology  GET       api/v1/exam-orders/queue                     ExamOrderQueueView
              POST      api/v1/radiology/queue/{exam_order_id}/start-study   StudyStartView
              GET/PATCH api/v1/radiology/studies/{id}/upload        StudyUploadView
              GET       api/v1/radiology/studies/{id}/read          StudyReadView
@@ -64,7 +64,7 @@ urlpatterns = [
         views.QuestionnaireView.as_view({"patch": "partial_update"}),
         name="patient-questionnaire",
     ),
-    path("radiology/queue", views.ExamOrderQueueView.as_view(), name="radiology-queue"),
+    path("radiology/queue", views.ExamOrderQueueView.as_view(), name="exam-order-queue"),
     path(
         "radiology/queue/<int:pk>/start-study",
         views.StudyStartView.as_view({"post": "create"}),
@@ -107,5 +107,7 @@ urlpatterns = [
     path("patients/register", views.PatientRegisterView.as_view({"post": "create"}), name="patient-register"),
     path("exam-orders/checkin", views.CheckInView.as_view({"post": "create"}), name="exam-order-checkin"),
     path("exam-orders/schedule", views.ExamOrderScheduleView.as_view({"post": "create"}), name="exam-order-schedule"),
+    path("exam-orders/<int:pk>/assign", views.ExamOrderAssignView.as_view({"patch": "partial_update"}), name="exam-order-assign"),
+    path("specimens/<int:pk>/amend", views.SpecimenAmendView.as_view({"post": "create"}), name="specimen-amend"),
 ]
 

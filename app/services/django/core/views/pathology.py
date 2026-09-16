@@ -30,27 +30,34 @@ class SpecimenQueueView(generics.ListAPIView):
         if status_param:
             qs = qs.filter(accession_status=status_param)
 
-        # TODO: specimen.assigned_to 컬럼 추가되면 활성화
-        # assigned_param = self.request.query_params.get("assigned")
-        # if assigned_param == "none":
-        #     qs = qs.filter(assigned_to__isnull=True)
+        assigned_param = self.request.query_params.get("assigned")
+        if assigned_param == "none":
+            qs = qs.filter(assigned_to__isnull=True)
 
         return qs
 
 
 class SpecimenAssignView(AuditMixin, viewsets.ViewSet):
-    """§1 PATCH /specimens/{id}/assign — 집기. 동시 집기는 409.
-
-    TODO: specimen.assigned_to 컬럼 마이그레이션 대기 중. 컬럼 생기면
-    조건부 UPDATE 로 교체할 것 (영상의학과 ExamOrderAssignView 참고).
-    """
+    """§1 PATCH /specimens/{id}/assign — 집기. 동시 집기는 409."""
 
     resource = "specimen_pathology"
     permission_classes = [MatrixPermission]
 
     def partial_update(self, request, pk=None):
-        raise ApiError("INTERNAL_ERROR", "assigned_to 컬럼 마이그레이션 대기 중입니다.")
+        staff = getattr(request.user, "staff", None)
+        if staff is None:
+            raise ApiError("VALIDATION_ERROR", "의료진 계정이 아닙니다.")
 
+        updated = models.Specimen.objects.filter(
+            pk=pk, assigned_to__isnull=True
+        ).update(assigned_to=staff, updated_by=self._current_account())
+
+        if updated == 0:
+            raise ApiError("ALREADY_ASSIGNED", "다른 선생님이 이미 맡았습니다.")
+
+        specimen = models.Specimen.objects.get(pk=pk)
+        out = serializers.SpecimenSerializer(specimen)
+        return Response(out.data)
 
 class SpecimenAiResultView(AuditMixin, viewsets.ViewSet):
     """§2 POST /specimens/{id}/ai-results — 분석 시작. 올린 크롭마다 1행."""
@@ -124,3 +131,40 @@ class SpecimenFinalizeView(AuditMixin, viewsets.ViewSet):
         out = serializers.SpecimenSerializer(specimen)
         return Response(out.data)
 
+class SpecimenAmendView(AuditMixin, viewsets.ViewSet):
+    """§5 POST /specimens/{id}/amend — 판독 정정. 옛 값은 amend_history 에 보존."""
+
+    resource = "specimen_pathology"
+    permission_classes = [MatrixPermission]
+
+    def create(self, request, pk=None):
+        specimen = models.Specimen.objects.get(pk=pk)
+        serializer = serializers.SpecimenAmendSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        old_value = {
+            "diagnosis": specimen.diagnosis,
+            "b_category": specimen.b_category,
+            "finding_note": specimen.finding_note,
+            "reported_by": specimen.reported_by_id,
+            "finalized_at": specimen.finalized_at.isoformat() if specimen.finalized_at else None,
+            "amended_at": timezone.now().isoformat(),
+            "amend_reason": data["amend_reason"],
+        }
+
+        history = specimen.amend_history or []
+        history.append(old_value)
+        specimen.amend_history = history
+
+        specimen.diagnosis = data["diagnosis"]
+        specimen.b_category = data["b_category"]
+        specimen.finding_note = data.get("finding_note", specimen.finding_note)
+        specimen.reported_by = getattr(request.user, "staff", None)
+        specimen.updated_by = self._current_account()
+        specimen.save()
+
+        # TODO: discordance 재평가 로직 — 영상 최종 판정과 다시 대조
+
+        out = serializers.SpecimenSerializer(specimen)
+        return Response(out.data, status=status.HTTP_201_CREATED)

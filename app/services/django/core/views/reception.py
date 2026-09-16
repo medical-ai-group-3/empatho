@@ -315,8 +315,10 @@ class CheckInView(AuditMixin, viewsets.ViewSet):
         )
         
         patient = models.Patient.objects.get(pk=patient_id)
-        if not getattr(patient, "first_visited_at", None):
-            pass
+        if not patient.first_visited_at:
+            patient.first_visited_at = timezone.now()
+            patient.updated_by = self._current_account()
+            patient.save()
         
         out = serializers.ExamOrderSerializer(order)
         return Response(out.data, status= status.HTTP_201_CREATED)

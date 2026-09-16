@@ -34,12 +34,12 @@ class LesionSerializer(serializers.ModelSerializer):
 # ── 워크플로 액션 전용 ──────────────────────────────────
 
 class ExamOrderRequestSerializer(serializers.Serializer):
-    """POST /exam-orders — §1 촬영 요청 팝업. 촬영기구·요청의견서만."""
+    """POST /exam-orders — §1 촬영 요청 팝업."""
 
     patient_id = serializers.IntegerField()
     modality = serializers.ChoiceField(choices=models.as_choices(models.MODALITY))
     exam_purpose = serializers.ChoiceField(choices=models.as_choices(models.EXAM_PURPOSE))
-    # order_note 는 exam_order.order_note 컬럼이 아직 없어 무시한다(TODO).
+    order_note = serializers.CharField(required=False, allow_blank=True)
 
 
 class SurgeryDecisionSerializer(serializers.Serializer):

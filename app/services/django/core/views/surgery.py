@@ -28,6 +28,7 @@ class ExamOrderRequestView(AuditMixin, viewsets.ViewSet):
             patient_id=data["patient_id"],
             modality=data["modality"],
             exam_purpose=data["exam_purpose"],
+            order_note = data.get("order_note", ""),
             order_status="ordered",
             ordered_at=timezone.now(),
             ordered_by=getattr(request.user, "staff", None),
@@ -98,6 +99,20 @@ class SurgeryReportViewSet(AuditMixin, OwnedOnlyMixin, viewsets.ModelViewSet):
         report.content_json = request.data.get("content_json", report.content_json)
         report.updated_by = self._current_account()
         report.save()
+        out = serializers.ReportSerializer(report)
+        return Response(out.data)
+    
+    def retrieve(self, request, *args, **kwargs):
+        report = self.get_object()
+        if report.last_viewed_at is None:
+            report.last_viewed_at = timezone.now()
+            report.last_viewed_by = getattr(request.user, "staff", None)
+            report.view_count = (report.view_count or 0) + 1
+            report.save()
+        else:
+            report.view_count = (report.view_count or 0) + 1
+            report.last_viewed_at = timezone.now()
+            report.save()
         out = serializers.ReportSerializer(report)
         return Response(out.data)
 

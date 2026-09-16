@@ -35,3 +35,17 @@ class SpecimenFinalizeSerializer(serializers.Serializer):
     b_category = serializers.ChoiceField(choices=models.as_choices(models.B_CATEGORY))
     diagnosis = serializers.ChoiceField(choices=models.as_choices(models.DIAGNOSIS))
     finding_note = serializers.CharField(required=False, allow_blank=True)
+    
+class SpecimenAmendSerializer(serializers.Serializer):
+    """POST /specimens/{id}/amend — 판독 정정."""
+
+    diagnosis = serializers.ChoiceField(choices=models.as_choices(models.DIAGNOSIS))
+    b_category = serializers.ChoiceField(choices=models.as_choices(models.B_CATEGORY))
+    finding_note = serializers.CharField(required=False, allow_blank=True)
+    amend_reason = serializers.CharField()
+
+    def validate_amend_reason(self, value):
+        if not value.strip():
+            raise serializers.ValidationError("정정 사유는 필수입니다.")
+        return value
+    

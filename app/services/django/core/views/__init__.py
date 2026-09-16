@@ -34,6 +34,7 @@ from .radiology import (
     LesionViewSet,
     AssessmentHistoryView,
     AssessmentAmendView,
+    ExamOrderAssignView,
 )
 
 from .surgery import (
@@ -54,6 +55,7 @@ from .pathology import(
     SpecimenAiResultView,
     SpecimenDraftView,
     SpecimenFinalizeView,
+    SpecimenAmendView,
 )
 from .admin import (
     StaffApprovalListView,

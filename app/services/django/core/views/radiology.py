@@ -36,13 +36,20 @@ class ExamOrderQueueView(generics.ListAPIView):
     serializer_class = serializers.ExamOrderSerializer
 
     def get_queryset(self):
-        return (
-            models.ExamOrder.objects
-            .filter(order_status__in=["ordered", "accepted"], modality__isnull=False)
-            .filter(studies__isnull=True)
-            .order_by("scheduled_at")
-        )
-
+        qs = models.ExamOrder.objects.filter(
+            modality__in=["mammo", "us", "mri"]
+        ).order_by("ordered_at")
+        
+        status_param = self.request.query_params.get("status")
+        if status_param:
+            qs= qs.filter(order_status=status_param)
+            
+        assigned_param = self.request.query_params.get("assigned")
+        if assigned_param == "none":
+            qs= qs.filter(assigned_to__isnull=True)
+            
+        return qs
+       
 
 class StudyStartView(AuditMixin, viewsets.ViewSet):
     """POST /radiology/queue/{exam_order_id}/start-study — ①→② 촬영 시작.
@@ -128,7 +135,7 @@ class StudyReadView(viewsets.ViewSet):
         lesions = study.lesions.all()
         latest_ai_result = study.ai_results.order_by("-created_at").first()
         current_assessment = (
-            study.assessments.filter(read_stage="first")
+            study.assessments.filter(read_stage="draft")
             .order_by("-created_at")
             .first()
         )
@@ -229,7 +236,7 @@ class AssessmentDraftView(AuditMixin, viewsets.ViewSet):
         data = serializer.validated_data
 
         assessment, _ = models.Assessment.objects.update_or_create(
-            study=study, read_stage="first", lesion_id=data.get("lesion_id"),
+            study=study, read_stage="draft", lesion_id=data.get("lesion_id"),
             defaults={
                 "finding_note": data.get("finding_note", ""),
                 "category": data.get("category"),
@@ -237,7 +244,7 @@ class AssessmentDraftView(AuditMixin, viewsets.ViewSet):
                 "updated_by": self._current_account(),
             },
         )
-        study.read_status = "ai_revealed"
+        study.read_status = "draft"
         study.updated_by = self._current_account()
         study.save()
 
@@ -253,7 +260,7 @@ class StudyFinalizeView(AuditMixin, viewsets.ViewSet):
 
     def partial_update(self, request, pk=None):
         study = models.Study.objects.get(pk=pk)
-        drafts = models.Assessment.objects.filter(study=study, read_stage="first")
+        drafts = models.Assessment.objects.filter(study=study, read_stage="draft")
 
         if not drafts.exists():
             raise ApiError("VALIDATION_ERROR", "확정할 판정이 없습니다.")
@@ -357,3 +364,26 @@ class AssessmentAmendView(AuditMixin, viewsets.ViewSet):
 
         out = serializers.AssessmentSerializer(new)
         return Response(out.data, status=status.HTTP_201_CREATED)
+    
+class ExamOrderAssignView(AuditMixin, viewsets.ViewSet):
+    """PATCH /exam-orders/{id}/assign — 집기. 동시 집기는 409."""
+    
+    resource = "exam_order"
+    permission_classes = [MatrixPermission]
+    
+    def partial_update(self, request, pk=None):
+        staff = getattr(request.user, "staff", None)
+        if staff is None:
+            raise ApiError("VALIDATION_ERROR", "의료진 계정이 아닙니다")
+        
+        updated = models.ExamOrder.objects.filter(
+            pk=pk, assigned_to__isnull=True
+        ).update(assigned_to=staff, updated_by=self._current_account())
+        
+        if updated == 0:
+            raise ApiError("ALREADY_ASSIGNED", "다른 선생님이 이미 맡았습니다.")
+        
+        order = models.ExamOrder.objects.get(pk=pk)
+        out = serializers.ExamOrderSerializer(order)
+        return Response(out.data)
+    
