@@ -166,6 +166,8 @@ class StudyReadView(viewsets.ViewSet):
 
         return Response({
             "study": serializers.StudySerializer(study).data,
+            "images": serializers.StorageObjectSerializer(
+                study.storage_objects.all(), many=True).data,
             "lesions": serializers.LesionSerializer(lesions, many=True).data,
             "latest_ai_result": (
                 serializers.AiResultSerializer(latest_ai_result).data

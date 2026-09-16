@@ -49,6 +49,7 @@ from .surgery import (
     ReportUnlockStatusView,
     ReportUnlockView,
     SpecimenBindViewSet,
+    SpecimenUploadListView,
     DiscordanceListView,
     DiscordanceDisposeView,
 )

@@ -109,7 +109,7 @@ def login(request):
         tokens["refresh"],
         httponly=True,
         secure=True,
-        samesite="Lax",
+        samesite="None",
         max_age=60 * 60 * 24 * 14,
     )
     return response

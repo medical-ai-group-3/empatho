@@ -83,14 +83,29 @@ urlpatterns = [
         name="radiology-queue-start-study",
     ),
     path(
+        "exam-orders/<int:pk>/start-study",
+        views.StudyStartView.as_view({"post": "create"}),
+        name="exam-order-start-study",
+    ),
+    path(
         "radiology/studies/<int:pk>/upload",
         views.StudyUploadView.as_view({"get": "retrieve", "patch": "partial_update"}),
         name="radiology-study-upload",
     ),
     path(
+        "studies/<int:pk>/upload",
+        views.StudyUploadView.as_view({"get": "retrieve", "patch": "partial_update"}),
+        name="study-upload",
+    ),
+    path(
         "radiology/studies/<int:pk>/read",
         views.StudyReadView.as_view({"get": "retrieve"}),
         name="radiology-study-read",
+    ),
+    path(
+        "studies/<int:pk>/read",
+        views.StudyReadView.as_view({"get": "retrieve"}),
+        name="study-read",
     ),
     path("studies/<int:pk>/ai-results", views.AiResultQueueView.as_view({"post": "start"}), name="study-ai-results-start"),
     path("ai-results", views.AiResultListView.as_view({"get": "list"}), name="ai-results-list"),
@@ -110,6 +125,7 @@ urlpatterns = [
     path("specimens/<int:pk>/ai-results", views.SpecimenAiResultView.as_view({"post": "start"}), name="specimen-ai-results-start"),
     path("specimens/<int:pk>/draft", views.SpecimenDraftView.as_view({"put": "update"}), name="specimen-draft"),
     path("specimens/<int:pk>/finalize", views.SpecimenFinalizeView.as_view({"patch": "partial_update"}), name="specimen-finalize"),
+    path("specimens/<int:pk>/upload", views.SpecimenUploadListView.as_view({"get": "retrieve"}), name="specimen-upload"),
     path("admin/approvals", views.StaffApprovalListView.as_view(), name="admin-approvals-list"),
     path("admin/approvals/<int:pk>", views.StaffApproveView.as_view({"patch": "partial_update"}), name="admin-approval-approve"),
     path("admin/accounts/<int:pk>/role", views.AccountRoleView.as_view({"patch": "partial_update"}), name="admin-account-role"),

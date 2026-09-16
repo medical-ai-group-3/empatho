@@ -19,6 +19,7 @@ from .reception import (
     PatientRegisterSeializer,
     CheckInSerializer,
     ExamOrderScheduleSerializer,
+    MeSerializer,
 )
 from .nursing import (
     FollowupSerializer,
