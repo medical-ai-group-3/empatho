@@ -11,6 +11,8 @@ import { apiInfo } from "./api";
 import { DEPTS, HOME, ROOT, deptPath, findDept } from "./nav";
 import Top from "./lib/Top";
 import { useLoadMe } from "./lib/useMe";
+import { useSignedIn } from "./lib/session";
+import Login from "./screens/auth/Login";
 import Boom from "./lib/Boom";
 
 import QueueScreen from "./screens/Queue";
@@ -71,6 +73,21 @@ function Shell() {
       )}
     </div>
   );
+}
+
+/* ── 로그인 관문 ──────────────────────────────────────────────
+ *
+ * 토큰이 없으면 로그인 화면만 띄운다. **Boot 보다 앞이다** — 토큰 없이
+ * Boot 을 태우면 GET /me 가 401 로 떨어지고, 사람에게는 「로그인 정보를
+ * 가져오지 못했습니다」라는 엉뚱한 오류로 보인다. 로그인을 안 한 것은
+ * 오류가 아니다.
+ *
+ * 토큰이 있느냐만 본다 (session.js 의 useSignedIn). 만료된 토큰이면
+ * 여기는 통과하고 Boot 의 /me 가 401 을 받는데, 그건 갱신 경로가
+ * 생긴 뒤에 다룰 자리다.
+ */
+function Gate({ children }) {
+  return useSignedIn() ? children : <Login />;
 }
 
 /* 로그인 응답(perms)이 올 때까지 기다린다. 안 기다리면 첫 그림에서
@@ -139,6 +156,7 @@ function deptRoutes(key) {
 function App() {
   return (
     <BrowserRouter>
+      <Gate>
       <Boot>
         <Routes>
           <Route path={ROOT} element={<Navigate to={deptPath(HOME)} replace />} />
@@ -152,6 +170,7 @@ function App() {
           <Route path={`${ROOT}/*`} element={<Navigate to={deptPath(HOME)} replace />} />
         </Routes>
       </Boot>
+      </Gate>
     </BrowserRouter>
   );
 }

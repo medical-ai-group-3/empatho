@@ -205,6 +205,12 @@ export const updateMe = (b) => put("/me", b);
  *
  * 서버가 실패해도 토큰은 버린다. 「로그아웃을 눌렀는데 로그인된 채로
  * 남는」 것이 제일 나쁘다 — 공용 PC 에서 자리를 뜬 뒤다.
+ *
+ * ⚠ 여기서 버리는 것은 **이 파일이 들고 있는 토큰뿐이다.** 저장소
+ *   (sessionStorage)는 lib/session.js 가 들고 있다. 화면은 이것과 함께
+ *   session.js 의 signOut() 도 불러야 한다 — 안 그러면 새로고침에
+ *   토큰이 되살아난다. 여기서 session.js 를 부르지 않는 이유는 그쪽이
+ *   이 파일을 import 하고 있어서 서로 물리기 때문이다.
  */
 export async function logout() {
   try {

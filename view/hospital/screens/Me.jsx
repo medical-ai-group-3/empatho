@@ -2,6 +2,7 @@ import { useState } from "react";
 import { CATALOG, getMe, reportScope, setMe } from "../perm";
 import { useMe } from "../lib/useMe";
 import { logout as apiLogout, updateMe } from "../api";
+import { signOut } from "../lib/session";
 import { Page, Card, Btn } from "../lib/Page";
 import { Chip, Facts } from "../lib/Parts";
 
@@ -276,6 +277,12 @@ function AccountCard() {
          여기서 idle 로 되돌리면 「아직 로그인된 것처럼」 보여서 더 위험하다 */
       setErr(e.detail || e.message);
       setState("done");
+    } finally {
+      /* ⚠ **저장소까지 비운다.** api.js 의 logout 은 api 층 토큰만 버리는데,
+         session.js 가 sessionStorage 에도 들고 있어서 그것을 안 지우면
+         새로고침했을 때 토큰이 되살아나 로그인된 것처럼 보인다.
+         signOut 은 구독자에게도 알려서 Gate 가 로그인 화면으로 돌아간다 */
+      signOut();
     }
   }
 
