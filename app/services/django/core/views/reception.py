@@ -1,6 +1,6 @@
 """원무과(reception) view."""
 
-from rest_framework import viewsets, status, generics
+from rest_framework import viewsets, status, generics, mixins as drf_mixins
 from rest_framework.response import Response
 
 from django.db.models import Q
@@ -8,7 +8,7 @@ from django.utils import timezone
 
 from .. import models, serializers
 from ..mixins import AuditMixin
-from core.api.permissions import MatrixPermission, OwnedOnlyMixin
+from core.api.permissions import MatrixPermission, OwnedOnlyMixin, IsAuthenticatedAccount
 from core.api.errors import ApiError
 
 def _is_date(value):
@@ -203,8 +203,13 @@ class ExamOrderConfirmView(AuditMixin, viewsets.ViewSet):
         out = serializers.ExamOrderSerializer(all_rows, many=True)
         return Response(out.data, status=status.HTTP_200_OK)
 
-class ExamOrderQueryView(generics.ListAPIView):
+class ExamOrderQueryView(
+    drf_mixins.ListModelMixin,
+    drf_mixins.RetrieveModelMixin,
+    viewsets.GenericViewSet,
+):
     """GET /exam-orders — 여러 화면이 공유하는 유연한 목록 조회.
+    GET /exam-orders/{id} — 단건 조회.
 
     지원 쿼리:
       status, visited(yes/none), scheduled_on(today/YYYY-MM-DD),
@@ -351,3 +356,12 @@ class ExamOrderScheduleView(AuditMixin, viewsets.ViewSet):
         )
         out = serializers.ExamOrderSerializer(order)
         return Response(out.data, status = status.HTTP_201_CREATED)
+    
+class MeView(viewsets.ViewSet):
+    """GET /me"""
+
+    permission_classes = [IsAuthenticatedAccount]  # core.api.permissions 에서 import
+
+    def list(self, request):
+        out = serializers.MeSerializer(request.user)
+        return Response(out.data)

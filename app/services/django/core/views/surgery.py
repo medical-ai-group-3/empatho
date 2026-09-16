@@ -274,7 +274,21 @@ class SpecimenBindViewSet(AuditMixin, viewsets.ViewSet):
         )
         out = serializers.SpecimenSerializer(specimen)
         return Response(out.data, status=status.HTTP_201_CREATED)
+    
+    def retrieve(self, request, pk=None):
+        specimen = models.Specimen.objects.get(pk=pk)
+        out = serializers.SpecimenSerializer(specimen)
+        return Response(out.data)
 
+class SpecimenUploadListView(viewsets.ViewSet):
+    resource = "specimen_pathology"
+    permission_classes = [MatrixPermission]
+
+    def retrieve(self, request, pk=None):
+        specimen = models.Specimen.objects.get(pk=pk)
+        objects = models.StorageObject.objects.filter(specimen=specimen)
+        out = serializers.StorageObjectSerializer(objects, many=True)
+        return Response({"specimen_id": specimen.specimen_id, "uploads": out.data})
 
 class DiscordanceListView(generics.ListAPIView):
     """§1·§5 GET /discordances?patient={id}&status=open."""

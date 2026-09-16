@@ -205,3 +205,27 @@ class ExamOrderScheduleSerializer(serializers.Serializer):
     
     patient_id = serializers.IntegerField()
     scheduled_at = serializers.DateTimeField()
+    
+class MeSerializer(serializers.Serializer):
+    """GET /me — 로그인한 계정 정보 + 권한 배열."""
+    name = serializers.SerializerMethodField()
+    role = serializers.CharField()
+    dept = serializers.CharField(source="role")
+    dept_name = serializers.SerializerMethodField()
+    perms = serializers.SerializerMethodField()
+
+    DEPT_NAMES = {
+        "reception": "원무과", "nursing": "간호과", "radiology": "영상의학과",
+        "pathology": "병리과", "surgery": "유방외과", "admin": "관리자",
+        "patient": "환자",
+    }
+
+    def get_name(self, account):
+        staff = getattr(account, "staff", None)
+        return staff.full_name if staff else None
+
+    def get_dept_name(self, account):
+        return self.DEPT_NAMES.get(account.role, account.role)
+
+    def get_perms(self, account):
+        return perms_for_role(account.role)

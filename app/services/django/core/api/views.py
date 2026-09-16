@@ -24,7 +24,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .errors import ApiError
-
+from .auth import decode, issue_access, issue_pair, REFRESH, TokenError
 
 def _db_state():
     try:
@@ -102,4 +102,41 @@ def login(request):
     if not account.password_hash or not check_password(password, account.password_hash):
         raise ApiError("UNAUTHENTICATED", "아이디 또는 비밀번호가 올바르지 않습니다.")
 
-    return Response(issue_pair(account))
+    tokens = issue_pair(account)
+    response = Response({"access": tokens["access"]})
+    response.set_cookie(
+        "refresh_token",
+        tokens["refresh"],
+        httponly=True,
+        secure=True,
+        samesite="Lax",
+        max_age=60 * 60 * 24 * 14,
+    )
+    return response
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def refresh_token(request):
+    refresh = request.COOKIES.get("refresh_token")
+    if not refresh:
+        raise ApiError("UNAUTHENTICATED", "refresh 토큰이 없습니다.")
+
+    try:
+        payload = decode(refresh, expected_type=REFRESH)
+    except TokenError:
+        raise ApiError("UNAUTHENTICATED", "refresh 토큰이 유효하지 않습니다.")
+
+    try:
+        account = Account.objects.get(pk=int(payload["sub"]), is_active=True)
+    except Account.DoesNotExist:
+        raise ApiError("UNAUTHENTICATED", "계정을 찾을 수 없습니다.")
+
+    return Response({"access": issue_access(account)})
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def logout(request):
+    response = Response({"success": True})
+    response.delete_cookie("refresh_token")
+    return response

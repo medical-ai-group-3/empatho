@@ -42,6 +42,7 @@ router.register(r"me/reservation-requests", views.ReservationRequestViewSet, bas
 router.register(r"lesions", views.LesionViewSet, basename="lesion")
 router.register(r"specimens", views.SpecimenBindViewSet, basename="specimen")
 router.register(r"reports", views.SurgeryReportViewSet, basename="report")
+router.register(r"studies", views.StudyViewSet, basename="study")
 
 
 
@@ -52,7 +53,12 @@ urlpatterns = [
         views.ReservationRequestQueueView.as_view(),
         name="reservation-request-queue",
     ),
-    path("exam-orders", views.ExamOrderQueryView.as_view(), name="exam-order-query"),
+    path("exam-orders", views.ExamOrderQueryView.as_view({"get": "list"}), name="exam-order-query"),
+    path(
+        "exam-orders/<int:pk>",
+        views.ExamOrderQueryView.as_view({"get": "retrieve"}),
+        name="exam-order-detail",
+    ),
     path(
         "exam-orders/<int:pk>/confirm",
         views.ExamOrderConfirmView.as_view({"patch": "partial_update"}),
@@ -65,6 +71,12 @@ urlpatterns = [
         name="patient-questionnaire",
     ),
     path("radiology/queue", views.ExamOrderQueueView.as_view(), name="exam-order-queue"),
+    path("exam-orders/queue", views.ExamOrderQueueView.as_view(), name="exam-order-queue-alias"),
+    path(
+        "exam-orders/<int:pk>/complete",
+        views.ExamOrderCompleteView.as_view({"patch": "partial_update"}),
+        name="exam-order-complete",
+    ),
     path(
         "radiology/queue/<int:pk>/start-study",
         views.StudyStartView.as_view({"post": "create"}),
@@ -109,5 +121,6 @@ urlpatterns = [
     path("exam-orders/schedule", views.ExamOrderScheduleView.as_view({"post": "create"}), name="exam-order-schedule"),
     path("exam-orders/<int:pk>/assign", views.ExamOrderAssignView.as_view({"patch": "partial_update"}), name="exam-order-assign"),
     path("specimens/<int:pk>/amend", views.SpecimenAmendView.as_view({"post": "create"}), name="specimen-amend"),
+    path("me", views.MeView.as_view({"get": "list"}), name="me"),
 ]
 

@@ -10,8 +10,9 @@ from .reception import (
     StaffListView,
     PatientTodayStatusView,
     PatientRegisterView,     
-    CheckInView,               
-    ExamOrderScheduleView,     
+    CheckInView,
+    ExamOrderScheduleView,
+    MeView,
 )
 from .nursing import (
     VisitTodayViewSet,
@@ -23,7 +24,9 @@ from .nursing import (
 )
 
 from .radiology import (
+    StudyViewSet,
     ExamOrderQueueView,
+    ExamOrderCompleteView,
     StudyStartView,
     StudyUploadView,
     StudyReadView,

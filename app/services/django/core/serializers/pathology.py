@@ -49,3 +49,7 @@ class SpecimenAmendSerializer(serializers.Serializer):
             raise serializers.ValidationError("정정 사유는 필수입니다.")
         return value
     
+class StorageObjectSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.StorageObject
+        exclude = ("created_at", "created_by", "updated_at", "updated_by")

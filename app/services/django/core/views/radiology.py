@@ -23,6 +23,15 @@ from core.api.permissions import MatrixPermission
 from core.api.errors import ApiError
 
 
+class StudyViewSet(viewsets.ReadOnlyModelViewSet):
+    """GET /studies, GET /studies/{id} — 검사(Study) 목록/단건 조회."""
+
+    resource = "study"
+    permission_classes = [MatrixPermission]
+    queryset = models.Study.objects.all()
+    serializer_class = serializers.StudySerializer
+
+
 class ExamOrderQueueView(generics.ListAPIView):
     """GET /radiology/queue — ① 촬영 대기 리스트.
 
@@ -49,7 +58,22 @@ class ExamOrderQueueView(generics.ListAPIView):
             qs= qs.filter(assigned_to__isnull=True)
             
         return qs
-       
+
+
+class ExamOrderCompleteView(AuditMixin, viewsets.ViewSet):
+    """PATCH /exam-orders/{id}/complete — 촬영/판독 완료 처리."""
+
+    resource = "exam_order"
+    permission_classes = [MatrixPermission]
+
+    def partial_update(self, request, pk=None):
+        order = models.ExamOrder.objects.get(pk=pk)
+        order.order_status = "completed"
+        order.updated_by = self._current_account()
+        order.save()
+        out = serializers.ExamOrderSerializer(order)
+        return Response(out.data)
+
 
 class StudyStartView(AuditMixin, viewsets.ViewSet):
     """POST /radiology/queue/{exam_order_id}/start-study — ①→② 촬영 시작.

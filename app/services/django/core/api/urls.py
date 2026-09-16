@@ -14,12 +14,14 @@ from importlib.util import find_spec
 from django.urls import include, path, re_path
 
 from .tickets import TicketView
-from .views import HealthView, NotFoundView, login
+from .views import HealthView, NotFoundView, login, refresh_token, logout
 
 urlpatterns = [
     path("health", HealthView.as_view(), name="health"),
     path("tickets", TicketView.as_view(), name="ticket-issue"),
     path("login", login, name = "login"),
+    path("token/refresh", refresh_token, name="token-refresh"),
+    path("logout", logout, name="logout"),
 ]
 
 # 업무 엔드포인트는 다른 브랜치에서 오는 중이다. 들어오면 자동으로 물린다.
