@@ -40,11 +40,13 @@ ACCOUNT_STATUS = ["pending", "active", "rejected", "suspended"]
 # 1차 판독 게이트가 팀 결정으로 없어져 중간 둘(first_locked · ai_revealed)이
 # 빠지고, 임시저장을 담는 draft 가 들어왔다.
 READ_STATUS = ["pending", "draft", "finalized"]
-# mesh 가 셋인 이유 — MRI 는 유방 전체 · 치밀부위 · 병변 세 종류를 낸다.
-# 앞의 둘은 검사당 1개라 lesion 이 null 이고 뒤는 병변당 1개라 lesion 이 필수다.
-# 한 kind 로 두면 그 차이를 DB 가 못 걸고, lesion 이 null 인 두 행이 구분도 안 된다.
+# mesh 가 넷인 이유 — MRI 는 유방 전체 · 치밀부위 · 몸통 · 병변 네 종류를 낸다.
+# 앞의 셋은 검사당 1개라 lesion 이 null 이고 병변 메시만 병변당 1개라 lesion 이 필수다.
+# 한 kind 로 두면 그 차이를 DB 가 못 걸고, lesion 이 null 인 행들이 구분도 안 된다.
+# mesh_body 는 2026-09-16 조영 전 · 후 두 볼륨 판독에서 확인했다 — 응답의
+# result.tumor.body_mesh(약 2.5MB)다. 조영 전만 보내면 나오지 않는다.
 IMAGE_KIND = ["mask", "overlay", "mesh_breast", "mesh_dense", "mesh_lesion",
-              "heatmap", "thumbnail"]
+              "mesh_body", "heatmap", "thumbnail"]
 READ_STAGE = ["draft", "final"]
 ACCESSION_STATUS = ["unbound", "bound", "accessioned"]
 DIAGNOSIS = ["benign", "malignant"]

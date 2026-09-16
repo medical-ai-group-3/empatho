@@ -1,6 +1,34 @@
-"""판독 태스크 — 워커가 이미지를 Go 에서 받아 추론 서버로 보낸다.
+"""판독 태스크 — 워커가 이미지를 Go 에서 받아 추론 서버로 보내고 행에 남긴다.
 
-지금은 흐름 확인용이다. DB 를 쓰지 않고 결과를 로그로만 남긴다.
+ai_result 한 행이 판독 한 번이다. 어느 파일을 어느 소켓으로 돌리는지는
+행이 들고 있다 — 태스크는 행 번호만 받는다.
+
+■ 이 파일이 서 있는 자리
+
+    화면 ─ 판독 요청 ─▶ Django ─ ai_result(queued) ─▶ Redis
+                                                        │
+                                          Celery 워커 ◀─┘  ← 여기부터 이 파일
+                                          │
+              Go(file-gateway) ◀─ 티켓 ───┤   원본 받기
+              추론 서버(:8001) ◀─ 이미지 ─┤   판독
+              Go(file-gateway) ◀─ 메시 ───┤   파생물 올리기 (MRI 만)
+                                          └─▶ ai_result 갱신 (결과 · 상태 · 시간)
+
+■ 워커가 저장소에 직접 가지 않는 이유
+
+    파일 바이트는 Go 만 다룬다. 워커도 예외가 아니라 Garage · Orthanc 에 직접
+    붙지 않고, Django 가 서명한 티켓을 들고 Go 에서 받는다. 저장소 자격이
+    워커에 없으므로 워커가 뚫려도 파일 전체가 열리지 않는다.
+
+■ 워커가 DB 는 직접 쓰는 이유
+
+    DB 는 Django 코드만 쓴다는 규칙이 있고, Celery 워커는 Django 코드다
+    (web 과 같은 이미지로 뜬다). 그래서 콜백을 거치지 않고 여기서 바로 쓴다.
+
+■ 실패해도 반드시 행을 갱신한다
+
+    예외가 나면 run_status 를 failed 로 남긴다. 로그만 남기면 행이 queued 인
+    채로 남아 화면이 영원히 기다린다 — 실패는 화면에 보여야 하는 정보다.
 """
 
 import json 
@@ -11,70 +39,362 @@ import uuid
 
 from celery import shared_task 
 from .api.tickets import issue 
+from django.utils import timezone
+
+from . import mesh 
+from .models import AiResult, StorageObject
 
 logger = logging.getLogger(__name__) 
 
+# ── 부를 주소 ────────────────────────────────────────────────────────────
+# 둘 다 도커망 안의 이름이라 밖으로 나가지 않는다. nginx 를 거치지 않는다.
+
 # 파일 게이트웨이 주소
+#   원본 받기 · 파생물 올리기를 여기로 한다. 워커는 저장소 대신 이 주소만 안다.
 GATEWAY = "http://file-gateway:8091"
-# 추론 서버로 전송을 하기 위한 터널 주소 
+# 추론 서버로 전송을 하기 위한 터널 주소
+#   tunnel 컨테이너가 SSH 로 워크스테이션 127.0.0.1:8001 까지 넘긴다.
+#   GPU 는 워크스테이션에만 있어서 판독은 반드시 이 경로를 지난다.
 INFERENCE = "http://tunnel:8001"
 
 
-# 모달리티별 소켓 지정 
+# 모달리티별 소켓 지정
+#   추론 서버는 주소의 소켓 번호로 어느 모델을 쓸지 정한다 — 영상을 열어보고
+#   짐작하지 않는다. 그래서 보내는 쪽이 번호를 정확히 정해야 한다.
+#   여기 없는 모달리티가 오면 KeyError 가 나고, 아래 try 가 failed 로 남긴다.
 SOCKET = {"us": "5", "mammo": "4b", "mri": "3", "pathology": "1"}
 
 # DICOM 은 Orthanc 에만 있다. 맘모는 한 장, MRI 는 시리즈를 zip 으로 받는다.
 #   모달리티 → (티켓 범위 종류, 추론 서버에 넘길 파일 이름)
 # MRI 소켓은 이름이 .zip 이어야 압축을 푼다.
+#
+# 여기 있는 모달리티와 없는 모달리티는 받는 경로가 갈린다.
+#   있음(맘모 · MRI)   Go 의 dicom 경로 — Orthanc 에서 꺼낸다
+#   없음(초음파 · 병리) Go 의 files 경로 — Garage 에서 꺼낸다
 DICOM = {"mammo": ("dicom/instances", "image.dcm"), "mri": ("dicom/series", "series.zip")}
 
 # ⑤ celery task로 등록 => core.tasks.run_inference
 # 워커는 뜰 때 각 앱의 tasks.py 를 자동으로 찾아 이름을 등록 
 @shared_task
-# parameter 두 개가 그대로 redis 에 보내는 메세지로 사용 (파일 위치,종류)
-def run_inference(ref, modality) :
-    """
-    ref       어느 파일인가. 모달리티마다 가리키는 것이 다르다
-                us · pathology   Garage object_key    예) test/flowcheck/a400a1….png
-                mammo            SOP Instance UID     예) 1.3.6.1.4.1.9590….
-                mri              Orthanc 시리즈 ID    예) 036fcbc1-37f4517f-…
-    modality  us · mammo · mri · pathology
+# redis로 가는 메세지는 행 번호 하나, 나머지는 DB에서 읽어옴 
+def run_inference(ai_result_id) :
+    """ai_result 한 행을 판독하고 결과를 그 행에 쓴다.
 
-    DICOM(맘모 · MRI)은 Orthanc 에만 있어서 Go 의 dicom 경로로 받는다.
+    행 하나가 판독 한 번이다. 어느 파일을 어느 소켓으로 돌리는지는 행이 들고 있다.
+      us · pathology   source_object 의 object_key
+      mammo            source_object 의 sop_instance_uid
+      mri              source_object 가 비어 있다 — 시리즈 전체를 보므로
+                       가리킬 파일 한 장이 없다. 검사의 저장 행에서 시리즈를 찾는다
+    병리는 study 가 없고 specimen 에 매달린다. 모달리티를 그렇게 가른다.
+
+    파라미터
+        ai_result_id  판독할 ai_result 의 기본키. Redis 메시지에 실려 오는
+                      유일한 값이다. 파일 주소 · 모달리티를 메시지에 담지
+                      않는 이유는, 담으면 DB 와 메시지 두 곳에 같은 사실이
+                      생겨 둘이 어긋날 수 있어서다.
+
+    돌려주는 값
+        run_status 문자열("done" · "failed"). Celery 결과 저장소(Redis db1)에
+        24시간 남는다. 진짜 기록은 ai_result 행이고 이 반환값은 요약이다.
+
+    안에서 쓰는 이름
+        ai        판독할 행. 결과를 여기에 채워 마지막에 한 번 save() 한다
+        modality  us · mammo · mri · pathology 넷 중 하나
+        socket    추론 서버 주소에 붙일 소켓 번호
+        ref       Go 에게 「이것을 달라」고 가리키는 값. 모달리티마다 다르다
+        t0        걸린 시간 재기용 시작점. 벽시계가 아니라 단조 시계를 쓴다 —
+                  중간에 시스템 시각이 바뀌어도 음수가 나오지 않는다
+        out       추론 서버 응답 JSON. 그대로 ai_result.result 에 들어간다
+
+    실패
+        어느 단계에서 터지든 행은 failed 로 남고 예외는 밖으로 나가지 않는다.
+        Celery 재시도를 쓰지 않는 이유는, 같은 실패가 반복되면 GPU 를 그만큼
+        더 점유해서다. 다시 돌릴지는 사람이 정한다.
     """
-    
+
+    # ① 행을 읽어 무엇을 할지 정한다.
+    #    study 가 있으면 영상이고 모달리티는 검사에 적혀 있다. 없으면 병리다 —
+    #    병리는 검체에 매달리고 검사가 없다(09-16 배포로 그렇게 바뀌었다).
+    ai = AiResult.objects.get(pk=ai_result_id)
+    modality = ai.study.modality if ai.study_id else "pathology"
     socket = SOCKET[modality]
-    logger.info("[run_inference] 수신 ref=%s modality=%s -> 소켓 %s", ref, modality, socket)
+
+    # ② 시작했음을 먼저 남긴다. 화면이 queued 와 running 을 구분해 보여준다.
+    #    ai 객체 대신 update() 를 쓰는 것은, 아래에서 결과를 채워 save() 할 때
+    #    이 두 칸을 다시 쓰지 않기 위해서다 — 같은 값을 두 번 쓰지 않는다.
+    AiResult.objects.filter(pk=ai_result_id).update(run_status = "running", requested_socket_id = socket)
     
-    # ⑥ [이미지 워커로 전송] == Go 에서 이미지 전달 받음. 워커는 저장소에 접근하지 않는다 ==
-    # 티켓 접두사(scope_kind/scope_id)가 Go 가 여는 범위다.
-    #   DICOM   dicom/instances/<UID> · dicom/series/<ID> — Go 가 경로와 정확히 같은지 본다
-    #   그 외   object_key 앞 두 칸 — Go 가 키가 그 아래인지 본다
-    if modality in DICOM: 
-        scope_kind, name = DICOM[modality]
-        scope_id = ref
-        url = f"{GATEWAY}/svc/v1/{scope_kind}/{ref}"
-    else : 
-        scope_kind, scope_id = ref.split("/")[:2]
-        name = ref.rsplit("/", 1)[-1]
-        url = f"{GATEWAY}/svc/v1/files/{ref}"
+    logger.info("[run_inference]행 %s modality=%s -> 소켓 %s", ai.pk, modality, socket)
+    
+    t0 = time.monotonic()
+    try :
+        # ③ 어느 파일을 보낼지 고른다. 모달리티마다 가리키는 칸이 다르다.
+        ref = _ref(ai, modality)
+        # ⑥ [이미지 워커로 전송] == Go 에서 이미지 전달 받음. 워커는 저장소에 접근하지 않는다 ==
+        # 티켓 접두사(scope_kind/scope_id)가 Go 가 여는 범위다.
+        #   DICOM   dicom/instances/<UID> · dicom/series/<ID> — Go 가 경로와 정확히 같은지 본다
+        #   그 외   object_key 앞 두 칸 — Go 가 키가 그 아래인지 본다
+        #
+        # scope_kind · scope_id  티켓이 여는 범위. 이 범위 밖의 파일은 같은
+        #                        티켓으로 못 받는다 — 권한 경계가 여기다
+        # name                   추론 서버에 넘길 파일 이름. MRI 는 .zip 이어야
+        #                        압축을 풀고, 나머지는 확장자로 형식을 본다
+        # url                    Go 에서 받을 주소
+        if modality in DICOM :
+            scope_kind, name = DICOM[modality]
+            scope_id = ref
+            url = f"{GATEWAY}/svc/v1/{scope_kind}/{ref}"
+        else :
+            # Garage 키는 "scope_kind/scope_id/파일명" 모양이다. 앞 두 칸이 곧
+            # 범위라 거기서 잘라 쓰고, 이름은 마지막 칸을 그대로 쓴다.
+            scope_kind, scope_id = ref.split("/")[:2]
+            name = ref.rsplit("/",1)[-1]
+            url = f"{GATEWAY}/svc/v1/files/{ref}"
+            
+        # issue() => (티켓 문자열, 클레임, 만료 시각) 세 개를 돌려주지만 티켓 하나라 나머지는 버림
+        # "download" => 읽기만 허용. go 는 서명 · 만료 · 범위만 확인
+        #
+        # 사람 토큰이 없는 자리라 issue() 를 직접 부른다. 권한은 판독을 요청한
+        # 화면에서 이미 봤고, 여기서는 「이 범위를 읽는다」만 서명한다.
+        token, _, _ = issue("download", scope_kind, scope_id)
+        req = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})
+        # 제한 시간은 MRI 시리즈 zip(146장, 수백 MB)을 받는 시간까지 본 값이다.
+        with urllib.request.urlopen(req, timeout=300) as r :
+            data = r.read() 
+        logger.info("[run_inference] 이미지 %d 바이트", len(data))
         
-    # issue() => (티켓 문자열, 클레임, 만료 시각) 세 개를 돌려주지만 티켓 하나라 나머지는 버림
-    # "download" => 읽기만 허용. go 는 서명 · 만료 · 범위만 확인
-    token, _, _ = issue("download", scope_kind, scope_id)
-    req = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})
-    with urllib.request.urlopen(req, timeout=300) as r :
-        data = r.read() 
-    logger.info("[run_inference] 이미지 %d 바이트", len(data))
-    # ⑦ [판독 요청] == 추론 서버로 전송, multipart 한 칸(image 한 장) ==
-    boundary = uuid.uuid4().hex
-    # 전송할 내용을 담은 body. name은 위에서 정함 
-    body = (f'--{boundary}\r\nContent-Disposition: form-data; name="image"; filename="{name}"\r\n'
-            f'Content-Type: application/octet-stream\r\n\r\n').encode() + data + f"\r\n--{boundary}--\r\n".encode() 
-    req = urllib.request.Request(f"{INFERENCE}/analyze/{socket}", data=body, headers={"Content-Type": f"multipart/form-data; boundary={boundary}"})
-    t0 = time.monotonic() 
-    with urllib.request.urlopen(req, timeout=800) as r :
-        out = json.loads(r.read())
-    logger.info("[run_inference] 소켓 %s 응답 %.1f초 abstained=%s reason=%s", out.get("socket_id"), time.monotonic() - t0, out.get("abstained"), out.get("reason"))
+        # ⑦ [판독 요청] == 추론 서버로 전송, multipart 한 칸(image 한 장) =
+        #
+        # 영상을 디스크에 쓰지 않고 메모리에서 바로 본문으로 만든다. 요청 형식이
+        # multipart 인 것은 추론 서버의 창구가 그것 하나여서다. 칸은 image 하나만
+        # 쓴다 — 환자 정보는 보내지 않는다. MRI 조영 후 볼륨을 넣는 post 칸은
+        # 아직 채우지 않는다(조영 전 · 후를 가릴 표시가 없다).
+        #
+        # boundary  본문에서 칸과 칸을 가르는 표식. 내용과 겹치면 안 되므로
+        #           요청마다 새 난수로 만든다
+        boundary = uuid.uuid4().hex
+        body = (f'--{boundary}\r\nContent-Disposition: form-data; name="image"; filename="{name}"\r\n'
+                f'Content-Type: application/octet-stream\r\n\r\n').encode() + data + f"\r\n--{boundary}--\r\n".encode() 
+        req = urllib.request.Request(f"{INFERENCE}/analyze/{socket}", data=body, headers={"Content-Type": f"multipart/form-data; boundary={boundary}"})
+        # 추론 서버는 실패도 HTTP 200 에 abstained 로 돌려준다. 그래서 상태
+        # 코드를 따로 보지 않고, 기권 여부는 응답 안에서 읽는다.
+        with urllib.request.urlopen(req, timeout=300) as r :
+            out = json.loads(r.read())
+            
+        # MRI 응답은 대부분이 3D 메시다. 걷어내지 않으면 jsonb 한 칸이 그 크기가 된다.
+        if modality == "mri" :
+            out = _store_meshes(out, ai)
+            
+        # ⑧ 결과를 행에 채운다. 저장은 마지막에 한 번만 한다.
+        #    abstained 는 「판독을 못 했다」이고 실패(failed)와 다르다 — 호출은
+        #    정상이었고 모델이 판정을 거부한 것이라 done 으로 남긴다.
+        ai.result = out
+        ai.abstained = bool(out.get("abstained"))
+        ai.abstain_reason = (out.get("reason") or "")[:100] or None
+        ai.run_status = "done"
+    except Exception as e:
+        # 실패해도 행에 남긴다. 로그만 남기면 화면이 queue 인채로 멈춘다
+        #
+        # 예외 종류와 메시지를 사유 칸에 넣는다. 칸이 100자라 잘라 넣고,
+        # 자세한 내용은 logger.exception 이 남기는 traceback 에 있다.
+        logger.exception("[run_inference] 행 %s 실패", ai.pk)
+        ai.run_status = "failed"
+        ai.abstain_reason = f"{type(e).__name__}: {e}"[:100]
         
-    return {k: out.get(k) for k in ("socket_id", "abstained", "reason")}
+    # ⑨ 성공 · 실패 어느 쪽이든 시간과 시각을 남기고 한 번 저장한다.
+    #    try 안에서 저장하지 않는 이유는, 실패 경로에서도 같은 칸을 채워야
+    #    「언제 돌렸고 얼마나 걸렸나」가 남기 때문이다.
+    ai.elapsed_sec = round(time.monotonic() - t0, 3)
+    ai.analyzed_at = timezone.now()
+    # 이 태스크가 채운 칸만 쓴다. 통째로 저장하면 앞에서 update() 로 적어 둔
+    # requested_socket_id 가 메모리의 옛 값(None)으로 덮인다.
+    # updated_at 은 auto_now 라 목록에 넣어야 갱신된다.
+    ai.save(update_fields=[
+        "result", "abstained", "abstain_reason", "run_status",
+        "elapsed_sec", "analyzed_at", "updated_at"])
+    logger.info("[run_inference] 행 %s %s %.1f초", ai.pk, ai.run_status, float(ai.elapsed_sec))
+    return ai.run_status
+
+def _series_row(study_id) :
+    """이 검사의 Orthanc 시리즈를 대표하는 저장 행 하나.
+
+    시리즈 한 벌이 파일 146장이라 저장 행도 146개지만 시리즈 ID 는 같다.
+    그래서 그중 아무 행이나 하나면 시리즈를 가리킬 수 있다. 행 자체가
+    필요한 이유는 파생물 티켓이 원본 번호를 요구해서다 — MRI 는 ai_result 의
+    원본 칸이 비어 있어 여기서 대신 찾는다.
+
+    조영 전 시리즈를 쓴다. 표시가 없으면 먼저 들어온 시리즈를 쓴다 —
+    series_role 을 채우는 코드가 아직 없다. 제대로 가리려면 Go 가 DICOM
+    헤더에서 읽어 DICOM 정보 콜백에 실어야 한다. 그 전까지는 조영 후
+    시리즈를 집을 수 있다.
+
+    deleted_at 이 빈 행만 본다 — 지운 파일을 다시 부르지 않는다.
+
+    파라미터
+        study_id  검사 번호
+
+    예외
+        ValueError  이 검사에 Orthanc 시리즈가 하나도 없을 때
+    """
+    rows = (StorageObject.objects
+            .filter(study_id=study_id, orthanc_series_id__isnull=False,
+                    deleted_at__isnull=True)
+            .order_by("storage_object_id"))
+    row = rows.filter(series_role="pre").first() or rows.first()
+    if row is None :
+        raise ValueError("이 검사에 Orthanc 시리즈가 없다")
+    return row
+
+
+def _ref(ai, modality) :
+    """어느 파일을 보낼지 고른다. 모달리티마다 가리키는 칸이 다르다
+
+    ai_result 는 원본을 한 행만 가리킨다. 그런데 모달리티마다 「한 행」의 뜻이
+    달라서 Go 에게 건넬 값도 달라진다.
+
+    파라미터
+        ai        판독할 ai_result 행
+        modality  us · mammo · mri · pathology
+
+    돌려주는 값
+        Go 에게 건넬 가리킴값
+          us · pathology   Garage object_key   예) study/12/a3f1….png
+          mammo            SOP Instance UID    예) 1.3.6.1.4.1.9590….
+          mri              Orthanc 시리즈 ID   예) 036fcbc1-37f4517f-…
+
+    예외
+        ValueError  가리킬 것을 못 찾았을 때. 부르는 쪽의 try 가 받아 행을
+                    failed 로 남긴다.
+    """
+    if modality == "mri" :
+        # MRI 는 시리즈 전체를 본다. 가리킬 파일 한 장이 없어 원본 칸을 비우는
+        # 것이 설계다 — 그래서 검사에 딸린 저장 행에서 시리즈를 찾는다.
+        return _series_row(ai.study_id).orthanc_series_id
+    
+    # MRI 가 아니면 원본 한 장을 반드시 가리킨다. 비어 있으면 요청을 만든 쪽이
+    # 원본을 안 넣은 것이라 여기서 멈추고 failed 로 남긴다.
+    src = ai.source_object
+    if src is None :
+        raise ValueError("원본이 비어있다")
+    if modality == "mammo" :
+        # 맘모는 DICOM 한 장이다. Orthanc 에서 꺼내려면 인스턴스 번호가 필요하다.
+        return src.sop_instance_uid
+    # 초음파 · 병리는 Garage 에 그대로 있다.
+    return src.object_key
+    
+    
+def _store_meshes(out, ai) :
+    """MRI 메시를 파생물 버킷으로 보내고 결과에는 실제 주소만 남긴다.
+
+    Go 가 키를 난수로 만들어서(file-gateway/main.go keyFor) mesh.split 이 넣어 둔
+    예정 주소와 다르다. 올린 뒤 돌려받은 주소로 스텁을 고쳐야 나중에 찾을 수 있다.
+
+    왜 필요한가
+        MRI 응답은 48MB 안팎이고 그 대부분이 3D 메시(정점 · 삼각형 좌표)다.
+        그대로 ai_result.result 에 넣으면 jsonb 한 칸이 그 크기가 되어 조회가
+        느려지고 백업이 커진다. 메시는 파일로 두고 결과에는 주소만 남긴다.
+
+    파라미터
+        out  추론 서버 응답 봉투 전체. 판독값은 out["result"] 안에 있고
+             메시도 거기 있다(result.density.breast_mesh 등). 원본은
+             건드리지 않는다
+        ai   판독한 ai_result 행. 티켓 범위와 파생물 꼬리표에 쓴다
+
+    돌려주는 값
+        메시를 뺀 봉투. 메시가 있던 자리에는 스텁(주소 · 정점 수)이 남는다.
+        키를 지우지 않는 이유는, 그 자리를 따라 걷는 쪽이 「값이 없다」와
+        「여기 있었고 저기 있다」를 구분할 수 있게 하기 위해서다.
+
+    안에서 쓰는 이름
+        inner      메시를 뺀 판독값(봉투 안쪽)
+        parts      떼어낸 메시 목록. 각각 바이트 · 종류 · 예정 주소를 든다
+        source_id  파생물 티켓에 실을 원본 번호
+        saved      Go 가 돌려준 실제 주소(bucket · object_key)
+    """
+    # 메시 분리 코드는 판독값 기준이라 봉투가 아니라 그 안쪽을 넘긴다.
+    # 봉투에는 모델 이름 · 판 같은 작은 값만 있어 걷어낼 것이 없다.
+    inner, parts = mesh.split(out["result"], ai.study_id)
+    out = dict(out)
+    out["result"] = inner
+
+    # MRI 는 원본 칸이 비어 있다(시리즈 전체를 보므로 가리킬 한 장이 없다).
+    # 파생물 티켓은 원본 번호를 요구하므로 시리즈를 대표하는 행 번호를
+    # 티켓에만 싣는다 — ai_result 행에 저장하지는 않는다.
+    source_id = ai.source_object_id or _series_row(ai.study_id).pk
+
+    for part in parts :
+        # 병변 메시는 AI 병변 행이 없어 티켓에 넣을 lesion_id 가 없다, 보류
+        #   파생물 티켓은 병변 메시에 병변 번호를 요구한다. AI 결과에서 병변
+        #   행을 만드는 코드가 아직 없어 그 번호를 채울 수 없다. 올리지 않고
+        #   스텁에 「저장 안 함」 표시만 남긴다 — 없는 주소를 가리키지 않게 한다.
+        if part.kind == mesh.LESION_KIND :
+            _walk_ref(inner, part.object_key, None)
+            continue
+        
+        # 파생물 티켓은 쓰기 티켓이다. 범위(검사)와 함께 꼬리표를 서명에 싣는다 —
+        # Go 가 그대로 파일 등록 콜백에 실어 보내고, Django 가 발급 때와 같은
+        # 함수로 다시 검증한다. 그래야 파생물이 엉뚱한 실행에 붙지 않는다.
+        #   content_type  Go 가 저장할 때 붙일 형식
+        #   max_bytes     이 파일 크기만큼만 허용. 넘으면 Go 가 받다가 끊는다
+        token, _, _ = issue("derived_upload", "study",
+                            ai.study_id, content_type=part.content_type, 
+                            max_bytes=part.byte_size, 
+                            derived={
+                                "kind": part.kind, 
+                                "source_object_id": source_id,
+                                "ai_result_id": ai.pk})
+        # X-Filename 은 Go 가 확장자를 떼어 쓰는 값이다. 이름 전체는 Go 가
+        # 난수로 정하므로 지금은 확장자만 전달되는 셈이다.
+        req = urllib.request.Request(
+            f"{GATEWAY}/svc/v1/derived", data=part.payload, method="POST",
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": part.content_type, 
+                "X-Filename": part.object_key.rsplit("/", 1)[-1]
+            }
+        )
+        with urllib.request.urlopen(req, timeout=300) as r :
+            saved = json.loads(r.read())
+        # 올린 뒤에야 실제 주소를 안다. 그 주소로 스텁을 고쳐야 나중에 이
+        # 결과에서 메시 파일을 찾아갈 수 있다.
+        _walk_ref(inner, part.object_key, saved)
+        logger.info("[mesh] %s %d바이트 -> %s", part.kind, part.byte_size, saved["object_key"])
+    return out
+
+def _walk_ref(node, planned_key, saved) :
+    """예정 주소로 넣어 둔 스텁을 찾아 실제 주소로 바꾼다.
+
+    saved 가 None 이면 올리지 않은 것이다 — 없는 주소를 가리키지 않게 지우고
+    표시만 남긴다.
+
+    왜 훑어서 찾나
+        메시가 응답의 어느 깊이에 있는지는 종류마다 다르다(검사 메시는 density
+        아래, 병변 메시는 배열 원소 아래). 경로를 다시 계산하는 대신 예정
+        주소로 스텁을 찾는다 — 예정 주소는 종류마다 다르게 만들어져서 그 자체가
+        구분값이 된다.
+
+    파라미터
+        node         훑을 자리. 재귀로 dict · list 를 따라 내려간다
+        planned_key  mesh.split 이 스텁에 심어 둔 예정 주소
+        saved        Go 가 돌려준 실제 주소. None 이면 올리지 않았다는 뜻
+
+    돌려주는 값
+        고쳤으면 True. any() 가 첫 성공에서 멈추므로 한 번 찾으면 더 안 훑는다.
+    """
+    if isinstance(node, dict) :
+        ref = node.get(mesh.REF_KEY)
+        if isinstance(ref, dict) and ref.get("object_key") == planned_key :
+            if saved is None :
+                # 주소를 지우고 표시만 남긴다. 주소가 남아 있으면 없는 파일을
+                # 받으러 가서 실패한다.
+                ref.pop("bucket", None)
+                ref.pop("object_key", None)
+                ref["stored"] = False 
+            else :
+                ref["bucket"] = saved["bucket"]
+                ref["object_key"] = saved["object_key"]
+            return True
+        return any(_walk_ref(v, planned_key, saved) for v in node.values())
+    if isinstance(node, list) :
+        return any(_walk_ref(v, planned_key, saved) for v in node)
+    return False 

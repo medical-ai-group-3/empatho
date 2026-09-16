@@ -82,8 +82,9 @@ def object_key_prefix(scope_kind, scope_id):
 
 #: 파생물 kind 별 필수 FK. 여기 없는 kind 는 아직 정해지지 않아 거절한다.
 #: 맘모는 overlay · thumbnail 둘뿐이고 영상당 1 장이다 (09-10 확인).
-#: mesh 는 MRI 만 내고 세 종류다 — 유방 전체 · 치밀부위는 검사당 1개라 lesion 이
-#: 없고, 병변 메시는 병변당 1개라 lesion 이 필수다 (09-10 MRI 담당 확인).
+#: mesh 는 MRI 만 내고 네 종류다 — 유방 전체 · 치밀부위 · 몸통은 검사당 1개라
+#: lesion 이 없고, 병변 메시는 병변당 1개라 lesion 이 필수다 (09-10 MRI 담당 확인).
+#: mesh_body 는 09-16 두 볼륨 판독에서 확인했다 — result.tumor.body_mesh 다.
 #: mask 는 병리만 낸다 — 조직 분할 결과를 크롭 한 장당 PNG 한 장으로 올린다.
 #: heatmap 은 아무도 내지 않는다. 초음파는 폴리곤 JSON 이고 맘모는 분할을 하지
 #: 않아서, 받아 두면 어디에도 안 붙은 image 행이 생긴다.
@@ -93,6 +94,7 @@ DERIVED_REQUIRED = {
     "mask": ("source_object_id", "ai_result_id"),
     "mesh_breast": ("source_object_id", "ai_result_id"),
     "mesh_dense": ("source_object_id", "ai_result_id"),
+    "mesh_body": ("source_object_id", "ai_result_id"),
     "mesh_lesion": ("source_object_id", "ai_result_id", "lesion_id"),
 }
 

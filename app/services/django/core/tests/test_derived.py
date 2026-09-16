@@ -132,10 +132,11 @@ class TicketClaimTests(DerivedTestCase):
                           "study", self.study.pk)
         self.assertEqual(caught.exception.code, "UNSUPPORTED_PURPOSE")
 
-    def test_받는_kind_는_여섯이다(self):
+    def test_받는_kind_는_일곱이다(self):
+        # mesh_body 는 09-16 조영 전 · 후 두 볼륨 판독에서 나왔다.
         self.assertEqual(set(DERIVED_REQUIRED),
                          {"overlay", "thumbnail", "mask",
-                          "mesh_breast", "mesh_dense", "mesh_lesion"})
+                          "mesh_breast", "mesh_dense", "mesh_body", "mesh_lesion"})
 
     def test_검사_메시는_lesion_없이_된다(self):
         for kind in ("mesh_breast", "mesh_dense"):
