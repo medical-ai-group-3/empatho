@@ -35,7 +35,10 @@
 ## 이식 체크리스트
 
 1. `Profile.jsx` + `useApi.js` + `Screen.jsx` 복사
-2. 대상 프로젝트 `api.js`에 `me`/`updateMe`/`logout` 세 메서드 추가 (엔드포인트: `GET/PUT /api/v1/staff/me`, `POST /api/v1/auth/logout`)
+2. 대상 프로젝트 `api.js`에 `me`/`updateMe`/`logout` 세 메서드 추가 (엔드포인트: `GET/PUT /api/v1/me`, `POST /api/v1/auth/logout`)
+   - ⚠ `/api/v1/staff/me` 에서 `/api/v1/me` 로 바뀌었습니다. 서버에 직원용 접두
+     경로가 없습니다(최일운님 회신 · 다희님 병리 경로표에도 `GET /me`).
+   - ⚠ 로그아웃 경로는 아직 명세에 없습니다. 확정되면 다시 맞춰야 합니다.
 3. mock 서버 쓰면 `mock-data-snippet.json` 내용을 그쪽 `mock/db.json`에 병합
 4. 라우트에 `{ path: "/me", element: <Profile /> }` 추가
 5. 위에 적은 CSS 클래스들을 대상 프로젝트 전역 CSS에 옮기거나 매핑

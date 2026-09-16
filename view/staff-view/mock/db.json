@@ -358,13 +358,13 @@
     { "modality": "병리", "performed_at": "2026-09-12T09:40:00+09:00", "device": null, "slices": [], "annotations": [] }
   ],
 
-  "GET /api/v1/staff/me": {
+  "GET /api/v1/me": {
     "staff_id": "S-20250042", "name": "서냐냥", "role": "주치의",
     "dept": "유방외과", "hospital": "미래 대학병원",
     "email": "seonyanyang@mirae.hospital", "phone": "010-9012-3456",
     "notify_discordance": true, "notify_specimen": true
   },
-  "PUT /api/v1/staff/me": {
+  "PUT /api/v1/me": {
     "ok": true, "detail": "프로필이 저장되었습니다"
   },
   "POST /api/v1/auth/logout": {

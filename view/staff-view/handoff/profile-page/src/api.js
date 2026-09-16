@@ -74,8 +74,16 @@ export const api = {
   saveFinalReport: (reportId, body) => put(`/api/v1/reports/${reportId}`, body),
   studies: (patientId) => get(`/api/v1/patients/${patientId}/studies`),
 
-  // 내 정보 · 설정 (상단바 프로필)
-  me:       () => get("/api/v1/staff/me"),
-  updateMe: (body) => put("/api/v1/staff/me", body),
+  /* 내 정보 · 설정 (상단바 프로필)
+     ⚠ /api/v1/staff/me 였던 것을 /api/v1/me 로 고쳤다 (2026-09-16).
+       최일운님 회신에 **직원용 접두 경로를 따로 두지 않는다**고 되어
+       있다 — 실제 서버는 /api/v1 하나이고, /reports 처럼 직원과 환자가
+       같은 경로를 쓰고 서버 권한(MatrixPermission own_only)으로만
+       갈린다. 다희님 병리 경로표(9/16)에도 GET /me 로 적혀 있다.
+       hospital/api.js 머리말에 같은 내용이 있다.
+     ⚠ logout 은 **손대지 않았다.** 명세에 로그아웃 경로가 아직 없어서
+       고치면 없는 주소를 지어내는 셈이 된다. 확인 뒤에 맞춘다 */
+  me:       () => get("/api/v1/me"),
+  updateMe: (body) => put("/api/v1/me", body),
   logout:   () => post("/api/v1/auth/logout"),
 };
