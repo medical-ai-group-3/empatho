@@ -19,6 +19,7 @@ data 로 알린다.
 
 from django.db import connection
 from drf_spectacular.utils import extend_schema
+from rest_framework import status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -79,10 +80,14 @@ class NotFoundView(APIView):
 
 
 from rest_framework.decorators import api_view, permission_classes
-from django.contrib.auth.hashers import check_password
+from django.contrib.auth.hashers import check_password, make_password
 
-from ..models import Account
+from ..models import Account, Staff
 from .auth import issue_pair
+
+# 직원 가입에서 만들 수 있는 role. admin · patient 는 이 경로로 못 만든다 —
+# admin 은 운영자가 직접 부여하고, patient 는 signup_patient 가 따로 맡는다.
+STAFF_SIGNUP_ROLES = {"reception", "nursing", "radiology", "surgery", "pathology"}
 
 
 @api_view(["POST"])
@@ -104,6 +109,81 @@ def login(request):
 
     tokens = issue_pair(account)
     response = Response({"access": tokens["access"]})
+    response.set_cookie(
+        "refresh_token",
+        tokens["refresh"],
+        httponly=True,
+        secure=True,
+        samesite="None",
+        max_age=60 * 60 * 24 * 14,
+    )
+    return response
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def signup_staff(request):
+    login_id = request.data.get("login_id")
+    password = request.data.get("password")
+    role = request.data.get("role")
+    full_name = request.data.get("full_name")
+    staff_number = request.data.get("staff_number")
+
+    if not login_id or not password or not role or not full_name or not staff_number:
+        raise ApiError(
+            "VALIDATION_ERROR",
+            "login_id · password · role · full_name · staff_number 가 필요합니다.",
+        )
+
+    if role not in STAFF_SIGNUP_ROLES:
+        raise ApiError(
+            "VALIDATION_ERROR",
+            "role 은 reception · nursing · radiology · surgery · pathology 중 하나여야 합니다.",
+        )
+
+    if Account.objects.filter(login_id=login_id).exists():
+        raise ApiError("VALIDATION_ERROR", "이미 사용 중인 아이디입니다.")
+
+    if Staff.objects.filter(staff_number=staff_number).exists():
+        raise ApiError("VALIDATION_ERROR", "이미 등록된 사번입니다.")
+
+    account = Account.objects.create(
+        login_id=login_id,
+        password_hash=make_password(password),
+        role=role,
+        account_status="pending",
+        is_active=False,
+    )
+    Staff.objects.create(account=account, full_name=full_name, staff_number=staff_number)
+
+    return Response(
+        {"message": "가입 신청이 완료되었습니다. 관리자 승인 후 로그인 가능합니다."},
+        status=status.HTTP_201_CREATED,
+    )
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def signup_patient(request):
+    login_id = request.data.get("login_id")
+    password = request.data.get("password")
+
+    if not login_id or not password:
+        raise ApiError("VALIDATION_ERROR", "login_id · password 가 필요합니다.")
+
+    if Account.objects.filter(login_id=login_id).exists():
+        raise ApiError("VALIDATION_ERROR", "이미 사용 중인 아이디입니다.")
+
+    account = Account.objects.create(
+        login_id=login_id,
+        password_hash=make_password(password),
+        role="patient",
+        account_status="active",
+        is_active=True,
+    )
+
+    tokens = issue_pair(account)
+    response = Response({"access": tokens["access"]}, status=status.HTTP_201_CREATED)
     response.set_cookie(
         "refresh_token",
         tokens["refresh"],
