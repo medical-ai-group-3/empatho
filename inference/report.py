@@ -14,7 +14,7 @@ import re
 import urllib.request
 import re
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 
 from prompts import PROMPTS, base
 
@@ -29,6 +29,7 @@ OLLAMA = os.getenv("OLLAMA_URL", "http://127.0.0.1:11434")
 # 지시 이행력이 중요하다. VRAM 은 2.9GB → 8GB 로 는다.
 MODEL = os.getenv("REPORT_MODEL", "gemma3:12b-it-q4_K_M")
 
+ALIAS = {"4": "5", "2": "1"}
 
 app = FastAPI(title="report")
 
@@ -140,16 +141,29 @@ def report(socket_id: str, result: dict, evidence: list[str] = []):
 
     안내(notes)는 어느 갈래에서도 모델을 거치지 않는다.
     """
+    # 판독 창구와 같은 별칭을 쓴다(main.py ALIAS). 소켓 4 는 5 로, 2 는 1 로
+    # 넘어가 판독되므로 소견문도 같은 번호로 쓴다. 여기서 안 넘기면
+    # /report/4 의 응답만 socket_id 가 4 로 남아, 같은 판독인데 판독 결과와
+    # 리포트가 다른 번호를 가리킨다.
+    socket_id = ALIAS.get(socket_id, socket_id)
+    
     p = PROMPTS.get(socket_id)
     if p is None:
         return {"socket_id": socket_id, "abstained": True, "reason":"unknown_socket"}
 
-    # 입력 모양 검사. 모델·GPU 실패는 기권으로 돌려주지만 이건 부르는 쪽의
-    # 실수라 422 로 알린다 — 조용히 「병변이 검출되지 않았습니다」가 나가면
-    # 실제로 병변이 없는 것과 구분이 안 된다.
+    # 입력 모양 검사. 부르는 쪽의 실수지만 그래도 200 에 기권으로 돌려준다 —
+    # 판독 서버와 같은 규칙이다. 422 를 내면 Go 가 오류로 처리해 리포트가
+    # 통째로 안 나가고, 무엇이 없었는지도 응답에 안 남는다.
+    #
+    # 조용히 「병변이 검출되지 않았습니다」가 나가지 않게, 기권 사유에
+    # 빠진 항목 이름을 담는다.
     absent = [k for k in p.REQUIRED if k not in result]
     if absent:
-        raise HTTPException(422, f"result 에 {', '.join(absent)} 가 없다")
+        return {
+            "socket_id": socket_id, 
+            "abstained": True, 
+            "reason": f"missing_fields: {','.join(absent)}"
+        }
 
     # fact_lines  수치와 판단을 코드가 만든 문장. 여기 숫자는 틀릴 수 없다.
     # note_lines  안내. 모델을 거치지 않고 그대로 나간다.
