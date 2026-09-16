@@ -13,6 +13,7 @@ import Top from "./lib/Top";
 import { useLoadMe } from "./lib/useMe";
 import { useSignedIn } from "./lib/session";
 import Login from "./screens/auth/Login";
+import Signup from "./screens/auth/Signup";
 import Boom from "./lib/Boom";
 
 import QueueScreen from "./screens/Queue";
@@ -108,7 +109,11 @@ function Shell() {
  * 생긴 뒤에 다룰 자리다.
  */
 function Gate({ children }) {
-  return useSignedIn() ? children : <Login />;
+  const [mode, setMode] = useState("login");
+  if (useSignedIn()) return children;
+  return mode === "signup"
+    ? <Signup onBack={() => setMode("login")} />
+    : <Login onSignup={() => setMode("signup")} />;
 }
 
 /* 로그인 응답(perms)이 올 때까지 기다린다. 안 기다리면 첫 그림에서

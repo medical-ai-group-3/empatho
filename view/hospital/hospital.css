@@ -868,6 +868,15 @@ td.none,tr.none td{text-align:center; padding:var(--card-pad) 0}
   min-height:100dvh; padding:var(--gap)}
 .login-box{width:100%; max-width:360px; display:flex;
   flex-direction:column; gap:var(--gap)}
+/* 회원가입처럼 칸이 많은 폼 — 로그인보다 조금 넓게 */
+.login-box.wide{max-width:420px}
+
+/* 입력칸 + 옆 버튼 — 아이디 중복확인 · 인증번호 받기/확인이 쓴다 */
+.field .pair{display:flex; gap:var(--gap-sm)}
+.field .pair input{flex:1; min-width:0}
+/* width:auto 를 못 박는다 — .login .btn{width:100%} 이 안 그러면
+   이 버튼까지 가로줄을 다 먹어서 입력칸이 찌그러진다 */
+.field .pair .btn{flex:none; width:auto; white-space:nowrap}
 
 .login-mark{display:flex; align-items:baseline; gap:var(--gap-xs);
   justify-content:center; color:var(--ink)}

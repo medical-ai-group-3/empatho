@@ -431,4 +431,25 @@ export const breast = {
 /* 부서 key 로 골라 쓴다 — 공통 화면들이 이걸로 갈라 부른다 */
 export const byDept = { pathology: path, radiology: rad, breast };
 
+/* ── 직원 회원가입 ────────────────────────────────────────────
+ * ⚠ 아직 서버 미확정 — 계약만 정해 프런트를 먼저 만든다. 백엔드가
+ *   붙으면 경로 · 필드명만 맞추면 된다 (담당자 본인 구현 예정).
+ *
+ * 환자 가입(src/api.js)과 다른 점 — 마지막 submit 이 로그인으로 안
+ * 이어진다. 계정이 pending 상태로 만들어지고, 관리자 승인 후에야
+ * 로그인된다 (Login.jsx 의 account_status 처리와 같은 결).
+ */
+export const staffSignup = {
+  sendCode:   (b) => post("/signup/verify-phone", b),
+  // b:{phone} → {expires_in_sec, detail}
+  verifyCode: (b) => post("/signup/verify-code", b),
+  // b:{phone, code} → {verify_token, detail}
+  checkId:    (v) => get(`/signup/check-id${qs({ value: v })}`),
+  // → {available, detail}
+  submit:     (b) => post("/signup/request", b),
+  // b:{employee_no, name, login_id, password, dept, phone, verify_token,
+  //    agree_privacy} → {detail}
+  // ⚠ 성공해도 access 가 안 온다 — 승인 전이라 로그인할 수 없다
+};
+
 export const apiInfo = { base: BASE, mock: BASE === MOCK };
