@@ -286,7 +286,47 @@ export const rad = {
   amend:      (id, b)  => post(`/assessments/${id}/amend`, b),
 };
 
+/* ── 유방외과 ─────────────────────────────────────────────────
+ * 판독 단위가 없다. **환자가 단위다.**
+ *
+ * 병리·영상과 결이 다르다 — 집는 절차가 없고(주치의로 배정된 환자가 곧
+ * 큐다) 파일을 올리는 단계도 없다. 대신 다른 과로 일을 **내보내는** 쪽이다:
+ *   검사 오더  → 영상의학과 대기 큐에 오더가 생긴다
+ *   검체 바인딩 → 병리과 대기 큐에 검체가 생긴다
+ * 그래서 queue/upload/read/amend 이름을 억지로 맞추지 않는다.
+ *
+ * 2026-09-16 — staff-view/src/api.js 에서 옮겨 왔다. 그쪽은 봉투를 안
+ * 벗기는 자체 call() 을 쓰고 있었는데, 여기 call() 은 벗겨서 준다.
+ * 화면은 그대로 두고 이 층만 갈아 끼우면 된다. */
+export const breast = {
+  /* 1장 · 대기 환자 */
+  waiting:      ()   => get(`/patients${qs({ primary_staff: "me", status: "waiting" })}`),
+  patient:      (id) => get(`/patients/${id}`),
+  examOrder:    (b)  => post("/exam-orders", b),
+  openDiscords: (pid) => get(`/discordances${qs({ patient: pid, status: "open" })}`),
+
+  /* 검체 바인딩 (팝업) — 병리과 대기 큐로 넘어간다 */
+  lesions:      (pid) => get(`/lesions${qs({ patient: pid })}`),
+  bindSpecimen: (b)  => post("/specimens", b),
+
+  /* 2장 · 검사 종합 확인 */
+  timeline:     (pid) => get(`/patients/${pid}/timeline`),
+  studies:      (pid) => get(`/patients/${pid}/studies`),
+  finalReport:  (pid) => get(`/reports${qs({ patient: pid, type: "final" })}`),
+
+  /* 3장 · 수술 결정 */
+  assess:       (b)  => post("/assessments", b),
+  saveReport:   (rid, b) => put(`/reports/${rid}`, b),
+  explain:      (rid, b) => patch(`/reports/${rid}/explain`, b),
+  unlockStatus: (rid) => get(`/reports/${rid}/unlock-status`),
+  unlock:       (rid) => patch(`/reports/${rid}/unlock`, {}),
+
+  /* 4장 · 판정 불일치 처분 */
+  discordance:  (id) => get(`/discordances/${id}`),
+  dispose:      (id, b) => patch(`/discordances/${id}/dispose`, b),
+};
+
 /* 부서 key 로 골라 쓴다 — 공통 화면들이 이걸로 갈라 부른다 */
-export const byDept = { pathology: path, radiology: rad };
+export const byDept = { pathology: path, radiology: rad, breast };
 
 export const apiInfo = { base: BASE, mock: BASE === MOCK };

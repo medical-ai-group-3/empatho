@@ -686,5 +686,782 @@
       "diagnosis_label": "—",
       "category_label": "—"
     }
+  },
+
+  "GET /api/v1/hospital/patients": [
+    {
+      "patient_id": "P-1001",
+      "name": "김민지",
+      "age": 47,
+      "sex": "F",
+      "patient_number": "20260001",
+      "status": "대기중",
+      "has_open_discordance": true
+    },
+    {
+      "patient_id": "P-1002",
+      "name": "이서연",
+      "age": 52,
+      "sex": "F",
+      "patient_number": "20260002",
+      "status": "대기중",
+      "has_open_discordance": false
+    },
+    {
+      "patient_id": "P-1003",
+      "name": "박지현",
+      "age": 39,
+      "sex": "F",
+      "patient_number": "20260003",
+      "status": "대기중",
+      "has_open_discordance": false
+    }
+  ],
+
+  "GET /api/v1/hospital/patients/P-1001": {
+    "patient_id": "P-1001",
+    "name": "김민지",
+    "age": 47,
+    "sex": "F",
+    "patient_number": "20260001",
+    "birth_date": "1979-03-11",
+    "primary_staff_name": "서냐냥",
+    "primary_staff_dept": "surgery",
+    "last_visit_at": "2026-09-10T09:40:00+09:00",
+    "visit_type": "재진",
+    "visit_purpose": "검사 결과 확인",
+    "allergy": "없음",
+    "chief_complaint": "우측 유방 종괴 촉지, 통증은 없음",
+    "vitals": "124/78 · 76 · 58kg",
+    "family_history": "없음",
+    "exam_summary": "맘모 09.08 · 병리 09.11 (영상·병리 불일치)",
+    "accession_no": "E-1029301",
+    "phone": "010-1234-5601",
+    "address": "서울시 강남구 ○○로 10",
+    "referral_date": "2026-09-05",
+    "clinical_note": "타원 초음파 결과 지참, 우측 유방 종괴 촉지",
+    "lesions": [
+      {
+        "lesion_id": "L-1001-A",
+        "site": "우측 유방 상외측(UOQ)",
+        "size_mm": 14,
+        "specimen_id": null
+      },
+      {
+        "lesion_id": "L-1001-B",
+        "site": "좌측 유방 상내측(UIQ)",
+        "size_mm": 9,
+        "specimen_id": "SP-3001"
+      }
+    ],
+    "open_discordance": {
+      "discordance_id": "D-2001",
+      "lesion_id": "L-1001-A",
+      "violated_rule": "BI-RADS 4(악성 의심) vs 병리 양성",
+      "flag_status": "open"
+    },
+    "other_reports": [
+      {
+        "dept": "영상의학과",
+        "author": "이도윤",
+        "summary": "우측 유방 상외측 14mm 종괴, BI-RADS 4. 미세석회화 동반, 악성 의심.",
+        "at": "2026-09-09T10:20:00+09:00"
+      },
+      {
+        "dept": "병리과",
+        "author": "한소영",
+        "summary": "코어니들생검 결과 섬유선종, 양성 소견.",
+        "at": "2026-09-11T16:05:00+09:00"
+      }
+    ],
+    "report": {
+      "report_id": "R-9001",
+      "lock_status": "locked",
+      "ai_modality_count": 3,
+      "ai_summary": "우측 유방 상외측 14mm 종괴, BI-RADS 4. 미세석회화 동반 소견.",
+      "ai_evidence": [
+        "맘모 BI-RADS 4 (확신도 82%)",
+        "초음파 4A · 경계 불규칙",
+        "병리 판독 양성 — 섬유선종"
+      ],
+      "ai_suggestion": "영상·병리 불일치로 재확인이 필요합니다. 불일치 처분 후 재판단을 권고합니다.",
+      "ai_model": {
+        "phases": [
+          "T1_pre",
+          "T1_post1",
+          "T1_post2",
+          "T1_post3"
+        ],
+        "post_path": null,
+        "thresholds": {
+          "tumor": 0.5,
+          "dense_tissue": 0.5,
+          "breast": 0.8
+        },
+        "max_lesions_per_patient": 10,
+        "lesions_dropped": 0,
+        "not_supported": [
+          {
+            "key": "birads_grade",
+            "label": "BI-RADS 등급",
+            "reason": "규칙표 경로 자체가 없음"
+          },
+          {
+            "key": "malignant_benign_location",
+            "label": "양성/악성 병변 위치",
+            "reason": "서빙 출력에서 제외됨(AMBL 데이터셋 학습은 했으나 서빙에는 안 나옴)"
+          }
+        ],
+        "tumor_count": {
+          "value": 1,
+          "abstained": false
+        },
+        "tumors": [
+          {
+            "evidence_id": "MR-01",
+            "lesion_id": "L-1001-A",
+            "location": "우측 유방 상외측(UOQ)",
+            "quadrant": "UOQ",
+            "volume_mm3": 980,
+            "nipple_distance_mm": 41,
+            "mesh_image_id": null,
+            "abstained": false
+          }
+        ],
+        "density": {
+          "percent": null,
+          "category": null,
+          "abstained": true
+        }
+      },
+      "doctor_summary": "",
+      "doctor_summary_author": "서냐냥",
+      "decision": null,
+      "explain_method": null,
+      "explain_content": "",
+      "patient_confirmed": false,
+      "explained_at": null
+    }
+  },
+
+  "GET /api/v1/hospital/patients/P-1002": {
+    "patient_id": "P-1002",
+    "name": "이서연",
+    "age": 52,
+    "sex": "F",
+    "patient_number": "20260002",
+    "birth_date": "1974-06-22",
+    "primary_staff_name": "서냐냥",
+    "primary_staff_dept": "surgery",
+    "last_visit_at": "2026-09-08T14:10:00+09:00",
+    "visit_type": "재진",
+    "visit_purpose": "추적 관찰",
+    "allergy": "조영제(경증 두드러기)",
+    "chief_complaint": "좌측 유방 경과 관찰, 특이 증상 없음",
+    "vitals": "112/70 · 68 · 61kg",
+    "family_history": "없음",
+    "exam_summary": "초음파 09.08 (BI-RADS 3, 추적 권고)",
+    "accession_no": "E-1029302",
+    "phone": "010-2345-6702",
+    "address": "서울시 마포구 ○○로 22",
+    "referral_date": "2026-09-03",
+    "clinical_note": "정기 검진 중 발견된 병변",
+    "lesions": [
+      {
+        "lesion_id": "L-1002-A",
+        "site": "좌측 유방 상외측(UOQ)",
+        "size_mm": 11,
+        "specimen_id": "SP-3002"
+      }
+    ],
+    "open_discordance": null,
+    "other_reports": [
+      {
+        "dept": "영상의학과",
+        "author": "이도윤",
+        "summary": "좌측 유방 상외측 11mm 종괴, BI-RADS 3. 양성 가능성 높음, 추적 권고.",
+        "at": "2026-09-08T14:30:00+09:00"
+      }
+    ],
+    "report": {
+      "report_id": "R-9002",
+      "lock_status": "locked",
+      "ai_modality_count": 1,
+      "ai_summary": "좌측 유방 상외측 11mm 종괴, BI-RADS 3. 추적 관찰 권고.",
+      "ai_evidence": [
+        "초음파 BI-RADS 3 (확신도 88%)",
+        "경계 명료 · 저에코"
+      ],
+      "ai_suggestion": "추적 관찰을 권고합니다. 6개월 후 재검사가 필요합니다.",
+      "ai_model": {
+        "phases": [
+          "T1_pre",
+          "T1_post1"
+        ],
+        "post_path": null,
+        "thresholds": {
+          "tumor": 0.5,
+          "dense_tissue": 0.5,
+          "breast": 0.8
+        },
+        "max_lesions_per_patient": 10,
+        "lesions_dropped": 0,
+        "not_supported": [
+          {
+            "key": "birads_grade",
+            "label": "BI-RADS 등급",
+            "reason": "규칙표 경로 자체가 없음"
+          },
+          {
+            "key": "malignant_benign_location",
+            "label": "양성/악성 병변 위치",
+            "reason": "서빙 출력에서 제외됨(AMBL 데이터셋 학습은 했으나 서빙에는 안 나옴)"
+          }
+        ],
+        "tumor_count": {
+          "value": 1,
+          "abstained": false
+        },
+        "tumors": [
+          {
+            "evidence_id": "MR-01",
+            "lesion_id": "L-1002-A",
+            "location": "좌측 유방 상외측(UOQ)",
+            "quadrant": "UOQ",
+            "volume_mm3": 610,
+            "nipple_distance_mm": 38,
+            "mesh_image_id": null,
+            "abstained": false
+          }
+        ],
+        "density": {
+          "percent": 38,
+          "category": "B · 국소 치밀",
+          "abstained": false
+        }
+      },
+      "doctor_summary": "",
+      "doctor_summary_author": "서냐냥",
+      "decision": null,
+      "explain_method": null,
+      "explain_content": "",
+      "patient_confirmed": false,
+      "explained_at": null
+    }
+  },
+
+  "GET /api/v1/hospital/patients/P-1003": {
+    "patient_id": "P-1003",
+    "name": "박지현",
+    "age": 39,
+    "sex": "F",
+    "patient_number": "20260003",
+    "birth_date": "1987-01-05",
+    "primary_staff_name": "서냐냥",
+    "primary_staff_dept": "surgery",
+    "last_visit_at": "2026-09-12T11:00:00+09:00",
+    "visit_type": "재진",
+    "visit_purpose": "수술 상담",
+    "allergy": "페니실린",
+    "chief_complaint": "우측 유방 멍울 촉지, 3주 전부터 커짐",
+    "vitals": "118/76 · 72 · 55kg",
+    "family_history": "모 · 유방암",
+    "exam_summary": "MRI 09.10 · 병리 09.12 (침윤성 유관암)",
+    "accession_no": "E-1029303",
+    "phone": "010-3456-7803",
+    "address": "경기도 성남시 ○○구 ○○로 5",
+    "referral_date": "2026-09-02",
+    "clinical_note": "타원 조직검사 결과 지참, 우측 유방 종괴",
+    "lesions": [
+      {
+        "lesion_id": "L-1003-A",
+        "site": "우측 유방 상외측(UOQ)",
+        "size_mm": 18,
+        "specimen_id": "SP-3003"
+      }
+    ],
+    "open_discordance": null,
+    "other_reports": [
+      {
+        "dept": "영상의학과",
+        "author": "이도윤",
+        "summary": "우측 유방 상외측 18mm 종괴, BI-RADS 5. 침윤성 병변 강력 의심.",
+        "at": "2026-09-10T14:00:00+09:00"
+      },
+      {
+        "dept": "병리과",
+        "author": "한소영",
+        "summary": "코어니들생검 결과 침윤성 유관암(IDC), 종양 영역 62%.",
+        "at": "2026-09-12T09:40:00+09:00"
+      }
+    ],
+    "report": {
+      "report_id": "R-9101",
+      "lock_status": "locked",
+      "ai_modality_count": 4,
+      "ai_summary": "우측 유방 상외측 18mm 종괴, BI-RADS 5. 침윤성 유관암 의심.",
+      "ai_evidence": [
+        "MRI 등급 5 (확신도 91%)",
+        "초음파 4C · 경계 불규칙",
+        "병리 IDC 패턴 · 종양 영역 62%"
+      ],
+      "ai_suggestion": "침윤성 유관암 소견으로 수술적 절제를 권고합니다. 최종 결정은 의료진 판단에 따릅니다.",
+      "ai_model": {
+        "phases": [
+          "T1_pre",
+          "T1_post1",
+          "T1_post2",
+          "T1_post3"
+        ],
+        "post_path": "/mesh/DUKE_328_mesh.json",
+        "thresholds": {
+          "tumor": 0.5,
+          "dense_tissue": 0.5,
+          "breast": 0.8
+        },
+        "max_lesions_per_patient": 10,
+        "lesions_dropped": 0,
+        "not_supported": [
+          {
+            "key": "birads_grade",
+            "label": "BI-RADS 등급",
+            "reason": "규칙표 경로 자체가 없음"
+          },
+          {
+            "key": "malignant_benign_location",
+            "label": "양성/악성 병변 위치",
+            "reason": "서빙 출력에서 제외됨(AMBL 데이터셋 학습은 했으나 서빙에는 안 나옴)"
+          }
+        ],
+        "tumor_count": {
+          "value": 1,
+          "abstained": false
+        },
+        "tumors": [
+          {
+            "evidence_id": "MR-01",
+            "lesion_id": "L-1003-A",
+            "location": "우측 유방 상외측(UOQ)",
+            "quadrant": "UOQ",
+            "volume_mm3": 3120,
+            "nipple_distance_mm": 29,
+            "mesh_image_id": "DUKE_328_mesh.json",
+            "abstained": false
+          }
+        ],
+        "density": {
+          "percent": 61,
+          "category": "C · 불균질 치밀",
+          "abstained": false
+        }
+      },
+      "doctor_summary": "영상·병리 모두 악성 소견 일치. 수술적 절제 권고.",
+      "doctor_summary_author": "서냐냥",
+      "decision": {
+        "decision_type": "surgery",
+        "decision_reason": "침윤성 유관암, 병기 확인 후 절제 필요"
+      },
+      "explain_method": "대면",
+      "explain_content": "진단 결과, 수술 범위(전절제+감시림프절), 예상 회복 기간, 재건 옵션 설명.",
+      "patient_confirmed": true,
+      "explained_at": "2026-09-14T15:30:00+09:00"
+    }
+  },
+
+  "POST /api/v1/hospital/exam-orders": {
+    "ok": true,
+    "exam_order_id": "EO-5001",
+    "order_status": "requested",
+    "detail": "촬영 요청이 영상의학과 큐로 전달되었습니다"
+  },
+
+  "POST /api/v1/hospital/specimens": {
+    "ok": true,
+    "specimen_id": "SP-3099",
+    "detail": "검체가 등록되었습니다"
+  },
+
+  "GET /api/v1/hospital/discordances/D-2001": {
+    "discordance_id": "D-2001",
+    "patient": {
+      "patient_id": "P-1001",
+      "name": "김민지",
+      "age": 47,
+      "sex": "F"
+    },
+    "lesion": {
+      "lesion_id": "L-1001-A",
+      "site": "우측 유방 상외측(UOQ)",
+      "size_mm": 14
+    },
+    "radiology_reading": {
+      "assessor": "영상의학과 이도윤",
+      "assessment": "BI-RADS 4 (악성 의심)",
+      "finding": "경계 불규칙 종괴, 미세석회화 동반",
+      "read_at": "2026-09-09T10:20:00+09:00"
+    },
+    "pathology_reading": {
+      "assessor": "병리과 한소영",
+      "assessment": "양성 — 섬유선종",
+      "finding": "섬유상피성 병변, 악성 소견 없음",
+      "read_at": "2026-09-11T16:05:00+09:00"
+    },
+    "violated_rule": "BI-RADS 4(악성 의심) 판정에 병리 결과가 양성 — 영상·병리 불일치 규칙 위반",
+    "flag_status": "open",
+    "rule_table_version": "v3",
+    "created_at": "2026-09-11T16:10:00+09:00"
+  },
+
+  "PATCH /api/v1/hospital/discordances/D-2001/dispose": {
+    "ok": true,
+    "discordance_id": "D-2001",
+    "flag_status": "closed",
+    "disposed_by": "서냐냥",
+    "closed_at": "2026-09-15T10:00:00+09:00",
+    "detail": "처분이 저장되고 대조가 종결되었습니다"
+  },
+
+  "POST /api/v1/hospital/assessments": {
+    "ok": true,
+    "assessment_id": "AS-7001",
+    "detail": "수술 결정이 저장되었습니다"
+  },
+
+  "PATCH /api/v1/hospital/reports/R-9101/explain": {
+    "ok": true,
+    "explained_at": "2026-09-15T10:30:00+09:00",
+    "detail": "환자 설명 기록이 저장되었습니다"
+  },
+
+  "PATCH /api/v1/hospital/reports/R-9001/explain": {
+    "ok": true,
+    "explained_at": "2026-09-15T10:30:00+09:00",
+    "detail": "환자 설명 기록이 저장되었습니다"
+  },
+
+  "PATCH /api/v1/hospital/reports/R-9002/explain": {
+    "ok": true,
+    "explained_at": "2026-09-15T10:30:00+09:00",
+    "detail": "환자 설명 기록이 저장되었습니다"
+  },
+
+  "GET /api/v1/hospital/reports/R-9101/unlock-status": {
+    "report_id": "R-9101",
+    "conditions": {
+      "all_finalized": true,
+      "discordance_closed": true,
+      "explained": true
+    },
+    "can_unlock": true
+  },
+
+  "GET /api/v1/hospital/reports/R-9001/unlock-status": {
+    "report_id": "R-9001",
+    "conditions": {
+      "all_finalized": true,
+      "discordance_closed": false,
+      "explained": false
+    },
+    "can_unlock": false
+  },
+
+  "GET /api/v1/hospital/reports/R-9002/unlock-status": {
+    "report_id": "R-9002",
+    "conditions": {
+      "all_finalized": false,
+      "discordance_closed": true,
+      "explained": false
+    },
+    "can_unlock": false
+  },
+
+  "PATCH /api/v1/hospital/reports/R-9101/unlock": {
+    "ok": true,
+    "report_id": "R-9101",
+    "lock_status": "unlocked",
+    "detail": "리포트 잠금이 해제되었습니다"
+  },
+
+  "GET /api/v1/hospital/patients/P-1003/timeline": [
+    {
+      "type": "study",
+      "label": "맘모그래피 촬영",
+      "at": "2026-09-10T09:20:00+09:00",
+      "detail": "MG · 양측"
+    },
+    {
+      "type": "ai_result",
+      "label": "AI 판독 완료",
+      "at": "2026-09-10T09:34:00+09:00",
+      "detail": "BI-RADS 5 의심"
+    },
+    {
+      "type": "study",
+      "label": "유방 초음파 촬영",
+      "at": "2026-09-10T10:05:00+09:00",
+      "detail": "US · 우측"
+    },
+    {
+      "type": "ai_result",
+      "label": "AI 판독 완료",
+      "at": "2026-09-10T10:18:00+09:00",
+      "detail": "종괴 18mm, 경계 불규칙"
+    },
+    {
+      "type": "assessment",
+      "label": "영상의학과 판독 확정",
+      "at": "2026-09-10T14:00:00+09:00",
+      "detail": "BI-RADS 5"
+    },
+    {
+      "type": "specimen_collected",
+      "label": "검체 채취",
+      "at": "2026-09-11T11:00:00+09:00",
+      "detail": "core needle biopsy"
+    },
+    {
+      "type": "specimen_finalized",
+      "label": "병리 판독 확정",
+      "at": "2026-09-12T09:40:00+09:00",
+      "detail": "침윤성 유관암"
+    }
+  ],
+
+  "GET /api/v1/hospital/patients/P-1002/timeline": [
+    {
+      "type": "study",
+      "label": "유방 초음파 촬영",
+      "at": "2026-09-08T14:10:00+09:00",
+      "detail": "US · 좌측"
+    },
+    {
+      "type": "ai_result",
+      "label": "AI 판독 완료",
+      "at": "2026-09-08T14:22:00+09:00",
+      "detail": "BI-RADS 3 의심"
+    },
+    {
+      "type": "assessment",
+      "label": "영상의학과 판독 확정",
+      "at": "2026-09-08T14:30:00+09:00",
+      "detail": "BI-RADS 3"
+    },
+    {
+      "type": "specimen_collected",
+      "label": "검체 채취",
+      "at": "2026-09-09T09:10:00+09:00",
+      "detail": "core needle biopsy"
+    },
+    {
+      "type": "specimen_finalized",
+      "label": "병리 판독 확정",
+      "at": "2026-09-10T11:00:00+09:00",
+      "detail": "양성 — 섬유낭포성 변화"
+    }
+  ],
+
+  "GET /api/v1/hospital/patients/P-1001/timeline": [
+    {
+      "type": "study",
+      "label": "맘모그래피 촬영",
+      "at": "2026-09-08T09:00:00+09:00",
+      "detail": "MG · 양측"
+    },
+    {
+      "type": "ai_result",
+      "label": "AI 판독 완료",
+      "at": "2026-09-08T09:15:00+09:00",
+      "detail": "BI-RADS 4 의심"
+    },
+    {
+      "type": "assessment",
+      "label": "영상의학과 판독 확정",
+      "at": "2026-09-09T10:20:00+09:00",
+      "detail": "BI-RADS 4"
+    },
+    {
+      "type": "specimen_collected",
+      "label": "검체 채취",
+      "at": "2026-09-10T11:20:00+09:00",
+      "detail": "core needle biopsy"
+    },
+    {
+      "type": "specimen_finalized",
+      "label": "병리 판독 확정",
+      "at": "2026-09-11T16:05:00+09:00",
+      "detail": "양성 — 섬유선종"
+    }
+  ],
+
+  "PUT /api/v1/hospital/reports/R-9101": {
+    "ok": true,
+    "report_id": "R-9101",
+    "detail": "유방외과 종합 리포트가 저장되었습니다"
+  },
+
+  "PUT /api/v1/hospital/reports/R-9001": {
+    "ok": true,
+    "report_id": "R-9001",
+    "detail": "유방외과 종합 리포트가 저장되었습니다"
+  },
+
+  "PUT /api/v1/hospital/reports/R-9002": {
+    "ok": true,
+    "report_id": "R-9002",
+    "detail": "유방외과 종합 리포트가 저장되었습니다"
+  },
+
+  "GET /api/v1/hospital/patients/P-1001/studies": [
+    {
+      "modality": "맘모",
+      "performed_at": "2026-09-08T09:00:00+09:00",
+      "device": "Mammomat",
+      "slices": [],
+      "annotations": []
+    },
+    {
+      "modality": "초음파",
+      "performed_at": "2026-09-08T09:40:00+09:00",
+      "device": "LOGIQ",
+      "slices": [],
+      "annotations": []
+    },
+    {
+      "modality": "MRI",
+      "performed_at": null,
+      "device": null,
+      "slices": [],
+      "annotations": []
+    },
+    {
+      "modality": "병리",
+      "performed_at": "2026-09-11T16:05:00+09:00",
+      "device": null,
+      "slices": [],
+      "annotations": []
+    }
+  ],
+
+  "GET /api/v1/hospital/patients/P-1002/studies": [
+    {
+      "modality": "맘모",
+      "performed_at": null,
+      "device": null,
+      "slices": [],
+      "annotations": []
+    },
+    {
+      "modality": "초음파",
+      "performed_at": "2026-09-08T14:10:00+09:00",
+      "device": "LOGIQ",
+      "slices": [],
+      "annotations": []
+    },
+    {
+      "modality": "MRI",
+      "performed_at": null,
+      "device": null,
+      "slices": [],
+      "annotations": []
+    },
+    {
+      "modality": "병리",
+      "performed_at": "2026-09-10T11:00:00+09:00",
+      "device": null,
+      "slices": [],
+      "annotations": []
+    }
+  ],
+
+  "GET /api/v1/hospital/patients/P-1003/studies": [
+    {
+      "modality": "맘모",
+      "performed_at": "2026-09-10T09:20:00+09:00",
+      "device": "Mammomat",
+      "slices": [],
+      "annotations": []
+    },
+    {
+      "modality": "초음파",
+      "performed_at": "2026-09-10T10:05:00+09:00",
+      "device": "LOGIQ",
+      "slices": [],
+      "annotations": []
+    },
+    {
+      "modality": "MRI",
+      "performed_at": "2026-09-10T08:40:00+09:00",
+      "device": "3T MRI",
+      "slices": [
+        "/samples/mri/p1003-mri-01.png",
+        "/samples/mri/p1003-mri-02.png"
+      ],
+      "annotations": [
+        {
+          "slice_index": 0,
+          "label": "L-1003-A",
+          "x": 0.33,
+          "y": 0.24,
+          "w": 0.16,
+          "h": 0.15
+        },
+        {
+          "slice_index": 1,
+          "label": "L-1003-A",
+          "x": 0.35,
+          "y": 0.26,
+          "w": 0.17,
+          "h": 0.16
+        }
+      ],
+      "volume_base": "/dicom/breast-mri-018",
+      "volume_manifest": "/dicom/breast-mri-018/manifest.json",
+      "mesh_url": "/mesh/DUKE_328_mesh.json",
+      "mesh_site": "우측 유방 상외측(UOQ)"
+    },
+    {
+      "modality": "병리",
+      "performed_at": "2026-09-12T09:40:00+09:00",
+      "device": null,
+      "slices": [],
+      "annotations": []
+    }
+  ],
+
+  "GET /api/v1/hospital/discordances": {
+    "items": [
+      {
+        "discordance_id": "D-2001",
+        "patient_id": "P-1001",
+        "patient_name": "김민지",
+        "status": "open",
+        "summary": "영상 BI-RADS 4C · 병리 B2 — 판정이 갈립니다"
+      }
+    ]
+  },
+
+  "GET /api/v1/hospital/lesions": {
+    "items": [
+      {
+        "lesion_id": "L-3001",
+        "patient_id": "P-1001",
+        "site": "좌측 상외측",
+        "size_mm": 14,
+        "birads": "4C",
+        "is_false_positive": false
+      }
+    ]
+  },
+
+  "GET /api/v1/hospital/reports": {
+    "items": [
+      {
+        "report_id": "R-9101",
+        "patient_id": "P-1001",
+        "type": "final",
+        "locked": true,
+        "finalized_at": "2026-09-14 10:22"
+      }
+    ]
   }
 }

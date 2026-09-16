@@ -1,8 +1,12 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { api } from "../../../api";
+import { breast as api } from "../../../api";
 import { useApi } from "../../../lib/useApi";
-import { Head, Body } from "../../../lib/Screen";
+import { Page } from "../../../lib/Page";
+import { Body } from "../../../lib/Body";
+import { go } from "../../../nav";
+import "../breast.css";   /* 유방외과 전용 — .breast 안에 갇혀 있다. 네 화면이 각자
+                             끌고 온다: 주소로 곧장 들어와도 스타일이 빠지면 안 된다 */
 import ReviewViewer from "../components/ReviewViewer";
 import AIModelResult from "../components/AIModelResult";
 
@@ -23,16 +27,17 @@ export default function Review() {
   const timeline = useApi(() => api.timeline(id), [id]);
 
   return (
-    <>
-      <Head title="검사 종합 확인" sub={patient ? `${patient.name} · ${patient.patient_number}` : ""}
-        back={() => nav("/", { state: { advance: true, from: id } })}
-        right={<button className="btn" onClick={() => nav(`/patients/${id}/decision`)}>수술 결정으로</button>} />
+    <Page className="breast" crumb={["유방외과", "검사 종합 확인"]}
+            title="검사 종합 확인"
+            sub={patient ? `${patient.name} · ${patient.patient_number}` : ""}
+            back={() => nav(go.breast.waiting(), { state: { advance: true, from: id } })}
+            right={<button className="btn line" onClick={() => nav(go.breast.decision(id))}>수술 결정으로</button>}>
       <div className="pane">
         <Body loading={loading} error={error} onRetry={reload}>
           {patient && <Inner patient={patient} timeline={timeline} />}
         </Body>
       </div>
-    </>
+    </Page>
   );
 }
 

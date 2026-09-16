@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import Anatomy3DViewer from "./Anatomy3DViewer";
 import Tumor3DViewer from "./Tumor3DViewer";
 import NiftiSliceViewer from "./NiftiSliceViewer";
-import { useNiftiVolume } from "../lib/useNiftiVolume";
+import { useNiftiVolume } from "../useNiftiVolume";
 
 const NIFTI_URL = "/samples/duke/duke_001_0000.nii";
 

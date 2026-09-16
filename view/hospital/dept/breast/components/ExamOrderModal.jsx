@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { api } from "../../../api";
+import { breast as api } from "../../../api";
 
 /* 촬영 요청 팝업 — §3 수정요청: 촬영부위 입력란을 두지 않는다.
  * DB에 칸이 없고(exam_order 테이블), 안 받기로 확정된 사항이다.
