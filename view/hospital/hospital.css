@@ -857,3 +857,37 @@ td.none,tr.none td{text-align:center; padding:var(--card-pad) 0}
   cursor:pointer}
 .checks input{width:15px; height:15px; accent-color:var(--cyan); flex:none}
 .checks label span{font-size:var(--in-fs)}
+
+/* ── 로그인 ────────────────────────────────────────────────────────
+   상단바가 없는 화면이다. 로그인 전에는 과도 사람도 없어서 그릴 것이
+   없다 — 빈 상단바를 두면 「뭔가 안 불러와졌나」로 보인다.
+
+   ⚠ 아직 어디에도 안 물려 있다. main.jsx 에서 «토큰이 없으면 <Login/>» 로
+     한 겹 감싸야 뜬다. 배선은 공통 라우팅이라 따로 맡긴다. */
+.login{display:flex; align-items:center; justify-content:center;
+  min-height:100dvh; padding:var(--gap)}
+.login-box{width:100%; max-width:360px; display:flex;
+  flex-direction:column; gap:var(--gap)}
+
+.login-mark{display:flex; align-items:baseline; gap:var(--gap-xs);
+  justify-content:center; color:var(--ink)}
+.login-mark span{color:var(--cyan)}
+.login-mark b{font-family:var(--font-head); font-size:var(--in-fs)}
+.login-mark small{font-size:var(--hint-fs); color:var(--warm)}
+
+.login form{display:flex; flex-direction:column; gap:var(--gap)}
+.login .btn{width:100%}
+.login .btn:disabled{opacity:.5; cursor:not-allowed}
+
+/* 실패 한 줄. 코드와 trace_id 를 작게 붙인다 — 문구만 있으면
+   백엔드에서 로그를 찾을 단서가 없다 */
+.login-err{display:flex; flex-direction:column; gap:var(--gap-xs);
+  padding:var(--gap-sm); border-radius:var(--in-radius);
+  background:var(--wash); border:var(--hair) solid var(--border)}
+.login-err b{font-size:var(--row-fs); font-weight:600}
+.login-err small{font-size:var(--hint-fs); color:var(--warm);
+  font-variant-numeric:tabular-nums; word-break:break-all}
+
+.login-note{margin:0; text-align:center; font-size:var(--hint-fs);
+  color:var(--warm); line-height:1.5}
+.login-note.mock{color:var(--cyan)}

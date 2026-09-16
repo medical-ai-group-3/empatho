@@ -168,6 +168,17 @@ function qs(o = {}) {
   return e.length ? `?${new URLSearchParams(e)}` : "";
 }
 
+/* ── 로그인 ───────────────────────────────────────────────────
+ * 경로를 다희님 브랜치에서 확인했다 — 맞는 것은 /login 이다.
+ * 환자 앱(src/api.js)이 쓰는 /auth/login 은 백엔드에 없는 경로다.
+ *
+ *   POST /api/v1/login  { login_id, password }  →  { access, refresh }
+ *
+ * 받은 access 는 lib/session.js 가 setToken() 에 끼운다.
+ * ⚠ 응답에 role · perms 가 없다. 그건 아래 me() 가 가져온다. */
+export const login = (loginId, password) =>
+  post("/login", { login_id: loginId, password });
+
 /* ── 로그인한 사람 ────────────────────────────────────────────
  * perms 배열이 여기 실려 온다. perm.js 의 setMe() 에 넣어 쓴다.
  *
