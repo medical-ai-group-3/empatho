@@ -248,6 +248,28 @@ cp env.example .env.local
 
 ---
 
+## 배포
+
+nginx 설정과 절차는 **[`deploy/`](deploy/)** 에 있다.
+
+| | |
+|---|---|
+| [`deploy/nginx.conf`](deploy/nginx.conf) | 실제 설정. ⚠ 표시 네 군데만 채우면 된다 |
+| [`deploy/README.md`](deploy/README.md) | 올리는 절차 · HTTPS · 자주 걸리는 것 |
+
+두 가지만 여기 적어 둔다.
+
+**빌드 결과를 옮겨야 한다.** `npm run build` 는 저장소 안 `dist/` 로
+내보내는데 nginx 가 보는 자리는 그것이 아니다. 옮기는 한 줄을 빠뜨리면
+고쳤는데 옛 화면이 그대로 뜬다.
+
+**HTTPS 가 필수다.** 취향이 아니라 막힘의 문제다 — 로그인 refresh 토큰이
+`Secure` 쿠키로 오는데, HTTP 로 올리면 그 쿠키가 저장되지 않아서 30분 뒤
+판독 도중에 통째로 로그아웃된다. 로컬에서 멀쩡한 이유는 브라우저가
+`localhost` 만 예외로 봐주기 때문이다.
+
+---
+
 ## 브랜치
 
 작업은 `geommo` 에서 한다.
