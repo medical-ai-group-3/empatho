@@ -28,6 +28,9 @@ const api = {
   detail:     (id)    => rad.order(id),      /* 1장 큐 — 오더를 본다 */
   listDetail: (id)    => rad.study(id),      /* 4장 목록 — 검사를 본다 */
   assign:     (id)    => rad.assign(id),
+  /* 집은 뒤 Study 를 만든다. 병리에는 이 단계가 없다 — 검체는 이미
+     존재하고, 영상은 「촬영 시작」이 곧 Study 생성이다 */
+  start:      (id)    => rad.start(id),
   uploadInfo: (id)    => rad.uploadInfo(id),
   complete:   (id)    => rad.complete(id),      /* 병리에는 없는 단계 */
   analyze:    (id)    => rad.analyze(id),

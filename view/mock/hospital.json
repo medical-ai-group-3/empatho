@@ -13,11 +13,6 @@
     "role": "교수",
     "dept": "pathology",
     "dept_name": "병리과",
-    "hospital": "미래 대학병원",
-    "email": "parkminjae@mirae.hospital",
-    "phone": "010-2244-1188",
-    "notify_discordance": true,
-    "notify_specimen": false,
     "perms": [
       "pathology.queue.view",
       "pathology.queue.assign",
@@ -104,7 +99,7 @@
       }
     ]
   },
-  "GET /api/v1/hospital/specimens/{id}": {
+  "GET /api/v1/hospital/specimens/{id}/": {
     "id": "sp-101",
     "patient_name": "이정민",
     "age": 52,
@@ -375,6 +370,13 @@
     "purpose": "검진에서 좌측 미세석회 군집 발견. 확대 촬영 포함 재평가 요청.",
     "contrast_allergy": null
   },
+  "POST /api/v1/hospital/radiology/queue/{id}/start-study": {
+    "study_id": "st-1",
+    "exam_order_id": "eo-1",
+    "modality": "mammo",
+    "status_label": "촬영 중"
+  },
+
   "GET /api/v1/hospital/radiology/studies/{id}/upload": {
     "patient_name": "김하늘",
     "age": 44,

@@ -91,7 +91,24 @@ function Inner({ cfg }) {
     setMsg(null);
     try {
       await cfg.api.assign(head.id);
-      nav(cfg.go.upload(head.id));
+
+      /* ⚠ 과에 따라 **집은 것과 다음 화면의 단위가 다르다.**
+         병리   검체를 집으면 그 검체로 바로 간다
+         영상   오더를 집은 뒤 Study 를 만들어야 한다. start-study 가
+                Study 행을 만드는 유일한 경로이고, 업로드·판독은
+                오더 id 가 아니라 study_id 로 움직인다.
+
+         cfg.api.start 가 있는 과만 이 단계를 탄다. 없으면 집은 id 를
+         그대로 쓴다 — 병리가 그렇다.
+
+         집기 다음에 부르는 이유: 순서를 바꾸면 두 사람이 동시에 눌렀을 때
+         둘 다 Study 를 만들어 놓고 한쪽만 409 로 떨어져 고아 행이 남는다. */
+      let goId = head.id;
+      if (cfg.api.start) {
+        const st = await cfg.api.start(head.id);
+        goId = st?.study_id ?? st?.id ?? head.id;
+      }
+      nav(cfg.go.upload(goId));
     } catch (e) {
       if (e.code === ERR.ALREADY_ASSIGNED) {
         setMsg("다른 선생님이 이미 맡았습니다. 목록을 새로 불러왔습니다.");

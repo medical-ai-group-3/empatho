@@ -290,7 +290,19 @@ export const path = {
      이 두 조건을 안 담으면 이미 남이 집어간 검체까지 대기 큐에 뜬다.
      기본값이 아니라 **우리가 정하는 조건**이라 여기 적어 둔다 */
   queue:      ()       => get(`/specimens/queue${qs({ status: "bound", assigned: "none" })}`),
-  specimen:   (id)     => get(`/specimens/${id}`),
+  /* ⚠ 상세에도 슬래시가 붙는다 (2026-09-16 다희님이 직접 요청을 넣어
+     확인). 전에 「병리는 상세에 슬래시가 없다」고 들었던 것이 틀렸다 —
+     슬래시 없이 부르면 그냥 404 다.
+
+     걱정했던 「PATCH 가 301 을 타면서 본문이 사라진다」는 일어나지
+     않는다. 이 API 는 맨 뒤에 캐치올 라우트가 있어서 APPEND_SLASH
+     리다이렉트 자체가 안 일어난다. 슬래시를 빠뜨리면 늘 깔끔한 404 다.
+
+     ⚠ 아래 custom action 들(queue·assign·upload·draft·finalize·amend)은
+       「슬래시 없음」으로 들었는데, 그 확인도 같은 회신에서 나온 것이라
+       되물어 두었다. DRF 라우터는 @action 에도 슬래시를 붙이는 것이
+       기본이라 함께 확인이 필요하다. */
+  specimen:   (id)     => get(`/specimens/${id}/`),
   assign:     (id)     => patch(`/specimens/${id}/assign`),
 
   uploadInfo: (id)     => get(`/specimens/${id}/upload`),
@@ -334,6 +346,15 @@ export const rad = {
   queue:      ()       => get(`/exam-orders/queue${qs({ status: "ordered", assigned: "none" })}`),
   order:      (id)     => get(`/exam-orders/${id}`),
   assign:     (id)     => patch(`/exam-orders/${id}/assign`),
+
+  /* ⚠ **Study 를 만드는 유일한 경로다** (2026-09-16 확인).
+     오더를 집은 뒤 여기를 부르면 그때 Study 행이 생기고 study_id 가
+     돌아온다. 이걸 안 부르면 study_id 를 받을 데가 없어서, 업로드·판독이
+     오더 id 를 study id 자리에 쓰게 된다 — 실제로 그 상태였다.
+
+     집기(assign) 다음에 부른다. 순서를 바꾸면 두 사람이 동시에 눌렀을 때
+     둘 다 Study 를 만들어 놓고 한쪽만 409 로 떨어져 고아 행이 남는다. */
+  start:      (id)     => post(`${RAD}/queue/${id}/start-study`),
 
   /* ⚠ **과 이름이 붙는다.** /studies/{id}/upload 가 아니라
      /radiology/studies/{id}/upload 다 (2026-09-16 정정). 판독 조회와

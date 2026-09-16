@@ -89,18 +89,38 @@ export default function MeScreen() {
    고칠 수 있는 것과 없는 것을 한 카드에 둔다. 못 고치는 값은 감추지 않고
    위쪽에 읽기 전용으로 적는다 — 사번이 아예 안 보이면 「어디서 보지」가
    되고, 보이되 입력칸이 아니면 「여기선 못 고치는구나」가 바로 읽힌다. */
+/* ⚠ **서버에 있는 칸만 띄운다** (2026-09-16 확인).
+ *
+ *   지금 있는 것   name · role · dept · dept_name · staff_id · perms
+ *   아직 없는 것   email · phone · hospital · notify_*
+ *
+ * 직원 쪽 표에 이메일·전화·병원명·알림설정 컬럼이 **아예 없다.** phone 은
+ * 환자 표(PatientPii)에만 있고, hospital 은 어느 표에도 없다 — 단일 병원
+ * 전제로 설계된 것으로 보인다. 새 컬럼 마이그레이션이 필요한 사안이라
+ * 팀 결정을 기다리는 중이다.
+ *
+ * 그래서 **값이 오는 칸만 그린다.** 빈 입력칸을 띄워 두면 고칠 수 있어
+ * 보이는데 저장하면 404 다. 스키마가 열리면 값이 오기 시작하고 칸도
+ * 저절로 생긴다 — 이 파일은 그때 안 고쳐도 된다.
+ */
+const EDITABLE = [
+  { key: "name",  label: "이름" },
+  { key: "email", label: "이메일", type: "email" },
+  { key: "phone", label: "연락처" },
+];
+
 function ProfileCard({ me }) {
-  const [f, setF] = useState({
-    name: me.name ?? "", email: me.email ?? "", phone: me.phone ?? "",
-  });
+  /* 서버가 준 칸만 고칠 수 있다. name 은 늘 온다 */
+  const fields = EDITABLE.filter((x) => x.key === "name" || me[x.key] !== undefined);
+
+  const [f, setF] = useState(() =>
+    Object.fromEntries(fields.map((x) => [x.key, me[x.key] ?? ""])));
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState(null);
   const [err, setErr] = useState(null);
 
   const set = (k, v) => setF((o) => ({ ...o, [k]: v }));
-  const dirty = f.name !== (me.name ?? "") ||
-                f.email !== (me.email ?? "") ||
-                f.phone !== (me.phone ?? "");
+  const dirty = fields.some((x) => f[x.key] !== (me[x.key] ?? ""));
 
   async function save() {
     setBusy(true); setMsg(null); setErr(null);
@@ -129,19 +149,13 @@ function ProfileCard({ me }) {
       </div>
 
       <div className="me-form">
-        <label className="field">
-          <span>이름</span>
-          <input value={f.name} onChange={(e) => set("name", e.target.value)} />
-        </label>
-        <label className="field">
-          <span>이메일</span>
-          <input type="email" value={f.email}
-                 onChange={(e) => set("email", e.target.value)} />
-        </label>
-        <label className="field">
-          <span>연락처</span>
-          <input value={f.phone} onChange={(e) => set("phone", e.target.value)} />
-        </label>
+        {fields.map((x) => (
+          <label className="field" key={x.key}>
+            <span>{x.label}</span>
+            <input type={x.type ?? "text"} value={f[x.key]}
+                   onChange={(e) => set(x.key, e.target.value)} />
+          </label>
+        ))}
       </div>
 
       <p className="muted small">
@@ -167,8 +181,13 @@ const NOTIFY = [
 ];
 
 function NotifyCard({ me }) {
+  /* ⚠ 서버에 알림 설정 컬럼이 아직 없다. 값이 하나도 안 오면 **카드를
+     통째로 안 그린다** — 켜고 끌 수 있어 보이는데 저장이 404 인 것보다
+     아예 없는 편이 낫다. 컬럼이 생기면 저절로 나타난다 */
+  const rows = NOTIFY.filter((r) => me[r.key] !== undefined);
+
   const [on, setOn] = useState(() =>
-    Object.fromEntries(NOTIFY.map((r) => [r.key, Boolean(me[r.key])])));
+    Object.fromEntries(rows.map((r) => [r.key, Boolean(me[r.key])])));
   const [busy, setBusy] = useState(null);
   const [err, setErr] = useState(null);
 
@@ -186,10 +205,12 @@ function NotifyCard({ me }) {
     }
   }
 
+  if (rows.length === 0) return null;
+
   return (
     <Card title="알림 설정">
       <ul className="checks">
-        {NOTIFY.map((r) => (
+        {rows.map((r) => (
           <li key={r.key}>
             <label>
               <input type="checkbox" checked={on[r.key]}
