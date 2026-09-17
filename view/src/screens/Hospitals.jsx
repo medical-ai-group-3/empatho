@@ -3,25 +3,28 @@ import { api } from "../api";
 import { useApi } from "../lib/useApi";
 import Tilly from "../lib/Tilly";
 import { Body, Head } from "../lib/Screen";
+import { distanceKm, fmtKm, mapUrl, routeUrl, useNear } from "../lib/near";
 
 /* 14 · 병원 찾기
  *
  * 검진과 진료를 받을 수 있는 협력 병원 목록이다.
  *
- * ── 위치를 안 쓴다 ───────────────────────────────────────────
+ * ── 위치는 브라우저에서만 쓴다 ─────────────────────────────
  *
- * ⚠ **기기 위치를 받지 않는다.** 「가까운 순」은 편하지만 그러려면
- *   위치를 서버로 보내야 하고, 그건 따로 동의를 받아야 하는 정보다.
- *   환자 앱에서 동의 하나를 더 받는 값은 싸지 않다 — 지역으로 고르는
- *   것으로 충분하다.
+ * ⚠ **좌표를 서버로 보내지 않는다.** 브라우저에서 받아 브라우저에서
+ *   재고 끝난다(lib/near). 좌표는 그 자체가 민감한 정보라, 보내는 순간
+ *   「어디에 살고 어느 병원을 다니는지」가 서버 기록에 남는다.
+ *   그래서 서버에는 **병원 좌표만** 달라고 하고 거리는 우리가 잰다.
  *
- *   서버가 distance_km 를 주면 적고, 안 주면 거리 줄이 아예 없다.
- *   나중에 위치를 쓰기로 하면 화면은 안 고쳐도 된다.
+ * ⚠ **화면을 열자마자 묻지 않는다.** 들어오자마자 위치 권한 창이 뜨면
+ *   대개 거절한다 — 왜 필요한지 모르는 채로 받는 물음이라서다.
+ *   「가까운 순으로」를 누를 때 그때 묻는다.
  *
- * ── 전화가 가장 중요한 손잡이다 ──────────────────────────────
- * 이 화면에 오는 사람은 대개 **예약을 하려고** 온다. 그래서 전화번호가
- * 글자가 아니라 **누르면 걸리는 것**이어야 한다(tel:). 폰에서 번호를
- * 외워 자판으로 옮겨 적게 하면 안 된다.
+ *   거절해도 화면은 그대로 돈다. 거리 줄과 정렬이 없을 뿐이다.
+ *
+ * ── 지도는 폰에 있는 것을 쓴다 ───────────────────────────────
+ * 지도를 앱 안에 심으려면 키를 받아 빌드에 섞어야 하고 스크립트도
+ * 수백 KB 다. 길찾기까지 지도 앱이 훨씬 잘한다 — 흉내 낼 이유가 없다.
  *
  * 지금 다니는 곳에는 표를 붙인다 — 목록에서 자기 병원을 못 찾아
  * 헤매지 않게.
@@ -30,13 +33,15 @@ export default function Hospitals() {
   const [region, setRegion] = useState("");
   const [q, setQ] = useState("");
   const { loading, data, error, reload } = useApi(() => api.hospitals(), []);
+  const near = useNear();
 
   return (
     <>
       <Head title="병원 찾기" />
       <Body loading={loading} error={error} onRetry={reload}>
         {data && (
-          <Inner d={data} region={region} setRegion={setRegion} q={q} setQ={setQ} />
+          <Inner d={data} near={near}
+                 region={region} setRegion={setRegion} q={q} setQ={setQ} />
         )}
       </Body>
     </>
@@ -44,8 +49,7 @@ export default function Hospitals() {
 }
 
 /* 거르는 일은 화면에서 한다. 목록이 손에 꼽을 만큼이라 서버를 다시
-   부를 이유가 없다 — 지역을 누를 때마다 기다리게 하는 편이 나쁘다.
-   목록이 길어지면 그때 api.hospitals({ region, q }) 로 넘긴다 */
+   부를 이유가 없다 — 지역을 누를 때마다 기다리게 하는 편이 나쁘다 */
 function match(h, region, q) {
   if (region && region !== "전체" && h.region !== region) return false;
   const k = q.trim().toLowerCase();
@@ -54,9 +58,15 @@ function match(h, region, q) {
     (v) => String(v ?? "").toLowerCase().includes(k));
 }
 
-function Inner({ d, region, setRegion, q, setQ }) {
-  const items = (d.items ?? []).filter((h) => match(h, region, q));
+function Inner({ d, near, region, setRegion, q, setQ }) {
   const regions = d.regions ?? [];
+
+  /* 거리를 재고, 위치를 받았으면 **가까운 순**으로 세운다.
+     못 받았으면 서버가 준 순서를 그대로 둔다 — 임의로 섞지 않는다 */
+  const items = (d.items ?? [])
+    .filter((h) => match(h, region, q))
+    .map((h) => ({ ...h, km: near.me ? distanceKm(near.me, h) : null }))
+    .sort((a, b) => (a.km == null || b.km == null ? 0 : a.km - b.km));
 
   return (
     <>
@@ -65,6 +75,24 @@ function Inner({ d, region, setRegion, q, setQ }) {
         <input value={q} placeholder="병원 이름 · 진료과 · 주소"
                onChange={(e) => setQ(e.target.value)} />
       </label>
+
+      {/* 가까운 순 — 누를 때 위치를 묻는다 */}
+      {near.state !== "off" && (
+        <div className="nearbar">
+          {near.state === "ready" ? (
+            <span className="s">내 위치에서 가까운 순입니다</span>
+          ) : (
+            <button className="btn soft" disabled={near.state === "asking"}
+                    onClick={near.ask}>
+              {near.state === "asking" ? "위치 확인 중…" : "가까운 순으로 보기"}
+            </button>
+          )}
+          {near.why && <p className="hint">{near.why}</p>}
+          {near.state === "ready" && (
+            <p className="note">위치는 이 기기에서만 쓰이고 서버로 보내지 않습니다.</p>
+          )}
+        </div>
+      )}
 
       {regions.length > 0 && (
         <div className="chips" role="group" aria-label="지역">
@@ -95,20 +123,26 @@ function Inner({ d, region, setRegion, q, setQ }) {
                   <b>{h.name}</b>
                   <span>{h.dept}</span>
                 </span>
-                {h.note && <span className="pill new">{h.note}</span>}
+                {/* 거리는 위치를 받았을 때만 뜬다 */}
+                {h.km != null && <span className="pill read">{fmtKm(h.km)}</span>}
               </div>
 
               <p className="hos-l">{h.address}</p>
               <p className="hos-l">{h.hours}</p>
-              {/* 거리는 서버가 줄 때만 적는다 — 위 주석 참고 */}
-              {h.distance_km != null && (
-                <p className="hos-l">약 {h.distance_km}km</p>
-              )}
+              {h.note && <p className="hos-l hos-mine">{h.note}</p>}
 
-              {/* 누르면 걸린다. 번호를 옮겨 적게 하지 않는다 */}
-              <a className="btn soft" href={`tel:${h.phone.replaceAll("-", "")}`}>
-                {h.phone} 전화하기
-              </a>
+              <div className="hos-go">
+                {/* 누르면 걸린다. 번호를 옮겨 적게 하지 않는다 */}
+                <a className="btn soft" href={`tel:${h.phone.replaceAll("-", "")}`}>
+                  전화
+                </a>
+                {/* 폰에 있는 지도 앱으로 넘긴다 */}
+                <a className="btn soft" href={mapUrl(h)}
+                   target="_blank" rel="noreferrer">지도</a>
+                <a className="btn soft" href={routeUrl(h)}
+                   target="_blank" rel="noreferrer">길찾기</a>
+              </div>
+              <p className="hos-l hos-tel">{h.phone}</p>
             </div>
           ))}
         </div>

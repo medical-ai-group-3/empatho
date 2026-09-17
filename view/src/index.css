@@ -946,4 +946,14 @@ a{color:inherit; text-decoration:none}
    전화가 가장 중요한 손잡이라 단추로 세운다 — 번호를 옮겨 적게 하지 않는다 */
 .list .col.hos{gap:var(--card-tx-gap)}
 .hos-l{margin:0; font-size:var(--hos-l-fs); line-height:1.6; color:var(--muted)}
-.hos .btn.soft{margin-top:var(--opts-gap-card); width:100%}
+/* 전화 · 지도 · 길찾기 셋이 나란히. 전화가 제일 자주 쓰여 왼쪽이다 */
+.hos-go{display:flex; gap:var(--row-gap); margin-top:var(--opts-gap-card)}
+.hos-go .btn.soft{flex:1; padding:var(--slot-pad-y) 0}
+.hos-tel{margin-top:var(--dot-gap); text-align:center;
+  font-variant-numeric:tabular-nums}
+.hos-mine{color:var(--green); font-weight:600}
+
+/* 가까운 순 — 누를 때 위치를 묻는다 */
+.nearbar{display:flex; flex-direction:column; gap:var(--dot-gap)}
+.nearbar .s{font-size:var(--card-s-fs); color:var(--green); font-weight:600}
+.nearbar .note{margin:0}

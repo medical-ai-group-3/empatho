@@ -719,9 +719,10 @@
         "phone": "02-960-1234",
         "hours": "평일 08:30–17:30 · 토 08:30–12:30",
         "region": "서울 성북",
-        "distance_km": null,
         "is_partner": true,
-        "note": "지금 진료받고 계신 곳입니다"
+        "note": "지금 진료받고 계신 곳입니다",
+        "lat": 37.5866,
+        "lng": 127.0297
       },
       {
         "hospital_id": "H-002",
@@ -731,9 +732,10 @@
         "phone": "02-941-5678",
         "hours": "평일 09:00–18:00 · 토 09:00–13:00",
         "region": "서울 성북",
-        "distance_km": null,
         "is_partner": true,
-        "note": null
+        "note": null,
+        "lat": 37.592,
+        "lng": 127.017
       },
       {
         "hospital_id": "H-003",
@@ -743,9 +745,10 @@
         "phone": "02-2212-3344",
         "hours": "평일 09:30–18:30",
         "region": "서울 동대문",
-        "distance_km": null,
         "is_partner": true,
-        "note": null
+        "note": null,
+        "lat": 37.5745,
+        "lng": 127.04
       },
       {
         "hospital_id": "H-004",
@@ -755,9 +758,10 @@
         "phone": "02-733-9900",
         "hours": "평일 08:00–17:00",
         "region": "서울 종로",
-        "distance_km": null,
         "is_partner": true,
-        "note": null
+        "note": null,
+        "lat": 37.5704,
+        "lng": 126.992
       },
       {
         "hospital_id": "H-005",
@@ -767,9 +771,10 @@
         "phone": "031-900-2200",
         "hours": "평일 09:00–18:00 · 토 09:00–13:00",
         "region": "경기 고양",
-        "distance_km": null,
         "is_partner": true,
-        "note": null
+        "note": null,
+        "lat": 37.6584,
+        "lng": 126.777
       }
     ]
   },
