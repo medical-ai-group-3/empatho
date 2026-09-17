@@ -60,8 +60,3 @@ from .pathology import(
     SpecimenFinalizeView,
     SpecimenAmendView,
 )
-from .admin import (
-    StaffApprovalListView,
-    StaffApproveView,
-    AccountRoleView, 
-)

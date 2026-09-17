@@ -25,7 +25,8 @@ cdss_backend/urls.py 에서 path("api/v1/", include("core.urls")) 로 물린다.
                        .../slides/ , api/v1/pathology-results/{id}/ai-review|diagnosis|finalize/
   surgery    (2단계)   api/v1/patients/{id}/timeline|report|surgery-explain/ ,
                        api/v1/lesions/{id}/decision|discordance/
-  admin      (2단계)   api/v1/admin/approvals/ , api/v1/admin/accounts/{id}/role/
+  admin      Django admin(/admin/) + POST api/v1/admin-session 로 세션 다리.
+                       REST 엔드포인트 없음 — core/api/admin_session.py, core/admin.py 참고.
 """
 
 from django.urls import include, path
@@ -140,9 +141,6 @@ urlpatterns = [
     path("specimens/<int:pk>/draft", views.SpecimenDraftView.as_view({"put": "update"}), name="specimen-draft"),
     path("specimens/<int:pk>/finalize", views.SpecimenFinalizeView.as_view({"patch": "partial_update"}), name="specimen-finalize"),
     path("specimens/<int:pk>/upload", views.SpecimenUploadListView.as_view({"get": "retrieve"}), name="specimen-upload"),
-    path("admin/approvals", views.StaffApprovalListView.as_view(), name="admin-approvals-list"),
-    path("admin/approvals/<int:pk>", views.StaffApproveView.as_view({"patch": "partial_update"}), name="admin-approval-approve"),
-    path("admin/accounts/<int:pk>/role", views.AccountRoleView.as_view({"patch": "partial_update"}), name="admin-account-role"),
     path("staff",views.StaffListView.as_view(), name ="staff-list"),
     path("followups/new", views.FollowupCreateView.as_view({"post": "create"}), name="followup-create"),
     path("followups/<int:pk>/call", views.FollowupCallView.as_view({"patch": "partial_update"}), name="followup-call"),
