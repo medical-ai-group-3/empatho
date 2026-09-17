@@ -60,8 +60,8 @@ jobs:
       - name: 인수 조건 확인
         run: |
           set -eu
-          B=http://127.0.0.1
-          code() { curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$@"; }
+          B=https://127.0.0.1
+          code() { curl -sk -o /dev/null -w '%{http_code}' --max-time 20 "$@"; }
 
           # ① nginx 자신. 업스트림을 안 거친다
           [ "$(code $B/nginx-health)" = 200 ] || { echo "nginx 죽음"; exit 1; }
@@ -102,4 +102,4 @@ jobs:
       # **실패해도 배포는 안 막는다** — 로그로만 남긴다.
       - name: SSE 확인 (참고)
         continue-on-error: true
-        run: timeout 65 curl -N -s http://127.0.0.1/svc/v1/notify/stream | head -c 400 || true
+        run: timeout 65 curl -Nsk https://127.0.0.1/svc/v1/notify/stream | head -c 400 || true
