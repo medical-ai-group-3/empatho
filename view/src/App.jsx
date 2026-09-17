@@ -63,9 +63,12 @@ function ChatFab() {
   if (pathname === "/chat") return null;
 
   return (
-    <NavLink className="chatfab" to="/chat" aria-label="안내 챗봇에게 묻기">
-      <Tilly mood="ask" size="sm" alt="" />
-      <span className="chatfab-tx">상담</span>
+    <NavLink className="chatfab" to="/chat"
+             aria-label="안내 챗봇에게 묻기" title="안내 챗봇에게 묻기">
+      {/* 얼굴만 쓴다. 글자를 빼도 되는 이유는 **틸리가 이 앱에서 유일한
+          얼굴**이라서다 — 다른 캐릭터가 늘면 그때는 글자가 다시 필요하다.
+          눈으로 못 보는 사람에게는 aria-label 이 대신 말한다 */}
+      <Tilly mood="face" size="fab" alt="" />
     </NavLink>
   );
 }
