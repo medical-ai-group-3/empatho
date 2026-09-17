@@ -868,8 +868,6 @@ td.none,tr.none td{text-align:center; padding:var(--card-pad) 0}
   min-height:100dvh; padding:var(--gap)}
 .login-box{width:100%; max-width:360px; display:flex;
   flex-direction:column; gap:var(--gap)}
-/* 회원가입처럼 칸이 많은 폼 — 로그인보다 조금 넓게 */
-.login-box.wide{max-width:420px}
 
 .login-mark{display:flex; align-items:baseline; gap:var(--gap-xs);
   justify-content:center; color:var(--ink)}

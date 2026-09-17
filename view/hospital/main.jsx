@@ -4,6 +4,13 @@ import {
   BrowserRouter, Navigate, Outlet, Route, Routes, useParams,
 } from "react-router-dom";
 
+/* 팀 공용 디자인 시스템 토큰 — tokens.css/themes.css 는 :root 에 새 이름의
+   커스텀 프로퍼티만 얹으므로 전역으로 불러도 안전하다. base.css(전역
+   body/.btn/.card 규칙)는 여기서 안 부른다 — 회원가입 화면 전용으로
+   스코프한 styles/signup-ds.css 가 그 역할을 대신한다. */
+import "./styles/tokens.css";
+import "./styles/themes.css";
+
 import "./tokens.css";
 import "./hospital.css";
 

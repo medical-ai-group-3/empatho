@@ -1,0 +1,164 @@
+/* 회원가입 화면 전용 — 공용 디자인 시스템(tokens.css · themes.css)을
+   `.ds-scope` 아래에서만 쓰도록 옮긴 것.
+   ────────────────────────────────────────────────────────────────
+   원본은 base.css 의 body · h1~h4 · .btn · .card · .input 같은 전역
+   선택자다. 그대로 가져오면 병원 웹 전체(로그인 · 대기 큐 등)의 같은
+   이름 클래스가 다 바뀐다. 그래서 여기서는 전부 .ds-scope 밑에 스코프해,
+   회원가입 화면(hospital/screens/auth/Signup.jsx 의 루트가 이 클래스를
+   달고 있다)에서만 적용되게 한다.
+
+   토큰(--bg-canvas · --text-primary · --accent 등)은 tokens.css ·
+   themes.css 가 :root 에 새 이름으로만 얹으므로 전역 import 해도
+   안전하다 — 이 파일에서는 base.css 의 컴포넌트 규칙만 옮긴다. */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500&family=Inter:wght@400;500;600&display=swap');
+
+.ds-scope {
+  background: var(--bg-canvas);
+  color: var(--text-secondary);
+  font-family: var(--font-body);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+  letter-spacing: var(--tracking-body);
+}
+
+.ds-scope h1,
+.ds-scope h2,
+.ds-scope h3,
+.ds-scope h4 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: var(--font-weight-regular);
+  color: var(--text-primary);
+}
+.ds-scope h2 { font-size: var(--text-heading-sm); line-height: var(--leading-heading-sm); letter-spacing: var(--tracking-heading-sm); }
+.ds-scope h3 { font-size: var(--text-subheading); line-height: var(--leading-subheading); letter-spacing: var(--tracking-subheading); }
+
+.ds-scope p { margin: 0; }
+
+.ds-scope a { color: var(--accent-edge); text-decoration: none; }
+
+.ds-scope :focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.ds-scope .text-caption {
+  font-size: var(--text-caption);
+  line-height: var(--leading-caption);
+  color: var(--text-muted);
+}
+
+/* ---------- 바깥 상자 · 로고 자리 ---------- */
+.ds-scope .box {
+  width: 100%;
+  max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-16);
+}
+.ds-scope .mark {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-4);
+  text-align: center;
+}
+.ds-scope .mark .dot { color: var(--accent); }
+
+/* ---------- Card ---------- */
+.ds-scope .card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-cards);
+  padding: var(--card-padding);
+  box-shadow: var(--shadow-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-16);
+}
+
+/* ---------- Buttons ---------- */
+.ds-scope .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-8);
+  width: 100%;
+  padding: var(--spacing-8) var(--spacing-16);
+  border-radius: var(--radius-buttons);
+  border: 1px solid transparent;
+  font: inherit;
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+}
+.ds-scope .btn:disabled { opacity: .5; cursor: not-allowed; }
+
+.ds-scope .btn-primary {
+  background: var(--accent);
+  border-color: var(--accent-edge);
+  color: var(--text-on-accent);
+}
+.ds-scope .btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
+
+.ds-scope .btn-ghost {
+  background: transparent;
+  border-color: var(--border-default);
+  color: var(--text-primary);
+}
+.ds-scope .btn-ghost:hover:not(:disabled) { border-color: var(--border-strong); }
+
+/* ---------- Fields ---------- */
+.ds-scope .field { display: flex; flex-direction: column; gap: var(--spacing-4); }
+.ds-scope .field > span {
+  font-size: var(--text-small);
+  line-height: var(--leading-small);
+  color: var(--text-secondary);
+  font-weight: var(--font-weight-medium);
+}
+.ds-scope .field > em {
+  font-size: var(--text-caption);
+  line-height: var(--leading-caption);
+  color: var(--text-muted);
+  font-style: normal;
+}
+
+.ds-scope .input,
+.ds-scope select.input {
+  width: 100%;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-inputs);
+  padding: var(--spacing-8) var(--spacing-12);
+  font: inherit;
+}
+.ds-scope .input::placeholder { color: var(--text-muted); }
+.ds-scope .input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--focus-ring);
+}
+.ds-scope .input:disabled { opacity: .6; }
+
+/* ---------- Checkbox row ---------- */
+.ds-scope .agree {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-8);
+  font-size: var(--text-small);
+  color: var(--text-secondary);
+}
+.ds-scope .agree input { accent-color: var(--accent); width: 16px; height: 16px; }
+
+/* ---------- Error ---------- */
+.ds-scope .err {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+  padding: var(--spacing-12);
+  border-radius: var(--radius-inputs);
+  background: var(--highlight-bg);
+  color: var(--highlight-text);
+  font-size: var(--text-small);
+}

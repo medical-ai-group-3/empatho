@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { staffSignup } from "../../api";
-import { Card } from "../../lib/Page";
 import { HOSPITAL, PRODUCT, STAFF_DEPTS } from "../../nav";
+import "../../styles/signup-ds.css";
 
 /* 직원 회원가입 — 신청 → 관리자 승인 구조
  * ────────────────────────────────────────────────────────────────
@@ -21,6 +21,11 @@ import { HOSPITAL, PRODUCT, STAFF_DEPTS } from "../../nav";
  * 아이디·직원번호 중복은 서버가 제출 시점에 같이 본다. 별도 중복확인
  * API 가 없어서, 여기서는 형식만 확인하고 겹치면 서버가 주는
  * VALIDATION_ERROR 를 그대로 보여준다.
+ *
+ * ── 디자인 ──────────────────────────────────────────────────────
+ * 이 화면만 팀 공용 디자인 시스템(styles/tokens.css · themes.css ·
+ * signup-ds.css)을 쓴다. 루트에 붙인 `ds-scope` 클래스 밖으로는 안
+ * 새어나간다 — 로그인 등 다른 화면은 그대로 hospital.css 를 쓴다.
  */
 export default function Signup({ onBack }) {
   const [f, setF] = useState({
@@ -58,17 +63,17 @@ export default function Signup({ onBack }) {
 
   if (done) {
     return (
-      <main className="login">
-        <div className="login-box">
-          <div className="login-mark">
-            <span aria-hidden="true">◈</span>
-            <b>{HOSPITAL} {PRODUCT}</b>
-            <small>의료진용</small>
+      <main className="login ds-scope">
+        <div className="box">
+          <div className="mark">
+            <span className="dot" aria-hidden="true">◈</span>
+            <h3>{HOSPITAL} {PRODUCT}</h3>
+            <span className="text-caption">의료진용</span>
           </div>
-          <Card>
-            <p className="note">{done}</p>
-          </Card>
-          <button className="btn line" type="button" onClick={onBack}>
+          <div className="card">
+            <p>{done}</p>
+          </div>
+          <button className="btn btn-ghost" type="button" onClick={onBack}>
             로그인으로
           </button>
         </div>
@@ -77,52 +82,52 @@ export default function Signup({ onBack }) {
   }
 
   return (
-    <main className="login">
-      <div className="login-box wide">
-        <div className="login-mark">
-          <span aria-hidden="true">◈</span>
-          <b>{HOSPITAL} {PRODUCT}</b>
-          <small>의료진용</small>
+    <main className="login ds-scope">
+      <div className="box">
+        <div className="mark">
+          <span className="dot" aria-hidden="true">◈</span>
+          <h3>{HOSPITAL} {PRODUCT}</h3>
+          <span className="text-caption">의료진용</span>
         </div>
 
-        <Card>
-          <form onSubmit={submit}>
+        <div className="card">
+          <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: "var(--spacing-16)" }}>
             <label className="field">
               <span>직원번호</span>
-              <input value={f.staffNumber} onChange={set("staffNumber")}
+              <input className="input" value={f.staffNumber} onChange={set("staffNumber")}
                      placeholder="사내 직원 등록번호를 입력하세요." disabled={busy} />
             </label>
 
             <label className="field">
               <span>이름</span>
-              <input value={f.name} onChange={set("name")}
+              <input className="input" value={f.name} onChange={set("name")}
                      autoComplete="name" disabled={busy} />
             </label>
 
             <label className="field">
               <span>아이디</span>
-              <input value={f.loginId} onChange={set("loginId")}
+              <input className="input" value={f.loginId} onChange={set("loginId")}
                      autoComplete="username" autoCapitalize="off"
                      placeholder="로그인에 사용할 아이디" disabled={busy} />
             </label>
 
             <label className="field">
               <span>비밀번호</span>
-              <input type="password" value={f.password} onChange={set("password")}
+              <input className="input" type="password" value={f.password} onChange={set("password")}
                      autoComplete="new-password" disabled={busy} />
               <em>여덟 자 이상</em>
             </label>
 
             <label className="field">
               <span>비밀번호 확인</span>
-              <input type="password" value={f.password2} onChange={set("password2")}
+              <input className="input" type="password" value={f.password2} onChange={set("password2")}
                      autoComplete="new-password" disabled={busy} />
               {f.password2 && f.password !== f.password2 && <em>두 번 넣으신 값이 다릅니다</em>}
             </label>
 
             <label className="field">
               <span>부서</span>
-              <select value={f.role} onChange={set("role")} disabled={busy}>
+              <select className="input" value={f.role} onChange={set("role")} disabled={busy}>
                 <option value="">부서를 선택하세요.</option>
                 {STAFF_DEPTS.map((d) => (
                   <option key={d.key} value={d.key}>{d.name}</option>
@@ -130,30 +135,26 @@ export default function Signup({ onBack }) {
               </select>
             </label>
 
-            <ul className="checks">
-              <li>
-                <label>
-                  <input type="checkbox" checked={agree}
-                         onChange={(e) => setAgree(e.target.checked)}
-                         disabled={busy} />
-                  <span>개인정보 수집 및 이용에 동의합니다. (필수)</span>
-                </label>
-              </li>
-            </ul>
+            <label className="agree">
+              <input type="checkbox" checked={agree}
+                     onChange={(e) => setAgree(e.target.checked)}
+                     disabled={busy} />
+              <span>개인정보 수집 및 이용에 동의합니다. (필수)</span>
+            </label>
 
             {error && <Failed error={error} />}
 
-            <button className="btn fill" type="submit" disabled={!ready || busy}>
+            <button className="btn btn-primary" type="submit" disabled={!ready || busy}>
               {busy ? "신청하는 중…" : "가입 신청"}
             </button>
           </form>
-        </Card>
+        </div>
 
-        <p className="login-note">
+        <p className="text-caption" style={{ textAlign: "center" }}>
           제출 후 관리자 승인이 있어야 로그인할 수 있습니다.
         </p>
 
-        <button className="btn ghost" type="button" onClick={onBack} disabled={busy}>
+        <button className="btn btn-ghost" type="button" onClick={onBack} disabled={busy}>
           로그인으로
         </button>
       </div>
@@ -166,12 +167,12 @@ export default function Signup({ onBack }) {
    화면에 칸이 몇 안 돼 사람이 바로 알아본다. */
 function Failed({ error }) {
   return (
-    <div className="login-err" role="alert">
+    <div className="err" role="alert">
       <b>{error.detail || error.message}</b>
-      <small>
+      <span>
         {error.code}
         {error.traceId && <> · {error.traceId}</>}
-      </small>
+      </span>
     </div>
   );
 }
