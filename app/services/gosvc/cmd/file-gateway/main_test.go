@@ -19,6 +19,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"image"
+	"image/png"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -367,6 +369,66 @@ func TestPutFile(t *testing.T) {
 	blob, err := os.ReadFile(filepath.Join(r.root, filepath.FromSlash(key)))
 	if err != nil || !bytes.Equal(blob, body) {
 		t.Errorf("저장된 내용이 다르다: %v", err)
+	}
+}
+
+// ── I-1 의 픽셀 크기 ────────────────────────────────────────────────
+//
+// 초음파·병리는 PNG 라 I-2 를 안 탄다(dicom.Parse 가 매직을 못 찾고 끝난다).
+// 그래서 예전에는 storage_object.width_px · height_px 가 null 로 남아,
+// 화면이 AI 폴리곤 좌표를 받아도 **원본이 몇 픽셀인지 몰라 못 그렸다.**
+// I-1 에 실어 보내는지 본다.
+
+func pngOf(t *testing.T, w, h int) []byte {
+	t.Helper()
+	img := image.NewRGBA(image.Rect(0, 0, w, h))
+	var b bytes.Buffer
+	if err := png.Encode(&b, img); err != nil {
+		t.Fatalf("png 인코딩: %v", err)
+	}
+	return b.Bytes()
+}
+
+func TestPutFile_PNG크기가_I1에_실린다(t *testing.T) {
+	r := newRig(t)
+	body := pngOf(t, 512, 512) // 병리 크롭 크기
+	w := r.do(t, "POST", "/svc/v1/files", mint(t), bytes.NewReader(body),
+		"X-Filename", "crop_01.png")
+	if w.Code != 201 {
+		t.Fatalf("%d %s", w.Code, w.Body)
+	}
+	cbs := r.callbacks()
+	if len(cbs) != 1 {
+		t.Fatalf("I-1 이 %d번 갔다", len(cbs))
+	}
+	o := cbs[0].Parsed
+	if o.WidthPx == nil || o.HeightPx == nil {
+		t.Fatalf("width_px · height_px 가 비어 있다: %+v", o)
+	}
+	if *o.WidthPx != 512 || *o.HeightPx != 512 {
+		t.Fatalf("크기가 %dx%d (512x512 여야 한다)", *o.WidthPx, *o.HeightPx)
+	}
+}
+
+// ⚠ 그림이 아니면 **키 자체가 안 나가야 한다.** 0 을 보내면 Django 에서
+// 「0픽셀짜리 그림」이 되고, null 과 구분이 안 된다.
+func TestPutFile_그림이_아니면_크기를_안_싣는다(t *testing.T) {
+	r := newRig(t)
+	body := []byte("%PDF-1.7 리포트 — 그림이 아니다")
+	w := r.do(t, "POST", "/svc/v1/files", mint(t), bytes.NewReader(body),
+		"X-Filename", "report.pdf")
+	if w.Code != 201 {
+		t.Fatalf("%d %s", w.Code, w.Body)
+	}
+	cbs := r.callbacks()
+	if len(cbs) != 1 {
+		t.Fatalf("I-1 이 %d번 갔다", len(cbs))
+	}
+	if o := cbs[0].Parsed; o.WidthPx != nil || o.HeightPx != nil {
+		t.Fatalf("PDF 인데 크기가 실렸다: %+v", o)
+	}
+	if bytes.Contains(cbs[0].Body, []byte("width_px")) {
+		t.Fatalf("width_px 키가 본문에 있다 — omitempty 가 안 먹었다: %s", cbs[0].Body)
 	}
 }
 
