@@ -179,6 +179,8 @@ class StorageObjectCallback(InternalCallbackView):
                 "checksum_sha256": self.payload.get("checksum_sha256") or None,
                 "byte_size": self.payload.get("byte_size") or None,
                 "content_type": self.payload.get("content_type") or None,
+                "width_px": self.payload.get("width_px") or None, 
+                "height_px": self.payload.get("height_px") or None,
             },
         )
         # storage_class 는 v10 에 칸이 없다. 버린다.
@@ -218,6 +220,8 @@ class StorageObjectCallback(InternalCallbackView):
                 "checksum_sha256": self.payload.get("checksum_sha256") or None,
                 "byte_size": self.payload.get("byte_size") or None,
                 "content_type": self.payload.get("content_type") or None,
+                "width_px": self.payload.get("width_px") or None, 
+                "height_px": self.payload.get("height_px") or None,
             },
         )
         logger.info("[I-1] %s 파생물 key=%s kind=%s source=%s idem=%s",

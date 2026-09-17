@@ -37,6 +37,8 @@ import time
 import urllib.request
 import uuid 
 import base64
+import http.client
+import urllib.error
 
 from celery import shared_task 
 from .api.tickets import issue 
@@ -44,6 +46,7 @@ from django.utils import timezone
 
 from . import mesh 
 from .models import AiResult, StorageObject
+from celery.exceptions import SoftTimeLimitExceeded
 
 logger = logging.getLogger(__name__) 
 
@@ -179,14 +182,26 @@ def run_inference(ai_result_id) :
         req = urllib.request.Request(f"{INFERENCE}/analyze/{socket}", data=body, headers={"Content-Type": f"multipart/form-data; boundary={boundary}"})
         # 추론 서버는 실패도 HTTP 200 에 abstained 로 돌려준다. 그래서 상태
         # 코드를 따로 보지 않고, 기권 여부는 응답 안에서 읽는다.
-        with urllib.request.urlopen(req, timeout=300) as r :
-            out = json.loads(r.read())
-            
+        #
+        # 유휴 회수와 겹치면 연결이 끊긴다 — 판독 서버는 30초 놀면 GPU 를
+        # 반납하려고 프로세스를 끝내고, supervisor 가 곧바로 다시 띄운다.
+        # 그 순간에 들어간 요청만 끊기므로 한 번 더 걸면 된다.
+        # 두 번째도 끊기면 그때는 실패로 남긴다.
+        for attempt in (1,2) :
+            try : 
+                with urllib.request.urlopen(req, timeout=600) as r :
+                    out = json.loads(r.read())
+                break
+            except (urllib.error.URLError, ConnectionError, http.client.HTTPException) as exc :
+                if attempt == 2 :
+                    raise 
+                logger.warning("[run_inference] 연결 끊김 - 다시 건다 (%s)", type(exc).__name__)
+                time.sleep(3)
         # MRI 응답은 대부분이 3D 메시다. 걷어내지 않으면 jsonb 한 칸이 그 크기가 된다.
         if modality == "mri" :
             out = _store_meshes(out, ai)
         
-        elif modality == "pathology" :
+        elif modality in ("pathology", "us") :
             out = _store_mask(out, ai)
             
         # ⑧ 결과를 행에 채운다. 저장은 마지막에 한 번만 한다.
@@ -196,11 +211,15 @@ def run_inference(ai_result_id) :
         ai.abstained = bool(out.get("abstained"))
         ai.abstain_reason = out.get("reason") or None
         ai.run_status = "done"
+    
+    except SoftTimeLimitExceeded :
+        # Celery 가 그만 이라고 보낸것 하드 제한이 오기전에 기록 
+        logger.error("[run_inference] 행 %s 시간 초과", ai.pk)
+        ai.run_status = "failed"
+        ai.abstain_reason = "soft_time_limit"
+    
     except Exception as e:
         # 실패해도 행에 남긴다. 로그만 남기면 화면이 queue 인채로 멈춘다
-        #
-        # 예외 종류와 메시지를 사유 칸에 넣는다. 칸이 100자라 잘라 넣고,
-        # 자세한 내용은 logger.exception 이 남기는 traceback 에 있다.
         logger.exception("[run_inference] 행 %s 실패", ai.pk)
         ai.run_status = "failed"
         # 칸이 text 다(0013 이전에는 varchar(100) 이었다). 자르면 원인을 못 읽는다.
@@ -287,7 +306,7 @@ def _ref(ai, modality) :
     # 초음파 · 병리는 Garage 에 그대로 있다.
     return src.object_key
     
-def _upload_derived(ai, kind, payload, content_type, filename, source_id, lesion_id=None):
+def _upload_derived(ai, kind, payload, content_type, filename, source_id, lesion_id=None, object_name=None):
     """파생물 하나를 Go 로 올리고 실제 주소를 받아 온다.
 
     티켓에 꼬리표(종류 · 원본 · 실행)를 실어 서명한다. Go 가 그것을 파일 등록
@@ -320,7 +339,7 @@ def _upload_derived(ai, kind, payload, content_type, filename, source_id, lesion
         
     token, _, _ = issue("derived_upload", scope_kind, scope_id,
                         content_type=content_type, max_bytes=len(payload), 
-                        derived=derived)
+                        derived=derived, object_name=object_name)
     req = urllib.request.Request(
         f"{GATEWAY}/svc/v1/derived", data=payload, method="POST",
         headers={
@@ -329,20 +348,24 @@ def _upload_derived(ai, kind, payload, content_type, filename, source_id, lesion
             "X-Filename" : filename,
         }
     )
-    with urllib.request.urlopen(req, timeout=300) as r :
+    with urllib.request.urlopen(req, timeout=60) as r :
         saved = json.loads(r.read())
     logger.info("[derived] %s %d 바이트 -> %s", kind, len(payload), saved["object_key"])
     return saved
 
 def _store_mask(out, ai) :
-    """병리 조직 마스크 PNG 를 파생물로 보내고 결과에는 주소만 남긴다.
+    """마스크 PNG 를 파생물로 보내고 결과에는 주소만 남긴다.
 
-    판독 서버가 (H,W) numpy 를 PNG 로 만들어 base64 로 실어 보낸다. 그 글자열을
-    그대로 결과에 두면 판독할 때마다 같은 그림이 DB 안에 쌓인다 — 파일로 옮기고
-    자리에는 주소를 남긴다. 뜻을 읽을 tissue_mask_legend 는 결과에 그대로 둔다.
+    병리는 조직 분할(tissue_mask_png), 초음파는 병변 마스크(mask_png)다.
+    판독 서버가 numpy 를 PNG 로 만들어 base64 로 싣고, 여기서 파일로 옮긴다.
+    그대로 두면 판독할 때마다 같은 그림이 DB 안에 쌓인다.
+
+    초음파는 윤곽 좌표(polygons)를 함께 낸다. 둘 다 남긴다 — 화면이 마스크로
+    칠하고 좌표로 테두리를 그린다.
     """
     res = (out.get("result") or {}) 
-    encoded = res.get("tissue_mask_png")
+    key = "tissue_mask_png" if "tissue_mask_png" in res else "mask_png"
+    encoded = res.get(key)
     if not encoded :
         return out 
     
@@ -350,10 +373,11 @@ def _store_mask(out, ai) :
     res = dict(res)
     out["result"] = res
     
+    name = f"{key.replace('_png', '')}-{ai.pk}.png"
     saved = _upload_derived(ai, "mask", base64.b64decode(encoded),
-                            "image/png", "tissue_mask.png", ai.source_object_id)
-    res.pop("tissue_mask_png", None)
-    res["tissue_mask"] = {
+                            "image/png", name, ai.source_object_id, object_name=name)
+    res.pop(key, None)
+    res[key.replace("_png", "")] = {
         "bucket": saved["bucket"],
         "object_key": saved["object_key"], 
         "content_type": "image/png"
@@ -363,8 +387,8 @@ def _store_mask(out, ai) :
 def _store_meshes(out, ai) :
     """MRI 메시를 파생물 버킷으로 보내고 결과에는 실제 주소만 남긴다.
 
-    Go 가 키를 난수로 만들어서(file-gateway/main.go keyFor) mesh.split 이 넣어 둔
-    예정 주소와 다르다. 올린 뒤 돌려받은 주소로 스텁을 고쳐야 나중에 찾을 수 있다.
+    주소는 올리기 전에 정해진다. mesh.split 이 티켓 접두사(study/<검사번호>) 뒤에
+    붙일 이름을 만들고 Go 가 그 이름을 그대로 쓰므로, 올린 뒤 스텁을 고칠 필요가 없다.
 
     왜 필요한가
         MRI 응답은 48MB 안팎이고 그 대부분이 3D 메시(정점 · 삼각형 좌표)다.
@@ -384,13 +408,12 @@ def _store_meshes(out, ai) :
 
     안에서 쓰는 이름
         inner      메시를 뺀 판독값(봉투 안쪽)
-        parts      떼어낸 메시 목록. 각각 바이트 · 종류 · 예정 주소를 든다
+        parts      떼어낸 메시 목록. 각각 바이트 · 종류 · 확정된 주소를 든다
         source_id  파생물 티켓에 실을 원본 번호
-        saved      Go 가 돌려준 실제 주소(bucket · object_key)
     """
     # 메시 분리 코드는 판독값 기준이라 봉투가 아니라 그 안쪽을 넘긴다.
     # 봉투에는 모델 이름 · 판 같은 작은 값만 있어 걷어낼 것이 없다.
-    inner, parts = mesh.split(out["result"], ai.study_id)
+    inner, parts = mesh.split(out["result"], ai.study_id, ai.pk)
     out = dict(out)
     out["result"] = inner
 
@@ -405,16 +428,17 @@ def _store_meshes(out, ai) :
         #   행을 만드는 코드가 아직 없어 그 번호를 채울 수 없다. 올리지 않고
         #   스텁에 「저장 안 함」 표시만 남긴다 — 없는 주소를 가리키지 않게 한다.
         if part.kind == mesh.LESION_KIND :
-            _walk_ref(inner, part.object_key, None)
+            _walk_ref(inner, f"study/{ai.study_id}/{part.object_name}", None)
             continue
-        
+
         # 파생물 티켓은 쓰기 티켓이다. 범위(검사)와 함께 꼬리표를 서명에 싣는다 —
         # Go 가 그대로 파일 등록 콜백에 실어 보내고, Django 가 발급 때와 같은
         # 함수로 다시 검증한다. 그래야 파생물이 엉뚱한 실행에 붙지 않는다.
         #   content_type  Go 가 저장할 때 붙일 형식
         #   max_bytes     이 파일 크기만큼만 허용. 넘으면 Go 가 받다가 끊는다
-        saved = _upload_derived(ai, part.kind, part.payload, part.content_type, part.object_key.rsplit("/", 1)[-1], source_id)
-        _walk_ref(inner, part.object_key, saved)
+        _upload_derived(ai, part.kind, part.payload, part.content_type,
+                        part.object_name, source_id,
+                        object_name=part.object_name)
     return out
 
 def _walk_ref(node, planned_key, saved) :

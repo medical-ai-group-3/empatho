@@ -118,7 +118,7 @@ DERIVED_CLAIMS = ("kind", "source_object_id", "ai_result_id", "lesion_id")
 
 
 def issue(purpose, scope_kind, scope_id, patient_id=None, content_type=None,
-          max_bytes=None, derived=None):
+          max_bytes=None, derived=None, object_name=None):
     """서명된 티켓 하나. 권한은 보지 않는다 — 부르는 쪽이 이미 봤다.
 
     Celery 처럼 사람 토큰이 없는 곳에서도 이 함수를 직접 쓴다.
@@ -126,6 +126,14 @@ def issue(purpose, scope_kind, scope_id, patient_id=None, content_type=None,
     derived 는 derived_upload 전용이다. 여기 실어 서명하면 추론 서비스가
     I-1 payload 를 고쳐도 Django 가 티켓과 대조해 걸러낸다 — 파생물이 엉뚱한
     병변이나 실행에 붙는 것을 막는 유일한 자리다.
+    
+    object_name 은 저장될 파일 이름이다. 주면 Go 가 그 이름을 쓰고, 안 주면
+    난수로 만든다(file-gateway 의 keyFor). 이름을 주는 쪽이 이로운 것이 둘 —
+    같은 것을 다시 올려도 키가 같아 (버킷, 키) 멱등이 성립하고, 올리기 전에
+    주소를 알 수 있어 결과에 미리 적어 둘 수 있다.
+
+    한 칸짜리 이름이어야 한다. 슬래시·상위 참조가 들어가면 Go 가 거절한다 —
+    티켓 접두사가 유일한 경계라 그 밖으로 나가는 이름을 받지 않는다
     """
     key = settings.TICKET_KEY
     if not key:
@@ -153,8 +161,11 @@ def issue(purpose, scope_kind, scope_id, patient_id=None, content_type=None,
         claims["max_bytes"] = int(max_bytes)
     if content_type:
         claims["content_type"] = content_type
+    if object_name :
+        claims["object_name"] = object_name
     if derived:
         claims.update(check_derived(derived, scope_kind, scope_id))
+    
 
     token = jwt.encode(claims, key, algorithm="HS256")
     return token, claims, expires_at
