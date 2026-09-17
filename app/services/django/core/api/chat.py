@@ -154,14 +154,17 @@ def ask(question, report):
     try:
         with urllib.request.urlopen(req, timeout=settings.LLM_TIMEOUT_SEC) as res:
             return json.loads(res.read().decode("utf-8"))
+    # 코드는 UPSTREAM_LLM_UNAVAILABLE(503) 이다 — llm-proxy 가 같은 코드를 쓴다.
+    # 카탈로그(errors.py)에 없는 코드를 던지면 spec_for 가 KeyError 를 내고
+    # **500 으로 터진다.** 새 코드를 만들기 전에 거기부터 넣을 것.
     except urllib.error.HTTPError as e:
         detail = e.read().decode("utf-8", "replace")[:300]
         logger.error("[chat] llm-proxy %s: %s", e.code, detail)
-        raise ApiError("UPSTREAM_TIMEOUT",
+        raise ApiError("UPSTREAM_LLM_UNAVAILABLE",
                        "지금은 답변을 가져올 수 없습니다. 잠시 뒤 다시 시도해 주세요.")
     except (urllib.error.URLError, TimeoutError, OSError) as e:
         logger.error("[chat] llm-proxy 에 못 닿았다 (%s): %s", settings.LLM_BASE, e)
-        raise ApiError("UPSTREAM_TIMEOUT",
+        raise ApiError("UPSTREAM_LLM_UNAVAILABLE",
                        "지금은 답변을 가져올 수 없습니다. 잠시 뒤 다시 시도해 주세요.")
 
 
