@@ -70,8 +70,12 @@ jobs:
       #
       # nginx 는 설정이 틀려도 컨테이너가 살아 있는 채로 502 만 뱉는
       # 경우가 있다. 위 「재시작 반복」 검사로는 안 잡힌다.
-      - name: nginx 설정 문법
-        run: docker compose exec -T nginx nginx -t
+      # ⚠ 돌고 있는 nginx 안에서 검사하면 안 된다(exec). 배포 중에 내용이
+      #   바뀐 폴더 마운트(conf/certbot)가 그 컨테이너에서는 낡아서, 멀쩡한
+      #   인증서를 「없다」며 검사가 실패한다 — 09-17 에 두 번 그랬다.
+      #   run --rm 은 같은 마운트로 **새 컨테이너**를 띄우므로 실제 상태를 본다.
+      - name: nginx 설정 문법 (새 컨테이너에서)
+        run: docker compose run --rm --no-deps -T nginx nginx -t
         # 설정만 바뀐 배포에서는 compose 가 nginx 를 다시 만들지 않는다.
         # 폴더 마운트라 파일은 새것이지만 nginx 는 옛 설정으로 돈다 —
         # 새 경로가 404 로 남았다. 그래서 문법 검사 뒤에 반드시 반영시킨다.
