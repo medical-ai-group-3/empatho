@@ -44,20 +44,39 @@ export function fmtKm(km) {
 
 /* 위치 상태 — idle · asking · ready · denied · off
  *
- *   idle    아직 안 물었다 (기본)
- *   asking  브라우저가 묻는 중
- *   ready   좌표를 받았다
- *   denied  사람이 거절했거나 실패했다
- *   off     이 브라우저에 위치 기능이 없다
+ *   idle      아직 안 물었다 (기본)
+ *   asking    브라우저가 묻는 중
+ *   ready     좌표를 받았다
+ *   denied    사람이 거절했거나 실패했다
+ *   insecure  주소가 http 라 브라우저가 막았다 (아래 참고)
+ *   off       이 브라우저에 위치 기능이 없다
  */
+/* 브라우저가 위치를 내줄 수 있는 주소인가.
+ *
+ * ⚠ **http 로 열면 브라우저가 위치를 막는다.** localhost 는 예외로 봐주지만
+ *   `http://lan-host:5180` 처럼 **IP 로 열면 막힌다** — 같은 서버인데
+ *   주소만 다르면 안 되는 것이다.
+ *
+ *   이걸 「거절」과 같이 다루면 안 된다. 사람은 허용한 적도 없는데
+ *   「허용하지 않으셨습니다」를 보게 되고, 설정을 뒤져도 바꿀 것이 없다.
+ *   막힌 이유가 주소라는 것을 말해 줘야 한다.
+ */
+function blockedByAddress() {
+  if (typeof window === "undefined") return false;
+  return window.isSecureContext === false;
+}
+
 export function useNear() {
-  const [state, setState] = useState(
-    () => (typeof navigator !== "undefined" && navigator.geolocation ? "idle" : "off"));
+  const [state, setState] = useState(() => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) return "off";
+    return blockedByAddress() ? "insecure" : "idle";
+  });
   const [me, setMe] = useState(null);
   const [why, setWhy] = useState(null);
 
   const ask = useCallback(() => {
     if (!navigator.geolocation) return setState("off");
+    if (blockedByAddress()) return setState("insecure");
     setState("asking");
     setWhy(null);
     navigator.geolocation.getCurrentPosition(
@@ -95,6 +114,9 @@ export function useForgetOnLeave(setMe) {
  * 대신 **폰에 이미 있는 지도 앱**으로 넘긴다. 길찾기까지 그쪽이 훨씬
  * 잘한다 — 우리가 흉내 낼 이유가 없다.
  */
+/* 자리만 보여주는 링크. 지금은 안 쓴다 — 「길찾기」가 같은 자리를 열고
+   거기서 더 나아가서, 같은 데 가는 단추를 둘 두지 않기로 했다.
+   지도만 필요한 자리가 생기면 이것을 쓴다 */
 export const mapUrl = (h) =>
   h?.lat != null && h?.lng != null
     ? `https://map.kakao.com/link/map/${encodeURIComponent(h.name)},${h.lat},${h.lng}`

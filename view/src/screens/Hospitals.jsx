@@ -3,7 +3,7 @@ import { api } from "../api";
 import { useApi } from "../lib/useApi";
 import Tilly from "../lib/Tilly";
 import { Body, Head } from "../lib/Screen";
-import { distanceKm, fmtKm, mapUrl, routeUrl, useNear } from "../lib/near";
+import { distanceKm, fmtKm, routeUrl, useNear } from "../lib/near";
 
 /* 14 · 병원 찾기
  *
@@ -81,6 +81,13 @@ function Inner({ d, near, region, setRegion, q, setQ }) {
         <div className="nearbar">
           {near.state === "ready" ? (
             <span className="s">내 위치에서 가까운 순입니다</span>
+          ) : near.state === "insecure" ? (
+            /* 주소 때문에 막힌 것이다. 단추를 두면 눌러도 아무 일이
+               안 나므로 아예 안 낸다 — 왜 안 되는지만 적는다 */
+            <p className="hint">
+              지금 주소(http)에서는 브라우저가 위치를 내주지 않습니다.
+              <br />같은 화면을 <b>localhost</b> 로 여시면 됩니다.
+            </p>
           ) : (
             <button className="btn soft" disabled={near.state === "asking"}
                     onClick={near.ask}>
@@ -131,18 +138,19 @@ function Inner({ d, near, region, setRegion, q, setQ }) {
               <p className="hos-l">{h.hours}</p>
               {h.note && <p className="hos-l hos-mine">{h.note}</p>}
 
+              {/* 둘뿐이다.
+                  · 번호를 글자로 또 적지 않는다 — 단추가 바로 건다
+                  · 「지도」와 「길찾기」는 **같은 곳으로 간다.** 카카오맵이
+                    둘 다 그 병원 자리를 열고, 길찾기 쪽이 거기서 더
+                    나아간다. 같은 데 가는 단추를 둘 두면 무엇이 다른지
+                    누르기 전에는 모른다 */}
               <div className="hos-go">
-                {/* 누르면 걸린다. 번호를 옮겨 적게 하지 않는다 */}
                 <a className="btn soft" href={`tel:${h.phone.replaceAll("-", "")}`}>
                   전화
                 </a>
-                {/* 폰에 있는 지도 앱으로 넘긴다 */}
-                <a className="btn soft" href={mapUrl(h)}
-                   target="_blank" rel="noreferrer">지도</a>
                 <a className="btn soft" href={routeUrl(h)}
                    target="_blank" rel="noreferrer">길찾기</a>
               </div>
-              <p className="hos-l hos-tel">{h.phone}</p>
             </div>
           ))}
         </div>
