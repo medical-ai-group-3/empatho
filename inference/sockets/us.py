@@ -10,6 +10,7 @@ import json
 import os
 import pathlib
 import sys
+import base64
 
 import yaml
 from PIL import Image
@@ -105,6 +106,22 @@ def _load() -> dict:
 def _run(state, data, filename, **over):
     """초음파 고유 부분만 — PIL 로 열어 번들 predict 에 넘긴다. 락은 base 가 잡는다."""
     medsam3.use(state["adapter"]) # 다른 소켓이 쓰고 갔을 수 있다, 락 안이다 
-    return state["predict"](state["bundle"], Image.open(io.BytesIO(data)), **over)
+    result = state["predict"](state["bundle"], Image.open(io.BytesIO(data)), **over)
+    
+    # 픽셀 마스크를 PNG 로 만들어 싣는다. 값이 0·1 두 가지라 잘 줄어든다.
+    #
+    # 윤곽 좌표(polygons)도 그대로 둔다 — 둘 다 쓴다. 화면이 원본 위에
+    # 마스크를 채우고 그 위에 테두리를 그린 다음 투명도를 조절한다.
+    # 채우기는 마스크라야 하고 테두리는 좌표라야 깨끗하게 나온다.
+    #
+    # 원본 numpy 는 JSON 으로 못 나가므로 아래 SOCKET 의 drop 이 뺀다.
+    mask = result.get("_mask")
+    if mask is not None :
+        buf = io.BytesIO()
+        Image.fromarray((mask > 0).astype("uint8") * 255, mode="L").save(
+            buf, format="PNG", optimize = True
+        )
+        result["mask_png"] = base64.b64encode(buf.getvalue()).decode()
+    return result
 
 SOCKET = base.Socket(NAME, SOCKET_IDS, ENABLED, _load, _run, drop=("_mask",))
