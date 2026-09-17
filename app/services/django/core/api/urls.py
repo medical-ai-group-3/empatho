@@ -14,12 +14,19 @@ from importlib.util import find_spec
 from django.urls import include, path, re_path
 
 from .tickets import TicketView
-from .views import HealthView, NotFoundView, login
+from .views import (
+    HealthView, NotFoundView, login, refresh_token, logout,
+    signup_staff, signup_patient,
+)
 
 urlpatterns = [
     path("health", HealthView.as_view(), name="health"),
     path("tickets", TicketView.as_view(), name="ticket-issue"),
     path("login", login, name = "login"),
+    path("token/refresh", refresh_token, name="token-refresh"),
+    path("logout", logout, name="logout"),
+    path("signup/staff", signup_staff, name="signup-staff"),
+    path("signup/patient", signup_patient, name="signup-patient"),
 ]
 
 # ── 나중에 붙은 경로들 ──────────────────────────────────────────────

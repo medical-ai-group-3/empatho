@@ -22,6 +22,7 @@ import json
 import logging
 
 from .api.errors import ApiError
+from .api.tickets import object_key_prefix
 
 logger = logging.getLogger(__name__)
 
@@ -54,16 +55,17 @@ REF_KEY = "$mesh_ref"
 class MeshPart:
     """떼어낸 메시 하나. Garage 로 보낼 바이트와 그 주소를 든다."""
 
-    __slots__ = ("kind", "lesion_index", "object_key", "payload",
+    __slots__ = ("kind", "lesion_index", "object_name", "payload",
                  "byte_size", "vertex_count")
 
-    def __init__(self, kind, lesion_index, object_key, payload, vertex_count):
+    def __init__(self, kind, lesion_index, object_name, payload, vertex_count):
         self.kind = kind
         self.lesion_index = lesion_index      # mesh_lesion 이 아니면 None
-        self.object_key = object_key
+        self.object_name = object_name
         self.payload = payload
         self.byte_size = len(payload)
         self.vertex_count = vertex_count
+        
 
     @property
     def bucket(self):
@@ -74,11 +76,11 @@ class MeshPart:
         return CONTENT_TYPE
 
     def __repr__(self):
-        return "<MeshPart %s %s %dB>" % (self.kind, self.object_key,
+        return "<MeshPart %s %s %dB>" % (self.kind, self.object_name,
                                          self.byte_size)
 
 
-def split(response, study_id):
+def split(response, study_id, ai_result_id):
     """(저장할 JSON, 떼어낸 메시 목록) 으로 가른다.
 
     원본은 건드리지 않는다. 메시가 있던 자리에는 키를 지우지 않고 스텁을 넣는다 —
@@ -95,12 +97,12 @@ def split(response, study_id):
 
     stripped = copy.deepcopy(response)
     parts = []
-    prefix = "study/%s/mesh" % study_id
-
+    prefix = object_key_prefix("study", study_id)
+    # 이름은 한 칸이어야 한다 — Go 가 티켓 접두사(study/<id>) 뒤에 붙인다.
+    # 판독 번호를 넣어 같은 검사의 다른 실행과 구분한다.
     for kind, path in STUDY_MESHES:
-        name = path[-1]
         part = _take(stripped, path, kind, None,
-                     "%s/%s.json" % (prefix, name))
+                     "%s-%s.json" % (kind, ai_result_id), prefix)
         if part is not None:
             parts.append(part)
 
@@ -110,7 +112,8 @@ def split(response, study_id):
             if not isinstance(lesion, dict):
                 continue
             part = _take(lesion, (LESION_MESH_KEY,), LESION_KIND, index,
-                         "%s/lesion-%d.json" % (prefix, index))
+                         "%s-%d-%s.json" % (LESION_KIND, index, ai_result_id),
+                         prefix)
             if part is not None:
                 parts.append(part)
 
@@ -118,7 +121,7 @@ def split(response, study_id):
     return stripped, parts
 
 
-def _take(node, path, kind, lesion_index, object_key):
+def _take(node, path, kind, lesion_index, object_name, prefix):
     """path 의 메시를 떼어내고 그 자리에 스텁을 놓는다. 없으면 None."""
     parent = _dig(node, path[:-1])
     key = path[-1]
@@ -132,10 +135,10 @@ def _take(node, path, kind, lesion_index, object_key):
 
     payload = json.dumps(mesh, ensure_ascii=False,
                          separators=(",", ":")).encode()
-    part = MeshPart(kind, lesion_index, object_key, payload,
+    part = MeshPart(kind, lesion_index, object_name, payload,
                     _vertex_count(mesh))
     parent[key] = {REF_KEY: {"bucket": part.bucket,
-                             "object_key": part.object_key,
+                             "object_key": "%s/%s" % (prefix, part.object_name),
                              "content_type": part.content_type,
                              "byte_size": part.byte_size,
                              "vertex_count": part.vertex_count}}

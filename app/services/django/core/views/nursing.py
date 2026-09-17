@@ -48,6 +48,29 @@ class FollowupViewSet(AuditMixin, OwnedOnlyMixin, viewsets.ModelViewSet):
     queryset = models.Followup.objects.select_related("patient").order_by("due_at")
     serializer_class = serializers.FollowupSerializer
 
+    def list(self, request, *args, **kwargs):
+        existing = self.get_queryset()
+        existing_data = serializers.FollowupSerializer(existing, many=True).data
+        result = list(existing_data)
+
+        if request.query_params.get("include_candidates") == "1":
+            tracked_patient_ids = set(existing.values_list("patient_id", flat=True))
+            candidates = models.Assessment.objects.filter(
+                category="3", read_stage="final"
+            ).exclude(lesion__patient_id__in=tracked_patient_ids).select_related("lesion__patient")
+
+            for a in candidates:
+                if a.lesion and a.lesion.patient_id not in tracked_patient_ids:
+                    result.append({
+                        "followup_id": None,
+                        "patient": a.lesion.patient_id,
+                        "status": "candidate",
+                        "round_no": 0,
+                    })
+                    tracked_patient_ids.add(a.lesion.patient_id)
+
+        return Response(result)
+
     def partial_update(self, request, *args, **kwargs):
         instance = self.get_object()
         data = request.data
@@ -75,6 +98,7 @@ class FollowupViewSet(AuditMixin, OwnedOnlyMixin, viewsets.ModelViewSet):
         return obj.patient.account_id == account.account_id
 
 
+
 class QuestionnaireView(AuditMixin, viewsets.ViewSet):
     """§6-2 문진 저장."""
 
@@ -88,4 +112,51 @@ class QuestionnaireView(AuditMixin, viewsets.ViewSet):
         patient.updated_by = self._current_account()
         patient.save()
         out = serializers.PatientDetailSerializer(patient)
+        return Response(out.data)
+    
+
+class FollowupCreateView(AuditMixin, viewsets.ViewSet):
+    """§2 POST /followups — 회차 생성."""
+
+    resource = "followup"
+    permission_classes = [MatrixPermission]
+
+    def create(self, request):
+        serializer = serializers.FollowupCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        followup = models.Followup.objects.create(
+            patient_id=data["patient_id"],
+            round_no=data["round_no"],
+            status="open",
+            started_at=timezone.now(),
+            due_at=data["due_at"],
+            created_by=self._current_account(),
+            updated_by=self._current_account(),
+        )
+        out = serializers.FollowupSerializer(followup)
+        return Response(out.data, status=status.HTTP_201_CREATED)
+
+
+class FollowupCallView(AuditMixin, viewsets.ViewSet):
+    """§2 PATCH /followups/{id}/call — 안내 콜 기록."""
+
+    resource = "followup"
+    permission_classes = [MatrixPermission]
+
+    def partial_update(self, request, pk=None):
+        followup = models.Followup.objects.get(pk=pk)
+        serializer = serializers.FollowupCallSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        followup.call_result = data["call_result"]
+        followup.call_note = data.get("call_note", "")
+        followup.called_by = getattr(request.user, "staff", None)
+        followup.called_at = timezone.now()
+        followup.updated_by = self._current_account()
+        followup.save()
+
+        out = serializers.FollowupSerializer(followup)
         return Response(out.data)

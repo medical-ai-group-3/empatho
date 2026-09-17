@@ -86,12 +86,23 @@ INFRA_ERRORS = [
     # test_errors.py 의 표에도 더한다.
     _spec("ALREADY_CONFIRMED", 409, "이미 확정된 오더입니다."),
     _spec("ALREADY_ASSIGNED", 409, "다른 선생님이 이미 맡았습니다."),
+    # 09-16 일운님 · 다희님 협의 — 수술 결정 기록(PATCH /assessments/{id}/decision)
+    # 단독 권한. 명세 §1-4 25개엔 없어 여기 둔다.
+    _spec("DECISION_ROLE_ONLY_SURGERY", 403, "수술 결정 기록은 유방외과만 할 수 있습니다."),
+]
+
+# 명세 밖. 영상의학과 라우터 인계 문서(2026-09) 재설계로 추가.
+# 문서 화면 ③ 판독 통합조회의 서버 가드 — SPEC_ERRORS 25개엔 없던 케이스라
+# 여기 따로 둔다. 늘릴 때는 팀에 알린다.
+HANDOVER_ERRORS = [
+    _spec("STUDY_NOT_READ_READY", 409, "업로드된 영상이 없어 판독을 시작할 수 없습니다.",
+          "study 에 storage_object 가 하나도 없다 — Go 웹훅 대기 중"),
 ]
 
 SPEC_CODES = frozenset(e.code for e in SPEC_ERRORS)
 INFRA_CODES = frozenset(e.code for e in INFRA_ERRORS)
 
-ERRORS = {e.code: e for e in SPEC_ERRORS + INFRA_ERRORS}
+ERRORS = {e.code: e for e in SPEC_ERRORS + INFRA_ERRORS + HANDOVER_ERRORS}
 
 
 def spec_for(code):

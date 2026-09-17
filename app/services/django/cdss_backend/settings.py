@@ -268,8 +268,8 @@ CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", "redis://redis:6
 # 판독은 한 건이 오래걸림. 기본값은 제한이 없이 가지고 있어서 워크스테이션이 멈추면 워커가 영원히 돌고있다 
 # soft : 예외를 던짐 = 기권으로 처리
 # hard : 예외를 던졌는데 안 끝나면 그냥 kill함 
-CELERY_TASK_SOFT_TIME_LIMIT = 840
-CELERY_TASK_TIME_LIMIT = 900
+CELERY_TASK_SOFT_TIME_LIMIT = 1200
+CELERY_TASK_TIME_LIMIT = 1320
 
 # 일이 끝나면 큐에서 삭제, 기본값은 꺼내자마자 삭제 
 # 워커가 중간에 죽으면 그 일이 전부 사라짐 
