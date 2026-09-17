@@ -177,6 +177,10 @@ class StudyReadView(viewsets.ViewSet):
                 serializers.AssessmentSerializer(current_assessment).data
                 if current_assessment else None
             ),
+            "reports": serializers.ReportSerializer(
+                            study.reports.filter(report_type="stage").order_by("socket_id"), 
+                            many=True
+                        ).data,
         })
 
 
