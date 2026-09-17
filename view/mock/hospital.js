@@ -190,7 +190,12 @@ export default function hospitalMock() {
     apply: "serve",
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
-        if (!req.url.startsWith(PREFIX)) return next();
+        /* ⚠ 접두사 뒤에 **슬래시가 와야** 우리 것이다.
+           startsWith(PREFIX) 만 보면 `/api/v1/hospitals`(환자 앱의 병원
+           찾기)까지 가로챈다 — 글자만 보면 접두사로 시작하는 것이 맞아서
+           환자 앱 요청이 여기로 빨려 들어와 NOT_IN_MOCK 이 났다.
+           경계를 글자가 아니라 **경로 마디**로 본다 */
+        if (req.url !== PREFIX && !req.url.startsWith(`${PREFIX}/`)) return next();
 
         const path = req.url.split("?")[0];
 

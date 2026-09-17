@@ -430,6 +430,22 @@
   --askbar-pad:   calc(12px * var(--sp));
   --askbar-gap:   calc(8px * var(--sp));
 
+  /* ══ 복약 · 병원 ═════════════════════════════════════════
+     회차 단추는 **손가락이 닿는 넓이**가 먼저다. 체크박스 크기로 두면
+     약을 드시는 분들이 누르기 어렵다 */
+  --slot-pad-y:   calc(12px * var(--sp));
+  --slot-pad-x:   calc(13px * var(--sp));
+  --slot-radius:  13px;
+  --slot-gap:     calc(7px * var(--sp));
+  --slot-fs:      calc(13.5px * var(--ft));
+  --slot-s-fs:    calc(11.5px * var(--ft));
+  --slot-tick:    20px;                    /* 채워지는 동그라미 */
+  --slot-tick-r:  1.5px;
+
+  --med-note-fs:  calc(12px * var(--ft));
+  --med-by-fs:    calc(11px * var(--ft));
+  --hos-l-fs:     calc(12px * var(--ft));
+
   /* ══ 빈 화면 ══════════════════════════════════════════════
      아직 아무것도 없는 자리(준비 중 · 불러오는 중). 한 줄을 위쪽에
      붙여 두면 화면이 잘못 뜬 것처럼 보인다 — 가운데에 세운다. */

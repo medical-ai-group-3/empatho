@@ -63,6 +63,26 @@ function mockApi() {
 
        그래서 쿠키로 옮겼다. 브라우저마다 따로 기억하고, 그 편이 Django 가
        실제로 하는 일과도 같다. */
+  /* 열쇠에 {id} 를 쓰면 그 자리에 아무 값이나 와도 맞는다.
+     병원 웹 목업(mock/hospital.js)이 진작 하던 것을 이쪽에도 들였다 —
+     복약 기록처럼 **번호가 붙는 주소**가 생기면서 필요해졌다.
+     그 셋을 db.json 에 하나하나 적어 두는 것은 자료가 아니라 잡일이다.
+
+     ⚠ 정확히 맞는 열쇠를 **먼저** 본다. 여기는 못 찾았을 때만 온다 —
+       안 그러면 구체적인 열쇠를 {id} 짜리가 가로챈다 */
+  function wildcard(db, method, path) {
+    const parts = path.split("/");
+    for (const key of Object.keys(db)) {
+      const sp = key.indexOf(" ");
+      if (sp < 0) continue;
+      if (key.slice(0, sp) !== method) continue;
+      const kp = key.slice(sp + 1).split("/");
+      if (kp.length !== parts.length) continue;
+      if (kp.every((k, i) => k === parts[i] || /^\{.+\}$/.test(k))) return db[key];
+    }
+    return undefined;
+  }
+
   const SEEN = "empatho_mock_session";
   const isIn = (req) =>
     new RegExp(`(?:^|;\\s*)${SEEN}=1`).test(req.headers.cookie || "");
@@ -113,7 +133,8 @@ function mockApi() {
         }
 
         const path = req.url.split("?")[0];
-        const hit = db[`${req.method} ${path}`] ?? db[path];
+        const hit = db[`${req.method} ${path}`] ?? db[path]
+                 ?? wildcard(db, req.method, path);
 
         // 판독 폴링을 흉내 낸다 — 부를 때마다 한 칸씩 나아간다.
         // 「분석 중」 화면을 진짜로 시험해 볼 수 있어야 한다.

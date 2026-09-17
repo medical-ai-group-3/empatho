@@ -10,6 +10,8 @@ import { applyScale, applyTheme, readScale, readTheme } from "./lib/theme.js";
 import Book from "./screens/Book.jsx";
 import Chat from "./screens/Chat.jsx";
 import Home from "./screens/Home.jsx";
+import Hospitals from "./screens/Hospitals.jsx";
+import Meds from "./screens/Meds.jsx";
 import Login from "./screens/Login.jsx";
 import Me from "./screens/Me.jsx";
 import Notis from "./screens/Notis.jsx";
@@ -82,6 +84,8 @@ createRoot(document.getElementById("root")).render(
           <Route path="/reports/:id"  element={<Report />} />
           <Route path="/book"         element={<Book />} />
           <Route path="/quest"        element={<Quest />} />
+          <Route path="/meds"         element={<Meds />} />
+          <Route path="/hospitals"    element={<Hospitals />} />
           <Route path="/chat"         element={<Chat />} />
           <Route path="/notis"        element={<Notis />} />
           <Route path="/me"           element={<Me />} />

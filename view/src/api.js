@@ -57,6 +57,14 @@ async function call(path, { method = "GET", body, signal, headers } = {}) {
 export const get  = (p, o)       => call(p, { ...o, method: "GET" });
 export const post = (p, body, o) => call(p, { ...o, method: "POST", body });
 export const put  = (p, body, o) => call(p, { ...o, method: "PUT", body });
+export const del  = (p, o)       => call(p, { ...o, method: "DELETE" });
+
+/* 질의 문자열. 빈 값은 빼고 붙인다 — `?q=` 만 달랑 가면 서버가 «빈
+   글자로 찾아 달라»로 읽을 수 있다 */
+function qs(o = {}) {
+  const e = Object.entries(o).filter(([, v]) => v !== undefined && v !== null && v !== "");
+  return e.length ? `?${new URLSearchParams(e)}` : "";
+}
 
 /* ── 판독 진행 상태는 이 앱이 안 본다 ─────────────────────────────
    전에 waitForRead() 가 여기 있었다. `/api/v1/reads/{id}` 를 2초마다
@@ -265,6 +273,52 @@ export const api = {
   // 09  알림
   notifications: ()        => get("/api/v1/notifications"),
   markRead:      (id)      => post(`/api/v1/notifications/${id}/read`),
+
+  // 11  복약 관리 — **처방전이 원천이다**
+  //
+  //     약 목록을 따로 들고 있지 않는다. 처방전을 불러오고 그 안의 약을
+  //     꺼내 쓴다. 약이 왜 거기 있는지(누가 · 언제 · 며칠분 처방했는지)를
+  //     화면이 같이 말할 수 있어야 하기 때문이다 — 「타목시펜 20mg」만
+  //     띄우면 환자는 그게 언제 끝나는 약인지도 모른다.
+  //
+  //       GET  /me/prescriptions               { items, note }
+  //       POST /me/medications/{drugId}/log    { time } → { log_id, taken_at }
+  //       DELETE …/log/{logId}                 잘못 누른 것을 되돌린다
+  //
+  //     처방전 = { prescription_id, issued_on, prescriber, dept, hospital,
+  //                days, status: "active"|"ended", drugs: [...] }
+  //     약     = { drug_id, name, ingredient, dose, times[], per_day,
+  //                purpose, how, watch, today: [{ time, log_id|null }] }
+  //
+  //     ⚠ **설명(purpose · how · watch)은 처방에 실려 온다.** 앱이 약 이름
+  //       으로 어딘가를 뒤져 지어내지 않는다. 같은 성분도 환자마다 쓰는
+  //       이유가 다르고, 무엇을 주의해야 하는지는 처방한 사람이 안다.
+  //       앱이 약전을 긁어다 붙이면 그 순간 **의학적 조언**이 된다.
+  //
+  //     ⚠ **환자는 약을 더하거나 고치지 못한다.** 손잡이는 「먹었다」를
+  //       적는 것 하나뿐이다. 앱에서 약을 만들 수 있게 하면 화면의 목록과
+  //       처방이 갈라지고, 그 뒤로는 어느 쪽이 맞는지 아무도 모른다.
+  //
+  //     ⚠ **복용 시각은 서버가 찍는다.** 앱은 「어느 회차」인지만 보낸다 —
+  //       기기 시계가 틀어진 만큼 기록이 어긋나면 안 되는 자료다.
+  prescriptions: ()          => get("/api/v1/me/prescriptions"),
+  takeMed:       (id, time)  => post(`/api/v1/me/medications/${id}/log`, { time }),
+  undoMed:       (id, logId) => del(`/api/v1/me/medications/${id}/log/${logId}`),
+
+  // 12  병원 찾기
+  //
+  //     ⚠ **기기 위치를 받지 않는다.** 「가까운 순」은 편하지만 위치를
+  //       서버로 보내야 하고, 그건 따로 동의를 받아야 하는 정보다.
+  //       지역으로 고르는 것으로 충분하다 — distance_km 가 오면 적고
+  //       안 오면 거리 줄이 아예 없다.
+  //
+  //     ⚠ 주소를 `/hospitals` 로 둔다. 목업에서 직원용 접두사
+  //       `/api/v1/hospital` 과 **글자가 겹쳐** 한동안 요청이 그쪽으로
+  //       빨려 들어갔다 — mock/hospital.js 가 경계를 마디로 보게 고쳤다.
+  //       실제 서버에는 그 접두사가 없어서 겹칠 일이 없다.
+  //
+  //       GET /hospitals?q=&region=            { items, regions, note }
+  hospitals:     (o = {})    => get(`/api/v1/hospitals${qs(o)}`),
 
   // 10  내 정보
   consents:      ()        => get("/api/v1/consents"),

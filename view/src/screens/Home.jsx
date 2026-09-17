@@ -109,18 +109,16 @@ function Inner({ d }) {
           <b>검사 결과</b>
           <small>안내문 받아 보기</small>
         </Link>
-        {/* 아직 없는 기능은 **끈 채로** 두고 왜 못 누르는지 적는다 —
-            눌리는데 아무 일도 안 나는 것이 제일 나쁘다 */}
-        <div className="tile off" aria-disabled="true" title="준비 중입니다">
-          <i className="ic" aria-hidden="true">✦</i>
-          <b>치료 정보</b>
-          <small>준비 중입니다</small>
-        </div>
-        <div className="tile off" aria-disabled="true" title="준비 중입니다">
+        <Link className="tile" to="/meds">
           <i className="ic" aria-hidden="true">◈</i>
           <b>복약 관리</b>
-          <small>준비 중입니다</small>
-        </div>
+          <small>오늘 드실 약</small>
+        </Link>
+        <Link className="tile" to="/hospitals">
+          <i className="ic" aria-hidden="true">✦</i>
+          <b>병원 찾기</b>
+          <small>협력 병원 · 전화</small>
+        </Link>
       </div>
 
       {d.last_visit_at && (

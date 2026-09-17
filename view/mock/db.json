@@ -693,5 +693,199 @@
     "kind": "marketing",
     "withdrawn_at": "2026-09-10T10:40:00+09:00",
     "detail": "마케팅 정보 수신 동의를 철회했습니다"
+  },
+  "POST /api/v1/me/medications/{id}/log": {
+    "log_id": "LG-77099",
+    "taken_at": "2026-09-17T16:55:00+09:00"
+  },
+  "DELETE /api/v1/me/medications/{id}/log/{logId}": {
+    "ok": true
+  },
+  "GET /api/v1/hospitals": {
+    "note": "검진과 진료를 받으실 수 있는 협력 병원입니다. 방문 전에 전화로 운영 시간을 확인해 주세요.",
+    "regions": [
+      "전체",
+      "서울 성북",
+      "서울 동대문",
+      "서울 종로",
+      "경기 고양"
+    ],
+    "items": [
+      {
+        "hospital_id": "H-001",
+        "name": "미래 대학병원",
+        "dept": "유방외과 · 영상의학과 · 병리과",
+        "address": "서울 성북구 안암로 12",
+        "phone": "02-960-1234",
+        "hours": "평일 08:30–17:30 · 토 08:30–12:30",
+        "region": "서울 성북",
+        "distance_km": null,
+        "is_partner": true,
+        "note": "지금 진료받고 계신 곳입니다"
+      },
+      {
+        "hospital_id": "H-002",
+        "name": "성북 연세영상의학과",
+        "dept": "영상의학과",
+        "address": "서울 성북구 동소문로 45",
+        "phone": "02-941-5678",
+        "hours": "평일 09:00–18:00 · 토 09:00–13:00",
+        "region": "서울 성북",
+        "distance_km": null,
+        "is_partner": true,
+        "note": null
+      },
+      {
+        "hospital_id": "H-003",
+        "name": "동대문 여성의원",
+        "dept": "유방외과",
+        "address": "서울 동대문구 왕산로 30",
+        "phone": "02-2212-3344",
+        "hours": "평일 09:30–18:30",
+        "region": "서울 동대문",
+        "distance_km": null,
+        "is_partner": true,
+        "note": null
+      },
+      {
+        "hospital_id": "H-004",
+        "name": "종로 하나검진센터",
+        "dept": "건강검진 · 영상의학과",
+        "address": "서울 종로구 종로 210",
+        "phone": "02-733-9900",
+        "hours": "평일 08:00–17:00",
+        "region": "서울 종로",
+        "distance_km": null,
+        "is_partner": true,
+        "note": null
+      },
+      {
+        "hospital_id": "H-005",
+        "name": "고양 미래의료원",
+        "dept": "유방외과 · 영상의학과",
+        "address": "경기 고양시 일산동구 중앙로 1100",
+        "phone": "031-900-2200",
+        "hours": "평일 09:00–18:00 · 토 09:00–13:00",
+        "region": "경기 고양",
+        "distance_km": null,
+        "is_partner": true,
+        "note": null
+      }
+    ]
+  },
+  "GET /api/v1/me/prescriptions": {
+    "note": "약은 처방하신 곳에서만 더하거나 고칠 수 있습니다. 앱에서는 드신 것을 기록하실 수 있어요.",
+    "items": [
+      {
+        "prescription_id": "RX-2026-0314",
+        "issued_on": "2026-03-14",
+        "prescriber": "박지훈",
+        "dept": "외과",
+        "hospital": "미래 대학병원",
+        "days": 90,
+        "status": "active",
+        "drugs": [
+          {
+            "drug_id": "MD-1001",
+            "name": "타목시펜정",
+            "ingredient": "타목시펜시트르산염 20mg",
+            "dose": "1정",
+            "times": [
+              "09:00"
+            ],
+            "per_day": 1,
+            "purpose": "호르몬 수용체가 있는 유방암이 다시 자라지 않도록 억제합니다.",
+            "how": "매일 같은 시각에 물과 함께 드세요. 씹거나 쪼개지 마세요.",
+            "watch": "다리가 붓거나 아프고, 숨이 차거나, 질 출혈이 있으면 바로 알려 주세요.",
+            "today": [
+              {
+                "time": "09:00",
+                "log_id": "LG-77001"
+              }
+            ]
+          },
+          {
+            "drug_id": "MD-1002",
+            "name": "칼디비타정",
+            "ingredient": "탄산칼슘 500mg · 콜레칼시페롤 400IU",
+            "dose": "1정",
+            "times": [
+              "09:00",
+              "19:00"
+            ],
+            "per_day": 2,
+            "purpose": "호르몬 치료 중에 뼈가 약해지는 것을 막아 줍니다.",
+            "how": "식사 직후에 드시면 속이 덜 불편합니다.",
+            "watch": "변비가 심하거나 속이 계속 불편하면 말씀해 주세요.",
+            "today": [
+              {
+                "time": "09:00",
+                "log_id": "LG-77002"
+              },
+              {
+                "time": "19:00",
+                "log_id": null
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "prescription_id": "RX-2026-0901",
+        "issued_on": "2026-09-01",
+        "prescriber": "김서연",
+        "dept": "외과",
+        "hospital": "미래 대학병원",
+        "days": 365,
+        "status": "active",
+        "drugs": [
+          {
+            "drug_id": "MD-1003",
+            "name": "페마라정",
+            "ingredient": "레트로졸 2.5mg",
+            "dose": "1정",
+            "times": [
+              "21:00"
+            ],
+            "per_day": 1,
+            "purpose": "폐경 후 호르몬을 줄여 암이 다시 생기는 것을 막습니다.",
+            "how": "매일 저녁 같은 시각에 드세요. 식사와 상관없습니다.",
+            "watch": "관절이 뻣뻣하거나 열감·식은땀이 잦으면 진료 때 말씀해 주세요.",
+            "today": [
+              {
+                "time": "21:00",
+                "log_id": null
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "prescription_id": "RX-2025-1120",
+        "issued_on": "2025-11-20",
+        "prescriber": "박지훈",
+        "dept": "외과",
+        "hospital": "미래 대학병원",
+        "days": 14,
+        "status": "ended",
+        "drugs": [
+          {
+            "drug_id": "MD-0901",
+            "name": "세프라딘캡슐",
+            "ingredient": "세프라딘 500mg",
+            "dose": "1캡슐",
+            "times": [
+              "08:00",
+              "20:00"
+            ],
+            "per_day": 2,
+            "purpose": "조직검사 자리에 균이 들어가지 않도록 예방했습니다.",
+            "how": "처방 기간을 다 채워 드셨습니다.",
+            "watch": null,
+            "today": []
+          }
+        ]
+      }
+    ]
   }
 }
