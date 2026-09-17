@@ -142,6 +142,15 @@ JWT = {
 # 과 **같은 값**이어야 한다. 어긋나면 콜백이 401 로 조용히 거절된다.
 # 비어 있으면 콜백을 아예 받지 않는다 — 설정 누락을 통과로 취급하지 않는다.
 CALLBACK_SECRET = os.environ.get("CALLBACK_SECRET", "")
+
+# 안내 챗봇(G-L2)이 부르는 곳. 브라우저는 /api/v1/chat 을 부르고 Django 가
+# 여기를 부른다 — 대화는 서버 간 호출이라 위의 CALLBACK_SECRET 으로 서명한다.
+#
+# 도커망 안 이름이다. 비면 대화만 503 이 되고 나머지는 영향이 없다.
+LLM_BASE = os.environ.get("LLM_BASE", "http://llm-proxy:8090")
+# 모델이 답을 쓰는 동안 기다린다. gosvc 의 CHAT_TIMEOUT(기본 3분)보다
+# 넉넉해야 한다 — 짧으면 Go 는 답을 만들었는데 여기서 먼저 끊는다.
+LLM_TIMEOUT_SEC = int(os.environ.get("LLM_TIMEOUT_SEC", "240"))
 # Go 가 nonce 를 안 보내서 시간 창이 재전송을 막는 유일한 수단이다.
 CALLBACK_TIMESTAMP_TOLERANCE_SEC = int(
     os.environ.get("CALLBACK_TIMESTAMP_TOLERANCE_SEC", "300"))

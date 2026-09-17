@@ -13,6 +13,7 @@ from importlib.util import find_spec
 
 from django.urls import include, path, re_path
 
+from .chat import ChatView
 from .tickets import TicketView
 from .views import HealthView, NotFoundView, login
 
@@ -20,6 +21,8 @@ urlpatterns = [
     path("health", HealthView.as_view(), name="health"),
     path("tickets", TicketView.as_view(), name="ticket-issue"),
     path("login", login, name = "login"),
+    # 안내 챗봇. 화면(empatho-view)의 src/api.js 가 이 경로를 쓴다.
+    path("chat", ChatView.as_view(), name="chat"),
 ]
 
 # 업무 엔드포인트는 다른 브랜치에서 오는 중이다. 들어오면 자동으로 물린다.
