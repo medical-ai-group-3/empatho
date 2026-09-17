@@ -1830,7 +1830,7 @@
     "created_at": "2026-09-11T16:10:00+09:00"
   },
 
-  "PATCH /api/v1/hospital/discordances/D-2001/dispose": {
+  "PATCH /api/v1/hospital/discordances/D-2001": {
     "ok": true,
     "discordance_id": "D-2001",
     "flag_status": "closed",
@@ -2011,19 +2011,19 @@
     }
   ],
 
-  "PUT /api/v1/hospital/reports/R-9101": {
+  "PUT /api/v1/hospital/reports/R-9101/": {
     "ok": true,
     "report_id": "R-9101",
     "detail": "유방외과 종합 리포트가 저장되었습니다"
   },
 
-  "PUT /api/v1/hospital/reports/R-9001": {
+  "PUT /api/v1/hospital/reports/R-9001/": {
     "ok": true,
     "report_id": "R-9001",
     "detail": "유방외과 종합 리포트가 저장되었습니다"
   },
 
-  "PUT /api/v1/hospital/reports/R-9002": {
+  "PUT /api/v1/hospital/reports/R-9002/": {
     "ok": true,
     "report_id": "R-9002",
     "detail": "유방외과 종합 리포트가 저장되었습니다"
@@ -2308,7 +2308,6 @@
     ]
   },
 
-  "PATCH /api/v1/hospital/patients/{id}": { "ok": true },
   "PATCH /api/v1/hospital/exam-orders/{id}/note": { "ok": true },
 
   "GET /api/v1/hospital/followups?include_candidates=1": {
@@ -2347,6 +2346,6 @@
         "call_at": "2026-09-05", "call_result": "거부" }
     ]
   },
-  "POST /api/v1/hospital/followups": { "ok": true },
+  "POST /api/v1/hospital/followups/new": { "ok": true },
   "PATCH /api/v1/hospital/followups/{id}/call": { "ok": true }
 }

@@ -52,7 +52,7 @@ export default function Signup({ onBack }) {
     try {
       const r = await staffSignup.submit({
         staff_number: f.staffNumber.trim(),
-        name: f.name.trim(),
+        full_name: f.name.trim(),
         login_id: f.loginId.trim(),
         password: f.password,
         role: f.role,

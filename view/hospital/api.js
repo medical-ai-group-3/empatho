@@ -474,7 +474,7 @@ export const specimens = {
 export const breast = {
   /* 1장 · 대기 환자 */
   waiting:      ()   => get(`/patients${qs({ primary_staff: "me", status: "waiting" })}`),
-  patient:      (id) => get(`/patients/${id}`),
+  patient:      (id) => get(`/patients/${id}/`),
   examOrder:    (b)  => post("/exam-orders", b),
   openDiscords: (pid) => get(`/discordances${qs({ patient: pid, status: "open" })}`),
 
@@ -490,14 +490,17 @@ export const breast = {
 
   /* 3장 · 수술 결정 */
   assess:       (b)  => post("/assessments", b),
-  saveReport:   (rid, b) => put(`/reports/${rid}`, b),
+  saveReport:   (rid, b) => put(`/reports/${rid}/`, b),
   explain:      (rid, b) => patch(`/reports/${rid}/explain`, b),
   unlockStatus: (rid) => get(`/reports/${rid}/unlock-status`),
   unlock:       (rid) => patch(`/reports/${rid}/unlock`, {}),
 
   /* 4장 · 판정 불일치 처분 */
   discordance:  (id) => get(`/discordances/${id}`),
-  dispose:      (id, b) => patch(`/discordances/${id}/dispose`, b),
+  /* ⚠ 2026-09-18 문서 대조 — 접미사 /dispose 없이 상세 경로 그대로 PATCH.
+     예전엔 /discordances/{id}/dispose 로 부르고 있었는데
+     docs/backend-api-reference.md §5 는 접미사 없는 이 경로다 */
+  dispose:      (id, b) => patch(`/discordances/${id}`, b),
 };
 
 /* ── 간호과 ────────────────────────────────────────────────────
@@ -512,14 +515,16 @@ export const nursing = {
   waitingArrived: () => get(`/exam-orders${qs({ status: "requested", visited: "yes", ordering: "visited_at" })}`),
   scheduledToday: () => get(`/exam-orders${qs({ scheduled_on: "today", visited: "none" })}`),
   examOrder:      (id) => get(`/exam-orders/${id}`),
-  patient:        (id) => get(`/patients/${id}`),
+  patient:        (id) => get(`/patients/${id}/`),
   saveNote:       (examOrderId, note) => patch(`/exam-orders/${examOrderId}/note`, { note }),
   surgeons:       () => get(`/staff${qs({ role: "surgery" })}`),
-  assignSurgeon:  (patientId, staffId) => patch(`/patients/${patientId}`, { primary_staff_id: staffId }),
+  assignSurgeon:  (patientId, staffId) => patch(`/patients/${patientId}/`, { primary_staff_id: staffId }),
 
   /* 2장 */
   followups:      () => get(`/followups${qs({ include_candidates: 1 })}`),
-  createFollowup: (b) => post("/followups", b),
+  /* ⚠ 2026-09-18 문서 대조 — docs/backend-api-reference.md §3 은
+     POST /followups/new 다. 접미사 없이 부르던 것을 고쳤다 */
+  createFollowup: (b) => post("/followups/new", b),
   logCall:        (id, b) => patch(`/followups/${id}/call`, b),
 };
 
@@ -627,7 +632,9 @@ export const byDept = { pathology: path, radiology: rad, breast, reception, nurs
  * 2026-09-16 백엔드 확정 — core/api/views.py 의 signup_staff.
  *
  *   POST /signup/staff
- *   b:{staff_number, name, login_id, password, role}
+ *   b:{staff_number, full_name, login_id, password, role}
+ *   ⚠ 2026-09-18 docs/backend-api-reference.md §1 대조 — 필드명이 name 이
+ *     아니라 full_name 이다. Signup.jsx 도 이 이름으로 보낸다
  *   role 은 다섯 값만 허용 — reception · nursing · radiology · surgery ·
  *   pathology (admin · patient 를 보내면 VALIDATION_ERROR)
  *
