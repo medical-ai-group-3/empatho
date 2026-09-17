@@ -3,6 +3,8 @@ import { go } from "../nav";
 import { Chip, Facts, Fold, Warn, useCan } from "../lib/Parts";
 import RadiologyAi from "./RadiologyAi";
 import { boxesFromLesions, polygonsFromAi } from "../lib/Stage";
+import { BIRADS, MODALITY, READ_STATUS, label, modality as asModality, text, tone }
+  from "../codes";
 
 /* 영상의학과 설정 — 공통 화면 다섯 장에 끼워 넣는 «다른 점»만 모은 파일
  * ════════════════════════════════════════════════════════════════
@@ -84,19 +86,6 @@ const api = {
   amend:      (id, b) => rad.amend(id, b),
 };
 
-const BIRADS = [
-  { value: "0", label: "0 — 추가 검사 필요" },
-  { value: "1", label: "1 — 음성" },
-  { value: "2", label: "2 — 양성" },
-  { value: "3", label: "3 — 양성 가능성 높음" },
-  { value: "4a", label: "4a — 낮은 악성 의심" },
-  { value: "4b", label: "4b — 중등도 악성 의심" },
-  { value: "4c", label: "4c — 높은 악성 의심" },
-  { value: "5", label: "5 — 악성 강력 시사" },
-  { value: "6", label: "6 — 조직학적으로 확인된 악성" },
-];
-
-const MODALITY = { mammo: "맘모", ultrasound: "초음파", mri: "MRI" };
 
 /* 판독 조회의 시리즈에 업로드 조회의 파일(주소·크기)을 얹는다.
    이름이 같은 것끼리 맞추고, 못 맞추면 순서대로 짝짓는다 */
@@ -137,7 +126,7 @@ export const radiology = {
     row: (it) => ({
       id: it.id,
       title: `${it.patient_name} (${it.age}/${it.sex})`,
-      sub: `${it.patient_no} · ${MODALITY[it.modality] ?? it.modality}`,
+      sub: `${it.patient_no} · ${label(MODALITY, asModality(it.modality))}`,
       chip: it.contrast_allergy ? "조영제 알레르기" : it.device,
       chipTone: it.contrast_allergy ? "fill" : "line",
     }),
@@ -150,7 +139,7 @@ export const radiology = {
         <Facts items={[
           ["환자", `${d.patient_name} (${d.age}/${d.sex})`],
           ["환자번호", d.patient_no],
-          ["모달리티", MODALITY[d.modality] ?? d.modality],
+          ["모달리티", label(MODALITY, asModality(d.modality))],
           ["촬영 장비", d.device],
           ["검사명", d.exam_name],
           ["요청 일시", d.ordered_at],
@@ -196,7 +185,7 @@ export const radiology = {
           ["검사명", d.exam_name],
           ["검사 목적", d.purpose],
           ["검사일", d.performed_at],
-          ["모달리티", MODALITY[d.modality] ?? d.modality],
+          ["모달리티", label(MODALITY, asModality(d.modality))],
         ]} />
 
         <Fold title={`시리즈 ${(d.series ?? []).length}`}>
@@ -280,7 +269,7 @@ export const radiology = {
       const abstained = ai?.abstained ?? ai?.summary?.abstained;
       if (ai && !abstained && ai.lesion_found !== false) {
         if (ai.modality === "mammo") shapes = boxesFromLesions(ai.lesions, s?.w, s?.h);
-        else if (ai.modality === "ultrasound") shapes = polygonsFromAi(ai);
+        else if (asModality(ai.modality) === "us") shapes = polygonsFromAi(ai);
       }
       return {
         image: s?.image,
@@ -299,8 +288,8 @@ export const radiology = {
             ["환자", `${d.patient.name} (${d.patient.age}/${d.patient.sex})`],
             ["환자번호", d.patient.no],
             ["검사명", d.unit.exam_name],
-            ["모달리티", MODALITY[d.unit.modality] ?? d.unit.modality],
-            ["검사 상태", d.unit.status_label],
+            ["모달리티", label(MODALITY, asModality(d.unit.modality))],
+            ["검사 상태", text(d.unit, "read_status", READ_STATUS, "status_label")],
           ]} />
 
           {isMri ? (
@@ -414,9 +403,11 @@ export const radiology = {
     row: (r) => ({
       id: r.id,
       patient: `${r.patient_name} (${r.age}/${r.sex})`,
-      modality: MODALITY[r.modality] ?? r.modality,
+      modality: label(MODALITY, asModality(r.modality)),
       performed: r.performed_at,
-      status: <Chip tone={STATUS_TONE[r.status_label]}>{r.status_label}</Chip>,
+      status: <Chip tone={tone("read", r.read_status)}>
+        {text(r, "read_status", READ_STATUS, "status_label")}
+      </Chip>,
       viewed: r.viewed_at
         ? <Chip tone="line">열람</Chip>
         : <Chip tone="dot">미열람</Chip>,
@@ -428,11 +419,11 @@ export const radiology = {
         <Facts items={[
           ["환자", `${d.patient_name} (${d.age}/${d.sex})`],
           ["환자번호", d.patient_no],
-          ["모달리티", MODALITY[d.modality] ?? d.modality],
+          ["모달리티", label(MODALITY, asModality(d.modality))],
           ["촬영 장비", d.device],
           ["검사일", d.performed_at],
           ["담당 판독의", d.assigned_to],
-          ["진행상황", d.status_label],
+          ["진행상황", text(d, "read_status", READ_STATUS, "status_label")],
           ["유방외과 열람", d.viewed_at ?? "미열람"],
         ]} />
         <Fold title="판독 결과" open={Boolean(d.finalized)}>
@@ -473,4 +464,3 @@ export const radiology = {
   },
 };
 
-const STATUS_TONE = { "판독 대기": "line", "작성 중": "fill", "판독 완료": "dot" };

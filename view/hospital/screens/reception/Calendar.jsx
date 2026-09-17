@@ -4,6 +4,7 @@ import { Card } from "../../lib/Page";
 import { Body } from "../../lib/Body";
 import { Chip, Warn } from "../../lib/Parts";
 import { useApi } from "../../lib/useApi";
+import { MODALITY, label, modality as asModality } from "../../codes";
 
 /* 예약 캘린더 — 원무 1장 아래에 붙는다
  * ════════════════════════════════════════════════════════════════
@@ -210,7 +211,7 @@ function Tree({ ym, byDay, total, pickDay, onPickDay, onOpenDate }) {
                     <li key={r.exam_order_id} className="tree-r">
                       <b>{timeOf(r.scheduled_at)}</b>
                       <span>{who(r)}</span>
-                      <em>{MODALITY[r.modality] ?? "미정"}</em>
+                      <em>{label(MODALITY, asModality(r.modality)) || "미정"}</em>
                     </li>
                   ))}
                 </ul>
@@ -225,4 +226,3 @@ function Tree({ ym, byDay, total, pickDay, onPickDay, onOpenDate }) {
 
 /* 예약 단계에서는 비어 있을 수 있다 — 검사 종류는 유방외과가 정한다.
    원무가 예약만 잡아 둔 건은 modality 가 null 이라 「미정」이 맞다 */
-const MODALITY = { mammo: "유방촬영", us: "초음파", mri: "MRI" };

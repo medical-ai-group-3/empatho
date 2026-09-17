@@ -4,6 +4,7 @@ import { Body } from "../../../lib/Body";
 import { Chip, Facts, Locked } from "../../../lib/Parts";
 import { useApi } from "../../../lib/useApi";
 import { can } from "../../../perm";
+import { FOLLOWUP_STATUS, label, tone } from "../../../codes";
 
 /* ═══ 2장 · 추적 대상 관리 ═══════════════════════════════════════
  *
@@ -40,18 +41,6 @@ function todayStr() {
   return new Date().toISOString().slice(0, 10);
 }
 
-const STATUS_LABEL = {
-  candidate: "추적 대상",
-  open: "추적 중",
-  overdue: "기한 초과",
-  resolved: "종결",
-  declined: "거절 · 상급전원",
-  escalated: "거절 · 상급전원",
-};
-const STATUS_TONE = {
-  candidate: "line", open: "dot", overdue: "fill",
-  resolved: "line", declined: "line", escalated: "line",
-};
 const FILTERS = [
   { key: "", label: "전체" },
   { key: "candidate", label: "추적 대상" },
@@ -112,7 +101,9 @@ function Inner({ cfg }) {
                       <td>{f.name}</td>
                       <td>{f.round_no ? `${f.round_no}회` : "—"}</td>
                       <td>{f.due_at ?? "—"}</td>
-                      <td><Chip tone={STATUS_TONE[f.view_status]}>{STATUS_LABEL[f.view_status]}</Chip></td>
+                      <td><Chip tone={tone("followup", f.view_status)}>
+                        {label(FOLLOWUP_STATUS, f.view_status)}
+                      </Chip></td>
                       <td>{f.call_result ?? "미연락"}</td>
                       <td onClick={(e) => e.stopPropagation()}>
                         <RowActions cfg={cfg} f={f} onPick={() => setSelectedId(f.id)} onDone={reload} />

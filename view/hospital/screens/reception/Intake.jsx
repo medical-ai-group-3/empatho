@@ -10,6 +10,7 @@ import { useApi } from "../../lib/useApi";
 import { can } from "../../perm";
 import Calendar from "./Calendar";
 import Register from "./Register";
+import { SEX, label } from "../../codes";
 
 /* 원무 1장 — 접수 · 방문 환자 모니터링
  * ════════════════════════════════════════════════════════════════
@@ -263,7 +264,7 @@ function Picked({ patient, busy, onCheckIn }) {
       <dl className="kv">
         <dt>환자번호</dt><dd>{patient.patient_number}</dd>
         <dt>생년</dt><dd>{patient.birth_year ?? "—"}</dd>
-        <dt>성별</dt><dd>{SEX[patient.sex] ?? "—"}</dd>
+        <dt>성별</dt><dd>{label(SEX, patient.sex) || "—"}</dd>
       </dl>
       <Btn kind="fill" onClick={onCheckIn}
            disabled={busy || !can("reception.checkin")}>
@@ -273,7 +274,6 @@ function Picked({ patient, busy, onCheckIn }) {
   );
 }
 
-const SEX = { female: "여", male: "남" };
 
 /* 못 찾았을 때. **여기서 바로 등록으로 갈 수 있게 한다** — 「위 [+ 등록]
    을 누르세요」로 안내만 하면 눈이 다시 위로 올라갔다 와야 한다 */

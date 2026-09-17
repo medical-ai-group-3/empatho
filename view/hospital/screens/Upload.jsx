@@ -5,6 +5,7 @@ import { Btn, Card, Page } from "../lib/Page";
 import { Bar, Chip, Fold, Locked, useCan } from "../lib/Parts";
 import { useApi } from "../lib/useApi";
 import { can } from "../perm";
+import { RUN_STATUS, label, tone } from "../codes";
 
 /* ═══ 2장 · 업로드 ═══════════════════════════════════════════════
  *
@@ -29,14 +30,6 @@ import { can } from "../perm";
  */
 
 const POLL_MS = 5000;
-
-/* 서버가 주는 진행 상태를 사람 말로 */
-const STATUS = {
-  queued:  { label: "대기 중",  tone: "dot"  },
-  running: { label: "분석 중",  tone: "dot"  },
-  done:    { label: "완료",     tone: "line" },
-  failed:  { label: "실패",     tone: "fill" },
-};
 
 export default function UploadScreen({ cfg }) {
   const c = cfg.upload;
@@ -185,14 +178,14 @@ function Work({ cfg, id, d }) {
 
       {/* ── 오른쪽 · AI 분석 ───────────────────────────────── */}
       <Card title="AI 분석"
-            right={prog && <Chip tone={STATUS[prog.status]?.tone}>{STATUS[prog.status]?.label}</Chip>}>
+            right={prog && <Chip tone={tone("run", prog.status)}>{label(RUN_STATUS, prog.status)}</Chip>}>
         {!prog && (
           <p className="muted">아직 분석을 걸지 않았습니다.</p>
         )}
 
         {prog && (
           <>
-            <Bar value={prog.pct ?? 0} label={STATUS[prog.status]?.label} />
+            <Bar value={prog.pct ?? 0} label={label(RUN_STATUS, prog.status)} />
             {prog.status === "failed" && (
               <p className="hint">분석에 실패했습니다. 다시 걸어 보시고, 계속 실패하면 담당자에게 알려 주세요.</p>
             )}

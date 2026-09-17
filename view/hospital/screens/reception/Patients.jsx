@@ -6,6 +6,7 @@ import { Body } from "../../lib/Body";
 import { Chip, Search, Sort, Table, Warn } from "../../lib/Parts";
 import { useApi } from "../../lib/useApi";
 import { can } from "../../perm";
+import { MODALITY, SEX, label, modality as asModality } from "../../codes";
 
 /* 원무 3장 — 환자 목록 · 예약
  * ════════════════════════════════════════════════════════════════
@@ -141,7 +142,6 @@ function filter(rows, only) {
   return rows;
 }
 
-const SEX = { female: "여", male: "남", F: "여", M: "남" };
 
 /* 나이는 출생연도로 센다. 서버 목록이 birth_year 만 주기 때문이다 —
    생일이 지났는지는 모르므로 «만 나이»가 아니라 연 나이다 */
@@ -157,7 +157,7 @@ function row(r, { onReserve, onOpen }) {
     id: r.patient_id,
     no: <span className="num dim">{r.patient_number ?? "—"}</span>,
     name: <b>{r.name ?? "—"}</b>,
-    sex: SEX[r.sex] ?? "—",
+    sex: label(SEX, r.sex) || "—",
     age: age == null ? "—" : <span className="num">{age}</span>,
     allergy: r.has_allergy == null
       ? "—"
@@ -397,7 +397,7 @@ function Reserve({ patient, firstDate, onClose }) {
                   {sameDay.map((o) => (
                     <li key={o.exam_order_id}>
                       <b>{timeOf(o.scheduled_at)}</b>
-                      <span>{MODALITY[o.modality] ?? "검사 미정"}</span>
+                      <span>{label(MODALITY, asModality(o.modality)) || "검사 미정"}</span>
                       <em>{o.order_status}</em>
                     </li>
                   ))}
@@ -425,7 +425,6 @@ function Reserve({ patient, firstDate, onClose }) {
   );
 }
 
-const MODALITY = { mammo: "유방촬영", us: "초음파", mri: "MRI" };
 
 function Failed({ error }) {
   return (

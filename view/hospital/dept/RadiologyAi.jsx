@@ -1,4 +1,5 @@
 import { Chip, Fold } from "../lib/Parts";
+import { DESCRIPTOR_AXIS, LESION_KIND, label, modality as asModality } from "../codes";
 
 /* 영상의학과 AI 소견 — 모달리티마다 내용이 다르다
  * ────────────────────────────────────────────────────────────────
@@ -43,11 +44,15 @@ export default function RadiologyAi({ d, pick, onPick }) {
     );
   }
 
+  const m = asModality(ai.modality);
+
   return (
     <div className="ai">
-      {ai.modality === "ultrasound" && <Ultrasound a={ai} />}
-      {ai.modality === "mammo" && <Mammo a={ai} pick={pick} onPick={onPick} />}
-      {ai.modality === "mri" && <Mri a={ai} />}
+      {/* ⚠ 서버 모달리티 코드는 `us` 다 — `ultrasound` 로 비교하면
+          초음파 소견이 통째로 안 뜬다. asModality 가 철자를 맞춰 준다 */}
+      {m === "us" && <Ultrasound a={ai} />}
+      {m === "mammo" && <Mammo a={ai} pick={pick} onPick={onPick} />}
+      {m === "mri" && <Mri a={ai} />}
     </div>
   );
 }
@@ -126,7 +131,7 @@ function Mammo({ a, pick, onPick }) {
         return (
           <section className={on ? "ai-card on" : "ai-card"} key={l.id ?? i}>
             <div className="ai-h">
-              <b>{l.id ?? `${l.kind === "calcification" ? "미세석회" : "종괴"} ${i + 1}`}</b>
+              <b>{l.id ?? `${label(LESION_KIND, l.kind) || "병변"} ${i + 1}`}</b>
               {l.birads != null
                 ? <Chip tone={l.biopsy ? "fill" : "line"}>BI-RADS {l.birads}</Chip>
                 : <Chip tone="dot">등급 없음</Chip>}
@@ -146,7 +151,7 @@ function Mammo({ a, pick, onPick }) {
                 <tbody>
                   {(l.descriptors ?? []).map((x) => (
                     <tr key={x.axis}>
-                      <td>{AXIS[x.axis] ?? x.axis}</td>
+                      <td>{label(DESCRIPTOR_AXIS, x.axis)}</td>
                       <td>{x.value}</td>
                       <td>{pct(x.confidence)}</td>
                       <td>{x.validated ? "됨" : "안 됨"}</td>
@@ -226,11 +231,6 @@ function Mri({ a }) {
     </>
   );
 }
-
-const AXIS = {
-  shape: "모양", margin: "경계", calctype: "석회 종류",
-  calcdist: "석회 분포", finding: "소견",
-};
 
 function num(n, digits = 1) {
   if (n == null) return "—";

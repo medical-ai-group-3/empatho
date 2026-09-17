@@ -5,6 +5,7 @@ import { Body } from "../../lib/Body";
 import { Chip, Table, Warn } from "../../lib/Parts";
 import { useApi } from "../../lib/useApi";
 import { can } from "../../perm";
+import { SEX, label } from "../../codes";
 
 /* 원무 4장 — 예약 확인 (앱 신청분)
  * ════════════════════════════════════════════════════════════════
@@ -93,7 +94,6 @@ const COLS = [
   { key: "when", label: "희망 일시", w: "34%" },
 ];
 
-const SEX = { female: "여", male: "남" };
 
 const dayOf  = (s) => (s ? s.slice(0, 10) : "");
 const timeOf = (s) => (s ? s.slice(11, 16) : "");
@@ -109,7 +109,7 @@ function row(r) {
   return {
     id: r.exam_order_id,
     who: <b>{who(r)}</b>,
-    sex: SEX[r.patient_sex] ?? "—",
+    sex: label(SEX, r.patient_sex) || "—",
     age: age == null ? "—" : <span className="num">{age}</span>,
     when: r.scheduled_at
       ? <span className="num">{dayOf(r.scheduled_at)} {timeOf(r.scheduled_at)}</span>
@@ -196,7 +196,7 @@ function Confirm({ order, onDone }) {
                 <dt>이름</dt><dd>{patient.data.pii?.name ?? who(order)}</dd>
                 <dt>생년월일</dt>
                 <dd className="num">{patient.data.pii?.birth_date ?? "—"}</dd>
-                <dt>성별</dt><dd>{SEX[patient.data.sex] ?? "—"}</dd>
+                <dt>성별</dt><dd>{label(SEX, patient.data.sex) || "—"}</dd>
                 <dt>전화번호</dt>
                 <dd className="num">{patient.data.pii?.phone ?? "—"}</dd>
               </dl>

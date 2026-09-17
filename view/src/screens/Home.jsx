@@ -7,6 +7,7 @@ import { COACH_HOME } from "../lib/seen";
 import { Body } from "../lib/Screen";
 import { fmtDay, fmtWhen } from "../lib/when";
 import { deptSuffix } from "../lib/dept";
+import { MODALITY, modality as asModality, text } from "../lib/codes";
 
 /* 03 · 홈
  *
@@ -144,7 +145,9 @@ function Inner({ d }) {
                     <b>다음 {fmtWhen(next.scheduled_at)}</b>
                     <span>
                       {/* 신청 단계에서는 검사 종류가 아직 없다. 병원이 정한다 */}
-                      {next.modality_label || "검사 종류는 병원에서 정합니다"}
+                      {text({ ...next, modality: asModality(next.modality) },
+                            "modality", MODALITY, "modality_label")
+                        || "검사 종류는 병원에서 정합니다"}
                       {next.place ? ` · ${next.place}` : ""}
                     </span>
                   </>

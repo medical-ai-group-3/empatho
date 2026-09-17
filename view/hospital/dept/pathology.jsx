@@ -2,6 +2,8 @@ import { path } from "../api";
 import { go } from "../nav";
 import { Chip, Facts, Fold } from "../lib/Parts";
 import PathologyAi from "./PathologyAi";
+import { ACCESSION_STATUS, B_CATEGORY, B_CATEGORY_LABEL, DIAGNOSIS,
+         label, text, tone } from "../codes";
 
 /* 병리과 설정 — 공통 화면 다섯 장에 끼워 넣는 «다른 점»만 모은 파일
  * ════════════════════════════════════════════════════════════════
@@ -49,16 +51,6 @@ const api = {
   amend:      (id, b) => path.amend(id, b),
   /* complete 없음 — 병리에는 «오더 확정» 단계가 없다 */
 };
-
-const B_CATEGORY = [
-  { value: "b1", label: "B1 — 정상 조직 또는 부적합 검체" },
-  { value: "b2", label: "B2 — 양성" },
-  { value: "b3", label: "B3 — 악성 가능성이 불확실한 병변" },
-  { value: "b4", label: "B4 — 악성 의심" },
-  { value: "b5", label: "B5 — 악성" },
-];
-
-const B_LABEL = Object.fromEntries(B_CATEGORY.map((o) => [o.value, o.label]));
 
 /* 서버 두 응답 → 판독 화면이 쓰는 한 덩어리.
  *
@@ -266,8 +258,9 @@ export const pathology = {
           <span>악성 / 양성 여부</span>
           <select value={f.diagnosis ?? ""} onChange={(e) => set("diagnosis", e.target.value)}>
             <option value="">선택하세요</option>
-            <option value="benign">양성 (benign)</option>
-            <option value="malignant">악성 (malignant)</option>
+            {Object.entries(DIAGNOSIS).map(([v, t]) => (
+              <option key={v} value={v}>{t}</option>
+            ))}
           </select>
         </label>
 
@@ -325,7 +318,9 @@ export const pathology = {
       patient: `${r.patient_name} (${r.age}/${r.sex})`,
       specimen: r.specimen_no,
       collected: r.collected_at,
-      status: <Chip tone={STATUS_TONE[r.status_label]}>{r.status_label}</Chip>,
+      status: <Chip tone={tone("accession", r.accession_status)}>
+        {text(r, "accession_status", ACCESSION_STATUS, "status_label")}
+      </Chip>,
       /* 「확인」이 아니라 「열람」이다 — 자동 기록이라 의도적 확인이 아니다 */
       viewed: r.viewed_at
         ? <Chip tone="line">열람</Chip>
@@ -340,15 +335,15 @@ export const pathology = {
           ["종류", d.kind],
           ["채취일시", d.collected_at],
           ["담당 병리의", d.reported_by],
-          ["진행상황", d.status_label],
+          ["진행상황", text(d, "accession_status", ACCESSION_STATUS, "status_label")],
           ["유방외과 열람", d.viewed_at ?? "미열람"],
         ]} />
         <Fold title="판독 결과" open={Boolean(d.finalized)}>
           {d.finalized ? (
             <>
               <Facts items={[
-                ["진단", d.diagnosis_label],
-                ["등급", B_LABEL[d.b_category] ?? d.b_category],
+                ["진단", text(d, "diagnosis", DIAGNOSIS, "diagnosis_label")],
+                ["등급", label(B_CATEGORY_LABEL, d.b_category)],
               ]} />
               <p className="quote">{d.finding_note}</p>
             </>
@@ -384,4 +379,3 @@ export const pathology = {
   },
 };
 
-const STATUS_TONE = { "접수 대기": "line", "판독 대기": "fill", "판독 완료": "dot" };

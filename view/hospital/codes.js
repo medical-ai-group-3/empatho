@@ -1,0 +1,248 @@
+/* 코드 ↔ 한글 — 서버 값이 화면 글자가 되는 자리는 여기 하나다
+ * ════════════════════════════════════════════════════════════════
+ *
+ * **여기 적힌 코드는 지어낸 것이 아니다.** empatho-app 의
+ * `services/django/core/models.py` 맨 위 enum 목록을 그대로 옮겼다
+ * (2026-09-17 확인). 서버가 DB CHECK 으로 강제하는 값들이라, 여기가
+ * 어긋나면 화면이 «모르는 코드»를 날것으로 뱉는다.
+ *
+ * ── 왜 한 곳에 모았나 ────────────────────────────────────────
+ *
+ * 전에는 같은 표가 화면마다 따로 있었고 **서로 달랐다.**
+ *
+ *   modality  radiology.jsx 는 `ultrasound`, reception 두 곳은 `us`.
+ *             서버는 `us` 다 — 영상 판독 화면이 초음파를 못 알아봤다
+ *   modality  같은 코드에 「맘모」와 「유방촬영」 두 이름이 붙어 있었다
+ *   sex       세 곳에 따로 있었고 한 곳만 F · M 을 알았다
+ *
+ * 표가 여럿이면 어느 것이 맞는지 아무도 모른다. 하나로 두고, 틀리면
+ * 한 곳만 고친다.
+ *
+ * ── 서버가 라벨을 주기 시작하면 ──────────────────────────────
+ *
+ * ⚠ **지금 서버에는 `status_label` 같은 한글 칸이 없다.** 모델을 다
+ *   훑어도 `*_label` 은 `specimen_label`(검체 식별자) 하나뿐이고 그건
+ *   상태가 아니다. 목업이 지어낸 칸에 화면 열두 곳이 기대고 있었다 —
+ *   실서버에 붙는 날 그 자리가 전부 빈칸이 된다.
+ *
+ *   그래서 `text()` 로 읽는다. **서버가 라벨을 주면 그것을 쓰고, 안
+ *   주면 코드로 만든다.** 둘 중 어느 쪽이 와도 화면은 안 바뀐다 —
+ *   서버가 준비되는 순서를 기다릴 필요가 없다.
+ *
+ *   서버가 나중에 코드표 자체를 내려주게 되면 `adopt()` 한 번으로
+ *   덮는다. 화면 코드는 그대로다.
+ */
+
+/* ── 모달리티 ──────────────────────────────────────────────────
+   서버 enum: ["mammo", "us", "mri"]
+
+   ⚠ `ultrasound` 는 **별칭으로만** 둔다. 우리 목업 일부와 옛 화면이
+     그 철자를 쓰고 있어서 받아는 주되, 내보낼 때는 `us` 로 맞춘다.
+     두 철자를 나란히 «정답»으로 두면 비교문이 또 갈린다. */
+export const MODALITY = {
+  mammo: "유방촬영",
+  us: "초음파",
+  mri: "MRI",
+};
+
+const MODALITY_ALIAS = { ultrasound: "us", ultra: "us", mammography: "mammo" };
+
+/** 어떤 철자로 오든 서버 코드로 맞춘다. 비교는 늘 이 결과로 한다. */
+export const modality = (v) => MODALITY_ALIAS[v] ?? v ?? null;
+
+/* ── 성별 ──────────────────────────────────────────────────────
+   ⚠ 서버 칸이 `CharField(max_length=20)` 이고 **CHECK 이 없다.**
+     무엇이 올지 모른다는 뜻이라 아는 철자를 넉넉히 받아 둔다.
+     이미 한글이 오면 그대로 쓴다 (아래 label 의 마지막 갈래). */
+export const SEX = {
+  female: "여", male: "남",
+  F: "여", M: "남",
+  f: "여", m: "남",
+};
+
+/* ── 진행 상태 ─────────────────────────────────────────────────
+   서버 enum 세 벌이 화면 하나에서 섞여 보인다. 코드는 서로 다르므로
+   표도 따로 둔다 — 합치면 `pending` 이 어느 쪽 것인지 모른다. */
+
+/** 판독 상태. 서버 enum: ["pending", "draft", "finalized"] */
+export const READ_STATUS = {
+  pending: "판독 대기",
+  draft: "작성 중",
+  finalized: "판독 완료",
+};
+
+/** 검체 접수 상태. 서버 enum: ["unbound", "bound", "accessioned"] */
+export const ACCESSION_STATUS = {
+  unbound: "바인딩 전",
+  bound: "접수 대기",
+  accessioned: "접수 완료",
+};
+
+/** 오더 상태. 서버 enum 일곱 */
+export const ORDER_STATUS = {
+  requested: "신청 · 확인 중",
+  scheduled: "일정 확정",
+  ordered: "검사 확정",
+  accepted: "접수됨",
+  in_progress: "진행 중",
+  completed: "완료",
+  cancelled: "취소",
+};
+
+/** AI 실행 상태. 서버 enum: ["queued", "running", "done", "failed"] */
+export const RUN_STATUS = {
+  queued: "대기 중",
+  running: "분석 중",
+  done: "완료",
+  failed: "실패",
+};
+
+/** 추적 상태. 서버 enum: ["open","resolved","escalated","declined","overdue"]
+ *  ⚠ `candidate` 는 서버 enum 에 **없다.** 간호과 화면이 쓰고 있어 받아는
+ *    두지만, 서버가 그 값을 낼 수 있는지 확인이 필요하다. */
+export const FOLLOWUP_STATUS = {
+  candidate: "추적 대상",
+  open: "추적 중",
+  overdue: "기한 초과",
+  resolved: "종결",
+  declined: "거절 · 상급전원",
+  escalated: "거절 · 상급전원",
+};
+
+/* ── 판정 · 소견 ───────────────────────────────────────────────
+   <select> 에 그대로 넣는 자리가 있어 **순서가 있는 목록**으로 둔다.
+   순서가 곧 등급 순서라 객체로 두면 그 뜻이 사라진다. */
+
+/** 서버 enum: ["b1" … "b5"] */
+export const B_CATEGORY = [
+  { value: "b1", label: "B1 — 정상 조직 또는 부적합 검체" },
+  { value: "b2", label: "B2 — 양성" },
+  { value: "b3", label: "B3 — 악성 가능성이 불확실한 병변" },
+  { value: "b4", label: "B4 — 악성 의심" },
+  { value: "b5", label: "B5 — 악성" },
+];
+
+/** 서버 enum: ["0","1","2","3","4a","4b","4c","5","6"] */
+export const BIRADS = [
+  { value: "0", label: "0 — 추가 검사 필요" },
+  { value: "1", label: "1 — 음성" },
+  { value: "2", label: "2 — 양성" },
+  { value: "3", label: "3 — 양성 가능성 높음" },
+  { value: "4a", label: "4a — 낮은 악성 의심" },
+  { value: "4b", label: "4b — 중등도 악성 의심" },
+  { value: "4c", label: "4c — 높은 악성 의심" },
+  { value: "5", label: "5 — 악성 강력 시사" },
+  { value: "6", label: "6 — 조직학적으로 확인된 악성" },
+];
+
+/** 서버 enum: ["benign", "malignant"] */
+export const DIAGNOSIS = { benign: "양성 (benign)", malignant: "악성 (malignant)" };
+
+/** 서버 enum: ["low", "mid", "high"] */
+export const STIL_LEVEL = { low: "낮음", mid: "중등도", high: "높음" };
+
+/** 서버 enum: ["mass", "calcification"] */
+export const LESION_KIND = { mass: "종괴", calcification: "미세석회" };
+
+/** 맘모 서술어 5축 — 모델 출력의 축 이름이다 (DB enum 이 아니다) */
+export const DESCRIPTOR_AXIS = {
+  shape: "모양", margin: "경계", calctype: "석회 종류",
+  calcdist: "석회 분포", finding: "소견",
+};
+
+/* 목록 표로 만들어 쓰는 자리 — {value,label} 을 코드→글자로 */
+const flatten = (rows) =>
+  Object.fromEntries(rows.map((r) => [r.value, r.label]));
+
+export const B_CATEGORY_LABEL = flatten(B_CATEGORY);
+export const BIRADS_LABEL = flatten(BIRADS);
+
+/* ── 상태 색 ───────────────────────────────────────────────────
+ *
+ * ⚠ **코드로 건다.** 전에는 한글 라벨을 열쇠로 썼다 —
+ *     STATUS_TONE["판독 대기"]
+ *   서버가 글자를 한 자만 다듬어도(「판독대기」) 조용히 안 걸리고,
+ *   애초에 서버가 그 한글을 안 보낸다.
+ *
+ * 색을 새로 만들지 않는다는 판의 규칙대로 셋뿐이다 —
+ *   fill 지금 하는 중 · line 끝남 · dot 기계가 도는 중 (tokens.css) */
+export const TONE = {
+  read: { pending: "line", draft: "fill", finalized: "dot" },
+  accession: { unbound: "line", bound: "line", accessioned: "dot" },
+  run: { queued: "dot", running: "dot", done: "line", failed: "fill" },
+  order: {
+    requested: "line", scheduled: "line", ordered: "fill",
+    accepted: "fill", in_progress: "fill", completed: "dot", cancelled: "line",
+  },
+  followup: {
+    candidate: "line", open: "dot", overdue: "fill",
+    resolved: "line", declined: "line", escalated: "line",
+  },
+};
+
+/* ── 읽는 법 ─────────────────────────────────────────────────── */
+
+/** 코드 하나를 한글로.
+ *
+ * 모르는 코드는 **감추지 않고 그대로 낸다.** 빈칸으로 두면 화면에서
+ * 「값이 없다」로 읽히는데, 실제로는 「우리가 모르는 값이 왔다」다.
+ * 둘은 고치는 방법이 다르다.
+ */
+export function label(table, code) {
+  if (code == null || code === "") return "";
+  return table[code] ?? String(code);
+}
+
+/** 서버 라벨이 있으면 그것을, 없으면 코드로 만든 라벨을.
+ *
+ *   text(row, "status", READ_STATUS)
+ *     → row.status_label 이 있으면 그것
+ *     → 없으면 label(READ_STATUS, row.status)
+ *
+ * **이 함수가 스탠바이의 핵심이다.** 서버가 라벨 칸을 붙이든 안 붙이든
+ * 화면은 그대로 돈다 — 붙는 날 코드를 고칠 일이 없다.
+ */
+export function text(row, base, table, labelKey) {
+  /* ⚠ 서버(와 목업)가 쓰는 라벨 칸 이름이 코드 칸 이름과 짝이 안 맞는다 —
+     코드는 `read_status` 인데 라벨은 `status_label` 이다. 그래서 라벨 칸
+     이름을 넷째 인자로 따로 받는다. 짝을 짐작하면 조용히 빈칸이 된다 */
+  const given = row?.[labelKey ?? `${base}_label`];
+  if (given) return given;
+  return label(table, row?.[base]);
+}
+
+/** 상태 칩 색. 코드가 없거나 모르면 외곽선으로 — 튀지 않는 쪽이 기본이다 */
+export function tone(kind, code) {
+  return TONE[kind]?.[code] ?? "line";
+}
+
+/* ── 서버가 코드표를 내려주면 ──────────────────────────────────
+ *
+ * 로그인 응답이나 `/codes` 같은 자리에서 표를 받게 되면 여기로 넘긴다.
+ * 위 표들을 **덮어쓰지 않고 위에 얹는다** — 서버가 일부만 보내도
+ * 나머지가 살아 있어야 화면이 안 빈다.
+ *
+ *   adopt({ modality: { us: "초음파(US)" }, read_status: {…} })
+ *
+ * 부르는 곳이 아직 없다. 생기면 main.jsx 의 부팅 자리에서 한 번 부른다.
+ */
+const TABLES = {
+  modality: MODALITY,
+  sex: SEX,
+  read_status: READ_STATUS,
+  accession_status: ACCESSION_STATUS,
+  order_status: ORDER_STATUS,
+  run_status: RUN_STATUS,
+  followup_status: FOLLOWUP_STATUS,
+  diagnosis: DIAGNOSIS,
+  stil_level: STIL_LEVEL,
+  lesion_kind: LESION_KIND,
+};
+
+export function adopt(payload = {}) {
+  for (const [name, rows] of Object.entries(payload)) {
+    const table = TABLES[name];
+    if (!table || !rows || typeof rows !== "object") continue;
+    Object.assign(table, rows);
+  }
+}

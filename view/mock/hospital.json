@@ -820,7 +820,7 @@
         "age": 39,
         "sex": "여",
         "patient_no": "P-2026-0052",
-        "modality": "ultrasound",
+        "modality": "us",
         "device": "GE LOGIQ E10",
         "contrast_allergy": null
       }
@@ -985,7 +985,7 @@
         "patient_name": "박서연",
         "age": 39,
         "sex": "여",
-        "modality": "ultrasound",
+        "modality": "us",
         "performed_at": "2026-09-14",
         "status_label": "판독 대기",
         "viewed_at": null
