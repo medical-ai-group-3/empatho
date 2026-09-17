@@ -955,3 +955,41 @@ a{color:inherit; text-decoration:none}
 .nearbar{display:flex; flex-direction:column; gap:var(--dot-gap)}
 .nearbar .s{font-size:var(--card-s-fs); color:var(--green); font-weight:600}
 .nearbar .note{margin:0}
+
+/* ── 전화 확인 창 ────────────────────────────────
+   아이폰 통화 확인 창 모양. 가운데 선 상자, 굵은 번호, 아래 두 칸.
+   되돌릴 수 없는 쪽(전화 걸기)이 **오른쪽**이다 — 왼손 엄지가 먼저
+   닿는 자리를 취소에 준다. */
+.callveil{position:fixed; inset:0; z-index:60;
+  display:flex; align-items:center; justify-content:center;
+  padding:var(--screen-pad);
+  background:var(--call-veil); backdrop-filter:blur(3px);
+  animation:callin var(--motion) ease-out}
+@keyframes callin{from{opacity:0}to{opacity:1}}
+
+.callbox{width:var(--call-w); max-width:100%;
+  border-radius:var(--call-radius); overflow:hidden;
+  background:var(--surface); box-shadow:0 12px 40px rgba(0,0,0,.28);
+  text-align:center; outline:none}
+.callbox-b{padding:var(--call-pad)}
+.callbox-b b{display:block; font-size:var(--call-nm-fs); font-weight:700;
+  color:var(--ink); line-height:1.4}
+.callno{margin:var(--dot-gap) 0 0; font-size:var(--call-no-fs);
+  font-weight:600; color:var(--ink); letter-spacing:.01em;
+  font-variant-numeric:tabular-nums}
+
+/* 단추 두 칸. 가르는 선은 **한 겹만** 그린다 — 위쪽 테두리와 가운데
+   테두리를 따로 주면 어두운 판에서 두 줄로 보인다 */
+.callbox-a{display:flex; border-top:var(--line-w) solid var(--line)}
+.callbtn{flex:1; height:var(--call-btn-h); display:flex;
+  align-items:center; justify-content:center;
+  font-size:var(--call-btn-fs); color:var(--green);
+  text-decoration:none; background:none;
+  transition:background var(--motion)}
+.callbtn + .callbtn{border-left:var(--line-w) solid var(--line)}
+.callbtn:hover{background:var(--blush)}
+.callbtn.go{font-weight:700}
+
+@media (prefers-reduced-motion: reduce){
+  .callveil{animation:none}
+}

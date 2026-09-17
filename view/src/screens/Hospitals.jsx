@@ -4,6 +4,7 @@ import { useApi } from "../lib/useApi";
 import Tilly from "../lib/Tilly";
 import { Body, Head } from "../lib/Screen";
 import { distanceKm, fmtKm, routeUrl, useNear } from "../lib/near";
+import Call from "../lib/Call";
 
 /* 14 · 병원 찾기
  *
@@ -60,6 +61,8 @@ function match(h, region, q) {
 
 function Inner({ d, near, region, setRegion, q, setQ }) {
   const regions = d.regions ?? [];
+  /* 전화 확인 창을 띄운 병원. 한 번에 하나만 뜬다 */
+  const [calling, setCalling] = useState(null);
 
   /* 거리를 재고, 위치를 받았으면 **가까운 순**으로 세운다.
      못 받았으면 서버가 준 순서를 그대로 둔다 — 임의로 섞지 않는다 */
@@ -145,9 +148,12 @@ function Inner({ d, near, region, setRegion, q, setQ }) {
                     나아간다. 같은 데 가는 단추를 둘 두면 무엇이 다른지
                     누르기 전에는 모른다 */}
               <div className="hos-go">
-                <a className="btn soft" href={`tel:${h.phone.replaceAll("-", "")}`}>
+                {/* 바로 걸지 않고 한 번 묻는다 — 잘못 눌러 병원에 전화가
+                    가는 것을 막고, 못 거는 기기에서는 번호를 보여 준다
+                    (lib/Call 참고) */}
+                <button className="btn soft" onClick={() => setCalling(h)}>
                   전화
-                </a>
+                </button>
                 <a className="btn soft" href={routeUrl(h)}
                    target="_blank" rel="noreferrer">길찾기</a>
               </div>
@@ -157,6 +163,11 @@ function Inner({ d, near, region, setRegion, q, setQ }) {
       )}
 
       <p className="note">{d.note}</p>
+
+      {calling && (
+        <Call name={calling.name} phone={calling.phone}
+              onClose={() => setCalling(null)} />
+      )}
     </>
   );
 }

@@ -446,6 +446,18 @@
   --med-by-fs:    calc(11px * var(--ft));
   --hos-l-fs:     calc(12px * var(--ft));
 
+  /* ══ 전화 확인 창 ════════════════════════════════════════
+     아이폰의 통화 확인 창 모양. 처음 보는 사람이 없어야 하는 자리라
+     새 모양을 만들지 않고 아는 모양을 따른다 (lib/Call 참고) */
+  --call-w:       270px;                   /* iOS 경고창 폭 그대로 */
+  --call-radius:  14px;
+  --call-pad:     calc(19px * var(--sp));
+  --call-nm-fs:   calc(15px * var(--ft));
+  --call-no-fs:   calc(21px * var(--ft));  /* 번호가 주인공이다 */
+  --call-btn-fs:  calc(16px * var(--ft));
+  --call-btn-h:   45px;
+  --call-veil:    light-dark(rgba(20,22,26,.42), rgba(0,0,0,.6));
+
   /* ══ 빈 화면 ══════════════════════════════════════════════
      아직 아무것도 없는 자리(준비 중 · 불러오는 중). 한 줄을 위쪽에
      붙여 두면 화면이 잘못 뜬 것처럼 보인다 — 가운데에 세운다. */
