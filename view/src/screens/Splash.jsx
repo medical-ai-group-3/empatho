@@ -7,14 +7,15 @@
  * 둔다(RequireAuth 의 MIN_MS). 확인이 그보다 오래 걸리면 그만큼 더 머문다.
  */
 import Logo from "../lib/Logo";
-import Tilly from "../lib/Tilly";
 
 export default function Splash() {
   return (
     <div className="app">
       <div className="splash">
+        {/* ⚠ **맨 처음 화면에는 로고만 둔다.** 캐릭터를 같이 세우면
+            첫인상이 캐릭터가 된다 — 여기는 브랜드가 서는 자리다.
+            틸리는 들어간 뒤(홈 · 챗봇)에 만난다 */}
         <Logo size="lg" />
-        <Tilly mood="hello" size="lg" alt="" />
         <p className="tag">조기 발견이, 더 많은 내일을 만듭니다.</p>
         <span className="bar" aria-hidden="true"><i /></span>
         {/* 화면을 읽어 주는 기계에는 «불러오는 중»이라고만 말한다.

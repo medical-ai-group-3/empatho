@@ -388,6 +388,20 @@
   --bub-note-fs:  calc(11px * var(--ft));    /* 답 아래 딸린 한 줄 */
   --bub-note-gap: calc(8px * var(--sp));
 
+  /* 제안 줄 — 처음 열었을 때 내미는 넷. 작은 알약을 여럿 흩어 놓는
+     대신 **전체폭 줄**로 세운다. 손가락이 닿는 넓이가 넉넉해지고,
+     넷이 세로로 서면 「고를 것이 넷」이 한눈에 들어온다 */
+  --askrow-pad-y:  calc(13px * var(--sp));
+  --askrow-pad-x:  calc(14px * var(--sp));
+  --askrow-gap:    calc(8px * var(--sp));
+  --askrow-radius: 14px;
+  --askrow-fs:     calc(13.5px * var(--ft));
+  --askrow-ic:     30px;
+  --askrow-ic-fs:  calc(13px * var(--ft));
+
+  /* 말풍선 옆 얼굴 */
+  --bub-face: 28px;
+
   /* 아래 입력 줄 */
   --askbar-pad:   calc(12px * var(--sp));
   --askbar-gap:   calc(8px * var(--sp));

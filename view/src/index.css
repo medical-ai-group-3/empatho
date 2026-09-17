@@ -743,24 +743,24 @@ a{color:inherit; text-decoration:none}
    연분홍 면에 초록 글자다. 가이드의 리본·워드마크 규칙 그대로. */
 .chatfab{position:fixed; right:var(--fab-right);
   bottom:calc(var(--nav-bottom) + var(--fab-size) + 18px);
-  width:var(--fab-size); height:var(--fab-size);
-  display:flex; align-items:center; justify-content:center;
-  background:var(--blossom); border-radius:999px;
-  box-shadow:var(--nav-shadow); overflow:hidden;
+  display:flex; align-items:flex-end; justify-content:center;
   z-index:40; text-decoration:none;
   transition:transform var(--motion)}
-.chatfab:hover{transform:translateY(-2px)}
+.chatfab:hover{transform:translateY(-3px)}
 .chatfab:active{transform:translateY(0)}
 
-/* 얼굴이 동그라미를 **가득 채운다.** 여백을 두면 스티커를 얹은 것처럼
-   보이고, 채우면 틸리가 단추 자체가 된다.
-   살짝 키운 것은 원본 아래쪽에 발이 조금 걸려 있어서다 — 얼굴이 가운데
-   오도록 아래를 잘라 낸다 */
-.chatfab .tilly.fab{width:112%; height:112%; max-width:none;
-  object-fit:cover; object-position:50% 38%}
+/* **원도 바탕도 없다.** 틸리의 제 윤곽선 그대로 떠 있다.
+   대신 아래에 옅은 그림자를 깔아 «떠 있다»를 만든다 — 바탕이 없으면
+   화면에 눌어붙은 것처럼 보인다. filter 라 투명한 가장자리를 따라
+   그림자가 생긴다 (box-shadow 는 네모로 생긴다) */
+.chatfab .tilly.fab{height:var(--fab-size); width:auto;
+  filter:drop-shadow(0 6px 10px rgba(28,32,36,.22))}
 
-/* 그림이 아직 없을 때 — 빈 동그라미 대신 글자가 선다 */
+/* 그림이 아직 없을 때 — 빈자리 대신 글자가 선다 */
 .chatfab:not(:has(.tilly))::after{content:"상담";
+  padding:var(--pill-pad-y) var(--chip-pad-x);
+  background:var(--blossom); border-radius:999px;
+  box-shadow:var(--nav-shadow);
   font-size:var(--tile-fs); font-weight:700; color:var(--green)}
 
 /* 앱 폭보다 넓은 화면에서는 앱 오른쪽 끝에 붙인다 — 화면 구석에 혼자
@@ -813,3 +813,43 @@ a{color:inherit; text-decoration:none}
   letter-spacing:-.02em; line-height:1.2}
 .hello-tx span{font-size:var(--hello-s-fs); color:var(--muted)}
 .hello .tilly{flex:none}
+
+/* ── 챗봇 제안 줄 ────────────────────────────────
+   넷이 세로로 선다. 각 줄이 하는 일은 다르지만(묻기 · 이동 · 입력)
+   생김새는 같다 — 무엇이 일어날지는 글이 말한다. */
+.asks{display:flex; flex-direction:column; gap:var(--askrow-gap)}
+.askrow{display:flex; align-items:center; gap:var(--askrow-pad-x);
+  width:100%; text-align:left;
+  padding:var(--askrow-pad-y) var(--askrow-pad-x);
+  border-radius:var(--askrow-radius);
+  background:var(--surface); box-shadow:var(--card-shadow);
+  border:var(--line-w) solid var(--card-line);
+  font-size:var(--askrow-fs); color:var(--ink);
+  transition:background var(--motion)}
+.askrow:hover{background:var(--blush)}
+.askrow .ic{flex:none; display:flex; align-items:center; justify-content:center;
+  width:var(--askrow-ic); height:var(--askrow-ic); border-radius:999px;
+  background:var(--blossom); color:var(--green);
+  font-size:var(--askrow-ic-fs)}
+.askrow span{flex:1; min-width:0}
+.askrow .arw{flex:none; color:var(--faint); font-size:var(--card-arw-fs);
+  line-height:1}
+
+/* ── 말풍선 옆 얼굴 ──────────────────────────────
+   답에만 붙는다. 자리(왼오)가 이미 누구 말인지 말하고 있어서 얼굴은
+   거드는 쪽이다 — 그래서 작다. */
+.tilly.chip{width:var(--bub-face); height:var(--bub-face);
+  border-radius:999px; background:var(--blossom);
+  object-fit:cover; object-position:50% 38%; flex:none}
+.bub.bot{display:flex; align-items:flex-start; gap:var(--dot-gap);
+  background:none; box-shadow:none; padding:0; max-width:100%}
+.bub.bot .bub-b{flex:1; min-width:0; max-width:var(--bub-max);
+  background:var(--surface); box-shadow:var(--card-shadow);
+  border:var(--line-w) solid var(--card-line);
+  border-radius:var(--bub-radius);
+  border-top-left-radius:var(--bub-tail);
+  padding:var(--bub-pad-y) var(--bub-pad-x)}
+.bub.bot .bub-b p{margin:0; font-size:var(--bub-fs); line-height:var(--bub-lh)}
+.bub.bot .bub-b small{display:block; margin-top:var(--bub-note-gap);
+  font-size:var(--bub-note-fs); color:var(--muted)}
+.bub.bot.err .bub-b{border-color:var(--error)}
