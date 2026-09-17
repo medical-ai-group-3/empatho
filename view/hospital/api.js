@@ -128,12 +128,17 @@ export const ERR = {
  * 순간이 딱 경계라, 그냥 두면 **써 둔 소견이 날아간다.** 401 을 받으면
  * 한 번 갱신하고 원래 요청을 다시 보낸다.
  *
- *   POST /api/v1/token/refresh   본문 없음 → { access }
+ *   POST /api/v1/token/refresh   → { access }
  *
- * ⚠ **본문에 refresh 를 싣지 않는다.** 서버가 httpOnly 쿠키에서 직접
- *   읽는다. 그래서 JS 는 refresh 값을 아예 모른다 — credentials:"include"
- *   가 쿠키를 실어 보내는 것이 전부다. 그게 빠지면 쿠키가 안 가서
- *   갱신이 401 로 떨어진다 (전에 났던 사고다).
+ * ⚠ **이 경로가 아직 서버에 없다** (2026-09-17, empatho-app 의
+ *   core/api/urls.py 로 확인. health · tickets · login 셋뿐이다).
+ *   그래서 아래 갱신은 지금 늘 실패하고, 조용히 401 로 흘러간다.
+ *
+ * ⚠ 그리고 **refresh 는 쿠키가 아니라 본문에 온다.** 로그인 응답이
+ *   `{ access, refresh }` 다(auth.py 의 issue_pair). 전에 여기 적어
+ *   두었던 「httpOnly 쿠키로만 내려온다」가 틀렸다.
+ *   경로가 생기면 lib/session.js 의 getRefresh() 를 실어 보내도록
+ *   아래 본문 자리를 채운다 — 지금은 규격을 몰라 비워 둔다.
  *
  * 한 번에 하나만 돈다. 화면 여러 곳이 동시에 401 을 맞아도 갱신은 한 번만
  * 부르고 나머지는 그 결과를 기다린다 — 안 그러면 갱신을 네댓 번 부른다.
@@ -168,6 +173,27 @@ async function refreshAccess() {
    버리는 중이고, 갱신 자신에게 갱신을 걸면 무한히 돈다 */
 const NO_RETRY = new Set(["/login", "/logout", "/token/refresh"]);
 
+/* 슬래시 하나 때문에 조용히 깨지는 것을 **우리 쪽에서 막는다**
+ * ────────────────────────────────────────────────────────────────
+ * Django APPEND_SLASH 는 슬래시가 모자라면 301 로 넘겨 준다. GET 은
+ * 따라가면 그만이지만 POST·PATCH·PUT 은 **넘어가는 과정에서 본문이
+ * 사라진다** — 화면은 200 을 받고도 아무것도 안 바뀐다. 판독 확정이
+ * 여기 걸리면 「저장했습니다」를 보고 나가는데 서버엔 안 남는다.
+ *
+ * 어느 경로에 슬래시가 붙는지 아직 답을 못 받았는데(api 머리말 참고),
+ * **답을 기다릴 필요가 없다.** redirect:"manual" 로 두면 넘김이
+ * 일어났다는 것만은 알 수 있다. 그때 슬래시를 뒤집어 한 번 더 보낸다.
+ *
+ * ⚠ 다시 보내도 두 번 적용될 일이 없다 — 넘김이 일어났다는 것은
+ *   **첫 요청이 아무것도 안 바꿨다**는 뜻이기 때문이다.
+ *
+ * 규격이 확정되면 이 분기는 한 번도 안 타게 되고, 그때 지우면 된다. */
+function flipSlash(path) {
+  const [p, q = ""] = path.split("?");
+  const next = p.endsWith("/") ? p.slice(0, -1) : `${p}/`;
+  return q ? `${next}?${q}` : next;
+}
+
 async function call(method, path, body, opt = {}) {
   let res;
   try {
@@ -181,6 +207,8 @@ async function call(method, path, body, opt = {}) {
       /* ⚠ 빼지 말 것. refresh 가 httpOnly 쿠키에 있어서 이게 없으면
          쿠키가 안 실린다 — 로그인도 갱신도 못 한다 */
       credentials: "include",
+      /* 넘김을 우리가 받는다. 브라우저에 맡기면 본문이 조용히 날아간다 */
+      redirect: "manual",
     });
   } catch (e) {
     /* 서버에 닿지도 못했다. 브라우저 기본 문구("Failed to fetch")가
@@ -189,6 +217,13 @@ async function call(method, path, body, opt = {}) {
       status: 0, code: ERR.NETWORK, detail: e?.message ?? null,
       fields: null, traceId: null,
     });
+  }
+
+  /* 넘김을 맞았다 — 슬래시가 모자라거나 남는다. 뒤집어 한 번만 더.
+     본문도 Location 도 못 읽는(opaqueredirect) 응답이라 status 는 0 이다 */
+  if ((res.type === "opaqueredirect" || res.status === 301 || res.status === 308)
+      && !opt.noSlash) {
+    return call(method, flipSlash(path), body, { ...opt, noSlash: true });
   }
 
   /* 401 — access 가 만료됐다. 한 번 갱신하고 그대로 다시 보낸다.
@@ -225,7 +260,9 @@ function qs(o = {}) {
 
 /* ── 로그인 ───────────────────────────────────────────────────
  * 경로를 다희님 브랜치에서 확인했다 — 맞는 것은 /login 이다.
- * 환자 앱(src/api.js)이 쓰는 /auth/login 은 백엔드에 없는 경로다.
+ * (2026-09-17 empatho-app 의 core/api/urls.py 로 재확인. 환자 앱도
+ *  같은 문으로 들어간다 — 계정이 한 표라 role 로만 갈린다. src/api.js
+ *  가 쓰던 /auth/login 은 그래서 지웠다)
  *
  *   POST /api/v1/login  { login_id, password }  →  { access }
  *

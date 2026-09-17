@@ -86,9 +86,13 @@ function Inner({ cfg, id, d }) {
 
   /* 원본과 마스크는 Go 관문에서 온다.
      ⚠ <img src> 는 Authorization 헤더를 못 보낸다. 그래서 여기서 fetch 로
-       받아 blob 주소로 바꾼다 — 자세한 이유는 lib/files.js 참고 */
-  const img = useFile(view.image, cfg.api.ticket, id);
-  const msk = useFile(view.maskImage, cfg.api.ticket, id);
+       받아 blob 주소로 바꾼다 — 자세한 이유는 lib/files.js 참고
+
+     티켓이 열 범위를 같이 넘긴다. 과마다 단위가 달라서(병리는 검체,
+     영상은 검사) 이름을 과별 설정이 들고 있다 */
+  const scope = { kind: cfg.scopeKind, id };
+  const img = useFile(view.image, cfg.api.ticket, scope);
+  const msk = useFile(view.maskImage, cfg.api.ticket, scope);
 
   /* 임시저장은 여기 머문다. 저장은 다른 과로 나간다 — 둘의 차이가
      버튼 위 한 줄에 적혀 있어야 한다 */
@@ -113,8 +117,15 @@ function Inner({ cfg, id, d }) {
           info={<c.Info d={d} cfg={cfg} slide={slide} onSlide={setSlide} />}
 
           /* AI 소견은 **권한이 없으면 패널 자체가 없다.** 접힌 게 아니라
-             없는 것이다 — 있는데 못 연다고 하면 계속 누르게 된다 */
-          ai={can(c.need.ai) ? <c.Ai d={d} /> : null}
+             없는 것이다 — 있는데 못 연다고 하면 계속 누르게 된다.
+
+             pick·onPick 을 같이 넘긴다 — 소견 목록에서 병변 하나를
+             고르면 뷰어가 그 도형을 밝힌다. 뷰어(Stage)와 도형 만드는
+             자리(boxesFromLesions)는 진작 같은 id 로 맞춰져 있었는데,
+             **패널에 손잡이를 안 줘서 서로 말을 못 하고 있었다.** */
+          ai={can(c.need.ai)
+            ? <c.Ai d={d} pick={pick} onPick={setPick} />
+            : null}
           aiOpen={false}
 
           doctor={<c.Doctor d={d} f={f} set={set} />}

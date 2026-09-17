@@ -43,7 +43,14 @@ export default function Stage({
   const boxRef = useRef(null);
   const [t, setT] = useState({ z: 1, x: 0, y: 0 });
   const [drag, setDrag] = useState(null);
-  const [broke, setBroke] = useState(false);
+  /* 깨진 «주소»를 담는다 — true/false 가 아니다.
+   *
+   * ⚠ 참·거짓으로 두면 **한 장이 깨진 판정을 다음 장까지 끌고 간다.**
+   *   크롭 3장 중 둘째가 깨졌다고 셋째까지 「원본을 불러오지 못했습니다」
+   *   가 되면, 멀쩡한 장을 못 보고 «전부 깨졌다»고 읽는다. 주소를
+   *   담아 두면 지금 보는 주소와 같을 때만 깨진 것이라, 장을 넘기는
+   *   순간 저절로 풀린다 */
+  const [broke, setBroke] = useState(null);
 
   /* 상자에 딱 맞게 — 처음 열 때와 [맞춤] 을 눌렀을 때 */
   const fit = useCallback(() => {
@@ -66,18 +73,33 @@ export default function Stage({
   }, [fit]);
 
   /* 휠로 확대 — **커서 밑에 있던 지점이 그 자리에 남게** 한다.
-     가운데 기준으로 확대하면 보던 곳이 화면 밖으로 달아난다 */
-  function onWheel(e) {
-    e.preventDefault();
-    const r = boxRef.current.getBoundingClientRect();
-    const cx = e.clientX - r.left;
-    const cy = e.clientY - r.top;
-    setT((p) => {
-      const z = clamp(p.z * (e.deltaY < 0 ? STEP : 1 / STEP), MIN, MAX);
-      const k = z / p.z;
-      return { z, x: cx - (cx - p.x) * k, y: cy - (cy - p.y) * k };
-    });
-  }
+     가운데 기준으로 확대하면 보던 곳이 화면 밖으로 달아난다.
+   *
+   * ⚠ **onWheel 속성으로 달면 안 된다.** React 는 wheel 을 루트에
+   *   passive 로 걸어서, 그 안에서 부른 preventDefault() 가 아무 일도
+   *   안 한다 — 영상이 확대되면서 **쪽 전체가 같이 스크롤된다.**
+   *   브라우저 콘솔에는 "Unable to preventDefault inside passive event
+   *   listener" 만 뜨고 화면은 조용히 그렇게 군다.
+   *   그래서 { passive: false } 로 직접 건다. */
+  useEffect(() => {
+    const box = boxRef.current;
+    if (!box) return;
+
+    function onWheel(e) {
+      e.preventDefault();
+      const r = box.getBoundingClientRect();
+      const cx = e.clientX - r.left;
+      const cy = e.clientY - r.top;
+      setT((p) => {
+        const z = clamp(p.z * (e.deltaY < 0 ? STEP : 1 / STEP), MIN, MAX);
+        const k = z / p.z;
+        return { z, x: cx - (cx - p.x) * k, y: cy - (cy - p.y) * k };
+      });
+    }
+
+    box.addEventListener("wheel", onWheel, { passive: false });
+    return () => box.removeEventListener("wheel", onWheel);
+  }, []);
 
   function zoom(dir) {
     const r = boxRef.current.getBoundingClientRect();
@@ -117,7 +139,7 @@ export default function Stage({
       <div
         ref={boxRef}
         className={`stage-box ${drag ? "grabbing" : ""}`}
-        onWheel={onWheel} onMouseDown={down} onMouseMove={move}
+        onMouseDown={down} onMouseMove={move}
         onMouseUp={up} onMouseLeave={up}
       >
         {!ready && (
@@ -134,12 +156,12 @@ export default function Stage({
         {ready && (
           <div className="stage-tf"
                style={{ transform: `translate(${t.x}px, ${t.y}px) scale(${t.z})` }}>
-            {broke
+            {broke === src
               ? <div className="vart" style={{ width: w, height: h }}>
                   <p>원본을 불러오지 못했습니다</p>
                 </div>
               : <img className="stage-img" src={src} alt={alt} width={w} height={h}
-                     draggable={false} onError={() => setBroke(true)}
+                     draggable={false} onError={() => setBroke(src)}
                      /* ⚠ 보정은 **원본에만** 건다. 마스크와 도형에 같이
                         걸면 AI 결과 색까지 바뀌어 판단이 흔들린다 */
                      style={{ filter: `brightness(${bright}%) contrast(${contrast}%)` }} />}
@@ -298,15 +320,28 @@ export function polygonsFromAi(ai) {
   const d = [...outer, ...holes].map(ringPath).filter(Boolean).join(" ");
   if (!d) return [];
 
-  const all = outer.flat().map((p) => (Array.isArray(p) ? p : [p.x, p.y]));
   const n = ai?.polygon?.n_components ?? ai?.n_components ?? outer.length;
+
+  /* 글자를 놓을 왼쪽 위 모서리. ⚠ Math.min(...점들) 로 쓰지 않는다 —
+     테두리 점이 수만 개 오면 인자를 그만큼 펼치다 스택이 넘친다.
+     한 번 훑으면서 접는 편이 안전하고 빠르다 */
+  let x = Infinity;
+  let y = Infinity;
+  for (const ring of outer) {
+    for (const p of ring) {
+      const px = Array.isArray(p) ? p[0] : p.x;
+      const py = Array.isArray(p) ? p[1] : p.y;
+      if (px < x) x = px;
+      if (py < y) y = py;
+    }
+  }
 
   return [{
     id: "us-1",
     kind: "path",
     d,
-    x: Math.min(...all.map((p) => p[0])),
-    y: Math.min(...all.map((p) => p[1])),
+    x: Number.isFinite(x) ? x : 0,
+    y: Number.isFinite(y) ? y : 0,
     label: [
       ai.category ? `등급 ${ai.category}` : null,
       n > 1 ? `덩어리 ${n}` : null,

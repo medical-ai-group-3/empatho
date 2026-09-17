@@ -625,6 +625,9 @@ td.none,tr.none td{text-align:center; padding:var(--card-pad) 0}
 .ai-card{display:flex; flex-direction:column; gap:var(--gap-sm);
   padding:var(--card-pad-sm); border-radius:var(--in-radius);
   background:rgba(250,250,249,.04)}
+/* 뷰어에서 고른 병변 — 소견 칸과 영상이 같은 것을 가리키고 있다는 표시.
+   색을 새로 만들지 않는다. 뷰어의 도형이 쓰는 시안 그대로다 */
+.ai-card.on{box-shadow:inset 0 0 0 var(--hair) var(--cyan)}
 .ai-card .ai-h{display:flex; align-items:center; justify-content:space-between;
   gap:var(--sub-gap)}
 .ai-card .ai-h b{font-size:var(--ai-k-fs); color:var(--v-ink)}
@@ -722,12 +725,18 @@ td.none,tr.none td{text-align:center; padding:var(--card-pad) 0}
 /* SVG 도형 (초음파 폴리곤 · 맘모 박스) */
 .stage-svg{position:absolute; top:0; left:0; overflow:visible}
 .shp{cursor:pointer}
-.shp rect,.shp polygon{fill:none; stroke:var(--cyan);
+/* ⚠ path 를 빠뜨리면 안 된다 — **초음파가 path 로 온다.**
+   폴리곤에 구멍이 있어서 <polygon> 으로 못 그리고 evenodd 를 건 <path>
+   한 장으로 그리는데(lib/Stage.jsx), 여기 선택자에 path 가 없으면
+   SVG 기본값이 걸려 **병변이 검게 칠해진 덩어리로 영상을 덮는다.**
+   테두리만 보여야 할 자리가 판독을 가린다 */
+.shp rect,.shp polygon,.shp path{fill:none; stroke:var(--cyan);
   vector-effect:non-scaling-stroke}
 .shp text{fill:var(--cyan); font-family:var(--font-ui); font-weight:600;
   paint-order:stroke; stroke:rgba(28,25,23,.8); stroke-width:3px}
-.shp:hover rect,.shp:hover polygon{stroke:var(--soot-ink)}
-.shp.on rect,.shp.on polygon{stroke:var(--soot-ink); fill:rgba(59,166,241,.12)}
+.shp:hover rect,.shp:hover polygon,.shp:hover path{stroke:var(--soot-ink)}
+.shp.on rect,.shp.on polygon,.shp.on path{stroke:var(--soot-ink);
+  fill:rgba(59,166,241,.12)}
 .shp.on text{fill:var(--soot-ink)}
 
 /* 배율 숫자 */

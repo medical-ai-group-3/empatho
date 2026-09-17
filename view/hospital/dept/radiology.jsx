@@ -32,7 +32,42 @@ const api = {
      존재하고, 영상은 「촬영 시작」이 곧 Study 생성이다 */
   start:      (id)    => rad.start(id),
   uploadInfo: (id)    => rad.uploadInfo(id),
-  complete:   (id)    => rad.complete(id),      /* 병리에는 없는 단계 */
+  /* ⚠ 판독 화면(3장)이 원본을 받을 때 쓴다. 빠지면 티켓을 못 받아
+     **아무 말 없이 빈 뷰어**가 된다 — 목업은 image.url 로 와서
+     티켓을 안 타기 때문에 목업에서만 멀쩡해 보인다 (lib/files.js) */
+  ticket:     (b)     => rad.ticket(b),
+
+  /* 오더 확정 — 병리에는 없는 단계.
+   *
+   * ⚠ **여기만 단위가 다르다.** 화면들이 들고 다니는 id 는 study_id 다.
+   *   큐에서 오더를 집은 뒤 start-study 가 만들어 준 것이고, 업로드 ·
+   *   분석 · 판독이 전부 그것으로 움직인다. 그런데 확정은 오더 표를
+   *   건드리는 일이라 **exam_order_id** 가 맞다. start-study 응답에
+   *   둘이 같이 오는 이유가 그것이다 ({ study_id, exam_order_id }).
+   *
+   *   전에는 study_id 를 그대로 /exam-orders/{id}/complete 에 넣고
+   *   있었다. 목업은 {id} 자리에 아무 값이나 받아 주어서 안 드러났지만,
+   *   진짜 서버에서는 404 이고 — 번호 체계가 겹치는 순간 **남의 오더를
+   *   확정한다.**
+   *
+   *   **서버에 칸을 더해 달라고 기다릴 필요는 없다.** 큐에서 집을 때
+   *   이미 그 번호를 손에 쥔다 — 집은 것이 곧 오더이고, start-study 도
+   *   `{ study_id, exam_order_id }` 를 같이 준다. 1장이 그것을 2장으로
+   *   들려 보내고(screens/Queue.jsx), 2장이 여기 d 에 실어 준다.
+   *
+   *   새로고침으로 2장에 바로 들어오면 그 번호가 없다. 그때는 조회
+   *   응답에 실려 온 것을 쓰고, 그것도 없으면 **확정을 건너뛴다.**
+   *   빠뜨린 확정은 나중에 다시 걸 수 있지만, 엉뚱한 오더를 확정한
+   *   것은 되돌릴 수 없다 */
+  complete:   (id, d) => {
+    const orderId = d?.exam_order_id ?? d?.order_id ?? null;
+    return orderId ? rad.complete(orderId) : Promise.resolve(null);
+  },
+
+  /* 정정 이력을 따로 부르는 길. **api.js 에 진작 있었는데 아무도 안
+     불렀다.** 판독 응답에 history 가 실려 오면 그것을 쓰고, 안 오면
+     5장이 이걸로 받아 온다 (screens/Amend.jsx) */
+  history:    (id)    => rad.history(id),
   analyze:    (id)    => rad.analyze(id),
   progress:   (id)    => rad.progress(id),
   /* ⚠ 저장 파일 목록이 판독 조회에 없다 (2026-09-16 확인).
@@ -83,6 +118,12 @@ export const radiology = {
   name: "영상의학과",
   api,
   go: go.radiology,
+
+  /* 티켓이 여는 범위의 단위 — 영상은 검사(study)다.
+     ⚠ 이 화면들이 들고 다니는 id 가 study_id 라 그대로 맞는다.
+     맘모 원본·MRI 시리즈(DICOM)는 이 범위로 못 받는다 — 서버가
+     DICOM 범위의 티켓을 사람에게 안 내준다 (lib/files.js 참고) */
+  scopeKind: "study",
 
   /* ── 1장 · 촬영 대기 큐 ───────────────────────────────── */
   queue: {
@@ -175,12 +216,25 @@ export const radiology = {
       </>
     ),
 
-    /* 병리에는 없는 버튼 */
-    Extra: ({ cfg, id }) => {
+    /* 병리에는 없는 버튼.
+     *
+     * ⚠ **아직 눌러도 되는 것이 없다.** 재촬영은 새 오더를 만드는 일이라
+     *   (POST /exam-orders, parent_order_id) 사유·모달리티·장비를 받는
+     *   창이 있어야 하는데 그 요청 본문 규격이 아직 안 정해졌다.
+     *   api.js 의 rad.retake 는 경로만 적어 둔 상태다.
+     *
+     *   전에는 없는 함수(cfg.api.retakeDialog)를 ?. 로 불러서, 권한이
+     *   있는 사람이 누르면 **아무 일도 안 일어났다.** 오류도 안 나고
+     *   창도 안 뜬다 — 눌린 건지 고장 난 건지 알 길이 없다. 그럴 바에는
+     *   꺼 두고 왜 꺼졌는지 적는 편이 낫다. 규격이 오면 onClick 을
+     *   되살리고 disabled 를 권한만 보게 되돌린다 */
+    Extra: () => {
       const retake = useCan("radiology.retake");
+      const why = retake.ok
+        ? "재촬영 요청 창은 아직 연결되지 않았습니다"
+        : retake.attrs.title;
       return (
-        <button className="btn ghost" disabled={!retake.ok} title={retake.attrs.title}
-                onClick={() => cfg.api.retakeDialog?.(id)}>
+        <button className="btn ghost" disabled title={why}>
           재촬영 요청
         </button>
       );
@@ -261,11 +315,20 @@ export const radiology = {
             </select>
           </label>
 
+          {/* ⚠ 서버 쪽(POST /lesions/)은 이미 있는데 **영상에 박스를 그리는
+              도구가 없다.** 좌표를 만들 방법이 없으니 부를 것도 없다.
+              onClick 없이 켜 두면 권한 있는 사람이 눌렀을 때 아무 일도
+              안 나서 고장으로 읽힌다 — 꺼 두고 이유를 적는다.
+              Stage 에 «박스 그리기» 모드가 생기면 그때 켠다 */}
           <div className="stack">
-            <button className="btn line" disabled={!add.ok} title={add.attrs.title}>
+            <button className="btn line" disabled
+                    title={add.ok ? "영상에 박스를 그리는 도구가 아직 없습니다"
+                                  : add.attrs.title}>
               병변 추가
             </button>
-            <span className="muted small">영상에 박스를 그려 병변을 직접 만듭니다</span>
+            <span className="muted small">
+              영상에 박스를 그려 병변을 직접 만듭니다 — 그리는 도구는 아직 없습니다
+            </span>
           </div>
 
           <label className="field">
@@ -284,6 +347,8 @@ export const radiology = {
     sub: "지난 검사까지 전부 찾아보는 자리입니다. 판독 정정도 여기서 들어갑니다.",
     listTitle: "검사 목록",
     searchHint: "환자 · 환자번호",
+    /* 검색이 훑는 칸 — 검색창에 적어 둔 것과 같다 */
+    search: ["patient_name", "patient_no"],
     need: { view: "radiology.list.view" },
 
     sorts: [

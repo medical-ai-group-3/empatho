@@ -58,49 +58,21 @@ export const get  = (p, o)       => call(p, { ...o, method: "GET" });
 export const post = (p, body, o) => call(p, { ...o, method: "POST", body });
 export const put  = (p, body, o) => call(p, { ...o, method: "PUT", body });
 
-/* ── 판독은 비동기다 ───────────────────────────────────────────────
-   사진 한 장에 12~27초, 검사 한 건에 49~108초 걸린다. 워커가 하나라
-   요청이 겹치면 줄을 선다. 그래서 즉시 작업번호를 받고 나중에 조회한다.
+/* ── 판독 진행 상태는 이 앱이 안 본다 ─────────────────────────────
+   전에 waitForRead() 가 여기 있었다. `/api/v1/reads/{id}` 를 2초마다
+   찔러 run_status 가 done 이 되기를 기다리는 함수였는데, 지웠다
+   (2026-09-17, empatho-app 을 보고 확인).
 
-   run_status 는 queued · running · done · failed 넷이다.
-   화면은 이 함수에 onStep 을 주고 «분석 중» 표시를 갱신하면 된다.
+     · 그 경로가 서버에 없다. 진행 상태는 AiResult.run_status 에 있고
+       꺼내는 길은 병원 웹이 쓰는 `GET /ai-results?study={id}` 다
+       — { status, pct } 로 나온다 (run_status 는 DB 컬럼명이라
+       응답에 안 나온다).
+     · 애초에 **환자는 추론을 걸지 않는다.** 앱에는 분석을 시작하는
+       화면이 없고, 다 끝난 뒤 리포트를 받는다. 기다릴 일이 없다.
 
-   ⚠ 타임아웃을 짧게 두지 말 것. 기본 6분은 검사 한 건 최악(108초)의
-     세 배가 넘는데, 앞에 두 건이 밀려 있으면 그것도 모자란다. 화면에는
-     «오래 걸립니다» 를 보여주고 기다리는 편이 낫다.
+   환자에게 「끝났다」를 알리는 길은 폴링이 아니라 **알림**이다 —
+   바로 아래 openNotifications 가 그 자리다.
    ───────────────────────────────────────────────────────────────── */
-export async function waitForRead(readId, {
-  onStep,
-  intervalMs = 2000,
-  timeoutMs = 6 * 60 * 1000,
-  signal,
-} = {}) {
-  const until = Date.now() + timeoutMs;
-  for (;;) {
-    const r = await get(`/api/v1/reads/${readId}`, { signal });
-    onStep?.(r);
-
-    if (r.run_status === "done") return r;
-    if (r.run_status === "failed") {
-      throw new ApiError(200, "READ_FAILED", r.fail_reason || "판독이 실패했다");
-    }
-    if (Date.now() > until) {
-      throw new ApiError(200, "READ_TIMEOUT",
-        "판독이 예상보다 오래 걸린다. 잠시 뒤 다시 확인해 주세요");
-    }
-    await sleep(intervalMs, signal);
-  }
-}
-
-function sleep(ms, signal) {
-  return new Promise((ok, fail) => {
-    const t = setTimeout(ok, ms);
-    signal?.addEventListener("abort", () => {
-      clearTimeout(t);
-      fail(new DOMException("취소됨", "AbortError"));
-    }, { once: true });
-  });
-}
 
 /* ── 실시간 알림 ───────────────────────────────────────────────────
    notify 가 SSE 로 흘려 준다. nginx 쪽은 버퍼링을 꺼 두었고 24시간까지
@@ -136,7 +108,17 @@ export function openNotifications({ issue, onEvent, onResync, onError } = {}) {
     try {
       /* issue 가 없으면 티켓 없이 연다 — 목업은 인증을 안 본다 */
       if (issue) {
-        const t = await issue({ purpose: "notify" });
+        /* ⚠ scope_id 를 **반드시 실어야 한다** (2026-09-17, empatho-app 의
+           core/api/tickets.py 로 확인). notify 티켓은 대상이 검사나
+           검체가 아니라 **사람**이라 보낼 것이 없어 보이는데, 서버가
+           `if not scope_id` 로 먼저 막아서 빼면 VALIDATION_ERROR 다.
+           전에는 purpose 만 보내고 있어서 **열리지 않았을 것**이다.
+
+           보낸 값 자체는 서버가 버린다 — 「요청이 보낸 scope_id 를
+           버린다」고 코드에 적혀 있고, 로그인한 계정으로 바꿔 끼운다.
+           남의 알림을 구독하지 못하게 하려는 것이다. 그래서 여기 무엇을
+           넣든 결과가 같지만, 빈 값·0 은 안 된다 */
+        const t = await issue({ purpose: "notify", scope_id: "me" });
         url += `?ticket=${encodeURIComponent(t.token)}`;
       }
     } catch (e) {
@@ -197,8 +179,22 @@ export function onlyAnswered(ans) {
 
 export const api = {
   // 01  로그인
-  login:        (id, pw)   => post("/api/v1/auth/login", { username: id, password: pw }),
-  logout:       ()         => post("/api/v1/auth/logout"),
+  //
+  //     ⚠ 경로와 칸 이름을 고쳤다 (2026-09-17, empatho-app 의 Django 를
+  //       직접 보고 맞춤). 전에는 `/auth/login` 에 `{ username }` 을
+  //       보내고 있었는데 **둘 다 서버에 없는 것**이었다.
+  //
+  //         POST /api/v1/login  { login_id, password }  →  { access, refresh }
+  //
+  //     **환자와 직원이 같은 문으로 들어간다.** 계정이 한 표(account)에
+  //     있고 role 로만 갈린다 — 그래서 병원 웹과 경로가 같다. 앱이
+  //     따로 쓸 로그인이 있는 줄 알았던 것이 착각이었다.
+  //
+  //     ⚠ refresh 가 **본문에 온다.** 쿠키가 아니다. 지금은 화면이
+  //       access 만 쓰고 있고, 갱신 경로(`/token/refresh`)는 서버에
+  //       아직 없다 — 생기면 이 refresh 를 들고 가야 한다.
+  login:        (id, pw)   => post("/api/v1/login", { login_id: id, password: pw }),
+  logout:       ()         => post("/api/v1/logout"),
   me:           ()         => get("/api/v1/me"),
 
   // 02  가입 — 세 걸음이다.
@@ -247,7 +243,11 @@ export const api = {
   //     검사 종류를 정하는 시점에 임신·보형물·조영제를 알아야 한 번에
   //     제대로 잡는다. 나머지 문진은 검사 전에 문진 화면에서 채운다.
   //
-  //       { date, time, questionnaire: { pregnancy: "no", … } }
+  //     ⚠ 문진은 **04 와 같은 한 겹짜리 모양**이다. answers 를 벗기고
+  //       평평하게 보내면 Django 가 한쪽만 읽는다.
+  //
+  //       { date, time,
+  //         questionnaire: { answers: { pregnancy: "no", … } } }
   reservations:  ()        => get("/api/v1/me/reservations"),
   requestVisit:  (body)    => post("/api/v1/me/reservation-requests", body),
   cancelVisit:   (id)      => post(`/api/v1/me/reservations/${id}/cancel`),

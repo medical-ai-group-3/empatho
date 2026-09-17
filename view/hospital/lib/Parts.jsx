@@ -173,8 +173,14 @@ export function Table({ cols, rows, value, onPick }) {
    **임시저장과 저장을 나란히 둔다.** 둘의 차이를 아래 한 줄로 적는다 —
    저장을 누르면 다른 과로 나간다는 것을 모르고 누르면 안 된다.
 
-   권한이 없으면 버튼을 **감추지 않고 끈다.** 사라지면 고장으로 오해한다. */
+   권한이 없으면 버튼을 **감추지 않고 끈다.** 사라지면 고장으로 오해한다.
+
+   ⚠ 왼쪽 단추 이름을 받는다(draftLabel). 정정 화면(5장)은 이 자리가
+     임시저장이 아니라 **판독 화면으로 되돌아가기**다. 하는 일이 다른데
+     이름이 「임시저장」이면, 써 둔 정정문이 남는 줄 알고 눌렀다가
+     그대로 날린다. */
 export function Save({ hint, onDraft, onSave, saveLabel = "저장", busy,
+                       draftLabel = "임시저장",
                        draftNeed, saveNeed, canSave = true }) {
   const d = useCan(draftNeed);
   const s = useCan(saveNeed);
@@ -183,7 +189,7 @@ export function Save({ hint, onDraft, onSave, saveLabel = "저장", busy,
       {hint && <p className="hint">{hint}</p>}
       <div className="save-b">
         <button className="btn line" onClick={onDraft}
-                disabled={busy || !d.ok} title={d.attrs.title}>임시저장</button>
+                disabled={busy || !d.ok} title={d.attrs.title}>{draftLabel}</button>
         <button className="btn fill" onClick={onSave}
                 disabled={busy || !s.ok || !canSave} title={s.attrs.title}>{saveLabel}</button>
       </div>

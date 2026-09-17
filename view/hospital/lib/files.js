@@ -12,55 +12,87 @@ import { useEffect, useState } from "react";
  *   해결: **우리가 fetch 로 받아서** blob 으로 만들고, 그 blob 주소를
  *   img 에 준다. 헤더는 fetch 가 붙인다.
  *
- *     티켓 발급 (검사·검체당 한 번)
- *       → fetch(/svc/v1/files/<key>, { Authorization: Bearer <토큰> })
- *       → URL.createObjectURL(blob)
- *       → <img src="blob:…">
+ * ── 규격 (2026-09-17, empatho-app 저장소에서 직접 확인) ────────
  *
- *   읽기 티켓은 1회용이 아니라 한 세션에 하나면 되므로, 한 번 받아
- *   여러 장에 같이 쓴다.
+ *   그동안 요청 본문 모양을 못 받아서 짐작으로 보내고 있었는데,
+ *   서버 코드를 보고 맞췄다. 짐작이 **틀렸었다.**
+ *
+ *     POST /api/v1/tickets
+ *       { purpose, scope_kind, scope_id }
+ *     ← { token, expires_at, object_key_prefix, max_bytes, … }
+ *
+ *   · scope_id 는 **검체·검사의 정수 PK** 다. 전에는 `dicom/instances/…`
+ *     같은 경로 문자열을 넣고 있었는데, 서버는 그 값으로 Specimen·Study
+ *     행을 찾는다(`model.objects.get(pk=int(scope_id))`). 경로를 넣으면
+ *     TARGET_NOT_FOUND 다.
+ *   · scope_kind 는 **빼면 안 된다.** purpose 가 여러 대상을 받으면
+ *     서버가 요구한다 — tile 은 study·specimen 둘이라 필수다.
+ *
+ * ── 왜 download 가 아니라 tile 인가 ──────────────────────────
+ *
+ *   유효기간이 다르고, 그 차이가 우리 쓰임새를 가른다.
+ *
+ *     download  120초. 「받는 즉시 끝나는」 한 번짜리
+ *     tile      900초. 주석에 **「뷰어 한 세션」** 이라고 적혀 있다
+ *
+ *   판독 화면은 크롭·시리즈를 넘겨 가며 오래 본다. 티켓 하나로 그
+ *   검체의 여러 장을 받는 구조라 tile 이 맞다. Go 의 `getFile` 도 둘 다
+ *   받는다(`purposeDownload, purposeTile`).
+ *
+ * ── 범위가 곧 권한이다 ───────────────────────────────────────
+ *
+ *   서버가 티켓에 `object_key_prefix = "<scope_kind>/<scope_id>"` 를
+ *   서명해 넣고, Go 는 **키가 그 아래인지**만 본다.
+ *
+ *     티켓 specimen/801  →  specimen/801/crop_01.png  ○
+ *                           specimen/802/crop_01.png  ✗ 403
+ *
+ *   그래서 **검체·검사 하나에 티켓 하나**면 그 아래 전부를 받는다.
+ *   장마다 새로 받지 않는다.
  *
  * ── 주소를 두 가지로 받는다 ──────────────────────────────────
  *   { url: "…" }   그대로 쓴다 (목업의 data: 주소, 공개 URL)
  *   { key: "…" }   티켓을 받아 Go 에서 가져온다
  *
- * 목업에서는 url 로 오고 실제 서버에서는 key 로 온다. 화면은 둘을
- * 구분하지 않는다.
+ * 목업에서는 url 로 오고 실제 서버에서는 key 로 온다.
  */
 
 const SVC = "/svc/v1";
 
-/* ── 무엇을 받을지 — 세 가지다 ────────────────────────────────
+/* 뷰어가 쓰는 티켓. 위 「왜 tile 인가」 참고 */
+const PURPOSE = "tile";
+
+/* ── DICOM 은 아직 브라우저에서 못 받는다 ──────────────────────
  *
- *   { url }     그대로 쓴다 (목업의 data: 주소, 공개 URL)
- *   { key }     Garage 에 있는 파일. 병리 크롭 · 초음파가 여기다
- *   { sop }     맘모 한 장. **Orthanc 에 있다**
- *   { series }  MRI 시리즈 zip. Orthanc
+ * ⚠ Go 는 DICOM 에 대해 티켓 범위를 **정확히 일치**로 본다.
  *
- * ⚠ **티켓 범위 규칙이 둘로 갈린다** (gosvc 의 fromOrthanc).
+ *     fromOrthanc: cl.ObjectKeyPrefix != "dicom/instances/<UID>" → 403
  *
- *     파일    ObjectKeyPrefix 로 **시작만** 본다
- *             → 티켓 하나로 그 검체의 여러 장을 받는다
- *     DICOM   **정확히 일치**해야 한다
- *             → 영상 한 건에 티켓 하나. 맘모 4장이면 티켓 4개다
+ *   그런데 `POST /tickets` 는 그 모양의 범위를 **낼 수가 없다.**
+ *   scope_kind 로 받는 값이 study·specimen·report·account 넷뿐이라
+ *   접두사가 늘 `study/201` 꼴로 나온다. 둘이 영영 안 맞는다.
  *
- *   「dicom/series/ab 티켓으로 ab12 를 열면 안 된다」는 이유로 그렇게
- *   돼 있다. 그래서 티켓 캐시를 **대상 id 가 아니라 범위 문자열로**
- *   건다 — 전에는 검체 id 하나로만 걸어서, 맘모에 그대로 쓰면 첫 장
- *   티켓을 둘째 장에 재사용하다 403 TICKET_SCOPE_MISMATCH 를 맞는다.
+ *   지금 그 접두사를 만들 수 있는 것은 Celery 뿐이다 — 추론에 파일을
+ *   넘길 때 `issue("download", "dicom/instances", uid)` 를 **직접**
+ *   부른다(core/tasks.py). 사람이 지나가는 길이 아니다.
+ *
+ *   그래서 맘모 원본 한 장과 MRI 시리즈는 이 길로 못 받는다. 조용히
+ *   빈 화면을 주지 않고 **왜 못 받는지 말한다** — 서버에 길이 생기기
+ *   전까지는 고쳐도 안 되는 것이라, 뷰어 앞에서 원인을 찾느라 시간을
+ *   버리지 않게 한다.
  */
-function targetOf(spec, scopeId) {
-  if (spec?.sop) {
-    return { scope: `dicom/instances/${spec.sop}`,
-             path: `${SVC}/dicom/instances/${spec.sop}` };
-  }
-  if (spec?.series) {
-    return { scope: `dicom/series/${spec.series}`,
-             path: `${SVC}/dicom/series/${spec.series}` };
-  }
-  if (spec?.key) {
-    /* 파일은 접두사로 보므로 범위가 대상(검체·검사) 단위다 */
-    return { scope: scopeId, path: `${SVC}/files/${spec.key}` };
+const NO_DICOM =
+  "DICOM 원본은 아직 브라우저에서 받을 수 없습니다 (티켓 범위 규격 대기)";
+
+function targetOf(spec, scope) {
+  if (spec?.sop || spec?.series) return { blocked: NO_DICOM };
+  if (spec?.key && scope?.kind && scope?.id != null) {
+    return {
+      scopeKey: `${scope.kind}/${scope.id}`,
+      kind: scope.kind,
+      id: scope.id,
+      path: `${SVC}/files/${spec.key}`,
+    };
   }
   return null;
 }
@@ -68,20 +100,23 @@ function targetOf(spec, scopeId) {
 /* 범위 하나에 티켓 하나를 기억해 둔다. 장마다 새로 받지 않는다 */
 const tickets = new Map();
 
-async function getTicket(issue, scope) {
-  const hit = tickets.get(scope);
+async function getTicket(issue, t) {
+  const hit = tickets.get(t.scopeKey);
   /* 만료 30초 전부터는 새로 받는다 — 받는 도중에 끊기지 않게 */
   if (hit && hit.expires > Date.now() + 30000) return hit.token;
 
-  /* ⚠ 요청 본문 모양을 **아직 확인받지 못했다** (2026-09-16 기준).
-     POST /tickets 가 있다는 것만 들었고 무엇을 넣어야 하는지는 답을
-     기다리는 중이다. 지금은 scope_id 에 위 범위 문자열을 그대로 넣는다 —
-     DICOM 은 서버가 그 값과 정확히 대조하기 때문이다. 답이 오면 이 한
-     줄만 고치면 된다. */
-  const t = await issue({ purpose: "download", scope_id: scope });
-  const token = t.token;
-  const expires = t.expires_at ? Date.parse(t.expires_at) : Date.now() + 240000;
-  tickets.set(scope, { token, expires });
+  const res = await issue({
+    purpose: PURPOSE,
+    scope_kind: t.kind,
+    scope_id: t.id,
+  });
+  const token = res.token;
+  /* 서버가 준 만료를 쓴다. 없으면 tile 기본값(900초)보다 짧게 잡아 둔다 —
+     짧게 잡으면 한 번 더 받을 뿐이지만, 길게 잡으면 죽은 티켓을 쓴다 */
+  const expires = res.expires_at
+    ? Date.parse(res.expires_at)
+    : Date.now() + 600000;
+  tickets.set(t.scopeKey, { token, expires });
   return token;
 }
 
@@ -92,19 +127,26 @@ export function dropTickets() {
 
 /* 한 장을 blob 주소로 바꿔 준다.
  *
+ * spec   { url } 이거나 { key } — 위 참고
+ * issue  티켓 발급 함수 (cfg.api.ticket)
+ * scope  { kind: "specimen" | "study", id }  — 티켓이 열 범위
+ *
  * 돌려주는 것 — { src, loading, error }
  * src 는 화면이 사라질 때 revoke 한다. 안 하면 메모리에 계속 쌓인다.
  */
-export function useFile(spec, issue, scopeId) {
+export function useFile(spec, issue, scope) {
   const [state, set] = useState({ src: null, loading: false, error: null });
   const url = spec?.url ?? null;
 
-  /* 범위와 주소를 먼저 정한다. 아래 useEffect 가 이 둘만 보면 되도록
-     원시값으로 풀어 둔다 — spec 객체를 그대로 의존성에 넣으면 부모가
-     다시 그릴 때마다 새 객체라 무한히 다시 부른다 */
-  const t = url ? null : targetOf(spec, scopeId);
-  const scope = t?.scope ?? null;
+  /* 범위와 주소를 먼저 정한다. 아래 useEffect 가 원시값만 보면 되도록
+     풀어 둔다 — spec 객체를 그대로 의존성에 넣으면 부모가 다시 그릴
+     때마다 새 객체라 무한히 다시 부른다 */
+  const t = url ? null : targetOf(spec, scope);
+  const scopeKey = t?.scopeKey ?? null;
   const path = t?.path ?? null;
+  const kind = t?.kind ?? null;
+  const id = t?.id ?? null;
+  const blocked = t?.blocked ?? null;
 
   useEffect(() => {
     /* 그대로 쓸 수 있는 주소 — 목업이 여기로 온다 */
@@ -112,7 +154,12 @@ export function useFile(spec, issue, scopeId) {
       set({ src: url, loading: false, error: null });
       return;
     }
-    if (!path || !scope || !issue) {
+    /* 받을 길이 없다고 아는 경우. 빈 화면 대신 이유를 넘긴다 */
+    if (blocked) {
+      set({ src: null, loading: false, error: new Error(blocked) });
+      return;
+    }
+    if (!path || !scopeKey || !issue) {
       set({ src: null, loading: false, error: null });
       return;
     }
@@ -122,7 +169,7 @@ export function useFile(spec, issue, scopeId) {
     set({ src: null, loading: true, error: null });
 
     (async () => {
-      const token = await getTicket(issue, scope);
+      const token = await getTicket(issue, { scopeKey, kind, id });
       const res = await fetch(path, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -143,7 +190,7 @@ export function useFile(spec, issue, scopeId) {
       live = false;
       if (made) URL.revokeObjectURL(made);
     };
-  }, [url, path, scope, issue]);
+  }, [url, path, scopeKey, kind, id, blocked, issue]);
 
   return state;
 }

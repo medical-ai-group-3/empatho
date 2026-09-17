@@ -117,12 +117,14 @@ export default function Chat() {
       {/* form 으로 감싼다 — 휴대폰 자판의 «완료»와 엔터가 그냥 먹는다 */}
       <form className="askbar" onSubmit={(e) => { e.preventDefault(); ask(q); }}>
         <div className="askrow">
+          {/* 답을 기다리는 동안에도 칸은 살아 있다. 잠가 두면 자판이
+              내려가고 커서가 빠져서, 다음 질문을 치려면 한 번 더
+              눌러야 한다. 두 번 보내지는 것은 ask() 가 막는다 */}
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="모르는 말을 물어보세요"
             aria-label="질문"
-            disabled={busy}
           />
           <button className="btn narrow" type="submit" disabled={!q.trim() || busy}>
             보내기

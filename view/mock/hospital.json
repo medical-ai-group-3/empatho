@@ -833,6 +833,7 @@
     "age": 44,
     "sex": "여",
     "patient_no": "P-2026-0044",
+    "exam_order_id": "eo-1",
     "exam_name": "유방촬영술 (양측 4뷰)",
     "purpose": "좌측 미세석회 군집 재평가",
     "performed_at": "2026-09-15 10:05",

@@ -80,7 +80,24 @@ function Inner({ cfg, id, d }) {
   const c = cfg.amend;
   const nav = useNavigate();
   const prev = d.doctor ?? {};
-  const history = c.history(d) ?? [];
+
+  /* 이전 판독 이력을 어디서 받나 — 과마다 다르다.
+   *
+   *   병리   검체 안에 들어 있다 (amend_history JSONB). 따로 안 부른다
+   *   영상   별도 행이라 판독 응답에 실려 오기도 하고 안 오기도 한다
+   *
+   * 안 실려 오면 **따로 부른다.** GET /assessments?study={id} 가
+   * api.js 에 진작 있었는데 아무도 안 불러서, 이력이 비어 보이면
+   * 「정정한 적 없음」으로 읽히고 있었다. 서버를 기다릴 일이 아니었다. */
+  const inline = c.history(d) ?? [];
+  const needFetch = inline.length === 0 && Boolean(cfg.api.history);
+  const far = useApi(
+    () => (needFetch ? cfg.api.history(id) : Promise.resolve(null)),
+    [id, needFetch],
+  );
+  const history = inline.length > 0
+    ? inline
+    : (Array.isArray(far.data) ? far.data : far.data?.items ?? []);
 
   const [f, setF] = useState({
     decision_reason: "",
@@ -183,16 +200,24 @@ function Inner({ cfg, id, d }) {
 
       {msg && <div className="notice">{msg}</div>}
 
+      {/* ⚠ 왼쪽 단추는 **임시저장이 아니다.** 이 화면에는 임시저장이
+          없다 — 정정은 사유까지 갖춰야 성립하는 것이라 반쯤 써 둔
+          상태를 남길 자리가 없다. 하는 일은 판독 화면으로 돌아가는
+          것뿐이고, 여기 쓴 것은 남지 않는다. 이름으로 그렇게 말한다 */}
       <Save
         hint={c.saveHint}
         onDraft={() => nav(cfg.go.read(id))}
         onSave={save}
         busy={busy}
         canSave={Boolean(ready)}
-        draftNeed={cfg.read.need.draft}
+        draftLabel="판독 화면으로"
+        draftNeed={cfg.read.need.view}
         saveNeed={c.need.save}
         saveLabel="정정 저장"
       />
+      <p className="muted small">
+        「판독 화면으로」는 저장하지 않고 돌아갑니다. 여기 쓰신 내용은 남지 않습니다.
+      </p>
       {!ready && <p className="muted small">정정 사유 · {c.categoryLabel} · 정정 판독 내용을 모두 채워야 저장할 수 있습니다.</p>}
     </div>
   );

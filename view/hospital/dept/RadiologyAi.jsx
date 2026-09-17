@@ -26,7 +26,7 @@ import { Chip, Fold } from "../lib/Parts";
  *      판독을 끌고 가는 숫자라 띄우지 않기로 했다.
  */
 
-export default function RadiologyAi({ d }) {
+export default function RadiologyAi({ d, pick, onPick }) {
   const ai = d.ai;
   if (!ai) return <p className="muted">AI 결과가 없습니다.</p>;
 
@@ -46,7 +46,7 @@ export default function RadiologyAi({ d }) {
   return (
     <div className="ai">
       {ai.modality === "ultrasound" && <Ultrasound a={ai} />}
-      {ai.modality === "mammo" && <Mammo a={ai} />}
+      {ai.modality === "mammo" && <Mammo a={ai} pick={pick} onPick={onPick} />}
       {ai.modality === "mri" && <Mri a={ai} />}
     </div>
   );
@@ -100,7 +100,7 @@ function Ultrasound({ a }) {
  *   빈칸으로 두지 않고 「등급 없음」이라고 적는다 — 빈칸은 «0» 이나
  *   «정상» 으로 읽힌다.
  */
-function Mammo({ a }) {
+function Mammo({ a, pick, onPick }) {
   const lesions = a.lesions ?? [];
   const s = a.summary ?? a;          /* 봉투가 한 겹 더 있을 수도 */
 
@@ -117,45 +117,65 @@ function Mammo({ a }) {
         </div>
       </dl>
 
-      {lesions.map((l, i) => (
-        <section className="ai-card" key={l.id ?? i}>
-          <div className="ai-h">
-            <b>{l.id ?? `${l.kind === "calcification" ? "미세석회" : "종괴"} ${i + 1}`}</b>
-            {l.birads != null
-              ? <Chip tone={l.biopsy ? "fill" : "line"}>BI-RADS {l.birads}</Chip>
-              : <Chip tone="dot">등급 없음</Chip>}
-          </div>
+      {lesions.map((l, i) => {
+        /* ⚠ 뷰어 도형의 id 와 **같은 규칙**이어야 한다.
+           lib/Stage.jsx 의 boxesFromLesions 가 `l.id ?? \`b${i}\`` 로
+           붙인다. 한쪽만 바꾸면 눌러도 아무 도형도 안 밝는다 */
+        const sid = l.id ?? `b${i}`;
+        const on = pick != null && pick === sid;
+        return (
+          <section className={on ? "ai-card on" : "ai-card"} key={l.id ?? i}>
+            <div className="ai-h">
+              <b>{l.id ?? `${l.kind === "calcification" ? "미세석회" : "종괴"} ${i + 1}`}</b>
+              {l.birads != null
+                ? <Chip tone={l.biopsy ? "fill" : "line"}>BI-RADS {l.birads}</Chip>
+                : <Chip tone="dot">등급 없음</Chip>}
+            </div>
 
-          <dl className="ai-m two">
-            <div><dt>크기</dt><dd>{num(l.size_mm)} <i>mm</i></dd></div>
-            <div><dt>확신도</dt><dd>{pct(l.certainty)}</dd></div>
-            <div><dt>생검</dt><dd>{l.biopsy ? "권고" : "해당 없음"}</dd></div>
-          </dl>
+            <dl className="ai-m two">
+              <div><dt>크기</dt><dd>{num(l.size_mm)} <i>mm</i></dd></div>
+              <div><dt>확신도</dt><dd>{pct(l.certainty)}</dd></div>
+              <div><dt>생검</dt><dd>{l.biopsy ? "권고" : "해당 없음"}</dd></div>
+            </dl>
 
-          {/* 서술어 5축 — 값 · 확신도 · 검증 여부를 그대로 낸다.
-              문장으로 바꾸지 않는다 */}
-          <Fold title="서술어" open={false}>
-            <table className="ai-tbl">
-              <thead><tr><th>축</th><th>값</th><th>확신도</th><th>검증</th></tr></thead>
-              <tbody>
-                {(l.descriptors ?? []).map((x) => (
-                  <tr key={x.axis}>
-                    <td>{AXIS[x.axis] ?? x.axis}</td>
-                    <td>{x.value}</td>
-                    <td>{pct(x.confidence)}</td>
-                    <td>{x.validated ? "됨" : "안 됨"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </Fold>
+            {/* 서술어 5축 — 값 · 확신도 · 검증 여부를 그대로 낸다.
+                문장으로 바꾸지 않는다 */}
+            <Fold title="서술어" open={false}>
+              <table className="ai-tbl">
+                <thead><tr><th>축</th><th>값</th><th>확신도</th><th>검증</th></tr></thead>
+                <tbody>
+                  {(l.descriptors ?? []).map((x) => (
+                    <tr key={x.axis}>
+                      <td>{AXIS[x.axis] ?? x.axis}</td>
+                      <td>{x.value}</td>
+                      <td>{pct(x.confidence)}</td>
+                      <td>{x.validated ? "됨" : "안 됨"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </Fold>
 
-          <div className="stack">
-            <button className="btn ghost">영상에서 보기</button>
-            <button className="btn ghost">캘리퍼 측정</button>
-          </div>
-        </section>
-      ))}
+            <div className="stack">
+              {/* 뷰어에서 이 병변을 밝힌다. 박스는 이미 그려져 있고
+                  Stage 가 고른 것에 .on 을 준다 — 여기서는 어느 것인지만
+                  알려 주면 된다 */}
+              <button className="btn ghost" aria-pressed={on}
+                      disabled={!onPick}
+                      title={onPick ? undefined : "뷰어와 연결되지 않았습니다"}
+                      onClick={() => onPick?.(on ? null : sid)}>
+                {on ? "선택 해제" : "영상에서 보기"}
+              </button>
+              {/* ⚠ 재어 주는 도구가 아직 없다. 눌러도 아무 일이 안 나면
+                  고장으로 읽히므로 꺼 두고 이유를 붙인다 */}
+              <button className="btn ghost" disabled
+                      title="길이 재는 도구가 아직 없습니다">
+                캘리퍼 측정
+              </button>
+            </div>
+          </section>
+        );
+      })}
 
       {/* 한계는 문장 그대로 보여준다 — 요약하면 뜻이 바뀐다 */}
       {(a.limitations ?? []).length > 0 && (
@@ -181,7 +201,7 @@ function Mri({ a }) {
         <dl className="ai-m two">
           <div><dt>유방 복셀</dt><dd>{num(a.density?.breast_voxels)}</dd></div>
           <div><dt>치밀 복셀</dt><dd>{num(a.density?.dense_voxels)}</dd></div>
-          <div><dt>치밀도</dt><dd>{pct(a.density?.percent, 1)}</dd></div>
+          <div><dt>치밀도</dt><dd>{pctOf(a.density?.percent, 1)}</dd></div>
         </dl>
       </Fold>
 
@@ -195,9 +215,12 @@ function Mri({ a }) {
             <div><dt>사분면</dt><dd>{l.quadrant ?? "—"}</dd></div>
           </dl>
           <p className="muted small">중심좌표 {fmtXyz(l.centroid)}</p>
-          <div className="stack">
-            <button className="btn ghost">영상에서 보기</button>
-          </div>
+          {/* ⚠ MRI 는 3D 메시라 2D 뷰어에 얹지 않는다 — 얹을 도형이
+              없어서 「영상에서 보기」가 가리킬 자리가 없다. 맘모·초음파와
+              달리 여기만 그렇다는 것을 글로 적어 둔다 */}
+          <p className="muted small">
+            2D 뷰어에는 표시되지 않습니다 — 3D 메시라 Garage 에서 봅니다.
+          </p>
         </section>
       ))}
     </>
@@ -214,10 +237,22 @@ function num(n, digits = 1) {
   return typeof n === "number" ? Number(n.toFixed(digits)).toLocaleString("ko-KR") : n;
 }
 
+/* 0~1 짜리 **비율**을 백분율로. 확신도·신뢰도가 여기로 온다.
+ *
+ * ⚠ 전에는 「1 이하면 비율로 보고 100을 곱한다」로 짐작하고 있었다.
+ *   확신도에는 맞지만 **이미 백분율인 값이 섞여 들어오면 틀린다** —
+ *   치밀도 0.8%(희박하지만 가능한 값)가 80% 로 뜬다. 열 배 부풀린
+ *   숫자를 판독의가 그대로 읽게 되는 자리라, 짐작을 걷어내고 부르는
+ *   쪽이 어느 것인지 고르게 했다. */
 function pct(n, digits = 0) {
   if (n == null) return "—";
-  const v = n <= 1 ? n * 100 : n;
-  return `${v.toFixed(digits)}%`;
+  return `${(n * 100).toFixed(digits)}%`;
+}
+
+/* 이미 백분율(0~100)로 오는 값을 그대로 적는다. 치밀도가 여기다 */
+function pctOf(n, digits = 0) {
+  if (n == null) return "—";
+  return `${Number(n).toFixed(digits)}%`;
 }
 
 function fmtXyz(c) {

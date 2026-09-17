@@ -51,9 +51,14 @@ function Inner({ cfg }) {
   const take = useCan(c.need.assign);
 
   /* 큐는 남이 집어가면 줄어든다. 가만히 두면 화면이 거짓말을 하므로
-     주기적으로 다시 부른다. SSE 는 쓰지 않기로 했다 — 목록이 짧다 */
+     주기적으로 다시 부른다. SSE 는 쓰지 않기로 했다 — 목록이 짧다.
+
+     ⚠ **reload(true) 다.** 그냥 reload() 를 걸면 7초마다 화면이
+       「불러오는 중」으로 되돌아가, 보고 있던 목록과 오른쪽 상세가
+       통째로 사라졌다 돌아온다. 사람이 누른 것이 아니라 시계가 부른
+       것이라 화면은 조용히 바뀌어야 한다 (lib/useApi 참고) */
   useEffect(() => {
-    const t = setInterval(reload, POLL_MS);
+    const t = setInterval(() => reload(true), POLL_MS);
     return () => clearInterval(t);
   }, [reload]);
 
@@ -104,11 +109,19 @@ function Inner({ cfg }) {
          집기 다음에 부르는 이유: 순서를 바꾸면 두 사람이 동시에 눌렀을 때
          둘 다 Study 를 만들어 놓고 한쪽만 409 로 떨어져 고아 행이 남는다. */
       let goId = head.id;
+      let orderId = null;
       if (cfg.api.start) {
         const st = await cfg.api.start(head.id);
         goId = st?.study_id ?? st?.id ?? head.id;
+        /* ⚠ **오더 번호를 같이 들고 간다.**
+           다음 화면부터는 study_id 로만 움직이는데, "오더 확정" 한 곳만
+           오더 번호를 받는다. start-study 응답이 둘을 같이 주고
+           (`{ study_id, exam_order_id }`), 애초에 **우리가 방금 집은
+           것이 그 오더**라 head.id 도 같은 값이다. 서버에 칸을 더해
+           달라고 기다릴 필요가 없다 — 이미 손에 있다 */
+        orderId = st?.exam_order_id ?? head.id;
       }
-      nav(cfg.go.upload(goId));
+      nav(cfg.go.upload(goId), orderId ? { state: { orderId } } : undefined);
     } catch (e) {
       if (e.code === ERR.ALREADY_ASSIGNED) {
         setMsg("다른 선생님이 이미 맡았습니다. 목록을 새로 불러왔습니다.");
@@ -173,7 +186,9 @@ function Detail({ cfg, id }) {
   return (
     <Card title="상세" right={<Chip>아직 맡지 않음</Chip>}>
       <Body loading={loading} error={error} onRetry={reload}>
-        {data && <cfg.queue.Detail d={data} cfg={cfg} />}
+        {/* key — 사람을 바꾸면 접힘 상태도 새로 시작한다. 안 주면
+            앞 환자에서 펴 둔 「유도 영상」이 다음 환자에도 펴져 있다 */}
+        {data && <cfg.queue.Detail key={id} d={data} cfg={cfg} />}
       </Body>
     </Card>
   );

@@ -4,6 +4,7 @@ import { HOSPITAL } from "../brand";
 import { deptSuffix } from "../lib/dept";
 import { useApi } from "../lib/useApi";
 import { Body, Head } from "../lib/Screen";
+import { fmtDay } from "../lib/when";
 
 /* 07 · 안내문
  *
@@ -67,7 +68,7 @@ function Letter({ r }) {
             진료를 보는 사람이라, 이름만 나란히 두면 누가 누군지
             모른다. 줄을 나누고 각각에 이름표를 붙인다 */}
         <p className="by">
-          {fmtDate(r.issued_at)} · 영상의학과 ·
+          {fmtDay(r.issued_at)} · 영상의학과 ·
           {" "}판독의 {r.issued_by_name}
           {r.primary_staff_name && (
             <>
@@ -88,7 +89,7 @@ function Letter({ r }) {
             «설명을 들었다»고 잘못 말하는 것이 된다 */}
         {r.explained_at && (
           <div className="stamp">
-            ✓ {fmtDay(r.explained_at)} 대면 설명 후 열람 ·
+            ✓ {shortDay(r.explained_at)} 대면 설명 후 열람 ·
             {" "}판독의 {r.explained_by_name}
           </div>
         )}
@@ -121,14 +122,16 @@ function Letter({ r }) {
   );
 }
 
-function fmtDate(iso) {
+/* 도장에만 쓰는 짧은 날짜 — 09.15. 연도가 빠진다.
+ *
+ * ⚠ 이 화면은 lib/when 의 fmtDay(2026.09.15)도 같이 쓴다. 이름이
+ *   비슷해서 헷갈리기 쉬운데 **다른 것**이다. 전에는 이 짧은 쪽이
+ *   fmtDay 라는 이름을 갖고 있어서, 공용 fmtDay 를 이 파일에 들여오는
+ *   순간 조용히 가려졌다 — 어느 쪽이 불린 건지 모른 채 연도가 사라진다.
+ *   그래서 이름을 갈랐다. 연도까지 나오는 것은 lib/when 에서 가져다 쓴다. */
+function shortDay(iso) {
   if (!iso) return "";
   const d = new Date(iso);
-  return `${d.getFullYear()}.${p2(d.getMonth() + 1)}.${p2(d.getDate())}`;
-}
-function fmtDay(iso) {
-  if (!iso) return "";
-  const d = new Date(iso);
+  const p2 = (n) => String(n).padStart(2, "0");
   return `${p2(d.getMonth() + 1)}.${p2(d.getDate())}`;
 }
-const p2 = (n) => String(n).padStart(2, "0");

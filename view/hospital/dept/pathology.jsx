@@ -26,6 +26,12 @@ const api = {
   listDetail: (id)    => path.specimen(id),  /* 4장 목록 — 병리는 둘 다 검체다 */
   assign:     (id)    => path.assign(id),
   uploadInfo: (id)    => path.uploadInfo(id),
+  /* ⚠ 판독 화면(3장)이 원본·마스크를 받을 때 쓴다. 이게 빠져 있으면
+     lib/files.js 의 useFile 이 티켓을 못 받아 **아무 말 없이 빈
+     뷰어**가 된다 — 오류도 안 나고 「원본 영상이 아직 연결되지
+     않았습니다」만 뜬다. 목업은 image.url 로 와서 티켓을 안 타기
+     때문에 목업에서는 멀쩡해 보인다 */
+  ticket:     (b)     => path.ticket(b),
   analyze:    (id)    => path.analyze(id),
   progress:   (id)    => path.progress(id),
   /* ⚠ 병리는 판독 조회 경로가 아직 없다 (2026-09-16 확인).
@@ -90,6 +96,11 @@ export const pathology = {
   name: "병리과",
   api,
   go: go.pathology,
+
+  /* 티켓이 여는 범위의 단위. 서버가 `scope_kind` 로 받는 넷
+     (study · specimen · report · account) 중 하나여야 한다 —
+     병리는 검체다. lib/files.js 참고 */
+  scopeKind: "specimen",
 
   /* ── 1장 · 검체 접수 대기 ─────────────────────────────── */
   queue: {
@@ -285,6 +296,10 @@ export const pathology = {
     sub: "지난 검체까지 전부 찾아보는 자리입니다. 판독 정정도 여기서 들어갑니다.",
     listTitle: "검체 목록",
     searchHint: "환자 · 검체번호",
+    /* 검색이 훑는 칸. **검색창에 적어 둔 것과 같아야 한다** —
+       「환자 · 검체번호」라고 써 놓고 다른 데까지 걸리면 왜 걸렸는지
+       모른다 */
+    search: ["patient_name", "specimen_no"],
     need: { view: "pathology.list.view" },
 
     sorts: [

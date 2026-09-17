@@ -29,12 +29,12 @@
     "  값은 선택지 id 다. 안 고른 문항은 키를 빼고 보낸다.",
     "  answered_at · form_version 은 서버가 찍는다. 앱은 안 보낸다."
   ],
-  "POST /api/v1/auth/login": {
+  "POST /api/v1/login": {
     "ok": true,
     "patient_id": 1029304,
     "display_name": "이수진"
   },
-  "POST /api/v1/auth/logout": {
+  "POST /api/v1/logout": {
     "ok": true
   },
   "GET /api/v1/me": {
