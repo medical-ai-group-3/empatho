@@ -148,9 +148,14 @@ class ReservationRequestQueueView(generics.ListAPIView):
 
 
 class ExamOrderConfirmView(AuditMixin, viewsets.ViewSet):
-    """§7 원무 확정 — modality 여러 개면 parent_order_id 로 묶어 추가 생성.
+    """§7 원무 확정 — 날짜만 정한다.
 
-    PATCH /exam-orders/{id}/confirm   {modalities: [...], exam_purpose}
+    검사 종류(modality·exam_purpose·ordered_by)는 원무가 아니라 유방외과가
+    나중에 정한다 — 0015 로 order_status='scheduled' 가 생겨(09-17 팀 확정),
+    원무는 requested → scheduled 로만 옮긴다. ordered 전환은 별도 경로(유방외과)
+    가 맡는다.
+
+    PATCH /exam-orders/{id}/confirm   {scheduled_at}
     """
 
     resource = "exam_order"
@@ -165,40 +170,15 @@ class ExamOrderConfirmView(AuditMixin, viewsets.ViewSet):
             if order.order_status != "requested":
                 raise ApiError("ALREADY_CONFIRMED")
 
-            modalities = request.data.get("modalities") or []
-            exam_purpose = request.data.get("exam_purpose")
-            ordered_by_id = request.data.get("ordered_by")
+            serializer = serializers.ExamOrderConfirmSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
 
-            if not modalities or not exam_purpose or not ordered_by_id:
-                raise ApiError("VALIDATION_ERROR", "modalities · exam_purpose · ordered_by 가 필요합니다.")
-
-            account = self._current_account()
-
-            order.modality = modalities[0]
-            order.exam_purpose = exam_purpose
-            order.ordered_by_id = ordered_by_id
-            order.order_status = "ordered"
-            order.updated_by = account
+            order.scheduled_at = serializer.validated_data["scheduled_at"]
+            order.order_status = "scheduled"
+            order.updated_by = self._current_account()
             order.save()
 
-            extra_rows = [
-                models.ExamOrder(
-                    patient=order.patient,
-                    scheduled_at=order.scheduled_at,
-                    exam_purpose=exam_purpose,
-                    modality=m,
-                    order_status="ordered",
-                    ordered_by_id=ordered_by_id,
-                    parent_order=order,
-                    created_by=account,
-                    updated_by=account,
-                )
-                for m in modalities[1:]
-            ]
-            if extra_rows:
-                models.ExamOrder.objects.bulk_create(extra_rows)
-
-            all_rows = [order] + extra_rows
+            all_rows = [order]
 
         out = serializers.ExamOrderSerializer(all_rows, many=True)
         return Response(out.data, status=status.HTTP_200_OK)
