@@ -31,13 +31,19 @@ jobs:
       #     읽지 못해 그냥 cp 하면 Permission denied 다
       #   · 두 폴더가 Windows 마운트라 cp 가 서로를 같은 파일로 오인한다
       #     ("are the same file"). tar 는 그 검사를 하지 않는다
+      #
+      # ⚠ 끝의 chown 을 빼면 안 된다. 컨테이너가 root 로 쓰기 때문에 다음
+      #   배포의 checkout 이 이 파일들을 못 지우고 **거기서 멈춘다**
+      #   (EACCES: permission denied, scandir …/certbot/etc/accounts).
+      #   그러면 배포가 통째로 막힌다 — 09-17 에 실제로 그렇게 됐다.
+      #   1000 은 러너 사용자(runner)다.
       - name: 인증서 복사 (conf/certbot 은 git 에 없다)
         run: |
           mkdir -p conf/certbot
           docker run --rm \
             -v "$(readlink -f ~/empatho-conf)/certbot:/src:ro" \
             -v "$PWD/conf/certbot:/dst" \
-            alpine sh -c 'tar -C /src -cf - . | tar -C /dst -xf -'
+            alpine sh -c 'tar -C /src -cf - . | tar -C /dst -xf - && chown -R 1000:1000 /dst'
 
       # garage/ 도 같은 이유다 — garage 는 설정을 폴더째 붙이도록 바뀌었다(09-15).
       - run: cp ~/empatho-conf/*.env conf/
