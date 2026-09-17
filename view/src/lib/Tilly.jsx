@@ -18,6 +18,9 @@ import { useState } from "react";
  *   public/tilly/done.png       도움이 되었길 바라요!   답을 마친 뒤
  *   public/tilly/bye.png        또 만나요!             로그아웃
  *   public/tilly/face.png       얼굴만                 떠 있는 상담 단추
+ *   public/tilly/alarm.png      알람                   알림이 없을 때
+ *   public/tilly/rest.png       기대기                 목록이 비었을 때
+ *   public/tilly/guide.png      안내 팻말              (아직 안 쓴다)
  *
  * 투명 PNG 로, 화면 배율이 다양하니 **찍힐 크기의 3배**로 주면 안전하다
  * (홈 머리의 틸리가 56px 이면 168px 짜리). WebP 도 된다 — 확장자만
@@ -50,6 +53,9 @@ const SAY = {
   done: "틸리가 웃고 있어요",
   bye: "틸리가 손을 흔들고 있어요",
   face: "틸리",
+  alarm: "틸리가 종을 들고 있어요",
+  rest: "틸리가 쉬고 있어요",
+  guide: "틸리가 안내 팻말을 들고 있어요",
 };
 
 /** 틸리 한 마리.
