@@ -82,7 +82,7 @@ func (s *svc) routes() *http.ServeMux {
 // 티켓의 scope_id 를 사용자 식별자로 쓴다. Django 가 로그인한 사용자에게만
 // 티켓을 내주므로, 여기서 사용자 판정을 따로 하지 않는다 (명세 19-1).
 func (s *svc) stream(w http.ResponseWriter, r *http.Request) {
-	cl, err := s.tv.Verify(bearer(r))
+	cl, err := s.tv.Verify(streamTicket(r))
 	if err != nil {
 		fail(w, 401, ticketCode(err), err.Error())
 		return
@@ -320,6 +320,30 @@ func env(k, def string) string {
 }
 
 func atoi(s string) int { n, _ := strconv.Atoi(s); return n }
+
+// streamTicket — 구독은 **질의 문자열로도** 티켓을 받는다.
+//
+// ⚠ 브라우저의 EventSource 는 헤더를 못 붙인다. 규격에 그런 자리가 없다.
+//
+//	그래서 헤더만 보면 화면에서는 영원히 401 이다 — 다른 경로처럼
+//	Authorization 을 쓰라고 할 수가 없다.
+//
+//	?ticket= 는 SSE·WebSocket 에서 흔히 쓰는 방법이지만 **주소에 토큰이
+//	실린다.** 주소는 접근 로그 · 브라우저 기록 · Referer 에 남는다.
+//	그래서 세 가지로 좁혀 둔다.
+//
+//	  1. 여기(구독)에서만 받는다. publish · ack 는 헤더만 본다
+//	  2. notify 전용 티켓이다 — 파일도 DICOM 도 못 연다 (아래 Purpose 검사)
+//	  3. nginx 가 이 경로의 접근 로그를 끈다 (conf/nginx/default.conf)
+//
+//	헤더가 오면 헤더를 먼저 쓴다. 프런트가 fetch 기반 SSE 로 바꾸면
+//	질의 쪽은 저절로 안 쓰이게 된다 — 그때 이 함수만 지우면 된다.
+func streamTicket(r *http.Request) string {
+	if t := bearer(r); t != "" {
+		return t
+	}
+	return r.URL.Query().Get("ticket")
+}
 
 func bearer(r *http.Request) string {
 	if h := r.Header.Get("Authorization"); strings.HasPrefix(h, "Bearer ") {
