@@ -100,11 +100,19 @@ def login(request):
         raise ApiError("VALIDATION_ERROR", "login_id · password 가 필요합니다.")
 
     try:
-        account = Account.objects.get(login_id=login_id, is_active=True)
+        account = Account.objects.get(login_id=login_id)
     except Account.DoesNotExist:
         raise ApiError("UNAUTHENTICATED", "아이디 또는 비밀번호가 올바르지 않습니다.")
 
     if not account.password_hash or not check_password(password, account.password_hash):
+        raise ApiError("UNAUTHENTICATED", "아이디 또는 비밀번호가 올바르지 않습니다.")
+
+    # 비밀번호가 맞은 뒤에만 pending 을 알린다 — 비밀번호를 모르는 사람이
+    # login_id 만으로 승인 대기 여부를 캐낼 수 있으면 계정 존재가 샌다.
+    if account.account_status == "pending":
+        raise ApiError("UNAUTHENTICATED", "관리자 승인 대기 중입니다.")
+
+    if not account.is_active:
         raise ApiError("UNAUTHENTICATED", "아이디 또는 비밀번호가 올바르지 않습니다.")
 
     tokens = issue_pair(account)
