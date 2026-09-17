@@ -166,7 +166,12 @@ function ReportPanel({ patient, currentModality }) {
         )) : <p style={{ fontSize: 13, color: "var(--muted)" }}>아직 리포트가 없습니다</p>}
       </ReportBlock>
 
-      <ReportBlock title={currentModality ? `유방외과 리포트 · ${currentModality}` : "유방외과 리포트"} grow>
+      {/* ⚠ 카드 제목에도 라벨을 거친다. 여기만 빠뜨려서 「유방외과 리포트 · us」
+          처럼 서버 코드가 날것으로 보이고 있었다 — 탭과 안내문은 한글인데
+          제목만 영문이라 같은 화면에서 두 말이 섞였다 */}
+      <ReportBlock title={currentModality
+                     ? `유방외과 리포트 · ${label(MODALITY, currentModality)}`
+                     : "유방외과 리포트"} grow>
         <FinalReportForm
           report={report}
           modality={currentModality}

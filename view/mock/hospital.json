@@ -1878,21 +1878,21 @@
 
   "GET /api/v1/hospital/patients/P-1001/studies": [
     {
-      "modality": "맘모",
+      "modality": "mammo",
       "performed_at": "2026-09-08T09:00:00+09:00",
       "device": "Mammomat",
       "slices": [],
       "annotations": []
     },
     {
-      "modality": "초음파",
+      "modality": "us",
       "performed_at": "2026-09-08T09:40:00+09:00",
       "device": "LOGIQ",
       "slices": [],
       "annotations": []
     },
     {
-      "modality": "MRI",
+      "modality": "mri",
       "performed_at": null,
       "device": null,
       "slices": [],
@@ -1909,21 +1909,21 @@
 
   "GET /api/v1/hospital/patients/P-1002/studies": [
     {
-      "modality": "맘모",
+      "modality": "mammo",
       "performed_at": null,
       "device": null,
       "slices": [],
       "annotations": []
     },
     {
-      "modality": "초음파",
+      "modality": "us",
       "performed_at": "2026-09-08T14:10:00+09:00",
       "device": "LOGIQ",
       "slices": [],
       "annotations": []
     },
     {
-      "modality": "MRI",
+      "modality": "mri",
       "performed_at": null,
       "device": null,
       "slices": [],
@@ -1940,21 +1940,21 @@
 
   "GET /api/v1/hospital/patients/P-1003/studies": [
     {
-      "modality": "맘모",
+      "modality": "mammo",
       "performed_at": "2026-09-10T09:20:00+09:00",
       "device": "Mammomat",
       "slices": [],
       "annotations": []
     },
     {
-      "modality": "초음파",
+      "modality": "us",
       "performed_at": "2026-09-10T10:05:00+09:00",
       "device": "LOGIQ",
       "slices": [],
       "annotations": []
     },
     {
-      "modality": "MRI",
+      "modality": "mri",
       "performed_at": "2026-09-10T08:40:00+09:00",
       "device": "3T MRI",
       "slices": [
