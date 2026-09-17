@@ -13,6 +13,7 @@ from importlib.util import find_spec
 
 from django.urls import include, path, re_path
 
+from .admin_session import AdminSessionView
 from .tickets import TicketView
 from .views import (
     HealthView, NotFoundView, login, refresh_token, logout,
@@ -27,6 +28,8 @@ urlpatterns = [
     path("logout", logout, name="logout"),
     path("signup/staff", signup_staff, name="signup-staff"),
     path("signup/patient", signup_patient, name="signup-patient"),
+    # 우리 로그인 → Django admin 세션. 관리자가 로그인을 두 번 하지 않게 한다
+    path("admin-session", AdminSessionView.as_view(), name="admin-session"),
 ]
 
 # 업무 엔드포인트는 다른 브랜치에서 오는 중이다. 들어오면 자동으로 물린다.
