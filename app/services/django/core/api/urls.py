@@ -13,7 +13,6 @@ from importlib.util import find_spec
 
 from django.urls import include, path, re_path
 
-from .chat import ChatView
 from .tickets import TicketView
 from .views import HealthView, NotFoundView, login
 
@@ -21,9 +20,16 @@ urlpatterns = [
     path("health", HealthView.as_view(), name="health"),
     path("tickets", TicketView.as_view(), name="ticket-issue"),
     path("login", login, name = "login"),
-    # 안내 챗봇. 화면(empatho-view)의 src/api.js 가 이 경로를 쓴다.
-    path("chat", ChatView.as_view(), name="chat"),
 ]
+
+# 안내 챗봇. 화면(empatho-view)의 src/api.js 가 이 경로를 쓴다.
+#
+# ⚠ 위 리터럴 안에도, 맨 위 import 묶음에도 넣지 않는다. 그 두 자리는
+#   여러 브랜치가 동시에 줄을 넣는 곳이라 머지할 때마다 충돌이 났다.
+#   (실제로 feature/backend · feature/dahee 둘 다와 부딪혔다.)
+#   append 는 이 파일이 아래에서 이미 쓰는 방식이고 붙는 순서도 같다.
+from .chat import ChatView  # noqa: E402 — 위 참고
+urlpatterns.append(path("chat", ChatView.as_view(), name="chat"))
 
 # 업무 엔드포인트는 다른 브랜치에서 오는 중이다. 들어오면 자동으로 물린다.
 if find_spec("core.urls") is not None:
