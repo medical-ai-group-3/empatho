@@ -103,11 +103,21 @@ const RECEPTION = [
     where: "4장 [예약 확인] — requested 를 scheduled 로 옮긴다" },
 ];
 
+/* 관리자 — 권한 하나뿐이다. 관리자 화면 안에서 무엇을 할 수 있는지는
+   Django admin 이 auth_user 권한으로 따로 정한다. 여기 것은 「그 문을 열
+   수 있는가」만 본다 */
+const ADMIN = [
+  { key: "admin.console.open", label: "관리자 화면 열기",
+    where: "관리자 화면 [관리자 화면 열기] — POST /admin-session 으로 "
+         + "Django admin 세션을 받는다. 서버도 role='admin' 을 다시 본다" },
+];
+
 export const CATALOG = [
   ...deptPerms("pathology", "병리"),
   ...deptPerms("radiology", "영상"),
   ...BREAST,
   ...RECEPTION,
+  ...ADMIN,
 
   /* 영상의학과에만 있는 것 — 병리에는 해당 동작이 없다 */
   { key: "radiology.retake",     label: "영상 재촬영 요청",

@@ -24,6 +24,7 @@ import MeScreen from "./screens/Me";
 import ReceptionIntake from "./screens/reception/Intake";
 import ReceptionPatients from "./screens/reception/Patients";
 import ReceptionRequests from "./screens/reception/Requests";
+import AdminConsole from "./screens/admin/Console";
 
 /* 유방외과 — 병리·영상과 화면 구성이 달라 자기 화면을 직접 들고 온다.
  *
@@ -183,6 +184,9 @@ const SCREENS = {
   "reception.intake":   ReceptionIntake,
   "reception.patients": ReceptionPatients,
   "reception.requests": ReceptionRequests,
+
+  /* 관리자. 화면은 하나고 Django admin 으로 넘기는 자리다 */
+  "admin.console":      AdminConsole,
 };
 
 /* 과 하나의 화면들 — 몇 장이든 nav.js 의 표대로 만들어진다 */

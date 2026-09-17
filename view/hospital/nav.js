@@ -140,6 +140,20 @@ const DEPTS = [
         need: "reception.requests.view" },
     ],
   },
+
+  /* 관리자 — 화면이 하나뿐이고 그 하나도 Django admin 으로 넘기는 자리다.
+     우리가 관리자 화면을 짓지 않기로 했기 때문이다. 그래도 과 하나로 두는
+     이유는, 그래야 메뉴 · 권한 · 첫 화면(homeDept)이 전부 지금 틀대로
+     굴러가고 admin 만 따로 다루는 코드가 안 생긴다 */
+  {
+    key: "admin",
+    name: "관리자",
+    screens: [
+      { key: "", use: "admin.console", menu: "관리자", title: "관리자",
+        sub: "계정 승인과 자료 관리는 Django 관리자 화면에서 합니다.",
+        need: "admin.console.open" },
+    ],
+  },
 ];
 
 export { DEPTS };

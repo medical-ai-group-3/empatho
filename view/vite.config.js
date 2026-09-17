@@ -10,6 +10,11 @@ const here = dirname(fileURLToPath(import.meta.url));
 // 붙을 서버. 자리를 옮기면 이것만 바꾼다 — 코드에는 주소가 없다.
 const SERVER = process.env.EMPATHO_SERVER || "http://app-host";
 
+// 목업 모드에서 /admin 을 넘길 곳. Django admin 은 목업으로 흉내 낼 수 없어서
+// (진짜 화면이고 세션 쿠키로 돈다) 로컬 Django 를 본다.
+//   cd services/django && python manage.py runserver 8000
+const DJANGO = process.env.EMPATHO_DJANGO || "http://127.0.0.1:8000";
+
 // 가짜 API 로 돌릴지는 아래 defineConfig 의 mode 로 가른다.
 //   npm run dev        서버에 붙는다
 //   npm run dev:mock   가짜 API 로 혼자 돈다  (vite --mode mock)
@@ -202,9 +207,29 @@ export default defineConfig(({ mode }) => {
     port: 5173,
     // 개발 중에도 **상대 경로**로 부르게 한다. 코드에 주소를 박으면
     // 배포에서 교차 출처가 되고, 그때 CORS 목록에 없는 기기는 막힌다.
-    proxy: MOCK ? {} : {
-      "/api": { target: SERVER, changeOrigin: true },
-      "/svc": { target: SERVER, changeOrigin: true },
+    //
+    // /admin 과 /static 은 **두 모드 모두** 넘긴다.
+    //
+    //   Django admin 은 우리가 짓는 화면이 아니라 Django 가 주는 화면이다.
+    //   여기에 안 적으면 vite 의 SPA 폴백이 걸려서 **환자 앱 index.html 이
+    //   돌아온다** — 새 탭에 환자 앱이 뜨고, 404 도 아니라 200 이라 뭐가
+    //   잘못됐는지도 안 보인다.
+    //
+    //   /static 도 같이 넘긴다. admin 화면의 CSS 가 거기 있어서, 빠뜨리면
+    //   글자만 있는 admin 이 나온다 (conf/nginx/default.conf 도 같은 이유로
+    //   두 자리를 함께 넘긴다).
+    //
+    //   목업 모드에서는 붙을 서버가 없으므로 **로컬 Django** 를 본다.
+    //   띄워 두지 않았으면 연결 오류가 나는데, 그게 맞다 — 환자 앱이
+    //   대신 뜨는 것보다 무엇이 없는지가 분명하다.
+    //     python manage.py runserver 8000
+    proxy: {
+      ...(MOCK ? {} : {
+        "/api": { target: SERVER, changeOrigin: true },
+        "/svc": { target: SERVER, changeOrigin: true },
+      }),
+      "/admin":  { target: MOCK ? DJANGO : SERVER, changeOrigin: true },
+      "/static": { target: MOCK ? DJANGO : SERVER, changeOrigin: true },
     },
   },
 

@@ -45,6 +45,55 @@
       ]
     },
 
+    "admin": {
+      "name": "정하늘", "role": "admin",
+      "dept": "admin", "dept_name": "관리자",
+      "perms": [
+        "admin.console.open"
+      ]
+    },
+
+    "pathology": {
+      "name": "박민재", "role": "pathology",
+      "dept": "pathology", "dept_name": "병리과",
+      "perms": [
+        "pathology.queue.view", "pathology.queue.assign",
+        "pathology.upload.view", "pathology.upload.send",
+        "pathology.ai.run", "pathology.ai.view",
+        "pathology.read.view", "pathology.read.draft", "pathology.read.finalize",
+        "pathology.list.view",
+        "pathology.amend.view", "pathology.amend.save",
+        "report.view.all"
+      ]
+    },
+
+    "radiology": {
+      "name": "서지훈", "role": "radiology",
+      "dept": "radiology", "dept_name": "영상의학과",
+      "perms": [
+        "radiology.queue.view", "radiology.queue.assign",
+        "radiology.upload.view", "radiology.upload.send",
+        "radiology.ai.run", "radiology.ai.view",
+        "radiology.read.view", "radiology.read.draft", "radiology.read.finalize",
+        "radiology.list.view",
+        "radiology.amend.view", "radiology.amend.save",
+        "radiology.retake", "radiology.lesion.add", "radiology.lesion.fp",
+        "report.view.all"
+      ]
+    },
+
+    "surgery": {
+      "name": "임도현", "role": "surgery",
+      "dept": "surgery", "dept_name": "유방외과",
+      "perms": [
+        "breast.waiting.view", "breast.exam.order", "breast.specimen.bind",
+        "breast.review.view",
+        "breast.decision.view", "breast.decision.save", "breast.report.unlock",
+        "breast.discordance.view", "breast.discordance.dispose",
+        "report.view.all"
+      ]
+    },
+
     "nursing": {
       "name": "오세라", "role": "nursing",
       "dept": "nursing", "dept_name": "간호과",
@@ -391,6 +440,22 @@
 
   "POST /api/v1/hospital/token/refresh": {
     "access": "mock.staff.renewed"
+  },
+
+  "__관리자": [
+    "관리자 화면은 우리가 짓지 않는다. Django admin 을 쓴다.",
+    "이 응답이 하는 일은 「어디로 가라」 하나뿐이고, 진짜 일(세션 쿠키 심기)은",
+    "서버가 한다 — core/api/admin_session.py.",
+    "",
+    "⚠ 목업에서는 **새 탭의 /admin/ 이 404 다.** vite 가 주는 자리에 Django 가",
+    "  없어서다. 그게 맞는 동작이고, 화면도 그렇게 적어 둔다.",
+    "",
+    "⚠ 목업은 role 을 안 본다. 진짜 서버는 role != admin 이면 403 ROLE_FORBIDDEN",
+    "  이다. 화면 쪽 권한(admin.console.open)과 **따로** 서버가 다시 본다."
+  ],
+
+  "POST /api/v1/hospital/admin-session": {
+    "admin_url": "/admin/"
   },
 
   "GET /api/v1/hospital/me": {

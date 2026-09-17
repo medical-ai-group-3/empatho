@@ -1145,5 +1145,23 @@ td.none,tr.none td{text-align:center; padding:var(--card-pad) 0}
 
 /* 오른쪽 단은 카드 둘(상세 + 예약)이 세로로 쌓인다 */
 .split-r > .card + .card{margin-top:var(--gap)}
+
+/* ── 관리자 (screens/admin/Console.jsx) ──────────────────────────
+   글머리 목록. 「여기서 무엇을 하는가」를 늘어놓는 자리라 표가 아니다 */
+.bullets{display:flex; flex-direction:column; gap:var(--gap-sm);
+  margin:0 0 var(--card-gap); padding:0; list-style:none}
+.bullets li{position:relative; padding-left:var(--card-pad-sm);
+  font-size:var(--kv-fs); color:var(--ink-2); line-height:var(--body-lh)}
+.bullets li::before{content:"·"; position:absolute; left:var(--gap-sm);
+  color:var(--faint)}
+.bullets li b{color:var(--ink); font-weight:600}
+
+/* 값 그대로를 보여 주는 자리 — pending 처럼 DB 에 들어가는 낱말 */
+code{padding:0 var(--gap-xs); border-radius:var(--radius-xs);
+  background:var(--line-2); font-family:ui-monospace, SFMono-Regular,
+  "SF Mono", Menlo, Consolas, monospace; font-size:.92em}
+
+/* 관리자 화면은 카드 둘이 세로로 쌓인다 — split 을 안 쓴다 */
+.page > .card + .card{margin-top:0}   /* .page 의 gap 이 이미 벌린다 */
 .split-r .tbl-wrap + .warnline,.split-l .tbl-wrap + .warnline{
   margin:var(--gap-sm) var(--card-pad)}

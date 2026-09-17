@@ -252,6 +252,25 @@ export const login = (loginId, password) =>
 export const me = () => get("/me");
 export const updateMe = (b) => put("/me", b);
 
+/* ── 관리자 화면 열기 ─────────────────────────────────────────
+ *
+ * 관리자가 로그인을 두 번 하지 않게 하는 자리다.
+ *
+ *   [관리자 화면 열기] → POST /admin-session → 새 탭으로 /admin/
+ *
+ * Django admin 의 인증 주체는 auth_user 이고 우리 API 의 주체는 account 라
+ * 서로 모른다. 이 요청이 그 사이를 잇는다 — 서버가 role 을 확인하고
+ * **세션 쿠키를 심어 준다.** 돌려받는 값은 열 주소 하나뿐이다.
+ *
+ * ⚠ 쿠키를 받아야 하므로 credentials 가 실려야 한다. call() 이 모든 요청에
+ *   credentials:"include" 를 이미 붙이므로 여기서 따로 할 일은 없다.
+ *
+ * ⚠ **응답을 받은 뒤에 열어야 한다.** 먼저 열면 세션이 아직 없어서
+ *   Django 로그인 화면이 뜬다 — 아무도 비밀번호를 모르는 계정이라 거기서
+ *   막힌다.
+ */
+export const adminSession = () => post("/admin-session");
+
 /* ── 로그아웃 ────────────────────────────────────────────────
  *
  * 경로는 POST /api/v1/logout 이 맞다 (2026-09-16 백엔드 확인).
