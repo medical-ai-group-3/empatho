@@ -204,8 +204,9 @@ async function call(method, path, body, opt = {}) {
         ...(token ? { Authorization: `Bearer ${token}` } : null),
       },
       body: body ? JSON.stringify(body) : undefined,
-      /* ⚠ 빼지 말 것. refresh 가 httpOnly 쿠키에 있어서 이게 없으면
-         쿠키가 안 실린다 — 로그인도 갱신도 못 한다 */
+      /* 쿠키를 실어 보낸다. 지금 서버가 심는 쿠키는 없지만(위 갱신
+         주석 참고 — refresh 는 본문에 온다) 관리자 화면 열기가
+         세션 쿠키를 받아야 해서 필요하다. 빼면 그쪽이 깨진다 */
       credentials: "include",
       /* 넘김을 우리가 받는다. 브라우저에 맡기면 본문이 조용히 날아간다 */
       redirect: "manual",
@@ -444,6 +445,15 @@ export const rad = {
   amend:      (id, b)  => post(`/assessments/${id}/amend`, b),
 };
 
+/* ── 검체 바인딩 (공용) ───────────────────────────────────────
+ * 간호과·유방외과 둘 다 같은 팝업(SpecimenBindingModal, hospital/lib/)을
+ * 쓴다 — 그 컴포넌트가 부르는 자리를 한 곳에 모아 둔다. 영상의학과는
+ * 이 화면을 쓰지 않기로 확정됐다(간호과 명세 §3). */
+export const specimens = {
+  lesionsByPatient: (pid) => get(`/lesions${qs({ patient: pid })}`),
+  bind: (b) => post("/specimens", b),
+};
+
 /* ── 유방외과 ─────────────────────────────────────────────────
  * 판독 단위가 없다. **환자가 단위다.**
  *
@@ -463,9 +473,10 @@ export const breast = {
   examOrder:    (b)  => post("/exam-orders", b),
   openDiscords: (pid) => get(`/discordances${qs({ patient: pid, status: "open" })}`),
 
-  /* 검체 바인딩 (팝업) — 병리과 대기 큐로 넘어간다 */
-  lesions:      (pid) => get(`/lesions${qs({ patient: pid })}`),
-  bindSpecimen: (b)  => post("/specimens", b),
+  /* 검체 바인딩 (팝업) — 병리과 대기 큐로 넘어간다. 간호과와 같은 팝업을
+     쓰므로 실제 호출은 specimens(공용)로 위임한다 */
+  lesions:      (pid) => specimens.lesionsByPatient(pid),
+  bindSpecimen: (b)  => specimens.bind(b),
 
   /* 2장 · 검사 종합 확인 */
   timeline:     (pid) => get(`/patients/${pid}/timeline`),
@@ -482,6 +493,29 @@ export const breast = {
   /* 4장 · 판정 불일치 처분 */
   discordance:  (id) => get(`/discordances/${id}`),
   dispose:      (id, b) => patch(`/discordances/${id}/dispose`, b),
+};
+
+/* ── 간호과 ────────────────────────────────────────────────────
+ * 판독 단위가 없다. 유방외과처럼 자기 화면·자기 흐름이라 queue/upload/
+ * read/list/amend 틀을 안 쓴다.
+ *
+ *   1장 내원 대기·배정   원무가 접수한 환자를 유방외과 의사에게 넘긴다
+ *   2장 추적 대상 관리   BI-RADS 3 확정 환자의 6·12·24개월 추적
+ *   3장 검체 바인딩      유방외과와 같은 팝업(specimens, 위에서 공용화) */
+export const nursing = {
+  /* 1장 */
+  waitingArrived: () => get(`/exam-orders${qs({ status: "requested", visited: "yes", ordering: "visited_at" })}`),
+  scheduledToday: () => get(`/exam-orders${qs({ scheduled_on: "today", visited: "none" })}`),
+  examOrder:      (id) => get(`/exam-orders/${id}`),
+  patient:        (id) => get(`/patients/${id}`),
+  saveNote:       (examOrderId, note) => patch(`/exam-orders/${examOrderId}/note`, { note }),
+  surgeons:       () => get(`/staff${qs({ role: "surgery" })}`),
+  assignSurgeon:  (patientId, staffId) => patch(`/patients/${patientId}`, { primary_staff_id: staffId }),
+
+  /* 2장 */
+  followups:      () => get(`/followups${qs({ include_candidates: 1 })}`),
+  createFollowup: (b) => post("/followups", b),
+  logCall:        (id, b) => patch(`/followups/${id}/call`, b),
 };
 
 /* 부서 key 로 골라 쓴다 — 공통 화면들이 이걸로 갈라 부른다 */
@@ -582,6 +616,6 @@ reception.requests = () =>
 reception.confirm = (id, scheduledAt) =>
   patch(`/exam-orders/${id}/confirm`, { scheduled_at: scheduledAt });
 
-export const byDept = { pathology: path, radiology: rad, breast, reception };
+export const byDept = { pathology: path, radiology: rad, breast, reception, nursing };
 
 export const apiInfo = { base: BASE, mock: BASE === MOCK };

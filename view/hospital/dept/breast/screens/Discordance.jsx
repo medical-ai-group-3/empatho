@@ -58,7 +58,7 @@ function Inner({ d, onDisposed }) {
     setSaving(true);
     setErr(null);
     try {
-      await api.disposeDiscordance(d.discordance_id, { disposition_type: type, disposition_reason: reason });
+      await api.dispose(d.discordance_id, { disposition_type: type, disposition_reason: reason });
       onDisposed?.();
     } catch (e) {
       setErr(e.detail || e.message);

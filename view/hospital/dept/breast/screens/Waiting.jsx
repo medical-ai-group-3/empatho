@@ -8,7 +8,7 @@ import { go } from "../../../nav";
 import "../breast.css";   /* 유방외과 전용 — .breast 안에 갇혀 있다. 네 화면이 각자
                              끌고 온다: 주소로 곧장 들어와도 스타일이 빠지면 안 된다 */
 import ExamOrderModal from "../components/ExamOrderModal";
-import SpecimenBindingModal from "../components/SpecimenBindingModal";
+import SpecimenBindingModal from "../../../lib/SpecimenBindingModal";
 
 /* 화면 1 · 대기 환자 · 진료 시작 ("/")
  *
@@ -23,7 +23,7 @@ import SpecimenBindingModal from "../components/SpecimenBindingModal";
 export default function Waiting() {
   const nav = useNavigate();
   const loc = useLocation();
-  const { loading, data: list, error, reload } = useApi(() => api.waitingPatients());
+  const { loading, data: list, error, reload } = useApi(() => api.waiting());
   const [selectedId, setSelectedId] = useState(null);
   const [modal, setModal] = useState(null); // "exam" | "specimen" | null
 

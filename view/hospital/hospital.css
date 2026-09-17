@@ -264,6 +264,13 @@ input,select,textarea{font:inherit; color:inherit}
 .zoom input{flex:1; min-width:0; accent-color:var(--cyan)}
 .zoom b{color:var(--v-ink); font-variant-numeric:tabular-nums}
 
+/* MRI 판독 — MRIReviewGrid(유방외과 검사 종합 확인과 같은 뷰어: 3D 병변
+   위치·3D 병변 + Axial/Coronal/Sagittal)가 .vstage 자리를 그대로 채운다.
+   그 컴포넌트 자신이 height:100%로 그리므로 여기서는 높이만 잡아 준다 */
+.mri-viewer-slot{flex:1; min-height:0; display:flex}
+.mri-loading{flex:1; display:flex; align-items:center; justify-content:center;
+  color:var(--v-warm); font-size:var(--v-fs)}
+
 .vside{width:var(--v-side); flex:none; background:var(--v-card);
   border-left:var(--hair) solid var(--v-line); display:flex;
   flex-direction:column; min-width:0}
@@ -371,6 +378,12 @@ input,select,textarea{font:inherit; color:inherit}
 .slides .on button::before{content:""; position:absolute; left:0; top:var(--sub-gap);
   bottom:var(--sub-gap); width:var(--slide-mark); border-radius:var(--round);
   background:var(--cyan)}
+
+/* MRI Phase 목록 — 누른다고 화면이 안 바뀌니 버튼처럼 안 보이게 한다.
+   같은 자리·같은 간격은 유지해서 다른 모달리티와 «구조는» 같아 보이게 */
+.slides.mri-phases li{padding:var(--slide-pad); border-radius:var(--file-radius);
+  font-size:var(--kv-fs); color:var(--ink-2);
+  box-shadow:inset 0 0 0 var(--hair) var(--line-2)}
 
 /* ── 레이어 켜고 끄기 — 뷰어 안 ──────────────────────────── */
 
@@ -1174,3 +1187,43 @@ code{padding:0 var(--gap-xs); border-radius:var(--radius-xs);
 .page > .card + .card{margin-top:0}   /* .page 의 gap 이 이미 벌린다 */
 .split-r .tbl-wrap + .warnline,.split-l .tbl-wrap + .warnline{
   margin:var(--gap-sm) var(--card-pad)}
+
+/* ── 간호과 — 왼쪽 목록 · 오른쪽 카드 둘의 세로 길이를 맞춘다 ─────────
+   .split(align-items:start)은 오른쪽이 내용만큼만 자란다 — 간호과
+   1·2장은 "왼쪽 목록 높이 = 오른쪽 카드 둘을 합친 높이"가 요구사항이라
+   못 쓴다. 행 높이를 뷰포트 기준으로 못박고 stretch로 좌우를 맞춘 뒤,
+   넘치는 내용은 카드 안에서만 스크롤한다(유방외과 .review-grid와 같은
+   생각 — hospital/dept/breast/breast.css 참고) */
+.n-grid{display:grid; grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);
+  grid-template-rows:clamp(480px, calc(100vh - 260px), 760px);
+  gap:var(--gap); align-items:stretch}
+.n-grid > .card{min-height:0; display:flex; flex-direction:column}
+.n-grid > .card > .card-b{flex:1; min-height:0; overflow-y:auto}
+.n-side-stack{display:flex; flex-direction:column; gap:var(--gap); min-height:0}
+.n-side-stack > .card{flex:1; min-height:0; display:flex; flex-direction:column}
+.n-side-stack > .card > .card-b{flex:1; min-height:0; overflow-y:auto}
+@media (max-width:960px){
+  .n-grid{grid-template-columns:1fr; grid-template-rows:none}
+  .n-side-stack{min-height:480px}
+}
+
+/* ── 팝업(모달) — 과 스코프 밖에서도 쓴다 ─────────────────────────
+   검체 바인딩(간호과·유방외과 공용)처럼 특정 과 화면 안에 갇히지 않는
+   팝업이 쓴다. breast.css 의 .modal-backdrop 은 .breast 스코프 안에서만
+   먹어서 간호과 화면에서는 빈 스타일이 된다 — 그래서 여기 하나로 둔다 */
+.modal-backdrop{position:fixed; inset:0; z-index:40;
+  background:rgba(12,10,9,.42); display:flex; align-items:center;
+  justify-content:center; padding:var(--page-pad-x)}
+.modal{width:100%; max-width:640px; max-height:86vh; display:flex;
+  flex-direction:column; background:var(--card); border-radius:var(--card-radius);
+  box-shadow:var(--card-shadow); overflow:hidden}
+.modal.wide{max-width:820px}
+.modal-head{flex:0 0 auto; display:flex; align-items:center; justify-content:space-between;
+  gap:var(--gap-sm); padding:var(--card-pad); border-bottom:var(--hair) solid var(--border)}
+.modal-head h2{font-size:var(--h1-fs); font-family:var(--font-head)}
+.modal-head button{color:var(--warm); font-size:18px; line-height:1}
+.modal-head button:hover{color:var(--ink)}
+.modal-body{flex:1; min-height:0; overflow-y:auto; padding:var(--card-pad);
+  display:flex; flex-direction:column; gap:var(--card-gap)}
+.modal-foot{flex:0 0 auto; display:flex; justify-content:flex-end; gap:var(--gap-sm);
+  padding:var(--card-pad); border-top:var(--hair) solid var(--border)}

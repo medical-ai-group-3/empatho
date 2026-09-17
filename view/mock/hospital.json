@@ -86,10 +86,11 @@
       "name": "임도현", "role": "surgery",
       "dept": "surgery", "dept_name": "유방외과",
       "perms": [
-        "breast.waiting.view", "breast.exam.order", "breast.specimen.bind",
+        "breast.waiting.view", "breast.exam.order",
         "breast.review.view",
         "breast.decision.view", "breast.decision.save", "breast.report.unlock",
         "breast.discordance.view", "breast.discordance.dispose",
+        "specimen.bind",
         "report.view.all"
       ]
     },
@@ -97,7 +98,11 @@
     "nursing": {
       "name": "오세라", "role": "nursing",
       "dept": "nursing", "dept_name": "간호과",
-      "perms": []
+      "perms": [
+        "nursing.waiting.view", "nursing.waiting.assign",
+        "nursing.followup.view", "nursing.followup.create", "nursing.followup.call",
+        "specimen.bind"
+      ]
     }
   },
 
@@ -492,6 +497,20 @@
       "radiology.retake",
       "radiology.lesion.add",
       "radiology.lesion.fp",
+      "nursing.waiting.view",
+      "nursing.waiting.assign",
+      "nursing.followup.view",
+      "nursing.followup.create",
+      "nursing.followup.call",
+      "breast.waiting.view",
+      "breast.exam.order",
+      "breast.review.view",
+      "breast.decision.view",
+      "breast.decision.save",
+      "breast.report.unlock",
+      "breast.discordance.view",
+      "breast.discordance.dispose",
+      "specimen.bind",
       "report.view.all"
     ],
     "_주의": "목업입니다. 실제로는 관리자가 준 권한만 담겨 옵니다. 두 과를 다 열어 두어 화면 확인이 되게 했습니다."
@@ -922,6 +941,22 @@
     "category": "4b",
     "finding_note": "좌측 상외측 미세석회 군집. 다형성 형태로 악성 의심."
   },
+  "GET /api/v1/hospital/studies/st-302/": {
+    "id": "st-302",
+    "patient_name": "정유진",
+    "age": 56,
+    "sex": "여",
+    "patient_no": "P-2026-0051",
+    "modality": "mri",
+    "device": "Siemens Vida 3T",
+    "performed_at": "2026-09-15 11:20",
+    "assigned_to": "김지현 교수",
+    "status_label": "작성 중",
+    "viewed_at": null,
+    "contrast_allergy": "가돌리늄 조영제 두드러기 병력",
+    "finalized": false,
+    "finding_note": null
+  },
   "GET /api/v1/hospital/studies/": {
     "total": 4,
     "items": [
@@ -1017,6 +1052,56 @@
   "PATCH /api/v1/hospital/lesions/{id}/": {
     "id": "les-2",
     "is_false_positive": true
+  },
+
+  "GET /api/v1/hospital/radiology/studies/st-302/read": {
+    "patient": {
+      "name": "정유진",
+      "age": 56,
+      "sex": "여",
+      "no": "P-2026-0051",
+      "contrast_allergy": "가돌리늄 조영제 두드러기 병력"
+    },
+    "unit": {
+      "exam_name": "유방 MRI (조영증강)",
+      "modality": "mri",
+      "device": "Siemens Vida 3T",
+      "status_label": "작성 중",
+      "performed_at": "2026-09-15 11:20",
+      "assigned_to": "김지현 교수"
+    },
+    "volume_base": "/dicom/breast-mri-018",
+    "volume_manifest": "/dicom/breast-mri-018/manifest.json",
+    "lesions": [
+      {
+        "lesion_id": "L-2051-A",
+        "location": "우측 유방 상외측(UOQ)",
+        "mesh_url": "/models/duke/DUKE_001_tumor_lesion04.stl",
+        "color": "#9B8FB5"
+      }
+    ],
+    "series": [
+      { "id": "ph1", "name": "T1_pre" },
+      { "id": "ph2", "name": "T1_post1" },
+      { "id": "ph3", "name": "T1_post2" },
+      { "id": "ph4", "name": "T1_post3" }
+    ],
+    "ai": {
+      "modality": "mri",
+      "abstained": false,
+      "density": { "breast_voxels": 812400, "dense_voxels": 495564, "percent": 0.61 },
+      "lesions": [
+        {
+          "id": "L-2051-A",
+          "volume_mm3": 3120,
+          "max_diameter_mm": 23.4,
+          "nipple_distance_mm": 29,
+          "quadrant": "UOQ",
+          "centroid": { "x": 134, "y": 88, "z": 212 }
+        }
+      ]
+    },
+    "doctor": { "finding_note": null }
   },
 
   "GET /api/v1/hospital/radiology/studies/{id}/read": {
@@ -1160,7 +1245,7 @@
     }
   },
 
-  "GET /api/v1/hospital/patients": [
+  "GET /api/v1/hospital/patients?primary_staff=me&status=waiting": [
     {
       "patient_id": "P-1001",
       "name": "김민지",
@@ -1929,6 +2014,22 @@
         "size_mm": 14,
         "birads": "4C",
         "is_false_positive": false
+      },
+      {
+        "lesion_id": "L-3002",
+        "patient_id": "P-2026-00412",
+        "site": "우측 유방 9시 방향",
+        "size_mm": 18,
+        "birads": "4C",
+        "is_false_positive": false
+      },
+      {
+        "lesion_id": "L-3003",
+        "patient_id": "P-2026-00412",
+        "site": "좌측 유방 3시 방향",
+        "size_mm": 9,
+        "birads": "3",
+        "is_false_positive": false
       }
     ]
   },
@@ -1943,5 +2044,150 @@
         "finalized_at": "2026-09-14 10:22"
       }
     ]
-  }
+  },
+
+  "GET /api/v1/hospital/exam-orders?status=requested&visited=yes&ordering=visited_at": {
+    "items": [
+      { "id": "eo-w1", "patient_id": "P-2026-00418", "name": "박서연", "sex": "여", "age": 47,
+        "patient_number": "P-2026-00418", "visit_type": "예약 · 결과 상담",
+        "visited_at": "09:05", "followup_id": null, "status": "문진 중" },
+      { "id": "eo-w2", "patient_id": "P-2026-00415", "name": "김도윤", "sex": "남", "age": 61,
+        "patient_number": "P-2026-00415", "visit_type": "예약 · 초진",
+        "visited_at": "09:26", "followup_id": null, "status": "대기" },
+      { "id": "eo-w3", "patient_id": "P-2026-00413", "name": "한지우", "sex": "여", "age": 33,
+        "patient_number": "P-2026-00413", "visit_type": "당일 접수 · 초진",
+        "visited_at": "09:33", "followup_id": null, "status": "대기" },
+      { "id": "eo-w4", "patient_id": "P-2026-00416", "name": "최은영", "sex": "여", "age": 39,
+        "patient_number": "P-2026-00416", "visit_type": "추적 관찰 6개월",
+        "visited_at": "09:41", "followup_id": "F-3001", "status": "대기" },
+      { "id": "eo-w5", "patient_id": "P-2026-00412", "name": "오세라", "sex": "여", "age": 58,
+        "patient_number": "P-2026-00412", "visit_type": "예약 · 수술 상담",
+        "visited_at": "09:48", "followup_id": null, "status": "대기" },
+      { "id": "eo-w6", "patient_id": "P-2026-00411", "name": "윤채원", "sex": "여", "age": 29,
+        "patient_number": "P-2026-00411", "visit_type": "추적 관찰",
+        "visited_at": "09:55", "followup_id": "F-3002", "status": "대기" },
+      { "id": "eo-w7", "patient_id": "P-2026-00414", "name": "정수아", "sex": "여", "age": 44,
+        "patient_number": "P-2026-00414", "visit_type": "수술 후 경과",
+        "visited_at": "10:02", "followup_id": null, "status": "대기" }
+    ]
+  },
+
+  "GET /api/v1/hospital/exam-orders?scheduled_on=today&visited=none": {
+    "items": [
+      { "id": "eo-t1", "patient_id": "P-2026-00417", "name": "이정민", "sex": "여", "age": 52,
+        "patient_number": "P-2026-00417", "time": "10:30", "followup_id": null },
+      { "id": "eo-t2", "patient_id": "P-2026-00416", "name": "최은영", "sex": "여", "age": 39,
+        "patient_number": "P-2026-00416", "time": "11:00", "followup_id": "F-3001" },
+      { "id": "eo-t3", "patient_id": "P-2026-00409", "name": "서지호", "sex": "남", "age": 45,
+        "patient_number": "P-2026-00409", "time": "11:30", "followup_id": null },
+      { "id": "eo-t4", "patient_id": "P-2026-00405", "name": "강민서", "sex": "여", "age": 36,
+        "patient_number": "P-2026-00405", "time": "14:00", "followup_id": "F-3004" },
+      { "id": "eo-t5", "patient_id": "P-2026-00398", "name": "문가은", "sex": "여", "age": 41,
+        "patient_number": "P-2026-00398", "time": "14:30", "followup_id": null }
+    ]
+  },
+
+  "GET /api/v1/hospital/exam-orders/eo-w1": {
+    "id": "eo-w1", "patient_id": "P-2026-00418", "name": "박서연", "sex": "여", "age": 47,
+    "patient_number": "P-2026-00418", "visit_type": "예약 · 결과 상담",
+    "allergy": "조영제 (경증 두드러기)",
+    "chief_complaint": "좌측 유방 멍울 촉지, 2주 전부터 간헐적 통증.",
+    "questionnaire": {
+      "혈압 / 맥박": "118/76 · 72", "체중 / 신장": "56kg · 161cm",
+      "가족력": "있음 (모 · 유방암)", "호르몬제 복용": "없음"
+    },
+    "note": "타원 초음파 CD 지참 확인. 조영제 알러지 이력 → 영상의학과 주의 표시."
+  },
+  "GET /api/v1/hospital/exam-orders/eo-w2": {
+    "id": "eo-w2", "patient_id": "P-2026-00415", "name": "김도윤", "sex": "남", "age": 61,
+    "patient_number": "P-2026-00415", "visit_type": "예약 · 초진",
+    "allergy": "없음", "chief_complaint": "좌측 유두 부위 분비물. 1차 의료기관 의뢰.",
+    "questionnaire": { "혈압 / 맥박": "132/84 · 78", "가족력": "없음", "호르몬제 복용": "없음" },
+    "note": null
+  },
+  "GET /api/v1/hospital/exam-orders/eo-w3": {
+    "id": "eo-w3", "patient_id": "P-2026-00413", "name": "한지우", "sex": "여", "age": 33,
+    "patient_number": "P-2026-00413", "visit_type": "당일 접수 · 초진",
+    "allergy": "없음", "chief_complaint": "자가검진 중 우측 유방 멍울 발견.",
+    "questionnaire": { "혈압 / 맥박": "108/70 · 68", "가족력": "없음", "호르몬제 복용": "복용 중 (경구피임약)" },
+    "note": null
+  },
+  "GET /api/v1/hospital/exam-orders/eo-w4": {
+    "id": "eo-w4", "patient_id": "P-2026-00416", "name": "최은영", "sex": "여", "age": 39,
+    "patient_number": "P-2026-00416", "visit_type": "추적 관찰 6개월",
+    "allergy": "페니실린", "chief_complaint": "우측 양성 결절 크기 비교.",
+    "questionnaire": { "혈압 / 맥박": "112/74 · 70" },
+    "note": null
+  },
+  "GET /api/v1/hospital/exam-orders/eo-w5": {
+    "id": "eo-w5", "patient_id": "P-2026-00412", "name": "오세라", "sex": "여", "age": 58,
+    "patient_number": "P-2026-00412", "visit_type": "예약 · 수술 상담",
+    "allergy": "라텍스", "chief_complaint": "타원 조직검사 결과 지참. 수술 상담.",
+    "questionnaire": { "혈압 / 맥박": "126/80 · 74", "가족력": "있음 (자매 · 유방암)" },
+    "note": null
+  },
+  "GET /api/v1/hospital/exam-orders/eo-w6": {
+    "id": "eo-w6", "patient_id": "P-2026-00411", "name": "윤채원", "sex": "여", "age": 29,
+    "patient_number": "P-2026-00411", "visit_type": "추적 관찰",
+    "allergy": "없음", "chief_complaint": "섬유선종 추적관찰.",
+    "questionnaire": {},
+    "note": null
+  },
+  "GET /api/v1/hospital/exam-orders/eo-w7": {
+    "id": "eo-w7", "patient_id": "P-2026-00414", "name": "정수아", "sex": "여", "age": 44,
+    "patient_number": "P-2026-00414", "visit_type": "수술 후 경과",
+    "allergy": "조영제", "chief_complaint": "수술 후 3개월 경과 확인.",
+    "questionnaire": {},
+    "note": null
+  },
+
+  "GET /api/v1/hospital/staff?role=surgery": {
+    "items": [
+      { "id": "S-2001", "name": "서나영", "role": "교수" },
+      { "id": "S-2002", "name": "최민수", "role": "교수" },
+      { "id": "S-2003", "name": "이수정", "role": "전문의" }
+    ]
+  },
+
+  "PATCH /api/v1/hospital/patients/{id}": { "ok": true },
+  "PATCH /api/v1/hospital/exam-orders/{id}/note": { "ok": true },
+
+  "GET /api/v1/hospital/followups?include_candidates=1": {
+    "items": [
+      { "id": "F-3001", "patient_id": "P-2026-00418", "name": "박서연",
+        "birth_date": "1979-03-11", "phone": "010-1234-5678",
+        "round_no": 1, "status": "overdue", "due_at": "2026-09-05",
+        "call_at": null, "call_result": null },
+      { "id": "F-3002", "patient_id": "P-2026-00417", "name": "이정민",
+        "birth_date": "1974-07-02", "phone": "010-2222-3333",
+        "round_no": 2, "status": "open", "due_at": "2026-09-15",
+        "call_at": "2026-09-10", "call_result": "부재" },
+      { "id": "F-3003", "patient_id": "P-2026-00416", "name": "최은영",
+        "birth_date": "1987-02-20", "phone": "010-3333-4444",
+        "round_no": 1, "status": "open", "due_at": "2026-09-19",
+        "call_at": "2026-09-08", "call_result": "연결" },
+      { "id": "F-3004", "patient_id": "P-2026-00411", "name": "윤채원",
+        "birth_date": "1997-05-30", "phone": "010-4444-5555",
+        "round_no": 3, "status": "open", "due_at": "2026-10-06",
+        "call_at": "2026-09-01", "call_result": "연결" },
+      { "id": "F-3005", "patient_id": "P-2026-00413", "name": "한지우",
+        "birth_date": "1993-11-08", "phone": "010-5555-6666",
+        "round_no": 1, "status": "open", "due_at": "2026-10-14",
+        "call_at": "2026-09-02", "call_result": "연결" },
+      { "id": "F-3006", "patient_id": "P-2026-00414", "name": "정수아",
+        "birth_date": "1982-01-15", "phone": "010-6666-7777",
+        "round_no": 4, "status": "resolved", "due_at": "2026-08-30",
+        "call_at": "2026-08-25", "call_result": "연결" },
+      { "id": "F-3007", "patient_id": "P-2026-00412", "name": "오세라",
+        "birth_date": "1968-04-02", "phone": "010-7777-8888",
+        "round_no": null, "status": "candidate", "due_at": null,
+        "call_at": null, "call_result": null },
+      { "id": "F-3008", "patient_id": "P-2026-00405", "name": "강민서",
+        "birth_date": "1990-09-12", "phone": "010-8888-9999",
+        "round_no": 2, "status": "declined", "due_at": "2026-09-20",
+        "call_at": "2026-09-05", "call_result": "거부" }
+    ]
+  },
+  "POST /api/v1/hospital/followups": { "ok": true },
+  "PATCH /api/v1/hospital/followups/{id}/call": { "ok": true }
 }

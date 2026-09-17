@@ -195,7 +195,7 @@ function FinalReportForm({ report, modality, text, onTextChange }) {
     setSaving(true);
     setMsg(null);
     try {
-      await api.saveFinalReport(report.report_id, { modality, doctor_summary: text });
+      await api.saveReport(report.report_id, { modality, doctor_summary: text });
       setMsg("저장되었습니다");
     } finally {
       setSaving(false);
