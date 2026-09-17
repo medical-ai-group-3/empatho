@@ -146,7 +146,10 @@ function Confirm({ order, onDone }) {
 
   const patient = useApi(() => api.detail(order.patient), [order.patient]);
 
-  /* 사람이 손댔나 — 확정 단추 옆에 「희망 시각과 다릅니다」를 적으려고 */
+  /* 환자가 낸 시각. 바뀐 것을 「무엇에서 무엇으로」로 보여주려고 들고 있는다 */
+  const was = order.scheduled_at
+    ? `${dayOf(order.scheduled_at)} ${timeOf(order.scheduled_at)}`
+    : "";
   const moved = date !== dayOf(order.scheduled_at)
              || time !== (timeOf(order.scheduled_at) || "09:00");
 
@@ -229,10 +232,16 @@ function Confirm({ order, onDone }) {
           </label>
         </div>
 
+        {/* **회색 한 줄로 두지 않는다.** 시각을 바꿔 확정하면 환자에게 알림이
+            나가고 되돌리기 어렵다. 색을 새로 만들지 않고 점선 상자로만 세운다 */}
         {moved && (
-          <p className="hint">
-            환자 희망 시각과 다릅니다. 확정하면 환자에게 바뀐 시각으로 알림이 갑니다.
-          </p>
+          <div className="slot" role="status">
+            <b>환자 희망 시각과 다릅니다</b>
+            <span>
+              {was || "시각 없이 신청"} → <b>{date} {time}</b>
+            </span>
+            <span>확정하면 환자에게 바뀐 시각으로 알림이 갑니다.</span>
+          </div>
         )}
 
         <div className="save-b">

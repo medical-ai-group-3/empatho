@@ -54,11 +54,19 @@
 
   "GET /api/v1/hospital/patients?q={q}": [
     { "patient_id": 41, "patient_number": "E_1029304", "name": "김영희",
-      "phone": "010-1234-5678", "birth_year": 1985, "sex": "female" },
+      "phone": "010-1234-5678", "birth_date": "1985-07-02", "birth_year": 1985,
+      "sex": "female" },
     { "patient_id": 42, "patient_number": "E_1029311", "name": "김영희",
-      "phone": "010-0000-0000", "birth_year": 1971, "sex": "female" },
+      "phone": "010-0000-0000", "birth_date": "1971-11-30", "birth_year": 1971,
+      "sex": "female" },
+    { "patient_id": 46, "patient_number": "E_1029388", "name": "김영희",
+      "phone": "010-8282-4545", "birth_date": "1985-02-19", "birth_year": 1985,
+      "sex": "female" },
     { "patient_id": 43, "patient_number": "E_1029355", "name": "김영수",
-      "phone": "010-7777-1234", "birth_year": 1964, "sex": "male" }
+      "phone": "010-7777-1234", "birth_date": "1964-04-08", "birth_year": 1964,
+      "sex": "male" },
+    { "patient_id": 60, "patient_number": "E_1029401", "name": null,
+      "phone": null, "birth_date": null, "birth_year": null, "sex": null }
   ],
 
   "POST /api/v1/hospital/patients/register": {
@@ -97,10 +105,16 @@
   },
 
   "GET /api/v1/hospital/patients/today-status": [
-    { "exam_order_id": 501, "patient_id": 41, "stage": "접수 대기" },
-    { "exam_order_id": 502, "patient_id": 42, "stage": "영상의학과 대기" },
-    { "exam_order_id": 503, "patient_id": 43, "stage": "영상의학과 촬영중" },
-    { "exam_order_id": 504, "patient_id": 44, "stage": "AI 분석중" }
+    { "exam_order_id": 501, "patient_id": 41, "patient_name": "김영희",
+      "stage": "접수 대기" },
+    { "exam_order_id": 502, "patient_id": 42, "patient_name": "윤서현",
+      "stage": "영상의학과 대기" },
+    { "exam_order_id": 503, "patient_id": 43, "patient_name": "이정민",
+      "stage": "영상의학과 촬영중" },
+    { "exam_order_id": 504, "patient_id": 44, "patient_name": "한지우",
+      "stage": "AI 분석중" },
+    { "exam_order_id": 505, "patient_id": 60, "patient_name": null,
+      "stage": "접수 대기" }
   ],
 
   "__예약확인": [
@@ -171,21 +185,21 @@
   ],
 
   "GET /api/v1/hospital/patients?status={s}": [
-    { "patient_id": 41, "patient_number": "E_1029304", "name": "김영희",
+    { "patient_id": 41,"birth_date": "1985-07-02", "patient_number": "E_1029304", "name": "김영희",
       "phone": "010-1234-5678", "birth_year": 1985, "sex": "female",
       "has_allergy": true, "first_visited_at": "2026-03-11T09:20:00+09:00",
       "status": "재진" },
-    { "patient_id": 42, "patient_number": "E_1029311", "name": "윤서현",
+    { "patient_id": 42,"birth_date": "1971-11-30", "patient_number": "E_1029311", "name": "윤서현",
       "phone": "010-0000-0000", "birth_year": 1971, "sex": "female",
       "has_allergy": false, "first_visited_at": "2026-01-08T10:00:00+09:00",
       "status": "재진" },
-    { "patient_id": 43, "patient_number": "E_1029355", "name": "이정민",
+    { "patient_id": 43,"birth_date": "1964-04-08", "patient_number": "E_1029355", "name": "이정민",
       "phone": "010-7777-1234", "birth_year": 1964, "sex": "male",
       "has_allergy": false, "first_visited_at": null, "status": "초진" },
-    { "patient_id": 44, "patient_number": "E_1029362", "name": "한지우",
+    { "patient_id": 44,"birth_date": "1990-03-14", "patient_number": "E_1029362", "name": "한지우",
       "phone": "010-3333-9090", "birth_year": 1990, "sex": "female",
       "has_allergy": true, "first_visited_at": null, "status": "초진" },
-    { "patient_id": 45, "patient_number": "E_1029370", "name": "최유나",
+    { "patient_id": 45,"birth_date": "1978-09-27", "patient_number": "E_1029370", "name": "최유나",
       "phone": "010-5151-2323", "birth_year": 1978, "sex": "female",
       "has_allergy": false, "first_visited_at": "2026-05-22T14:30:00+09:00",
       "status": "재진" }

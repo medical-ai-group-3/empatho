@@ -68,13 +68,9 @@ export default function Intake() {
     setRegDone(null);
   }
 
-  /* 고른 사람으로 칸을 채운다.
-     ⚠ **검색으로 고른 사람은 생년월일 칸을 못 채운다.** 검색 결과에
-       birth_year 만 있고 birth_date 가 없다 (PatientListSerializer).
-       연도만으로 날짜 칸을 채울 수 없어 비운다 — 아래 확인 블록에 연도를
-       대신 보여준다.
-       방금 등록한 사람은 다르다. 등록 응답(PatientDetailSerializer)에는
-       pii.birth_date 가 있어서 그대로 채워진다. */
+  /* 고른 사람으로 칸을 채운다 — 생년월일까지.
+     검색 결과에 birth_date 가 온다 (PatientListSerializer). 개인정보가 없는
+     환자는 null 이라 그때만 비워 둔다 */
   function fill(patient) {
     setForm({
       name: patient.name ?? "",
@@ -235,7 +231,7 @@ function Choose({ rows, onPick, onClose }) {
         <table className="tbl">
           <thead>
             <tr>
-              <th>이름</th><th>생년</th><th>전화번호</th><th>환자번호</th>
+              <th>이름</th><th>생년월일</th><th>전화번호</th><th>환자번호</th>
             </tr>
           </thead>
           <tbody>
@@ -244,7 +240,9 @@ function Choose({ rows, onPick, onClose }) {
                   onDoubleClick={() => onPick(r)}
                   onKeyDown={(e) => { if (e.key === "Enter") onPick(r); }}>
                 <td><b>{r.name ?? "—"}</b></td>
-                <td className="num">{r.birth_year ?? "—"}</td>
+                {/* 같은 해 태어난 동명이인을 가리는 자리다 — 연도만으로는
+                    둘이 같아 보인다. birth_date 가 없으면 연도로 떨어진다 */}
+                <td className="num">{r.birth_date ?? r.birth_year ?? "—"}</td>
                 <td className="num">{r.phone ?? "—"}</td>
                 <td className="num dim">{r.patient_number}</td>
               </tr>
@@ -315,29 +313,31 @@ function Done({ done }) {
 }
 
 /* 오늘 온 사람이 지금 어디에 있나.
-   ⚠ 서버가 **이름을 안 준다** — exam_order_id · patient_id · stage 셋뿐이다
-     (views/reception.py 의 PatientTodayStatusView). 번호만 보이는 이유가
-     그것이고, 이름은 백엔드에 요청해 두었다. */
+   이름은 patient_name 으로 온다 (PatientTodayStatusView). 개인정보가 없는
+   환자는 null 이라 그때만 #41 로 떨어진다 */
 function Monitor({ rows }) {
   if (!rows.length) {
     return <div className="slot"><b>오늘 접수한 환자가 없습니다</b></div>;
   }
+  const nameless = rows.some((r) => !r.patient_name);
   return (
     <>
       <Table
         cols={[
-          { key: "pid", label: "환자", w: "30%" },
+          { key: "pid", label: "환자", w: "38%" },
           { key: "stage", label: "상태" },
-          { key: "oid", label: "오더", w: "22%" },
+          { key: "oid", label: "오더", w: "20%" },
         ]}
         rows={rows.map((r) => ({
           id: r.exam_order_id,
-          pid: `#${r.patient_id}`,
+          pid: r.patient_name
+            ? <b>{r.patient_name}</b>
+            : <span className="dim">#{r.patient_id}</span>,
           stage: <Chip tone={r.stage === "접수 대기" ? "fill" : "line"}>{r.stage}</Chip>,
-          oid: r.exam_order_id,
+          oid: <span className="num dim">{r.exam_order_id}</span>,
         }))}
       />
-      <Warn>서버가 이름을 주지 않아 환자 번호로 표시합니다.</Warn>
+      {nameless && <Warn>이름이 없는 환자는 번호로 표시합니다.</Warn>}
     </>
   );
 }
