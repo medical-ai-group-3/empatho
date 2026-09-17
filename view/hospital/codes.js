@@ -98,8 +98,20 @@ export const RUN_STATUS = {
 };
 
 /** 추적 상태. 서버 enum: ["open","resolved","escalated","declined","overdue"]
- *  ⚠ `candidate` 는 서버 enum 에 **없다.** 간호과 화면이 쓰고 있어 받아는
- *    두지만, 서버가 그 값을 낼 수 있는지 확인이 필요하다. */
+ *
+ *  ⚠ `candidate` 는 서버가 **낼 수 없는 값이다** (2026-09-17 확인).
+ *     followup.status 에 DB CHECK(followup_status_ck)이 걸려 있어 저 다섯
+ *     말고는 저장 자체가 안 된다.
+ *
+ *     간호과 화면(Followups.jsx)은 f.status 를 displayStatus() 로 한 번
+ *     거치는데, 그 함수가 내는 값은 "overdue" 아니면 f.status 그대로다 —
+ *     candidate 를 만들어 내지 않는다. 즉 **지금 경로로는 이 라벨이 화면에
+ *     뜰 수 없다.** 목업(mock/hospital.json)에만 그 값이 있어서 목업에서는
+ *     보이고, 실서버에서는 「추적 대상」 필터가 늘 0건이 된다.
+ *
+ *     지울지 살릴지는 제품 결정이다 — 서버 enum 에 candidate 를 더하든지,
+ *     화면이 「아직 회차가 없는 건」을 파생시키든지 둘 중 하나여야 한다.
+ *     정해지기 전까지는 라벨을 남겨 둔다. 지우면 그 논의가 사라진다. */
 export const FOLLOWUP_STATUS = {
   candidate: "추적 대상",
   open: "추적 중",
