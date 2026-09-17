@@ -10,11 +10,24 @@ import { ensureCornerstoneInit } from "./cornerstoneInit";
  *
  * 유방외과 MRI 리뷰(MRIReviewGrid)와 영상의학과 MRI 판독 화면 둘 다
  * 쓴다 — 과 하나에 묶인 컴포넌트가 아니라서 hospital/lib/ 로 옮겨 왔다
- * (원래 dept/breast/components/에 있었다). props는 { manifestUrl,
- * baseUrl } 뿐이라 어느 과에서 갖다 써도 동작은 같다.
+ * (원래 dept/breast/components/에 있었다).
  *
  * ⚠ manifest.json은 InstanceNumber로 미리 정렬돼 있어야 한다(wadouri는
- *   cornerstone이 순서를 다시 안 잡아준다 — scripts/sort-dicom-manifest.cjs). */
+ *   cornerstone이 순서를 다시 안 잡아준다 — scripts/sort-dicom-manifest.cjs).
+ *
+ * ── mode: "diagnostic" | "review" ────────────────────────────────
+ * 공통 영상 Viewer 설계(2026-09-17)의 핵심 — 엔진은 하나, 기능은 역할로
+ * 가른다. 영상의학과(diagnostic)는 탐색(Crosshairs) + 측정(Length) +
+ * ROI + 마스크(Brush)를 다 쓴다. 유방외과(review, 기본 아님 — 명시로
+ * 켠다)는 **탐색만** 살아 있고, 측정·ROI·마스크 도구는 아예 등록하지
+ * 않는다 — disabled가 아니라 unmount다("존재하면 안 되는 개념"이라
+ * 눌러도 안 되는 게 아니라 버튼 자체가 없어야 한다).
+ *
+ * ⚠ "저장된 측정값·마스크를 읽기 전용으로 보여준다"는 목표(설계 문서
+ *   To-Be)는 아직 여기 없다 — 지금은 애초에 서버에서 측정/마스크 결과를
+ *   불러오는 경로 자체가 없다(항상 빈 라벨맵으로 시작). review 모드는
+ *   당장은 "편집 도구를 안 준다"까지만 하고, 결과 조회는 이후 별도
+ *   작업(마스크 데이터 fetch)이 생기면 채운다. */
 const RENDERING_ENGINE_ID = "dicomMprRenderingEngine";
 const VOLUME_ID = "cornerstoneStreamingImageVolume:dicomMpr";
 const IDS = {
@@ -41,7 +54,8 @@ const TOOLS = [
   { key: "brush", label: "마스크", toolName: "Brush" },
 ];
 
-export default function DicomMprPanel({ manifestUrl, baseUrl }) {
+export default function DicomMprPanel({ manifestUrl, baseUrl, mode = "diagnostic" }) {
+  const isReview = mode === "review";
   const axialRef = useRef(null);
   const coronalRef = useRef(null);
   const sagittalRef = useRef(null);
@@ -102,23 +116,34 @@ export default function DicomMprPanel({ manifestUrl, baseUrl }) {
         );
         if (cancelled) return;
 
-        let toolGroup = cornerstoneTools.ToolGroupManager.getToolGroup(TOOL_GROUP_ID);
-        if (!toolGroup) {
-          toolGroup = cornerstoneTools.ToolGroupManager.createToolGroup(TOOL_GROUP_ID);
-          toolGroup.addTool(cornerstoneTools.StackScrollTool.toolName);
-          toolGroup.setToolActive(cornerstoneTools.StackScrollTool.toolName, {
-            bindings: [{ mouseButton: cornerstoneTools.Enums.MouseBindings.Wheel }],
-          });
-          toolGroup.addTool(cornerstoneTools.CrosshairsTool.toolName, {
-            getReferenceLineColor: (viewportId) =>
-              AXIS_COLOR[
-                viewportId === IDS.axial ? "axial" : viewportId === IDS.coronal ? "coronal" : "sagittal"
-              ] ?? "rgb(200, 200, 0)",
-          });
-          toolGroup.setToolActive(cornerstoneTools.CrosshairsTool.toolName, {
-            bindings: [{ mouseButton: cornerstoneTools.Enums.MouseBindings.Primary }],
-          });
+        /* ⚠ TOOL_GROUP_ID는 모드에 상관없이 같은 전역 상수다 — 판독
+         * 화면(diagnostic)을 한 번 열고 나면 조회 화면(review)이 나중에
+         * 마운트돼도 getToolGroup()이 그 툴그룹을 그대로 돌려준다. 예전
+         * 코드처럼 "없으면만 만든다"로 두면 review 모드가 diagnostic이
+         * 남긴 Length/ROI/Brush 도구(와 마지막 활성 도구)를 그대로
+         * 물려받는다 — 조회 모드에 판독 도구가 새는 것이다. 그래서 마운트
+         * 때마다 툴그룹을 지우고 **지금 mode에 맞게 새로 만든다**
+         * (renderingEngine을 매번 destroy 후 재생성하는 것과 같은 이유). */
+        try { cornerstoneTools.ToolGroupManager.destroyToolGroup(TOOL_GROUP_ID); }
+        catch { /* 첫 마운트라 없을 수 있다 */ }
+        const toolGroup = cornerstoneTools.ToolGroupManager.createToolGroup(TOOL_GROUP_ID);
+        toolGroup.addTool(cornerstoneTools.StackScrollTool.toolName);
+        toolGroup.setToolActive(cornerstoneTools.StackScrollTool.toolName, {
+          bindings: [{ mouseButton: cornerstoneTools.Enums.MouseBindings.Wheel }],
+        });
+        toolGroup.addTool(cornerstoneTools.CrosshairsTool.toolName, {
+          getReferenceLineColor: (viewportId) =>
+            AXIS_COLOR[
+              viewportId === IDS.axial ? "axial" : viewportId === IDS.coronal ? "coronal" : "sagittal"
+            ] ?? "rgb(200, 200, 0)",
+        });
+        toolGroup.setToolActive(cornerstoneTools.CrosshairsTool.toolName, {
+          bindings: [{ mouseButton: cornerstoneTools.Enums.MouseBindings.Primary }],
+        });
 
+        /* review 모드는 여기서 끝 — 측정·ROI·마스크 도구 자체를 이
+         * 툴그룹에 등록하지 않는다(disabled 아님, 존재 안 함). */
+        if (!isReview) {
           /* 측정·주석 도구 — 눌러서 고르기 전까지는 "켜져만 있는"
            * 상태(passive)다. Primary 버튼을 안 물고 있으니 탐색(십자선)을
            * 방해하지 않는다. 실제 Primary 바인딩은 selectTool()이
@@ -133,37 +158,41 @@ export default function DicomMprPanel({ manifestUrl, baseUrl }) {
         [IDS.axial, IDS.coronal, IDS.sagittal].forEach((id) =>
           toolGroup.addViewport(id, RENDERING_ENGINE_ID));
 
-        /* 마스크 도구(Brush)가 칠할 자리 — 원본 Volume과 같은 크기의
-         * 빈 라벨맵을 하나 만들어 세그멘테이션으로 등록한다. 이전
-         * 마운트에서 만든 게 남아 있으면(같은 SEGMENTATION_ID) 지우고
-         * 새로 만든다 — 환자가 바뀌면 마스크도 새로 시작해야 맞다. */
-        try { cornerstoneTools.segmentation.state.removeSegmentation(SEGMENTATION_ID); }
-        catch { /* 처음 마운트라 없을 수 있다 */ }
+        /* 마스크 도구(Brush)가 칠할 자리 — review 모드는 Brush 자체가
+         * 없으니 세그멘테이션도 만들 필요가 없다. diagnostic만 만든다.
+         * 원본 Volume과 같은 크기의 빈 라벨맵을 하나 만들어 세그멘테이션
+         * 으로 등록한다. 이전 마운트에서 만든 게 남아 있으면(같은
+         * SEGMENTATION_ID) 지우고 새로 만든다 — 환자가 바뀌면 마스크도
+         * 새로 시작해야 맞다. */
+        if (!isReview) {
+          try { cornerstoneTools.segmentation.state.removeSegmentation(SEGMENTATION_ID); }
+          catch { /* 처음 마운트라 없을 수 있다 */ }
 
-        await cornerstone.volumeLoader.createAndCacheDerivedLabelmapVolume(
-          VOLUME_ID, { volumeId: SEGMENTATION_ID }
-        );
-        if (cancelled) return;
+          await cornerstone.volumeLoader.createAndCacheDerivedLabelmapVolume(
+            VOLUME_ID, { volumeId: SEGMENTATION_ID }
+          );
+          if (cancelled) return;
 
-        cornerstoneTools.segmentation.addSegmentations([{
-          segmentationId: SEGMENTATION_ID,
-          representation: {
-            type: cornerstoneTools.Enums.SegmentationRepresentations.Labelmap,
-            data: { volumeId: SEGMENTATION_ID },
-          },
-        }]);
+          cornerstoneTools.segmentation.addSegmentations([{
+            segmentationId: SEGMENTATION_ID,
+            representation: {
+              type: cornerstoneTools.Enums.SegmentationRepresentations.Labelmap,
+              data: { volumeId: SEGMENTATION_ID },
+            },
+          }]);
 
-        /* ⚠ 뷰포트마다 addSegmentationRepresentations를 따로 부르면(3번)
-         * 그때마다 색 LUT를 새로 하나씩 할당한다 — 맨 처음(0번)만 실제
-         * 색이 채워져 있고 나머지(1·2번)는 빈 LUT라 그 뷰포트에 칠한
-         * 건 데이터는 남는데 화면엔 완전 투명으로 보인다(직접 겪은 버그).
-         * 뷰포트 맵으로 한 번에 등록해야 셋이 같은 LUT를 쓴다. */
-        cornerstoneTools.segmentation.addLabelmapRepresentationToViewportMap({
-          [IDS.axial]: [{ segmentationId: SEGMENTATION_ID }],
-          [IDS.coronal]: [{ segmentationId: SEGMENTATION_ID }],
-          [IDS.sagittal]: [{ segmentationId: SEGMENTATION_ID }],
-        });
-        cornerstoneTools.segmentation.segmentIndex.setActiveSegmentIndex(SEGMENTATION_ID, 1);
+          /* ⚠ 뷰포트마다 addSegmentationRepresentations를 따로 부르면(3번)
+           * 그때마다 색 LUT를 새로 하나씩 할당한다 — 맨 처음(0번)만 실제
+           * 색이 채워져 있고 나머지(1·2번)는 빈 LUT라 그 뷰포트에 칠한
+           * 건 데이터는 남는데 화면엔 완전 투명으로 보인다(직접 겪은 버그).
+           * 뷰포트 맵으로 한 번에 등록해야 셋이 같은 LUT를 쓴다. */
+          cornerstoneTools.segmentation.addLabelmapRepresentationToViewportMap({
+            [IDS.axial]: [{ segmentationId: SEGMENTATION_ID }],
+            [IDS.coronal]: [{ segmentationId: SEGMENTATION_ID }],
+            [IDS.sagittal]: [{ segmentationId: SEGMENTATION_ID }],
+          });
+          cornerstoneTools.segmentation.segmentIndex.setActiveSegmentIndex(SEGMENTATION_ID, 1);
+        }
 
         setActiveTool("crosshairs");
         renderingEngine.render();
@@ -198,7 +227,7 @@ export default function DicomMprPanel({ manifestUrl, baseUrl }) {
       } catch { /* 툴그룹이 아직 없을 수 있다 */ }
       cornerstone.getRenderingEngine(RENDERING_ENGINE_ID)?.destroy();
     };
-  }, [manifestUrl, baseUrl]);
+  }, [manifestUrl, baseUrl, isReview]);
 
   /* 버튼 하나 고르면 그 도구만 Primary(좌클릭)를 받고, 나머지는 passive로
    * 물러난다 — 동시에 두 도구가 좌클릭을 다투면 클릭마다 뭐가 그려질지
@@ -219,9 +248,11 @@ export default function DicomMprPanel({ manifestUrl, baseUrl }) {
     setActiveTool(key);
   }
 
+  /* review 모드는 등록된 도구가 탐색(Crosshairs)뿐이라 고를 게 없다 —
+   * 버튼 하나짜리 Toolbar를 보여주는 대신 아예 숨긴다. */
   return (
     <div className="dicom-mpr-wrap">
-      {status === "ready" && (
+      {status === "ready" && !isReview && (
         <div className="dicom-mpr-toolbar">
           {TOOLS.map((t) => (
             <button
@@ -246,7 +277,9 @@ export default function DicomMprPanel({ manifestUrl, baseUrl }) {
         .dicom-mpr-wrap {
           display: flex;
           flex-direction: column;
+          width: 100%;
           height: 100%;
+          min-width: 0;
           min-height: 0;
           gap: 8px;
         }

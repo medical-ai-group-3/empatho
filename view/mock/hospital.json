@@ -941,6 +941,40 @@
     "category": "4b",
     "finding_note": "좌측 상외측 미세석회 군집. 다형성 형태로 악성 의심."
   },
+  "GET /api/v1/hospital/studies/st-305/": {
+    "id": "st-305",
+    "patient_name": "김하늘",
+    "age": 44,
+    "sex": "여",
+    "patient_no": "P-2026-0044",
+    "modality": "ultrasound",
+    "device": "GE LOGIQ E10",
+    "performed_at": "2026-09-15 10:40",
+    "assigned_to": "김지현 교수",
+    "status_label": "판독 완료",
+    "viewed_at": "2026-09-15 16:00",
+    "contrast_allergy": null,
+    "finalized": true,
+    "category": "4a",
+    "finding_note": "우측 유방 비평행 저에코 종괴. 추가 조직검사 권고."
+  },
+  "GET /api/v1/hospital/studies/st-306/": {
+    "id": "st-306",
+    "patient_name": "김하늘",
+    "age": 44,
+    "sex": "여",
+    "patient_no": "P-2026-0044",
+    "modality": "mri",
+    "device": "Siemens Vida 3T",
+    "performed_at": "2026-09-15 11:50",
+    "assigned_to": "김지현 교수",
+    "status_label": "판독 완료",
+    "viewed_at": "2026-09-15 16:05",
+    "contrast_allergy": null,
+    "finalized": true,
+    "category": null,
+    "finding_note": "좌측 상외측 조영증강 병변, 맘모·초음파 소견과 일치."
+  },
   "GET /api/v1/hospital/studies/st-302/": {
     "id": "st-302",
     "patient_name": "정유진",
@@ -958,7 +992,7 @@
     "finding_note": null
   },
   "GET /api/v1/hospital/studies/": {
-    "total": 4,
+    "total": 6,
     "items": [
       {
         "id": "st-301",
@@ -969,6 +1003,26 @@
         "performed_at": "2026-09-15",
         "status_label": "판독 완료",
         "viewed_at": "2026-09-15 15:30"
+      },
+      {
+        "id": "st-305",
+        "patient_name": "김하늘",
+        "age": 44,
+        "sex": "여",
+        "modality": "ultrasound",
+        "performed_at": "2026-09-15",
+        "status_label": "판독 완료",
+        "viewed_at": "2026-09-15 16:00"
+      },
+      {
+        "id": "st-306",
+        "patient_name": "김하늘",
+        "age": 44,
+        "sex": "여",
+        "modality": "mri",
+        "performed_at": "2026-09-15",
+        "status_label": "판독 완료",
+        "viewed_at": "2026-09-15 16:05"
       },
       {
         "id": "st-302",
@@ -1104,6 +1158,98 @@
     "doctor": { "finding_note": null }
   },
 
+  "_주의_전모달리티_환자": "김하늘(P-2026-0044)이 맘모(st-301)·초음파(st-305)·MRI(st-306) 세 검사를 전부 진행한 환자다. exam-orders/queue의 맨 앞(or-201)도 김하늘이라 '다음 환자 받기'를 누르면 바로 이 환자로 들어간다.",
+
+  "GET /api/v1/hospital/radiology/studies/st-305/read": {
+    "patient": {
+      "name": "김하늘",
+      "age": 44,
+      "sex": "여",
+      "no": "P-2026-0044",
+      "contrast_allergy": null
+    },
+    "unit": {
+      "exam_name": "유방 초음파",
+      "modality": "ultrasound",
+      "device": "GE LOGIQ E10",
+      "status_label": "판독 완료",
+      "performed_at": "2026-09-15 10:40",
+      "assigned_to": "김지현 교수"
+    },
+    "series": [
+      { "id": "u1", "name": "우측 유방", "image": { "url": "/samples/us/usus.png" }, "w": 485, "h": 537 }
+    ],
+    "ai": {
+      "modality": "ultrasound",
+      "abstained": false,
+      "lesion_found": true,
+      "category": "4a",
+      "category_confidence": 0.78,
+      "mask_confidence": 0.86,
+      "shape": {
+        "area": 4820, "max_diameter": 96, "aspect_ratio": 1.4,
+        "convexity": 0.91, "roughness": 0.22, "circularity": 0.72
+      },
+      "orientation": "비평행(non-parallel)",
+      "polygon": {
+        "outer": [[180, 210], [260, 195], [320, 230], [330, 300], [280, 350], [210, 340], [170, 280]],
+        "holes": [],
+        "n_components": 1
+      }
+    },
+    "doctor": { "finding_note": null }
+  },
+
+  "GET /api/v1/hospital/radiology/studies/st-306/read": {
+    "patient": {
+      "name": "김하늘",
+      "age": 44,
+      "sex": "여",
+      "no": "P-2026-0044",
+      "contrast_allergy": null
+    },
+    "unit": {
+      "exam_name": "유방 MRI (조영증강)",
+      "modality": "mri",
+      "device": "Siemens Vida 3T",
+      "status_label": "판독 완료",
+      "performed_at": "2026-09-15 11:50",
+      "assigned_to": "김지현 교수"
+    },
+    "volume_base": "/dicom/breast-mri-018",
+    "volume_manifest": "/dicom/breast-mri-018/manifest.json",
+    "lesions": [
+      {
+        "lesion_id": "L-0044-A",
+        "location": "좌측 유방 상외측(UOQ)",
+        "mesh_url": "/models/duke/DUKE_001_tumor_lesion01.stl",
+        "color": "#C9828C"
+      }
+    ],
+    "series": [
+      { "id": "ph1", "name": "T1_pre" },
+      { "id": "ph2", "name": "T1_post1" },
+      { "id": "ph3", "name": "T1_post2" },
+      { "id": "ph4", "name": "T1_post3" }
+    ],
+    "ai": {
+      "modality": "mri",
+      "abstained": false,
+      "density": { "breast_voxels": 745200, "dense_voxels": 402108, "percent": 0.54 },
+      "lesions": [
+        {
+          "id": "L-0044-A",
+          "volume_mm3": 2860,
+          "max_diameter_mm": 18.7,
+          "nipple_distance_mm": 34,
+          "quadrant": "UOQ",
+          "centroid": { "x": 118, "y": 96, "z": 188 }
+        }
+      ]
+    },
+    "doctor": { "finding_note": null }
+  },
+
   "GET /api/v1/hospital/radiology/studies/{id}/read": {
     "patient": {
       "name": "김하늘",
@@ -1119,6 +1265,9 @@
       "performed_at": "2026-09-15 10:05",
       "assigned_to": "김지현 교수"
     },
+    "_주의_stack": "공통 영상 Viewer 3단계 — 맘모를 Cornerstone DicomStackViewer로 옮겼다. 실제 맘모 DICOM 샘플이 아직 없어 MRI 샘플(breast-mri-018) 앞 4장을 임시로 돌려쓴다 — 진짜 맘모 자료가 붙으면 이 두 필드만 바꾸면 된다.",
+    "stack_manifest": "/dicom/breast-mri-018/mammo-stack-placeholder.json",
+    "stack_base": "/dicom/breast-mri-018",
     "series": [
       {
         "id": "s1",
@@ -1881,6 +2030,8 @@
       "modality": "mammo",
       "performed_at": "2026-09-08T09:00:00+09:00",
       "device": "Mammomat",
+      "stack_manifest": "/dicom/breast-mri-018/mammo-stack-placeholder.json",
+      "stack_base": "/dicom/breast-mri-018",
       "slices": [],
       "annotations": []
     },
@@ -1943,6 +2094,8 @@
       "modality": "mammo",
       "performed_at": "2026-09-10T09:20:00+09:00",
       "device": "Mammomat",
+      "stack_manifest": "/dicom/breast-mri-018/mammo-stack-placeholder.json",
+      "stack_base": "/dicom/breast-mri-018",
       "slices": [],
       "annotations": []
     },
@@ -1957,6 +2110,8 @@
       "modality": "mri",
       "performed_at": "2026-09-10T08:40:00+09:00",
       "device": "3T MRI",
+      "volume_manifest": "/dicom/breast-mri-018/manifest.json",
+      "volume_base": "/dicom/breast-mri-018",
       "slices": [
         "/samples/mri/p1003-mri-01.png",
         "/samples/mri/p1003-mri-02.png"

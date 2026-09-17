@@ -211,10 +211,13 @@ export function Bar({ value = 0, label }) {
    **이 판에서 어두운 곳은 여기뿐이다.** 판독 영상은 주변이 밝으면
    눈이 계속 조절해야 해서 오래 못 본다.
 
-   패널 셋이 각각 접힌다 — 왼쪽(환자·검체 정보) · AI 소견 · 의사 소견.
-   **셋 다 접으면 뷰어만 남는다.** 원본을 크게 보려고 만든 구조다.
-   접으면 손잡이만 남아 다시 펼 수 있다 — 완전히 사라지면 「그게 어디
-   갔지」가 된다. */
+   공통 영상 Viewer 레이아웃 설계(2026-09-17) — 환자 정보 · 영상
+   Viewer · AI 소견 · 의사 소견 **넷을 서로 독립된 카드**로 다룬다.
+   AI 소견과 의사 소견은 한 사이드에 위아래로 쌓지 않는다 — 각자
+   자기 테두리·자기 접힘 상태를 가진 별개의 aside다. 하나를 접으면
+   그 칸의 width 자체가 손잡이(vtab) 폭으로 줄어들고, 가운데
+   Viewer(flex:1)가 남는 공간을 그대로 흡수한다 — visibility만
+   지우고 자리를 남겨 두는 방식이 아니다. */
 export function Viewer({
   infoName = "환자 정보", info,
   aiName = "AI 소견", ai, aiOpen = false,          /* AI 는 기본 접힘 */
@@ -224,7 +227,6 @@ export function Viewer({
   const [L, setL] = useState(true);
   const [A, setA] = useState(aiOpen);
   const [D, setD] = useState(doctorOpen);
-  const rightShut = !A && !D;
 
   return (
     <div className="vwrap">
@@ -244,28 +246,21 @@ export function Viewer({
         {below && <div className="vunder">{below}</div>}
       </div>
 
-      {(ai || doctor) && (rightShut
-        ? <div className="vtabs-r">
-            {ai && <button className="vtab" onClick={() => setA(true)}>{aiName}</button>}
-            {doctor && <button className="vtab" onClick={() => setD(true)}>{doctorName}</button>}
-          </div>
-        : <aside className="vside wide">
-            {ai && (A
-              ? <div className="vpanel">
-                  <div className="vside-h"><b>{aiName}</b>
-                    <button className="x" onClick={() => setA(false)} aria-label="접기">▸</button></div>
-                  <div className="vside-b">{ai}</div>
-                </div>
-              : <button className="vrow" onClick={() => setA(true)}>▸ {aiName}</button>)}
+      {ai && (A
+        ? <aside className="vside">
+            <div className="vside-h"><b>{aiName}</b>
+              <button className="x" onClick={() => setA(false)} aria-label="접기">›</button></div>
+            <div className="vside-b">{ai}</div>
+          </aside>
+        : <button className="vtab" onClick={() => setA(true)}>{aiName}</button>)}
 
-            {doctor && (D
-              ? <div className="vpanel grow">
-                  <div className="vside-h"><b>{doctorName}</b>
-                    <button className="x" onClick={() => setD(false)} aria-label="접기">▾</button></div>
-                  <div className="vside-b">{doctor}</div>
-                </div>
-              : <button className="vrow" onClick={() => setD(true)}>▸ {doctorName}</button>)}
-          </aside>)}
+      {doctor && (D
+        ? <aside className="vside">
+            <div className="vside-h"><b>{doctorName}</b>
+              <button className="x" onClick={() => setD(false)} aria-label="접기">›</button></div>
+            <div className="vside-b">{doctor}</div>
+          </aside>
+        : <button className="vtab" onClick={() => setD(true)}>{doctorName}</button>)}
     </div>
   );
 }

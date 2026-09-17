@@ -2,7 +2,7 @@ import { rad } from "../api";
 import { go } from "../nav";
 import { Chip, Facts, Fold, Warn, useCan } from "../lib/Parts";
 import RadiologyAi from "./RadiologyAi";
-import { boxesFromLesions, polygonsFromAi } from "../lib/Stage";
+import { polygonsFromAi } from "../lib/Stage";
 import { BIRADS, MODALITY, READ_STATUS, label, modality as asModality, text, tone }
   from "../codes";
 
@@ -251,8 +251,12 @@ export const radiology = {
       : Boolean(f.category),
 
     /* 뷰어에 무엇을 얹나 — 모달리티마다 다르다.
-         맘모    검출 모델이라 마스크가 없다. 병변마다 박스 네 숫자(SVG)
-         초음파  폴리곤 좌표(SVG). 마스크 파일이 없다
+         맘모    공통 영상 Viewer 설계(2026-09-17) 3단계 — DICOM이라
+                 Cornerstone 기반 DicomStackViewer로 그린다. stack은
+                 Volume이 아니라 R-CC·R-MLO·L-CC·L-MLO 같은 개별 뷰
+                 여러 장이라 stackManifest로 따로 분기한다(MRI의
+                 volumeManifest와 나란한 계약, 뷰어만 다르다).
+         초음파  폴리곤 좌표(SVG). 마스크 파일이 없다. 아직 Stage.jsx다
          MRI     원본이 한 장이 아니라 DICOM Series 전체(Volume)다 —
                  2D 이미지 자리에 못 얹는다. volumeManifest를 주면
                  화면(screens/Read.jsx)이 이미지 대신 Cornerstone3D
@@ -262,14 +266,19 @@ export const radiology = {
       if (d.unit?.modality === "mri") {
         return { volumeManifest: d.volume_manifest, volumeBase: d.volume_base };
       }
+      if (d.unit?.modality === "mammo") {
+        return { stackManifest: d.stack_manifest, stackBase: d.stack_base };
+      }
 
       const s = (d.series ?? [])[i];
       const ai = d.ai;
       let shapes = [];
       const abstained = ai?.abstained ?? ai?.summary?.abstained;
       if (ai && !abstained && ai.lesion_found !== false) {
-        if (ai.modality === "mammo") shapes = boxesFromLesions(ai.lesions, s?.w, s?.h);
-        else if (asModality(ai.modality) === "us") shapes = polygonsFromAi(ai);
+        /* 맘모는 위에서 이미 stackManifest로 반환하고 끝나서 여기 안
+           온다 — 남는 건 초음파(폴리곤)뿐이다. asModality로 정규화하는
+           이유는 서버가 "us"/"ultrasound" 둘 중 하나를 보낼 수 있어서다 */
+        if (asModality(ai.modality) === "us") shapes = polygonsFromAi(ai);
       }
       return {
         image: s?.image,
@@ -281,6 +290,10 @@ export const radiology = {
 
     Info: ({ d, slide, onSlide }) => {
       const isMri = d.unit?.modality === "mri";
+      /* 맘모도 이제 DicomStackViewer(휠로 뷰 전환)를 쓴다 — MRI와 같은
+         이유로 "골라서 화면에 끼우는" 목록이 아니라 "뭐가 있는지"만
+         보여주는 목록이어야 한다. onSlide는 더 이상 맘모에 안 먹힌다. */
+      const isCornerstone = isMri || d.unit?.modality === "mammo";
       return (
         <>
           {d.patient.contrast_allergy && <Warn>조영제 알레르기 — {d.patient.contrast_allergy}</Warn>}
@@ -292,18 +305,20 @@ export const radiology = {
             ["검사 상태", text(d.unit, "read_status", READ_STATUS, "status_label")],
           ]} />
 
-          {isMri ? (
-            /* MRI는 맘모·초음파처럼 시리즈 하나를 골라 화면에 바꿔
-               끼우는 게 아니다 — 여러 Phase가 이미 한 Volume으로 합쳐져
-               DicomMprPanel에 다 같이 들어가 있다. 그래서 골라 «보는»
+          {isCornerstone ? (
+            /* MRI·맘모는 초음파처럼 시리즈 하나를 골라 화면에 바꿔
+               끼우는 게 아니다 — DicomMprPanel/DicomStackViewer가 전체를
+               한 번에 받아 그린다(맘모는 휠로 뷰 전환). 그래서 골라 «보는»
                버튼이 아니라, 뭐가 찍혔는지 알려주는 목록으로만 둔다.
                클릭 가능한 것처럼 보이면 「눌렀는데 왜 안 바뀌지」가 된다. */
-            <Fold title={`촬영 Phase ${(d.series ?? []).length}`}>
+            <Fold title={`${isMri ? "촬영 Phase" : "촬영 뷰"} ${(d.series ?? []).length}`}>
               <ul className="slides mri-phases">
                 {(d.series ?? []).map((s) => <li key={s.id}>{s.name}</li>)}
               </ul>
               <p className="muted small">
-                Volume 하나로 합쳐져 있어 오른쪽 뷰어에 한 번에 나옵니다. 골라도 화면은 안 바뀝니다.
+                {isMri
+                  ? "Volume 하나로 합쳐져 있어 오른쪽 뷰어에 한 번에 나옵니다. 골라도 화면은 안 바뀝니다."
+                  : "오른쪽 뷰어에서 휠로 뷰를 넘겨 봅니다. 골라도 화면은 안 바뀝니다."}
               </p>
             </Fold>
           ) : (

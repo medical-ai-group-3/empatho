@@ -23,6 +23,13 @@ export function ensureCornerstoneInit() {
       cornerstoneTools.addTool(cornerstoneTools.StackScrollTool);
       cornerstoneTools.addTool(cornerstoneTools.CrosshairsTool);
 
+      /* 맘모(DicomStackViewer)가 쓰는 2D 탐색 도구 — MRI MPR 쪽은
+       * Crosshairs로 세 단면을 같이 움직이니 따로 안 썼지만, 맘모는
+       * 단면이 하나뿐이라 창값·이동·확대가 곧 "탐색"이다. */
+      cornerstoneTools.addTool(cornerstoneTools.PanTool);
+      cornerstoneTools.addTool(cornerstoneTools.ZoomTool);
+      cornerstoneTools.addTool(cornerstoneTools.WindowLevelTool);
+
       /* 판독 도구 — 영상의학과가 직접 재는·그리는 것들.
            길이 측정   LengthTool. DICOM에 pixel spacing이 있어 실제 mm로 나온다
            사각형 ROI  RectangleROITool. 바운딩박스 + 안쪽 평균/표준편차

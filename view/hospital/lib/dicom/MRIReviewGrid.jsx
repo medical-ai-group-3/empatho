@@ -19,6 +19,7 @@ export default function MRIReviewGrid({
   selectedLesion: selectedLesionProp,
   onLesionChange,
   study,
+  mode = "diagnostic",
 }) {
   const [localSelectedLesion, setLocalSelectedLesion] =
     useState(
@@ -148,6 +149,7 @@ export default function MRIReviewGrid({
         <DicomMprPanel
           manifestUrl={study?.volume_manifest}
           baseUrl={study?.volume_base}
+          mode={mode}
         />
       </div>
 
