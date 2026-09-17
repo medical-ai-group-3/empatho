@@ -447,30 +447,39 @@ a{color:inherit; text-decoration:none}
   padding:var(--wel-pad);
   padding-bottom:calc(var(--wel-pad) + env(safe-area-inset-bottom, 0px))}
 
-.wel-body{flex:1; min-height:0; display:flex; flex-direction:column;
-  align-items:center; justify-content:center; gap:var(--wel-gap);
-  text-align:center; overflow-y:auto}
-/* .pane 과 같은 이유다 — 세 줄이 늘어난 만큼 짧은 폰에서는 자리가
-   빠듯한데, 안 막으면 덩어리가 눌리지 스크롤이 생기지 않는다 */
-.wel-body > *{flex:none}
-.wel-tx h2{margin:0; font-size:var(--wel-h-fs); font-weight:700;
-  line-height:1.35; letter-spacing:-.025em; color:var(--ink);
-  white-space:pre-line}       /* 제목의 줄바꿈은 손으로 정한다 */
-.wel-tx p{margin:var(--field-gap) 0 0; font-size:var(--wel-p-fs);
-  line-height:1.8; color:var(--muted)}
+/* 위 — 로고 조합과 서식. 화면을 열면 여기가 먼저 닿는다 */
+.wel-top{flex:none; display:flex; flex-direction:column; align-items:center;
+  gap:var(--wel-tag-gap); padding-top:var(--wel-gap)}
 
-/* 세 줄. 카드와 같은 면이라 홈에 들어갔을 때 낯설지 않다 */
-.wel-list{list-style:none; margin:0; padding:0; width:100%;
-  display:flex; flex-direction:column; gap:var(--wel-row-gap)}
-.wel-list li{display:flex; align-items:center; gap:var(--wel-ic-gap);
-  text-align:left; padding:var(--wel-row-pad);
-  font-size:var(--wel-row-fs); color:var(--ink-2);
-  background:var(--surface); border-radius:var(--card-radius);
-  border:var(--line-w) solid var(--card-line); box-shadow:var(--card-shadow)}
-.wel-list .ic{flex:none; width:var(--wel-ic); height:var(--wel-ic);
-  border-radius:50%; background:var(--pink-bg); color:var(--pink);
-  display:flex; align-items:center; justify-content:center;
-  font-size:var(--wel-ic-fs); line-height:1}
+/* 마크 · 이름 · 서식 세 줄이 한 덩어리. 자간을 크게 벌려 한 자씩 놓는다 —
+   목업의 워드마크가 그렇게 짜여 있고, 벌린 대문자는 그 자체로 차분하다 */
+.lockup{display:flex; flex-direction:column; align-items:center;
+  gap:var(--lock-gap)}
+.lockup-nm{margin:0; font-size:var(--lock-nm-fs); font-weight:700;
+  letter-spacing:var(--lock-nm-track); color:var(--green);
+  padding-left:var(--lock-nm-track)}   /* 마지막 자 뒤 자간만큼 되민다 */
+.lockup-sub{margin:calc(-1 * var(--lock-gap) / 2) 0 0;
+  font-size:var(--lock-sub-fs); font-weight:600;
+  letter-spacing:var(--lock-sub-track); color:var(--muted);
+  padding-left:var(--lock-sub-track)}
+
+/* 서식 한 줄 — 명조. 자간을 살짝 벌려 한 자씩 놓이게 한다 */
+.wel-tag{margin:0; text-align:center; font-family:var(--font-read);
+  font-size:var(--wel-tag-fs); line-height:var(--wel-tag-lh);
+  letter-spacing:var(--wel-tag-track); color:var(--ink-2)}
+
+/* 가운데 — 틸리. **남는 자리를 여기가 먹는다.** 폰이 길면 여백이 틸리
+   둘레로 붙고, 짧으면 여기부터 줄어든다 */
+.wel-mid{flex:1; min-height:0; display:flex; align-items:center;
+  justify-content:center; padding:var(--wel-gap) 0}
+.wel-mid .tilly{max-height:100%}
+
+/* 시작하기 — 두 줄. 위는 왜 시작하는지, 아래가 하는 일이다 */
+.wel-cta{display:flex; flex-direction:column; align-items:center;
+  gap:var(--wel-cta-gap); padding:var(--wel-cta-pad)}
+.wel-cta span{font-size:var(--wel-cta-s-fs); font-weight:500; opacity:.82}
+.wel-cta b{font-size:var(--wel-cta-b-fs); font-weight:700; letter-spacing:.01em}
+.wel-cta i{font-style:normal}
 
 .wel-foot{flex:none; display:flex; flex-direction:column;
   gap:var(--form-gap); align-items:stretch}
@@ -563,6 +572,7 @@ a{color:inherit; text-decoration:none}
    그림이 있으면 그림, 없으면 글자. 둘이 같은 높이를 쓰므로 파일을 넣고
    빼도 화면이 흔들리지 않는다. */
 .logo{display:block; width:auto; object-fit:contain}
+.logo.xl{height:var(--logo-xl)}
 .logo.lg{height:var(--logo-lg)}
 .logo.md{height:var(--logo-md)}
 .logo.sm{height:var(--logo-sm)}
@@ -735,6 +745,7 @@ a{color:inherit; text-decoration:none}
 .tilly.sm{height:var(--tilly-sm)}
 .tilly.md{height:var(--tilly-md)}
 .tilly.lg{height:var(--tilly-lg)}
+.tilly.xl{height:var(--tilly-xl)}
 
 /* ── 떠 있는 챗봇 단추 ───────────────────────────
    탭 **바로 위**에 앉힌다. 탭 높이를 모르므로 탭이 쓰는 바닥 여백에
