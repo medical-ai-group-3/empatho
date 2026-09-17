@@ -138,6 +138,21 @@ JWT = {
     "REFRESH_TTL_DAYS": int(os.environ.get("JWT_REFRESH_TTL_DAYS", "14")),
 }
 
+# Django admin 세션을 받을 auth_user 이름.
+#
+# 관리자가 여럿이어도 **이 하나를 같이 쓴다.** account.auth_user_id 같은 칸을
+# 만들지 않는 이유는, 그 칸이 생기면 account 와 auth_user 를 1:1 로 맞추는
+# 일이 따라붙고 계정이 늘 때마다 admin 사용자도 같이 만들어야 해서다.
+#
+# 비밀번호는 아무도 몰라도 된다 — POST /api/v1/admin-session 이 우리 로그인을
+# 거친 사람에게만 세션을 만들어 준다. 비밀번호로 /admin/ 에 직접 들어가는 길은
+# 쓰지 않는다. 다만 **superuser 하나는 따로 둬야 한다** — 서버가 망가져
+# API 가 안 돌 때 들어갈 길이 없으면 안 된다.
+#
+# ⚠ 누가 고쳤는지는 admin 의 LogEntry 로 못 가린다. 전부 이 사용자로 남는다.
+#   승인 이력은 staff.approved_by 로 따로 남는다.
+ADMIN_AUTH_USER = os.environ.get("ADMIN_AUTH_USER", "cdss_admin")
+
 # Go → Django 내부 콜백(명세 21장)의 서명 키. conf/gosvc.env 의 CALLBACK_SECRET
 # 과 **같은 값**이어야 한다. 어긋나면 콜백이 401 로 조용히 거절된다.
 # 비어 있으면 콜백을 아예 받지 않는다 — 설정 누락을 통과로 취급하지 않는다.

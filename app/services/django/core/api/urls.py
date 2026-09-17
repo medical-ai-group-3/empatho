@@ -13,6 +13,7 @@ from importlib.util import find_spec
 
 from django.urls import include, path, re_path
 
+from .admin_session import AdminSessionView
 from .tickets import TicketView
 from .views import HealthView, NotFoundView, login
 
@@ -20,6 +21,8 @@ urlpatterns = [
     path("health", HealthView.as_view(), name="health"),
     path("tickets", TicketView.as_view(), name="ticket-issue"),
     path("login", login, name = "login"),
+    # 우리 로그인 → Django admin 세션. 관리자가 로그인을 두 번 하지 않게 한다
+    path("admin-session", AdminSessionView.as_view(), name="admin-session"),
 ]
 
 # 안내 챗봇. 화면(empatho-view)의 src/api.js 가 이 경로를 쓴다.
