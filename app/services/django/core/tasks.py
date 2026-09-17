@@ -45,8 +45,8 @@ from .api.tickets import issue
 from django.utils import timezone
 
 from . import mesh 
-from .models import AiResult, StorageObject
 from celery.exceptions import SoftTimeLimitExceeded
+from .models import AiResult, Report, StorageObject
 
 logger = logging.getLogger(__name__) 
 
@@ -61,6 +61,10 @@ GATEWAY = "http://file-gateway:8091"
 #   GPU 는 워크스테이션에만 있어서 판독은 반드시 이 경로를 지난다.
 INFERENCE = "http://tunnel:8001"
 
+# 소견문 창구
+#   Go 가 리포트 서버(워크스테이션 8002)를 대신 부른다. 글은 응답이 아니라
+#   소견문 저장 콜백으로 돌아온다.
+LLM_PROXY = "http://llm-proxy:8090"
 
 # 모달리티별 소켓 지정
 #   추론 서버는 주소의 소켓 번호로 어느 모델을 쓸지 정한다 — 영상을 열어보고
@@ -236,8 +240,87 @@ def run_inference(ai_result_id) :
     ai.save(update_fields=[
         "result", "abstained", "abstain_reason", "run_status",
         "elapsed_sec", "analyzed_at", "updated_at"])
+    # 판독이 끝났으면 검사 리포트를 세우고 AI 소견문을 맡긴다.
+    #
+    # 여기서 가져오는 이유 — core.reports 가 맨 위에서 이 모듈의 SOCKET 과
+    # request_narrative 를 가져간다. 파일 맨 위에서 서로를 부르면 둘 다
+    # 반쯤 올라간 상태에서 만나 ImportError 가 난다.
+    #
+    # 소견문이 실패해도 판독 결과는 이미 저장됐다. 그래서 여기서 터져도
+    # 행을 failed 로 되돌리지 않는다 — 판독은 성공한 것이 맞다
+    if ai.run_status == "done" :
+        try :
+            from . import reports
+            reports.issue_stage_report(ai)
+        except Exception as exc :
+            logger.warning("[run_inference] 소견문 요청 실패 %s (%s)", ai.pk, type(exc).__name__)
     logger.info("[run_inference] 행 %s %s %.1f초", ai.pk, ai.run_status, float(ai.elapsed_sec))
     return ai.run_status
+
+@shared_task
+def request_narrative(report_id, ai_result_id) :
+    """리포트 한 건의 AI 소견문을 리포트 서버에 맡긴다.
+
+    ■ 왜 태스크인가
+        리포트 서버는 GPU 를 쓴다. 모델이 올라와 있으면 1초 미만이지만 처음
+        부를 때는 적재를 기다린다. 판독 태스크가 그것까지 안고 있으면 다음
+        판독이 밀린다.
+
+    ■ 글이 돌아오는 길
+        여기서 Go 를 부르고 끝이다. 문장은 응답이 아니라 콜백으로 들어온다.
+
+            Django ─티켓─▶ llm-proxy ─▶ 리포트 서버 ─▶ 소견문 저장 콜백 ─▶ report
+
+        Go 응답에도 같은 내용이 실려 있지만 쓰지 않는다. 저장 경로가 둘이면
+        어느 쪽이 이겼는지 알 수 없다.
+
+    ■ 실패해도 리포트는 남는다
+        명세 규칙이다 — 리포트 서버가 죽어도 리포트는 발급된다. 그래서
+        예외를 올리지 않고 재시도도 하지 않는다. 재시도가 GPU 를 붙잡으면
+        판독이 밀린다. 다시 만들지는 사람이 정한다.
+    """
+    report = Report.objects.get(pk=report_id) 
+    ai = AiResult.objects.get(pk=ai_result_id)
+    
+    # 봉투가 아니라 안쪽을 보낸다. 리포트 서버는 /analyze 의 result 를 그대로
+    # 받는다 — 봉투째 주면 lesion_found 를 못 찾아 「병변이 검출되지
+    # 않았습니다」가 나간다.
+    result = (ai.result or {}).get("result")
+    if not isinstance(result, dict) :
+        logger.warning("[narrative] 리포트 %s 판독 %s 에 결과가 없다", report_id, ai.pk)
+        return "no_result"
+    # evidence 는 아직 빈 목록이다. AI 결과에서 병변 행을 만드는 코드가 없어
+    # 채울 것이 없다. 리포트 서버는 그때 근거 검사를 건너뛰고 숫자 검사만
+    # 한다 — 400 이 아니라 정상 경로다.
+    body = json.dumps({
+        "report_id": str(report.pk),
+        "socket": report.socket_id,
+        "result": result,
+        "evidence": []
+    }).encode() 
+    
+    token, _, _ = issue("report_narrative", "report", report.pk)
+    req = urllib.request.Request(
+        f"{LLM_PROXY}/svc/v1/llm/report-narrative",
+        data = body,
+        method="POST",
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json"
+        }
+    )
+    try :
+        # Go 는 5분까지 기다린다. 우리가 먼저 끊으면 Go 는 계속 만들고 있고
+        # 콜백도 정상으로 들어오는데 이 태스크만 실패로 남아 헷갈린다.
+        with urllib.request.urlopen(req, timeout=330) as r :
+            out = json.loads(r.read())
+    except Exception as exc :
+        logger.warning("[narrative] 리포트 %s 못 보냈다 (%s)", 
+                       report_id, type(exc).__name__)
+        return f"failed:{type(exc).__name__}"
+    
+    logger.info("[narrative] 리포트 %s 보냄 / 소켓 %s / fallback=%s", report_id, report.socket_id, out.get("fallback"))
+    return "sent"
 
 def _series_row(study_id) :
     """이 검사의 Orthanc 시리즈를 대표하는 저장 행 하나.
