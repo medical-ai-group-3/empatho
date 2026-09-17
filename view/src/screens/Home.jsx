@@ -3,7 +3,7 @@ import { api } from "../api";
 import { useApi } from "../lib/useApi";
 import Calendar from "../lib/Calendar";
 import Coach from "../lib/Coach";
-import Triri from "../lib/Triri";
+import Tilly from "../lib/Tilly";
 import { COACH_HOME } from "../lib/seen";
 import { Body } from "../lib/Screen";
 import { fmtDay, fmtWhen } from "../lib/when";
@@ -83,11 +83,11 @@ function Inner({ d }) {
         <Link className="icon" to="/settings" aria-label="설정"><Gear /></Link>
       </div>
 
-      {/* 인사 옆에 트리리. 글이 주인공이고 캐릭터는 거든다 —
+      {/* 인사 옆에 틸리. 글이 주인공이고 캐릭터는 거든다 —
           alt 를 비운 것은 바로 위에 「안녕하세요 ○○○ 님」이 글로 있어서다.
           읽어 주는 기계가 같은 말을 두 번 하면 성가시다 */}
       <div className="hhead-tri" aria-hidden="true">
-        <Triri mood="hello" size="md" alt="" />
+        <Tilly mood="hello" size="md" alt="" />
       </div>
 
       {d.last_visit_at && (

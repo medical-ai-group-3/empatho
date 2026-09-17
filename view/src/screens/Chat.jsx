@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api";
 import { Head } from "../lib/Screen";
-import Triri from "../lib/Triri";
+import Tilly from "../lib/Tilly";
 
 /* 12 · 안내 챗봇
  *
@@ -92,10 +92,10 @@ export default function Chat() {
       <div className="pane chat">
         {msgs.length === 0 ? (
           <>
-            {/* 트리리가 먼저 묻는다. 빈 화면에 「무엇을 물어야 하나」를
+            {/* 틸리가 먼저 묻는다. 빈 화면에 「무엇을 물어야 하나」를
                 사람이 혼자 고민하지 않게 하는 자리다 */}
             <div className="chat-tri">
-              <Triri mood="ask" size="md" alt="" />
+              <Tilly mood="ask" size="md" alt="" />
             </div>
 
             <div className="card">
@@ -128,7 +128,7 @@ export default function Chat() {
 
         {busy && (
           <div className="bub bot wait" aria-live="polite">
-            <Triri mood="checking" size="sm" alt="" />
+            <Tilly mood="checking" size="sm" alt="" />
             <p>답을 찾고 있습니다…</p>
           </div>
         )}

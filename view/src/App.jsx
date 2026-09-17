@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useLocation } from "react-router-dom";
-import Triri from "./lib/Triri";
+import Tilly from "./lib/Tilly";
 
 /* 로그인한 뒤의 껍데기 — 아래 탭은 여기 한 곳에만 있다.
  *
@@ -64,7 +64,7 @@ function ChatFab() {
 
   return (
     <NavLink className="chatfab" to="/chat" aria-label="안내 챗봇에게 묻기">
-      <Triri mood="ask" size="sm" alt="" />
+      <Tilly mood="ask" size="sm" alt="" />
       <span className="chatfab-tx">상담</span>
     </NavLink>
   );

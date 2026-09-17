@@ -736,14 +736,14 @@ a{color:inherit; text-decoration:none}
 /* 화면에서는 숨어 있다 — 위 @media print 만 이것을 꺼낸다 */
 .printhead{display:none}
 
-/* ── 트리리 ──────────────────────────────────────
-   그림이 없으면 부품이 아무것도 안 그린다(lib/Triri) — 여기 규칙은
+/* ── 틸리 ──────────────────────────────────────
+   그림이 없으면 부품이 아무것도 안 그린다(lib/Tilly) — 여기 규칙은
    파일이 들어온 뒤에야 쓰인다. */
-.triri{display:block; width:auto; object-fit:contain; user-select:none;
+.tilly{display:block; width:auto; object-fit:contain; user-select:none;
   -webkit-user-drag:none}
-.triri.sm{height:var(--triri-sm)}
-.triri.md{height:var(--triri-md)}
-.triri.lg{height:var(--triri-lg)}
+.tilly.sm{height:var(--tilly-sm)}
+.tilly.md{height:var(--tilly-md)}
+.tilly.lg{height:var(--tilly-lg)}
 
 /* ── 떠 있는 챗봇 단추 ───────────────────────────
    탭 **바로 위**에 앉힌다. 탭 높이를 모르므로 탭이 쓰는 바닥 여백에
@@ -763,7 +763,7 @@ a{color:inherit; text-decoration:none}
 .chatfab:active{transform:translateY(0)}
 .chatfab-tx{font-size:var(--fab-fs); font-weight:700; letter-spacing:.02em}
 /* 그림이 아직 없을 때 — 동그라미가 비지 않게 글자를 키워 세운다 */
-.chatfab:not(:has(.triri)) .chatfab-tx{font-size:var(--tile-fs)}
+.chatfab:not(:has(.tilly)) .chatfab-tx{font-size:var(--tile-fs)}
 
 /* 앱 폭보다 넓은 화면에서는 앱 오른쪽 끝에 붙인다 — 화면 구석에 혼자
    떨어져 있으면 이 앱의 것으로 안 보인다 */
@@ -790,18 +790,18 @@ a{color:inherit; text-decoration:none}
   background:var(--bg); border-color:var(--line)}
 .tile.off .ic{background:var(--off); color:var(--faint)}
 
-/* ── 홈 인사 옆 트리리 ───────────────────────────
+/* ── 홈 인사 옆 틸리 ───────────────────────────
    인사말과 나란히 선다. 글이 주인공이라 캐릭터는 오른쪽에서 거든다 */
-.hhead .triri{margin-left:auto}
+.hhead .tilly{margin-left:auto}
 
-/* 챗봇 첫 화면의 트리리 — 가운데에 세운다 */
+/* 챗봇 첫 화면의 틸리 — 가운데에 세운다 */
 .chat-tri{display:flex; justify-content:center;
   padding:var(--screen-gap) 0 var(--card-gap)}
 
-/* 「답을 찾고 있습니다」 말풍선 안의 작은 트리리 */
+/* 「답을 찾고 있습니다」 말풍선 안의 작은 틸리 */
 .bub.wait{display:flex; align-items:center; gap:var(--dot-gap)}
-.bub.wait .triri{flex:none}
+.bub.wait .tilly{flex:none}
 
-/* 홈 인사 옆 트리리 — 머리말 아래 오른쪽에 붙는다 */
+/* 홈 인사 옆 틸리 — 머리말 아래 오른쪽에 붙는다 */
 .hhead-tri{display:flex; justify-content:flex-end;
   margin-top:calc(-1 * var(--screen-gap))}
