@@ -398,13 +398,32 @@ class ReportNarrativeCallback(InternalCallbackView):
     def post(self, request, report_id):
         report = self.target(Report, report_id, "report")
         p = self.payload
+        changed = []
 
-        report.narrative_text = p.get("narrative_text") or None
-        report.evidence_links = p.get("evidence_links")      # Go 는 문자열 배열
-        report.dropped_sentences = p.get("dropped_sentence_log")
-        report.notes = p.get("notes")
-        report.prompt_version = p.get("prompt_version") or None
-        report.fallback = bool(p.get("fallback"))
+        def take(field, key, empty_to_none=False):
+            """키가 있을 때만 쓴다.
+
+            Go 는 값이 없으면 키를 뺀다(omitempty — notes · prompt_version ·
+            fallback_reason). 없는 키까지 대입하면 앞서 채운 값이 조용히
+            지워진다. 재시도와 부분 응답에서 그렇게 된다.
+
+            JSON 칸에는 `or None` 을 걸지 않는다 — 빈 배열은 「근거 없음」이고
+            None 은 「모름」이라 뜻이 다르다.
+            """
+            if key not in p:
+                return
+            value = p[key]
+            setattr(report, field, (value or None) if empty_to_none else value)
+            changed.append(field)
+
+        take("narrative_text", "narrative_text", empty_to_none=True)
+        take("evidence_links", "evidence_links")          # Go 는 문자열 배열
+        take("dropped_sentences", "dropped_sentence_log")
+        take("notes", "notes")
+        take("prompt_version", "prompt_version", empty_to_none=True)
+        # Go 가 fallback 에만 omitempty 를 뺐다 — 안 되돌렸으면 false 가
+        # **와야** 한다. 없는 키를 False 로 읽으면 그 구분이 무너진다.
+        take("fallback", "fallback")
 
         # v10 에 사유 칸이 없다. 스키마를 늘리지 않고 본문에 넣는다.
         reason = p.get("fallback_reason")
@@ -412,10 +431,13 @@ class ReportNarrativeCallback(InternalCallbackView):
             content = dict(report.content_json or {})
             content["fallback_reason"] = reason
             report.content_json = content
+            changed.append("content_json")
 
-        report.save()
-        logger.info("[I-4] 서술 채움 report=%s fallback=%s idem=%s",
-                    report.pk, report.fallback, self.idempotency_key)
+        if changed:
+            report.save(update_fields=changed + ["updated_at"])
+        logger.info("[I-4] 서술 채움 report=%s 칸=%d fallback=%s idem=%s",
+                    report.pk, len(changed), report.fallback,
+                    self.idempotency_key)
         return Response({"report_id": report.pk})
 
 
