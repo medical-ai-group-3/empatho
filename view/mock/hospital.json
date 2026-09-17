@@ -792,7 +792,7 @@
   "POST /api/v1/hospital/specimens/{id}/amend": {
     "ok": true
   },
-  "GET /api/v1/hospital/exam-orders/queue": {
+  "GET /api/v1/hospital/exam-orders?status={s}&assigned={a}": {
     "items": [
       {
         "id": "or-201",

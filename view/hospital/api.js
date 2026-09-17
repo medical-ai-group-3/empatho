@@ -22,7 +22,7 @@
  *     trace_id 는 헤더 X-Trace-Id 에도 온다. 오류 화면에 작게 띄운다 —
  *     서버 쪽에서 로그를 찾을 때 이 값으로 찾는다
  *   · 배정 충돌은 409 + ALREADY_ASSIGNED. 영상·병리 공용이다
- *   · 영상 대기 큐도 /exam-orders/queue 로 통일
+ *   · 영상 대기 큐는 거른 목록이다 — /exam-orders?status=ordered&assigned=none
  *
  * 2026-09-16 2차 회신 반영분
  *   · 영상 판독 조회에 **과 이름이 앞에 붙는다** — /radiology/studies/{id}/read
@@ -356,9 +356,10 @@ export const path = {
      리다이렉트 자체가 안 일어난다. 슬래시를 빠뜨리면 늘 깔끔한 404 다.
 
      ⚠ 아래 custom action 들(queue·assign·upload·draft·finalize·amend)은
-       「슬래시 없음」으로 들었는데, 그 확인도 같은 회신에서 나온 것이라
-       되물어 두었다. DRF 라우터는 @action 에도 슬래시를 붙이는 것이
-       기본이라 함께 확인이 필요하다. */
+       서버 코드로 확인했다 — 이들은 @action 이 아니라 core/urls.py 의
+       명시 path() 라서 **슬래시가 없다.** 끝 슬래시가 붙는 것은 router 에
+       등록된 것들뿐이다 (patients · studies · lesions · reports ·
+       followups · reservations · visits/today · me/reservation-requests). */
   specimen:   (id)     => get(`/specimens/${id}/`),
   assign:     (id)     => patch(`/specimens/${id}/assign`),
 
@@ -396,11 +397,15 @@ export const rad = {
      병리와 같은 사정인데 값이 다르다 — 영상은 status=ordered 다.
      안 담으면 이미 촬영·배정이 끝난 건까지 대기 큐에 섞인다.
 
-     ⚠ 다희님 회신에 이 경로가 두 가지로 적혀 있었다. 표에는
-       GET /exam-orders/queue, 접두 설명에는 radiology/queue 다.
-       어느 쪽인지 되물어 두었고, 답이 올 때까지 표 쪽을 따른다 —
-       지금까지 쓰던 것이고 목업도 그 모양이다. */
-  queue:      ()       => get(`/exam-orders/queue${qs({ status: "ordered", assigned: "none" })}`),
+     경로는 **서버 코드로 확정했다** — /exam-orders/queue 도 /radiology/queue
+     도 아니고, 걸러 낸 목록이다.
+
+       core/urls.py   path("exam-orders", ExamOrderQueueView)
+       그 뷰 독스트링  GET /exam-orders?status=ordered&assigned=none
+
+     큐는 결국 「거른 목록」이라 따로 경로를 두지 않는다. /ai-results?study=
+     · /assessments?study= 도 같은 모양이다. */
+  queue:      ()       => get(`/exam-orders${qs({ status: "ordered", assigned: "none" })}`),
   order:      (id)     => get(`/exam-orders/${id}`),
   assign:     (id)     => patch(`/exam-orders/${id}/assign`),
 
