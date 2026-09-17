@@ -22,3 +22,23 @@ class VisitCheckInSerializer(serializers.Serializer):
         if not models.ExamOrder.objects.filter(pk=value).exists():
             raise serializers.ValidationError("존재하지 않는 오더입니다.")
         return value
+    
+class FollowupCreateSerializer(serializers.Serializer):
+    """POST /followups — 추적 회차 생성(§2)."""
+    
+    patient_id = serializers.IntegerField()
+    round_no = serializers.IntegerField()
+    due_at = serializers.DateTimeField()
+    
+class FollowupCallSerializer(serializers.Serializer):
+    """PATCH /followups/{id}/call — 안내 콜 기록(§2)."""
+    
+    call_result = serializers.CharField()
+    call_note = serializers.CharField(required=False, allow_blank=True)
+    
+class PrimaryStaffAssignSerializer(serializers.Serializer):
+    """PATCH /patients/{id} — 주치의 지정(§1)."""
+    
+    primary_staff = serializers.IntegerField()
+    
+    

@@ -5,6 +5,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from .. import models
+from core.api.perms import perms_for_role
 
 AUDIT_FIELDS = ("created_at", "created_by", "updated_at", "updated_by")
 
@@ -32,9 +33,23 @@ class PatientDetailSerializer(PatientSerializer):
 
 
 class ExamOrderSerializer(serializers.ModelSerializer):
+    patient_name = serializers.CharField(
+        source="patient.pii.name", read_only=True, default=None
+    )
+
     class Meta:
         model = models.ExamOrder
         exclude = AUDIT_FIELDS
+
+
+class PatientExamOrderSerializer(serializers.ModelSerializer):
+    """환자 role 조회/응답용 — 문진 · 취소 사유 · 취소자 · 지시자는 뺀다."""
+
+    class Meta:
+        model = models.ExamOrder
+        exclude = AUDIT_FIELDS + (
+            "questionnaire", "cancel_reason", "cancelled_by", "ordered_by",
+        )
 
 
 class PatientListSerializer(serializers.ModelSerializer):
@@ -42,10 +57,11 @@ class PatientListSerializer(serializers.ModelSerializer):
 
     name = serializers.CharField(source="pii.name", read_only=True)
     phone = serializers.CharField(source="pii.phone", read_only=True)
+    birth_date = serializers.DateField(source="pii.birth_date", read_only=True, default=None)
 
     class Meta:
         model = models.Patient
-        fields = ("patient_id", "patient_number", "name", "phone", "birth_year", "sex")
+        fields = ("patient_id", "patient_number", "name", "phone", "birth_date", "birth_year", "sex")
 
 
 # ── 워크플로 액션 전용 (쓰기) ──────────────────────────────────
@@ -151,3 +167,71 @@ class ReservationRequestCreateSerializer(serializers.Serializer):
             created_by=validated_data.get("created_by"),
             updated_by=validated_data.get("updated_by"),
         )
+        
+class StaffSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.Staff
+        exclude = ("created_at", "created_by" , "updated_at", "updated_by")
+        
+class PatientRegisterSerializer(serializers.Serializer):
+    """POST /patients/register — §1 [+] 등록. 이름·생년월일·전화로 중복 검사."""
+
+    name = serializers.CharField(max_length=50)
+    birth_date = serializers.DateField()
+    phone = serializers.CharField(max_length=30)
+
+    def create(self, validated_data):
+        existing = models.PatientPii.objects.filter(
+            name=validated_data["name"],
+            birth_date=validated_data["birth_date"],
+            phone=validated_data["phone"],
+        ).first()
+        if existing:
+            return existing.patient
+
+        audit = {
+            "created_by": validated_data.pop("created_by", None),
+            "updated_by": validated_data.pop("updated_by", None),
+        }
+        import uuid
+        patient = models.Patient.objects.create(
+            patient_number="P" + uuid.uuid4().hex[:10].upper(),
+            **audit,
+        )
+        models.PatientPii.objects.create(patient=patient, **validated_data, **audit)
+        return patient
+    
+class CheckInSerializer(serializers.Serializer):
+     """POST /exam-orders (§1 접수하기) — requested + visited_at."""
+     
+     patient_id = serializers.IntegerField()
+     
+class ExamOrderScheduleSerializer(serializers.Serializer):
+    """POST /exam-orders (§3 예약 완료) — 원무가 날짜만 잡는다."""
+    
+    patient_id = serializers.IntegerField()
+    scheduled_at = serializers.DateTimeField()
+    
+class MeSerializer(serializers.Serializer):
+    """GET /me — 로그인한 계정 정보 + 권한 배열."""
+    name = serializers.SerializerMethodField()
+    role = serializers.CharField()
+    dept = serializers.CharField(source="role")
+    dept_name = serializers.SerializerMethodField()
+    perms = serializers.SerializerMethodField()
+
+    DEPT_NAMES = {
+        "reception": "원무과", "nursing": "간호과", "radiology": "영상의학과",
+        "pathology": "병리과", "surgery": "유방외과", "admin": "관리자",
+        "patient": "환자",
+    }
+
+    def get_name(self, account):
+        staff = getattr(account, "staff", None)
+        return staff.full_name if staff else None
+
+    def get_dept_name(self, account):
+        return self.DEPT_NAMES.get(account.role, account.role)
+
+    def get_perms(self, account):
+        return perms_for_role(account.role)

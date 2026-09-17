@@ -16,7 +16,7 @@ class StudySerializer(serializers.ModelSerializer):
 class LesionSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Lesion
-        exclude = AUDIT_FIELDS
+        exclude = AUDIT_FIELDS + ("malignancy_p",)
 
 
 class AssessmentSerializer(serializers.ModelSerializer):
@@ -31,37 +31,17 @@ class AiResultSerializer(serializers.ModelSerializer):
         exclude = AUDIT_FIELDS
 
 
-class ReportSerializer(serializers.ModelSerializer):
+class StorageObjectSerializer(serializers.ModelSerializer):
     class Meta:
-        model = models.Report
+        model = models.StorageObject
         exclude = AUDIT_FIELDS
 
 
 # ── 워크플로 액션 전용 ──────────────────────────────────
 
-class ExamOrderAssignSerializer(serializers.Serializer):
-    """PATCH /exam-orders/{id}/assign — 대기 큐 집기."""
-    # body 없음 — request.user 로 assigned_to 를 정한다.
-    pass
-
-
-class ExamOrderCompleteSerializer(serializers.Serializer):
-    """PATCH /exam-orders/{id}/complete — 영상 품질 승인."""
-    pass
-
-
 class AssessmentDraftSerializer(serializers.Serializer):
     """PUT /studies/{id}/assessment/draft — 임시저장(덮어쓰기)."""
 
-    lesion_id = serializers.IntegerField(required=False, allow_null=True)
-    finding_note = serializers.CharField(required=False, allow_blank=True)
-    category = serializers.CharField(required=False, allow_null=True)
-
-
-class AssessmentFinalSerializer(serializers.Serializer):
-    """POST /assessments — 판정 확정."""
-
-    study_id = serializers.IntegerField()
     lesion_id = serializers.IntegerField(required=False, allow_null=True)
     finding_note = serializers.CharField(required=False, allow_blank=True)
     category = serializers.CharField(required=False, allow_null=True)
@@ -80,9 +60,15 @@ class LesionFalsePositiveSerializer(serializers.Serializer):
     is_false_positive = serializers.BooleanField()
 
 
+class StudyUploadReviewSerializer(serializers.Serializer):
+    """PATCH /radiology/studies/{id}/upload — 업로드 품질 승인/반려."""
+
+    quality_status = serializers.ChoiceField(choices=models.QUALITY_STATUS)
+
+
 class AssessmentAmendSerializer(serializers.Serializer):
     """POST /assessments/{id}/amend — 판독 정정. 새 행 생성 + 옛 행 superseded_by."""
 
-    decision_reason = serializers.CharField(max_length=500)
+    decision_reason = serializers.CharField(max_length=250)
     category = serializers.CharField()
     finding_note = serializers.CharField(max_length=1000)

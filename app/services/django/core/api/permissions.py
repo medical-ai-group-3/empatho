@@ -309,6 +309,10 @@ class IsRole(IsAuthenticatedAccount):
 #: 간호」다. 어느 쪽도 맞지 않아 문서 반영 요청 목록에 올렸다.
 CanBindSpecimen = IsRole.of(NURSING, SURGERY, code="BINDING_ROLE_FORBIDDEN")
 
+#: 수술 결정 기록 — 유방외과 단독. 다른 부서는 이 경로로 assessment를
+#: 못 건드린다. 범용 PATCH /assessments/{id} 와는 분리된 경로다.
+CanDecideAssessment = IsRole.of(SURGERY, code="DECISION_ROLE_ONLY_SURGERY")
+
 #: 불일치 해소 처분 — 유방외과 단독 (§8.4)
 CanDisposeDiscordance = IsRole.of(SURGERY, code="DISPOSITION_ROLE_ONLY_SURGERY")
 
