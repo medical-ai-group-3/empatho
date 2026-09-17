@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { Suspense, lazy, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Body } from "../lib/Body";
 import { Card, Page } from "../lib/Page";
@@ -7,6 +7,12 @@ import Stage from "../lib/Stage";
 import { useFile } from "../lib/files";
 import { useApi } from "../lib/useApi";
 import { can } from "../perm";
+
+/* MRI 뷰어(유방외과 검사 종합 확인에서 쓰는 것과 같은 컴포넌트) — 병리에는
+ * 안 쓰고, 영상의학과라도 맘모·초음파만 보면 필요 없다. 늦게 불러온다
+ * (lazy) — cornerstone3D·three.js가 무거워서(~500kB+) 정적으로 얹으면
+ * MRI를 한 번도 안 보는 선생님도 매번 같이 받는다. */
+const MRIReviewGrid = lazy(() => import("../lib/dicom/MRIReviewGrid"));
 
 /* ═══ 3장 · 판독 ═════════════════════════════════════════════════
  *
@@ -81,8 +87,14 @@ function Inner({ cfg, id, d }) {
        병리    PNG 마스크
        초음파  폴리곤 → SVG
        맘모    박스 → SVG
-     화면은 어느 쪽인지 몰라도 된다 — 둘 다 같은 자리에 겹쳐 놓는다 */
+       MRI     원본이 한 장이 아니라 DICOM Series 전체(Volume)다 — 2D
+               이미지 자리에 못 얹는다. stage()가 volume_manifest를
+               주면 화면은 이미지 대신 유방외과 검사 종합 확인과 같은
+               MRIReviewGrid(3D 병변 위치·3D 병변 + Axial/Coronal/
+               Sagittal)를 그린다.
+     화면은 어느 쪽인지 몰라도 된다 — 셋 다 같은 자리에 겹쳐 놓는다 */
   const view = c.stage ? c.stage(d, slide) : {};
+  const isVolume = Boolean(view.volumeManifest);
 
   /* 원본과 마스크는 Go 관문에서 온다.
      ⚠ <img src> 는 Authorization 헤더를 못 보낸다. 그래서 여기서 fetch 로
@@ -121,34 +133,47 @@ function Inner({ cfg, id, d }) {
           doctorOpen
 
           below={
-            <div className="vknobs">
-              <Slide label={view.maskImage ? "마스크 투명도" : "표시 투명도"}
-                     value={mask} onChange={setMask} />
-              {/* 원본이 서버에서 8bit PNG 로 변환돼 오므로 **창값 조절은
-                  못 한다.** 이건 화면 보정일 뿐이고, 판독의가 창값으로
-                  오해하지 않게 이름을 그렇게 붙였다.
-                  AI 도 같은 8bit 변환본을 보고 판단한다 — 화면과 AI 가
-                  같은 것을 보게 하려는 것이 이 선택의 이유다 */}
-              <Slide label="밝기" value={bright} onChange={setBright}
-                     min={30} max={200} />
-              <Slide label="대비" value={contrast} onChange={setContrast}
-                     min={30} max={250} />
-              <span className="muted small">
-                화면 보정입니다. 창값(window/level)이 아닙니다
-                {view.window ? ` · 서버 변환 ${view.window}` : ""}
-              </span>
-            </div>
+            isVolume ? null : (
+              <div className="vknobs">
+                <Slide label={view.maskImage ? "마스크 투명도" : "표시 투명도"}
+                       value={mask} onChange={setMask} />
+                {/* 원본이 서버에서 8bit PNG 로 변환돼 오므로 **창값 조절은
+                    못 한다.** 이건 화면 보정일 뿐이고, 판독의가 창값으로
+                    오해하지 않게 이름을 그렇게 붙였다.
+                    AI 도 같은 8bit 변환본을 보고 판단한다 — 화면과 AI 가
+                    같은 것을 보게 하려는 것이 이 선택의 이유다 */}
+                <Slide label="밝기" value={bright} onChange={setBright}
+                       min={30} max={200} />
+                <Slide label="대비" value={contrast} onChange={setContrast}
+                       min={30} max={250} />
+                <span className="muted small">
+                  화면 보정입니다. 창값(window/level)이 아닙니다
+                  {view.window ? ` · 서버 변환 ${view.window}` : ""}
+                </span>
+              </div>
+            )
           }
         >
-          <Stage
-            src={img.src} w={view.w} h={view.h} alt={view.alt}
-            loading={img.loading} loadError={img.error}
-            bright={bright} contrast={contrast}
-            mask={msk.src} shapes={view.shapes ?? []}
-            opacity={mask}
-            pick={pick} onPick={setPick}
-            full={full} onFull={() => setFull((v) => !v)}
-          />
+          {isVolume ? (
+            <div className="mri-viewer-slot">
+              <Suspense fallback={<div className="mri-loading">MRI 뷰어 불러오는 중…</div>}>
+                <MRIReviewGrid
+                  lesions={d.lesions}
+                  study={{ volume_manifest: view.volumeManifest, volume_base: view.volumeBase }}
+                />
+              </Suspense>
+            </div>
+          ) : (
+            <Stage
+              src={img.src} w={view.w} h={view.h} alt={view.alt}
+              loading={img.loading} loadError={img.error}
+              bright={bright} contrast={contrast}
+              mask={msk.src} shapes={view.shapes ?? []}
+              opacity={mask}
+              pick={pick} onPick={setPick}
+              full={full} onFull={() => setFull((v) => !v)}
+            />
+          )}
         </Viewer>
       </Card>
 
@@ -158,7 +183,7 @@ function Inner({ cfg, id, d }) {
         hint={c.saveHint}
         onDraft={draft} onSave={finalize} busy={busy}
         draftNeed={c.need.draft} saveNeed={c.need.finalize}
-        canSave={c.ready ? c.ready(f) : true}
+        canSave={c.ready ? c.ready(f, d) : true}
         saveLabel="저장"
       />
     </div>

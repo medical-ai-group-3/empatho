@@ -154,6 +154,25 @@ const DEPTS = [
         need: "admin.console.open" },
     ],
   },
+
+  /* ⚠ 간호과도 유방외과처럼 모양이 다르다. 집는 절차도, 판독도 없다 —
+     원무가 접수한 환자를 유방외과 의사에게 넘기고, 추적을 관리한다.
+     검체 바인딩(3장)은 화면이 따로 없다 — 유방외과와 같은 팝업을
+     1장 안에서 연다(간호과 명세 §3). */
+  {
+    key: "nursing",
+    name: "간호과",
+    who: { name: "정다은", role: "간호사" },
+    screens: [
+      { key: "", use: "nursing.waiting", menu: "내원 대기", title: "내원 대기 · 유방외과 배정",
+        sub: "지금 와 있는 환자를 접수 순서대로 보고 유방외과 의사에게 넘깁니다.",
+        need: "nursing.waiting.view" },
+
+      { key: "followups", use: "nursing.followups", menu: "추적 관리", title: "추적 대상 관리",
+        sub: "BI-RADS 3 확정 환자의 6·12·24개월 추적을 관리합니다.",
+        need: "nursing.followup.view" },
+    ],
+  },
 ];
 
 export { DEPTS };
@@ -210,6 +229,7 @@ export function homeDept() {
 const P = `${ROOT}/pathology`;
 const R = `${ROOT}/radiology`;
 const B = `${ROOT}/breast`;
+const N = `${ROOT}/nursing`;
 
 export const go = {
   /* ⚠ 과 바깥이다. 사람은 과에 딸린 것이 아니라서 /hospital/me 로 둔다 */
@@ -245,5 +265,10 @@ export const go = {
     intake:   () => `${ROOT}/reception`,
     patients: () => `${ROOT}/reception/patients`,
     requests: () => `${ROOT}/reception/requests`,
+  },
+
+  nursing: {
+    waiting:   () => N,
+    followups: () => `${N}/followups`,
   },
 };

@@ -199,14 +199,27 @@ export const radiology = {
       draft: "radiology.read.draft",
       finalize: "radiology.read.finalize",
     },
-    ready: (f) => Boolean(f.category),
+    /* MRI는 등급(BI-RADS)을 안 낸다 — 모델 구조상 없는 값이고, AI
+       소견(RadiologyAi.jsx의 Mri())도 등급을 안 보여준다. 그래서 저장
+       가능 여부도 판독 소견 유무로 본다. 나머지 모달리티는 등급 선택이
+       곧 판독의 핵심이라 그대로 category로 가른다. */
+    ready: (f, d) => d?.unit?.modality === "mri"
+      ? Boolean(f.finding_note?.trim())
+      : Boolean(f.category),
 
-    /* 뷰어에 무엇을 얹나 — 모달리티마다 다르다. **둘 다 SVG 로 간다.**
-         맘모    검출 모델이라 마스크가 없다. 병변마다 박스 네 숫자
-         초음파  폴리곤 좌표. 마스크 파일이 없다
-         MRI     3D 메시라 2D 뷰어에 안 얹는다 (Garage 에서 따로 본다)
+    /* 뷰어에 무엇을 얹나 — 모달리티마다 다르다.
+         맘모    검출 모델이라 마스크가 없다. 병변마다 박스 네 숫자(SVG)
+         초음파  폴리곤 좌표(SVG). 마스크 파일이 없다
+         MRI     원본이 한 장이 아니라 DICOM Series 전체(Volume)다 —
+                 2D 이미지 자리에 못 얹는다. volumeManifest를 주면
+                 화면(screens/Read.jsx)이 이미지 대신 Cornerstone3D
+                 기반 DicomMprPanel(Axial/Coronal/Sagittal)을 그린다.
        좌표를 도형으로 바꾸는 자리는 lib/Stage.jsx 아래쪽에 모아 두었다 */
     stage: (d, i = 0) => {
+      if (d.unit?.modality === "mri") {
+        return { volumeManifest: d.volume_manifest, volumeBase: d.volume_base };
+      }
+
       const s = (d.series ?? [])[i];
       const ai = d.ai;
       let shapes = [];
@@ -223,50 +236,79 @@ export const radiology = {
       };
     },
 
-    Info: ({ d, slide, onSlide }) => (
-      <>
-        {d.patient.contrast_allergy && <Warn>조영제 알레르기 — {d.patient.contrast_allergy}</Warn>}
-        <Facts items={[
-          ["환자", `${d.patient.name} (${d.patient.age}/${d.patient.sex})`],
-          ["환자번호", d.patient.no],
-          ["검사명", d.unit.exam_name],
-          ["모달리티", MODALITY[d.unit.modality] ?? d.unit.modality],
-          ["검사 상태", d.unit.status_label],
-        ]} />
-        <Fold title={`시리즈 ${(d.series ?? []).length}`}>
-          <ul className="slides">
-            {(d.series ?? []).map((s, i) => (
-              <li key={s.id} className={slide === i ? "on" : undefined}>
-                <button onClick={() => onSlide?.(i)}>{s.name}</button>
-              </li>
-            ))}
-          </ul>
-        </Fold>
-      </>
-    ),
+    Info: ({ d, slide, onSlide }) => {
+      const isMri = d.unit?.modality === "mri";
+      return (
+        <>
+          {d.patient.contrast_allergy && <Warn>조영제 알레르기 — {d.patient.contrast_allergy}</Warn>}
+          <Facts items={[
+            ["환자", `${d.patient.name} (${d.patient.age}/${d.patient.sex})`],
+            ["환자번호", d.patient.no],
+            ["검사명", d.unit.exam_name],
+            ["모달리티", MODALITY[d.unit.modality] ?? d.unit.modality],
+            ["검사 상태", d.unit.status_label],
+          ]} />
+
+          {isMri ? (
+            /* MRI는 맘모·초음파처럼 시리즈 하나를 골라 화면에 바꿔
+               끼우는 게 아니다 — 여러 Phase가 이미 한 Volume으로 합쳐져
+               DicomMprPanel에 다 같이 들어가 있다. 그래서 골라 «보는»
+               버튼이 아니라, 뭐가 찍혔는지 알려주는 목록으로만 둔다.
+               클릭 가능한 것처럼 보이면 「눌렀는데 왜 안 바뀌지」가 된다. */
+            <Fold title={`촬영 Phase ${(d.series ?? []).length}`}>
+              <ul className="slides mri-phases">
+                {(d.series ?? []).map((s) => <li key={s.id}>{s.name}</li>)}
+              </ul>
+              <p className="muted small">
+                Volume 하나로 합쳐져 있어 오른쪽 뷰어에 한 번에 나옵니다. 골라도 화면은 안 바뀝니다.
+              </p>
+            </Fold>
+          ) : (
+            <Fold title={`시리즈 ${(d.series ?? []).length}`}>
+              <ul className="slides">
+                {(d.series ?? []).map((s, i) => (
+                  <li key={s.id} className={slide === i ? "on" : undefined}>
+                    <button onClick={() => onSlide?.(i)}>{s.name}</button>
+                  </li>
+                ))}
+              </ul>
+            </Fold>
+          )}
+        </>
+      );
+    },
 
     Ai: RadiologyAi,
 
-    Doctor: ({ f, set }) => {
+    Doctor: ({ d, f, set }) => {
       const add = useCan("radiology.lesion.add");
+      const isMri = d.unit?.modality === "mri";
+
       return (
         <>
-          {/* ⚠ AI 가 낸 등급(lesion.birads_model)과 다른 컬럼이다.
-              한 화면에 있지만 섞이지 않게 자리를 갈라 둔다 */}
-          <label className="field">
-            <span>판정 등급 (BI-RADS)</span>
-            <select value={f.category ?? ""} onChange={(e) => set("category", e.target.value)}>
-              <option value="">선택하세요</option>
-              {BIRADS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-          </label>
+          {/* MRI 모델은 BI-RADS를 안 낸다 — 등급 선택도, 「영상에 박스를
+              그려 병변을 만든다」는 것도 2D 검출 모델(맘모·초음파) 얘기라
+              여기선 뺀다. 판독 소견만 쓴다. */}
+          {!isMri && (
+            <>
+              {/* ⚠ AI 가 낸 등급(lesion.birads_model)과 다른 컬럼이다.
+                  한 화면에 있지만 섞이지 않게 자리를 갈라 둔다 */}
+              <label className="field">
+                <span>판정 등급 (BI-RADS)</span>
+                <select value={f.category ?? ""} onChange={(e) => set("category", e.target.value)}>
+                  <option value="">선택하세요</option>
+                  {BIRADS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </label>
 
-          <div className="stack">
-            <button className="btn line" disabled={!add.ok} title={add.attrs.title}>
-              병변 추가
-            </button>
-            <span className="muted small">영상에 박스를 그려 병변을 직접 만듭니다</span>
-          </div>
+              <div className="stack">
+                <button className="btn line" disabled={!add.ok} title={add.attrs.title}>
+                  병변 추가
+                </button>
+                <span className="muted small">영상에 박스를 그려 병변을 직접 만듭니다</span>
+              </div>
+            </>
+          )}
 
           <label className="field">
             <span>판독 소견</span>

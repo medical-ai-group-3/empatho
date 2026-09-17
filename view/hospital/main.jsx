@@ -37,10 +37,16 @@ const BreastReview = lazy(() => import("./dept/breast/screens/Review"));
 const BreastDecision = lazy(() => import("./dept/breast/screens/Decision"));
 const BreastDiscordance = lazy(() => import("./dept/breast/screens/Discordance"));
 
+/* 간호과도 breast처럼 자기 화면을 직접 들고 온다 — 다만 무거운 라이브러리를
+   끌지는 않는다. lazy는 다른 과 화면들과 코드 스플리팅 일관성 때문에 유지 */
+const NursingWaiting = lazy(() => import("./dept/nursing/screens/Waiting"));
+const NursingFollowups = lazy(() => import("./dept/nursing/screens/Followups"));
+
 import { pathology } from "./dept/pathology";
 import { breast } from "./dept/breast";
 import { radiology } from "./dept/radiology";
 import { reception } from "./dept/reception";
+import { nursing } from "./dept/nursing";
 
 /* 병원 웹 — 라우트
  * ════════════════════════════════════════════════════════════════
@@ -70,7 +76,7 @@ import { reception } from "./dept/reception";
  * ⚠ **뿌리 주소를 가로채지 않는다.** 그 자리는 환자 앱이다.
  */
 
-const CFG = { pathology, radiology, breast, reception };
+const CFG = { pathology, radiology, breast, reception, nursing };
 
 /* 주소에서 과를 읽는다 — /hospital/reception/patients → "reception"
  *
@@ -187,6 +193,9 @@ const SCREENS = {
 
   /* 관리자. 화면은 하나고 Django admin 으로 넘기는 자리다 */
   "admin.console":      AdminConsole,
+
+  "nursing.waiting":   NursingWaiting,
+  "nursing.followups": NursingFollowups,
 };
 
 /* 과 하나의 화면들 — 몇 장이든 nav.js 의 표대로 만들어진다 */

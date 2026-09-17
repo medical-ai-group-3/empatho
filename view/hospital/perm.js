@@ -64,8 +64,6 @@ const BREAST = [
     where: "1장 화면 자체" },
   { key: "breast.exam.order",        label: "유방외과 영상 검사 오더",
     where: "1장 [검사 오더] — 영상의학과 대기 큐에 새 오더를 만든다" },
-  { key: "breast.specimen.bind",     label: "유방외과 검체 바인딩",
-    where: "1장 [검체 등록] — 병리과 대기 큐에 검체를 올린다" },
   { key: "breast.review.view",       label: "유방외과 검사 종합 확인",
     where: "2장 화면 자체 — 영상·병리 결과를 함께 본다" },
   { key: "breast.decision.view",     label: "유방외과 수술 결정 보기",
@@ -112,12 +110,36 @@ const ADMIN = [
          + "Django admin 세션을 받는다. 서버도 role='admin' 을 다시 본다" },
 ];
 
+/* 간호과 — 유방외과와 마찬가지로 집는 절차·판독이 없다. 대신 원무가
+   접수한 환자를 유방외과 의사에게 배정하고, BI-RADS 3 확정 환자의
+   추적(6·12·24개월)을 관리한다. 검체 바인딩은 간호과 명세 §3 참고. */
+const NURSING = [
+  { key: "nursing.waiting.view",     label: "간호과 내원 대기 보기",
+    where: "1장 화면 자체" },
+  { key: "nursing.waiting.assign",   label: "간호과 유방외과 배정",
+    where: "1장 [유방외과 큐로 전송] — patient.primary_staff_id 를 지정한다" },
+  { key: "nursing.followup.view",    label: "간호과 추적 대상 관리 보기",
+    where: "2장 화면 자체" },
+  { key: "nursing.followup.create",  label: "간호과 추적 회차 생성",
+    where: "2장 [추적 회차 생성]" },
+  { key: "nursing.followup.call",    label: "간호과 안내 콜 기록",
+    where: "2장 [안내 콜 기록 저장]" },
+];
+
 export const CATALOG = [
   ...deptPerms("pathology", "병리"),
   ...deptPerms("radiology", "영상"),
   ...BREAST,
   ...RECEPTION,
   ...ADMIN,
+  ...NURSING,
+
+  /* 검체 바인딩 — 간호과·유방외과 둘이 같은 팝업을 쓴다(§2-4). 과별
+     권한이 아니라 **단독 권한 클래스**로 둔다(간호과 명세 §3: "§15
+     매트릭스에 섞지 않고 단독 권한 클래스로 막는다"). 영상의학과는
+     제외하기로 팀에서 확정했다. */
+  { key: "specimen.bind", label: "검체 바인딩",
+    where: "간호과 1장 · 유방외과 1장의 [검체 바인딩/신청] 팝업 — 공용 컴포넌트" },
 
   /* 영상의학과에만 있는 것 — 병리에는 해당 동작이 없다 */
   { key: "radiology.retake",     label: "영상 재촬영 요청",

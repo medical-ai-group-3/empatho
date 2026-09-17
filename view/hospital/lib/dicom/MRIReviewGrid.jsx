@@ -213,10 +213,7 @@ export default function MRIReviewGrid({
           grid-row: 1 / span 2;
           min-width: 0;
           min-height: 0;
-          display: grid;
-          grid-template-rows:
-            repeat(3, minmax(0, 1fr));
-          gap: 10px;
+          display: flex;
         }
 
         .mri-panel-title,

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import * as cornerstone from "@cornerstonejs/core";
 import * as cornerstoneTools from "@cornerstonejs/tools";
-import { ensureCornerstoneInit } from "./cornerstoneInit";
+import { ensureCornerstoneInit } from "../../../lib/dicom/cornerstoneInit";
 import MeshViewer from "./MeshViewer";
 
 /* MRI는 한 방향만 찍는 게 아니라 축상(axial)·시상(sagittal)·관상(coronal)
