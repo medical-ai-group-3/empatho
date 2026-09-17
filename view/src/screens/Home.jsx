@@ -82,12 +82,40 @@ function Inner({ d }) {
       {/* 큰 인사 + 틸리.
           alt 를 비운 것은 바로 옆에 같은 인사가 글로 있어서다 — 읽어 주는
           기계가 두 번 말하면 성가시다 */}
-      <div className="hello">
-        <p className="hello-tx">
-          <b>안녕하세요!</b>
-          <span>{d.display_name} 님, 오늘도 건강한 하루예요</span>
-        </p>
-        <Tilly mood="hello" size="md" alt="" />
+      <p className="hello-tx">
+        <b>안녕하세요!</b>
+        <span>{d.display_name} 님, 오늘도 건강한 하루예요</span>
+      </p>
+
+      {/* 틸리는 인사 **아래 가운데**에 크게 선다. 옆에 작게 두었더니
+          「인사 옆 장식」이 되어 가이드의 첫인상과 달랐다 */}
+      <div className="hello-tri" aria-hidden="true">
+        <Tilly mood="hello" size="lg" alt="" />
+      </div>
+
+      <div className="tiles">
+        <Link className="tile" to="/book">
+          <i className="ic" aria-hidden="true">▦</i>
+          <b>검사 일정</b>
+          <small>날짜 신청 · 확인</small>
+        </Link>
+        <Link className="tile" to="/results">
+          <i className="ic" aria-hidden="true">▤</i>
+          <b>검사 결과</b>
+          <small>안내문 받아 보기</small>
+        </Link>
+        {/* 아직 없는 기능은 **끈 채로** 두고 왜 못 누르는지 적는다 —
+            눌리는데 아무 일도 안 나는 것이 제일 나쁘다 */}
+        <div className="tile off" aria-disabled="true" title="준비 중입니다">
+          <i className="ic" aria-hidden="true">✦</i>
+          <b>치료 정보</b>
+          <small>준비 중입니다</small>
+        </div>
+        <div className="tile off" aria-disabled="true" title="준비 중입니다">
+          <i className="ic" aria-hidden="true">◈</i>
+          <b>복약 관리</b>
+          <small>준비 중입니다</small>
+        </div>
       </div>
 
       {d.last_visit_at && (
@@ -181,32 +209,6 @@ function Inner({ d }) {
             브랜드 가이드의 홈에 있던 항목을 자리만 먼저 잡아 둔다 —
             **끈 채로** 두고 왜 못 누르는지 적는다. 기능이 생기면 off 를
             떼고 to 를 넣으면 된다 */}
-      <h3 className="sec">건강 관리</h3>
-      <div className="tiles">
-        <Link className="tile" to="/book">
-          <i className="ic" aria-hidden="true">▦</i>
-          <b>검사 일정</b>
-          <small>날짜 신청 · 확인</small>
-        </Link>
-        <Link className="tile" to="/results">
-          <i className="ic" aria-hidden="true">▤</i>
-          <b>검사 결과</b>
-          <small>안내문 받아 보기</small>
-        </Link>
-        {/* 아직 없는 기능은 **끈 채로** 두고 왜 못 누르는지 적는다 —
-            눌리는데 아무 일도 안 나는 것이 제일 나쁘다 */}
-        <div className="tile off" aria-disabled="true" title="준비 중입니다">
-          <i className="ic" aria-hidden="true">✦</i>
-          <b>치료 정보</b>
-          <small>준비 중입니다</small>
-        </div>
-        <div className="tile off" aria-disabled="true" title="준비 중입니다">
-          <i className="ic" aria-hidden="true">◈</i>
-          <b>복약 관리</b>
-          <small>준비 중입니다</small>
-        </div>
-      </div>
-
       <p className="note">
         이 앱의 안내는 진단서가 아닙니다. 최종 판단은 진료 때 의료진이 합니다.
       </p>

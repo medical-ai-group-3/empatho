@@ -772,14 +772,19 @@ a{color:inherit; text-decoration:none}
 /* ── 홈 바로가기 타일 ────────────────────────────
    탭에 없는 것만 온다. 아직 없는 기능은 **끈 채로** 두고 왜 못 누르는지
    적는다 — 눌리는데 아무 일도 안 나는 것이 제일 나쁘다. */
+/* 홈의 주인공이다. 인사 · 틸리 바로 아래에 큼직하게 선다 —
+   가이드의 홈이 이 넉 장으로 시작한다. */
 .tiles{display:grid; grid-template-columns:1fr 1fr; gap:var(--tile-gap)}
-.tile{display:flex; flex-direction:column; gap:var(--card-tx-gap);
+.tile{display:flex; flex-direction:column; align-items:center;
+  justify-content:center; gap:var(--card-tx-gap);
   padding:var(--tile-pad); border-radius:var(--tile-radius);
   background:var(--surface); box-shadow:var(--card-shadow);
   border:var(--line-w) solid var(--card-line);
-  text-decoration:none; color:var(--ink); text-align:left}
+  text-decoration:none; color:var(--ink); text-align:center}
+/* 동그라미가 아니라 **둥근 네모**다. 아이콘이 커지면 원 안에서 떠 보인다 */
 .tile .ic{display:flex; align-items:center; justify-content:center;
-  width:var(--tile-ic); height:var(--tile-ic); border-radius:999px;
+  width:var(--tile-ic); height:var(--tile-ic);
+  border-radius:var(--tile-ic-r);
   background:var(--blossom); color:var(--green);
   font-size:var(--tile-ic-fs); flex:none}
 .tile b{font-size:var(--tile-fs); font-weight:700}
@@ -805,14 +810,13 @@ a{color:inherit; text-decoration:none}
    나란히 있었는데, 인사를 크게 세우면 같은 말이 두 번 나온다. */
 .hbar{display:flex; justify-content:flex-end; gap:var(--hhead-gap)}
 
-.hello{display:flex; align-items:center; gap:var(--hhead-gap);
-  margin-top:calc(-1 * var(--screen-gap) / 2)}
-.hello-tx{flex:1; min-width:0; margin:0; display:flex;
+.hello-tx{margin:calc(-1 * var(--screen-gap) / 2) 0 0; display:flex;
   flex-direction:column; gap:var(--hello-gap)}
+.hello-tri{display:flex; justify-content:center;
+  margin:var(--hello-tri-y) 0 calc(var(--hello-tri-y) * -1)}
 .hello-tx b{font-size:var(--hello-b-fs); font-weight:700; color:var(--ink);
   letter-spacing:-.02em; line-height:1.2}
 .hello-tx span{font-size:var(--hello-s-fs); color:var(--muted)}
-.hello .tilly{flex:none}
 
 /* ── 챗봇 제안 줄 ────────────────────────────────
    넷이 세로로 선다. 각 줄이 하는 일은 다르지만(묻기 · 이동 · 입력)

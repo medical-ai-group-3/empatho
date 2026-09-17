@@ -319,6 +319,7 @@
   --hello-b-fs:  calc(24px * var(--ft));
   --hello-s-fs:  calc(13px * var(--ft));
   --hello-gap:   calc(4px * var(--sp));
+  --hello-tri-y: calc(4px * var(--sp));   /* 인사와 틸리 사이 */
   /* ══ 틸리 ═══════════════════════════════════════════════
      캐릭터 크기. 그림 파일은 public/tilly/ 에 둔다 (lib/Tilly 참고).
      **찍힐 크기의 3배로** 만들어 주면 어느 폰에서도 안 뭉갠다. */
@@ -336,12 +337,13 @@
   /* ══ 홈 바로가기 타일 ═════════════════════════════════════
      아래 탭에 **없는 것만** 둔다. 탭에 있는 것을 또 두면 같은 길을
      두 번 내는 셈이라 전에 한 번 걷어냈던 자리다. */
-  --tile-gap:    calc(10px * var(--sp));
-  --tile-pad:    calc(15px * var(--sp));
-  --tile-radius: 16px;
-  --tile-ic:     32px;
-  --tile-ic-fs:  calc(15px * var(--ft));
-  --tile-fs:     calc(13px * var(--ft));
+  --tile-gap:    calc(11px * var(--sp));
+  --tile-pad:    calc(18px * var(--sp));
+  --tile-radius: 20px;
+  --tile-ic:     46px;                     /* 둥근 네모 아이콘 판 */
+  --tile-ic-r:   15px;
+  --tile-ic-fs:  calc(21px * var(--ft));
+  --tile-fs:     calc(14px * var(--ft));
   --tile-s-fs:   calc(11px * var(--ft));
 
   /* ══ 스플래시 ═════════════════════════════════════════════ */
