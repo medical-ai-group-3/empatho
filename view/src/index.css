@@ -102,24 +102,27 @@ a{color:inherit; text-decoration:none}
   color:var(--faint); line-height:1.4; letter-spacing:.02em;
   display:flex; flex-direction:column; align-items:center;
   gap:var(--tab-ic-gap)}
-.tabs a.on{color:var(--pink); font-weight:700}
+.tabs a.on{color:var(--green); font-weight:700}
 .tabs .ic{display:flex; align-items:center; justify-content:center;
   width:var(--tab-ic-box); height:var(--tab-ic-box);
   border-radius:var(--tab-ic-radius); font-size:var(--tab-ic-fs);
   font-style:normal; transition:background var(--motion)}
-.tabs a.on .ic{background:var(--pink-bg)}
+.tabs a.on .ic{background:var(--blossom)}
 
 /* ── 단추 ─────────────────────────────────── */
-.btn{display:block; width:100%; background:var(--pink); color:var(--pink-ink);
+/* 주 단추는 **초록**이다. 가이드에서 「EMPATHO」 워드마크가 진초록이고
+   리본만 분홍인 것과 같은 규칙 — 하는 일은 초록이 지고 분홍은 거든다.
+   연분홍(--blossom)을 여기 쓰면 흰 글자가 안 읽힌다 (tokens.css 참고) */
+.btn{display:block; width:100%; background:var(--green); color:var(--green-ink);
   border-radius:var(--btn-radius); text-align:center; padding:var(--btn-pad);
   font-weight:700; font-size:var(--btn-fs); letter-spacing:.01em;
   transition:background var(--motion)}
-.btn:hover:not(:disabled){background:var(--pink-2)}
+.btn:hover:not(:disabled){background:var(--green-deep)}
 .btn:disabled{background:var(--off); color:var(--faint); cursor:not-allowed}
 
 /* 보조 — 연분홍 바탕에 핑크 글자 */
-.btn.soft{background:var(--pink-bg); color:var(--pink)}
-.btn.soft:hover:not(:disabled){background:var(--pink-3); color:var(--pink-ink)}
+.btn.soft{background:var(--blossom); color:var(--green)}
+.btn.soft:hover:not(:disabled){background:var(--pink-3); color:var(--green)}
 
 /* 3순위 — 바탕색에 테두리만 */
 .btn.ghost{background:var(--surface); color:var(--ink-2);
@@ -568,7 +571,7 @@ a{color:inherit; text-decoration:none}
 .logo.md{height:var(--logo-md)}
 .logo.sm{height:var(--logo-sm)}
 
-.mark{margin:0; font-weight:700; color:var(--pink);
+.mark{margin:0; font-weight:700; color:var(--green);
   letter-spacing:var(--brand-track)}
 .mark.lg{font-size:var(--brand-fs)}
 .mark.md{font-size:var(--brand-fs)}
