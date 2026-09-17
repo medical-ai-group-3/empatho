@@ -73,8 +73,8 @@ function mockApi() {
 
   // 로그인 전에도 부를 수 있는 곳. 나머지는 전부 401 이다.
   const OPEN = new Set([
-    "/api/v1/auth/login",
-    "/api/v1/auth/logout",
+    "/api/v1/login",
+    "/api/v1/logout",
     "/api/v1/signup/verify-phone",
     "/api/v1/signup/link",
   ]);
@@ -87,9 +87,9 @@ function mockApi() {
         if (!req.url.startsWith("/api/")) return next();
 
         const p0 = req.url.split("?")[0];
-        if (p0 === "/api/v1/auth/login" || p0 === "/api/v1/signup/link") {
+        if (p0 === "/api/v1/login" || p0 === "/api/v1/signup/link") {
           setIn(res, true);
-        } else if (p0 === "/api/v1/auth/logout") {
+        } else if (p0 === "/api/v1/logout") {
           setIn(res, false);
         } else if (!isIn(req) && !OPEN.has(p0)) {
           res.statusCode = 401;
