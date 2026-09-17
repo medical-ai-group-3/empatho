@@ -13,6 +13,8 @@ import { can } from "../perm";
  * (lazy) — cornerstone3D·three.js가 무거워서(~500kB+) 정적으로 얹으면
  * MRI를 한 번도 안 보는 선생님도 매번 같이 받는다. */
 const MRIReviewGrid = lazy(() => import("../lib/dicom/MRIReviewGrid"));
+/* 맘모 DICOM 뷰어 — 공통 영상 Viewer 설계 3단계. MRI와 같은 이유로 lazy */
+const DicomStackViewer = lazy(() => import("../lib/dicom/DicomStackViewer"));
 
 /* ═══ 3장 · 판독 ═════════════════════════════════════════════════
  *
@@ -95,6 +97,8 @@ function Inner({ cfg, id, d }) {
      화면은 어느 쪽인지 몰라도 된다 — 셋 다 같은 자리에 겹쳐 놓는다 */
   const view = c.stage ? c.stage(d, slide) : {};
   const isVolume = Boolean(view.volumeManifest);
+  const isStack = Boolean(view.stackManifest);
+  const isCornerstone = isVolume || isStack;
 
   /* 원본과 마스크는 Go 관문에서 온다.
      ⚠ <img src> 는 Authorization 헤더를 못 보낸다. 그래서 여기서 fetch 로
@@ -144,7 +148,7 @@ function Inner({ cfg, id, d }) {
           doctorOpen
 
           below={
-            isVolume ? null : (
+            isCornerstone ? null : (
               <div className="vknobs">
                 <Slide label={view.maskImage ? "마스크 투명도" : "표시 투명도"}
                        value={mask} onChange={setMask} />
@@ -171,6 +175,17 @@ function Inner({ cfg, id, d }) {
                 <MRIReviewGrid
                   lesions={d.lesions}
                   study={{ volume_manifest: view.volumeManifest, volume_base: view.volumeBase }}
+                  mode="diagnostic"
+                />
+              </Suspense>
+            </div>
+          ) : isStack ? (
+            <div className="mri-viewer-slot">
+              <Suspense fallback={<div className="mri-loading">맘모 뷰어 불러오는 중…</div>}>
+                <DicomStackViewer
+                  manifestUrl={view.stackManifest}
+                  baseUrl={view.stackBase}
+                  mode="diagnostic"
                 />
               </Suspense>
             </div>

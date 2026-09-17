@@ -55,8 +55,14 @@
 .breast * {box-sizing:border-box}
 /* 원래 html, body, #root 에 걸려 있던 규칙. 유방외과 화면은 이제 쪽
    안에 들어앉으므로 높이를 100% 로 잡지 않는다 — 잡으면 hospital 의
-   .page 흐름과 싸운다 */
-.breast {margin:0; background:var(--bg); color:var(--ink);
+   .page 흐름과 싸운다.
+   ⚠ margin:0 은 여기 두면 안 된다 — .breast 는 main.page 그 자신이라
+   (className="page breast"), hospital.css 의 .page{margin:0 auto}
+   와 클래스 우선순위가 같아서 나중에 실리는 이 규칙이 이겨 버린다.
+   넓은 화면에서 내용이 왼쪽에 붙고 오른쪽에 빈 공간만 남는 걸로
+   보였던 원인이 이거였다 — body 기본 margin(8px) 초기화용으로 넣어둔
+   흔적인데 지금은 .breast 가 body가 아니라서 필요 없다. */
+.breast {background:var(--bg); color:var(--ink);
   font-family:var(--font-ui); font-size:14px; line-height:1.5;
   -webkit-font-smoothing:antialiased}
 .breast button {font:inherit; color:inherit; background:none; border:none; padding:0; cursor:pointer}
@@ -324,67 +330,6 @@
 .breast .slice-bar {display:flex; align-items:center; gap:10px; padding:10px 2px 0}
 .breast .slice-bar input[type="range"] {flex:1; accent-color:var(--accent)}
 .breast .slice-bar .count {font-size:11.5px; color:var(--muted); font-variant-numeric:tabular-nums; white-space:nowrap}
-
-/* cornerstone3D 뷰어 공통 오버레이(MPRViewer) — 로딩/오류 문구.
-   캔버스는 라이브러리가 직접 그린다(WebGL), 배경은 늘 검정이라
-   라이트/다크 테마와 무관하다. */
-.breast .volume3d-overlay {position:absolute; inset:0; display:flex; flex-direction:column;
-  align-items:center; justify-content:center; gap:4px; color:#fff; font-size:13px;
-  background:rgba(10,10,14,.55); text-align:center; padding:16px}
-.breast .volume3d-overlay.error {color:#ff8b85}
-.breast .volume3d-hint {position:absolute; left:10px; bottom:8px; margin:0; font-size:11px;
-  color:rgba(255,255,255,.65); pointer-events:none}
-
-/* MPRViewer — 축상·시상·관상 2D 단면 셋 + 3D를 2x2로 한 화면에.
-   MRI는 한 방향만 찍는 게 아니라 세 방향 다 봐야 한다는 요청 반영 —
-   ORTHOGRAPHIC 뷰포트 3개가 같은 볼륨을 서로 다른 단면으로 잘라 보여주고,
-   네 번째 칸은 MeshViewer(종양 표면 메시, Three.js)다. */
-.breast .mpr-wrap {position:relative; display:flex; flex-direction:column; gap:0;
-  border-radius:var(--radius-sm); overflow:hidden; background:#000}
-.breast .mpr-main {position:relative; display:grid; grid-template-columns:1.6fr 1fr;
-  gap:2px; aspect-ratio:16/10; background:#000}
-.breast .mpr-cell {position:relative; background:#000; overflow:hidden}
-.breast .mpr-cell-3d {min-width:0}
-.breast .mpr-2d-col {display:flex; flex-direction:column; gap:2px; min-width:0}
-.breast .mpr-2d-col .mpr-cell {flex:1; min-height:0}
-.breast .mpr-canvas {width:100%; height:100%}
-.breast .mpr-label {position:absolute; top:6px; left:8px; font-size:11px; font-weight:700;
-  letter-spacing:.02em; color:rgba(255,255,255,.9); text-shadow:0 1px 2px rgba(0,0,0,.7);
-  pointer-events:none; z-index:2}
-
-.breast .mpr-toolbar {display:flex; align-items:center; gap:18px; padding:9px 14px;
-  background:var(--panel-2, #14181f); border-top:1px solid var(--line-2, rgba(255,255,255,.08))}
-.breast .mpr-toggle {display:flex; align-items:center; gap:6px; font-size:12.5px;
-  color:var(--muted); cursor:pointer; user-select:none; white-space:nowrap}
-.breast .mpr-toggle input {accent-color:var(--accent); width:14px; height:14px; cursor:pointer}
-.breast .mpr-toolbar-spacer {flex:1}
-.breast .mpr-lesion-summary {font-size:12.5px; font-weight:600; color:var(--ink);
-  white-space:nowrap}
-
-/* MeshViewer — cornerstone과 무관한 Three.js 렌더 영역. 종양 메시가 검은
-   배경에 덜렁 떠 있지 않도록, 그 안(MeshViewer.jsx)에는 참고용 와이어프레임
-   껍질·스캔 그리드가, 여기 CSS에는 홀로그램 스캐너 느낌의 모서리 프레임과
-   위아래로 훑는 스캔 라인을 얹는다. */
-.breast .mesh3d {position:relative; width:100%; height:100%}
-.breast .mesh3d-meta {position:absolute; right:8px; top:6px; margin:0; font-size:10.5px;
-  color:rgba(255,255,255,.7); pointer-events:none; z-index:2; text-align:right}
-
-.breast .mesh3d-frame {position:absolute; inset:9px; pointer-events:none; z-index:1;
-  --c: rgba(79,215,255,.55);
-  background:
-    linear-gradient(var(--c),var(--c)) top left / 16px 2px no-repeat,
-    linear-gradient(var(--c),var(--c)) top left / 2px 16px no-repeat,
-    linear-gradient(var(--c),var(--c)) top right / 16px 2px no-repeat,
-    linear-gradient(var(--c),var(--c)) top right / 2px 16px no-repeat,
-    linear-gradient(var(--c),var(--c)) bottom left / 16px 2px no-repeat,
-    linear-gradient(var(--c),var(--c)) bottom left / 2px 16px no-repeat,
-    linear-gradient(var(--c),var(--c)) bottom right / 16px 2px no-repeat,
-    linear-gradient(var(--c),var(--c)) bottom right / 2px 16px no-repeat}
-.breast .mesh3d-frame::after {content:""; position:absolute; left:0; right:0; height:45%;
-  background:linear-gradient(180deg, transparent 0%, rgba(79,215,255,.1) 50%, transparent 100%);
-  animation:mesh3d-scan 3.4s linear infinite}
-@keyframes mesh3d-scan {0% {transform:translateY(-130%)} 100% {transform:translateY(280%)}}
-@media (prefers-reduced-motion: reduce) {.breast .mesh3d-frame::after {animation:none}}
 
 .breast .card-head {display:flex; align-items:baseline; gap:8px; margin-bottom:10px}
 .breast .card-head h3 {margin-bottom:0}

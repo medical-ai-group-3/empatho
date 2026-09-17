@@ -39,7 +39,12 @@ export default function Stage({
   loading, loadError,
   bright = 100, contrast = 100,   /* 화면 보정 — 창값이 아니다 */
   onFull, full,
+  mode = "diagnostic",  /* "diagnostic" | "review" — 공통 Viewer 설계
+    (2026-09-17). review는 조회만 한다 — 도형을 눌러 고르는 것도
+    "판독 보조 조작"이라 막는다. 탐색(맞춤·확대·축소·전체화면)과 마스크
+    투명도 보기는 diagnostic과 똑같이 된다 */
 }) {
+  const isReview = mode === "review";
   const boxRef = useRef(null);
   const [t, setT] = useState({ z: 1, x: 0, y: 0 });
   const [drag, setDrag] = useState(null);
@@ -178,7 +183,8 @@ export default function Stage({
               <svg className="stage-svg" viewBox={`0 0 ${w} ${h}`}
                    width={w} height={h} style={{ opacity: opacity / 100 }}>
                 {shapes.map((s) => (
-                  <Shape key={s.id} s={s} on={pick === s.id} onPick={onPick}
+                  <Shape key={s.id} s={s} on={pick === s.id}
+                         onPick={isReview ? undefined : onPick}
                          scale={t.z} />
                 ))}
               </svg>

@@ -4,6 +4,8 @@ import { useApi } from "../../../lib/useApi";
 import { Body } from "../../../lib/Body";
 import MRIReviewGrid from "../../../lib/dicom/MRIReviewGrid";
 import { MODALITY, label, modality as asModality } from "../../../codes";
+import DicomStackViewer from "../../../lib/dicom/DicomStackViewer";
+import Stage from "../../../lib/Stage";
 
 /* 탭에 쓰는 값은 **서버 코드**다 (mammo · us · mri).
  *
@@ -138,9 +140,20 @@ export default function ReviewViewer({
             <MRIReviewGrid
               lesions={lesions}
               study={study}
+              mode="review"
+            />
+          ) : tab === "mammo" && study?.stack_manifest ? (
+            /* 공통 영상 Viewer 3단계 — 맘모도 MRI처럼 Cornerstone 엔진으로
+               옮겼다. stack_manifest가 아직 없는(옛 mock) 검사는 종전대로
+               PngOverlayViewer로 떨어진다 — 둘 다 review 모드라 조작 폭은
+               같다(탐색만, 편집 도구 없음). */
+            <DicomStackViewer
+              manifestUrl={study.stack_manifest}
+              baseUrl={study.stack_base}
+              mode="review"
             />
           ) : (
-            <GenericImageViewer
+            <PngOverlayViewer
               modality={tab}
               study={study}
             />
@@ -254,12 +267,19 @@ export default function ReviewViewer({
 
 
         /* ===================================================
-           일반 영상 Viewer
-           
-           맘모 / 초음파 / 병리
+           PNG 오버레이 Viewer — 맘모 / 초음파 / 병리
+
+           ⚠ 공통 영상 Viewer 설계(2026-09-17) 2단계 — 여기 예전엔
+           인라인으로 새로 짠 GenericImageViewer(자체 zoom·마스크 상태)를
+           썼다. 영상의학과·병리과 판독 화면(screens/Read.jsx)이 쓰는
+           lib/Stage.jsx와 완전히 다른 구현이라 같은 화면인데 조작 방식이
+           서로 달랐다 — 이제 Stage를 mode="review"로 그대로 가져다 쓴다.
+           확대·이동·전체화면은 Stage 자체 Toolbar(.vtools)가 이미 하고,
+           여기는 모달리티 라벨 · 마스크 투명도 슬라이더 · Slice 이동만
+           얹는다(Stage가 모르는, 이 화면만의 것들).
         =================================================== */
 
-        .generic-viewer {
+        .png-overlay-viewer {
           width: 100%;
           height: 100%;
 
@@ -274,12 +294,7 @@ export default function ReviewViewer({
           background: #0b0e10;
         }
 
-
-        /* ===================================================
-           이미지 영역
-        =================================================== */
-
-        .generic-image-area {
+        .png-overlay-stage {
           position: relative;
 
           flex: 1;
@@ -288,91 +303,7 @@ export default function ReviewViewer({
           min-height: 0;
 
           display: flex;
-
-          align-items: center;
-          justify-content: center;
-
-          /* 확대(zoom>100%)하면 이미지가 박스보다 커지는데, 그때는
-             스크롤로 이동(pan)할 수 있어야 한다 */
-          overflow: auto;
-
-          padding: 16px;
-
-          background: #0b0e10;
         }
-
-
-        /*
-         * 원본 + Mask를 정확히 같은 위치에 겹치기 위한
-         * 이미지 Stack
-         */
-        .generic-image-stack {
-          position: relative;
-
-          width: 100%;
-          height: 100%;
-
-          min-width: 0;
-          min-height: 0;
-
-          display: flex;
-
-          align-items: center;
-          justify-content: center;
-
-          flex: none;
-        }
-
-
-        /* ===================================================
-           원본 이미지
-        =================================================== */
-
-        .generic-image {
-          display: block;
-
-          max-width: 100%;
-          max-height: 100%;
-
-          width: auto;
-          height: auto;
-
-          object-fit: contain;
-
-          user-select: none;
-
-          -webkit-user-drag: none;
-
-          transform-origin: center center;
-          transition: transform 0.12s ease;
-        }
-
-
-        /*
-         * AI Mask
-         *
-         * 현재 mask 파일이 없기 때문에 실제 화면에서는
-         * 표시되지 않는다.
-         *
-         * 나중에 mask URL이 들어오면 바로 overlay 가능.
-         */
-        .generic-mask {
-          position: absolute;
-
-          max-width: 100%;
-          max-height: 100%;
-
-          width: auto;
-          height: auto;
-
-          object-fit: contain;
-
-          pointer-events: none;
-
-          transform-origin: center center;
-          transition: opacity 0.1s ease, transform 0.12s ease;
-        }
-
 
         /* ===================================================
            영상 좌상단 정보
@@ -470,114 +401,9 @@ export default function ReviewViewer({
 
 
         /* ===================================================
-           Mask Toggle
-        =================================================== */
-
-        .mask-toggle {
-          display: inline-flex;
-
-          align-items: center;
-
-          gap: 5px;
-
-          color: #ffffff;
-
-          font-size: 11px;
-
-          white-space: nowrap;
-
-          cursor: pointer;
-        }
-
-        .mask-toggle input {
-          width: 13px;
-          height: 13px;
-
-          margin: 0;
-
-          accent-color: #c9828c;
-
-          cursor: pointer;
-        }
-
-        .mask-toggle.disabled {
-          color: #596169;
-
-          cursor: default;
-        }
-
-
-        /* ===================================================
-           확대/축소
-        =================================================== */
-
-        .zoom-wrap {
-          display: inline-flex;
-          align-items: center;
-          gap: 4px;
-        }
-
-        .zoom-btn {
-          width: 24px;
-          height: 24px;
-
-          padding: 0;
-
-          border: 1px solid #343a40;
-          border-radius: 4px;
-
-          background: #1c2024;
-
-          color: #ffffff;
-
-          font-size: 14px;
-          line-height: 1;
-
-          cursor: pointer;
-        }
-
-        .zoom-btn:hover:not(:disabled) {
-          background: #343a40;
-        }
-
-        .zoom-btn:disabled {
-          color: #596169;
-          cursor: default;
-        }
-
-        .zoom-value {
-          min-width: 44px;
-
-          height: 24px;
-
-          padding: 0 4px;
-
-          border: 1px solid transparent;
-          border-radius: 4px;
-
-          background: transparent;
-
-          color: #aeb4ba;
-
-          font-size: 11px;
-          font-variant-numeric: tabular-nums;
-
-          cursor: pointer;
-        }
-
-        .zoom-value:hover:not(:disabled) {
-          color: #ffffff;
-          border-color: #343a40;
-        }
-
-        .zoom-value:disabled {
-          color: #596169;
-          cursor: default;
-        }
-
-
-        /* ===================================================
-           투명도
+           투명도 — review 모드는 마스크 투명도 슬라이더만 준다
+           (설계 문서 §2 PNG 오버레이 엔진 review 규칙). zoom·마스크
+           on/off 체크박스는 Stage 자체 Toolbar와 역할이 겹쳐 뺐다.
         =================================================== */
 
         .control-label {
@@ -709,324 +535,124 @@ export default function ReviewViewer({
 
 
 /* ===========================================================
-   맘모 / 초음파 / 병리 Viewer
+   PNG 오버레이 Viewer — 초음파(공통 Stage.jsx 재사용). 맘모는
+   stack_manifest가 있으면 DicomStackViewer로 빠지고, 병리는 이제
+   이 화면에 안 온다(파일 위 주석 참고 — specimen이라 study가 아니다).
 =========================================================== */
 
-function GenericImageViewer({
-  modality,
-  study,
-}) {
+function PngOverlayViewer({ modality, study }) {
   /*
    * 서버가 준 것만 그린다.
    *
-   * ⚠ 전에는 slices 가 비면 고정된 샘플 사진(/samples/…)을 대신 띄웠다.
-   *   판독 화면에서 그건 **남의 영상을 이 환자 것처럼 보여주는 일**이다.
-   *   화면만 봐서는 진짜인지 샘플인지 구분할 수 없었다.
-   *
-   *   (그 파일들은 저장소에 없어서 지금은 404 로 깨질 뿐이었다. 누가
-   *   public/samples/ 를 채우는 순간 조용히 진짜처럼 보이게 된다.)
-   *
-   *   비면 아래 「영상이 없습니다」가 뜬다. 그게 맞는 상태다.
+   * ⚠ slices 가 비면 예전엔 고정된 샘플 사진(/samples/…)을 대신
+   *   띄웠다 — 판독 화면에서 그건 **남의 영상을 이 환자 것처럼
+   *   보여주는 일**이라 없앴다(origin 쪽 수정, 2026-09-17). 화면만
+   *   봐서는 진짜인지 샘플인지 구분할 수 없었다. 비면 아래
+   *   「영상이 없습니다」가 뜬다 — 그게 맞는 상태다.
    */
-  const slices = Array.isArray(study?.slices)
-    ? study.slices.filter(Boolean)
-    : [];
+  const slices = Array.isArray(study?.slices) ? study.slices.filter(Boolean) : [];
 
+  const maskSlices = Array.isArray(study?.mask_slices) ? study.mask_slices.filter(Boolean)
+    : Array.isArray(study?.maskSlices) ? study.maskSlices.filter(Boolean)
+    : Array.isArray(study?.masks) ? study.masks.filter(Boolean) : [];
 
-  /*
-   * Mask 데이터
-   *
-   * 현재 public/samples에는 mask 파일이 없으므로
-   * 빈 배열이다.
-   *
-   * 추후 API에서 mask_slices가 들어오면 바로 사용할 수 있다.
-   */
-  const maskSlices =
-    Array.isArray(study?.mask_slices)
-      ? study.mask_slices.filter(Boolean)
-      : Array.isArray(study?.maskSlices)
-        ? study.maskSlices.filter(Boolean)
-        : Array.isArray(study?.masks)
-          ? study.masks.filter(Boolean)
-          : [];
+  const [sliceIndex, setSliceIndex] = useState(0);
+  const [opacity, setOpacity] = useState(45);   /* Stage와 같은 0~100 스케일 */
+  const [pick, setPick] = useState(null);
+  const [full, setFull] = useState(false);
 
-
-  const [sliceIndex, setSliceIndex] =
-    useState(0);
-
-  const [maskVisible, setMaskVisible] =
-    useState(true);
-
-  const [maskOpacity, setMaskOpacity] =
-    useState(0.45);
-
-  /*
-   * 확대/축소 — 100%는 "박스에 꽉 차게 맞춘 크기"다(원본 픽셀 1:1이
-   * 아니다). 병리 원본처럼 실제 해상도가 큰 이미지를 그대로 100%=원본
-   * 픽셀로 두면 박스 밖으로 넘쳐서 다른 모달리티/옆 패널과 높이가
-   * 안 맞았다 — object-fit:contain으로 박스에 맞춘 크기를 기준(100%)
-   * 삼고, 그 위에서 배율만 곱한다.
-   */
-  const [zoom, setZoom] = useState(100);
-  const ZOOM_MIN = 50;
-  const ZOOM_MAX = 300;
-  const ZOOM_STEP = 25;
-  const zoomIn = () => setZoom((z) => Math.min(ZOOM_MAX, z + ZOOM_STEP));
-  const zoomOut = () => setZoom((z) => Math.max(ZOOM_MIN, z - ZOOM_STEP));
-  const zoomReset = () => setZoom(100);
-
-
-  /*
-   * 검사 / modality 변경 시 초기화
-   */
   useEffect(() => {
     setSliceIndex(0);
-    setMaskVisible(true);
-    setMaskOpacity(0.45);
-    setZoom(100);
+    setOpacity(45);
+    setPick(null);
   }, [modality, study]);
 
+  const src = slices[sliceIndex] ?? null;
+  const maskSrc = maskSlices.length > 0 ? (maskSlices[sliceIndex] ?? null) : null;
+  const hasMask = Boolean(maskSrc);
 
-  const imageSrc =
-    slices[sliceIndex] ?? null;
+  /* Stage는 AI 좌표(shapes)를 원본 픽셀 크기(w·h) 기준으로 그리는데,
+     이 화면은 shapes를 안 그린다(GenericImageViewer도 늘 그랬다) —
+     그래도 Stage의 fit/zoom이 픽셀 크기를 요구하니 이미지 자연 크기를
+     직접 재서 넘긴다. */
+  const size = useImageSize(src);
 
-  const maskSrc =
-    maskSlices.length > 0
-      ? maskSlices[sliceIndex] ?? null
-      : null;
-
-  const hasMask =
-    Boolean(maskSrc);
-
+  if (!src) {
+    return (
+      <div className="png-overlay-viewer">
+        <div className="generic-empty">
+          <div className="generic-empty-icon">◫</div>
+          <div>표시할 {label(MODALITY, modality)} 영상이 없습니다.</div>
+          <div className="generic-empty-sub">이 검사에 등록된 영상이 없습니다.</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="generic-viewer">
+    <div className="png-overlay-viewer">
+      <div className="png-overlay-stage">
+        <div className="image-label">
+          <span className="image-label-dot" />
+          <span>{label(MODALITY, modality)}</span>
+          {study?.device && <span> · {study.device}</span>}
+        </div>
 
-      {/* =================================================
-          큰 이미지 Viewer
-      ================================================= */}
-
-      <div className="generic-image-area">
-
-        {!imageSrc ? (
-          <div className="generic-empty">
-
-            <div className="generic-empty-icon">
-              ◫
-            </div>
-
-            <div>
-              표시할 {label(MODALITY, modality)} 영상이 없습니다.
-            </div>
-
-            <div className="generic-empty-sub">
-              이 검사에 등록된 영상이 없습니다.
-            </div>
-
-          </div>
-        ) : (
-          <>
-
-            {/* 좌상단 modality */}
-            <div className="image-label">
-
-              <span className="image-label-dot" />
-
-              <span>
-                {label(MODALITY, modality)}
-              </span>
-
-              {study?.device && (
-                <span>
-                  · {study.device}
-                </span>
-              )}
-
-            </div>
-
-
-            {/* 우상단 */}
-            <div
-              className={
-                `image-status ${
-                  hasMask ? "active" : ""
-                }`
-              }
-            >
-              {hasMask
-                ? "AI Mask 사용 가능"
-                : "AI Mask 데이터 없음"}
-            </div>
-
-
-            {/* 원본 + Mask — 확대해도 둘이 같이 움직이도록 같은
-                transform을 준다 */}
-            <div className="generic-image-stack">
-
-              {/* 원본 */}
-              <img
-                className="generic-image"
-                src={imageSrc}
-                alt={`${label(MODALITY, modality)} 검사 영상`}
-                style={{ transform: `scale(${zoom / 100})` }}
-              />
-
-
-              {/* AI Mask */}
-              {hasMask &&
-                maskVisible && (
-                  <img
-                    className="generic-mask"
-                    src={maskSrc}
-                    alt=""
-                    aria-hidden="true"
-                    style={{
-                      opacity: maskOpacity,
-                      transform: `scale(${zoom / 100})`,
-                    }}
-                  />
-                )}
-
-            </div>
-
-          </>
-        )}
-
+        <Stage
+          src={src} w={size.w} h={size.h} alt={`${label(MODALITY, modality)} 검사 영상`}
+          loading={!size.w && !size.error} loadError={size.error}
+          mask={maskSrc} shapes={[]}
+          opacity={opacity}
+          pick={pick} onPick={setPick}
+          full={full} onFull={() => setFull((v) => !v)}
+          mode="review"
+        />
       </div>
-
-
-      {/* =================================================
-          하단 Control
-      ================================================= */}
 
       <div className="viewer-control">
-
-        {/* 확대/축소 — 맘모/초음파/병리도 기본적인 뷰어 기능이라 필요 */}
-        <div className="zoom-wrap">
-          <button
-            type="button"
-            className="zoom-btn"
-            onClick={zoomOut}
-            disabled={!imageSrc || zoom <= ZOOM_MIN}
-            aria-label="축소"
-          >
-            −
-          </button>
-          <button
-            type="button"
-            className="zoom-value"
-            onClick={zoomReset}
-            disabled={!imageSrc}
-            title="100%로 리셋"
-          >
-            {zoom}%
-          </button>
-          <button
-            type="button"
-            className="zoom-btn"
-            onClick={zoomIn}
-            disabled={!imageSrc || zoom >= ZOOM_MAX}
-            aria-label="확대"
-          >
-            ＋
-          </button>
-        </div>
-
-        {/* AI Mask */}
-        <label
-          className={
-            `mask-toggle ${
-              !hasMask
-                ? "disabled"
-                : ""
-            }`
-          }
-        >
-
-          <input
-            type="checkbox"
-            checked={
-              hasMask
-                ? maskVisible
-                : false
-            }
-            onChange={(e) =>
-              setMaskVisible(
-                e.target.checked
-              )
-            }
-            disabled={!hasMask}
-          />
-
-          <span>
-            AI Mask
-          </span>
-
-        </label>
-
-
-        {/* 투명도 */}
-        <span className="control-label">
-          투명도
-        </span>
-
+        <span className="control-label">마스크 투명도</span>
         <div className="opacity-wrap">
-
           <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.05"
-            value={maskOpacity}
-            onChange={(e) =>
-              setMaskOpacity(
-                Number(e.target.value)
-              )
-            }
+            type="range" min="0" max="100" step="5"
+            value={opacity}
+            onChange={(e) => setOpacity(Number(e.target.value))}
             disabled={!hasMask}
           />
-
-          <span className="opacity-value">
-            {Math.round(
-              maskOpacity * 100
-            )}%
-          </span>
-
+          <span className="opacity-value">{opacity}%</span>
         </div>
 
-
-        {/* Slice
-            여러 장일 때만 표시 */}
         {slices.length > 1 && (
           <div className="slice-wrap">
-
-            <span className="control-label">
-              Slice
-            </span>
-
+            <span className="control-label">Slice</span>
             <input
-              type="range"
-              min="0"
-              max={slices.length - 1}
-              step="1"
+              type="range" min="0" max={slices.length - 1} step="1"
               value={sliceIndex}
-              onChange={(e) =>
-                setSliceIndex(
-                  Number(e.target.value)
-                )
-              }
+              onChange={(e) => setSliceIndex(Number(e.target.value))}
             />
-
-            <span className="slice-count">
-              {sliceIndex + 1} /{" "}
-              {slices.length}
-            </span>
-
+            <span className="slice-count">{sliceIndex + 1} / {slices.length}</span>
           </div>
         )}
-
       </div>
-
     </div>
   );
+}
+
+/* 서버가 픽셀 크기를 안 주므로(GenericImageViewer 시절부터 그랬다)
+   화면에서 직접 잰다 — Stage가 fit()·SVG viewBox에 원본 크기를 쓴다.
+   ⚠ onerror도 반드시 잡는다 — 안 잡으면 깨진 이미지 주소(샘플 이미지가
+   아직 없는 모달리티 등)에서 size가 영원히 {0,0}으로 남아 Stage가
+   "불러오는 중…"에 멈춰 버린다. */
+function useImageSize(src) {
+  const [state, setState] = useState({ w: 0, h: 0, error: null });
+  useEffect(() => {
+    if (!src) { setState({ w: 0, h: 0, error: null }); return; }
+    setState({ w: 0, h: 0, error: null });
+    let cancelled = false;
+    const img = new Image();
+    img.onload = () => { if (!cancelled) setState({ w: img.naturalWidth, h: img.naturalHeight, error: null }); };
+    img.onerror = () => { if (!cancelled) setState({ w: 0, h: 0, error: { status: "불러오기 실패" } }); };
+    img.src = src;
+    return () => { cancelled = true; };
+  }, [src]);
+  return state;
 }

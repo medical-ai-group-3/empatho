@@ -72,7 +72,16 @@ input,select,textarea{font:inherit; color:inherit}
 .me-tx small{font-size:var(--crumb-fs); color:var(--warm)}
 
 /* ── 쪽 ─────────────────────────────────────────────────────── */
-.page{flex:1; width:100%; max-width:var(--max); margin:0 auto;
+/* ⚠ width:100% 과 max-width 를 따로 쓰면 안 된다 — .shell(column flex)
+   아래서 stretch가 항상 «줄의 가로 크기까지 채운다»는 보장이 없다
+   (이 쪽처럼 .page 자신도 display:flex라 컨텐츠 기준으로 쪼그라드는
+   경우가 있었다 — max-width만 있고 width가 없으면 685px 같은 애매한
+   값에서 멈췄다). width:100% 을 따로 두면 그 반대로 margin:auto 가
+   가운데로 못 밀어준다(넓은 화면에서 왼쪽으로 쏠리고 오른쪽만 빈다).
+   min() 으로 한 선언에 합치면 두 문제 다 안 생긴다 — 브라우저가
+   처음부터 "100%든 --max든 더 작은 쪽"을 상자 크기로 확정하고, 그
+   다음에 margin:auto 가 정확히 그 크기 기준으로 가운데를 잡는다. */
+.page{flex:1; width:min(100%, var(--max)); margin:0 auto;
   padding:var(--page-pad-y) var(--page-pad-x);
   display:flex; flex-direction:column; gap:var(--gap)}
 
@@ -233,11 +242,18 @@ input,select,textarea{font:inherit; color:inherit}
 .bar i{display:block; height:100%; border-radius:var(--bar-radius);
   background:var(--cyan); transition:width var(--motion)}
 
-/* ── 뷰어 — **이 판에서 어두운 곳은 여기뿐이다** ─────────────── */
-.vwrap{display:flex; align-items:stretch; background:var(--v-bg);
-  border-radius:var(--v-radius); overflow:hidden; min-height:var(--v-min-h);
-  color:var(--v-ink)}
-.viewer{flex:1; min-width:0; display:flex; flex-direction:column}
+/* ── 뷰어 — **이 판에서 어두운 곳은 여기뿐이다** ─────────────────
+   환자 정보 · Viewer · AI 소견 · 의사 소견 넷을 서로 다른 카드로
+   보이게 한다(2026-09-17 레이아웃 수정) — 예전엔 .vwrap 하나가 배경·
+   테두리를 다 먹고 안의 vside 들은 hairline 하나로만 갈라서 «하나로
+   이어붙은 상자» 로 보였다. 지금은 .vwrap 자체는 배경이 없는 그릇일
+   뿐이고, viewer·vside·vtab 각각이 자기 배경·테두리·radius를 들고
+   gap 으로 떨어져 있다 — 네 조각이 진짜 따로 노는 카드처럼 보여야
+   한다. */
+.vwrap{display:flex; align-items:stretch; gap:var(--gap); color:var(--v-ink)}
+.viewer{flex:1; min-width:0; display:flex; flex-direction:column;
+  background:var(--v-bg); border-radius:var(--v-radius); overflow:hidden;
+  min-height:var(--v-min-h)}
 .vtabs{display:flex; gap:var(--chip-gap); padding:var(--v-pad);
   border-bottom:var(--hair) solid var(--v-line); flex-wrap:wrap}
 .vtabs .pill{background:transparent; color:var(--v-warm);
@@ -272,10 +288,9 @@ input,select,textarea{font:inherit; color:inherit}
   color:var(--v-warm); font-size:var(--v-fs)}
 
 .vside{width:var(--v-side); flex:none; background:var(--v-card);
-  border-left:var(--hair) solid var(--v-line); display:flex;
-  flex-direction:column; min-width:0}
-.vwrap > .vside:first-child{border-left:none;
-  border-right:var(--hair) solid var(--v-line)}
+  border:var(--hair) solid var(--v-line); border-radius:var(--v-radius);
+  display:flex; flex-direction:column; min-width:0; overflow:hidden;
+  min-height:var(--v-min-h)}
 .vside-h{display:flex; align-items:center; gap:var(--gap-sm);
   padding:var(--v-pad); border-bottom:var(--hair) solid var(--v-line);
   font-size:var(--v-fs)}
@@ -283,11 +298,19 @@ input,select,textarea{font:inherit; color:inherit}
 .vside-h .x{color:var(--v-warm)}
 .vside-b{flex:1; overflow-y:auto; padding:var(--v-pad);
   display:flex; flex-direction:column; gap:var(--gap-sm)}
-/* 접었을 때 남는 손잡이 — 완전히 사라지면 다시 못 찾는다 */
+/* 검사 Series(Fold) — 환자 정보(.kv)와 같은 칸 안이지만 따로 떨어진
+   카드로 보여야 한다(레이아웃 설계 §2). 뷰어 안이라고 면을 죽이지
+   않는다 — 그러면 다시 환자정보와 하나로 붙어 보인다. */
+.vside-b > .kv{background:var(--v-bg); border:var(--hair) solid var(--v-line);
+  border-radius:var(--v-radius); padding:var(--v-pad); margin:0}
+.vside-b > .fold{background:var(--v-bg); border-color:var(--v-line)}
+/* 접었을 때 남는 손잡이 — 완전히 사라지면 다시 못 찾는다. 이것도
+   독립 카드다(접힌 상태의 그 패널일 뿐, 다른 패널에 붙지 않는다) */
 .vtab{width:var(--v-tab-w); flex:none; background:var(--v-card);
   color:var(--v-warm); font-size:var(--v-fs); writing-mode:vertical-rl;
   display:flex; align-items:center; justify-content:center; gap:var(--sub-gap);
-  border-left:var(--hair) solid var(--v-line)}
+  border:var(--hair) solid var(--v-line); border-radius:var(--v-radius);
+  min-height:var(--v-min-h)}
 .vtab:hover{color:var(--v-ink)}
 .vside .slot{border-color:var(--v-line); background:transparent;
   color:var(--v-warm)}
@@ -610,24 +633,6 @@ td.none,tr.none td{text-align:center; padding:var(--card-pad) 0}
 .vunder{padding:var(--v-pad); border-top:var(--hair) solid var(--v-line);
   background:var(--v-card)}
 
-.vside.wide{width:var(--pane-side-wide); display:flex; flex-direction:column;
-  gap:0}
-.vpanel{display:flex; flex-direction:column; min-height:0;
-  border-bottom:var(--hair) solid var(--v-line)}
-.vpanel.grow{flex:1}
-.vpanel .vside-b{overflow:auto}
-
-/* 접힌 패널의 손잡이 — 오른쪽 기둥 안에서 가로로 눕는다 */
-.vrow{display:flex; align-items:center; gap:var(--sub-gap);
-  padding:var(--gap-sm) var(--v-pad); background:var(--v-card);
-  border:none; border-bottom:var(--hair) solid var(--v-line);
-  color:var(--v-warm); font:inherit; font-size:var(--v-fs);
-  text-align:left; cursor:pointer}
-.vrow:hover{color:var(--v-ink)}
-
-/* 둘 다 접으면 기둥이 손잡이 폭으로 줄고 뷰어가 넓어진다 */
-.vtabs-r{display:flex; flex-direction:column; flex:none}
-
 /* ── AI 소견 ───────────────────────────────────────────────── */
 .ai{display:flex; flex-direction:column; gap:var(--ai-gap)}
 
@@ -710,7 +715,6 @@ td.none,tr.none td{text-align:center; padding:var(--card-pad) 0}
 /* 좁은 화면 */
 @media (max-width: 900px){
   .ai-m.two{grid-template-columns:1fr}
-  .vside.wide{width:var(--pane-side)}
 }
 
 /* ══════════════════════════════════════════════════════════════
