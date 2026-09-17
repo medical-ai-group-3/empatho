@@ -72,8 +72,13 @@ a{color:inherit; text-decoration:none}
 .top .icon:hover{background:var(--bg); color:var(--pink)}
 .top .icon.on{color:var(--pink)}     /* 자동이 아니라 손으로 골라 둔 상태 */
 
+/* ⚠ 아래쪽에 **떠 있는 단추만큼 더** 비운다. 안 그러면 마지막 줄이
+   「상담」 단추에 가린다 — 실제로 달력 아래의 「예약 →」이 덮여서
+   누를 수가 없었다. 떠 있는 것을 놓았으면 그만큼 자리를 비켜 줘야 한다.
+   탭 자신의 여백은 .tabs 가 따로 가진다 */
 .pane{padding:var(--screen-pad); overflow-y:auto; flex:1; display:flex;
-  flex-direction:column; gap:var(--screen-gap); background:var(--bg)}
+  flex-direction:column; gap:var(--screen-gap); background:var(--bg);
+  padding-bottom:calc(var(--screen-pad) + var(--fab-size))}
 .pane.mid{justify-content:center}
 
 /* ⚠ 이 한 줄이 없으면 폰에서 화면이 잘린다.
@@ -730,3 +735,73 @@ a{color:inherit; text-decoration:none}
 
 /* 화면에서는 숨어 있다 — 위 @media print 만 이것을 꺼낸다 */
 .printhead{display:none}
+
+/* ── 트리리 ──────────────────────────────────────
+   그림이 없으면 부품이 아무것도 안 그린다(lib/Triri) — 여기 규칙은
+   파일이 들어온 뒤에야 쓰인다. */
+.triri{display:block; width:auto; object-fit:contain; user-select:none;
+  -webkit-user-drag:none}
+.triri.sm{height:var(--triri-sm)}
+.triri.md{height:var(--triri-md)}
+.triri.lg{height:var(--triri-lg)}
+
+/* ── 떠 있는 챗봇 단추 ───────────────────────────
+   탭 **바로 위**에 앉힌다. 탭 높이를 모르므로 탭이 쓰는 바닥 여백에
+   탭 자신의 높이를 더해 띄운다 — 탭이 커져도 겹치지 않는다.
+
+   연분홍 면에 초록 글자다. 가이드의 리본·워드마크 규칙 그대로. */
+.chatfab{position:fixed; right:var(--fab-right);
+  bottom:calc(var(--nav-bottom) + var(--fab-size) + 18px);
+  width:var(--fab-size); height:var(--fab-size);
+  display:flex; flex-direction:column; align-items:center;
+  justify-content:center; gap:1px;
+  background:var(--blossom); color:var(--green);
+  border-radius:999px; box-shadow:var(--nav-shadow);
+  z-index:40; text-decoration:none;
+  transition:transform var(--motion)}
+.chatfab:hover{transform:translateY(-2px)}
+.chatfab:active{transform:translateY(0)}
+.chatfab-tx{font-size:var(--fab-fs); font-weight:700; letter-spacing:.02em}
+/* 그림이 아직 없을 때 — 동그라미가 비지 않게 글자를 키워 세운다 */
+.chatfab:not(:has(.triri)) .chatfab-tx{font-size:var(--tile-fs)}
+
+/* 앱 폭보다 넓은 화면에서는 앱 오른쪽 끝에 붙인다 — 화면 구석에 혼자
+   떨어져 있으면 이 앱의 것으로 안 보인다 */
+@media (min-width: 560px){
+  .chatfab{right:calc(50% - var(--app-max) / 2 + var(--fab-right))}
+}
+
+/* ── 홈 바로가기 타일 ────────────────────────────
+   탭에 없는 것만 온다. 아직 없는 기능은 **끈 채로** 두고 왜 못 누르는지
+   적는다 — 눌리는데 아무 일도 안 나는 것이 제일 나쁘다. */
+.tiles{display:grid; grid-template-columns:1fr 1fr; gap:var(--tile-gap)}
+.tile{display:flex; flex-direction:column; gap:var(--card-tx-gap);
+  padding:var(--tile-pad); border-radius:var(--tile-radius);
+  background:var(--surface); box-shadow:var(--card-shadow);
+  border:var(--line-w) solid var(--card-line);
+  text-decoration:none; color:var(--ink); text-align:left}
+.tile .ic{display:flex; align-items:center; justify-content:center;
+  width:var(--tile-ic); height:var(--tile-ic); border-radius:999px;
+  background:var(--blossom); color:var(--green);
+  font-size:var(--tile-ic-fs); flex:none}
+.tile b{font-size:var(--tile-fs); font-weight:700}
+.tile small{font-size:var(--tile-s-fs); color:var(--muted)}
+.tile.off{opacity:.55; cursor:not-allowed; box-shadow:none;
+  background:var(--bg); border-color:var(--line)}
+.tile.off .ic{background:var(--off); color:var(--faint)}
+
+/* ── 홈 인사 옆 트리리 ───────────────────────────
+   인사말과 나란히 선다. 글이 주인공이라 캐릭터는 오른쪽에서 거든다 */
+.hhead .triri{margin-left:auto}
+
+/* 챗봇 첫 화면의 트리리 — 가운데에 세운다 */
+.chat-tri{display:flex; justify-content:center;
+  padding:var(--screen-gap) 0 var(--card-gap)}
+
+/* 「답을 찾고 있습니다」 말풍선 안의 작은 트리리 */
+.bub.wait{display:flex; align-items:center; gap:var(--dot-gap)}
+.bub.wait .triri{flex:none}
+
+/* 홈 인사 옆 트리리 — 머리말 아래 오른쪽에 붙는다 */
+.hhead-tri{display:flex; justify-content:flex-end;
+  margin-top:calc(-1 * var(--screen-gap))}

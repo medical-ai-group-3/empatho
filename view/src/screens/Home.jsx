@@ -3,6 +3,7 @@ import { api } from "../api";
 import { useApi } from "../lib/useApi";
 import Calendar from "../lib/Calendar";
 import Coach from "../lib/Coach";
+import Triri from "../lib/Triri";
 import { COACH_HOME } from "../lib/seen";
 import { Body } from "../lib/Screen";
 import { fmtDay, fmtWhen } from "../lib/when";
@@ -80,6 +81,13 @@ function Inner({ d }) {
           {d.new_reports?.length > 0 && <i className="new" />}
         </Link>
         <Link className="icon" to="/settings" aria-label="설정"><Gear /></Link>
+      </div>
+
+      {/* 인사 옆에 트리리. 글이 주인공이고 캐릭터는 거든다 —
+          alt 를 비운 것은 바로 위에 「안녕하세요 ○○○ 님」이 글로 있어서다.
+          읽어 주는 기계가 같은 말을 두 번 하면 성가시다 */}
+      <div className="hhead-tri" aria-hidden="true">
+        <Triri mood="hello" size="md" alt="" />
       </div>
 
       {d.last_visit_at && (
@@ -163,6 +171,31 @@ function Inner({ d }) {
           }
         />
       )}
+
+      {/* ── 바로가기 ──
+          ⚠ **아래 탭에 있는 것은 여기 두지 않는다.** 결과·예약·상담은
+            탭과 떠 있는 단추로 늘 닿으므로, 같은 길을 두 번 내면 화면만
+            길어진다. 전에 이 자리를 한 번 걷어냈던 이유가 그것이다.
+
+            그래서 남는 것이 「탭에 없고 아직 만들지도 않은」 둘이다.
+            브랜드 가이드의 홈에 있던 항목을 자리만 먼저 잡아 둔다 —
+            **끈 채로** 두고 왜 못 누르는지 적는다. 기능이 생기면 off 를
+            떼고 to 를 넣으면 된다 */}
+      <h3 className="sec">건강 관리</h3>
+      <div className="tiles">
+        <div className="tile off" aria-disabled="true"
+             title="준비 중입니다">
+          <i className="ic" aria-hidden="true">✦</i>
+          <b>치료 정보</b>
+          <small>준비 중입니다</small>
+        </div>
+        <div className="tile off" aria-disabled="true"
+             title="준비 중입니다">
+          <i className="ic" aria-hidden="true">◈</i>
+          <b>복약 관리</b>
+          <small>준비 중입니다</small>
+        </div>
+      </div>
 
       <p className="note">
         이 앱의 안내는 진단서가 아닙니다. 최종 판단은 진료 때 의료진이 합니다.

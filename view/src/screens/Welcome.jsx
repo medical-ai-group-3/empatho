@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { HOSPITAL } from "../brand";
 import { markWelcomeSeen } from "../lib/seen";
 import Logo from "../lib/Logo";
+import Triri from "../lib/Triri";
 
 /* 00 · 소개 — 한 장이다.
  *
@@ -41,6 +42,7 @@ export default function Welcome() {
     <div className="wel">
       <div className="wel-body">
         <Logo size="lg" />
+        <Triri mood="hello" size="lg" alt="트리리가 인사하고 있어요" />
         <div className="wel-tx">
           <h2>{HOSPITAL} 환자용 앱</h2>
           <p>진료와 검사에 관한 일을 여기에서 하실 수 있습니다.</p>
