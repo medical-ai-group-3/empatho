@@ -105,6 +105,43 @@ CORS_ALLOWED_ORIGINS = [
 ]
 CORS_ALLOW_CREDENTIALS = True
 
+# ── nginx 뒤에서 HTTPS 를 쓸 때 ────────────────────────────────────
+#
+# **기본은 꺼져 있다.** 켜는 것은 conf/web.env 한 줄이고, 코드는 안 고친다.
+#
+#   DJANGO_BEHIND_TLS_PROXY=True
+#
+# 왜 필요한가 — Django 는 nginx 뒤에 있어서 자기에게 오는 요청을 http 로
+# 본다. 그러면 Secure 쿠키를 「https 가 아니니」 하며 **안 내려보낸다.**
+# nginx 가 X-Forwarded-Proto 를 붙이고(conf/nginx/default.conf) Django 가
+# 그것을 믿게 하는 줄이 아래다. **둘 중 하나만 있으면 로그인이 안 된다.**
+#
+# 이 헤더를 믿어도 되는 이유 — nginx 가 proxy_set_header 로 **덮어쓴다.**
+# 바깥에서 보낸 X-Forwarded-Proto 는 거기서 버려진다. nginx 를 안 거치고
+# Django 가 직접 열려 있으면 이 가정이 깨지므로, 그때는 켜지 말 것.
+BEHIND_TLS_PROXY = os.environ.get("DJANGO_BEHIND_TLS_PROXY", "False") == "True"
+
+if BEHIND_TLS_PROXY:
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    # Django admin 세션과 CSRF 쿠키도 HTTPS 에서만 오가게 한다.
+    # (refresh 토큰 쿠키는 뷰가 secure=True 를 직접 준다)
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+
+# ⚠ SECURE_SSL_REDIRECT 는 **켜지 않는다.** 되돌림은 nginx 80 구역이 이미
+#   한다. Django 까지 하면 두 번 튕기고, 무엇보다 compose 의 healthcheck 가
+#   http 로 부르는 자리까지 301 이 되어 **멀쩡한 컨테이너가 unhealthy** 로
+#   뜬다. 같은 이유로 nginx 도 /nginx-health 만 80 에 남겨 둔다.
+
+# CSRF 신뢰 출처. **스킴까지 적어야 한다** (https://example.org).
+#
+# Django admin 처럼 폼을 POST 하는 자리가 여기 없으면 403 CSRF 로 막힌다.
+# API 는 JWT 라 상관없지만 admin 은 세션·CSRF 로 돈다 — feature/backend 의
+# /admin-session 흐름이 그 위에서 돈다.
+CSRF_TRUSTED_ORIGINS = [
+    o.strip() for o in os.environ.get("CSRF_TRUSTED_ORIGINS", "").split(",") if o.strip()
+]
+
 REST_FRAMEWORK = {
     # 인증 주체는 auth_user 가 아니라 core.account 다 (core/api/auth.py).
     "DEFAULT_AUTHENTICATION_CLASSES": [
