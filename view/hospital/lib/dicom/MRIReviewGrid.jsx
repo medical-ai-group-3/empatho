@@ -3,39 +3,19 @@ import Anatomy3DViewer from "./Anatomy3DViewer";
 import Tumor3DViewer from "./Tumor3DViewer";
 import DicomMprPanel from "./DicomMprPanel";
 
-const DEFAULT_LESIONS = [
-  {
-    lesion_id: "L-001",
-    mesh_url:
-      "/models/duke/DUKE_001_tumor_lesion01.stl",
-    color: "#C9828C",
-    location: "병변 01",
-  },
-  {
-    lesion_id: "L-002",
-    mesh_url:
-      "/models/duke/DUKE_001_tumor_lesion02.stl",
-    color: "#8FA8C2",
-    location: "병변 02",
-  },
-  {
-    lesion_id: "L-003",
-    mesh_url:
-      "/models/duke/DUKE_001_tumor_lesion03.stl",
-    color: "#B59A6A",
-    location: "병변 03",
-  },
-  {
-    lesion_id: "L-004",
-    mesh_url:
-      "/models/duke/DUKE_001_tumor_lesion04.stl",
-    color: "#9B8FB5",
-    location: "병변 04",
-  },
-];
-
 export default function MRIReviewGrid({
-  lesions = DEFAULT_LESIONS,
+  /* ⚠ 기본값을 **빈 배열**로 둔다.
+   *
+   * 전에는 DEFAULT_LESIONS — DUKE 공개 데이터셋 환자의 종괴 메시 네 개가
+   * 기본값이었다. 호출부가 lesions 를 안 넘기거나 서버가 병변을 안 주면
+   * (undefined) 그 순간 **남의 환자 종괴가 이 환자 화면에 뜬다.**
+   * 판독 화면에서 화면만 봐서는 진짜인지 구분할 수 없다.
+   *
+   * (그 .stl 파일들은 저장소에 없어서 지금은 404 로 안 그려질 뿐이었다.
+   * 누가 public/models/duke/ 를 채우는 순간 조용히 진짜처럼 보이게 된다.)
+   *
+   * 비면 아무것도 안 그린다. 그게 맞는 상태다. */
+  lesions = [],
   selectedLesion: selectedLesionProp,
   onLesionChange,
   study,

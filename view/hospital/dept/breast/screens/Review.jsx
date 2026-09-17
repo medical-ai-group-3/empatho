@@ -8,6 +8,7 @@ import { go } from "../../../nav";
 import "../breast.css";   /* 유방외과 전용 — .breast 안에 갇혀 있다. 네 화면이 각자
                              끌고 온다: 주소로 곧장 들어와도 스타일이 빠지면 안 된다 */
 import ReviewViewer from "../components/ReviewViewer";
+import { MODALITY, label } from "../../../codes";
 import AIModelResult from "../components/AIModelResult";
 
 /* 화면 2 · 검사 종합 확인 ("/patients/:id/review")
@@ -45,7 +46,9 @@ function Inner({ patient, timeline }) {
   const [leftOpen, setLeftOpen] = useState(true);
   const [rightOpen, setRightOpen] = useState(true);
 
-  /* 뷰어가 지금 어느 모달리티(맘모/초음파/MRI/병리)를 보여주고 있는지 —
+  /* 뷰어가 지금 어느 모달리티를 보여주고 있는지. **서버 코드**다
+     (mammo · us · mri) — saveReport 본문에 그대로 실려 나가므로 사람에게
+     보여줄 때만 label(MODALITY, …) 을 거친다. codes.js 참고 —
    * 오른쪽 "유방외과 리포트" 작성란이 이 값을 그대로 따라간다(검사
    * 종합 확인 화면의 핵심 요구사항). ReviewViewer가 매 렌더마다 새
    * 함수를 받으면 그 안의 자동 탭 선택 useEffect가 다시 도는 걸 막기
@@ -211,7 +214,7 @@ function FinalReportForm({ report, modality, text, onTextChange }) {
           style={{ height: "100%", minHeight: 70, resize: "none" }}
           placeholder={
             modality
-              ? `${modality} 검사에 대한 유방외과 소견을 작성해 주세요`
+              ? `${label(MODALITY, modality)} 검사에 대한 유방외과 소견을 작성해 주세요`
               : "유방외과 종합 소견을 작성해 주세요"
           }
         />

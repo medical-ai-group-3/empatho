@@ -3,17 +3,24 @@ import { breast as api } from "../../../api";
 import { useApi } from "../../../lib/useApi";
 import { Body } from "../../../lib/Body";
 import MRIReviewGrid from "../../../lib/dicom/MRIReviewGrid";
+import { MODALITY, label, modality as asModality } from "../../../codes";
 
-const MODALITIES = ["맘모", "초음파", "MRI", "병리"];
-
-/*
- * 현재 프로젝트에 실제 존재하는 샘플 이미지
+/* 탭에 쓰는 값은 **서버 코드**다 (mammo · us · mri).
+ *
+ * 전에는 한글 라벨(["맘모","초음파","MRI","병리"])을 그대로 들고
+ * study.modality 와 비교했다. 목업이 한글을 돌려주어 화면에서는 멀쩡해
+ * 보였지만, 진짜 서버는 mammo·us·mri 를 보내므로 **비교가 하나도 안 맞아
+ * 탭이 통째로 사라진다.** 게다가 그 한글이 onModalityChange 를 타고
+ * 리포트 저장 본문(saveReport 의 modality)까지 들어가고 있었다.
+ *
+ * 코드표와 라벨은 codes.js 한 곳에서 온다. 비교는 늘 asModality() 를
+ * 거친다 — 목업 일부가 아직 "ultrasound" 로 주는데 서버는 "us" 다.
+ *
+ * ⚠ 「병리」가 빠진 것은 서버 MODALITY 에 그 값이 없어서다. 병리는 study
+ *   가 아니라 specimen 으로 다룬다. 넣어 둬도 study.modality 와 영영 안
+ *   맞아 탭이 뜨지 않는다 — 안 뜨는 탭을 목록에 두면 「왜 안 나오지」가
+ *   된다. 병리를 이 뷰어에 붙이려면 specimen 을 따로 받아 와야 한다.
  */
-const SAMPLE_IMAGES = {
-  맘모: "/samples/mammo/mamamomo.png",
-  초음파: "/samples/us/usus.png",
-  병리: "/samples/pathology/patho.png",
-};
 
 export default function ReviewViewer({
   patientId,
@@ -33,14 +40,14 @@ export default function ReviewViewer({
   /*
    * 실제로 촬영한(performed_at이 있는) modality만 탭으로 보여준다 —
    * 이 환자가 맘모만 찍었으면 맘모만, 초음파까지 찍었으면 그것까지만.
-   * 전체 MODALITIES를 항상 다 보여주면 안 찍은 검사까지 탭이 떠서
+   * 코드표를 항상 다 보여주면 안 찍은 검사까지 탭이 떠서
    * "표시할 영상이 없습니다" 빈 화면만 늘어난다.
    */
   const availableModalities = Array.isArray(studies)
-    ? MODALITIES.filter((modality) =>
+    ? Object.keys(MODALITY).filter((code) =>
         studies.some(
           (item) =>
-            item.modality === modality &&
+            asModality(item.modality) === code &&
             item.performed_at
         )
       )
@@ -65,14 +72,14 @@ export default function ReviewViewer({
     const completed = studies.filter(
       (study) =>
         study?.performed_at &&
-        MODALITIES.includes(study.modality)
+        asModality(study.modality) in MODALITY
     );
 
     const latest = [...completed].sort(
       (a, b) => new Date(b.performed_at) - new Date(a.performed_at)
     )[0];
 
-    const next = latest?.modality ?? availableModalities[0];
+    const next = asModality(latest?.modality) ?? availableModalities[0];
     setTab(next);
     onModalityChange?.(next);
   }, [tab, studies, availableModalities.join(","), onModalityChange]);
@@ -83,7 +90,7 @@ export default function ReviewViewer({
   const study =
     Array.isArray(studies)
       ? studies.find(
-          (item) => item.modality === tab
+          (item) => asModality(item.modality) === tab
         )
       : null;
 
@@ -98,19 +105,19 @@ export default function ReviewViewer({
         {availableModalities.length === 0 && !loading ? (
           <span className="viewer-tabs-empty">촬영한 검사가 없습니다</span>
         ) : (
-          availableModalities.map((modality) => (
+          availableModalities.map((code) => (
             <button
-              key={modality}
+              key={code}
               type="button"
               className={
-                tab === modality ? "on" : ""
+                tab === code ? "on" : ""
               }
               onClick={() => {
-                setTab(modality);
-                onModalityChange?.(modality);
+                setTab(code);
+                onModalityChange?.(code);
               }}
             >
-              {modality}
+              {label(MODALITY, code)}
             </button>
           ))
         )}
@@ -127,7 +134,7 @@ export default function ReviewViewer({
           error={error}
           onRetry={reload}
         >
-          {tab === null ? null : tab === "MRI" ? (
+          {tab === null ? null : tab === "mri" ? (
             <MRIReviewGrid
               lesions={lesions}
               study={study}
@@ -710,24 +717,20 @@ function GenericImageViewer({
   study,
 }) {
   /*
-   * API에서 이미지가 내려오면 우선 사용한다.
+   * 서버가 준 것만 그린다.
    *
-   * 아직 mock DB의 slices가 비어 있어도
-   * 아래 SAMPLE_IMAGES를 fallback으로 사용한다.
+   * ⚠ 전에는 slices 가 비면 고정된 샘플 사진(/samples/…)을 대신 띄웠다.
+   *   판독 화면에서 그건 **남의 영상을 이 환자 것처럼 보여주는 일**이다.
+   *   화면만 봐서는 진짜인지 샘플인지 구분할 수 없었다.
+   *
+   *   (그 파일들은 저장소에 없어서 지금은 404 로 깨질 뿐이었다. 누가
+   *   public/samples/ 를 채우는 순간 조용히 진짜처럼 보이게 된다.)
+   *
+   *   비면 아래 「영상이 없습니다」가 뜬다. 그게 맞는 상태다.
    */
-  const apiSlices = Array.isArray(study?.slices)
+  const slices = Array.isArray(study?.slices)
     ? study.slices.filter(Boolean)
     : [];
-
-  const sampleImage =
-    SAMPLE_IMAGES[modality];
-
-  const slices =
-    apiSlices.length > 0
-      ? apiSlices
-      : sampleImage
-        ? [sampleImage]
-        : [];
 
 
   /*
@@ -813,12 +816,11 @@ function GenericImageViewer({
             </div>
 
             <div>
-              표시할 {modality} 영상이 없습니다.
+              표시할 {label(MODALITY, modality)} 영상이 없습니다.
             </div>
 
             <div className="generic-empty-sub">
-              검사 데이터 또는 샘플 이미지가
-              등록되지 않았습니다.
+              이 검사에 등록된 영상이 없습니다.
             </div>
 
           </div>
@@ -831,7 +833,7 @@ function GenericImageViewer({
               <span className="image-label-dot" />
 
               <span>
-                {modality}
+                {label(MODALITY, modality)}
               </span>
 
               {study?.device && (
@@ -865,7 +867,7 @@ function GenericImageViewer({
               <img
                 className="generic-image"
                 src={imageSrc}
-                alt={`${modality} 검사 영상`}
+                alt={`${label(MODALITY, modality)} 검사 영상`}
                 style={{ transform: `scale(${zoom / 100})` }}
               />
 
