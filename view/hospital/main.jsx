@@ -4,6 +4,13 @@ import {
   BrowserRouter, Navigate, Outlet, Route, Routes, useLocation,
 } from "react-router-dom";
 
+/* 팀 공용 디자인 시스템 토큰 — tokens.css/themes.css 는 :root 에 새 이름의
+   커스텀 프로퍼티만 얹으므로 전역으로 불러도 안전하다. base.css(전역
+   body/.btn/.card 규칙)는 여기서 안 부른다 — 회원가입 화면 전용으로
+   스코프한 styles/signup-ds.css 가 그 역할을 대신한다. */
+import "./styles/tokens.css";
+import "./styles/themes.css";
+
 import "./tokens.css";
 import "./hospital.css";
 
@@ -13,6 +20,7 @@ import Top from "./lib/Top";
 import { useLoadMe } from "./lib/useMe";
 import { useSignedIn } from "./lib/session";
 import Login from "./screens/auth/Login";
+import Signup from "./screens/auth/Signup";
 import Boom from "./lib/Boom";
 
 import QueueScreen from "./screens/Queue";
@@ -136,7 +144,11 @@ function Shell() {
  * 생긴 뒤에 다룰 자리다.
  */
 function Gate({ children }) {
-  return useSignedIn() ? children : <Login />;
+  const [mode, setMode] = useState("login");
+  if (useSignedIn()) return children;
+  return mode === "signup"
+    ? <Signup onBack={() => setMode("login")} />
+    : <Login onSignup={() => setMode("signup")} />;
 }
 
 /* 로그인 응답(perms)이 올 때까지 기다린다. 안 기다리면 첫 그림에서
