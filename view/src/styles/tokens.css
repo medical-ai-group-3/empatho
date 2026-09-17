@@ -328,7 +328,10 @@
   --hello-b-fs:  calc(24px * var(--ft));
   --hello-s-fs:  calc(13px * var(--ft));
   --hello-gap:   calc(4px * var(--sp));
-  --hello-tri-y: calc(4px * var(--sp));   /* 인사와 틸리 사이 */
+  /* 틸리가 아래 타일에 걸터앉는 깊이. 음수로 끌어내려 겹친다 —
+     너무 깊으면 타일의 아이콘을 가리고, 얕으면 그냥 위에 떠 있다 */
+  --hello-tri-lap:   calc(30px * var(--sp));
+  --hello-tri-right: calc(2px * var(--sp));
   /* ══ 틸리 ═══════════════════════════════════════════════
      캐릭터 크기. 그림 파일은 public/tilly/ 에 둔다 (lib/Tilly 참고).
      **찍힐 크기의 3배로** 만들어 주면 어느 폰에서도 안 뭉갠다. */

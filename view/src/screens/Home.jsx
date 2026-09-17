@@ -82,15 +82,20 @@ function Inner({ d }) {
       {/* 큰 인사 + 틸리.
           alt 를 비운 것은 바로 옆에 같은 인사가 글로 있어서다 — 읽어 주는
           기계가 두 번 말하면 성가시다 */}
-      <p className="hello-tx">
-        <b>안녕하세요!</b>
-        <span>{d.display_name} 님, 오늘도 건강한 하루예요</span>
-      </p>
+      {/* 인사는 왼쪽, 틸리는 오른쪽. 그리고 **틸리가 아래 타일에
+          걸터앉는다** — 이 덩어리가 아래로 음수 여백만큼 내려앉아
+          「검사 결과」 칸 위에 겹친다.
 
-      {/* 틸리는 인사 **아래 가운데**에 크게 선다. 옆에 작게 두었더니
-          「인사 옆 장식」이 되어 가이드의 첫인상과 달랐다 */}
-      <div className="hello-tri" aria-hidden="true">
-        <Tilly mood="hello" size="lg" alt="" />
+          가운데에 세웠더니 캐릭터만 동떨어져 보였다. 걸쳐 두면 인사 ·
+          캐릭터 · 타일이 한 덩어리로 읽히고 화면에 깊이가 생긴다. */}
+      <div className="hello">
+        <p className="hello-tx">
+          <b>안녕하세요!</b>
+          <span>{d.display_name} 님, 오늘도 건강한 하루예요</span>
+        </p>
+        <span className="hello-tri" aria-hidden="true">
+          <Tilly mood="hello" size="lg" alt="" />
+        </span>
       </div>
 
       <div className="tiles">

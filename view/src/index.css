@@ -821,10 +821,21 @@ a{color:inherit; text-decoration:none}
    나란히 있었는데, 인사를 크게 세우면 같은 말이 두 번 나온다. */
 .hbar{display:flex; justify-content:flex-end; gap:var(--hhead-gap)}
 
-.hello-tx{margin:calc(-1 * var(--screen-gap) / 2) 0 0; display:flex;
+/* 인사 왼쪽 · 틸리 오른쪽. **덩어리째 아래로 내려앉아** 타일에 겹친다.
+   z-index 로 타일 위에 서고, 겹친 자리는 눌러도 타일이 눌리게
+   pointer-events 를 비운다 — 캐릭터는 장식이지 단추가 아니다 */
+.hello{display:flex; align-items:flex-start; gap:var(--hhead-gap);
+  margin:calc(-1 * var(--screen-gap) / 2) 0 calc(-1 * var(--hello-tri-lap));
+  position:relative; z-index:2; pointer-events:none}
+.hello-tx{flex:1; min-width:0; margin:0; display:flex;
   flex-direction:column; gap:var(--hello-gap)}
-.hello-tri{display:flex; justify-content:center;
-  margin:var(--hello-tri-y) 0 calc(var(--hello-tri-y) * -1)}
+.hello-tri{flex:none; display:block; margin-right:var(--hello-tri-right)}
+/* 그림자가 있어야 «얹혀 있다»로 읽힌다. 없으면 타일에 인쇄된 것처럼
+   납작해진다. filter 라 투명한 윤곽선을 따라 그림자가 생긴다 */
+.hello-tri .tilly{filter:drop-shadow(0 8px 12px rgba(28,32,36,.16))}
+
+/* 타일은 아래에 깔린다 */
+.tiles{position:relative; z-index:1}
 .hello-tx b{font-size:var(--hello-b-fs); font-weight:700; color:var(--ink);
   letter-spacing:-.02em; line-height:1.2}
 .hello-tx span{font-size:var(--hello-s-fs); color:var(--muted)}
