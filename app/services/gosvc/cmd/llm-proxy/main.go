@@ -1,6 +1,7 @@
 // llm-proxy — 명세 19-4. 판독 결과를 소견으로 바꿔 Django 에 넣는다.
 //
 //	G-L1  POST /svc/v1/llm/report-narrative   판독 결과 → 리포트 서버 → I-4
+//	G-L2  POST /svc/v1/llm/chat               환자 문의 → Ollama (내부 서명)
 //	      GET  /svc/v1/llm/health             터널이 살아 있는지
 //
 // ── 2026-09-02 변경 ────────────────────────────────────────────────
@@ -23,14 +24,28 @@
 // 무엇이 없어졌나
 //
 //	· 스트리밍(SSE) — 응답이 JSON 한 덩어리로 온다
-//	· G-L2 대화 — 이번 범위에서 뺐다. 자유 질문에는 숫자 검사도 근거
-//	  검사도 적용할 수 없어서, 지금 붙이면 검증 안 된 출력이 검증된
-//	  소견과 같은 화면에 섞인다. 사용자는 그 차이를 모른다.
-//	  나중에 붙일 때는 대화용 규칙을 따로 정하고 11434 터널이 필요해진다.
+//	· G-L2 대화 — 이번 범위에서 뺐다 (→ 2026-09-17 에 다시 넣었다, 아래)
 //
-// internal/narrative(근거 검사)와 internal/ollama 는 **남겨 뒀다.**
-// 되돌릴 일이 생기면 그게 있어야 하고, 같은 규칙이 두 곳에 적혀 있으면
-// 리포트 서버 쪽 판정과 대조해 볼 수 있다. 지금은 아무도 안 부른다.
+// internal/narrative(근거 검사)는 **남겨 뒀다.** 되돌릴 일이 생기면 그게
+// 있어야 하고, 같은 규칙이 두 곳에 적혀 있으면 리포트 서버 쪽 판정과 대조해
+// 볼 수 있다. 지금은 아무도 안 부른다.
+//
+// ── 2026-09-17 변경 — G-L2 대화를 넣었다 ──────────────────────────
+//
+// 09-02 에 뺀 이유는 「자유 질문에는 검사를 걸 자리가 없다」였다. 그래서
+// 자유 질문을 안 받는다 — **이미 발급된 리포트 1건에 대한 후속 질문만**
+// 받는다. 답의 재료가 그 소견과 근거 목록으로 고정되면 검사가 다시 가능해진다.
+//
+// 규칙과 한도는 internal/chat 한 곳에 있다. 소켓마다 갈리지 않아 소켓이
+// 늘어도 안 고친다 — G-L1 을 리포트 서버로 옮긴 이유가 여기엔 안 걸린다.
+//
+// **저장하지 않는다** (팀 결정). 대화 표도 콜백도 없고 이력은 화면이 들고
+// 있다. 그 대가로 「화면이 보낸 소견이 진짜인가」를 Go 가 볼 수 없게 되는데,
+// 티켓에 실린 content_hash 로 대조한다.
+//
+// 흘려보내지(SSE) 않는 것은 G-L1 과 같다. 다만 이유는 다르다 — 여기서는
+// 검사가 아니라 **나중에 바꿀 수 있어서** 안 했다. ollama.Chat 이 onChunk 를
+// 받게 돼 있어서, 느리다고 판단되면 지금 nil 인 자리를 채우면 된다.
 //
 // 지켜야 하는 것 (명세 19장)
 //
@@ -52,16 +67,21 @@ package main
 
 import (
 	"context"
+	"crypto/hmac"
 	"encoding/json"
 	"errors"
+	"io"
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
 	"cdss/gosvc/internal/callback"
+	"cdss/gosvc/internal/chat"
 	"cdss/gosvc/internal/httpx"
+	"cdss/gosvc/internal/ollama"
 	"cdss/gosvc/internal/report"
 	"cdss/gosvc/internal/ticket"
 )
@@ -72,6 +92,19 @@ type server struct {
 	rep *report.Client
 	cb  *callback.Client
 	tv  *ticket.Verifier
+
+	// ol 은 **nil 일 수 있다.** OLLAMA_BASE 가 비면 대화만 503 이 되고
+	// 소견(G-L1)은 그대로 돈다. 여기서 log.Fatal 을 내면 대화 설정 하나
+	// 빠뜨린 것 때문에 판독 경로가 통째로 멈춘다.
+	ol          *ollama.Client
+	chatTimeout time.Duration
+
+	// secret — Django 가 대화 요청에 서명하는 키. 티켓이 아니다.
+	//
+	// 대화는 **서버 간 호출**이다. 브라우저가 Django 의 /api/v1/chat 을
+	// 부르고 Django 가 여기를 부른다. notify 의 G-N2 발행과 같은 자리라
+	// 같은 수법을 쓴다 — 「티켓은 사용자용이고 발행은 서버 간 호출이다」.
+	secret []byte
 }
 
 // Evidence — 근거 행 하나.
@@ -135,6 +168,53 @@ type narrativeResp struct {
 	PromptVersion string           `json:"prompt_version"`
 }
 
+// ── G-L2 ────────────────────────────────────────────────────────────
+
+// chatReq — **Django 가** 보내는 것. 브라우저가 아니다.
+//
+// 소견과 근거를 Django 가 DB 에서 읽어 실어 준다. 그래서 위조를 막을 장치가
+// 따로 필요 없다 — 맥락이 브라우저를 거치지 않는다.
+//
+// (2026-09-17 중간에 바뀐 자리다. 처음에는 브라우저가 Go 를 직접 부르고
+//
+//	소견을 본문에 실어 보냈다. 그때는 그것이 진짜인지 볼 방법이 없어서
+//	티켓에 소견 해시를 실어 대조했다. Django 가 부르게 되면서 해시도 티켓도
+//	통째로 필요 없어졌다.)
+type chatReq struct {
+	ReportID string `json:"report_id"`
+
+	// Narrative — **비어 있을 수 있다.** 아직 열린 리포트가 없는 환자다.
+	// 그때는 용어 설명만 한다 — internal/chat 의 규칙이 두 경우를 나눈다.
+	Narrative string `json:"narrative_text"`
+
+	// Evidence — 근거 **id 만**. 행(좌표·화소 간격)은 화면이 이미 갖고 있고
+	// 모델은 인용만 하면 되므로 보낼 이유가 없다.
+	Evidence []string `json:"evidence"`
+
+	// Messages — 주고받은 말. 지금 화면은 마지막 질문 하나만 보내지만
+	// 여러 마디를 받아 둔다 — 화면이 이력을 싣기 시작하면 그대로 돈다.
+	Messages []chat.Turn `json:"messages"`
+}
+
+type chatResp struct {
+	ReportID string   `json:"report_id"`
+	Text     string   `json:"text"`
+	Evidence []string `json:"evidence"` // 이 답이 실제로 인용한 id
+
+	// Fabricated — 모델이 지어낸 인용. 본문에서는 지웠고 기록으로만 남긴다.
+	// 화면이 이걸 보여줄 필요는 없지만, 비어 있지 않다는 것은 모델이 규칙을
+	// 어겼다는 뜻이라 개발 중에 눈에 보이는 편이 낫다.
+	Fabricated []string `json:"fabricated_citations"`
+
+	// Fallback — 모델 출력을 버리고 고정 문구로 되돌렸는가. G-L1 의 I-4 가
+	// 같은 두 칸(fallback · fallback_reason)을 쓴다. 되돌렸다는 사실과
+	// 왜 되돌렸는지를 나눠 두어야 나중에 「이 답은 왜 이런가」에 답할 수 있다.
+	Fallback       bool   `json:"fallback"`
+	FallbackReason string `json:"fallback_reason,omitempty"`
+
+	Model string `json:"model"`
+}
+
 func main() {
 	addr := env("LLM_ADDR", ":8090")
 	tkey := os.Getenv("TICKET_KEY")
@@ -152,10 +232,31 @@ func main() {
 		rep: report.New(repBase, dur("REPORT_TIMEOUT", 2*time.Minute)),
 		cb: callback.New(cbBase, []byte(cbSec),
 			os.Getenv("CALLBACK_CERT"), os.Getenv("CALLBACK_KEY"), 4),
-		tv: ticket.NewVerifier([]byte(tkey)),
+		// chat 은 nonce 를 소진하지 않는다 — 티켓 하나로 대화 한 세션을 간다.
+		//
+		// tile 과 같은 이유다(명세 §19-5 「뷰어 세션 단위 발급」). 1회용이면
+		// 화면이 말 한 마디마다 티켓을 새로 받아야 하고, 두 번째 질문부터
+		// TICKET_REPLAYED 가 떠서 원인을 엉뚱한 데서 찾게 된다.
+		//
+		// 쓰기가 아니라 안전하다 — 대화는 아무것도 저장하지 않으므로 같은
+		// 요청을 다시 보내도 덮어쓸 자리가 없다. 재사용을 막는 것은 exp
+		// (TICKET_TTL_CHAT) 하나뿐이니 거기를 길게 잡지 말 것.
+		tv:          ticket.NewVerifier([]byte(tkey)),
+		secret:      []byte(cbSec),
+		chatTimeout: dur("CHAT_TIMEOUT", 3*time.Minute),
 	}
+	if ob := os.Getenv("OLLAMA_BASE"); ob != "" {
+		model := env("OLLAMA_MODEL", "medgemma")
+		s.ol = ollama.New(ob, model, s.chatTimeout)
+		log.Printf("대화(G-L2) 켜짐 · ollama %s · 모델 %s", ob, model)
+	} else {
+		log.Print("⚠ OLLAMA_BASE 가 비어 있다 — /svc/v1/llm/chat 은 503 을 낸다. " +
+			"소견(G-L1)은 리포트 서버로 가므로 영향이 없다")
+	}
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /svc/v1/llm/report-narrative", s.reportNarrative)
+	mux.HandleFunc("POST /svc/v1/llm/chat", s.chat)
 	mux.HandleFunc("GET /svc/v1/llm/health", s.health)
 
 	log.Printf("llm-proxy %s · report %s", addr, s.rep.Base)
@@ -314,7 +415,141 @@ func (s *server) reportNarrative(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// verify — 티켓 검증.
+// ── G-L2 · 대화 ─────────────────────────────────────────────────────
+//
+// 리포트 1건에 대한 후속 질문. **아무것도 저장하지 않는다** — 콜백이 없다.
+func (s *server) chat(w http.ResponseWriter, r *http.Request) {
+	// ① Django 가 보낸 것인가. 티켓이 아니라 내부 서명이다 — 이 경로는
+	//    브라우저가 직접 부르지 않는다.
+	body, ok := s.signed(w, r)
+	if !ok {
+		return
+	}
+	var req chatReq
+	if err := json.Unmarshal(body, &req); err != nil {
+		fail(w, 400, "BAD_REQUEST", "본문을 못 읽었다: "+err.Error())
+		return
+	}
+	if s.ol == nil {
+		fail(w, 503, "UPSTREAM_LLM_UNAVAILABLE",
+			"OLLAMA_BASE 가 비어 있어 대화를 받을 수 없다 — conf/gosvc.env 와 "+
+				"터널 컨테이너의 11434 넘김을 확인할 것")
+		return
+	}
+
+	// ② 규칙·한도 검사와 메시지 조립. 전부 internal/chat 에 있다.
+	msgs, err := chat.Build(req.Narrative, req.Evidence, req.Messages)
+	if err != nil {
+		fail(w, 400, "BAD_REQUEST", err.Error())
+		return
+	}
+
+	// ③ Ollama.
+	//
+	// ⚠ 여기는 G-L1 과 **반대로** 요청 컨텍스트에 묶는다.
+	//
+	//   G-L1   화면이 닫혀도 끝까지 받아 I-4 로 저장해야 한다 → 떼어 놓는다
+	//   G-L2   저장할 곳이 없다. 화면이 닫히면 그 답은 아무도 안 본다 →
+	//          계속 돌리면 남의 판독이 기다리는 GPU 를 그냥 버리는 것이다
+	//
+	// 같은 파일 안에서 규칙이 반대인 자리라 그대로 베끼지 말 것.
+	ctx, cancel := context.WithTimeout(r.Context(), s.chatTimeout)
+	defer cancel()
+
+	// onChunk 가 nil 이라 한 덩어리로 받는다. SSE 로 바꿀 때 채우는 자리가
+	// 여기다 — 그 외에는 고칠 것이 없다.
+	raw, err := s.ol.Chat(ctx, msgs, nil)
+	if err != nil {
+		log.Printf("[G-L2] report=%s ollama 실패: %v", req.ReportID, err)
+		fail(w, 503, "UPSTREAM_LLM_UNAVAILABLE", err.Error()+
+			" — 워크스테이션 터널의 11434 넘김을 확인할 것")
+		return
+	}
+
+	// ④ 지어낸 인용을 걷어낸다. 문장은 버리지 않는다 — 되묻는 말에는 근거가
+	//    붙을 자리가 없어서, narrative.Filter 를 그대로 걸면 "네, 그렇습니다"
+	//    같은 답이 통째로 사라진다.
+	text, cited, fab := chat.StripCitations(raw, req.Evidence)
+	if len(fab) > 0 {
+		log.Printf("[G-L2] report=%s ⚠ 지어낸 근거 인용을 지웠다: %v",
+			req.ReportID, fab)
+	}
+
+	// ⑤ 내보내도 되는 답인가. 아니면 **통째로 버린다.**
+	//
+	//    G-L1 이 검사에 걸린 문장을 뼈대 문장으로 되돌리는 것과 같은 수법이다.
+	//    여기서 걸리는 것은 규칙을 어기고 병명·치료를 말한 답이고, 이 대화는
+	//    환자용 앱에서만 쓰이므로 그대로 내보내면 환자가 확인되지 않은 진단을
+	//    받는다.
+	//
+	//    근거도 같이 버린다. 버린 글의 인용이라 가리킬 곳이 없다.
+	if reason := chat.Screen(text, req.Narrative); reason != "" {
+		log.Printf("[G-L2] report=%s ⚠ 되돌렸다(%q) · 버린 답 %d자",
+			req.ReportID, reason, len([]rune(text)))
+		writeJSON(w, 200, chatResp{
+			ReportID:       req.ReportID,
+			Text:           chat.Fallback,
+			Evidence:       []string{},
+			Fabricated:     []string{},
+			Fallback:       true,
+			FallbackReason: reason,
+			Model:          s.ol.Model,
+		})
+		return
+	}
+
+	log.Printf("[G-L2] report=%s %d자 · 인용 %d개 · 주고받은 말 %d개",
+		req.ReportID, len([]rune(text)), len(cited), len(req.Messages))
+
+	writeJSON(w, 200, chatResp{
+		ReportID:   req.ReportID,
+		Text:       text,
+		Evidence:   cited,
+		Fabricated: fab,
+		Model:      s.ol.Model,
+	})
+}
+
+// signed — Django 가 보낸 요청인가. 내부 서명(HMAC)으로 본다.
+//
+// notify 의 G-N2 발행과 같은 수법이고 키도 같다(CALLBACK_SECRET). 다만
+// 방향이 반대다 — 콜백은 Go 가 서명하고 Django 가 검증하는데, 여기는
+// Django 가 서명하고 Go 가 검증한다.
+//
+// ⚠ 타임스탬프를 안 보면 가로챈 요청을 언제든 다시 보낼 수 있다. 대화는
+// 저장하는 곳이 없어 덮어쓸 자리는 없지만, 남의 GPU 시간을 무한히 태울 수
+// 있다. 5분을 벗어난 서명은 거부한다.
+func (s *server) signed(w http.ResponseWriter, r *http.Request) ([]byte, bool) {
+	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 256<<10))
+	if err != nil {
+		fail(w, 400, "BAD_REQUEST", "본문을 못 읽었다")
+		return nil, false
+	}
+	ts, sig := r.Header.Get("X-Timestamp"), r.Header.Get("X-Signature")
+	if ts == "" || sig == "" {
+		fail(w, 401, "SIGNATURE_MISSING", "X-Timestamp · X-Signature 가 필요하다")
+		return nil, false
+	}
+	n, perr := strconv.ParseInt(ts, 10, 64)
+	if perr != nil || abs64(time.Now().Unix()-n) > 300 {
+		fail(w, 401, "SIGNATURE_STALE", "타임스탬프가 5분을 벗어났다")
+		return nil, false
+	}
+	if !hmac.Equal([]byte(callback.Sign(s.secret, ts, body)), []byte(sig)) {
+		fail(w, 401, "SIGNATURE_INVALID", "서명이 맞지 않는다")
+		return nil, false
+	}
+	return body, true
+}
+
+func abs64(v int64) int64 {
+	if v < 0 {
+		return -v
+	}
+	return v
+}
+
+// verify — 티켓 검증. G-L1 만 쓴다 — 대화는 위의 내부 서명으로 간다.
 func (s *server) verify(w http.ResponseWriter, r *http.Request,
 	purpose, scopeID string) *ticket.Claims {
 	cl, err := s.tv.Verify(bearer(r))
@@ -348,9 +583,19 @@ func (s *server) health(w http.ResponseWriter, r *http.Request) {
 		"report_server": err == nil,
 		"report_base":   s.rep.Base,
 		"error":         errStr(err),
+		// 대화가 켜져 있는가(설정). 닿는가(ollama)와 다른 이야기다 —
+		// 나누지 않으면 「설정을 빠뜨린 것」과 「터널이 죽은 것」이 같아 보인다.
+		"chat": s.ol != nil,
 	}
 	if errors.Is(err, report.ErrUnreachable) {
 		body["hint"] = "워크스테이션 터널이 안 떠 있을 가능성이 높다"
+	}
+	if s.ol != nil {
+		_, oerr := s.ol.Models(ctx)
+		body["ollama"] = oerr == nil
+		body["ollama_base"] = s.ol.Base
+		body["ollama_model"] = s.ol.Model
+		body["ollama_error"] = errStr(oerr)
 	}
 	writeJSON(w, 200, body)
 }

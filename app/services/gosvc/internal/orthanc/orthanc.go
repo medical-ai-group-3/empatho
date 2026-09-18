@@ -152,6 +152,66 @@ func (c *Client) Get(ctx context.Context, path string) (*http.Response, error) {
 	return res, nil
 }
 
+// ── 사용자 메타데이터 ───────────────────────────────────────────────
+//
+// Orthanc 는 1024 이상 번호를 사용자 몫으로 비워 둔다. 우리는 하나만 쓴다.
+//
+//	1024  이 자료가 어느 Django 대상 것인가 — "study/201" 꼴
+//
+// **왜 필요한가.** 티켓의 object_key_prefix 는 Django 가 "{종류}/{id}" 로
+// 만든다(study/201). 그런데 DICOM 을 내려주는 경로는 SOP UID 로만 부르므로,
+// Go 는 그 UID 가 어느 검사 것인지 알 방법이 없었다. 그래서 전에는 티켓이
+// UID 를 통째로 적고 있어야만 했는데(dicom/instances/<UID>), Django 의 공개
+// 티켓 API 는 그런 모양을 못 만든다 — 사람이 DICOM 을 받을 길이 없었다.
+//
+// 올릴 때 여기 적어 두면 내려줄 때 대조할 수 있다. 보안이 약해지는 것이
+// 아니라 **오히려 정확해진다** — 「이 검사의 티켓으로 그 검사 영상만」이
+// 성립한다. 전에는 그 관계를 Go 가 아예 몰랐다.
+const ScopeMeta = "1024"
+
+// SetMetadata — PUT /{level}/{id}/metadata/{name}
+//
+// level 은 instances · series · studies 중 하나다.
+func (c *Client) SetMetadata(ctx context.Context, level, id, name, value string) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut,
+		fmt.Sprintf("%s/%s/%s/metadata/%s", c.Base, level, id, name),
+		strings.NewReader(value))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "text/plain")
+	if c.User != "" {
+		req.SetBasicAuth(c.User, c.Pass)
+	}
+	res, err := c.HTTP.Do(req)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+	io.Copy(io.Discard, io.LimitReader(res.Body, 1<<16))
+	if res.StatusCode < 200 || res.StatusCode >= 300 {
+		return fmt.Errorf("orthanc metadata 쓰기 %d", res.StatusCode)
+	}
+	return nil
+}
+
+// Metadata — GET /{level}/{id}/metadata/{name}
+//
+// 없으면 ErrNotFound 다. **옛 자료에는 없다** — 이 기능 전에 올라간 것들이라
+// 부르는 쪽이 그때를 따로 다뤄야 한다.
+func (c *Client) Metadata(ctx context.Context, level, id, name string) (string, error) {
+	res, err := c.Get(ctx, fmt.Sprintf("/%s/%s/metadata/%s", level, id, name))
+	if err != nil {
+		return "", err
+	}
+	defer res.Body.Close()
+	b, err := io.ReadAll(io.LimitReader(res.Body, 1<<12))
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(b)), nil
+}
+
 func (c *Client) Healthy(ctx context.Context) error {
 	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, c.Base+"/system", nil)
 	if c.User != "" {

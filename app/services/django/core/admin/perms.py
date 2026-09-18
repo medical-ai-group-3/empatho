@@ -1,36 +1,17 @@
 """staff.extra_permissions 를 체크박스 격자로 고친다.
 
-── 왜 JSON 텍스트 상자를 안 쓰나 ──────────────────────────────────────
-그 칸은 이런 모양이다.
-
-    {"assessment": ["R"], "report": ["R"]}
-
-텍스트 상자로 두면 손으로 JSON 을 쓰게 되는데, 두 가지가 조용히 어긋난다.
-
-  ① **묶어 쓰면 아무것도 안 열린다.** ["CR"] 이라고 적으면 권한이 둘 다
-     열릴 것 같지만, 판정이 한 글자씩만 받아서(permissions.py 의 _ACTIONS)
-     통째로 버려진다. 화면은 저장됐다고 하고 권한은 안 생긴다.
-  ② **없는 리소스 이름은 그냥 무시된다.** assesment 처럼 한 글자만 틀려도
-     아무 일이 안 일어나고, 왜 권한이 없는지 알 길이 없다.
-
-격자는 둘 다 못 일어나게 한다 — 리소스도 행위도 고를 수 있는 것만 있다.
-
 ── 역할 기본 권한은 회색으로 보여준다 ────────────────────────────────
-판정은 «역할 기본 + 개인 추가» 다. 개인 추가만 보여주면 이미 있는 것을
-또 주게 되고, 그러면 역할이 바뀌어도 이 사람만 그대로 남는다.
-그래서 역할이 이미 주는 칸은 체크된 채로 잠가 둔다.
+역할이 이미 주는 칸은 체크된 채로 잠가 둔다.
 
 ── 단독 권한 셋은 격자에 없다 ────────────────────────────────────────
-검체 바인딩 · 불일치 해소 처분 · 리포트 잠금 해제. 개인 추가로 열 수 없는
-것들이라(IsRole 계열이 extra_permissions 를 안 본다) 격자에 넣으면 체크는
-되는데 아무 일도 안 일어난다.
+검체 바인딩 · 불일치 해소 처분 · 리포트 잠금 해제. 
 """
 
 from django import forms
 from django.utils.html import format_html, format_html_join
 from django.utils.safestring import mark_safe
 
-from .api.permissions import MATRIX, rule_for
+from ..api.permissions import MATRIX, rule_for
 
 ACTIONS = (("C", "만들기"), ("R", "보기"), ("U", "고치기"), ("D", "지우기"))
 

@@ -39,8 +39,11 @@ type Session struct {
 	ScopeID     string
 	Created     time.Time
 
-	// 티켓 purpose. **개시할 때의 것**을 붙들어 둔다. I-1 에 실을 값이
-	// 이것이고, 다른 purpose 의 티켓으로 완료하는 것도 이걸로 막힌다.
+	// 티켓 purpose. 개시한 쪽의 값을 담아 둔다.
+	//
+	// ⚠ 이 값은 담아만 두고 검사는 main.go 의 sameTicket 이 한다.
+	//   여기서 막지 않는다. 예전 주석은 여기서 막는 것처럼 적혀 있었으나
+	//   실제로 대조하는 코드가 없었다 (2026-09-16).
 	Purpose string
 
 	mu    sync.Mutex

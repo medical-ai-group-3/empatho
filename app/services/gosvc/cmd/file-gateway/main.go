@@ -37,6 +37,7 @@ import (
 	"cdss/gosvc/internal/callback"
 	"cdss/gosvc/internal/dicom"
 	"cdss/gosvc/internal/httpx"
+	"cdss/gosvc/internal/imagemeta"
 	"cdss/gosvc/internal/orthanc"
 	"cdss/gosvc/internal/storage"
 	"cdss/gosvc/internal/ticket"
@@ -209,9 +210,13 @@ func (g *gw) auth(w http.ResponseWriter, r *http.Request, want ...string) *ticke
 	return cl
 }
 
-// keyFor — object_key 는 **티켓 접두사 + 우리가 만든 이름** 이다.
-// 클라이언트가 준 파일명은 확장자만 참고하고 경로로 쓰지 않는다.
-// 그래야 남의 자리에 못 쓴다.
+// keyFor — object_key 는 «티켓 앞머리 + 이름» 이다.
+//
+// 이름을 앱이 정해 주면 그것을 쓴다. 같은 대상을 다시 올려도 같은
+// 키가 나오므로 콜백의 (버킷, 키) 멱등이 그제야 실제로 동작하고,
+// 앱이 주소를 미리 알 수 있어 스텁에 예정 주소를 심을 수 있다.
+//
+// 안 주면 지금까지처럼 난수다. 파생물만 이름을 싣고 DICOM 은 안 싣는다.
 func keyFor(cl *ticket.Claims, filename string) string {
 	// 확장자만 뽑는다. 경로 구분자·상위 참조가 섞여 들어오면 버린다.
 	base := strings.ToLower(path.Base(filepath.ToSlash(filename)))
@@ -222,10 +227,48 @@ func keyFor(cl *ticket.Claims, filename string) string {
 	if len(ext) > 12 || strings.ContainsAny(ext, `/\`) || strings.Contains(ext, "..") {
 		ext = ""
 	}
-	var b [12]byte
-	rand.Read(b[:])
-	return strings.TrimSuffix(cl.ObjectKeyPrefix, "/") + "/" +
-		hex.EncodeToString(b[:]) + ext
+
+	name := cl.ObjectName
+	if name == "" {
+		var b [12]byte
+		rand.Read(b[:])
+		name = hex.EncodeToString(b[:]) + ext
+	} else if strings.ContainsAny(name, `/\`) || strings.Contains(name, "..") {
+		// 앞머리 밖으로 나가는 이름은 안 받는다. 앞머리가 유일한 경계다
+		return ""
+	}
+	return strings.TrimSuffix(cl.ObjectKeyPrefix, "/") + "/" + name
+}
+
+// scopeOf — 객체 키에서 티켓 앞머리를 되뽑는다.
+//
+// keyFor 가 늘 "앞머리/이름" 으로 만들고 getFrom 도 그 규칙으로 검사하므로,
+// 마지막 조각을 떼면 앞머리다. 티켓을 여기까지 들고 오지 않아도 된다 —
+// commit 은 이미 인자가 열셋이다.
+//
+// ⚠ **ScopeID 만으로는 안 된다.** study·specimen·report 가 같은 bigint
+//   시퀀스라 값이 겹친다(callback.StorageObject 주석). 검체 201 의 티켓으로
+//   검사 201 의 영상이 열리면 안 된다. 그래서 종류가 붙은 앞머리를 쓴다.
+func scopeOf(key string) string {
+	i := strings.LastIndex(key, "/")
+	if i <= 0 {
+		return ""
+	}
+	return key[:i]
+}
+
+// sameTicket — 조각 쓰기·완료에 쓰는 티켓이 개시할 때의 티켓과 같은
+// 대상인지 본다.
+//
+// 이 검사가 없으면 purpose 만 맞으면 통과한다. A 검체용 티켓으로 B
+// 검체의 업로드 세션에 조각을 쓸 수 있고, 그러면 다른 환자 자리에
+// 바이트가 들어간다.
+//
+// 세션에 값은 개시할 때부터 다 들어 있었다. 읽지만 않고 있었다.
+func sameTicket(cl *ticket.Claims, s *upload.Session) bool {
+	return cl.Purpose == s.Purpose &&
+		cl.ScopeID == s.ScopeID &&
+		cl.PatientID == s.PatientID
 }
 
 // ── G-F1 ────────────────────────────────────────────────────────────
@@ -242,7 +285,12 @@ func (g *gw) initUpload(w http.ResponseWriter, r *http.Request) {
 	var b [16]byte
 	rand.Read(b[:])
 	id := hex.EncodeToString(b[:])
-	s := g.up.Init(id, keyFor(cl, req.Filename), cl.ContentType,
+	key := keyFor(cl, req.Filename)
+	if key == "" {
+		fail(w, 400, "BAD_OBJECT_NAME", "티켓의 object_name 을 쓸 수 없습니다")
+		return
+	}
+	s := g.up.Init(id, key, cl.ContentType,
 		cl.PatientID, cl.ScopeID, cl.Purpose, cl.MaxBytes)
 	log.Printf("[G-F1] upload=%s scope=%s max=%d", id, cl.ScopeID, cl.MaxBytes)
 	writeJSON(w, 200, map[string]any{
@@ -253,12 +301,17 @@ func (g *gw) initUpload(w http.ResponseWriter, r *http.Request) {
 
 // ── G-F2 ────────────────────────────────────────────────────────────
 func (g *gw) putPart(w http.ResponseWriter, r *http.Request) {
-	if g.auth(w, r, "wsi_upload", "dicom_upload") == nil {
+	cl := g.auth(w, r, "wsi_upload", "dicom_upload")
+	if cl == nil {
 		return
 	}
 	s, ok := g.up.Get(r.PathValue("id"))
 	if !ok {
 		fail(w, 404, "UPLOAD_NOT_FOUND", "개시되지 않은 업로드다")
+		return
+	}
+	if !sameTicket(cl, s) {
+		fail(w, 403, "TICKET_SCOPE_MISMATCH", "이 티켓으로는 이 업로드를 이어갈 수 없습니다")
 		return
 	}
 	n, err := upload.ParsePart(r.PathValue("n"))
@@ -281,12 +334,17 @@ func (g *gw) putPart(w http.ResponseWriter, r *http.Request) {
 
 // ── G-F3 ────────────────────────────────────────────────────────────
 func (g *gw) complete(w http.ResponseWriter, r *http.Request) {
-	if g.auth(w, r, "wsi_upload", "dicom_upload") == nil {
+	cl := g.auth(w, r, "wsi_upload", "dicom_upload")
+	if cl == nil {
 		return
 	}
 	s, ok := g.up.Get(r.PathValue("id"))
 	if !ok {
 		fail(w, 404, "UPLOAD_NOT_FOUND", "개시되지 않은 업로드다")
+		return
+	}
+	if !sameTicket(cl, s) {
+		fail(w, 403, "TICKET_SCOPE_MISMATCH", "이 티켓으로는 이 업로드를 이어갈 수 없습니다")
 		return
 	}
 	// 성공하든 실패하든 조각은 지운다
@@ -305,7 +363,8 @@ func (g *gw) complete(w http.ResponseWriter, r *http.Request) {
 	// 분할 업로드는 원본 전용이다. 파생물은 메시 · 마스크라 한 번에 올라간다 —
 	// 필요해지면 여기에도 저장소를 골라 넘기면 된다.
 	g.commit(w, r, g.st, s.ObjectKey, sum, total, s.ContentType,
-		s.PatientID, s.ScopeID, s.Purpose, tap.b.Bytes(), nil)
+		s.PatientID, s.ScopeID, s.Purpose, tap.b.Bytes(), nil,
+		imagemeta.Parse(tap.b.Bytes()))
 }
 
 // headTap — 앞 max 바이트만 모으고 나머지는 버린다.
@@ -329,7 +388,7 @@ func (h *headTap) Write(p []byte) (int, error) {
 
 // ── G-F4 ────────────────────────────────────────────────────────────
 func (g *gw) putFile(w http.ResponseWriter, r *http.Request) {
-	cl := g.auth(w, r, "dicom_upload", "report_pdf", "prescription_pdf")
+	cl := g.auth(w, r, "dicom_upload", "report_pdf", "prescription_pdf", "wsi_upload")
 	if cl == nil {
 		return
 	}
@@ -377,6 +436,14 @@ func (g *gw) putTo(w http.ResponseWriter, r *http.Request, cl *ticket.Claims,
 	// capReader 는 상한을 넘는 순간 읽기를 실패시켜 Put 자체를 중단시킨다.
 	h := sha256.New()
 	key := keyFor(cl, r.Header.Get("X-Filename"))
+	// 앞머리 밖으로 나가는 object_name 이면 keyFor 가 빈 문자열을 낸다.
+	// 그대로 넘기면 앞머리 없이 저장소 뿌리에 쓴다 — 경계가 사라진다.
+	// 티켓은 Django 가 서명하니 클라이언트가 지어낼 수는 없지만,
+	// 이름을 제일 먼저 쓰는 곳이 파생물이라 발급 쪽 실수가 바로 여기로 온다.
+	if key == "" {
+		fail(w, 400, "BAD_OBJECT_NAME", "티켓의 object_name 을 쓸 수 없습니다")
+		return
+	}
 	cr := &capReader{r: r.Body, limit: max}
 	tap := &headTap{max: headBytes}
 	ct := cl.ContentType
@@ -394,16 +461,20 @@ func (g *gw) putTo(w http.ResponseWriter, r *http.Request, cl *ticket.Claims,
 		fail(w, 500, "PUT_FAILED", err.Error())
 		return
 	}
-	head := tap.b.Bytes()
+	raw := tap.b.Bytes()
+	head := raw
 	if !parseDICOM {
 		head = nil // 파생물은 DICOM 이 아니다. 파싱도 Orthanc 전송도 건너뛴다
 	}
+	// ⚠ 크기는 **head 가 아니라 raw 에서** 읽는다. 파생물(병리 마스크 PNG)도
+	//   크기가 필요한데, 위에서 head 를 비워 버리기 때문이다.
+	px := imagemeta.Parse(raw)
 	var derived map[string]string
 	if cl.Purpose == "derived_upload" {
 		derived = map[string]string{"kind": cl.Kind, "source_object_id": cl.SourceObjectID, "ai_result_id": cl.AiResultID, "lesion_id": cl.LesionID}
 	}
 	g.commit(w, r, st, key, hex.EncodeToString(h.Sum(nil)), cr.read, ct,
-		cl.PatientID, cl.ScopeID, cl.Purpose, head, derived)
+		cl.PatientID, cl.ScopeID, cl.Purpose, head, derived, px)
 }
 
 // bucketName — 설정 안 된 저장소를 로그·health 에서 구분해 보여준다.
@@ -439,12 +510,17 @@ func (c *capReader) Read(p []byte) (int, error) {
 // 명세 21장이 그 상태를 정상으로 취급하지 말라고 못 박았으므로 502 로 알린다.
 func (g *gw) commit(w http.ResponseWriter, r *http.Request, st storage.Store,
 	key, sum string, size int64, ct, patient, scope, purpose string,
-	head []byte, derived map[string]string) {
+	head []byte, derived map[string]string, px *imagemeta.Size) {
 	obj := callback.StorageObject{
 		Bucket: st.Bucket(), ObjectKey: key, ChecksumSHA256: sum,
 		ByteSize: size, ContentType: ct, StorageClass: g.cls,
 		PatientID: patient, ScopeID: scope, Purpose: purpose,
 		Derived: derived,
+	}
+	// PNG·JPEG 이면 픽셀 크기를 싣는다. 그림이 아니면 px 가 nil 이라
+	// 키 자체가 안 나가고 Django 는 지금처럼 null 로 둔다.
+	if px != nil {
+		obj.WidthPx, obj.HeightPx = &px.W, &px.H
 	}
 	if err := g.cb.PostStorageObject(r.Context(), obj); err != nil {
 		log.Printf("[gw] ✗ I-1 실패 key=%s — 고아 객체가 된다: %v", key, err)
@@ -536,6 +612,38 @@ func (g *gw) ingestDICOM(ctx context.Context, key, patient, scope string,
 			"instance": res.ID, "series": res.ParentSeries,
 			"study": res.ParentStudy, "patient": res.ParentPatient,
 		}
+
+		// ── 어느 Django 대상 것인지 Orthanc 에 적어 둔다 ──────────────
+		//
+		// 내려줄 때 티켓과 대조할 유일한 단서다. 이게 없으면 Go 는 SOP UID
+		// 가 어느 검사 것인지 알 방법이 없어서, 티켓이 UID 를 통째로 적고
+		// 있기를 요구할 수밖에 없다 — Django 의 공개 티켓 API 는 그런 모양을
+		// 못 만들어서 **사람이 DICOM 을 받을 길이 없었다.**
+		//
+		// prefix 는 티켓과 같은 모양이다 ("study/201"). 티켓을 만드는 쪽과
+		// 대조하는 쪽이 같은 문자열을 보게 맞춘다.
+		//
+		// ⚠ 실패해도 요청은 성공이다. 자료는 이미 Orthanc 에 있고 I-1 도
+		//   끝났다. 다만 **그 한 장은 나중에 못 받는다** — 폴백(옛 규칙)으로
+		//   떨어지므로 로그를 남겨 둔다.
+		if prefix := scopeOf(key); prefix != "" {
+			for _, t := range []struct{ level, id string }{
+				{"instances", res.ID},
+				// 시리즈에도 적는다. MRI 는 시리즈 통째로 내려받아서
+				// 인스턴스 하나를 골라 볼 수가 없다.
+				{"series", res.ParentSeries},
+			} {
+				if t.id == "" {
+					continue
+				}
+				if err := g.or.SetMetadata(ctx, t.level, t.id,
+					orthanc.ScopeMeta, prefix); err != nil {
+					log.Printf("[G-F7] ⚠ Orthanc %s/%s 에 대상(%s)을 못 적었다 "+
+						"— 나중에 이 자료를 내려받지 못한다: %v",
+						t.level, t.id, prefix, err)
+				}
+			}
+		}
 	}
 
 	if err := g.cb.PostDicomMetadata(ctx, cm); err != nil {
@@ -624,14 +732,15 @@ func (g *gw) getDerived(w http.ResponseWriter, r *http.Request) {
 // 값이 Orthanc 경로에 그대로 들어가므로 글자를 좁힌다. %2F 로 다른 경로를 부르지 못한다.
 func (g *gw) getDicomInstance(w http.ResponseWriter, r *http.Request) {
 	sop := r.PathValue("sop")
-	if strings.Trim(sop, "0123456789.") != "" {
-		fail(w, 400, "BAD_REQUEST", "SOP UID 는 숫자와 점만 쓴다")
+	if strings.Trim(sop, "0123456789abcdef.") != "" {
+		fail(w, 400, "BAD_REQUEST", "SOP UID 에 쓸 수 없는 글자가 있다")
 		return
 	}
-	g.fromOrthanc(w, r, "dicom/instances/"+sop, func(ctx context.Context) (string, error) {
-		id, err := g.or.Lookup(ctx, sop)
-		return "/instances/" + id + "/file", err
-	})
+	g.fromOrthanc(w, r, "dicom/instances/"+sop, "file",
+		func(ctx context.Context) (string, string, error) {
+			id, err := g.or.Lookup(ctx, sop)
+			return "instances", id, err
+		})
 }
 
 func (g *gw) getDicomSeries(w http.ResponseWriter, r *http.Request) {
@@ -640,31 +749,91 @@ func (g *gw) getDicomSeries(w http.ResponseWriter, r *http.Request) {
 		fail(w, 400, "BAD_REQUEST", "Orthanc 시리즈 ID 형식이 아니다")
 		return
 	}
-	g.fromOrthanc(w, r, "dicom/series/"+id, func(context.Context) (string, error) {
-		return "/series/" + id + "/archive", nil
-	})
+	g.fromOrthanc(w, r, "dicom/series/"+id, "archive",
+		func(context.Context) (string, string, error) {
+			return "series", id, nil
+		})
+}
+
+// dicomAllowed — 이 티켓으로 이 자료를 열 수 있나.
+//
+// 둘 중 하나면 통과다.
+//
+//	① 티켓 앞머리가 대상을 통째로 적고 있다 (Celery 가 내는 티켓)
+//	② Orthanc 에 적어 둔 대상이 티켓 앞머리와 같다 (사람이 내는 티켓)
+//
+// ②는 **정확히 같아야 한다.** 시작만 보면 study/20 티켓으로 study/201 이
+// 열린다 — 파일 쪽(getFrom)은 뒤에 "/" 를 붙여 그 경계를 지키지만, 여기는
+// 앞머리끼리 비교하는 것이라 붙일 자리가 없다.
+func (g *gw) dicomAllowed(ctx context.Context, cl *ticket.Claims,
+	legacyScope, level, id string) bool {
+	if cl.ObjectKeyPrefix == legacyScope {
+		return true
+	}
+	want, err := g.or.Metadata(ctx, level, id, orthanc.ScopeMeta)
+	if err != nil {
+		// 적힌 것이 없으면 옛 자료다. ①만 통한다.
+		if !errors.Is(err, orthanc.ErrNotFound) {
+			log.Printf("[gw] ⚠ Orthanc %s/%s 의 대상을 못 읽었다: %v", level, id, err)
+		}
+		return false
+	}
+	return want != "" && want == cl.ObjectKeyPrefix
 }
 
 // fromOrthanc = 티켓 범위를 확인하고 Orthanc 응답을 그대로 흘려보낸다
-// path 는 티켓 검사를 통과한 뒤에만 부른다 - 권한없는 요청으로 orthanc 를 조회하지 않는다
-func (g *gw) fromOrthanc(w http.ResponseWriter, r *http.Request, scope string, path func(context.Context) (string, error)) {
+//
+// ── 범위를 보는 방법이 둘이다 ───────────────────────────────────────
+//
+//	① 옛 규칙   티켓 앞머리가 "dicom/instances/<UID>" 를 통째로 적고 있다
+//	② 새 규칙   Orthanc 에 적어 둔 대상("study/201")과 티켓 앞머리를 맞춘다
+//
+// ①만 있던 때는 **사람이 DICOM 을 받을 길이 없었다.** Django 의 티켓 API 는
+// 앞머리를 "{종류}/{id}" 로만 만들어서(study/201) 저 모양을 못 낸다. 그걸
+// 낼 수 있는 것은 issue() 를 직접 부르는 Celery 뿐이라, 화면에서는 늘 403
+// 이었다. ①을 남겨 두는 이유가 그것이다 — 워커가 쓰는 길은 그대로 둔다.
+//
+// ②는 올릴 때 Orthanc 에 적어 둔 값을 본다(ingestDICOM). 보안이 약해지지
+// 않는다. **오히려 정확해진다** — 전에는 Go 가 「이 UID 가 어느 검사 것인지」
+// 를 아예 몰랐고, 티켓에 적힌 UID 를 그대로 믿었다.
+//
+// ⚠ 이 기능 **전에 올라간 자료에는 적힌 것이 없다.** 그때는 ①만 통한다.
+//   화면에서 열려면 다시 올리거나 메타데이터를 채워 넣어야 한다.
+//
+// resolve 는 티켓 검사 **전에** 부른다. Orthanc 에 적힌 것을 읽어야 ②를
+// 볼 수 있어서다. 다만 인증은 이미 지났다 — 아무나 조회하게 두는 것이 아니다.
+func (g *gw) fromOrthanc(w http.ResponseWriter, r *http.Request,
+	legacyScope, suffix string,
+	resolve func(context.Context) (level, id string, err error)) {
 	cl := g.auth(w, r, purposeDownload)
 	if cl == nil {
-		return
-	}
-	// 파일 경로와 달리 시작만 보지 않는다 - dicom/series/ab 티켓으로 ab12를 열면 안된다.
-	if cl.ObjectKeyPrefix != scope {
-		fail(w, 403, "TICKET_SCOPE_MISMATCH", "티켓 범위 밖 DICOM 이다")
 		return
 	}
 	if g.or == nil {
 		fail(w, 503, "ORTHANC_DISABLED", "ORTHANC_URL 이 설정되어 있지 않다")
 		return
 	}
-	p, err := path(r.Context())
-	if err == nil {
+
+	ctx := r.Context()
+	level, id, err := resolve(ctx)
+	if err != nil {
+		if errors.Is(err, orthanc.ErrNotFound) {
+			fail(w, 404, "OBJECT_NOT_FOUND", err.Error())
+			return
+		}
+		fail(w, 502, "ORTHANC_FAILED", err.Error())
+		return
+	}
+
+	if !g.dicomAllowed(ctx, cl, legacyScope, level, id) {
+		fail(w, 403, "TICKET_SCOPE_MISMATCH", "티켓 범위 밖 DICOM 이다")
+		return
+	}
+
+	p := "/" + level + "/" + id + "/" + suffix
+	{
 		var res *http.Response
-		if res, err = g.or.Get(r.Context(), p); err == nil {
+		if res, err = g.or.Get(ctx, p); err == nil {
 			defer res.Body.Close()
 			w.Header().Set("Content-Type", res.Header.Get("Content-Type"))
 			// 길이를 넘겨야 중간에 끊겼을 때 받는 쪽이 알아챈다

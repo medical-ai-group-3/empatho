@@ -1,0 +1,5 @@
+{% extends "admin/login.html" %}
+{% load static %}
+{% block extrastyle %}{{ block.super }}
+  <link rel="stylesheet" href="{% static 'empatho/admin.css' %}">
+{% endblock %}

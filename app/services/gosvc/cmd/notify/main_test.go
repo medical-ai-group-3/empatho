@@ -309,6 +309,71 @@ func TestPublishRequiresSignature(t *testing.T) {
 
 // ── 티켓 ────────────────────────────────────────────────────────────
 
+// ⚠ 브라우저 EventSource 는 헤더를 못 붙인다. 그래서 구독만 질의 문자열로도
+// 티켓을 받는다. 이게 없으면 화면에서는 영원히 401 이다.
+func TestStream질의문자열_티켓(t *testing.T) {
+	r := newRig(t)
+	url := r.srv.URL + "/svc/v1/notify/stream?ticket=" + mint(t, purposeNotify, "user-1")
+
+	req, _ := http.NewRequest("GET", url, nil) // 헤더 없음 — EventSource 처럼
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	res, err := http.DefaultClient.Do(req.WithContext(ctx))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	if res.StatusCode != 200 {
+		t.Fatalf("질의 티켓인데 %d 다", res.StatusCode)
+	}
+	if ct := res.Header.Get("Content-Type"); !strings.HasPrefix(ct, "text/event-stream") {
+		t.Fatalf("SSE 가 아니다: %s", ct)
+	}
+}
+
+// 질의로 와도 용도·범위 검사는 그대로다. 구독 구멍이 되면 안 된다.
+func TestStream질의문자열도_용도를_본다(t *testing.T) {
+	r := newRig(t)
+	for _, c := range []struct {
+		name, tok string
+		want      int
+	}{
+		{"용도 다름", mint(t, "download", "user-1"), 403},
+		{"범위 없음", mint(t, purposeNotify, ""), 403},
+		{"엉터리", "xxx", 401},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			res, err := http.Get(r.srv.URL + "/svc/v1/notify/stream?ticket=" + c.tok)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer res.Body.Close()
+			if res.StatusCode != c.want {
+				t.Fatalf("%d 인데 %d 를 기대했다", res.StatusCode, c.want)
+			}
+		})
+	}
+}
+
+// 헤더가 오면 헤더가 이긴다 — 질의가 헤더를 덮어쓰면 안 된다.
+func TestStream헤더가_질의보다_우선(t *testing.T) {
+	r := newRig(t)
+	url := r.srv.URL + "/svc/v1/notify/stream?ticket=" + mint(t, "download", "user-1")
+	req, _ := http.NewRequest("GET", url, nil)
+	req.Header.Set("Authorization", "Bearer "+mint(t, purposeNotify, "user-1"))
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	res, err := http.DefaultClient.Do(req.WithContext(ctx))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	if res.StatusCode != 200 {
+		t.Fatalf("헤더가 이겨야 하는데 %d 다", res.StatusCode)
+	}
+}
+
 func TestStreamRequiresNotifyTicket(t *testing.T) {
 	r := newRig(t)
 	for _, c := range []struct {

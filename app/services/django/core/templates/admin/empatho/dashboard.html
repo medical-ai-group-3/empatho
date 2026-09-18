@@ -1,0 +1,72 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<div class="e-dash">
+
+  <section class="e-box">
+    <h2>진행 중</h2>
+    <div class="e-cells">
+      {% for c in dash.working %}
+        <a class="e-cell{% if c.warn %} warn{% endif %}{% if not c.count %} zero{% endif %}"
+           href="{{ c.url }}">
+          <b>{{ c.count }}</b><span>{{ c.label }}</span>
+        </a>
+      {% endfor %}
+    </div>
+  </section>
+
+  <div class="e-row">
+    <section class="e-box">
+      <h2>계정</h2>
+      <div class="e-cells">
+        {% for c in dash.accounts %}
+          <a class="e-cell{% if c.warn %} warn{% endif %}{% if not c.count %} zero{% endif %}"
+             href="{{ c.url }}">
+            <b>{{ c.count }}</b><span>{{ c.label }}</span>
+          </a>
+        {% endfor %}
+      </div>
+      {% if dash.roles %}
+        <div class="e-chips">
+          {% for c in dash.roles %}
+            <a class="e-chip" href="{{ c.url }}">{{ c.label }} <b>{{ c.count }}</b></a>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </section>
+
+    <section class="e-box">
+      <h2>최근 24시간 <small>{{ dash.today_label }}</small></h2>
+      <div class="e-cells">
+        {% for c in dash.today %}
+          <a class="e-cell{% if not c.count %} zero{% endif %}" href="{{ c.url }}">
+            <b>{{ c.count }}</b><span>{{ c.label }}</span>
+          </a>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="e-box">
+      <h2>데이터</h2>
+      <div class="e-cells">
+        {% for c in dash.data %}
+          <a class="e-cell{% if not c.count %} zero{% endif %}" href="{{ c.url }}">
+            <b>{{ c.count }}</b><span>{{ c.label }}</span>
+          </a>
+        {% endfor %}
+      </div>
+    </section>
+  </div>
+
+  <section class="e-box">
+    <h2>추론 — 최근 24시간
+      <span class="e-legend">
+        <i class="k-done"></i>완료
+        <i class="k-bad"></i>실패·보류
+      </span>
+    </h2>
+    {{ dash.chart }}
+  </section>
+
+</div>
+{% endblock %}

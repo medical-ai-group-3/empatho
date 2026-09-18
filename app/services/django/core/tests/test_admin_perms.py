@@ -5,7 +5,7 @@ from django.contrib.admin.sites import AdminSite
 from django.test import TestCase
 
 from core.admin import StaffAdmin, StaffForm
-from core.admin_perms import ACTIONS, PermissionGrid
+from core.admin.perms import ACTIONS, PermissionGrid
 from core.api.permissions import MATRIX, rule_for
 from core.models import Account, Staff
 

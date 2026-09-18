@@ -19,6 +19,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"image"
+	"image/png"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -367,6 +369,66 @@ func TestPutFile(t *testing.T) {
 	blob, err := os.ReadFile(filepath.Join(r.root, filepath.FromSlash(key)))
 	if err != nil || !bytes.Equal(blob, body) {
 		t.Errorf("저장된 내용이 다르다: %v", err)
+	}
+}
+
+// ── I-1 의 픽셀 크기 ────────────────────────────────────────────────
+//
+// 초음파·병리는 PNG 라 I-2 를 안 탄다(dicom.Parse 가 매직을 못 찾고 끝난다).
+// 그래서 예전에는 storage_object.width_px · height_px 가 null 로 남아,
+// 화면이 AI 폴리곤 좌표를 받아도 **원본이 몇 픽셀인지 몰라 못 그렸다.**
+// I-1 에 실어 보내는지 본다.
+
+func pngOf(t *testing.T, w, h int) []byte {
+	t.Helper()
+	img := image.NewRGBA(image.Rect(0, 0, w, h))
+	var b bytes.Buffer
+	if err := png.Encode(&b, img); err != nil {
+		t.Fatalf("png 인코딩: %v", err)
+	}
+	return b.Bytes()
+}
+
+func TestPutFile_PNG크기가_I1에_실린다(t *testing.T) {
+	r := newRig(t)
+	body := pngOf(t, 512, 512) // 병리 크롭 크기
+	w := r.do(t, "POST", "/svc/v1/files", mint(t), bytes.NewReader(body),
+		"X-Filename", "crop_01.png")
+	if w.Code != 201 {
+		t.Fatalf("%d %s", w.Code, w.Body)
+	}
+	cbs := r.callbacks()
+	if len(cbs) != 1 {
+		t.Fatalf("I-1 이 %d번 갔다", len(cbs))
+	}
+	o := cbs[0].Parsed
+	if o.WidthPx == nil || o.HeightPx == nil {
+		t.Fatalf("width_px · height_px 가 비어 있다: %+v", o)
+	}
+	if *o.WidthPx != 512 || *o.HeightPx != 512 {
+		t.Fatalf("크기가 %dx%d (512x512 여야 한다)", *o.WidthPx, *o.HeightPx)
+	}
+}
+
+// ⚠ 그림이 아니면 **키 자체가 안 나가야 한다.** 0 을 보내면 Django 에서
+// 「0픽셀짜리 그림」이 되고, null 과 구분이 안 된다.
+func TestPutFile_그림이_아니면_크기를_안_싣는다(t *testing.T) {
+	r := newRig(t)
+	body := []byte("%PDF-1.7 리포트 — 그림이 아니다")
+	w := r.do(t, "POST", "/svc/v1/files", mint(t), bytes.NewReader(body),
+		"X-Filename", "report.pdf")
+	if w.Code != 201 {
+		t.Fatalf("%d %s", w.Code, w.Body)
+	}
+	cbs := r.callbacks()
+	if len(cbs) != 1 {
+		t.Fatalf("I-1 이 %d번 갔다", len(cbs))
+	}
+	if o := cbs[0].Parsed; o.WidthPx != nil || o.HeightPx != nil {
+		t.Fatalf("PDF 인데 크기가 실렸다: %+v", o)
+	}
+	if bytes.Contains(cbs[0].Body, []byte("width_px")) {
+		t.Fatalf("width_px 키가 본문에 있다 — omitempty 가 안 먹었다: %s", cbs[0].Body)
 	}
 }
 
@@ -1070,6 +1132,99 @@ func TestDicomRejectsOtherScope(t *testing.T) {
 	}
 }
 
+// ── 새 규칙 — Orthanc 에 적어 둔 대상으로 연다 ──────────────────────
+//
+// Django 의 티켓 API 는 앞머리를 "{종류}/{id}" 로만 만든다(study/201).
+// 전에는 Go 가 "dicom/instances/<UID>" 를 통째로 요구해서 **사람이 DICOM 을
+// 받을 길이 아예 없었다.** 올릴 때 Orthanc 에 적어 둔 대상으로 대조한다.
+
+func TestDicom검사티켓으로_인스턴스를_연다(t *testing.T) {
+	r := newRig(t)
+	r.withOrthanc(t, map[string]string{
+		"POST /tools/lookup":                  `[{"ID":"inst-1","Type":"Instance"}]`,
+		"GET /instances/inst-1/metadata/1024": "study/201",
+		"GET /instances/inst-1/file":          "DICM원본",
+	})
+	w := r.do(t, "GET", "/svc/v1/dicom/instances/1.2.3", dicomTicket(t, "study/201"), nil)
+	if w.Code != 200 || w.Body.String() != "DICM원본" {
+		t.Fatalf("%d %q", w.Code, w.Body.String())
+	}
+}
+
+func TestDicom검사티켓으로_시리즈를_연다(t *testing.T) {
+	r := newRig(t)
+	r.withOrthanc(t, map[string]string{
+		"GET /series/ab-1/metadata/1024": "study/201",
+		"GET /series/ab-1/archive":       "PK시리즈zip",
+	})
+	w := r.do(t, "GET", "/svc/v1/dicom/series/ab-1", dicomTicket(t, "study/201"), nil)
+	if w.Code != 200 {
+		t.Fatalf("%d %q", w.Code, w.Body.String())
+	}
+}
+
+// ⚠ 다른 검사의 티켓으로는 못 연다. 이게 이 방식의 권한 경계다.
+func TestDicom남의_검사티켓은_막는다(t *testing.T) {
+	r := newRig(t)
+	r.withOrthanc(t, map[string]string{
+		"POST /tools/lookup":                  `[{"ID":"inst-1","Type":"Instance"}]`,
+		"GET /instances/inst-1/metadata/1024": "study/201",
+		"GET /instances/inst-1/file":          "남의 것",
+	})
+	if w := r.do(t, "GET", "/svc/v1/dicom/instances/1.2.3", dicomTicket(t, "study/999"), nil); w.Code != 403 {
+		t.Fatalf("남의 티켓인데 %d", w.Code)
+	}
+}
+
+// ⚠ **시작만 보면 안 된다.** study/20 티켓으로 study/201 이 열리면 안 된다.
+// 파일 쪽(getFrom)은 뒤에 "/" 를 붙여 경계를 지키지만 여기는 앞머리끼리
+// 비교하는 자리라 붙일 곳이 없다 — 정확히 같아야 한다.
+func TestDicom접두사_흉내를_막는다(t *testing.T) {
+	r := newRig(t)
+	r.withOrthanc(t, map[string]string{
+		"POST /tools/lookup":                  `[{"ID":"inst-1","Type":"Instance"}]`,
+		"GET /instances/inst-1/metadata/1024": "study/201",
+		"GET /instances/inst-1/file":          "원본",
+	})
+	for _, scope := range []string{"study/20", "study", "study/2011", "specimen/201"} {
+		if w := r.do(t, "GET", "/svc/v1/dicom/instances/1.2.3", dicomTicket(t, scope), nil); w.Code != 403 {
+			t.Errorf("%s 로 %d 가 나왔다 (403 이어야 한다)", scope, w.Code)
+		}
+	}
+}
+
+// ⚠ 종류가 겹치는 것도 막는다. study 201 과 specimen 201 은 같은 bigint
+// 시퀀스라 값이 겹친다 — id 만 보면 검체 티켓으로 검사 영상이 열린다.
+func TestDicom종류가_다르면_막는다(t *testing.T) {
+	r := newRig(t)
+	r.withOrthanc(t, map[string]string{
+		"POST /tools/lookup":                  `[{"ID":"inst-1","Type":"Instance"}]`,
+		"GET /instances/inst-1/metadata/1024": "specimen/201",
+		"GET /instances/inst-1/file":          "병리 것",
+	})
+	if w := r.do(t, "GET", "/svc/v1/dicom/instances/1.2.3", dicomTicket(t, "study/201"), nil); w.Code != 403 {
+		t.Fatalf("검체 자료를 검사 티켓으로 열었다 (%d)", w.Code)
+	}
+}
+
+// ⚠ 이 기능 전에 올라간 자료에는 적힌 것이 없다. 그때는 옛 규칙만 통한다 —
+// 조용히 열어 주면 안 된다.
+func TestDicom옛자료는_옛규칙만(t *testing.T) {
+	r := newRig(t)
+	r.withOrthanc(t, map[string]string{ // metadata 경로가 없다 = 404
+		"POST /tools/lookup":         `[{"ID":"inst-1","Type":"Instance"}]`,
+		"GET /instances/inst-1/file": "옛 자료",
+	})
+	if w := r.do(t, "GET", "/svc/v1/dicom/instances/1.2.3", dicomTicket(t, "study/201"), nil); w.Code != 403 {
+		t.Errorf("적힌 것이 없는데 검사 티켓으로 열렸다 (%d)", w.Code)
+	}
+	// 옛 규칙(UID 를 통째로 적은 티켓)은 그대로 통해야 한다 — Celery 가 쓴다
+	if w := r.do(t, "GET", "/svc/v1/dicom/instances/1.2.3",
+		dicomTicket(t, "dicom/instances/1.2.3"), nil); w.Code != 200 {
+		t.Errorf("옛 규칙이 막혔다 (%d) — 워커가 못 받는다", w.Code)
+	}
+}
+
 // Orthanc 경로에 그대로 들어가는 값이다. 형식 밖 글자는 Orthanc 에 닿기 전에 거절한다.
 func TestDicomRejectsBadID(t *testing.T) {
 	r := newRig(t)
@@ -1172,5 +1327,19 @@ func TestPutFileSendsNoDerivedBlock(t *testing.T) {
 	}
 	if bytes.Contains(r.callbacks()[0].Body, []byte(`"derived"`)) {
 		t.Errorf("원본 콜백에 derived가 실렸다: %s", r.callbacks()[0].Body)
+	}
+}
+
+// 조각 업로드는 세션을 연 티켓과 같은 티켓이어야 한다.
+func TestSameTicket(t *testing.T) {
+	a := &ticket.Claims{Purpose: "wsi_upload", ScopeID: "sp-1", PatientID: "p-1"}
+	b := &ticket.Claims{Purpose: "wsi_upload", ScopeID: "sp-2", PatientID: "p-2"}
+	s := &upload.Session{Purpose: a.Purpose, ScopeID: a.ScopeID, PatientID: a.PatientID}
+
+	if !sameTicket(a, s) {
+		t.Fatal("같은 티켓인데 막혔다")
+	}
+	if sameTicket(b, s) {
+		t.Fatal("다른 검체 티켓이 통과했다")
 	}
 }

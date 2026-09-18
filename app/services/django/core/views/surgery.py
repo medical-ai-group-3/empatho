@@ -82,7 +82,7 @@ class SurgeryReportViewSet(AuditMixin, OwnedOnlyMixin, viewsets.ModelViewSet):
     serializer_class = serializers.ReportSerializer
     
     def owned_queryset(self, queryset, account):
-        return queryset.filter(patient__account=account)
+        return queryset.filter(patient__account=account, lock_status="unlocked")
     
     def is_owned_by(self, obj, account):
         return obj.patient.account_id == account.account_id
