@@ -444,7 +444,23 @@ export const rad = {
   addLesion:  (b)      => post("/lesions/", b),
   falsePos:   (id)     => patch(`/lesions/${id}/`, { is_false_positive: true }),
 
-  study:      (id)     => get(`/studies/${id}/`),
+  /* ⚠ GET /studies/{id}/ 에는 category · finding_note 가 없다 — 그건
+     Assessment 표에 있다(study 에 매달려 있지 patient/report 에 직접
+     안 물린다). 4장 목록 상세가 "BI-RADS undefined" 를 냈던 게 이 자리다.
+     확정된(최신, 정정으로 덮이지 않은) 판독 하나를 찾아 얹어 준다. */
+  study:      (id)     => get(`/studies/${id}/`).then(async (raw) => {
+    const hist = await rad.history(id).catch(() => []);
+    const rows = Array.isArray(hist) ? hist : (hist?.results ?? hist?.items ?? []);
+    const current = rows.find((a) => a.read_stage === "final" && !a.superseded_by)
+      ?? rows.find((a) => a.read_stage === "final")
+      ?? null;
+    return {
+      ...raw,
+      finalized: raw.read_status === "finalized",
+      category: current?.category,
+      finding_note: current?.finding_note,
+    };
+  }),
   list:       (o = {}) => get(`/studies/${qs(o)}`),
   history:    (id)     => get(`/assessments${qs({ study: id })}`),
   amend:      (id, b)  => post(`/assessments/${id}/amend`, b),
