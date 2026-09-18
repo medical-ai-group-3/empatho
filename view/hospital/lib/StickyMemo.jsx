@@ -49,20 +49,30 @@ export default function StickyMemo() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function startDrag(e) {
-    dragRef.current = { startX: e.clientX, startY: e.clientY, origX: s.x, origY: s.y };
+  /* onTap — 접힌 탭은 버튼이라 «눌렀다 뗐다»가 "펼치기"도 되고
+     "옮기기"도 된다. 드래그 중 몇 픽셀이라도 움직였으면 뗄 때 펼치지
+     않는다 — 안 그러면 옮기려고 누를 때마다 같이 펼쳐진다. */
+  function startDrag(e, onTap) {
+    dragRef.current = {
+      startX: e.clientX, startY: e.clientY, origX: s.x, origY: s.y, moved: false, onTap,
+    };
     window.addEventListener("mousemove", onDrag);
     window.addEventListener("mouseup", stopDrag);
   }
   function onDrag(e) {
     const d = dragRef.current;
     if (!d) return;
-    setS((v) => ({ ...v, x: d.origX + (e.clientX - d.startX), y: d.origY + (e.clientY - d.startY) }));
+    const dx = e.clientX - d.startX;
+    const dy = e.clientY - d.startY;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) d.moved = true;
+    setS((v) => ({ ...v, x: d.origX + dx, y: d.origY + dy }));
   }
   function stopDrag() {
+    const d = dragRef.current;
     dragRef.current = null;
     window.removeEventListener("mousemove", onDrag);
     window.removeEventListener("mouseup", stopDrag);
+    if (d && !d.moved) d.onTap?.();
   }
 
   /* 크기조절은 네이티브 resize:both 핸들을 쓴다 — 놓을 때 실제 크기를
@@ -79,7 +89,7 @@ export default function StickyMemo() {
     return (
       <button type="button" className="sticky-memo-tab"
         style={{ left: s.x, top: s.y }}
-        onClick={() => setS((v) => ({ ...v, open: true }))}>
+        onMouseDown={(e) => startDrag(e, () => setS((v) => ({ ...v, open: true })))}>
         📝 메모
       </button>
     );
@@ -89,7 +99,7 @@ export default function StickyMemo() {
     <div ref={boxRef} className="sticky-memo"
       style={{ left: s.x, top: s.y, width: s.w, height: s.h }}
       onMouseUp={onResizeEnd}>
-      <div className="sticky-memo-head" onMouseDown={startDrag}>
+      <div className="sticky-memo-head" onMouseDown={(e) => startDrag(e)}>
         <span>📝 메모</span>
         <button type="button" aria-label="접기" onClick={() => setS((v) => ({ ...v, open: false }))}>
           −
