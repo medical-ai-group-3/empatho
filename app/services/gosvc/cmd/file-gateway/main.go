@@ -732,8 +732,8 @@ func (g *gw) getDerived(w http.ResponseWriter, r *http.Request) {
 // 값이 Orthanc 경로에 그대로 들어가므로 글자를 좁힌다. %2F 로 다른 경로를 부르지 못한다.
 func (g *gw) getDicomInstance(w http.ResponseWriter, r *http.Request) {
 	sop := r.PathValue("sop")
-	if strings.Trim(sop, "0123456789.") != "" {
-		fail(w, 400, "BAD_REQUEST", "SOP UID 는 숫자와 점만 쓴다")
+	if strings.Trim(sop, "0123456789abcdef.") != "" {
+		fail(w, 400, "BAD_REQUEST", "SOP UID 에 쓸 수 없는 글자가 있다")
 		return
 	}
 	g.fromOrthanc(w, r, "dicom/instances/"+sop, "file",

@@ -135,72 +135,15 @@ def run_inference(ai_result_id) :
     logger.info("[run_inference]행 %s modality=%s -> 소켓 %s", ai.pk, modality, socket)
     
     t0 = time.monotonic()
+    
     try :
-        # ③ 어느 파일을 보낼지 고른다. 모달리티마다 가리키는 칸이 다르다.
-        ref = _ref(ai, modality)
-        # ⑥ [이미지 워커로 전송] == Go 에서 이미지 전달 받음. 워커는 저장소에 접근하지 않는다 ==
-        # 티켓 접두사(scope_kind/scope_id)가 Go 가 여는 범위다.
-        #   DICOM   dicom/instances/<UID> · dicom/series/<ID> — Go 가 경로와 정확히 같은지 본다
-        #   그 외   object_key 앞 두 칸 — Go 가 키가 그 아래인지 본다
-        #
-        # scope_kind · scope_id  티켓이 여는 범위. 이 범위 밖의 파일은 같은
-        #                        티켓으로 못 받는다 — 권한 경계가 여기다
-        # name                   추론 서버에 넘길 파일 이름. MRI 는 .zip 이어야
-        #                        압축을 풀고, 나머지는 확장자로 형식을 본다
-        # url                    Go 에서 받을 주소
-        if modality in DICOM :
-            scope_kind, name = DICOM[modality]
-            scope_id = ref
-            url = f"{GATEWAY}/svc/v1/{scope_kind}/{ref}"
+        # 맘모는 영상 넷이 한 검진이라 장마다 판독하고 합친다.
+        # 나머지는 가리키는 것 하나를 그대로 보낸다.
+        if modality == "mammo" :
+            out = _mammo(ai, socket)
         else :
-            # Garage 키는 "scope_kind/scope_id/파일명" 모양이다. 앞 두 칸이 곧
-            # 범위라 거기서 잘라 쓰고, 이름은 마지막 칸을 그대로 쓴다.
-            scope_kind, scope_id = ref.split("/")[:2]
-            name = ref.rsplit("/",1)[-1]
-            url = f"{GATEWAY}/svc/v1/files/{ref}"
+            out = _analyze(modality, socket, _ref(ai, modality))
             
-        # issue() => (티켓 문자열, 클레임, 만료 시각) 세 개를 돌려주지만 티켓 하나라 나머지는 버림
-        # "download" => 읽기만 허용. go 는 서명 · 만료 · 범위만 확인
-        #
-        # 사람 토큰이 없는 자리라 issue() 를 직접 부른다. 권한은 판독을 요청한
-        # 화면에서 이미 봤고, 여기서는 「이 범위를 읽는다」만 서명한다.
-        token, _, _ = issue("download", scope_kind, scope_id)
-        req = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})
-        # 제한 시간은 MRI 시리즈 zip(146장, 수백 MB)을 받는 시간까지 본 값이다.
-        with urllib.request.urlopen(req, timeout=300) as r :
-            data = r.read() 
-        logger.info("[run_inference] 이미지 %d 바이트", len(data))
-        
-        # ⑦ [판독 요청] == 추론 서버로 전송, multipart 한 칸(image 한 장) =
-        #
-        # 영상을 디스크에 쓰지 않고 메모리에서 바로 본문으로 만든다. 요청 형식이
-        # multipart 인 것은 추론 서버의 창구가 그것 하나여서다. 칸은 image 하나만
-        # 쓴다 — 환자 정보는 보내지 않는다. MRI 조영 후 볼륨을 넣는 post 칸은
-        # 아직 채우지 않는다(조영 전 · 후를 가릴 표시가 없다).
-        #
-        # boundary  본문에서 칸과 칸을 가르는 표식. 내용과 겹치면 안 되므로
-        #           요청마다 새 난수로 만든다
-        boundary = uuid.uuid4().hex
-        body = (f'--{boundary}\r\nContent-Disposition: form-data; name="image"; filename="{name}"\r\n'
-                f'Content-Type: application/octet-stream\r\n\r\n').encode() + data + f"\r\n--{boundary}--\r\n".encode() 
-        req = urllib.request.Request(f"{INFERENCE}/analyze/{socket}", data=body, headers={"Content-Type": f"multipart/form-data; boundary={boundary}"})
-        # 추론 서버는 실패도 HTTP 200 에 abstained 로 돌려준다. 그래서 상태
-        # 코드를 따로 보지 않고, 기권 여부는 응답 안에서 읽는다.
-        #
-        # 유휴 회수와 겹치면 연결이 끊긴다 — 판독 서버는 30초 놀면 GPU 를
-        # 반납하려고 프로세스를 끝내고, supervisor 가 곧바로 다시 띄운다.
-        # 그 순간에 들어간 요청만 끊기므로 한 번 더 걸면 된다.
-        # 두 번째도 끊기면 그때는 실패로 남긴다.
-        for attempt in (1,2) :
-            try : 
-                with urllib.request.urlopen(req, timeout=600) as r :
-                    out = json.loads(r.read())
-                break
-            except (urllib.error.URLError, ConnectionError, http.client.HTTPException) as exc :
-                if attempt == 2 :
-                    raise 
-                logger.warning("[run_inference] 연결 끊김 - 다시 건다 (%s)", type(exc).__name__)
-                time.sleep(3)
         # MRI 응답은 대부분이 3D 메시다. 걷어내지 않으면 jsonb 한 칸이 그 크기가 된다.
         if modality == "mri" :
             out = _store_meshes(out, ai)
@@ -321,6 +264,117 @@ def request_narrative(report_id, ai_result_id) :
     
     logger.info("[narrative] 리포트 %s 보냄 / 소켓 %s / fallback=%s", report_id, report.socket_id, out.get("fallback"))
     return "sent"
+
+def _analyze(modality, socket, ref) :
+    # ⑥ [이미지 워커로 전송] == Go 에서 이미지 전달 받음. 워커는 저장소에 접근하지 않는다 ==
+    # 티켓 접두사(scope_kind/scope_id)가 Go 가 여는 범위다.
+    #   DICOM   dicom/instances/<UID> · dicom/series/<ID> — Go 가 경로와 정확히 같은지 본다
+    #   그 외   object_key 앞 두 칸 — Go 가 키가 그 아래인지 본다
+    #
+    # scope_kind · scope_id  티켓이 여는 범위. 이 범위 밖의 파일은 같은
+    #                        티켓으로 못 받는다 — 권한 경계가 여기다
+    # name                   추론 서버에 넘길 파일 이름. MRI 는 .zip 이어야
+    #                        압축을 풀고, 나머지는 확장자로 형식을 본다
+    # url                    Go 에서 받을 주소
+    if modality in DICOM :
+        scope_kind, name = DICOM[modality]
+        scope_id = ref
+        url = f"{GATEWAY}/svc/v1/{scope_kind}/{ref}"
+    else :
+        # Garage 키는 "scope_kind/scope_id/파일명" 모양이다. 앞 두 칸이 곧
+        # 범위라 거기서 잘라 쓰고, 이름은 마지막 칸을 그대로 쓴다.
+        scope_kind, scope_id = ref.split("/")[:2]
+        name = ref.rsplit("/",1)[-1]
+        url = f"{GATEWAY}/svc/v1/files/{ref}"
+        
+    # issue() => (티켓 문자열, 클레임, 만료 시각) 세 개를 돌려주지만 티켓 하나라 나머지는 버림
+    # "download" => 읽기만 허용. go 는 서명 · 만료 · 범위만 확인
+    #
+    # 사람 토큰이 없는 자리라 issue() 를 직접 부른다. 권한은 판독을 요청한
+    # 화면에서 이미 봤고, 여기서는 「이 범위를 읽는다」만 서명한다.
+    token, _, _ = issue("download", scope_kind, scope_id)
+    req = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})
+    # 제한 시간은 MRI 시리즈 zip(146장, 수백 MB)을 받는 시간까지 본 값이다.
+    with urllib.request.urlopen(req, timeout=300) as r :
+        data = r.read() 
+    logger.info("[run_inference] 이미지 %d 바이트", len(data))
+    
+    # ⑦ [판독 요청] == 추론 서버로 전송, multipart 한 칸(image 한 장) =
+    #
+    # 영상을 디스크에 쓰지 않고 메모리에서 바로 본문으로 만든다. 요청 형식이
+    # multipart 인 것은 추론 서버의 창구가 그것 하나여서다. 칸은 image 하나만
+    # 쓴다 — 환자 정보는 보내지 않는다. MRI 조영 후 볼륨을 넣는 post 칸은
+    # 아직 채우지 않는다(조영 전 · 후를 가릴 표시가 없다).
+    #
+    # boundary  본문에서 칸과 칸을 가르는 표식. 내용과 겹치면 안 되므로
+    #           요청마다 새 난수로 만든다
+    boundary = uuid.uuid4().hex
+    body = (f'--{boundary}\r\nContent-Disposition: form-data; name="image"; filename="{name}"\r\n'
+            f'Content-Type: application/octet-stream\r\n\r\n').encode() + data + f"\r\n--{boundary}--\r\n".encode() 
+    req = urllib.request.Request(f"{INFERENCE}/analyze/{socket}", data=body, headers={"Content-Type": f"multipart/form-data; boundary={boundary}"})
+    # 추론 서버는 실패도 HTTP 200 에 abstained 로 돌려준다. 그래서 상태
+    # 코드를 따로 보지 않고, 기권 여부는 응답 안에서 읽는다.
+    #
+    # 유휴 회수와 겹치면 연결이 끊긴다 — 판독 서버는 30초 놀면 GPU 를
+    # 반납하려고 프로세스를 끝내고, supervisor 가 곧바로 다시 띄운다.
+    # 그 순간에 들어간 요청만 끊기므로 한 번 더 걸면 된다.
+    # 두 번째도 끊기면 그때는 실패로 남긴다.
+    for attempt in (1,2) :
+        try : 
+            with urllib.request.urlopen(req, timeout=600) as r :
+                out = json.loads(r.read())
+            break
+        except (urllib.error.URLError, ConnectionError, http.client.HTTPException) as exc :
+            if attempt == 2 :
+                raise 
+            logger.warning("[run_inference] 연결 끊김 - 다시 건다 (%s)", type(exc).__name__)
+            time.sleep(3)
+    return out
+
+def _mammo(ai, socket) :
+    """맘모는 영상 넷(좌우 × CC/MLO)이 한 검진이다.
+
+    장마다 판독하고 결과를 합친다. 합친 모양은 한 장짜리와 같게 두어
+    리포트 서버가 그대로 읽는다 — 병변에 어느 영상인지만 붙인다.
+    """
+    rows = (StorageObject.objects.filter(study_id=ai.study_id, sop_instance_uid__isnull=False, deleted_at__isnull=True).order_by("storage_object_id"))
+    if not rows :
+        raise ValueError("이 검사에 맘모 영상이 없다")
+    
+    envelope, lesions = None, []
+    n, top, biopsy, abstained = 0, None, False, True
+    for row in rows :
+        out = _analyze("mammo", socket, row.sop_instance_uid)
+        envelope = envelope or out 
+        s = ((out.get("result") or {}).get("summary")) or {}
+        img = {
+            "laterality": row.laterality, 
+            "view": row.view_position
+            }
+        for l in ((out.get("result") or {}).get("lesions") or []) :
+            side = (row.laterality or "?")[:1].upper()
+            lesions.append({
+                **l, 
+                "image": img,
+                "id": f"{side}-{row.view_position or '?'}-{l.get('id')}"
+                })
+        if not s.get("abstained") :
+            abstained = False
+        n += s.get("n_lesions") or 0
+        biopsy = biopsy or bool(s.get("biopsy"))
+        b = s.get("max_birads")
+        if b and (top is None or b > top) :
+            top = b
+    out = dict(envelope)
+    out["result"] = {
+        "summary" : {
+            "abstained": abstained, 
+            "n_lesions": n, 
+            "max_birads": top, 
+            "biopsy": biopsy
+            },
+        "lesions": lesions}
+    return out
 
 def _series_row(study_id) :
     """이 검사의 Orthanc 시리즈를 대표하는 저장 행 하나.
