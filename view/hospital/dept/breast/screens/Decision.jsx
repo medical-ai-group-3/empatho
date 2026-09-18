@@ -112,15 +112,21 @@ function Inner({ patient, onReload }) {
   );
 }
 
+/* ⚠ 2026-09-18 다희님 확인 — report.content_json 하나에 전부 담긴다:
+ * { doctor_summary, by_modality: {mammo, us, mri} }. PUT /reports/{id}/
+ * 는 이 필드만 본다(surgery.py:97-103) — doctor_summary 를 최상위로
+ * 보내던 예전 코드는 그동안 아무 것도 저장하지 못하고 있었다. 모달리티별
+ * 덮어쓰기(merge)는 서버가 처리하기로 했다 — 여기서는 그냥 이 모양대로
+ * 보내기만 한다. */
 function DoctorSummaryCard({ report }) {
-  const [text, setText] = useState(report.doctor_summary ?? "");
+  const [text, setText] = useState(report.content_json?.doctor_summary ?? "");
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState(null);
 
   async function save() {
     setSaving(true);
     try {
-      await api.saveReport(report.report_id, { doctor_summary: text });
+      await api.saveReport(report.report_id, { content_json: { doctor_summary: text } });
       setMsg("저장되었습니다");
     } finally {
       setSaving(false);
@@ -131,8 +137,12 @@ function DoctorSummaryCard({ report }) {
     <div className="card">
       <div className="card-head">
         <h3>의사 종합 리포트</h3>
+        {/* ⚠ doctor_summary_author 도 서버 Report 모델에 없는 필드다(목업
+            전용). 지금 로그인한 의사 이름을 붙이려면 세션 쪽에서 가져와야
+            하는데 그 경로가 아직 없어 일단 안 지우고 옵셔널 체이닝만
+            건다 — 실서버에서는 빈 칸으로 보인다. */}
         <span className="person-chip" style={{ marginLeft: "auto" }}>
-          <span className="avatar sm" aria-hidden="true">{report.doctor_summary_author[0]}</span>
+          <span className="avatar sm" aria-hidden="true">{report.doctor_summary_author?.[0]}</span>
           <span className="id">
             <b>{report.doctor_summary_author}</b>
             <span>유방외과</span>

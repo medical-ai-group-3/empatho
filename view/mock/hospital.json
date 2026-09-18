@@ -1551,7 +1551,7 @@
           "abstained": true
         }
       },
-      "doctor_summary": "",
+      "content_json": { "doctor_summary": "", "by_modality": {} },
       "doctor_summary_author": "서냐냥",
       "decision": null,
       "explain_method": null,
@@ -1662,7 +1662,7 @@
           "abstained": false
         }
       },
-      "doctor_summary": "",
+      "content_json": { "doctor_summary": "", "by_modality": {} },
       "doctor_summary_author": "서냐냥",
       "decision": null,
       "explain_method": null,
@@ -1782,7 +1782,7 @@
           "abstained": false
         }
       },
-      "doctor_summary": "영상·병리 모두 악성 소견 일치. 수술적 절제 권고.",
+      "content_json": { "doctor_summary": "영상·병리 모두 악성 소견 일치. 수술적 절제 권고.", "by_modality": {} },
       "doctor_summary_author": "서냐냥",
       "decision": {
         "decision_type": "surgery",
