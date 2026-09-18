@@ -62,38 +62,33 @@ const SVC = "/svc/v1";
 /* 뷰어가 쓰는 티켓. 위 「왜 tile 인가」 참고 */
 const PURPOSE = "tile";
 
-/* ── DICOM 은 아직 브라우저에서 못 받는다 ──────────────────────
+/* ── DICOM 도 같은 티켓으로 받는다 ────────────────────────────
  *
- * ⚠ Go 는 DICOM 에 대해 티켓 범위를 **정확히 일치**로 본다.
+ * 전에는 못 받았다. Go 가 DICOM 에 대해서만 티켓 범위를 «정확히 일치»로
+ * 봤는데(`cl.ObjectKeyPrefix != "dicom/instances/<UID>"`), `POST /tickets`
+ * 는 접두사를 `{종류}/{id}` 로만 만들어서 그 모양을 낼 수가 없었다.
+ * 그걸 낼 수 있는 것은 issue() 를 직접 부르는 Celery 뿐이라, 화면에서는
+ * 늘 403 이었다 — **맘모 원본과 MRI 시리즈를 받을 길이 아예 없었다.**
  *
- *     fromOrthanc: cl.ObjectKeyPrefix != "dicom/instances/<UID>" → 403
+ * 2026-09-18 — Go 가 올릴 때 Orthanc 에 대상을 적어 두고, 내려줄 때 그걸
+ * 티켓과 대조하도록 바꿨다(gosvc 의 dicomAllowed). 그래서 **파일과 똑같은
+ * 검사 티켓 하나로** 맘모도 MRI 도 받는다.
  *
- *   그런데 `POST /tickets` 는 그 모양의 범위를 **낼 수가 없다.**
- *   scope_kind 로 받는 값이 study·specimen·report·account 넷뿐이라
- *   접두사가 늘 `study/201` 꼴로 나온다. 둘이 영영 안 맞는다.
- *
- *   지금 그 접두사를 만들 수 있는 것은 Celery 뿐이다 — 추론에 파일을
- *   넘길 때 `issue("download", "dicom/instances", uid)` 를 **직접**
- *   부른다(core/tasks.py). 사람이 지나가는 길이 아니다.
- *
- *   그래서 맘모 원본 한 장과 MRI 시리즈는 이 길로 못 받는다. 조용히
- *   빈 화면을 주지 않고 **왜 못 받는지 말한다** — 서버에 길이 생기기
- *   전까지는 고쳐도 안 되는 것이라, 뷰어 앞에서 원인을 찾느라 시간을
- *   버리지 않게 한다.
+ * ⚠ 그 기능 **전에 올라간 자료에는 적힌 것이 없다.** 그런 자료는 403 이
+ *   난다 — 다시 올리거나 Orthanc 메타데이터를 채워야 한다.
  */
-const NO_DICOM =
-  "DICOM 원본은 아직 브라우저에서 받을 수 없습니다 (티켓 범위 규격 대기)";
-
 function targetOf(spec, scope) {
-  if (spec?.sop || spec?.series) return { blocked: NO_DICOM };
-  if (spec?.key && scope?.kind && scope?.id != null) {
-    return {
-      scopeKey: `${scope.kind}/${scope.id}`,
-      kind: scope.kind,
-      id: scope.id,
-      path: `${SVC}/files/${spec.key}`,
-    };
-  }
+  if (!scope?.kind || scope?.id == null) return null;
+  const common = {
+    scopeKey: `${scope.kind}/${scope.id}`,
+    kind: scope.kind,
+    id: scope.id,
+  };
+  /* 맘모 한 장 — SOP Instance UID 로 찾는다 */
+  if (spec?.sop) return { ...common, path: `${SVC}/dicom/instances/${spec.sop}` };
+  /* MRI 시리즈 — Orthanc 시리즈 ID. zip 으로 온다 */
+  if (spec?.series) return { ...common, path: `${SVC}/dicom/series/${spec.series}` };
+  if (spec?.key) return { ...common, path: `${SVC}/files/${spec.key}` };
   return null;
 }
 
@@ -146,17 +141,11 @@ export function useFile(spec, issue, scope) {
   const path = t?.path ?? null;
   const kind = t?.kind ?? null;
   const id = t?.id ?? null;
-  const blocked = t?.blocked ?? null;
 
   useEffect(() => {
     /* 그대로 쓸 수 있는 주소 — 목업이 여기로 온다 */
     if (url) {
       set({ src: url, loading: false, error: null });
-      return;
-    }
-    /* 받을 길이 없다고 아는 경우. 빈 화면 대신 이유를 넘긴다 */
-    if (blocked) {
-      set({ src: null, loading: false, error: new Error(blocked) });
       return;
     }
     if (!path || !scopeKey || !issue) {
@@ -190,7 +179,7 @@ export function useFile(spec, issue, scope) {
       live = false;
       if (made) URL.revokeObjectURL(made);
     };
-  }, [url, path, scopeKey, kind, id, blocked, issue]);
+  }, [url, path, scopeKey, kind, id, issue]);
 
   return state;
 }
