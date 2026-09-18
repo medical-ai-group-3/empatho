@@ -402,6 +402,175 @@ export const path = {
  */
 const RAD = "/radiology";
 
+/* 영상의학과 백엔드 원본 응답을 공용 화면 계약으로 변환한다.
+ * main 브랜치(9858a55 align radiology screens with API responses)에서
+ * 가져왔다 — dahee는 316da61에서 갈라진 뒤 이 레이어가 없었다. Read·
+ * Amend 화면이 d.patient / d.unit / d.ai 를 그대로 기대하고 있어서
+ * (dept/radiology.jsx), 여기 없이는 둘 다 "Cannot read properties of
+ * undefined (reading 'name')"로 죽는다. */
+function radPatient(source = {}, order = {}) {
+  const patientId = source.patient_id ?? source.patient ?? order.patient_id ?? order.patient;
+  return {
+    name: source.patient_name ?? order.patient_name ?? source.patient?.name
+      ?? order.patient?.name ?? (patientId == null ? "" : `환자 #${patientId}`),
+    age: source.age ?? order.age ?? source.patient?.age ?? order.patient?.age ?? null,
+    sex: source.sex ?? order.sex ?? source.patient?.sex ?? order.patient?.sex ?? "",
+    no: source.patient_no ?? source.patient_number ?? order.patient_no
+      ?? order.patient_number ?? source.patient?.patient_number
+      ?? order.patient?.patient_number ?? "",
+    contrast_allergy: source.contrast_allergy ?? order.contrast_allergy
+      ?? ((source.has_allergy ?? order.has_allergy) ? (source.allergy_note
+        ?? order.allergy_note ?? true) : null),
+  };
+}
+
+function radOrderRow(raw = {}) {
+  const patient = radPatient(raw);
+  return {
+    ...raw,
+    id: raw.exam_order_id ?? raw.id,
+    patient_name: patient.name,
+    patient_no: patient.no,
+    age: patient.age,
+    sex: patient.sex,
+    contrast_allergy: patient.contrast_allergy,
+    device: raw.device ?? raw.device_name ?? "",
+    exam_name: raw.exam_name ?? raw.exam_purpose ?? "",
+    purpose: raw.purpose ?? raw.order_note ?? "",
+    finalized: raw.finalized ?? raw.order_status === "completed",
+  };
+}
+
+function radFile(raw = {}) {
+  const bytes = raw.byte_size ?? raw.size;
+  const size = typeof bytes === "number"
+    ? `${(bytes / 1048576).toFixed(1)} MB`
+    : (raw.size ?? "");
+  const image = raw.image ?? (raw.sop_instance_uid
+    ? { sop: raw.sop_instance_uid }
+    : raw.orthanc_series_id
+      ? { series: raw.orthanc_series_id }
+      : raw.object_key
+        ? { key: raw.object_key }
+        : null);
+  return {
+    ...raw,
+    id: raw.storage_object_id ?? raw.id,
+    name: raw.name ?? raw.sop_instance_uid ?? raw.series_uid ?? `파일 ${raw.storage_object_id ?? ""}`,
+    size,
+    w: raw.w ?? raw.width_px,
+    h: raw.h ?? raw.height_px,
+    image,
+  };
+}
+
+function radSeries(files = []) {
+  const groups = new Map();
+  files.forEach((file) => {
+    const key = file.series_uid ?? file.orthanc_series_id ?? file.id;
+    const group = groups.get(key) ?? {
+      id: key,
+      name: file.series_uid ?? file.series_role ?? file.name,
+      count: 0,
+      files: [],
+    };
+    group.count += 1;
+    group.files.push(file);
+    groups.set(key, group);
+  });
+  return [...groups.values()].map((group) => ({
+    ...group,
+    w: group.files[0]?.w,
+    h: group.files[0]?.h,
+    image: group.files[0]?.image ?? null,
+  }));
+}
+
+function radAi(raw, modality) {
+  if (!raw) return null;
+  const result = raw.result && typeof raw.result === "object" ? raw.result : raw;
+  return {
+    ...result,
+    modality: result.modality ?? modality,
+    abstained: result.abstained ?? raw.abstained,
+    abstain_reason: result.abstain_reason ?? raw.abstain_reason,
+    run_status: raw.run_status ?? result.run_status,
+    ai_result_id: raw.ai_result_id ?? result.ai_result_id,
+  };
+}
+
+/* ⚠ dahee 쪽에서 추가한 것 — category · finding_note. main의 radStudyRow는
+   이 둘을 안 채운다(Assessment 표 조회가 없어서). List 상세의 "BI-RADS
+   undefined"가 main에도 그대로 있다는 뜻이라, 여기 파라미터로 최신 확정
+   판독을 받아 얹는다. 호출부(rad.study)가 비동기로 구해서 넘겨준다. */
+function radStudyRow(raw = {}, order = {}, assessment = null) {
+  const patient = radPatient(raw, order);
+  const studyId = raw.study_id ?? raw.id;
+  return {
+    ...raw,
+    id: studyId,
+    study_id: studyId,
+    patient_name: patient.name,
+    patient_no: patient.no,
+    age: patient.age,
+    sex: patient.sex,
+    contrast_allergy: patient.contrast_allergy,
+    exam_name: order.exam_name ?? order.exam_purpose ?? raw.exam_name ?? "",
+    purpose: order.purpose ?? order.order_note ?? raw.purpose ?? "",
+    device: raw.device ?? raw.device_name ?? "",
+    exam_order_id: raw.exam_order_id ?? raw.exam_order ?? order.exam_order_id,
+    finalized: raw.finalized ?? raw.read_status === "finalized",
+    viewed_at: raw.viewed_at ?? raw.report?.viewed_at ?? null,
+    category: assessment?.category ?? raw.category,
+    finding_note: assessment?.finding_note ?? raw.finding_note,
+  };
+}
+
+function radUpload(raw = {}, order = {}) {
+  const study = raw.study ?? {};
+  const files = (raw.storage_objects ?? raw.files ?? []).map(radFile);
+  const row = radStudyRow(study, order);
+  return {
+    ...raw,
+    ...row,
+    study,
+    files,
+    series: raw.series ?? radSeries(files),
+    ai: raw.ai ?? null,
+    exam_order_id: row.exam_order_id ?? order.exam_order_id,
+    order,
+  };
+}
+
+function radRead(raw = {}, upload = {}, order = {}) {
+  const study = raw.study ?? upload.study ?? {};
+  const row = radStudyRow(study, order);
+  const files = (raw.images ?? upload.files ?? []).map(radFile);
+  const current = raw.current_assessment ?? null;
+  return {
+    ...raw,
+    ...row,
+    patient: radPatient(study, order),
+    unit: { ...row, id: row.study_id, no: row.study_id, exam_order_id: row.exam_order_id },
+    files,
+    images: files,
+    series: radSeries(files),
+    ai: radAi(raw.latest_ai_result, row.modality),
+    doctor: current ?? {},
+    finalized: row.finalized,
+  };
+}
+
+/* 최신 확정(final, 정정으로 안 덮인) 판독을 찾는다 — rad.study()·radRead
+   둘 다 쓴다 */
+async function radCurrentAssessment(studyId) {
+  const hist = await rad.history(studyId).catch(() => []);
+  const rows = Array.isArray(hist) ? hist : (hist?.results ?? hist?.items ?? []);
+  return rows.find((a) => a.read_stage === "final" && !a.superseded_by)
+    ?? rows.find((a) => a.read_stage === "final")
+    ?? null;
+}
+
 export const rad = {
   /* ⚠ 서버는 큐를 **기본 필터 없이** 준다 (2026-09-16 다희님 확인).
      병리와 같은 사정인데 값이 다르다 — 영상은 status=ordered 다.
@@ -415,13 +584,14 @@ export const rad = {
 
      큐는 결국 「거른 목록」이라 따로 경로를 두지 않는다. /ai-results?study=
      · /assessments?study= 도 같은 모양이다. */
-  /* ⚠ 봉투 언랩 — Queue.jsx 가 {items,total}을 기대한다. */
+  /* ⚠ 봉투 언랩 — Queue.jsx 가 {items,total}을 기대한다. 행마다
+     radOrderRow 로 patient_name·age·sex 등을 만들어 얹는다. */
   queue:      ()       => get(`/exam-orders${qs({ status: "ordered", assigned: "none" })}`)
     .then((raw) => {
       const rows = raw?.results ?? raw?.items ?? (Array.isArray(raw) ? raw : []);
-      return { ...raw, items: rows, total: raw?.count ?? raw?.total ?? rows.length };
+      return { ...raw, items: rows.map(radOrderRow), total: raw?.count ?? raw?.total ?? rows.length };
     }),
-  order:      (id)     => get(`/exam-orders/${id}`),
+  order:      (id)     => get(`/exam-orders/${id}`).then(radOrderRow),
   assign:     (id)     => patch(`/exam-orders/${id}/assign`),
 
   /* ⚠ **Study 를 만드는 유일한 경로다** (2026-09-16 확인).
@@ -436,14 +606,26 @@ export const rad = {
   /* ⚠ **과 이름이 붙는다.** /studies/{id}/upload 가 아니라
      /radiology/studies/{id}/upload 다 (2026-09-16 정정). 판독 조회와
      같은 자리에 있다. 전에 「판독 조회만 붙는다」고 들었던 것이 틀렸다. */
-  uploadInfo: (id)     => get(`${RAD}/studies/${id}/upload`),
+  uploadInfo: (id)     => get(`${RAD}/studies/${id}/upload`).then(async (raw) => {
+    const examOrderId = raw?.study?.exam_order;
+    const order = examOrderId ? await rad.order(examOrderId).catch(() => ({})) : {};
+    return radUpload(raw, order);
+  }),
   ticket:     (b)      => post("/tickets", b),
   complete:   (id)     => patch(`/exam-orders/${id}/complete`),
   analyze:    (id)     => post(`/studies/${id}/ai-results`),
   progress:   (id)     => get(`/ai-results${qs({ study: id })}`),
   retake:     (b)      => post("/exam-orders", b),
 
-  read:       (id)     => get(`${RAD}/studies/${id}/read`),
+  /* ⚠ withFiles(dept/radiology.jsx)가 series에 파일 주소를 얹는 것과
+     별개로, 여기서 patient/unit/ai 자체를 못 만들면 화면이 첫 줄에서
+     죽는다(d.patient.name). uploadInfo를 한 번 더 불러 order를 얻는다 —
+     read 응답에 order 정보가 안 실려 있어서다. */
+  read:       async (id) => {
+    const raw = await get(`${RAD}/studies/${id}/read`);
+    const upload = await rad.uploadInfo(id);
+    return radRead(raw, upload, upload.order ?? {});
+  },
   draft:      (id, b)  => put(`/studies/${id}/assessment/draft`, b),
   finalize:   (id, b)  => patch(`/studies/${id}/finalize`, b),
 
@@ -459,29 +641,31 @@ export const rad = {
   addLesion:  (b)      => post("/lesions/", b),
   falsePos:   (id)     => patch(`/lesions/${id}/`, { is_false_positive: true }),
 
-  /* ⚠ GET /studies/{id}/ 에는 category · finding_note 가 없다 — 그건
-     Assessment 표에 있다(study 에 매달려 있지 patient/report 에 직접
-     안 물린다). 4장 목록 상세가 "BI-RADS undefined" 를 냈던 게 이 자리다.
-     확정된(최신, 정정으로 덮이지 않은) 판독 하나를 찾아 얹어 준다. */
+  /* ⚠ GET /studies/{id}/ 에는 patient_name 등은 이제 오지만(2026-09-18
+     백엔드 확정), category · finding_note 는 여전히 없다 — Assessment
+     표에 있다(study에 매달려 있지 patient/report에 직접 안 물린다).
+     4장 목록 상세가 "BI-RADS undefined" 를 냈던 게 이 자리다. 확정된
+     (최신, 정정으로 덮이지 않은) 판독을 찾아 radStudyRow 에 얹는다. */
   study:      (id)     => get(`/studies/${id}/`).then(async (raw) => {
-    const hist = await rad.history(id).catch(() => []);
-    const rows = Array.isArray(hist) ? hist : (hist?.results ?? hist?.items ?? []);
-    const current = rows.find((a) => a.read_stage === "final" && !a.superseded_by)
-      ?? rows.find((a) => a.read_stage === "final")
-      ?? null;
-    return {
-      ...raw,
-      finalized: raw.read_status === "finalized",
-      category: current?.category,
-      finding_note: current?.finding_note,
-    };
+    const [order, current] = await Promise.all([
+      raw?.exam_order ? rad.order(raw.exam_order).catch(() => ({})) : Promise.resolve({}),
+      radCurrentAssessment(id),
+    ]);
+    return radStudyRow(raw, order, current);
   }),
   /* ⚠ 서버가 페이지네이션 봉투({count,results,…})로 준다. List.jsx 는
      {items,total}을 기대한다(data.items.filter · data.total) — 병리·영상
-     큐가 이미 하던 언랩과 같은 자리다. 3c1ee79 정리 때 빠졌던 것. */
-  list:       (o = {}) => get(`/studies/${qs(o)}`).then((raw) => {
+     큐가 이미 하던 언랩과 같은 자리다. 행마다 exam_order 를 더 불러
+     radStudyRow 로 patient_name 등을 채운다(목록 행엔 category 를 안
+     보여줘서 assessment 는 여기선 안 붙인다 — 상세를 열 때 study()가 한다). */
+  list:       (o = {}) => get(`/studies/${qs(o)}`).then(async (raw) => {
     const rows = raw?.results ?? raw?.items ?? (Array.isArray(raw) ? raw : []);
-    return { ...raw, items: rows, total: raw?.count ?? raw?.total ?? rows.length };
+    const items = await Promise.all(rows.map(async (row) => {
+      const orderId = row.exam_order_id ?? row.exam_order;
+      const order = orderId ? await rad.order(orderId).catch(() => ({})) : {};
+      return radStudyRow(row, order);
+    }));
+    return { ...raw, items, total: raw?.count ?? raw?.total ?? rows.length };
   }),
   history:    (id)     => get(`/assessments${qs({ study: id })}`),
   amend:      (id, b)  => post(`/assessments/${id}/amend`, b),
