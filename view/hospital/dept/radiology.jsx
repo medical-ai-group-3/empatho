@@ -169,21 +169,25 @@ function ListViewer({ d, cfg, slide, onSlide, bright, contrast, mask }) {
  * 의 공용 .timeline 클래스). 서버 PatientTimelineView는 {at, type,
  * detail, assessment_id} 를 준다 — label 없이 type 자체가 이미 한글
  * ("촬영"·"AI 분석 완료"·"판독" 등)이라 그대로 제목으로 쓴다. */
+/* ⚠ 2026-09-18 — 타임라인(점+세로선) 모양 말고 리스트로 달라는 요청.
+ * 유방외과 Review.jsx 것과 갈라져서, 여기는 새 클래스(exam-history)를
+ * 쓴다 — 줄마다 한 항목, 왼쪽 종류·오른쪽 시각, 그 아래 detail. */
 function ListTimeline({ events }) {
   if (!events?.length) {
     return <p className="muted small">아직 검사 이력이 없습니다.</p>;
   }
   return (
-    <div className="timeline">
+    <ul className="exam-history">
       {events.map((e, i) => (
-        <div className="row" key={i}>
-          <span className="dot" aria-hidden="true" />
-          <p className="label">{e.type}</p>
-          <p className="at">{e.at?.replace("T", " ").slice(0, 16)}</p>
-          {e.detail && <p className="detail">{e.detail}</p>}
-        </div>
+        <li key={i}>
+          <div className="exam-history-head">
+            <span className="exam-history-type">{e.type}</span>
+            <span className="exam-history-at">{e.at?.replace("T", " ").slice(0, 16)}</span>
+          </div>
+          {e.detail && <p className="exam-history-detail">{e.detail}</p>}
+        </li>
       ))}
-    </div>
+    </ul>
   );
 }
 
