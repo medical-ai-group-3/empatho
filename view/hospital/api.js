@@ -455,8 +455,8 @@ export const rad = {
  * 쓴다 — 그 컴포넌트가 부르는 자리를 한 곳에 모아 둔다. 영상의학과는
  * 이 화면을 쓰지 않기로 확정됐다(간호과 명세 §3). */
 export const specimens = {
-  lesionsByPatient: (pid) => get(`/lesions${qs({ patient: pid })}`),
-  bind: (b) => post("/specimens", b),
+  lesionsByPatient: (pid) => get(`/lesions/${qs({ patient: pid })}`),
+  bind: (b) => post("/specimens/", b),
 };
 
 /* ── 유방외과 ─────────────────────────────────────────────────
@@ -473,8 +473,8 @@ export const specimens = {
  * 화면은 그대로 두고 이 층만 갈아 끼우면 된다. */
 export const breast = {
   /* 1장 · 대기 환자 */
-  waiting:      ()   => get(`/patients${qs({ primary_staff: "me", status: "waiting" })}`),
-  patient:      (id) => get(`/patients/${id}`),
+  waiting:      ()   => get(`/patients/${qs({ primary_staff: "me", status: "waiting" })}`),
+  patient:      (id) => get(`/patients/${id}/`),
   examOrder:    (b)  => post("/exam-orders", b),
   openDiscords: (pid) => get(`/discordances${qs({ patient: pid, status: "open" })}`),
 
@@ -486,11 +486,11 @@ export const breast = {
   /* 2장 · 검사 종합 확인 */
   timeline:     (pid) => get(`/patients/${pid}/timeline`),
   studies:      (pid) => get(`/patients/${pid}/studies`),
-  finalReport:  (pid) => get(`/reports${qs({ patient: pid, type: "final" })}`),
+  finalReport:  (pid) => get(`/reports/${qs({ patient: pid, type: "final" })}`),
 
   /* 3장 · 수술 결정 */
   assess:       (b)  => post("/assessments", b),
-  saveReport:   (rid, b) => put(`/reports/${rid}`, b),
+  saveReport:   (rid, b) => put(`/reports/${rid}/`, b),
   explain:      (rid, b) => patch(`/reports/${rid}/explain`, b),
   unlockStatus: (rid) => get(`/reports/${rid}/unlock-status`),
   unlock:       (rid) => patch(`/reports/${rid}/unlock`, {}),
@@ -512,10 +512,10 @@ export const nursing = {
   waitingArrived: () => get(`/exam-orders${qs({ status: "requested", visited: "yes", ordering: "visited_at" })}`),
   scheduledToday: () => get(`/exam-orders${qs({ scheduled_on: "today", visited: "none" })}`),
   examOrder:      (id) => get(`/exam-orders/${id}`),
-  patient:        (id) => get(`/patients/${id}`),
+  patient:        (id) => get(`/patients/${id}/`),
   saveNote:       (examOrderId, note) => patch(`/exam-orders/${examOrderId}/note`, { note }),
   surgeons:       () => get(`/staff${qs({ role: "surgery" })}`),
-  assignSurgeon:  (patientId, staffId) => patch(`/patients/${patientId}`, { primary_staff_id: staffId }),
+  assignSurgeon:  (patientId, staffId) => patch(`/patients/${patientId}/`, { primary_staff_id: staffId }),
 
   /* 2장 */
   followups:      () => get(`/followups${qs({ include_candidates: 1 })}`),
@@ -533,7 +533,7 @@ export const nursing = {
  *   환자를 실수로 긁지 않게 한 것이라 화면도 빈 검색어를 안 보낸다.
  */
 export const reception = {
-  search:      (q)  => get(`/patients${qs({ q })}`),
+  search:      (q)  => get(`/patients/${qs({ q })}`),
   register:    (b)  => post("/patients/register", b),
   checkIn:     (b)  => post("/exam-orders/checkin", b),
   todayStatus: ()   => get("/patients/today-status"),
@@ -572,7 +572,7 @@ export const reception = {
    *   지금은 이 길뿐이다.
    *   → 다희님께 «목록 전체를 받는 공식 방법»을 요청해 두었다. 생기면
    *     아래 ALL 을 그것으로 바꾼다. */
-  list:   (p)      => get(`/patients${qs(p)}`),
+  list:   (p)      => get(`/patients/${qs(p)}`),
   detail: (id)     => get(`/patients/${id}/`),
   /* ⚠ 여기로는 **이름·생년월일·전화를 못 고친다.** 그 셋은 patient_pii 에
      있고 PatientSerializer 는 patient 표만 다룬다 (상세의 pii 는 읽기 전용).
