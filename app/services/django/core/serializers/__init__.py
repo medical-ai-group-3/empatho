@@ -19,6 +19,7 @@ from .reception import (
     PatientRegisterSerializer,
     CheckInSerializer,
     ExamOrderScheduleSerializer,
+    ExamOrderConfirmSerializer,
     MeSerializer,
 )
 from .nursing import (
@@ -58,9 +59,4 @@ from .pathology import(
     SpecimenFinalizeSerializer,
     SpecimenAmendSerializer,
     StorageObjectSerializer,
-)
-from .admin import (
-    StaffApprovalSerializer,
-    StaffApproveSerializer,
-    AccountRoleSerializer,
 )

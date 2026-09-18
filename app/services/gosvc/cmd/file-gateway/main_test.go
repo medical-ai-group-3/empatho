@@ -1132,6 +1132,99 @@ func TestDicomRejectsOtherScope(t *testing.T) {
 	}
 }
 
+// ── 새 규칙 — Orthanc 에 적어 둔 대상으로 연다 ──────────────────────
+//
+// Django 의 티켓 API 는 앞머리를 "{종류}/{id}" 로만 만든다(study/201).
+// 전에는 Go 가 "dicom/instances/<UID>" 를 통째로 요구해서 **사람이 DICOM 을
+// 받을 길이 아예 없었다.** 올릴 때 Orthanc 에 적어 둔 대상으로 대조한다.
+
+func TestDicom검사티켓으로_인스턴스를_연다(t *testing.T) {
+	r := newRig(t)
+	r.withOrthanc(t, map[string]string{
+		"POST /tools/lookup":                  `[{"ID":"inst-1","Type":"Instance"}]`,
+		"GET /instances/inst-1/metadata/1024": "study/201",
+		"GET /instances/inst-1/file":          "DICM원본",
+	})
+	w := r.do(t, "GET", "/svc/v1/dicom/instances/1.2.3", dicomTicket(t, "study/201"), nil)
+	if w.Code != 200 || w.Body.String() != "DICM원본" {
+		t.Fatalf("%d %q", w.Code, w.Body.String())
+	}
+}
+
+func TestDicom검사티켓으로_시리즈를_연다(t *testing.T) {
+	r := newRig(t)
+	r.withOrthanc(t, map[string]string{
+		"GET /series/ab-1/metadata/1024": "study/201",
+		"GET /series/ab-1/archive":       "PK시리즈zip",
+	})
+	w := r.do(t, "GET", "/svc/v1/dicom/series/ab-1", dicomTicket(t, "study/201"), nil)
+	if w.Code != 200 {
+		t.Fatalf("%d %q", w.Code, w.Body.String())
+	}
+}
+
+// ⚠ 다른 검사의 티켓으로는 못 연다. 이게 이 방식의 권한 경계다.
+func TestDicom남의_검사티켓은_막는다(t *testing.T) {
+	r := newRig(t)
+	r.withOrthanc(t, map[string]string{
+		"POST /tools/lookup":                  `[{"ID":"inst-1","Type":"Instance"}]`,
+		"GET /instances/inst-1/metadata/1024": "study/201",
+		"GET /instances/inst-1/file":          "남의 것",
+	})
+	if w := r.do(t, "GET", "/svc/v1/dicom/instances/1.2.3", dicomTicket(t, "study/999"), nil); w.Code != 403 {
+		t.Fatalf("남의 티켓인데 %d", w.Code)
+	}
+}
+
+// ⚠ **시작만 보면 안 된다.** study/20 티켓으로 study/201 이 열리면 안 된다.
+// 파일 쪽(getFrom)은 뒤에 "/" 를 붙여 경계를 지키지만 여기는 앞머리끼리
+// 비교하는 자리라 붙일 곳이 없다 — 정확히 같아야 한다.
+func TestDicom접두사_흉내를_막는다(t *testing.T) {
+	r := newRig(t)
+	r.withOrthanc(t, map[string]string{
+		"POST /tools/lookup":                  `[{"ID":"inst-1","Type":"Instance"}]`,
+		"GET /instances/inst-1/metadata/1024": "study/201",
+		"GET /instances/inst-1/file":          "원본",
+	})
+	for _, scope := range []string{"study/20", "study", "study/2011", "specimen/201"} {
+		if w := r.do(t, "GET", "/svc/v1/dicom/instances/1.2.3", dicomTicket(t, scope), nil); w.Code != 403 {
+			t.Errorf("%s 로 %d 가 나왔다 (403 이어야 한다)", scope, w.Code)
+		}
+	}
+}
+
+// ⚠ 종류가 겹치는 것도 막는다. study 201 과 specimen 201 은 같은 bigint
+// 시퀀스라 값이 겹친다 — id 만 보면 검체 티켓으로 검사 영상이 열린다.
+func TestDicom종류가_다르면_막는다(t *testing.T) {
+	r := newRig(t)
+	r.withOrthanc(t, map[string]string{
+		"POST /tools/lookup":                  `[{"ID":"inst-1","Type":"Instance"}]`,
+		"GET /instances/inst-1/metadata/1024": "specimen/201",
+		"GET /instances/inst-1/file":          "병리 것",
+	})
+	if w := r.do(t, "GET", "/svc/v1/dicom/instances/1.2.3", dicomTicket(t, "study/201"), nil); w.Code != 403 {
+		t.Fatalf("검체 자료를 검사 티켓으로 열었다 (%d)", w.Code)
+	}
+}
+
+// ⚠ 이 기능 전에 올라간 자료에는 적힌 것이 없다. 그때는 옛 규칙만 통한다 —
+// 조용히 열어 주면 안 된다.
+func TestDicom옛자료는_옛규칙만(t *testing.T) {
+	r := newRig(t)
+	r.withOrthanc(t, map[string]string{ // metadata 경로가 없다 = 404
+		"POST /tools/lookup":         `[{"ID":"inst-1","Type":"Instance"}]`,
+		"GET /instances/inst-1/file": "옛 자료",
+	})
+	if w := r.do(t, "GET", "/svc/v1/dicom/instances/1.2.3", dicomTicket(t, "study/201"), nil); w.Code != 403 {
+		t.Errorf("적힌 것이 없는데 검사 티켓으로 열렸다 (%d)", w.Code)
+	}
+	// 옛 규칙(UID 를 통째로 적은 티켓)은 그대로 통해야 한다 — Celery 가 쓴다
+	if w := r.do(t, "GET", "/svc/v1/dicom/instances/1.2.3",
+		dicomTicket(t, "dicom/instances/1.2.3"), nil); w.Code != 200 {
+		t.Errorf("옛 규칙이 막혔다 (%d) — 워커가 못 받는다", w.Code)
+	}
+}
+
 // Orthanc 경로에 그대로 들어가는 값이다. 형식 밖 글자는 Orthanc 에 닿기 전에 거절한다.
 func TestDicomRejectsBadID(t *testing.T) {
 	r := newRig(t)
