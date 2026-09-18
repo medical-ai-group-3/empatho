@@ -10,9 +10,7 @@ from .. import models, serializers
 from ..mixins import AuditMixin
 from core.api.permissions import MatrixPermission, OwnedOnlyMixin, CanDisposeDiscordance
 from core.api.errors import ApiError
-from core.api.permissions import (
-    CanBindSpecimen, CanDecideAssessment, CanUnlockReport,
-)
+from core.api.permissions import CanBindSpecimen, CanDecideAssessment
 
 
 class ExamOrderRequestView(AuditMixin, viewsets.ViewSet):
@@ -205,7 +203,7 @@ class ReportUnlockView(AuditMixin, viewsets.ViewSet):
     """§3 PATCH /reports/{id}/unlock — 잠금 해제."""
 
     resource = "report"
-    permission_classes = [MatrixPermission, CanUnlockReport]
+    permission_classes = [MatrixPermission]
 
     def partial_update(self, request, pk=None):
         report = models.Report.objects.get(pk=pk)

@@ -318,18 +318,3 @@ CanDisposeDiscordance = IsRole.of(SURGERY, code="DISPOSITION_ROLE_ONLY_SURGERY")
 
 #: 리포트 열람 잠금 해제 — 유방외과 단독 (§11.5)
 CanUnlockReport = IsRole.of(SURGERY, code="UNLOCK_ROLE_ONLY_SURGERY")
-
-# ── 판독 확정 ────────────────────────────────────────────────────────────
-#
-# 판독은 의사 행위다. 관리자가 권한 칸을 켜서 열 수 있으면 안 된다.
-#
-# ⚠ **칸만 보고 판단하면 틀린다.** study:U 하나가 두 가지를 겸한다 —
-#     studies/{id}/upload    기사가 올리고 품질을 본다
-#     studies/{id}/finalize  의사가 판독을 확정한다
-#   MATRIX 에서 study:U 를 빼면 기사까지 막히고, 두면 그 칸을 개인에게 받은
-#   사람 누구나 판독을 확정한다. 칸은 그대로 두고 **역할로 한 번 더 가른다.**
-#   specimen_pathology:U 도 같은 모양이다.
-#
-# MatrixPermission 과 **함께** 건다 — 둘 다 통과해야 들어간다.
-CanFinalizeRadiologyRead = IsRole.of(RADIOLOGY, code="ROLE_FORBIDDEN")
-CanFinalizePathologyRead = IsRole.of(PATHOLOGY, code="ROLE_FORBIDDEN")

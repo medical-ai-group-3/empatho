@@ -19,9 +19,7 @@ from django.utils import timezone
 
 from .. import models, serializers
 from ..mixins import AuditMixin
-from core.api.permissions import (
-    CanFinalizeRadiologyRead, MatrixPermission,
-)
+from core.api.permissions import MatrixPermission
 from core.api.errors import ApiError
 
 
@@ -266,7 +264,7 @@ class AssessmentDraftView(AuditMixin, viewsets.ViewSet):
     """PUT /studies/{id}/assessment/draft — 임시저장(덮어쓰기)."""
 
     resource = "assessment"
-    permission_classes = [MatrixPermission, CanFinalizeRadiologyRead]
+    permission_classes = [MatrixPermission]
 
     def update(self, request, pk=None):
         study = models.Study.objects.get(pk=pk)
@@ -295,7 +293,7 @@ class StudyFinalizeView(AuditMixin, viewsets.ViewSet):
     """PATCH /studies/{id}/finalize — 판독 확정."""
 
     resource = "study"
-    permission_classes = [MatrixPermission, CanFinalizeRadiologyRead]
+    permission_classes = [MatrixPermission]
 
     def partial_update(self, request, pk=None):
         study = models.Study.objects.get(pk=pk)
@@ -376,7 +374,7 @@ class AssessmentAmendView(AuditMixin, viewsets.ViewSet):
     """POST /assessments/{id}/amend — 정정. 새 행 생성 + 옛 행 superseded_by."""
 
     resource = "assessment"
-    permission_classes = [MatrixPermission, CanFinalizeRadiologyRead]
+    permission_classes = [MatrixPermission]
 
     def create(self, request, pk=None):
         old = models.Assessment.objects.get(pk=pk)
