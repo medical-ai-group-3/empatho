@@ -58,7 +58,7 @@ func main() {
 		h: hub.New(atoi(env("NOTIFY_BUFFER", "32"))),
 		cb: callback.New(cbBase, []byte(cbSec),
 			os.Getenv("CALLBACK_CERT"), os.Getenv("CALLBACK_KEY"), 4),
-		tv:     ticket.NewVerifier([]byte(tkey)),
+		tv:     ticket.NewVerifier([]byte(tkey), purposeNotify),
 		secret: []byte(cbSec), // 발행 서명도 같은 키를 쓴다
 	}
 	log.Printf("notify %s", addr)

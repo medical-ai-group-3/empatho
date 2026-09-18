@@ -845,7 +845,7 @@ class DiscordanceFlag(AuditBase):
 
 class Report(AuditBase):
     """리포트 1건. 검사별(stage)과 종합(final), 의료진용과 환자용."""
-
+    specimen = models.ForeignKey('Specimen', models.PROTECT, blank=True,null=True, related_name='reports')
     report_id = models.BigAutoField(primary_key=True)
     study = models.ForeignKey(Study, models.PROTECT, blank=True, null=True,
                               related_name='reports')   # 종합 리포트는 null

@@ -237,6 +237,15 @@ class ReportUnlockView(AuditMixin, viewsets.ViewSet):
         report.unlock_reason = request.data.get("unlock_reason", "")
         report.updated_by = self._current_account()
         report.save()
+        
+        from .. import notify
+        notify.send(
+            patient=report.patient, 
+            type="report_ready",
+            message="검사 결과가 도착했습니다. 앱에서 확인해 주세요.", 
+            ref_type="report",
+            ref_id=report.pk
+        )
 
         out = serializers.ReportSerializer(report)
         return Response(out.data)

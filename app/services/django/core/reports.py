@@ -40,7 +40,10 @@ def issue_stage_report(ai) :
     # 조직검사가 같은 검사에 붙는다. 소켓이 그 둘을 가른다.
     # 판독을 다시 돌려도 행은 그대로 두고 소견문만 새로 덮는다.
     report, created = models.Report.objects.get_or_create(
-        study_id = study_id, report_type="stage", socket_id=socket_id,
+        study_id = study_id, 
+        report_type="stage", 
+        socket_id=socket_id,
+        specimen_id=ai.specimen_id, 
         defaults={"patient_id": ai.patient_id, "audience": "clinician"}
     )
     

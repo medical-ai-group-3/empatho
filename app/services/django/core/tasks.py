@@ -195,7 +195,17 @@ def run_inference(ai_result_id) :
         try :
             _store_lesions(ai)
             from . import reports
-            reports.issue_stage_report(ai)
+            from . import notify
+            report = reports.issue_stage_report(ai)
+            staff = getattr(ai.created_by, "staff", None)
+            if staff:
+                notify.send(
+                    staff=staff, 
+                    type="report_ready",
+                    message = "AI 판독이 끝났습니다.",
+                    ref_type="report",
+                    ref_id=report.pk
+                )
         except Exception as exc :
             logger.exception("[run_inference] 판독 뒤처리 실패 %s", ai.pk)
     logger.info("[run_inference] 행 %s %s %.1f초", ai.pk, ai.run_status, float(ai.elapsed_sec))
