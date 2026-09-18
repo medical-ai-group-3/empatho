@@ -110,6 +110,18 @@ type StorageObject struct {
 	PatientID      string `json:"patient_id,omitempty"`
 	ScopeID        string `json:"scope_id,omitempty"`
 
+	// 픽셀 크기. **그림일 때만 싣는다.**
+	//
+	// 맘모·MRI 는 DICOM 이라 I-2 가 채우고, 초음파·병리는 PNG 라 I-2 를
+	// 안 탄다(dicom.Parse 가 매직을 못 찾고 끝난다). 그래서 이 둘이 null 로
+	// 남아 화면이 AI 폴리곤 좌표를 원본 위에 못 올린다 — 좌표가 원본 픽셀
+	// 기준이라 기준 크기가 없으면 놓을 자리가 없다.
+	//
+	// 포인터에 omitempty 라 그림이 아니면 **키 자체가 안 나간다.** Django 는
+	// 지금처럼 null 로 둔다. 0 을 보내면 「0픽셀짜리 그림」이 되어 버린다.
+	WidthPx  *int `json:"width_px,omitempty"`
+	HeightPx *int `json:"height_px,omitempty"`
+
 	// scope_id 가 무엇을 가리키는지. 티켓 클레임을 그대로 넘긴다.
 	//
 	// Django 의 storage_object 는 study_id · specimen_id 중 하나만

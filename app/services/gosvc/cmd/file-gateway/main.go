@@ -37,6 +37,7 @@ import (
 	"cdss/gosvc/internal/callback"
 	"cdss/gosvc/internal/dicom"
 	"cdss/gosvc/internal/httpx"
+	"cdss/gosvc/internal/imagemeta"
 	"cdss/gosvc/internal/orthanc"
 	"cdss/gosvc/internal/storage"
 	"cdss/gosvc/internal/ticket"
@@ -209,9 +210,13 @@ func (g *gw) auth(w http.ResponseWriter, r *http.Request, want ...string) *ticke
 	return cl
 }
 
-// keyFor — object_key 는 **티켓 접두사 + 우리가 만든 이름** 이다.
-// 클라이언트가 준 파일명은 확장자만 참고하고 경로로 쓰지 않는다.
-// 그래야 남의 자리에 못 쓴다.
+// keyFor — object_key 는 «티켓 앞머리 + 이름» 이다.
+//
+// 이름을 앱이 정해 주면 그것을 쓴다. 같은 대상을 다시 올려도 같은
+// 키가 나오므로 콜백의 (버킷, 키) 멱등이 그제야 실제로 동작하고,
+// 앱이 주소를 미리 알 수 있어 스텁에 예정 주소를 심을 수 있다.
+//
+// 안 주면 지금까지처럼 난수다. 파생물만 이름을 싣고 DICOM 은 안 싣는다.
 func keyFor(cl *ticket.Claims, filename string) string {
 	// 확장자만 뽑는다. 경로 구분자·상위 참조가 섞여 들어오면 버린다.
 	base := strings.ToLower(path.Base(filepath.ToSlash(filename)))
@@ -222,10 +227,31 @@ func keyFor(cl *ticket.Claims, filename string) string {
 	if len(ext) > 12 || strings.ContainsAny(ext, `/\`) || strings.Contains(ext, "..") {
 		ext = ""
 	}
-	var b [12]byte
-	rand.Read(b[:])
-	return strings.TrimSuffix(cl.ObjectKeyPrefix, "/") + "/" +
-		hex.EncodeToString(b[:]) + ext
+
+	name := cl.ObjectName
+	if name == "" {
+		var b [12]byte
+		rand.Read(b[:])
+		name = hex.EncodeToString(b[:]) + ext
+	} else if strings.ContainsAny(name, `/\`) || strings.Contains(name, "..") {
+		// 앞머리 밖으로 나가는 이름은 안 받는다. 앞머리가 유일한 경계다
+		return ""
+	}
+	return strings.TrimSuffix(cl.ObjectKeyPrefix, "/") + "/" + name
+}
+
+// sameTicket — 조각 쓰기·완료에 쓰는 티켓이 개시할 때의 티켓과 같은
+// 대상인지 본다.
+//
+// 이 검사가 없으면 purpose 만 맞으면 통과한다. A 검체용 티켓으로 B
+// 검체의 업로드 세션에 조각을 쓸 수 있고, 그러면 다른 환자 자리에
+// 바이트가 들어간다.
+//
+// 세션에 값은 개시할 때부터 다 들어 있었다. 읽지만 않고 있었다.
+func sameTicket(cl *ticket.Claims, s *upload.Session) bool {
+	return cl.Purpose == s.Purpose &&
+		cl.ScopeID == s.ScopeID &&
+		cl.PatientID == s.PatientID
 }
 
 // ── G-F1 ────────────────────────────────────────────────────────────
@@ -242,7 +268,12 @@ func (g *gw) initUpload(w http.ResponseWriter, r *http.Request) {
 	var b [16]byte
 	rand.Read(b[:])
 	id := hex.EncodeToString(b[:])
-	s := g.up.Init(id, keyFor(cl, req.Filename), cl.ContentType,
+	key := keyFor(cl, req.Filename)
+	if key == "" {
+		fail(w, 400, "BAD_OBJECT_NAME", "티켓의 object_name 을 쓸 수 없습니다")
+		return
+	}
+	s := g.up.Init(id, key, cl.ContentType,
 		cl.PatientID, cl.ScopeID, cl.Purpose, cl.MaxBytes)
 	log.Printf("[G-F1] upload=%s scope=%s max=%d", id, cl.ScopeID, cl.MaxBytes)
 	writeJSON(w, 200, map[string]any{
@@ -253,12 +284,17 @@ func (g *gw) initUpload(w http.ResponseWriter, r *http.Request) {
 
 // ── G-F2 ────────────────────────────────────────────────────────────
 func (g *gw) putPart(w http.ResponseWriter, r *http.Request) {
-	if g.auth(w, r, "wsi_upload", "dicom_upload") == nil {
+	cl := g.auth(w, r, "wsi_upload", "dicom_upload")
+	if cl == nil {
 		return
 	}
 	s, ok := g.up.Get(r.PathValue("id"))
 	if !ok {
 		fail(w, 404, "UPLOAD_NOT_FOUND", "개시되지 않은 업로드다")
+		return
+	}
+	if !sameTicket(cl, s) {
+		fail(w, 403, "TICKET_SCOPE_MISMATCH", "이 티켓으로는 이 업로드를 이어갈 수 없습니다")
 		return
 	}
 	n, err := upload.ParsePart(r.PathValue("n"))
@@ -281,12 +317,17 @@ func (g *gw) putPart(w http.ResponseWriter, r *http.Request) {
 
 // ── G-F3 ────────────────────────────────────────────────────────────
 func (g *gw) complete(w http.ResponseWriter, r *http.Request) {
-	if g.auth(w, r, "wsi_upload", "dicom_upload") == nil {
+	cl := g.auth(w, r, "wsi_upload", "dicom_upload")
+	if cl == nil {
 		return
 	}
 	s, ok := g.up.Get(r.PathValue("id"))
 	if !ok {
 		fail(w, 404, "UPLOAD_NOT_FOUND", "개시되지 않은 업로드다")
+		return
+	}
+	if !sameTicket(cl, s) {
+		fail(w, 403, "TICKET_SCOPE_MISMATCH", "이 티켓으로는 이 업로드를 이어갈 수 없습니다")
 		return
 	}
 	// 성공하든 실패하든 조각은 지운다
@@ -305,7 +346,8 @@ func (g *gw) complete(w http.ResponseWriter, r *http.Request) {
 	// 분할 업로드는 원본 전용이다. 파생물은 메시 · 마스크라 한 번에 올라간다 —
 	// 필요해지면 여기에도 저장소를 골라 넘기면 된다.
 	g.commit(w, r, g.st, s.ObjectKey, sum, total, s.ContentType,
-		s.PatientID, s.ScopeID, s.Purpose, tap.b.Bytes(), nil)
+		s.PatientID, s.ScopeID, s.Purpose, tap.b.Bytes(), nil,
+		imagemeta.Parse(tap.b.Bytes()))
 }
 
 // headTap — 앞 max 바이트만 모으고 나머지는 버린다.
@@ -329,7 +371,7 @@ func (h *headTap) Write(p []byte) (int, error) {
 
 // ── G-F4 ────────────────────────────────────────────────────────────
 func (g *gw) putFile(w http.ResponseWriter, r *http.Request) {
-	cl := g.auth(w, r, "dicom_upload", "report_pdf", "prescription_pdf")
+	cl := g.auth(w, r, "dicom_upload", "report_pdf", "prescription_pdf", "wsi_upload")
 	if cl == nil {
 		return
 	}
@@ -377,6 +419,14 @@ func (g *gw) putTo(w http.ResponseWriter, r *http.Request, cl *ticket.Claims,
 	// capReader 는 상한을 넘는 순간 읽기를 실패시켜 Put 자체를 중단시킨다.
 	h := sha256.New()
 	key := keyFor(cl, r.Header.Get("X-Filename"))
+	// 앞머리 밖으로 나가는 object_name 이면 keyFor 가 빈 문자열을 낸다.
+	// 그대로 넘기면 앞머리 없이 저장소 뿌리에 쓴다 — 경계가 사라진다.
+	// 티켓은 Django 가 서명하니 클라이언트가 지어낼 수는 없지만,
+	// 이름을 제일 먼저 쓰는 곳이 파생물이라 발급 쪽 실수가 바로 여기로 온다.
+	if key == "" {
+		fail(w, 400, "BAD_OBJECT_NAME", "티켓의 object_name 을 쓸 수 없습니다")
+		return
+	}
 	cr := &capReader{r: r.Body, limit: max}
 	tap := &headTap{max: headBytes}
 	ct := cl.ContentType
@@ -394,16 +444,20 @@ func (g *gw) putTo(w http.ResponseWriter, r *http.Request, cl *ticket.Claims,
 		fail(w, 500, "PUT_FAILED", err.Error())
 		return
 	}
-	head := tap.b.Bytes()
+	raw := tap.b.Bytes()
+	head := raw
 	if !parseDICOM {
 		head = nil // 파생물은 DICOM 이 아니다. 파싱도 Orthanc 전송도 건너뛴다
 	}
+	// ⚠ 크기는 **head 가 아니라 raw 에서** 읽는다. 파생물(병리 마스크 PNG)도
+	//   크기가 필요한데, 위에서 head 를 비워 버리기 때문이다.
+	px := imagemeta.Parse(raw)
 	var derived map[string]string
 	if cl.Purpose == "derived_upload" {
 		derived = map[string]string{"kind": cl.Kind, "source_object_id": cl.SourceObjectID, "ai_result_id": cl.AiResultID, "lesion_id": cl.LesionID}
 	}
 	g.commit(w, r, st, key, hex.EncodeToString(h.Sum(nil)), cr.read, ct,
-		cl.PatientID, cl.ScopeID, cl.Purpose, head, derived)
+		cl.PatientID, cl.ScopeID, cl.Purpose, head, derived, px)
 }
 
 // bucketName — 설정 안 된 저장소를 로그·health 에서 구분해 보여준다.
@@ -439,12 +493,17 @@ func (c *capReader) Read(p []byte) (int, error) {
 // 명세 21장이 그 상태를 정상으로 취급하지 말라고 못 박았으므로 502 로 알린다.
 func (g *gw) commit(w http.ResponseWriter, r *http.Request, st storage.Store,
 	key, sum string, size int64, ct, patient, scope, purpose string,
-	head []byte, derived map[string]string) {
+	head []byte, derived map[string]string, px *imagemeta.Size) {
 	obj := callback.StorageObject{
 		Bucket: st.Bucket(), ObjectKey: key, ChecksumSHA256: sum,
 		ByteSize: size, ContentType: ct, StorageClass: g.cls,
 		PatientID: patient, ScopeID: scope, Purpose: purpose,
 		Derived: derived,
+	}
+	// PNG·JPEG 이면 픽셀 크기를 싣는다. 그림이 아니면 px 가 nil 이라
+	// 키 자체가 안 나가고 Django 는 지금처럼 null 로 둔다.
+	if px != nil {
+		obj.WidthPx, obj.HeightPx = &px.W, &px.H
 	}
 	if err := g.cb.PostStorageObject(r.Context(), obj); err != nil {
 		log.Printf("[gw] ✗ I-1 실패 key=%s — 고아 객체가 된다: %v", key, err)

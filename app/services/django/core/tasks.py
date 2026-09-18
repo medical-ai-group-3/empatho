@@ -36,13 +36,17 @@ import logging
 import time 
 import urllib.request
 import uuid 
+import base64
+import http.client
+import urllib.error
 
 from celery import shared_task 
 from .api.tickets import issue 
 from django.utils import timezone
 
 from . import mesh 
-from .models import AiResult, StorageObject
+from celery.exceptions import SoftTimeLimitExceeded
+from .models import AiResult, Report, StorageObject
 
 logger = logging.getLogger(__name__) 
 
@@ -57,6 +61,10 @@ GATEWAY = "http://file-gateway:8091"
 #   GPU 는 워크스테이션에만 있어서 판독은 반드시 이 경로를 지난다.
 INFERENCE = "http://tunnel:8001"
 
+# 소견문 창구
+#   Go 가 리포트 서버(워크스테이션 8002)를 대신 부른다. 글은 응답이 아니라
+#   소견문 저장 콜백으로 돌아온다.
+LLM_PROXY = "http://llm-proxy:8090"
 
 # 모달리티별 소켓 지정
 #   추론 서버는 주소의 소켓 번호로 어느 모델을 쓸지 정한다 — 영상을 열어보고
@@ -178,28 +186,48 @@ def run_inference(ai_result_id) :
         req = urllib.request.Request(f"{INFERENCE}/analyze/{socket}", data=body, headers={"Content-Type": f"multipart/form-data; boundary={boundary}"})
         # 추론 서버는 실패도 HTTP 200 에 abstained 로 돌려준다. 그래서 상태
         # 코드를 따로 보지 않고, 기권 여부는 응답 안에서 읽는다.
-        with urllib.request.urlopen(req, timeout=300) as r :
-            out = json.loads(r.read())
-            
+        #
+        # 유휴 회수와 겹치면 연결이 끊긴다 — 판독 서버는 30초 놀면 GPU 를
+        # 반납하려고 프로세스를 끝내고, supervisor 가 곧바로 다시 띄운다.
+        # 그 순간에 들어간 요청만 끊기므로 한 번 더 걸면 된다.
+        # 두 번째도 끊기면 그때는 실패로 남긴다.
+        for attempt in (1,2) :
+            try : 
+                with urllib.request.urlopen(req, timeout=600) as r :
+                    out = json.loads(r.read())
+                break
+            except (urllib.error.URLError, ConnectionError, http.client.HTTPException) as exc :
+                if attempt == 2 :
+                    raise 
+                logger.warning("[run_inference] 연결 끊김 - 다시 건다 (%s)", type(exc).__name__)
+                time.sleep(3)
         # MRI 응답은 대부분이 3D 메시다. 걷어내지 않으면 jsonb 한 칸이 그 크기가 된다.
         if modality == "mri" :
             out = _store_meshes(out, ai)
+        
+        elif modality in ("pathology", "us") :
+            out = _store_mask(out, ai)
             
         # ⑧ 결과를 행에 채운다. 저장은 마지막에 한 번만 한다.
         #    abstained 는 「판독을 못 했다」이고 실패(failed)와 다르다 — 호출은
         #    정상이었고 모델이 판정을 거부한 것이라 done 으로 남긴다.
         ai.result = out
         ai.abstained = bool(out.get("abstained"))
-        ai.abstain_reason = (out.get("reason") or "")[:100] or None
+        ai.abstain_reason = out.get("reason") or None
         ai.run_status = "done"
+    
+    except SoftTimeLimitExceeded :
+        # Celery 가 그만 이라고 보낸것 하드 제한이 오기전에 기록 
+        logger.error("[run_inference] 행 %s 시간 초과", ai.pk)
+        ai.run_status = "failed"
+        ai.abstain_reason = "soft_time_limit"
+    
     except Exception as e:
         # 실패해도 행에 남긴다. 로그만 남기면 화면이 queue 인채로 멈춘다
-        #
-        # 예외 종류와 메시지를 사유 칸에 넣는다. 칸이 100자라 잘라 넣고,
-        # 자세한 내용은 logger.exception 이 남기는 traceback 에 있다.
         logger.exception("[run_inference] 행 %s 실패", ai.pk)
         ai.run_status = "failed"
-        ai.abstain_reason = f"{type(e).__name__}: {e}"[:100]
+        # 칸이 text 다(0013 이전에는 varchar(100) 이었다). 자르면 원인을 못 읽는다.
+        ai.abstain_reason = f"{type(e).__name__}: {e}"
         
     # ⑨ 성공 · 실패 어느 쪽이든 시간과 시각을 남기고 한 번 저장한다.
     #    try 안에서 저장하지 않는 이유는, 실패 경로에서도 같은 칸을 채워야
@@ -212,8 +240,87 @@ def run_inference(ai_result_id) :
     ai.save(update_fields=[
         "result", "abstained", "abstain_reason", "run_status",
         "elapsed_sec", "analyzed_at", "updated_at"])
+    # 판독이 끝났으면 검사 리포트를 세우고 AI 소견문을 맡긴다.
+    #
+    # 여기서 가져오는 이유 — core.reports 가 맨 위에서 이 모듈의 SOCKET 과
+    # request_narrative 를 가져간다. 파일 맨 위에서 서로를 부르면 둘 다
+    # 반쯤 올라간 상태에서 만나 ImportError 가 난다.
+    #
+    # 소견문이 실패해도 판독 결과는 이미 저장됐다. 그래서 여기서 터져도
+    # 행을 failed 로 되돌리지 않는다 — 판독은 성공한 것이 맞다
+    if ai.run_status == "done" :
+        try :
+            from . import reports
+            reports.issue_stage_report(ai)
+        except Exception as exc :
+            logger.warning("[run_inference] 소견문 요청 실패 %s (%s)", ai.pk, type(exc).__name__)
     logger.info("[run_inference] 행 %s %s %.1f초", ai.pk, ai.run_status, float(ai.elapsed_sec))
     return ai.run_status
+
+@shared_task
+def request_narrative(report_id, ai_result_id) :
+    """리포트 한 건의 AI 소견문을 리포트 서버에 맡긴다.
+
+    ■ 왜 태스크인가
+        리포트 서버는 GPU 를 쓴다. 모델이 올라와 있으면 1초 미만이지만 처음
+        부를 때는 적재를 기다린다. 판독 태스크가 그것까지 안고 있으면 다음
+        판독이 밀린다.
+
+    ■ 글이 돌아오는 길
+        여기서 Go 를 부르고 끝이다. 문장은 응답이 아니라 콜백으로 들어온다.
+
+            Django ─티켓─▶ llm-proxy ─▶ 리포트 서버 ─▶ 소견문 저장 콜백 ─▶ report
+
+        Go 응답에도 같은 내용이 실려 있지만 쓰지 않는다. 저장 경로가 둘이면
+        어느 쪽이 이겼는지 알 수 없다.
+
+    ■ 실패해도 리포트는 남는다
+        명세 규칙이다 — 리포트 서버가 죽어도 리포트는 발급된다. 그래서
+        예외를 올리지 않고 재시도도 하지 않는다. 재시도가 GPU 를 붙잡으면
+        판독이 밀린다. 다시 만들지는 사람이 정한다.
+    """
+    report = Report.objects.get(pk=report_id) 
+    ai = AiResult.objects.get(pk=ai_result_id)
+    
+    # 봉투가 아니라 안쪽을 보낸다. 리포트 서버는 /analyze 의 result 를 그대로
+    # 받는다 — 봉투째 주면 lesion_found 를 못 찾아 「병변이 검출되지
+    # 않았습니다」가 나간다.
+    result = (ai.result or {}).get("result")
+    if not isinstance(result, dict) :
+        logger.warning("[narrative] 리포트 %s 판독 %s 에 결과가 없다", report_id, ai.pk)
+        return "no_result"
+    # evidence 는 아직 빈 목록이다. AI 결과에서 병변 행을 만드는 코드가 없어
+    # 채울 것이 없다. 리포트 서버는 그때 근거 검사를 건너뛰고 숫자 검사만
+    # 한다 — 400 이 아니라 정상 경로다.
+    body = json.dumps({
+        "report_id": str(report.pk),
+        "socket": report.socket_id,
+        "result": result,
+        "evidence": []
+    }).encode() 
+    
+    token, _, _ = issue("report_narrative", "report", report.pk)
+    req = urllib.request.Request(
+        f"{LLM_PROXY}/svc/v1/llm/report-narrative",
+        data = body,
+        method="POST",
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json"
+        }
+    )
+    try :
+        # Go 는 5분까지 기다린다. 우리가 먼저 끊으면 Go 는 계속 만들고 있고
+        # 콜백도 정상으로 들어오는데 이 태스크만 실패로 남아 헷갈린다.
+        with urllib.request.urlopen(req, timeout=330) as r :
+            out = json.loads(r.read())
+    except Exception as exc :
+        logger.warning("[narrative] 리포트 %s 못 보냈다 (%s)", 
+                       report_id, type(exc).__name__)
+        return f"failed:{type(exc).__name__}"
+    
+    logger.info("[narrative] 리포트 %s 보냄 / 소켓 %s / fallback=%s", report_id, report.socket_id, out.get("fallback"))
+    return "sent"
 
 def _series_row(study_id) :
     """이 검사의 Orthanc 시리즈를 대표하는 저장 행 하나.
@@ -282,12 +389,89 @@ def _ref(ai, modality) :
     # 초음파 · 병리는 Garage 에 그대로 있다.
     return src.object_key
     
+def _upload_derived(ai, kind, payload, content_type, filename, source_id, lesion_id=None, object_name=None):
+    """파생물 하나를 Go 로 올리고 실제 주소를 받아 온다.
+
+    티켓에 꼬리표(종류 · 원본 · 실행)를 실어 서명한다. Go 가 그것을 파일 등록
+    콜백에 그대로 넘기고, Django 가 발급 때와 같은 함수로 다시 검증한다 —
+    파생물이 엉뚱한 실행에 붙지 않게 하는 자리다.
+
+    범위는 검사(영상) 아니면 검체(병리)다. ai_result 가 둘 중 하나만 가리킨다.
+
+    파라미터
+        kind          파생물 종류. mask · mesh_breast 처럼 티켓이 아는 이름
+        payload       올릴 바이트
+        content_type  Go 가 저장할 때 붙일 형식
+        filename      확장자만 쓰인다. 이름 전체는 Go 가 난수로 정한다
+        source_id     이 파생물이 나온 원본 행 번호
+        lesion_id     병변 메시만 쓴다
+
+    돌려주는 값
+        {"bucket": ..., "object_key": ...} — Go 가 실제로 저장한 주소
+    """
+    scope_kind = "study" if ai.study_id else "specimen"
+    scope_id = ai.study_id or ai.specimen_id
+    
+    derived = {
+        "kind": kind,
+        "source_object_id":source_id, 
+        "ai_result_id":ai.pk
+    }
+    if lesion_id:
+        derived["lesion_id"] = lesion_id
+        
+    token, _, _ = issue("derived_upload", scope_kind, scope_id,
+                        content_type=content_type, max_bytes=len(payload), 
+                        derived=derived, object_name=object_name)
+    req = urllib.request.Request(
+        f"{GATEWAY}/svc/v1/derived", data=payload, method="POST",
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": content_type,
+            "X-Filename" : filename,
+        }
+    )
+    with urllib.request.urlopen(req, timeout=60) as r :
+        saved = json.loads(r.read())
+    logger.info("[derived] %s %d 바이트 -> %s", kind, len(payload), saved["object_key"])
+    return saved
+
+def _store_mask(out, ai) :
+    """마스크 PNG 를 파생물로 보내고 결과에는 주소만 남긴다.
+
+    병리는 조직 분할(tissue_mask_png), 초음파는 병변 마스크(mask_png)다.
+    판독 서버가 numpy 를 PNG 로 만들어 base64 로 싣고, 여기서 파일로 옮긴다.
+    그대로 두면 판독할 때마다 같은 그림이 DB 안에 쌓인다.
+
+    초음파는 윤곽 좌표(polygons)를 함께 낸다. 둘 다 남긴다 — 화면이 마스크로
+    칠하고 좌표로 테두리를 그린다.
+    """
+    res = (out.get("result") or {}) 
+    key = "tissue_mask_png" if "tissue_mask_png" in res else "mask_png"
+    encoded = res.get(key)
+    if not encoded :
+        return out 
+    
+    out = dict(out)
+    res = dict(res)
+    out["result"] = res
+    
+    name = f"{key.replace('_png', '')}-{ai.pk}.png"
+    saved = _upload_derived(ai, "mask", base64.b64decode(encoded),
+                            "image/png", name, ai.source_object_id, object_name=name)
+    res.pop(key, None)
+    res[key.replace("_png", "")] = {
+        "bucket": saved["bucket"],
+        "object_key": saved["object_key"], 
+        "content_type": "image/png"
+    }
+    return out 
     
 def _store_meshes(out, ai) :
     """MRI 메시를 파생물 버킷으로 보내고 결과에는 실제 주소만 남긴다.
 
-    Go 가 키를 난수로 만들어서(file-gateway/main.go keyFor) mesh.split 이 넣어 둔
-    예정 주소와 다르다. 올린 뒤 돌려받은 주소로 스텁을 고쳐야 나중에 찾을 수 있다.
+    주소는 올리기 전에 정해진다. mesh.split 이 티켓 접두사(study/<검사번호>) 뒤에
+    붙일 이름을 만들고 Go 가 그 이름을 그대로 쓰므로, 올린 뒤 스텁을 고칠 필요가 없다.
 
     왜 필요한가
         MRI 응답은 48MB 안팎이고 그 대부분이 3D 메시(정점 · 삼각형 좌표)다.
@@ -307,13 +491,12 @@ def _store_meshes(out, ai) :
 
     안에서 쓰는 이름
         inner      메시를 뺀 판독값(봉투 안쪽)
-        parts      떼어낸 메시 목록. 각각 바이트 · 종류 · 예정 주소를 든다
+        parts      떼어낸 메시 목록. 각각 바이트 · 종류 · 확정된 주소를 든다
         source_id  파생물 티켓에 실을 원본 번호
-        saved      Go 가 돌려준 실제 주소(bucket · object_key)
     """
     # 메시 분리 코드는 판독값 기준이라 봉투가 아니라 그 안쪽을 넘긴다.
     # 봉투에는 모델 이름 · 판 같은 작은 값만 있어 걷어낼 것이 없다.
-    inner, parts = mesh.split(out["result"], ai.study_id)
+    inner, parts = mesh.split(out["result"], ai.study_id, ai.pk)
     out = dict(out)
     out["result"] = inner
 
@@ -328,37 +511,17 @@ def _store_meshes(out, ai) :
         #   행을 만드는 코드가 아직 없어 그 번호를 채울 수 없다. 올리지 않고
         #   스텁에 「저장 안 함」 표시만 남긴다 — 없는 주소를 가리키지 않게 한다.
         if part.kind == mesh.LESION_KIND :
-            _walk_ref(inner, part.object_key, None)
+            _walk_ref(inner, f"study/{ai.study_id}/{part.object_name}", None)
             continue
-        
+
         # 파생물 티켓은 쓰기 티켓이다. 범위(검사)와 함께 꼬리표를 서명에 싣는다 —
         # Go 가 그대로 파일 등록 콜백에 실어 보내고, Django 가 발급 때와 같은
         # 함수로 다시 검증한다. 그래야 파생물이 엉뚱한 실행에 붙지 않는다.
         #   content_type  Go 가 저장할 때 붙일 형식
         #   max_bytes     이 파일 크기만큼만 허용. 넘으면 Go 가 받다가 끊는다
-        token, _, _ = issue("derived_upload", "study",
-                            ai.study_id, content_type=part.content_type, 
-                            max_bytes=part.byte_size, 
-                            derived={
-                                "kind": part.kind, 
-                                "source_object_id": source_id,
-                                "ai_result_id": ai.pk})
-        # X-Filename 은 Go 가 확장자를 떼어 쓰는 값이다. 이름 전체는 Go 가
-        # 난수로 정하므로 지금은 확장자만 전달되는 셈이다.
-        req = urllib.request.Request(
-            f"{GATEWAY}/svc/v1/derived", data=part.payload, method="POST",
-            headers={
-                "Authorization": f"Bearer {token}",
-                "Content-Type": part.content_type, 
-                "X-Filename": part.object_key.rsplit("/", 1)[-1]
-            }
-        )
-        with urllib.request.urlopen(req, timeout=300) as r :
-            saved = json.loads(r.read())
-        # 올린 뒤에야 실제 주소를 안다. 그 주소로 스텁을 고쳐야 나중에 이
-        # 결과에서 메시 파일을 찾아갈 수 있다.
-        _walk_ref(inner, part.object_key, saved)
-        logger.info("[mesh] %s %d바이트 -> %s", part.kind, part.byte_size, saved["object_key"])
+        _upload_derived(ai, part.kind, part.payload, part.content_type,
+                        part.object_name, source_id,
+                        object_name=part.object_name)
     return out
 
 def _walk_ref(node, planned_key, saved) :

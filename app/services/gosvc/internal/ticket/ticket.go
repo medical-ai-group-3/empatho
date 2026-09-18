@@ -39,6 +39,7 @@ type Claims struct {
 	MaxBytes        int64  `json:"max_bytes,omitempty"`
 	ContentType     string `json:"content_type,omitempty"`
 	ObjectKeyPrefix string `json:"object_key_prefix,omitempty"`
+	ObjectName      string `json:"object_name,omitempty"` // 앱이 정하면 이 이름
 	Exp             int64  `json:"exp"`
 	Nonce           string `json:"nonce"`
 	Kind            string `json:"kind,omitempty"`

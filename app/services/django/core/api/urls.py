@@ -13,17 +13,40 @@ from importlib.util import find_spec
 
 from django.urls import include, path, re_path
 
-from .admin_session import AdminSessionView
 from .tickets import TicketView
-from .views import HealthView, NotFoundView, login
+from .views import (
+    HealthView, NotFoundView, login, refresh_token, logout,
+    signup_staff, signup_patient,
+)
 
 urlpatterns = [
     path("health", HealthView.as_view(), name="health"),
     path("tickets", TicketView.as_view(), name="ticket-issue"),
     path("login", login, name = "login"),
-    # 우리 로그인 → Django admin 세션. 관리자가 로그인을 두 번 하지 않게 한다
-    path("admin-session", AdminSessionView.as_view(), name="admin-session"),
+    path("token/refresh", refresh_token, name="token-refresh"),
+    path("logout", logout, name="logout"),
+    path("signup/staff", signup_staff, name="signup-staff"),
+    path("signup/patient", signup_patient, name="signup-patient"),
 ]
+
+# ── 나중에 붙은 경로들 ──────────────────────────────────────────────
+#
+# ⚠ 위 리터럴 안에도, 맨 위 import 묶음에도 넣지 않는다. 그 두 자리
+#   (`from .tickets` 바로 위 · `path("login" …)` 바로 아래)는 여러 브랜치가
+#   **동시에** 줄을 넣는 곳이라 머지할 때마다 충돌이 난다. 실제로 겪었다.
+#
+#   append 는 이 파일이 아래에서 이미 쓰는 방식이고 붙는 순서도 같다 —
+#   core.urls 와 catch-all 보다 앞이다. 새 경로도 여기에 넣을 것.
+#
+#   import 도 같은 이유로 여기 둔다. 맨 위 묶음이 경합 중이다.
+from .admin_session import AdminSessionView  # noqa: E402 — 위 참고
+from .chat import ChatView  # noqa: E402
+
+# 우리 로그인 → Django admin 세션. 관리자가 로그인을 두 번 하지 않게 한다
+urlpatterns.append(
+    path("admin-session", AdminSessionView.as_view(), name="admin-session"))
+# 안내 챗봇. 화면(empatho-view)의 src/api.js 가 이 경로를 쓴다.
+urlpatterns.append(path("chat", ChatView.as_view(), name="chat"))
 
 # 업무 엔드포인트는 다른 브랜치에서 오는 중이다. 들어오면 자동으로 물린다.
 if find_spec("core.urls") is not None:

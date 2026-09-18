@@ -10,7 +10,7 @@ services:
     container_name: web 
     restart: unless-stopped
     env_file:
-      - ./conf/web.env
+      - ${CONF:-./conf}/web.env
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:
@@ -51,7 +51,7 @@ services:
     restart: unless-stopped
     command: celery -A cdss_backend worker --loglevel=info --concurrency=1
     env_file:
-      - ./conf/web.env
+      - ${CONF:-./conf}/web.env
     depends_on:
       postgres:
         condition: service_healthy
@@ -66,7 +66,7 @@ services:
     # Dockerfile 이 실행파일 셋 만든다 
     entrypoint: /usr/local/bin/file-gateway
     env_file:
-      - ./conf/gosvc.env
+      - ${CONF:-./conf}/gosvc.env
     environment:
       GW_ADDR: ":8091"
     volumes:
@@ -80,7 +80,7 @@ services:
     restart: unless-stopped
     entrypoint: /usr/local/bin/llm-proxy
     env_file:
-      - ./conf/gosvc.env
+      - ${CONF:-./conf}/gosvc.env
     environment:
       LLM_ADDR: ":8090"
       # 워크스테이션 리포트 서버. tunnel 컨테이너를 거쳐 나간다.
@@ -99,7 +99,7 @@ services:
     restart: unless-stopped
     entrypoint: /usr/local/bin/notify
     env_file:
-      - ./conf/gosvc.env
+      - ${CONF:-./conf}/gosvc.env
     environment:
       NOTIFY_ADDR: ":8092"
     ports:
@@ -135,7 +135,7 @@ services:
       #
       #   conf/ 전체가 아니라 하위 폴더를 쓰는 이유 — DB 비밀번호가 든
       #   web.env·postgres.env 를 터널 컨테이너에 들여보내지 않는다.
-      - ./conf/ws:/ws:ro
+      - ${CONF:-./conf}/ws:/ws:ro
 
 volumes:
   gw-spool: 
