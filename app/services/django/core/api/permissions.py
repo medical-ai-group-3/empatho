@@ -318,3 +318,13 @@ CanDisposeDiscordance = IsRole.of(SURGERY, code="DISPOSITION_ROLE_ONLY_SURGERY")
 
 #: 리포트 열람 잠금 해제 — 유방외과 단독 (§11.5)
 CanUnlockReport = IsRole.of(SURGERY, code="UNLOCK_ROLE_ONLY_SURGERY")
+
+# ── 판독 확정 — 부서 자체를 잠근다 ──────────────────────────────────────
+# MATRIX 는 study:U · assessment:U · specimen_pathology:U 칸으로 "이 역할이
+# 이 리소스를 건드릴 수 있는가"만 표현한다. 관리자 화면에서 그 칸을 다른
+# 역할에 체크해도(예: 원무에 study:U) 판독 확정까지 동시에 열리면 안 된다 —
+# 그래서 MATRIX 칸과 별개로 IsRole 을 하나 더 건다. 업로드 품질승인
+# (studies/{id}/upload) 과 조회(GET)는 이 칸에 안 걸린다 — 기사·타부서도
+# 그대로 써야 한다.
+CanFinalizeRadiologyRead = IsRole.of(RADIOLOGY, code="FINALIZE_ROLE_ONLY_RADIOLOGY")
+CanFinalizePathologyRead = IsRole.of(PATHOLOGY, code="FINALIZE_ROLE_ONLY_PATHOLOGY")

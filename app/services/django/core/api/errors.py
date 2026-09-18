@@ -89,6 +89,12 @@ INFRA_ERRORS = [
     # 09-16 일운님 · 다희님 협의 — 수술 결정 기록(PATCH /assessments/{id}/decision)
     # 단독 권한. 명세 §1-4 25개엔 없어 여기 둔다.
     _spec("DECISION_ROLE_ONLY_SURGERY", 403, "수술 결정 기록은 유방외과만 할 수 있습니다."),
+    # 09-18 일운님 지적 · 팀 확정 — MATRIX 칸(study/assessment/specimen_pathology:U)
+    # 만으로는 관리자 격자 조정이나 staff.extra_permissions 로 다른 부서가
+    # 판독·확진을 확정할 길이 열린다. IsRole 로 부서 자체를 잠근다.
+    # 명세 §1-4 25개엔 없어 여기 둔다.
+    _spec("FINALIZE_ROLE_ONLY_RADIOLOGY", 403, "판독 확정 · 임시저장 · 정정은 영상의학과만 할 수 있습니다."),
+    _spec("FINALIZE_ROLE_ONLY_PATHOLOGY", 403, "확진 확정 · 임시저장 · 정정은 병리과만 할 수 있습니다."),
 ]
 
 # 명세 밖. 영상의학과 라우터 인계 문서(2026-09) 재설계로 추가.

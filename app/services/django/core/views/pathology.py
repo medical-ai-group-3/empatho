@@ -12,7 +12,7 @@ from django.utils import timezone
 
 from .. import models, serializers
 from ..mixins import AuditMixin
-from core.api.permissions import MatrixPermission
+from core.api.permissions import MatrixPermission, CanFinalizePathologyRead
 from core.api.errors import ApiError
 
 
@@ -90,7 +90,7 @@ class SpecimenDraftView(AuditMixin, viewsets.ViewSet):
     """§3 PUT /specimens/{id}/draft — 임시저장(덮어쓰기)."""
 
     resource = "specimen_pathology"
-    permission_classes = [MatrixPermission]
+    permission_classes = [MatrixPermission, CanFinalizePathologyRead]
 
     def update(self, request, pk=None):
         specimen = models.Specimen.objects.get(pk=pk)
@@ -113,7 +113,7 @@ class SpecimenFinalizeView(AuditMixin, viewsets.ViewSet):
     """§3 PATCH /specimens/{id}/finalize — 확진 확정. finalized_at 을 찍는다."""
 
     resource = "specimen_pathology"
-    permission_classes = [MatrixPermission]
+    permission_classes = [MatrixPermission, CanFinalizePathologyRead]
 
     def partial_update(self, request, pk=None):
         specimen = models.Specimen.objects.get(pk=pk)
@@ -138,7 +138,7 @@ class SpecimenAmendView(AuditMixin, viewsets.ViewSet):
     """§5 POST /specimens/{id}/amend — 판독 정정. 옛 값은 amend_history 에 보존."""
 
     resource = "specimen_pathology"
-    permission_classes = [MatrixPermission]
+    permission_classes = [MatrixPermission, CanFinalizePathologyRead]
 
     def create(self, request, pk=None):
         specimen = models.Specimen.objects.get(pk=pk)
