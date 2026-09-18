@@ -81,4 +81,11 @@ ROLE_PERMS = {
 
 
 def perms_for_role(role):
-    return ROLE_PERMS.get(role, []) + COMMON_PERMS
+    base = ROLE_PERMS.get(role, [])
+    # 관리자는 COMMON_PERMS(report.view.all) 를 못 받는다 — ADMIN_PERMS 가
+    # 일부러 뺀 것을 여기서 도로 붙이면 안 된다(09-18 팀 확인: 관리자는
+    # 환자 리포트 본문을 볼 필요가 없다). Django admin 의 ReportAdmin 쪽
+    # 접근은 core/admin.py 에서 별도로 막는다.
+    if role == "admin":
+        return base
+    return base + COMMON_PERMS
