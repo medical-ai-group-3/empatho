@@ -6,6 +6,7 @@ import { Chip, Locked, Queue as QueueList, Split, useCan } from "../lib/Parts";
 import { useApi } from "../lib/useApi";
 import { can } from "../perm";
 import { ERR } from "../api";
+import SideDashboard from "../lib/SideDashboard";
 
 /* ═══ 1장 · 대기 큐 ══════════════════════════════════════════════
  *
@@ -71,11 +72,12 @@ function Inner({ cfg }) {
             {msg && <div className="notice">{msg}</div>}
             <Split
               side="wide"
-              empty="왼쪽 목록에서 한 사람을 고르면 여기에 상세가 보입니다"
               left={<List cfg={cfg} data={data} q={q} setQ={setQ} pick={pick}
                           setPick={setPick} take={take} busy={busy}
                           onTake={onTake} />}
-              right={pick ? <Detail cfg={cfg} id={pick} /> : null}
+              right={pick
+                ? <Detail cfg={cfg} id={pick} />
+                : <SideDashboard stats={[{ label: "대기 중", value: data.items.length }]} />}
             />
           </>
         )}

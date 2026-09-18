@@ -11,7 +11,7 @@ import "../breast.css";   /* 유방외과 전용 — .breast 안에 갇혀 있�
 import ExamOrderModal from "../components/ExamOrderModal";
 import CloseVisitModal from "../components/CloseVisitModal";
 import SpecimenBindingModal from "../../../lib/SpecimenBindingModal";
-import SideDashboard from "../components/SideDashboard";
+import SideDashboard from "../../../lib/SideDashboard";
 
 /* 화면 1 · 대기 환자 · 진료 시작 ("/")
  *
@@ -94,7 +94,10 @@ export default function Waiting() {
                     </tbody>
                   </table>
                 </div>
-                <SideDashboard list={list} />
+                <SideDashboard stats={[
+                  { label: "오늘 대기", value: list.length },
+                  { label: "불일치 확인", value: list.filter((p) => p.has_open_discordance).length, warn: true },
+                ]} />
               </div>
 
               <div>

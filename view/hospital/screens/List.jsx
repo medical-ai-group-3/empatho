@@ -5,6 +5,7 @@ import { Btn, Card, Page } from "../lib/Page";
 import { Chip, Locked, Search, Sort, Split, Table, useCan } from "../lib/Parts";
 import { useApi } from "../lib/useApi";
 import { can, reportScope } from "../perm";
+import SideDashboard from "../lib/SideDashboard";
 
 /* ═══ 4장 · 전체 환자 목록 ═══════════════════════════════════════
  *
@@ -66,7 +67,6 @@ function Inner({ cfg }) {
         {data && (
           <Split
             side="wide"
-            empty="목록에서 한 사람을 고르면 여기에 상세가 보입니다"
             left={
               <Card
                 title={c.listTitle}
@@ -94,7 +94,12 @@ function Inner({ cfg }) {
                 </div>
               </Card>
             }
-            right={pick ? <Detail cfg={cfg} id={pick} /> : null}
+            right={pick
+              ? <Detail cfg={cfg} id={pick} />
+              : <SideDashboard stats={[
+                  { label: "전체", value: data.total },
+                  { label: "현재 표시", value: data.items.length },
+                ]} />}
           />
         )}
       </Body>

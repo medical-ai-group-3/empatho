@@ -6,6 +6,7 @@ import { useApi } from "../../../lib/useApi";
 import { can } from "../../../perm";
 import SpecimenBindingModal from "../../../lib/SpecimenBindingModal";
 import { SEX, label } from "../../../codes";
+import SideDashboard from "../../../lib/SideDashboard";
 
 /* ═══ 1장 · 내원 대기 · 유방외과 배정 ══════════════════════════════
  *
@@ -142,6 +143,14 @@ function Inner({ cfg }) {
               />
             </Body>
           </Card>
+
+          {/* n-side-stack 은 이미 .card 를 flex:1 로 쌓는 틀이라(hospital.css:1207)
+              SideDashboard(자기도 .card)를 셋째로 얹기만 하면 된다 —
+              새 CSS 없이 그대로 맞는다. */}
+          <SideDashboard stats={[
+            { label: "내원 대기", value: items.length },
+            { label: "금일 예약", value: today.data?.results?.length ?? 0 },
+          ]} />
         </div>
       </div>
     </Page>
