@@ -8,7 +8,10 @@ import hospitalMock, { hospitalRoutes } from "./mock/hospital.js";
 const here = dirname(fileURLToPath(import.meta.url));
 
 // 붙을 서버. 자리를 옮기면 이것만 바꾼다 — 코드에는 주소가 없다.
-const SERVER = process.env.EMPATHO_SERVER || "http://app-host";
+/* 개발에서 `npm run dev` 가 /api · /svc 를 넘길 곳.
+   ⚠ https 다. 배포가 HTTPS 로 바뀌었고, refresh 쿠키가 Secure 라 http 로
+     넘기면 로그인이 유지되지 않는다. */
+const SERVER = process.env.EMPATHO_SERVER || "https://empatho.example.com";
 
 // 가짜 API 로 돌릴지는 아래 defineConfig 의 mode 로 가른다.
 //   npm run dev        서버에 붙는다
