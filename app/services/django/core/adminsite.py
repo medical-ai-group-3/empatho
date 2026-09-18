@@ -96,9 +96,9 @@ class EmpathoAdminSite(AdminSite):
                  name="empatho_dashboard"),
             path("status/", self._guard(v.status),
                  name="empatho_status"),
-            path("accounts/", self._guard(v.accounts),
-                 name="empatho_accounts"),
             path("db/", self._guard(v.db_index), name="empatho_db"),
+            path("db/<str:table>/", self._guard(v.db_detail),
+                 name="empatho_db_detail"),
         ]
         # 우리 것이 앞이다 — 뒤에 두면 Django 의 catch-all 이 먼저 잡는다
         return mine + super().get_urls()
@@ -177,13 +177,18 @@ class EmpathoAdminSite(AdminSite):
 # 배지는 **대기 건수 하나뿐**이다. 숫자를 여기저기 달면 어느 것이 급한지
 # 안 보인다. 승인이 안 되면 그 사람이 아예 못 들어오므로 그것만 세운다.
 
-# (열쇠, 라벨, 주소 이름)
+# (열쇠, 라벨, 주소 이름, 질의)
+#
+# 계정 승인은 **Account 목록 그대로** 간다. 승인 화면을 따로 만들면 검색 ·
+# 정렬 · 페이지 · 감사 로그를 다시 짜야 하고, 그러고도 admin 목록만 못하다.
+# 필터 둘을 걸어 「승인 대기 직원」만 세워 두면 그게 곧 승인 큐다.
 NAV = [
-    ("dashboard", "대시보드", "admin:empatho_dashboard"),
-    ("status", "서버 상태", "admin:empatho_status"),
-    ("accounts", "계정 승인", "admin:empatho_accounts"),
-    ("db", "DB 조회", "admin:empatho_db"),
-    ("models", "DB 수정", "admin:index"),
+    ("dashboard", "대시보드", "admin:empatho_dashboard", ""),
+    ("status", "서버 상태", "admin:empatho_status", ""),
+    ("accounts", "계정 승인", "admin:core_account_changelist",
+     "approval=pending&kind=staff"),
+    ("db", "DB 조회", "admin:empatho_db", ""),
+    ("models", "DB 수정", "admin:index", ""),
 ]
 
 
@@ -197,10 +202,11 @@ def _pending():
 def _nav(current=None):
     waiting = _pending()
     out = []
-    for key, label, name in NAV:
+    for key, label, name, query in NAV:
+        url = reverse(name)
         out.append({
             "label": label,
-            "url": reverse(name),
+            "url": url + "?" + query if query else url,
             "on": key == current,
             # 0 이면 배지를 안 단다 — 「0」이 붙어 있으면 눈이 그것도 읽는다
             "badge": waiting if key == "accounts" and waiting else None,

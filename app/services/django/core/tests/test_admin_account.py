@@ -20,11 +20,15 @@ def _pending(login_id, role="nursing", name="아무개"):
 class _Req:
     """메시지 프레임워크 없이 액션을 부르려고 messages 를 삼킨다."""
 
-    def __init__(self):
+    def __init__(self, user=None):
         self.factory = RequestFactory()
+        self.user = user
 
     def get(self, query=""):
-        return self.factory.get("/admin/core/account/" + query)
+        req = self.factory.get("/admin/core/account/" + query)
+        # log_change 가 request.user 로 LogEntry 를 찍는다
+        req.user = self.user
+        return req
 
 
 class ApprovalActionTests(TestCase):
@@ -32,7 +36,9 @@ class ApprovalActionTests(TestCase):
         self.admin = AccountAdmin(Account, AdminSite())
         self.messages = []
         self.admin.message_user = lambda req, msg, level=None: self.messages.append(msg)
-        self.req = _Req().get()
+        self.boss = get_user_model().objects.create_superuser(
+            username="cdss_admin", password="x")
+        self.req = _Req(self.boss).get()
 
     # ── 승인 ────────────────────────────────────────────────────
     def test_승인하면_두_칸이_함께_바뀐다(self):

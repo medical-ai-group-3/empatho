@@ -6,11 +6,19 @@
 를 부르면 첫 화면 한 번에 스무 번 넘게 DB 를 친다.
 """
 
+import socket
+import threading
+import time
+from concurrent.futures import ThreadPoolExecutor, wait
 from datetime import timedelta
+from functools import partial
+from urllib.parse import urlparse
 
 from django.conf import settings
+from django.contrib import admin
 from django.db.models import Count, Q
 from django.db.models.functions import TruncHour
+from django.http import Http404
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.html import format_html, format_html_join
@@ -155,12 +163,10 @@ def dash_numbers(request):
     }
 
 
-# ── 화면 넷 ──────────────────────────────────────────────────────────
+# ── 우리 화면 ────────────────────────────────────────────────────────
 #
 # 전부 site.page() 를 거친다 — each_context 를 넣어야 머리띠와 사이드바가
 # 붙는다. 빠뜨리면 맨 화면이 나온다.
-#
-# ⚠ 지금은 대시보드만 채워져 있다. 나머지 셋은 자리만 잡아 두었다.
 
 
 def dashboard(site, request):
@@ -170,21 +176,279 @@ def dashboard(site, request):
 
 
 def status(site, request):
-    """DB · Redis · Celery · Garage · Orthanc 를 찔러 본다."""
-    return site.page(request, "admin/empatho/soon.html", "status",
-                     "서버 상태", {"what": "각 서비스를 찔러 보고 응답시간을 냅니다."})
-
-
-def accounts(site, request):
-    """승인 대기 목록과 승인 · 거절."""
-    return site.page(request, "admin/empatho/soon.html", "accounts",
-                     "계정 승인", {"what": "승인 대기 계정을 여기서 처리합니다."})
+    """지금 무엇이 살아 있나. 찌르는 쪽은 브라우저가 아니라 web 컨테이너다."""
+    return site.page(request, "admin/empatho/status.html", "status", "서버 상태", {
+        "probes": probe_all(),
+        "checked_at": timezone.localtime().strftime("%H:%M:%S"),
+        "refresh_sec": settings.ADMIN_STATUS_REFRESH_SEC,
+    })
 
 
 def db_index(site, request):
-    """표 목록 — 이름 · 한글명 · 행 수 · 컬럼 수."""
-    return site.page(request, "admin/empatho/soon.html", "db",
-                     "DB 조회", {"what": "표 구조와 값 분포를 봅니다."})
+    """표 목록 — 한글명 · 표 이름 · 행 수 · 칸 수."""
+    return site.page(request, "admin/empatho/db_index.html", "db",
+                     "DB 조회", {"tables": db_tables()})
+
+
+def db_detail(site, request, table):
+    """표 하나. 구조는 늘 보이고, 값 분포는 상태형 칸에만."""
+    model = _model_by_table(table)
+    if model is None:
+        raise Http404("그런 표가 없습니다: %s" % table)
+
+    hidden = _is_sensitive(model)
+    return site.page(request, "admin/empatho/db_detail.html", "db",
+                     _table_title(model), {
+                         "table": _table_row(model),
+                         "columns": db_columns(model),
+                         "spreads": [] if hidden else db_spreads(model),
+                         "hidden": hidden,
+                     })
+
+
+# ── DB 조회 ──────────────────────────────────────────────────────────
+#
+# 구조는 어느 표든 보인다. 막는 것은 **값**이다 — 표를 통째로 가리면 관리자가
+# 스키마도 못 봐서 일을 못 한다. 가릴 표는 settings.ADMIN_DB_SENSITIVE 다.
+#
+# 분포를 내는 칸은 **상태형뿐**이다(choices 가 있거나 참거짓). 자유 텍스트는
+# 어느 표든 안 낸다 — 길이 분포도 안 낸다. 몇 자인지도 사람을 좁히는 단서다.
+
+#: 한 칸에서 보여줄 값 가짓수. 넘치면 목록이 아니라 덤프가 된다
+SPREAD_LIMIT = 12
+
+
+def _models():
+    from django.apps import apps as django_apps
+
+    return sorted(django_apps.get_app_config("core").get_models(),
+                  key=lambda m: m._meta.db_table)
+
+
+def _model_by_table(table):
+    for model in _models():
+        if model._meta.db_table == table:
+            return model
+    return None
+
+
+def _is_sensitive(model):
+    return model._meta.db_table in settings.ADMIN_DB_SENSITIVE
+
+
+def _table_title(model):
+    name = model._meta.verbose_name
+    return "%s (%s)" % (name, model._meta.db_table)
+
+
+def _table_row(model):
+    meta = model._meta
+    return {
+        "name": str(meta.verbose_name),
+        "table": meta.db_table,
+        "rows": model.objects.count(),
+        "columns": len(meta.fields),
+        "hidden": _is_sensitive(model),
+        "url": reverse("admin:empatho_db_detail", args=[meta.db_table]),
+        "admin_url": (_url(model) if admin.site.is_registered(model) else ""),
+    }
+
+
+def db_tables():
+    return [_table_row(model) for model in _models()]
+
+
+def db_columns(model):
+    """칸의 생김새. 값이 아니라 구조다 — 민감한 표에서도 이건 보인다."""
+    out = []
+    for field in model._meta.fields:
+        out.append({
+            "name": field.column,
+            "type": _type_of(field),
+            "null": field.null,
+            "default": _default_of(field),
+            "kind": "상태" if _spreadable(field) else "",
+            "link": (field.related_model._meta.db_table
+                     if field.is_relation and field.related_model else ""),
+        })
+    return out
+
+
+def _type_of(field):
+    kind = field.get_internal_type().replace("Field", "").lower()
+    if getattr(field, "max_length", None):
+        return "%s(%d)" % (kind, field.max_length)
+    return kind
+
+
+def _default_of(field):
+    from django.db.models import NOT_PROVIDED
+
+    value = field.default
+    if value is NOT_PROVIDED:
+        return ""
+    if callable(value):
+        return value.__name__
+    return str(value)
+
+
+def _spreadable(field):
+    """분포를 내도 되는 칸인가.
+
+    상태형만 낸다 — 값이 미리 정해진 소수 집합이라 한 줄이 사람을 가리키지
+    않는다. 자유 텍스트 · 날짜 · 숫자 · 외래키는 그렇지 않다.
+    """
+    if field.is_relation or field.primary_key:
+        return False
+    if field.get_internal_type() == "BooleanField":
+        return True
+    return bool(field.choices)
+
+
+def db_spreads(model):
+    """상태형 칸마다 값별 개수. 칸 하나에 GROUP BY 한 번."""
+    out = []
+    for field in model._meta.fields:
+        if not _spreadable(field):
+            continue
+        rows = (model.objects.values(field.name)
+                .annotate(n=Count("*")).order_by("-n")[:SPREAD_LIMIT])
+        counted = [{"value": _label(r[field.name]), "n": r["n"]} for r in rows]
+        if counted:
+            out.append({"name": field.column, "rows": counted})
+    return out
+
+
+def _label(value):
+    if value is None:
+        return "(비어 있음)"
+    if value is True:
+        return "참"
+    if value is False:
+        return "거짓"
+    return str(value)
+
+
+# ── 서버 상태 ────────────────────────────────────────────────────────
+#
+# 셋을 각각 다르게 본다.
+#   DB       실제로 질의를 던진다. 연결만 봐서는 인증 · 권한 문제가 안 드러난다
+#   워커     브로커를 거쳐 ping 을 돌린다. 답한 워커 수가 곧 상태다
+#   나머지   TCP 연결까지만. health 경로가 서비스마다 달라 경로를 넣으면
+#            살아 있는데도 404 로 죽은 것처럼 보인다
+#
+# Redis 는 줄을 따로 안 세운다. 워커 ping 이 브로커를 거치므로 Redis 가
+# 죽으면 워커가 「응답 없음」으로 뜬다 — 두 줄이 늘 같이 움직인다.
+#
+# ⚠ 어느 것도 화면을 멎게 하면 안 된다. 예외는 전부 「실패」 한 줄로 바꾼다.
+
+
+def _result(name, ok, detail, ms, hint=""):
+    return {"name": name, "ok": ok, "detail": detail,
+            "ms": None if ms is None else round(ms * 1000), "hint": hint}
+
+
+def _timed(fn):
+    """(결과, 걸린 초). 예외는 부르는 쪽이 받는다."""
+    start = time.monotonic()
+    value = fn()
+    return value, time.monotonic() - start
+
+
+def probe_db():
+    from django.db import connection
+
+    try:
+        def run():
+            with connection.cursor() as cur:
+                cur.execute("SELECT 1")
+                cur.fetchone()
+        _, took = _timed(run)
+    except Exception as exc:
+        return _result("postgres", False, _why(exc), None,
+                       "web 이 DB 를 못 본다 — 다른 화면도 전부 안 뜬다")
+    finally:
+        # 딴 실에서 돌면 그 실의 연결이 남는다 — 화면을 열 때마다 쌓인다.
+        # 본 실의 것은 안 닫는다. 요청이 쓰는 연결이라 닫으면 그 요청이 깨진다.
+        if threading.current_thread() is not threading.main_thread():
+            connection.close()
+    return _result("postgres", True, "질의 응답", took)
+
+
+def probe_worker():
+    """Celery 워커. 답한 수를 낸다.
+
+    브로커가 죽어 있으면 여기서 예외가 난다 — 그래서 Redis 줄이 따로 없다.
+    """
+    from cdss_backend.celery import app
+
+    timeout = settings.ADMIN_PROBE_TIMEOUT_SEC
+    try:
+        replies, took = _timed(lambda: app.control.ping(timeout=timeout) or [])
+    except Exception as exc:
+        return _result("celery 워커", False, _why(exc), None,
+                       "브로커(redis)가 죽었을 수도 있다 — 소견문 생성이 멈춘다")
+    if not replies:
+        return _result("celery 워커", False, "응답한 워커 없음", took,
+                       "worker 컨테이너나 브로커를 본다")
+    return _result("celery 워커", True, "%d대 응답" % len(replies), took)
+
+
+def probe_tcp(name, base):
+    """듣고 있는가까지만. 주소는 settings.ADMIN_PROBES 에서 온다."""
+    parsed = urlparse(base)
+    host, port = parsed.hostname, parsed.port
+    if not host or not port:
+        return _result(name, False, "주소를 읽을 수 없다: %s" % base, None)
+
+    timeout = settings.ADMIN_PROBE_TIMEOUT_SEC
+    try:
+        def connect():
+            with socket.create_connection((host, port), timeout=timeout):
+                return True
+        _, took = _timed(connect)
+    except Exception as exc:
+        return _result(name, False, _why(exc), None, "%s:%s" % (host, port))
+    return _result(name, True, "%s:%s" % (host, port), took)
+
+
+def _why(exc):
+    """사람이 읽을 한 줄. 클래스 이름만으로는 무엇이 문제인지 안 보인다."""
+    text = str(exc).strip()
+    return text[:120] if text else type(exc).__name__
+
+
+def probe_all():
+    """전부 한꺼번에 돌리고 마감시각에 끊는다.
+
+    ⚠ **하나씩 부르면 안 된다.** 이름 조회 실패가 2~3초, celery 가 7초라
+      일곱 줄이면 20초가 넘는다 — 서버가 아플 때 열 화면인데 그때 제일 느려진다.
+
+    끊고 나서 기다리지 않는다(shutdown wait=False). 끝내지 못한 실은 알아서
+      끝난다 — 붙잡고 있으면 병렬로 돌린 뜻이 없어진다.
+    """
+    jobs = [("postgres", probe_db), ("celery 워커", probe_worker)]
+    jobs += [(name, partial(probe_tcp, name, base))
+             for name, base in settings.ADMIN_PROBES.items()]
+
+    deadline = settings.ADMIN_PROBE_DEADLINE_SEC
+    pool = ThreadPoolExecutor(max_workers=len(jobs),
+                              thread_name_prefix="admin-probe")
+    futures = {pool.submit(fn): name for name, fn in jobs}
+    wait(futures, timeout=deadline)
+    pool.shutdown(wait=False)
+
+    out = []
+    for future, name in futures.items():
+        if not future.done():
+            out.append(_result(name, False, "%g초 안에 답이 없다" % deadline,
+                               None, "죽었거나 아주 느리다"))
+            continue
+        try:
+            out.append(future.result())
+        except Exception as exc:          # 찌르는 함수가 터져도 화면은 뜬다
+            out.append(_result(name, False, _why(exc), None))
+    return out
 
 
 # ── 최근 24시간 막대 (SVG) ────────────────────────────────────────────
