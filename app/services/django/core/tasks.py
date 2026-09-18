@@ -46,7 +46,7 @@ from django.utils import timezone
 
 from . import mesh 
 from celery.exceptions import SoftTimeLimitExceeded
-from .models import AiResult, Report, StorageObject
+from .models import AiResult, Report, StorageObject, Lesion
 
 logger = logging.getLogger(__name__) 
 
@@ -193,10 +193,11 @@ def run_inference(ai_result_id) :
     # 행을 failed 로 되돌리지 않는다 — 판독은 성공한 것이 맞다
     if ai.run_status == "done" :
         try :
+            _store_lesions(ai)
             from . import reports
             reports.issue_stage_report(ai)
         except Exception as exc :
-            logger.warning("[run_inference] 소견문 요청 실패 %s (%s)", ai.pk, type(exc).__name__)
+            logger.exception("[run_inference] 판독 뒤처리 실패 %s", ai.pk)
     logger.info("[run_inference] 행 %s %s %.1f초", ai.pk, ai.run_status, float(ai.elapsed_sec))
     return ai.run_status
 
@@ -375,6 +376,82 @@ def _mammo(ai, socket) :
             },
         "lesions": lesions}
     return out
+
+def _store_lesions(ai) :
+    """판독 결과에서 병변 행을 만든다.
+
+    병변은 여러 곳의 뿌리다 — 판정이 병변별로 달리고, 소견문 근거 목록도
+    이 행에서 나오며, 검체가 여기 매달린다.
+
+    병리는 여기서 만들지 않는다. 병변은 **영상이 만들고 검체가 거기 매달린다** —
+    병리는 이미 떼어낸 조직을 보는 것이라 병변을 새로 찾지 않는다.
+    Specimen.lesion 이 NOT NULL 인 것이 그 뜻이고, 유방외과의 검체 바인딩이
+    lesion_id 를 요구한다(views/surgery.py). 그래서 이 함수가 비면 그 뒤가
+    전부 막힌다.
+    """
+    if not ai.study_id :
+        return 0
+    
+    modality = ai.study.modality 
+    res = (ai.result or {}).get("result") or {}
+    
+    # ponytail: 같은 검사를 다시 판독하면 새 ai_result 가 생긴다. 옛 AI 병변은
+    # 검체·판정이 안 붙은 것만 지운다 — 붙은 것은 PROTECT 라 지워지지도 않고,
+    # 지우면 안 되는 기록이다.
+    Lesion.objects.filter(
+        study_id=ai.study_id, 
+        lesion_source="ai",
+        specimens__isnull=True, 
+        assessments__isnull=True
+    ).delete()
+    
+    rows = [] 
+    if modality == "us" :
+        if res.get("lesion_found") :
+            shape = res.get("shape") or {} 
+            grade = res.get("grade") or {} 
+            rows.append(dict(
+                lesion_index=0, 
+                birads_model = grade.get("display"),
+                grade_confidence=grade.get("confidence"),
+                ai_size_px=shape.get("max_diameter_px"),
+                ai_size_measurable=False, 
+                mask_reliability = (res.get("mask_reliability") or {}).get("level"),
+                detail = {"shape": shape, "orientation_label": res.get("orientation_label")}
+            ))
+    elif modality == "mammo" :
+        for i, l in enumerate(res.get("lesions") or []) :
+            rows.append(dict(
+                lesion_index=i, 
+                label=l.get("id"),
+                lesion_kind=l.get("kind"),
+                birads_model=l.get("birads"),
+                detail = {
+                    "descriptors": l.get("descriptors"),
+                    "biopsy" : l.get("biopsy"),
+                    "confidence": l.get("confidence"),
+                    "image": l.get("image"),
+                    "box": l.get("box")
+                }
+            ))
+    elif modality == "mri" :
+        for i, l in enumerate((res.get("tumor") or {}).get("lesions") or []) :
+            rows.append(dict(
+                lesion_index=i, 
+                ai_size_mm=l.get("max_diameter_mm"),
+                ai_size_measurable=True, 
+                detail={
+                    "volume_cm3": l.get("volume_cm3"),
+                    "quadrant": l.get("quadrant"),
+                    "nipple_distance_mm": l.get("nipple_distance_mm")
+                }
+            ))
+    for row in rows :
+        Lesion.objects.create(
+            study_id=ai.study_id, patient_id=ai.patient_id, 
+            ai_result=ai, modality=modality, lesion_source="ai", **row)
+    logger.info("[lesion] 판독 %s %s 병변 %d건", ai.pk, modality, len(rows))
+    return len(rows)
 
 def _series_row(study_id) :
     """이 검사의 Orthanc 시리즈를 대표하는 저장 행 하나.
