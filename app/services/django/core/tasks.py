@@ -276,7 +276,7 @@ def request_narrative(report_id, ai_result_id) :
     logger.info("[narrative] 리포트 %s 보냄 / 소켓 %s / fallback=%s", report_id, report.socket_id, out.get("fallback"))
     return "sent"
 
-def _analyze(modality, socket, ref) :
+def _analyze(modality, socket, refs) :
     # ⑥ [이미지 워커로 전송] == Go 에서 이미지 전달 받음. 워커는 저장소에 접근하지 않는다 ==
     # 티켓 접두사(scope_kind/scope_id)가 Go 가 여는 범위다.
     #   DICOM   dicom/instances/<UID> · dicom/series/<ID> — Go 가 경로와 정확히 같은지 본다
@@ -287,41 +287,44 @@ def _analyze(modality, socket, ref) :
     # name                   추론 서버에 넘길 파일 이름. MRI 는 .zip 이어야
     #                        압축을 풀고, 나머지는 확장자로 형식을 본다
     # url                    Go 에서 받을 주소
-    if modality in DICOM :
-        scope_kind, name = DICOM[modality]
-        scope_id = ref
-        url = f"{GATEWAY}/svc/v1/{scope_kind}/{ref}"
-    else :
-        # Garage 키는 "scope_kind/scope_id/파일명" 모양이다. 앞 두 칸이 곧
-        # 범위라 거기서 잘라 쓰고, 이름은 마지막 칸을 그대로 쓴다.
-        scope_kind, scope_id = ref.split("/")[:2]
-        name = ref.rsplit("/",1)[-1]
-        url = f"{GATEWAY}/svc/v1/files/{ref}"
+    parts = []
+    for ref in refs : 
+        if modality in DICOM :
+            scope_kind, name = DICOM[modality]
+            scope_id = ref
+            url = f"{GATEWAY}/svc/v1/{scope_kind}/{ref}"
+        else :
+            # Garage 키는 "scope_kind/scope_id/파일명" 모양이다. 앞 두 칸이 곧
+            # 범위라 거기서 잘라 쓰고, 이름은 마지막 칸을 그대로 쓴다.
+            scope_kind, scope_id = ref.split("/")[:2]
+            name = ref.rsplit("/",1)[-1]
+            url = f"{GATEWAY}/svc/v1/files/{ref}"
+        token, _,_ = issue("download", scope_kind, scope_id)
+        req = urllib.request.Request(url, headers={
+            "Authorization": f"Bearer {token}"
+        })
+        with urllib.request.urlopen(req, timeout=300) as r :
+            parts.append((name, r.read()))
+    logger.info("[run_inference] 이미지 %s 바이트", [len(d) for _,  d in parts])
         
-    # issue() => (티켓 문자열, 클레임, 만료 시각) 세 개를 돌려주지만 티켓 하나라 나머지는 버림
-    # "download" => 읽기만 허용. go 는 서명 · 만료 · 범위만 확인
-    #
-    # 사람 토큰이 없는 자리라 issue() 를 직접 부른다. 권한은 판독을 요청한
-    # 화면에서 이미 봤고, 여기서는 「이 범위를 읽는다」만 서명한다.
-    token, _, _ = issue("download", scope_kind, scope_id)
-    req = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})
-    # 제한 시간은 MRI 시리즈 zip(146장, 수백 MB)을 받는 시간까지 본 값이다.
-    with urllib.request.urlopen(req, timeout=300) as r :
-        data = r.read() 
-    logger.info("[run_inference] 이미지 %d 바이트", len(data))
     
-    # ⑦ [판독 요청] == 추론 서버로 전송, multipart 한 칸(image 한 장) =
+    # ⑦ [판독 요청] == 추론 서버로 전송. 칸은 image · post 둘 =
     #
     # 영상을 디스크에 쓰지 않고 메모리에서 바로 본문으로 만든다. 요청 형식이
-    # multipart 인 것은 추론 서버의 창구가 그것 하나여서다. 칸은 image 하나만
-    # 쓴다 — 환자 정보는 보내지 않는다. MRI 조영 후 볼륨을 넣는 post 칸은
-    # 아직 채우지 않는다(조영 전 · 후를 가릴 표시가 없다).
+    # multipart 인 것은 추론 서버의 창구가 그것 하나여서다 — 환자 정보는
+    # 보내지 않는다. MRI 만 둘째 칸(post, 조영 후)이 차고, 그러면 추론 서버가
+    # 병변까지 낸다(phases=2). 나머지 모달리티는 image 한 칸이다.
     #
     # boundary  본문에서 칸과 칸을 가르는 표식. 내용과 겹치면 안 되므로
     #           요청마다 새 난수로 만든다
     boundary = uuid.uuid4().hex
-    body = (f'--{boundary}\r\nContent-Disposition: form-data; name="image"; filename="{name}"\r\n'
-            f'Content-Type: application/octet-stream\r\n\r\n').encode() + data + f"\r\n--{boundary}--\r\n".encode() 
+    body = b""
+    for field, (name, data) in zip(("image", "post"), parts) :
+        body += (f'--{boundary}\r\nContent-Disposition: form-data; name="{field}";'
+                 f'filename="{name}"\r\nContent-Type: application/octet-stream\r\n\r\n'
+                 ).encode() + data + b"\r\n"
+    body += f"--{boundary}--\r\n".encode() 
+    
     req = urllib.request.Request(f"{INFERENCE}/analyze/{socket}", data=body, headers={"Content-Type": f"multipart/form-data; boundary={boundary}"})
     # 추론 서버는 실패도 HTTP 200 에 abstained 로 돌려준다. 그래서 상태
     # 코드를 따로 보지 않고, 기권 여부는 응답 안에서 읽는다.
@@ -355,7 +358,7 @@ def _mammo(ai, socket) :
     envelope, lesions = None, []
     n, top, biopsy, abstained = 0, None, False, True
     for row in rows :
-        out = _analyze("mammo", socket, row.sop_instance_uid)
+        out = _analyze("mammo", socket, [row.sop_instance_uid])
         envelope = envelope or out 
         s = ((out.get("result") or {}).get("summary")) or {}
         img = {
@@ -463,7 +466,7 @@ def _store_lesions(ai) :
     logger.info("[lesion] 판독 %s %s 병변 %d건", ai.pk, modality, len(rows))
     return len(rows)
 
-def _series_row(study_id) :
+def _series_row(study_id, role="pre") :
     """이 검사의 Orthanc 시리즈를 대표하는 저장 행 하나.
 
     시리즈 한 벌이 파일 146장이라 저장 행도 146개지만 시리즈 ID 는 같다.
@@ -488,8 +491,12 @@ def _series_row(study_id) :
             .filter(study_id=study_id, orthanc_series_id__isnull=False,
                     deleted_at__isnull=True)
             .order_by("storage_object_id"))
-    row = rows.filter(series_role="pre").first() or rows.first()
-    if row is None :
+    row = rows.filter(series_role=role).first()
+    if row is None and role == "pre" :
+        row = rows.first()
+        if row is not None :
+            logger.warning("[run_inference] 검사 %s 조영 표시가 없다 - 먼저 들어온 시리즈를 쓴다",study_id)
+    if row is None and role == "pre" :
         raise ValueError("이 검사에 Orthanc 시리즈가 없다")
     return row
 
@@ -515,9 +522,9 @@ def _ref(ai, modality) :
                     failed 로 남긴다.
     """
     if modality == "mri" :
-        # MRI 는 시리즈 전체를 본다. 가리킬 파일 한 장이 없어 원본 칸을 비우는
-        # 것이 설계다 — 그래서 검사에 딸린 저장 행에서 시리즈를 찾는다.
-        return _series_row(ai.study_id).orthanc_series_id
+        # 조영 전·후 두 시리즈를 보낸다. 후가 없으면 전만 보내고 밀도만 받는다.
+        post = _series_row(ai.study_id, "post")
+        return [_series_row(ai.study_id).orthanc_series_id] + ([post.orthanc_series_id] if post else [])
     
     # MRI 가 아니면 원본 한 장을 반드시 가리킨다. 비어 있으면 요청을 만든 쪽이
     # 원본을 안 넣은 것이라 여기서 멈추고 failed 로 남긴다.
@@ -526,9 +533,9 @@ def _ref(ai, modality) :
         raise ValueError("원본이 비어있다")
     if modality == "mammo" :
         # 맘모는 DICOM 한 장이다. Orthanc 에서 꺼내려면 인스턴스 번호가 필요하다.
-        return src.sop_instance_uid
+        return [src.sop_instance_uid]
     # 초음파 · 병리는 Garage 에 그대로 있다.
-    return src.object_key
+    return [src.object_key]
     
 def _upload_derived(ai, kind, payload, content_type, filename, source_id, lesion_id=None, object_name=None):
     """파생물 하나를 Go 로 올리고 실제 주소를 받아 온다.

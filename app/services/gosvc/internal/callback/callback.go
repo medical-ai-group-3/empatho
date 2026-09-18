@@ -172,8 +172,9 @@ type DicomMetadata struct {
 	Manufacturer string `json:"manufacturer,omitempty"`
 	ModelName    string `json:"manufacturer_model_name,omitempty"`
 
-	Laterality   string `json:"laterality,omitempty"`
-	ViewPosition string `json:"view_position,omitempty"`
+	Laterality        string `json:"laterality,omitempty"`
+	ViewPosition      string `json:"view_position,omitempty"`
+	SeriesDescription string `json:"series_description,omitempty"`
 
 	Rows              int       `json:"rows,omitempty"`
 	Columns           int       `json:"columns,omitempty"`

@@ -54,6 +54,11 @@ type Meta struct {
 	Laterality   string `json:"laterality,omitempty"`    // L · R
 	ViewPosition string `json:"view_position,omitempty"` // CC · MLO
 
+	// MRI 조영 전·후를 가리는 데 쓴다. 값은 그대로 넘기고 판정은 Django 가
+	// 한다 — laterality 와 같은 방식이다. 조영제 태그(0018,0010)로는 못
+	// 가린다. 조영 전 시리즈에도 똑같이 찍혀 있다.
+	SeriesDescription string `json:"series_description,omitempty"` // ax dyn pre · Ph1/ax 3d dyn
+
 	// 화소
 	Rows              int       `json:"rows"`
 	Columns           int       `json:"columns"`
@@ -381,6 +386,8 @@ func (p *parser) assign(m *Meta, t tag, vr string, v []byte) {
 		m.BodyPart = s()
 	case tag{0x0018, 0x5101}:
 		m.ViewPosition = s()
+	case tag{0x0008, 0x103E}:
+		m.SeriesDescription = s()
 	case tag{0x0020, 0x000D}:
 		m.StudyInstanceUID = s()
 	case tag{0x0020, 0x000E}:

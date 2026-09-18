@@ -28,6 +28,7 @@ import hmac
 import json
 import logging
 import time
+import re
 from hashlib import sha256
 
 from django.conf import settings
@@ -64,6 +65,21 @@ DERIVED_PURPOSE = "derived_upload"
 # DICOM 값 → v10 choices
 LATERALITY = {"L": "left", "R": "right"}
 NOTIFICATION_STATUS_FIELD = {"delivered": "sent_at", "read": "acknowledged_at"}
+# 조영 전·후는 시리즈 이름으로 가린다. Duke 6케이스에서 GE 가 쓰는 이름이
+# 네 가지였는데(ax 3d dyn / Ph1~Ph3 접두 · ax dyn pre / N차 pass) 전부 이
+# 규칙으로 갈렸다. 동적 조영이 아닌 것은 이름에 dyn 이 없어 자동으로 빠진다.
+#
+# 조영제 태그(0018,0010)로는 못 가린다 — 조영 전 시리즈에도 똑같이 찍힌다.
+#
+# ponytail: GE 이름 규칙에 기댄 판정이다. 다른 장비가 들어오면 역할이 안 붙고
+#           _series_row 가 예전처럼 먼저 들어온 시리즈를 집는다. 그때는
+#           SeriesNumber 순서로 바꾼다 — 6케이스에서 그 순서도 일치했다.
+POST_MARK = re.compile(r"ph\s*\d|\d(?:st|nd|rd|th)\s+pass|post", re.I)
+
+def _series_role(desc):
+    if not desc or "dyn" not in desc.lower():
+        return None
+    return "post" if POST_MARK.search(desc) else "pre"
 
 
 def sign(secret, timestamp, body):
@@ -287,6 +303,7 @@ class DicomInstanceCallback(InternalCallbackView):
         obj.sop_instance_uid = p.get("sop_instance_uid") or None
         obj.laterality = LATERALITY.get(p.get("laterality"), p.get("laterality")) or None
         obj.view_position = p.get("view_position") or None
+        obj.series_role = _series_role(p.get("series_description"))
         obj.width_px = p.get("columns") or None
         obj.height_px = p.get("rows") or None
         obj.pixel_spacing_mm = self._spacing(p.get("pixel_spacing"), object_key)
