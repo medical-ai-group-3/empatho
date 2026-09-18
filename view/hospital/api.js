@@ -346,7 +346,16 @@ export const path = {
   /* ⚠ 서버는 큐를 **기본 필터 없이** 준다 (2026-09-16 다희님 확인).
      이 두 조건을 안 담으면 이미 남이 집어간 검체까지 대기 큐에 뜬다.
      기본값이 아니라 **우리가 정하는 조건**이라 여기 적어 둔다 */
-  queue:      ()       => get(`/specimens/queue${qs({ status: "bound", assigned: "none" })}`),
+  /* ⚠ 2026-09-18 다희님 확인(feature/dahee) — 봉투 언랩. Queue.jsx 가
+   * data.items/data.total 을 기대하는데(공용 화면, rad.queue()와 같은
+   * 계약) 여기는 서버 페이지네이션 봉투({count,results,…})를 그대로
+   * 주고 있었다 — 판독 단위를 검체 하나로 잡는 병리과 큐가 실서버에서
+   * 크래시 나던 자리다. */
+  queue:      ()       => get(`/specimens/queue${qs({ status: "bound", assigned: "none" })}`)
+    .then((raw) => {
+      const rows = raw?.results ?? raw?.items ?? (Array.isArray(raw) ? raw : []);
+      return { ...raw, items: rows, total: raw?.count ?? raw?.total ?? rows.length };
+    }),
   /* ⚠ 상세에도 슬래시가 붙는다 (2026-09-16 다희님이 직접 요청을 넣어
      확인). 전에 「병리는 상세에 슬래시가 없다」고 들었던 것이 틀렸다 —
      슬래시 없이 부르면 그냥 404 다.
@@ -378,7 +387,12 @@ export const path = {
      queue·assign·upload·draft·finalize·amend 는 슬래시가 없는 게 맞다.
      Django APPEND_SLASH 가 GET 은 301 로 넘겨 주지만 POST 는 그 과정에서
      본문이 날아가므로, 붙는 자리는 처음부터 붙여 둔다 */
-  list:       (o = {}) => get(`/specimens/${qs(o)}`),
+  /* ⚠ 봉투 언랩 — List.jsx 가 data.items/data.total 을 기대한다(위 queue
+   * 와 같은 자리). */
+  list:       (o = {}) => get(`/specimens/${qs(o)}`).then((raw) => {
+    const rows = raw?.results ?? raw?.items ?? (Array.isArray(raw) ? raw : []);
+    return { ...raw, items: rows, total: raw?.count ?? raw?.total ?? rows.length };
+  }),
   amend:      (id, b)  => post(`/specimens/${id}/amend`, b),
 };
 
@@ -711,7 +725,11 @@ export const breast = {
 
   /* 4장 · 판정 불일치 처분 */
   discordance:  (id) => get(`/discordances/${id}`),
-  dispose:      (id, b) => patch(`/discordances/${id}/dispose`, b),
+  /* ⚠ 2026-09-18 다희님 브랜치(dahee)에서 발견 — 접미사 /dispose 가 없다.
+   * urls.py 를 다시 보니 실제로 `path("discordances/<int:pk>", ...,
+   * {"patch": "partial_update"})` 다 — 상세 경로 그대로 PATCH 하는 것이지
+   * /dispose 가 따로 붙지 않는다. 여기가 계속 틀려 있었다. */
+  dispose:      (id, b) => patch(`/discordances/${id}`, b),
 };
 
 /* ── 간호과 ────────────────────────────────────────────────────

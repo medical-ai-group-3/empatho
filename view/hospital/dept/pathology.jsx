@@ -2,7 +2,7 @@ import { path } from "../api";
 import { go } from "../nav";
 import { Chip, Facts, Fold } from "../lib/Parts";
 import PathologyAi from "./PathologyAi";
-import { ACCESSION_STATUS, B_CATEGORY, B_CATEGORY_LABEL, DIAGNOSIS,
+import { ACCESSION_STATUS, B_CATEGORY, B_CATEGORY_LABEL, DIAGNOSIS, SEX,
          label, text, tone } from "../codes";
 
 /* 병리과 설정 — 공통 화면 다섯 장에 끼워 넣는 «다른 점»만 모은 파일
@@ -105,7 +105,7 @@ export const pathology = {
 
     row: (it) => ({
       id: it.id,
-      title: `${it.patient_name} (${it.age}/${it.sex})`,
+      title: `${it.patient_name} (${it.age}/${label(SEX, it.sex)})`,
       sub: `${it.specimen_no} · ${it.site}`,
       chip: it.method,
       chipTone: "line",
@@ -114,7 +114,7 @@ export const pathology = {
     Detail: ({ d }) => (
       <>
         <Facts items={[
-          ["환자", `${d.patient_name} (${d.age}/${d.sex})`],
+          ["환자", `${d.patient_name} (${d.age}/${label(SEX, d.sex)})`],
           ["검체번호", d.specimen_no],
           ["종류", d.kind],
           ["채취 방식", d.method],
@@ -177,7 +177,7 @@ export const pathology = {
     Info: ({ d }) => (
       <>
         <Facts items={[
-          ["환자", `${d.patient_name} (${d.age}/${d.sex})`],
+          ["환자", `${d.patient_name} (${d.age}/${label(SEX, d.sex)})`],
           ["검체번호", d.specimen_no],
           ["종류", d.kind],
           ["병변 위치", d.site],
@@ -223,7 +223,7 @@ export const pathology = {
     Info: ({ d, slide, onSlide }) => (
       <>
         <Facts items={[
-          ["환자", `${d.patient.name} (${d.patient.age}/${d.patient.sex})`],
+          ["환자", `${d.patient.name} (${d.patient.age}/${label(SEX, d.patient.sex)})`],
           ["검체번호", d.unit.no],
           ["종류", d.unit.kind],
           ["채취 방식", d.unit.method],
@@ -315,7 +315,7 @@ export const pathology = {
        unbound 는 이 목록에 안 뜬다 — 바인딩 전 검체다 */
     row: (r) => ({
       id: r.id,
-      patient: `${r.patient_name} (${r.age}/${r.sex})`,
+      patient: `${r.patient_name} (${r.age}/${label(SEX, r.sex)})`,
       specimen: r.specimen_no,
       collected: r.collected_at,
       status: <Chip tone={tone("accession", r.accession_status)}>
@@ -330,7 +330,7 @@ export const pathology = {
     Detail: ({ d }) => (
       <>
         <Facts items={[
-          ["환자", `${d.patient_name} (${d.age}/${d.sex})`],
+          ["환자", `${d.patient_name} (${d.age}/${label(SEX, d.sex)})`],
           ["검체번호", d.specimen_no],
           ["종류", d.kind],
           ["채취일시", d.collected_at],
@@ -369,7 +369,7 @@ export const pathology = {
 
     Info: ({ d }) => (
       <Facts items={[
-        ["환자", `${d.patient.name} (${d.patient.age}/${d.patient.sex})`],
+        ["환자", `${d.patient.name} (${d.patient.age}/${label(SEX, d.patient.sex)})`],
         ["생년월일", d.patient.birth],
         ["검체번호", d.unit.no],
         ["채취일시", d.unit.collected_at],

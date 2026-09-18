@@ -5,6 +5,7 @@ import { Chip, Facts, Queue, Locked, Table } from "../../../lib/Parts";
 import { useApi } from "../../../lib/useApi";
 import { can } from "../../../perm";
 import SpecimenBindingModal from "../../../lib/SpecimenBindingModal";
+import { SEX, label } from "../../../codes";
 
 /* ═══ 1장 · 내원 대기 · 유방외과 배정 ══════════════════════════════
  *
@@ -52,8 +53,11 @@ function examOrder(it) {
   };
 }
 
+/* ⚠ 2026-09-18 다희님 확인(feature/dahee) — sex 를 그대로 꽂으면 null 일 때
+ * "null" 글자가 그대로 찍힌다. codes.js 의 SEX 표 + label() 을 거친다 —
+ * 값이 없으면 빈칸이다. */
 function person(it) {
-  const detail = [it.age, it.sex].filter(Boolean).join("/");
+  const detail = [it.age, label(SEX, it.sex)].filter(Boolean).join("/");
   return detail ? `${it.name} (${detail})` : it.name;
 }
 
@@ -61,7 +65,7 @@ function queueItem(it, no) {
   return {
     id: it.exam_order_id,
     no,
-    title: `${it.patient_name ?? `환자 #${it.patient}`} (${it.age ?? "-"}/${it.sex ?? "-"})`,
+    title: `${it.patient_name ?? `환자 #${it.patient}`} (${it.age ?? "-"}/${label(SEX, it.sex) || "-"})`,
     sub: `${it.patient ?? "-"} · ${it.visited_at ?? "-"} 접수 · ${it.visit_type ?? "-"}`,
     chip: it.order_status,
     chipTone: it.order_status === "문진 중" ? "fill" : "line",

@@ -3,7 +3,7 @@ import { go } from "../nav";
 import { Chip, Facts, Fold, Warn, useCan } from "../lib/Parts";
 import RadiologyAi from "./RadiologyAi";
 import { polygonsFromAi } from "../lib/Stage";
-import { BIRADS, MODALITY, READ_STATUS, label, modality as asModality, text, tone }
+import { BIRADS, MODALITY, READ_STATUS, SEX, label, modality as asModality, text, tone }
   from "../codes";
 
 /* 영상의학과 설정 — 공통 화면 다섯 장에 끼워 넣는 «다른 점»만 모은 파일
@@ -104,7 +104,7 @@ export const radiology = {
 
     row: (it) => ({
       id: it.id,
-      title: `${it.patient_name} (${it.age}/${it.sex})`,
+      title: `${it.patient_name} (${it.age}/${label(SEX, it.sex)})`,
       sub: `${it.patient_no} · ${label(MODALITY, asModality(it.modality))}`,
       chip: it.contrast_allergy ? "조영제 알레르기" : it.device,
       chipTone: it.contrast_allergy ? "fill" : "line",
@@ -116,7 +116,7 @@ export const radiology = {
         {d.contrast_allergy && <Warn>조영제 알레르기 — {d.contrast_allergy}</Warn>}
 
         <Facts items={[
-          ["환자", `${d.patient_name} (${d.age}/${d.sex})`],
+          ["환자", `${d.patient_name} (${d.age}/${label(SEX, d.sex)})`],
           ["환자번호", d.patient_no],
           ["모달리티", label(MODALITY, asModality(d.modality))],
           ["촬영 장비", d.device],
@@ -159,7 +159,7 @@ export const radiology = {
       <>
         {d.contrast_allergy && <Warn>조영제 알레르기 — {d.contrast_allergy}</Warn>}
         <Facts items={[
-          ["환자", `${d.patient_name} (${d.age}/${d.sex})`],
+          ["환자", `${d.patient_name} (${d.age}/${label(SEX, d.sex)})`],
           ["환자번호", d.patient_no],
           ["검사명", d.exam_name],
           ["검사 목적", d.purpose],
@@ -277,7 +277,7 @@ export const radiology = {
         <>
           {d.patient.contrast_allergy && <Warn>조영제 알레르기 — {d.patient.contrast_allergy}</Warn>}
           <Facts items={[
-            ["환자", `${d.patient.name} (${d.patient.age}/${d.patient.sex})`],
+            ["환자", `${d.patient.name} (${d.patient.age}/${label(SEX, d.patient.sex)})`],
             ["환자번호", d.patient.no],
             ["검사명", d.unit.exam_name],
             ["모달리티", label(MODALITY, asModality(d.unit.modality))],
@@ -396,7 +396,7 @@ export const radiology = {
        판독을 찾을 수 있다 — 병리와 달리 여기서는 표시한다 */
     row: (r) => ({
       id: r.id,
-      patient: `${r.patient_name} (${r.age}/${r.sex})`,
+      patient: `${r.patient_name} (${r.age}/${label(SEX, r.sex)})`,
       modality: label(MODALITY, asModality(r.modality)),
       performed: r.performed_at,
       status: <Chip tone={tone("read", r.read_status)}>
@@ -411,7 +411,7 @@ export const radiology = {
       <>
         {d.contrast_allergy && <Warn>조영제 알레르기 — {d.contrast_allergy}</Warn>}
         <Facts items={[
-          ["환자", `${d.patient_name} (${d.age}/${d.sex})`],
+          ["환자", `${d.patient_name} (${d.age}/${label(SEX, d.sex)})`],
           ["환자번호", d.patient_no],
           ["모달리티", label(MODALITY, asModality(d.modality))],
           ["촬영 장비", d.device],
@@ -448,7 +448,7 @@ export const radiology = {
 
     Info: ({ d }) => (
       <Facts items={[
-        ["환자", `${d.patient.name} (${d.patient.age}/${d.patient.sex})`],
+        ["환자", `${d.patient.name} (${d.patient.age}/${label(SEX, d.patient.sex)})`],
         ["환자번호", d.patient.no],
         ["검사명", d.unit.exam_name],
         ["검사일시", d.unit.performed_at],
