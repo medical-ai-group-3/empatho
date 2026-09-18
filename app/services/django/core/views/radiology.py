@@ -17,6 +17,7 @@ from rest_framework.views import APIView
 from django.db.models import Q
 from django.utils import timezone
 
+from ..tasks import run_inference
 from .. import models, serializers
 from ..mixins import AuditMixin
 from core.api.permissions import MatrixPermission
@@ -185,15 +186,23 @@ class StudyReadView(viewsets.ViewSet):
 
 
 class AiResultQueueView(AuditMixin, viewsets.ViewSet):
-    """AI 분석 시작/조회.
+    """AI 분석 시작 · 조회.
 
-    POST /studies/{id}/ai-results   분석 시작 (즉시 202 + 작업 등록)
+    POST /studies/{id}/ai-results   분석 시작 (202 + 대기열 투입)
     GET  /ai-results?study={id}     run_status 폴링
 
-    현재 start() 는 AiResult 행만 만들고 실제 작업 대기열(Celery 등)에는
-    등록하지 않는다. run_status="queued" 인 채로 행이 남는 것은 워커 연동
-    전까지의 의도된 임시 상태다 — running/done/failed 로의 전이는 아직
-    아무 코드도 하지 않는다.
+    ■ 판독 한 번의 단위가 모달리티마다 다르다
+
+        초음파   영상 한 장이 판독 한 번이다. 여러 장 찍으면 행도 여러 개
+        맘모     영상 넷(좌우 × CC/MLO)이 한 검진이다. 행은 하나이고,
+                워커가 네 장을 돌며 판독해 결과를 합친다
+        MRI     시리즈 전체가 한 판독이다. 가리킬 파일 한 장이 없어
+                source_object 를 비운다 — 워커가 검사의 저장 행에서 찾는다
+
+    ■ source_object 를 여기서 정하는 이유
+
+        워커는 이 칸으로 보낼 파일을 고른다(tasks.py 의 _ref). 비워 두면
+        초음파·맘모는 무엇을 보낼지 몰라 failed 로 끝난다.
     """
 
     resource = "ai_result"
@@ -201,18 +210,33 @@ class AiResultQueueView(AuditMixin, viewsets.ViewSet):
 
     def start(self, request, pk=None):
         study = models.Study.objects.get(pk=pk)
-        result = models.AiResult.objects.create(
-            patient=study.patient,
-            study=study,
-            run_status="queued",
-            created_by=self._current_account(),
-            updated_by=self._current_account(),
-        )
-        # TODO: Celery task 등록 필요 — 지금은 여기서 대기열에 넣는 코드가
-        # 전혀 없어 이 행이 running 으로 못 넘어간다. 워커 연동 전까지는
-        # run_status="queued" 로 남는 게 정상(의도된 상태)이다.
+        account = self._current_account()
+        
+        # deleted_at 이 빈 행만 본다 - 지운 파일을 다시 판독하지 않는다 
+        sources = list(study.storage_objects.filter(deleted_at__isnull=True).order_by("storage_object_id"))
+        
+        if not sources:
+            raise ApiError("VALIDATION_ERROR", "판독할 영상이 없습니다.")
+        
+        if study.modality == "us":
+            targets = sources
+        else: 
+            targets = [None]
+            
+        results = []
+        for source in targets:
+            result = models.AiResult.objects.create(
+                patient=study.patient,
+                study=study,
+                source_object=source, 
+                run_status="queued",
+                created_by=account,
+                updated_by=account,
+            )
+            results.append(result)
+            run_inference.delay(result.pk)
 
-        out = serializers.AiResultSerializer(result)
+        out = serializers.AiResultSerializer(results, many=True)
         return Response(out.data, status=status.HTTP_202_ACCEPTED)
 
 
