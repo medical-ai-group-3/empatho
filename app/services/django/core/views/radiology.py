@@ -28,7 +28,7 @@ class StudyViewSet(viewsets.ReadOnlyModelViewSet):
 
     resource = "study"
     permission_classes = [MatrixPermission]
-    queryset = models.Study.objects.all()
+    queryset = models.Study.objects.select_related("patient__pii")
     serializer_class = serializers.StudySerializer
 
 
@@ -40,7 +40,7 @@ class PatientStudiesView(generics.ListAPIView):
     serializer_class = serializers.StudySerializer
 
     def get_queryset(self):
-        return models.Study.objects.filter(
+        return models.Study.objects.select_related("patient__pii").filter(
             patient_id=self.kwargs["pk"]
         ).order_by("-performed_at")
 
