@@ -137,6 +137,23 @@ function readBody(req, done) {
   });
 }
 
+/* 내 기계에서만 쓰는 계정. **git 에 없다** (.gitignore 의 *.local.json).
+ *
+ * hospital.json 의 __accounts 위에 덮어쓴다 — 같은 열쇠면 이쪽이 이긴다.
+ * 여섯 과를 전부 여는 계정처럼 팀 저장소에 들어가면 안 되는 것을 여기 둔다.
+ *
+ * ⚠ **없는 것이 정상이다.** 다른 사람 기계에는 이 파일이 없으므로, 못 읽으면
+ *   조용히 빈 객체로 넘어간다. 여기서 500 을 내면 그 사람은 목업이 고장 난
+ *   줄 안다.
+ */
+function localAccounts() {
+  try {
+    return JSON.parse(readFileSync(resolve(here, "accounts.local.json"), "utf-8"));
+  } catch {
+    return {};
+  }
+}
+
 /* 목업 토큰에서 아이디를 되꺼낸다. 진짜 서버는 JWT 를 푼다 */
 function bearerId(req) {
   const h = req.headers.authorization || "";
@@ -153,6 +170,9 @@ const ROLE_HINT = [
   ["surgery", "surgery"], ["admin", "admin"],
   ["rec", "reception"], ["rad", "radiology"], ["path", "pathology"],
   ["nur", "nursing"], ["sur", "surgery"],
+  // all1 → accounts.local.json 의 「전체보기」. 그 파일이 없으면 못 찾고
+  // 고정 응답으로 떨어진다 — 다른 사람 기계에서는 그게 맞다
+  ["all", "all"],
 ];
 function roleOf(id) {
   const low = String(id).toLowerCase();
@@ -218,6 +238,7 @@ export default function hospitalMock() {
         } catch (e) {
           return fail(res, "MOCK_BROKEN", String(e), 500);
         }
+        db.__accounts = { ...db.__accounts, ...localAccounts() };
 
         /* ── 로그인 · 나 ──────────────────────────────────────────
            **아이디에 따라 과가 갈린다.** 고정 응답 하나만 두면 어느 아이디로

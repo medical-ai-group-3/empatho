@@ -1,4 +1,4 @@
-import { StrictMode, Suspense, lazy, useEffect, useState } from "react";
+import { StrictMode, Suspense, lazy, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   BrowserRouter, Navigate, Outlet, Route, Routes, useLocation,
@@ -14,10 +14,10 @@ import "./styles/themes.css";
 import "./tokens.css";
 import "./hospital.css";
 
-import { apiInfo } from "./api";
+import { adminSession, apiInfo } from "./api";
 import { DEPTS, ROOT, deptPath, findDept, homeDept } from "./nav";
 import Top from "./lib/Top";
-import { useLoadMe } from "./lib/useMe";
+import { useLoadMe, useMe } from "./lib/useMe";
 import { useSignedIn } from "./lib/session";
 import Login from "./screens/auth/Login";
 import Signup from "./screens/auth/Signup";
@@ -151,10 +151,52 @@ function Gate({ children }) {
     : <Login onSignup={() => setMode("signup")} />;
 }
 
+/* ── 관리자는 병원 화면을 거치지 않는다 ────────────────────────
+ *
+ * role 이 admin 이면 로그인 직후 바로 Django admin 으로 보낸다. 관리자가
+ * 병원 웹에서 할 일이 없어서다 — 계정 승인도 자료 조회도 저쪽 화면이다.
+ *
+ * **여기서 판단하는 이유** — 로그인 응답에는 access 만 오고 role 이 없다.
+ * role 은 Boot 의 useLoadMe() 가 GET /me 로 이미 가져오므로, 판단에 필요한
+ * 값이 여기 있다. Login.jsx 는 「토큰을 받아 넣는 것까지」만 하도록 일부러
+ * 좁혀 둔 파일이라 거기에 /me 를 또 붙이지 않는다.
+ *
+ * ⚠ **admin-session 을 먼저 await 한다.** 순서가 바뀌면 쿠키 없이 /admin/ 에
+ *   닿아서 Django 로그인 화면이 뜬다 — 비밀번호를 두 번 치는 그림이 된다.
+ *
+ * ⚠ **replace 다. assign 이 아니다.** assign 이면 뒤로가기가 병원 화면으로
+ *   돌아오고, 그 화면이 다시 admin 으로 넘겨서 뒤로가기가 먹통이 된다.
+ *
+ * ⚠ **useRef 가드.** StrictMode 가 effect 를 두 번 돌려서 admin-session 이
+ *   두 번 나간다. 실패하면 가드를 풀어 다시 눌러 볼 수 있게 둔다.
+ *
+ * ⚠ **목업에서는 안 한다.** vite 목업이 POST /admin-session 을 가로채
+ *   「성공」만 답하고 쿠키는 안 심는다. 넘어가 봐야 Django 로그인 화면이라,
+ *   목업에서는 관리자 화면(버튼)에 남는다.
+ */
+function useAdminJump(ready) {
+  const me = useMe();
+  const sent = useRef(false);
+
+  useEffect(() => {
+    if (!ready || apiInfo.mock) return;
+    if (me?.role !== "admin" || sent.current) return;
+    sent.current = true;
+
+    adminSession().then(
+      ({ admin_url: url }) => window.location.replace(url),
+      // 실패하면 아무 데도 안 보낸다. 병원 화면이 그대로 서고, 관리자
+      // 화면의 단추로 다시 해 볼 수 있다
+      () => { sent.current = false; },
+    );
+  }, [ready, me]);
+}
+
 /* 로그인 응답(perms)이 올 때까지 기다린다. 안 기다리면 첫 그림에서
    권한이 전부 false 라 메뉴가 비었다가 나타난다 */
 function Boot({ children }) {
   const { loading, error } = useLoadMe();
+  useAdminJump(!loading && !error);
 
   if (loading) {
     return <div className="boot"><b>불러오는 중…</b></div>;

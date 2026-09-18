@@ -12,6 +12,11 @@ dist
 dist-ssr
 *.local
 
+# 내 기계에서만 쓰는 목업 계정 (mock/accounts.local.json).
+# ⚠ 위의 *.local 로는 안 걸린다 — 그건 .local 로 **끝나는** 파일만 잡는다.
+#   여기 두는 계정은 여섯 과를 전부 여는 것이라 팀 저장소에 들어가면 안 된다.
+*.local.json
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
