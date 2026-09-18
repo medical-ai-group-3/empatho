@@ -9,10 +9,14 @@ import { go } from "../../../nav";
 import "../breast.css";   /* 유방외과 전용 — .breast 안에 갇혀 있다. 네 화면이 각자
                              끌고 온다: 주소로 곧장 들어와도 스타일이 빠지면 안 된다 */
 
+/* 서버 DECISION_VALUE 그대로다(2026-09-18 확인, models.py:80) — "수술함/
+ * 안 함/보류"라는 세 갈래를 우리가 새로 지은 게 아니라 서버 값이다.
+ * decision_type 은 이 화면이 늘 "surgery" 하나로 고정해 보낸다 — 다른
+ * 값(biopsy·imaging·rebiopsy)은 이 화면에서 다루는 결정이 아니다. */
 const DECISIONS = [
-  { v: "surgery",    label: "수술 시행" },
-  { v: "no_surgery", label: "수술하지 않음" },
-  { v: "hold",       label: "보류" },
+  { v: "yes",   label: "수술 시행" },
+  { v: "no",    label: "수술하지 않음" },
+  { v: "defer", label: "보류" },
 ];
 const EXPLAIN_METHODS = ["대면", "유선", "영상"];
 
@@ -47,6 +51,15 @@ function Inner({ patient, onReload }) {
   const report = patient.report;
   const unlock = useApi(() => api.unlockStatus(report.report_id), [report.report_id]);
 
+  /* 수술 결정은 assessment 한 건에 매달린다(models.py:675 — study 에 물려
+   * 있지 patient 에 안 물려 있다). patient_id 로는 못 찾고, timeline 의
+   * "판독" 이벤트가 assessment_id 를 실어 준다(2026-09-18, 다희님 —
+   * feature/dahee 6774208). 이 환자의 가장 최근 판독을 결정 대상으로
+   * 삼는다. */
+  const timeline = useApi(() => api.timeline(patient.patient_id), [patient.patient_id]);
+  const reads = (timeline.data ?? []).filter((e) => e.type === "판독" && e.assessment_id != null);
+  const assessmentId = reads.length ? reads[reads.length - 1].assessment_id : null;
+
   return (
     <div className="cols3">
       <div>
@@ -79,7 +92,7 @@ function Inner({ patient, onReload }) {
       </div>
 
       <div>
-        <DecisionForm patientId={patient.patient_id} report={report} />
+        <DecisionForm assessmentId={assessmentId} assessmentIdLoading={timeline.loading} />
         <ExplainForm report={report} onSaved={onReload} />
       </div>
 
@@ -140,17 +153,21 @@ function DoctorSummaryCard({ report }) {
   );
 }
 
-function DecisionForm({ patientId, report }) {
-  const [decisionType, setDecisionType] = useState(report.decision?.decision_type ?? "surgery");
-  const [reason, setReason] = useState(report.decision?.decision_reason ?? "");
+function DecisionForm({ assessmentId, assessmentIdLoading }) {
+  /* ⚠ report.decision 은 서버에 없는 필드다(Report 모델엔 decision_*
+   * 이 없다 — 그건 Assessment 쪽이다). 예전엔 여기서 그 값으로 초깃값을
+   * 채웠는데, 있지도 않은 이전 결정을 읽는 척하던 것이라 뺐다. 저장된
+   * 값을 다시 읽어오는 확정된 경로가 생기면 그때 채운다. */
+  const [decisionValue, setDecisionValue] = useState(DECISIONS[0].v);
+  const [reason, setReason] = useState("");
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState(null);
 
   async function save() {
     setSaving(true);
     try {
-      await api.assess({
-        patient_id: patientId, decision_type: decisionType, decision_reason: reason,
+      await api.decide(assessmentId, {
+        decision_type: "surgery", decision_value: decisionValue, decision_reason: reason,
       });
       setMsg("결정이 저장되었습니다");
     } finally {
@@ -164,8 +181,8 @@ function DecisionForm({ patientId, report }) {
       <div className="radio-group" style={{ marginTop: 12 }}>
         {DECISIONS.map((d) => (
           <label className="radio-row" key={d.v}>
-            <input type="radio" name="decision_type" value={d.v}
-              checked={decisionType === d.v} onChange={() => setDecisionType(d.v)} />
+            <input type="radio" name="decision_value" value={d.v}
+              checked={decisionValue === d.v} onChange={() => setDecisionValue(d.v)} />
             {d.label}
           </label>
         ))}
@@ -175,8 +192,10 @@ function DecisionForm({ patientId, report }) {
         <textarea value={reason} onChange={(e) => setReason(e.target.value)} />
       </div>
       <div className="card-foot split">
-        <span className="note">{msg}</span>
-        <button className="btn ghost" onClick={save} disabled={saving}>
+        <span className="note">
+          {msg ?? (!assessmentIdLoading && !assessmentId ? "판독 기록이 아직 없어 저장할 수 없습니다" : null)}
+        </span>
+        <button className="btn ghost" onClick={save} disabled={saving || !assessmentId}>
           {saving ? "저장 중…" : "결정 저장"}
         </button>
       </div>

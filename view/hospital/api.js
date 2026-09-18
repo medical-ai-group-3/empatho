@@ -680,8 +680,16 @@ export const breast = {
   timeline:     (pid) => get(`/patients/${pid}/timeline`),
   studies:      (pid) => get(`/patients/${pid}/studies`),
 
-  /* 3장 · 수술 결정 */
-  assess:       (b)  => post("/assessments", b),
+  /* 3장 · 수술 결정
+   *
+   * ⚠ 2026-09-18 다희님 확인 — POST /assessments 가 아니다. 그런 생성
+   * 경로가 서버에 없다. 실제로는 PATCH /assessments/{id}/decision
+   * (SurgeryDecisionSerializer: decision_type·decision_value·
+   * decision_reason)이고, 건드릴 assessment 는 patient_id 로 못 찾는다
+   * — study 에 물려 있다. GET /patients/{id}/timeline 의 "판독" 이벤트가
+   * 이제 assessment_id 를 실어 준다(feature/dahee, 6774208) — 화면이
+   * 거기서 집어 온다. */
+  decide:       (assessmentId, b) => patch(`/assessments/${assessmentId}/decision`, b),
   saveReport:   (rid, b) => put(`/reports/${rid}/`, b),
   explain:      (rid, b) => patch(`/reports/${rid}/explain`, b),
   unlockStatus: (rid) => get(`/reports/${rid}/unlock-status`),

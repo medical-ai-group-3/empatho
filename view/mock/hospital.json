@@ -1802,6 +1802,25 @@
     "detail": "촬영 요청이 영상의학과 큐로 전달되었습니다"
   },
 
+  "PATCH /api/v1/hospital/assessments/1001/decision": {
+    "assessment_id": 1001,
+    "decision_type": "surgery",
+    "decision_value": "yes",
+    "decision_reason": "침윤성 유관암, 병기 확인 후 절제 필요"
+  },
+  "PATCH /api/v1/hospital/assessments/1002/decision": {
+    "assessment_id": 1002,
+    "decision_type": "surgery",
+    "decision_value": "defer",
+    "decision_reason": ""
+  },
+  "PATCH /api/v1/hospital/assessments/1003/decision": {
+    "assessment_id": 1003,
+    "decision_type": "surgery",
+    "decision_value": "defer",
+    "decision_reason": ""
+  },
+
   "POST /api/v1/hospital/specimens/": {
     "ok": true,
     "specimen_id": "SP-3099",
@@ -1911,111 +1930,97 @@
 
   "GET /api/v1/hospital/patients/P-1003/timeline": [
     {
-      "type": "study",
-      "label": "맘모그래피 촬영",
       "at": "2026-09-10T09:20:00+09:00",
-      "detail": "MG · 양측"
+      "type": "촬영",
+      "detail": "mammo"
     },
     {
-      "type": "ai_result",
-      "label": "AI 판독 완료",
       "at": "2026-09-10T09:34:00+09:00",
-      "detail": "BI-RADS 5 의심"
+      "type": "AI 분석 완료",
+      "detail": null
     },
     {
-      "type": "study",
-      "label": "유방 초음파 촬영",
       "at": "2026-09-10T10:05:00+09:00",
-      "detail": "US · 우측"
+      "type": "촬영",
+      "detail": "us"
     },
     {
-      "type": "ai_result",
-      "label": "AI 판독 완료",
       "at": "2026-09-10T10:18:00+09:00",
-      "detail": "종괴 18mm, 경계 불규칙"
+      "type": "AI 분석 완료",
+      "detail": null
     },
     {
-      "type": "assessment",
-      "label": "영상의학과 판독 확정",
       "at": "2026-09-10T14:00:00+09:00",
-      "detail": "BI-RADS 5"
+      "type": "판독",
+      "detail": "BI-RADS 5",
+      "assessment_id": 1003
     },
     {
-      "type": "specimen_collected",
-      "label": "검체 채취",
       "at": "2026-09-11T11:00:00+09:00",
-      "detail": "core needle biopsy"
+      "type": "검체 채취",
+      "detail": "SP-3003"
     },
     {
-      "type": "specimen_finalized",
-      "label": "병리 판독 확정",
       "at": "2026-09-12T09:40:00+09:00",
+      "type": "병리 확진",
       "detail": "침윤성 유관암"
     }
   ],
 
   "GET /api/v1/hospital/patients/P-1002/timeline": [
     {
-      "type": "study",
-      "label": "유방 초음파 촬영",
       "at": "2026-09-08T14:10:00+09:00",
-      "detail": "US · 좌측"
+      "type": "촬영",
+      "detail": "us"
     },
     {
-      "type": "ai_result",
-      "label": "AI 판독 완료",
       "at": "2026-09-08T14:22:00+09:00",
-      "detail": "BI-RADS 3 의심"
+      "type": "AI 분석 완료",
+      "detail": null
     },
     {
-      "type": "assessment",
-      "label": "영상의학과 판독 확정",
       "at": "2026-09-08T14:30:00+09:00",
-      "detail": "BI-RADS 3"
+      "type": "판독",
+      "detail": "BI-RADS 3",
+      "assessment_id": 1002
     },
     {
-      "type": "specimen_collected",
-      "label": "검체 채취",
       "at": "2026-09-09T09:10:00+09:00",
-      "detail": "core needle biopsy"
+      "type": "검체 채취",
+      "detail": "SP-3002"
     },
     {
-      "type": "specimen_finalized",
-      "label": "병리 판독 확정",
       "at": "2026-09-10T11:00:00+09:00",
+      "type": "병리 확진",
       "detail": "양성 — 섬유낭포성 변화"
     }
   ],
 
   "GET /api/v1/hospital/patients/P-1001/timeline": [
     {
-      "type": "study",
-      "label": "맘모그래피 촬영",
       "at": "2026-09-08T09:00:00+09:00",
-      "detail": "MG · 양측"
+      "type": "촬영",
+      "detail": "mammo"
     },
     {
-      "type": "ai_result",
-      "label": "AI 판독 완료",
       "at": "2026-09-08T09:15:00+09:00",
-      "detail": "BI-RADS 4 의심"
+      "type": "AI 분석 완료",
+      "detail": null
     },
     {
-      "type": "assessment",
-      "label": "영상의학과 판독 확정",
       "at": "2026-09-09T10:20:00+09:00",
-      "detail": "BI-RADS 4"
+      "type": "판독",
+      "detail": "BI-RADS 4",
+      "assessment_id": 1001
     },
     {
-      "type": "specimen_collected",
-      "label": "검체 채취",
       "at": "2026-09-10T11:20:00+09:00",
-      "detail": "core needle biopsy"
+      "type": "검체 채취",
+      "detail": "SP-3001"
     },
     {
-      "type": "specimen_finalized",
-      "label": "병리 판독 확정",
       "at": "2026-09-11T16:05:00+09:00",
+      "type": "병리 확진",
       "detail": "양성 — 섬유선종"
     }
   ],

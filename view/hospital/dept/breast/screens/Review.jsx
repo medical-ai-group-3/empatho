@@ -117,6 +117,10 @@ function Inner({ patient, timeline }) {
   );
 }
 
+/* ⚠ 서버 PatientTimelineView(2026-09-18 확인)는 {at, type, detail,
+ * assessment_id} 만 준다 — label 이 없다. type 자체가 이미 "촬영"·
+ * "AI 분석 완료"·"판독"·"검체 채취"·"병리 확진" 같은 한글이라 그대로
+ * 제목으로 쓴다. */
 function Timeline({ events }) {
   if (events.length === 0) {
     return <p style={{ fontSize: 13, color: "var(--muted)" }}>아직 기록이 없습니다</p>;
@@ -126,7 +130,7 @@ function Timeline({ events }) {
       {events.map((e, i) => (
         <div className="row" key={i}>
           <span className="dot" aria-hidden="true" />
-          <p className="label">{e.label}</p>
+          <p className="label">{e.type}</p>
           <p className="at">{e.at?.replace("T", " ").slice(0, 16)}</p>
           {e.detail && <p className="detail">{e.detail}</p>}
         </div>
