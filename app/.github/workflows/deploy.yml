@@ -9,6 +9,10 @@ on:
 # docker compose 가 이 변수를 알아서 읽는다.
 env:
   COMPOSE_FILE: compose.server.yml:compose.app.yml:compose.proxy.yml
+  # 런타임 상태는 체크아웃 밖에 둔다. checkout 이 git clean -ffdx 로
+  # 무시된 파일까지 지우기 때문에, 안에 두면 배포마다 사라진다
+  CONF: /home/runner/empatho-conf
+  WEB_DIST: /home/runner/empatho-web
 
 jobs:
   deploy:
@@ -16,40 +20,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      # 비밀값은 git 에 없다. 러너 홈에 둔 것을 가져온다.
-      #
-      # ws/ 를 따로 복사하는 이유 — 워크스테이션 SSH 자격은 .env 도 .toml 도
-      # 아니라 위 패턴에 안 걸린다. checkout 이 작업 폴더를 청소하므로 이 줄이
-      # 없으면 배포마다 사라지고, 터널이 마운트할 원본이 없어 죽는다.
-      # 09-10 에 배포 세 번 연속으로 터널이 죽었다.
-      # 인증서도 같다 — conf/certbot/ 은 .gitignore 에 있다(개인키가 들어 있다).
-      # 없으면 nginx 가 ssl_certificate 를 못 읽고 [emerg] 로 죽는다. 80 까지
-      # 같이 내려간다 — 09-17 에 실제로 그렇게 됐다.
-      #
-      # ⚠ 왜 cp 가 아니라 컨테이너 안의 tar 인가. 두 가지가 겹쳐 있다.
-      #   · certbot 이 live/ · archive/ 를 root 0700 으로 만든다. 러너 사용자가
-      #     읽지 못해 그냥 cp 하면 Permission denied 다
-      #   · 두 폴더가 Windows 마운트라 cp 가 서로를 같은 파일로 오인한다
-      #     ("are the same file"). tar 는 그 검사를 하지 않는다
-      #
-      # ⚠ 끝의 chown 을 빼면 안 된다. 컨테이너가 root 로 쓰기 때문에 다음
-      #   배포의 checkout 이 이 파일들을 못 지우고 **거기서 멈춘다**
-      #   (EACCES: permission denied, scandir …/certbot/etc/accounts).
-      #   그러면 배포가 통째로 막힌다 — 09-17 에 실제로 그렇게 됐다.
-      #   1000 은 러너 사용자(runner)다.
-      - name: 인증서 복사 (conf/certbot 은 git 에 없다)
-        run: |
-          mkdir -p conf/certbot
-          docker run --rm \
-            -v "$(readlink -f ~/empatho-conf)/certbot:/src:ro" \
-            -v "$PWD/conf/certbot:/dst" \
-            alpine sh -c 'tar -C /src -cf - . | tar -C /dst -xf - && chown -R 1000:1000 /dst'
-
-      # garage/ 도 같은 이유다 — garage 는 설정을 폴더째 붙이도록 바뀌었다(09-15).
-      - run: cp ~/empatho-conf/*.env conf/
-      - run: mkdir -p conf/ws && cp ~/empatho-conf/ws/* conf/ws/ && chmod 600 conf/ws/*
-      - run: mkdir -p conf/garage && cp ~/empatho-conf/garage/garage.toml conf/garage/
-      
+      # 사람이 서버에서 손으로 docker compose 를 칠 때를 위해 .env 를 남긴다.
+      # compose 가 자동으로 읽는 파일이라, 이게 없으면 위 CONF·WEB_DIST 가
+      # 안 잡혀서 기본값(./conf)으로 떨어진다 — 그 폴더는 이제 비어 있다.
+      - name: compose 가 읽을 .env 를 쓴다
+        run: printf 'CONF=%s\nWEB_DIST=%s\n' "$CONF" "$WEB_DIST" > .env
       # --build 가 붙는 이유 — Django 와 Go 는 우리 코드로 이미지를 만든다.
       # postgres 처럼 받아 쓰는 것과 다르다.
       - run: docker compose up -d --build
@@ -109,7 +84,7 @@ jobs:
           c=$(code $B/admin/)
           case "$c" in
             200|302) ;;
-            400) echo "/admin/ → 400 · ~/empatho-conf/web.env 의 DJANGO_ALLOWED_HOSTS 에 서버 IP 가 없다"; exit 1 ;;
+            400) echo "/admin/ → 400 · $CONF/web.env 의 DJANGO_ALLOWED_HOSTS 를 확인"; exit 1 ;;
             *)   echo "/admin/ → $c"; exit 1 ;;
           esac
 

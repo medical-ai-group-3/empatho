@@ -23,16 +23,18 @@ services:
       - ./conf/nginx:/etc/nginx/conf.d:ro
       # Vite 빌드 결과. 네이티브 앱으로 가면 이 줄과 nginx.conf 의
       # 프런트 구역을 같이 지운다.
-      - ./web-dist:/usr/share/nginx/html:ro
+      - ${WEB_DIST:-./web-dist}:/usr/share/nginx/html:ro
       # Django 정적 파일은 붙이지 않는다 — whitenoise 가 Django 안에서
       # 준다(settings.py). nginx 는 /static/ 을 web 으로 넘기기만 한다.
 
       # 인증서. certbot 컨테이너가 쓰고 nginx 는 읽기만 한다.
       # ⚠ 이 폴더는 git 에 안 올라간다(.gitignore) — 개인키가 들어 있다.
-      #   배포 때 지워지지도 않는다. checkout 은 추적되는 파일만 건드린다.
-      - ./conf/certbot/etc:/etc/letsencrypt:ro
+      #   그리고 **체크아웃 안에 두면 안 된다** — checkout 은 git clean -ffdx
+      #   로 무시된 파일까지 지운다(09-17 에 인증서가 그렇게 사라져 nginx 가
+      #   죽었다). 그래서 CONF 로 체크아웃 밖을 가리킨다.
+      - ${CONF:-./conf}/certbot/etc:/etc/letsencrypt:ro
       # certbot 이 확인 파일을 놓는 자리. 80 의 acme-challenge 가 여기를 본다.
-      - ./conf/certbot/www:/var/www/certbot:ro
+      - ${CONF:-./conf}/certbot/www:/var/www/certbot:ro
 
     # ⚠ **6시간마다 스스로 재적재한다.**
     #   certbot 이 인증서를 갱신해도 nginx 는 뜰 때 읽은 것을 메모리에
@@ -78,8 +80,8 @@ services:
     container_name: certbot
     restart: unless-stopped
     volumes:
-      - ./conf/certbot/etc:/etc/letsencrypt
-      - ./conf/certbot/www:/var/www/certbot
+      - ${CONF:-./conf}/certbot/etc:/etc/letsencrypt
+      - ${CONF:-./conf}/certbot/www:/var/www/certbot
     entrypoint: >
       sh -c "trap exit TERM;
              while :; do
