@@ -806,6 +806,38 @@ a{color:inherit; text-decoration:none}
   color:var(--ink)}
 .quick-head .svg-icon{width:16px; height:16px; color:var(--pink); stroke-width:2.2}
 .quick-head b{font-size:var(--tile-fs); font-weight:700}
+
+/* 홈에서 여러 카드에 흩어진 일을 한 번 더 묶는다. 새 기능을 만들기보다,
+   환자가 지금 먼저 해야 할 곳으로 바로 갈 수 있게 순서만 세운다. */
+.today-tasks{border:var(--line-w) solid var(--pink-3); border-radius:var(--card-radius);
+  overflow:hidden; background:var(--surface); box-shadow:var(--card-shadow)}
+.today-tasks-head{display:flex; align-items:center; gap:var(--card-tx-gap);
+  padding:var(--card-pad); padding-bottom:var(--card-tx-gap); color:var(--ink)}
+.today-tasks-head .svg-icon{width:16px; height:16px; color:var(--pink); stroke-width:2.2}
+.today-tasks-head b{font-size:var(--card-v-fs); font-weight:700}
+.today-tasks-head span{margin-left:auto; color:var(--muted); font-size:var(--card-s-fs)}
+.today-tasks-list{display:flex; flex-direction:column}
+.today-tasks-list a{display:flex; align-items:center; gap:var(--card-go-gap);
+  padding:var(--card-pad); border-top:var(--line-w) solid var(--line-soft)}
+.today-tasks-list a:hover{background:var(--blush)}
+.today-task-icon{width:var(--icon); height:var(--icon); border-radius:var(--icon-radius);
+  display:flex; align-items:center; justify-content:center; background:var(--blossom); color:var(--pink); flex:none}
+.today-task-icon .svg-icon{width:17px; height:17px}
+.today-task-text{display:flex; flex-direction:column; flex:1; min-width:0}
+.today-task-text b{font-size:var(--card-s-fs); color:var(--ink)}
+.today-task-text span{font-size:var(--card-k-fs); color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.today-tasks-list .arw{width:var(--card-arw-fs); height:var(--card-arw-fs); color:var(--faint); flex:none}
+
+/* 예약 한 건 안에서만 보이는 안내. 의료적인 준비 지시는 병원 안내를
+   우선한다고 적어, 화면의 일반 문구가 처방처럼 읽히지 않게 한다. */
+.visit-guide{margin-top:var(--ask-gap-top); padding:var(--card-pad);
+  border-radius:var(--card-radius); background:var(--blush); color:var(--muted)}
+.visit-guide > b{display:block; color:var(--ink-2); font-size:var(--card-s-fs)}
+.visit-guide ul{margin:var(--card-tx-gap) 0; padding-left:var(--card-go-gap);
+  font-size:var(--card-s-fs)}
+.visit-guide-actions{display:flex; align-items:center; justify-content:space-between;
+  gap:var(--card-go-gap); font-size:var(--card-k-fs)}
+.visit-guide-actions .lnk{flex:none}
 .tiles{display:grid; grid-template-columns:1fr 1fr; gap:var(--tile-gap)}
 .tile{display:flex; flex-direction:column; align-items:center;
   justify-content:center; gap:var(--card-tx-gap);

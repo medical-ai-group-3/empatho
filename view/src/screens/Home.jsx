@@ -84,6 +84,22 @@ function Inner({ d }) {
   const pct = q.total ? Math.round((q.answered / q.total) * 100) : 0;
   const next = d.next_reservation;
   const cal = d.calendar;
+  const newReport = d.new_reports?.find((r) => r.lock_status !== "locked");
+  const todayTasks = [
+    !done && {
+      to: "/quest", icon: "help", title: questLine(q),
+      detail: q.hint || "검사 전에 문진을 마쳐 주세요",
+    },
+    next && {
+      to: "/book", icon: "calendar", title: `다음 예약 ${fmtWhen(next.scheduled_at)}`,
+      detail: next.place || "예약 장소를 확인해 주세요",
+    },
+    newReport && {
+      to: `/reports/${newReport.report_id}`,
+      icon: "results", title: "새 안내문을 확인해 주세요",
+      detail: newReport.title,
+    },
+  ].filter(Boolean);
 
   return (
     <>
@@ -118,6 +134,8 @@ function Inner({ d }) {
           <Tilly mood="hi" size="lg" alt="" />
         </span>
       </div>
+
+      {todayTasks.length > 0 && <TodayTasks tasks={todayTasks} />}
 
       <div className="quick-head">
         <Icon name="sparkle" />
@@ -248,6 +266,30 @@ function Inner({ d }) {
 /* 메뉴 이름이 아이콘의 뜻을 이미 말해 주므로 장식 이미지로 처리한다. */
 function MenuIcon({ file }) {
   return <img className="menu-icon" src={`/tilly/${file}`} alt="" aria-hidden="true" />;
+}
+
+function TodayTasks({ tasks }) {
+  return (
+    <section className="today-tasks" aria-labelledby="today-tasks-title">
+      <div className="today-tasks-head">
+        <Icon name="sparkle" />
+        <b id="today-tasks-title">오늘의 할 일</b>
+        <span>{tasks.length}개</span>
+      </div>
+      <div className="today-tasks-list">
+        {tasks.map((task) => (
+          <Link key={task.to} to={task.to}>
+            <span className="today-task-icon"><Icon name={task.icon} /></span>
+            <span className="today-task-text">
+              <b>{task.title}</b>
+              <span>{task.detail}</span>
+            </span>
+            <Icon className="arw" name="chevronRight" />
+          </Link>
+        ))}
+      </div>
+    </section>
+  );
 }
 
 /* 톱니 — 설정. 종과 같은 굵기·같은 모서리로 그려야 둘이 한 벌로 보인다. */

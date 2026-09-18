@@ -41,6 +41,9 @@ import { useState } from "react";
 
 const FILE = {
   loading: "tilly_loading_spinner.gif",
+  hello: "tily_hello.png",
+  alarm: "tily_alarm.png",
+  rest: "tily_rest.png",
   chatbot: "tilly_chatbot.png",
   chatbotBanner: "tily_chatbot_baner.png",
   chatbotProfile: "tily_chatbot_profile.png",
