@@ -67,39 +67,42 @@ function Inner({ cfg }) {
         {data && (
           <Split
             side="wide"
+            empty="목록에서 한 사람을 고르면 여기에 상세가 보입니다"
             left={
-              <Card
-                title={c.listTitle}
-                right={<Search placeholder={c.searchHint} value={q} onChange={setQ} />}
-                pad={false}
-              >
-                <div className="tbl-top">
-                  <Sort items={c.sorts} value={sort} onChange={setSort} />
-                </div>
+              <>
+                <Card
+                  title={c.listTitle}
+                  right={<Search placeholder={c.searchHint} value={q} onChange={setQ} />}
+                  pad={false}
+                >
+                  <div className="tbl-top">
+                    <Sort items={c.sorts} value={sort} onChange={setSort} />
+                  </div>
 
-                <Table
-                  cols={c.cols}
-                  rows={data.items
-                    .filter((r) => match(r, q, c.search))
-                    .map((r) => c.row(r))}
-                  value={pick}
-                  onPick={setPick}
-                />
+                  <Table
+                    cols={c.cols}
+                    rows={data.items
+                      .filter((r) => match(r, q, c.search))
+                      .map((r) => c.row(r))}
+                    value={pick}
+                    onPick={setPick}
+                  />
 
-                <div className="tbl-foot">
-                  <span>{data.total}건 중 {data.items.length}건 표시</span>
-                  {scope?.key === "own" && (
-                    <span className="muted">내가 맡은 환자만 보입니다</span>
-                  )}
-                </div>
-              </Card>
-            }
-            right={pick
-              ? <Detail cfg={cfg} id={pick} />
-              : <SideDashboard stats={[
+                  <div className="tbl-foot">
+                    <span>{data.total}건 중 {data.items.length}건 표시</span>
+                    {scope?.key === "own" && (
+                      <span className="muted">내가 맡은 환자만 보입니다</span>
+                    )}
+                  </div>
+                </Card>
+                {/* 유방외과처럼 목록 아래에 둔다 — 환자 상세 자리가 아니다 */}
+                <SideDashboard stats={[
                   { label: "전체", value: data.total },
                   { label: "현재 표시", value: data.items.length },
-                ]} />}
+                ]} />
+              </>
+            }
+            right={pick ? <Detail cfg={cfg} id={pick} /> : null}
           />
         )}
       </Body>

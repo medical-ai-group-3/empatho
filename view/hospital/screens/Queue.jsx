@@ -72,12 +72,19 @@ function Inner({ cfg }) {
             {msg && <div className="notice">{msg}</div>}
             <Split
               side="wide"
-              left={<List cfg={cfg} data={data} q={q} setQ={setQ} pick={pick}
-                          setPick={setPick} take={take} busy={busy}
-                          onTake={onTake} />}
-              right={pick
-                ? <Detail cfg={cfg} id={pick} />
-                : <SideDashboard stats={[{ label: "대기 중", value: data.items.length }]} />}
+              empty="왼쪽 목록에서 한 사람을 고르면 여기에 상세가 보입니다"
+              left={
+                <>
+                  <List cfg={cfg} data={data} q={q} setQ={setQ} pick={pick}
+                        setPick={setPick} take={take} busy={busy}
+                        onTake={onTake} />
+                  {/* 유방외과처럼 목록 아래에 둔다 — 오른쪽(환자 상세) 자리가
+                      아니다. .split-l 이 이미 flex-column(gap 포함)이라
+                      그냥 둘째로 넣으면 아래에 쌓인다. */}
+                  <SideDashboard stats={[{ label: "대기 중", value: data.items.length }]} />
+                </>
+              }
+              right={pick ? <Detail cfg={cfg} id={pick} /> : null}
             />
           </>
         )}
