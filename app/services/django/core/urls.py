@@ -30,6 +30,7 @@ cdss_backend/urls.py 에서 path("api/v1/", include("core.urls")) 로 물린다.
 """
 
 from django.urls import include, path
+from django.views.decorators.csrf import csrf_exempt
 from rest_framework.routers import DefaultRouter
 
 from . import views
@@ -38,6 +39,7 @@ from . import views
 # 목록의 첫 항목만 매칭한다 — 뒤에 등록한 메서드는 항상 405 로 막힌다.
 # GET/POST 를 같은 경로에서 서로 다른 뷰가 나눠 맡는 곳은 여기서 메서드로
 # 직접 갈라 둘 다 실제로 닿게 한다.
+@csrf_exempt
 def _exam_orders_dispatch(request, *args, **kwargs):
     if request.method == "POST":
         return views.ExamOrderRequestView.as_view({"post": "create"})(request, *args, **kwargs)

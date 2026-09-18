@@ -38,6 +38,9 @@ class PatientDetailSerializer(PatientSerializer):
 
 
 class ExamOrderSerializer(serializers.ModelSerializer):
+    patient_number = serializers.CharField(
+        source="patient.patient_number", read_only=True, default=None
+    )
     patient_name = serializers.CharField(
         source="patient.pii.name", read_only=True, default=None
     )
