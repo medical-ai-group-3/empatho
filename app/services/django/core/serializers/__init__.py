@@ -58,6 +58,5 @@ from .surgery import (
 from .pathology import(
     SpecimenDraftSerializer,
     SpecimenFinalizeSerializer,
-    SpecimenAmendSerializer,
     StorageObjectSerializer,
 )

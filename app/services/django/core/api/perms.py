@@ -11,7 +11,7 @@ PATHOLOGY_PERMS = [
     "pathology.ai.run", "pathology.ai.view",
     "pathology.read.view", "pathology.read.draft", "pathology.read.finalize",
     "pathology.list.view",
-    "pathology.amend.view", "pathology.amend.save",
+    # amend(정정)는 없다 — 확정 사양서 §8-2, 확정 후 오류는 새 검체로 처리한다.
 ]
 
 RADIOLOGY_PERMS = [
