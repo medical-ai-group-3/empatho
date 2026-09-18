@@ -20,7 +20,11 @@ from django.utils import timezone
 from ..tasks import run_inference
 from .. import models, serializers
 from ..mixins import AuditMixin
-from core.api.permissions import MatrixPermission, CanFinalizeRadiologyRead
+from core.api.permissions import (
+    CanCompleteExamOrder,
+    CanFinalizeRadiologyRead,
+    MatrixPermission,
+)
 from core.api.errors import ApiError
 
 
@@ -78,7 +82,7 @@ class ExamOrderCompleteView(AuditMixin, viewsets.ViewSet):
     """PATCH /exam-orders/{id}/complete — 촬영/판독 완료 처리."""
 
     resource = "exam_order"
-    permission_classes = [MatrixPermission]
+    permission_classes = [CanCompleteExamOrder]
 
     def partial_update(self, request, pk=None):
         order = models.ExamOrder.objects.get(pk=pk)
@@ -460,4 +464,3 @@ class ExamOrderAssignView(AuditMixin, viewsets.ViewSet):
         order = models.ExamOrder.objects.get(pk=pk)
         out = serializers.ExamOrderSerializer(order)
         return Response(out.data)
-    

@@ -316,6 +316,16 @@ CanDecideAssessment = IsRole.of(SURGERY, code="DECISION_ROLE_ONLY_SURGERY")
 #: 불일치 해소 처분 — 유방외과 단독 (§8.4)
 CanDisposeDiscordance = IsRole.of(SURGERY, code="DISPOSITION_ROLE_ONLY_SURGERY")
 
+# 촬영 완료 처리 — 기존 exam_order 매트릭스는 그대로 둔다.
+# 매트릭스에서 이미 허용된 역할은 계속 통과시키고, 유방외과에는 이 endpoint
+# 하나에서만 U 권한을 추가한다.
+class CanCompleteExamOrder(MatrixPermission):
+    def has_permission(self, request, view):
+        IsAuthenticatedAccount.has_permission(self, request, view)
+        if request.user.role == SURGERY:
+            return True
+        return super().has_permission(request, view)
+
 #: 리포트 열람 잠금 해제 — 유방외과 단독 (§11.5)
 CanUnlockReport = IsRole.of(SURGERY, code="UNLOCK_ROLE_ONLY_SURGERY")
 
