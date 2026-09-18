@@ -208,10 +208,21 @@ class CheckInSerializer(serializers.Serializer):
      
 class ExamOrderScheduleSerializer(serializers.Serializer):
     """POST /exam-orders (§3 예약 완료) — 원무가 날짜만 잡는다."""
-    
+
     patient_id = serializers.IntegerField()
     scheduled_at = serializers.DateTimeField()
-    
+
+
+class ExamOrderConfirmSerializer(serializers.Serializer):
+    """PATCH /exam-orders/{id}/confirm — 원무는 날짜만 확정한다.
+
+    검사 종류(modality·exam_purpose·ordered_by)는 유방외과가 나중에 정한다
+    (0015 · order_status='scheduled' 신설, 09-17 팀 확정).
+    """
+
+    scheduled_at = serializers.DateTimeField()
+
+
 class MeSerializer(serializers.Serializer):
     """GET /me — 로그인한 계정 정보 + 권한 배열."""
     name = serializers.SerializerMethodField()
