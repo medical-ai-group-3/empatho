@@ -346,7 +346,13 @@ export const path = {
   /* ⚠ 서버는 큐를 **기본 필터 없이** 준다 (2026-09-16 다희님 확인).
      이 두 조건을 안 담으면 이미 남이 집어간 검체까지 대기 큐에 뜬다.
      기본값이 아니라 **우리가 정하는 조건**이라 여기 적어 둔다 */
-  queue:      ()       => get(`/specimens/queue${qs({ status: "bound", assigned: "none" })}`),
+  /* ⚠ 봉투 언랩 — Queue.jsx 가 {items,total}을 기대한다. 3c1ee79 정리
+     때 빠졌던 것 (rad.list 옆의 같은 메모 참고). */
+  queue:      ()       => get(`/specimens/queue${qs({ status: "bound", assigned: "none" })}`)
+    .then((raw) => {
+      const rows = raw?.results ?? raw?.items ?? (Array.isArray(raw) ? raw : []);
+      return { ...raw, items: rows, total: raw?.count ?? raw?.total ?? rows.length };
+    }),
   /* ⚠ 상세에도 슬래시가 붙는다 (2026-09-16 다희님이 직접 요청을 넣어
      확인). 전에 「병리는 상세에 슬래시가 없다」고 들었던 것이 틀렸다 —
      슬래시 없이 부르면 그냥 404 다.
@@ -378,7 +384,11 @@ export const path = {
      queue·assign·upload·draft·finalize·amend 는 슬래시가 없는 게 맞다.
      Django APPEND_SLASH 가 GET 은 301 로 넘겨 주지만 POST 는 그 과정에서
      본문이 날아가므로, 붙는 자리는 처음부터 붙여 둔다 */
-  list:       (o = {}) => get(`/specimens/${qs(o)}`),
+  /* ⚠ 봉투 언랩 — List.jsx 가 {items,total}을 기대한다. */
+  list:       (o = {}) => get(`/specimens/${qs(o)}`).then((raw) => {
+    const rows = raw?.results ?? raw?.items ?? (Array.isArray(raw) ? raw : []);
+    return { ...raw, items: rows, total: raw?.count ?? raw?.total ?? rows.length };
+  }),
   amend:      (id, b)  => post(`/specimens/${id}/amend`, b),
 };
 
@@ -405,7 +415,12 @@ export const rad = {
 
      큐는 결국 「거른 목록」이라 따로 경로를 두지 않는다. /ai-results?study=
      · /assessments?study= 도 같은 모양이다. */
-  queue:      ()       => get(`/exam-orders${qs({ status: "ordered", assigned: "none" })}`),
+  /* ⚠ 봉투 언랩 — Queue.jsx 가 {items,total}을 기대한다. */
+  queue:      ()       => get(`/exam-orders${qs({ status: "ordered", assigned: "none" })}`)
+    .then((raw) => {
+      const rows = raw?.results ?? raw?.items ?? (Array.isArray(raw) ? raw : []);
+      return { ...raw, items: rows, total: raw?.count ?? raw?.total ?? rows.length };
+    }),
   order:      (id)     => get(`/exam-orders/${id}`),
   assign:     (id)     => patch(`/exam-orders/${id}/assign`),
 
@@ -461,7 +476,13 @@ export const rad = {
       finding_note: current?.finding_note,
     };
   }),
-  list:       (o = {}) => get(`/studies/${qs(o)}`),
+  /* ⚠ 서버가 페이지네이션 봉투({count,results,…})로 준다. List.jsx 는
+     {items,total}을 기대한다(data.items.filter · data.total) — 병리·영상
+     큐가 이미 하던 언랩과 같은 자리다. 3c1ee79 정리 때 빠졌던 것. */
+  list:       (o = {}) => get(`/studies/${qs(o)}`).then((raw) => {
+    const rows = raw?.results ?? raw?.items ?? (Array.isArray(raw) ? raw : []);
+    return { ...raw, items: rows, total: raw?.count ?? raw?.total ?? rows.length };
+  }),
   history:    (id)     => get(`/assessments${qs({ study: id })}`),
   amend:      (id, b)  => post(`/assessments/${id}/amend`, b),
 };
