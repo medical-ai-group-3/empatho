@@ -55,8 +55,14 @@ function Inner({ cfg }) {
   const [selectedId, setSelectedId] = useState(null);
 
   const items = useMemo(() => {
-    const raw = data?.items ?? [];
-    return raw.map((f) => ({ ...f, view_status: displayStatus(f) }));
+    const raw = Array.isArray(data) ? data : [];
+    return raw.map((f) => ({
+      ...f,
+      id: f.followup_id,
+      patient_id: f.patient,
+      name: f.patient_name,
+      view_status: displayStatus(f),
+    }));
   }, [data]);
 
   const shown = filter ? items.filter((f) => f.view_status === filter) : items;

@@ -114,7 +114,12 @@ function Inner({ cfg, id, d }) {
      버튼 위 한 줄에 적혀 있어야 한다 */
   async function draft() {
     setBusy(true); setMsg(null);
-    try { await cfg.api.draft(id, f); setMsg("임시저장했습니다."); }
+    const payload = {
+      lesion_id: f.lesion_id ?? null,
+      finding_note: f.finding_note ?? "",
+      category: f.category ?? null,
+    };
+    try { await cfg.api.draft(id, payload); setMsg("임시저장했습니다."); }
     catch (e) { setMsg(e.detail || "임시저장에 실패했습니다."); }
     finally { setBusy(false); }
   }

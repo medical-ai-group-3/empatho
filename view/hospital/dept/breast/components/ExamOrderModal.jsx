@@ -3,11 +3,20 @@ import { breast as api } from "../../../api";
 
 /* 촬영 요청 팝업 — §3 수정요청: 촬영부위 입력란을 두지 않는다.
  * DB에 칸이 없고(exam_order 테이블), 안 받기로 확정된 사항이다.
- * 받는 것은 촬영기구 · 요청의견서(order_note) 둘뿐이다. */
-const DEVICES = ["맘모그래피", "유방 초음파", "유방 MRI"];
+ * 받는 것은 모달리티 · 검사 목적 · 요청의견서(order_note)다. */
+const MODALITIES = [
+  { value: "mammo", label: "맘모그래피" },
+  { value: "us", label: "유방 초음파" },
+  { value: "mri", label: "유방 MRI" },
+];
+const EXAM_PURPOSES = [
+  { value: "screening", label: "선별검사" },
+  { value: "diagnostic", label: "진단검사" },
+];
 
 export default function ExamOrderModal({ patient, onClose, onDone }) {
-  const [device, setDevice] = useState(DEVICES[0]);
+  const [modality, setModality] = useState(MODALITIES[0].value);
+  const [examPurpose, setExamPurpose] = useState(EXAM_PURPOSES[0].value);
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -18,7 +27,8 @@ export default function ExamOrderModal({ patient, onClose, onDone }) {
     try {
       await api.examOrder({
         patient_id: patient.patient_id,
-        device,
+        modality,
+        exam_purpose: examPurpose,
         order_note: note,
       });
       onDone?.();
@@ -38,9 +48,15 @@ export default function ExamOrderModal({ patient, onClose, onDone }) {
         </div>
         <div className="modal-body">
           <div className="field">
-            <label>촬영기구</label>
-            <select value={device} onChange={(e) => setDevice(e.target.value)}>
-              {DEVICES.map((d) => <option key={d} value={d}>{d}</option>)}
+            <label>검사 종류</label>
+            <select value={modality} onChange={(e) => setModality(e.target.value)}>
+              {MODALITIES.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
+            </select>
+          </div>
+          <div className="field">
+            <label>검사 목적</label>
+            <select value={examPurpose} onChange={(e) => setExamPurpose(e.target.value)}>
+              {EXAM_PURPOSES.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
             </select>
           </div>
           <div className="field">
