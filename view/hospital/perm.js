@@ -25,7 +25,9 @@
  * label    관리자 화면에 보일 한글 이름
  * where    이 권한이 실제로 무엇을 여는지 (팀원이 찾아보라고 적어 둔다)
  */
-function deptPerms(dept, name) {
+/* ⚠ amend(5장)는 병리에 없다 — 확정 사양서 §8-2, 정정 경로를 두지
+   않는다. hasAmend=false 로 부르면 그 두 줄이 빠진다 */
+function deptPerms(dept, name, { hasAmend = true } = {}) {
   return [
     { key: `${dept}.queue.view`,    label: `${name} 대기 큐 보기`,
       where: "1장 대기 큐 화면 자체" },
@@ -47,10 +49,12 @@ function deptPerms(dept, name) {
       where: "3장 [저장] 버튼. 되돌릴 수 없는 동작이다" },
     { key: `${dept}.list.view`,     label: `${name} 전체 환자 목록 보기`,
       where: "4장 화면 자체" },
-    { key: `${dept}.amend.view`,    label: `${name} 판독 정정 화면 보기`,
-      where: "5장 화면 자체" },
-    { key: `${dept}.amend.save`,    label: `${name} 판독 정정 저장`,
-      where: "5장 [저장] 버튼" },
+    ...(hasAmend ? [
+      { key: `${dept}.amend.view`,    label: `${name} 판독 정정 화면 보기`,
+        where: "5장 화면 자체" },
+      { key: `${dept}.amend.save`,    label: `${name} 판독 정정 저장`,
+        where: "5장 [저장] 버튼" },
+    ] : []),
   ];
 }
 
@@ -127,7 +131,7 @@ const NURSING = [
 ];
 
 export const CATALOG = [
-  ...deptPerms("pathology", "병리"),
+  ...deptPerms("pathology", "병리", { hasAmend: false }),
   ...deptPerms("radiology", "영상"),
   ...BREAST,
   ...RECEPTION,
@@ -225,6 +229,8 @@ export function mockPerms(dept, role) {
   const d = dept;
   const base = [`${d}.queue.view`, `${d}.list.view`, `${d}.read.view`];
   const rad = d === "radiology";
+  /* ⚠ 병리는 amend(5장)가 없다 — 확정 사양서 §8-2 */
+  const amend = rad ? [`${d}.amend.view`, `${d}.amend.save`] : [];
 
   switch (role) {
     case "과장":
@@ -232,7 +238,7 @@ export function mockPerms(dept, role) {
       return [
         ...base, `${d}.queue.assign`, `${d}.upload.view`, `${d}.upload.send`,
         `${d}.ai.run`, `${d}.ai.view`, `${d}.read.draft`, `${d}.read.finalize`,
-        `${d}.amend.view`, `${d}.amend.save`,
+        ...amend,
         ...(rad ? ["radiology.retake", "radiology.lesion.add", "radiology.lesion.fp"] : []),
         "report.view.all",
       ];
@@ -240,7 +246,7 @@ export function mockPerms(dept, role) {
       return [
         ...base, `${d}.queue.assign`, `${d}.upload.view`, `${d}.upload.send`,
         `${d}.ai.run`, `${d}.ai.view`, `${d}.read.draft`, `${d}.read.finalize`,
-        `${d}.amend.view`, `${d}.amend.save`,
+        ...amend,
         ...(rad ? ["radiology.retake", "radiology.lesion.add", "radiology.lesion.fp"] : []),
         "report.view.dept",
       ];

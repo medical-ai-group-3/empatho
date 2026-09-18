@@ -136,7 +136,11 @@ function match(r, q, fields = FIELDS) {
 function Detail({ cfg, id }) {
   const c = cfg.list;
   const nav = useNavigate();
-  const amend = useCan(cfg.amend.need.view);
+  /* ⚠ 병리는 cfg.amend 가 없다 (확정 사양서 §8-2 — 정정 경로를 두지
+     않는다). useCan 은 훅이라 조건부로 못 부르니 항상 부르지만,
+     아래 "판독 정정" 버튼은 cfg.amend 가 있을 때만 렌더링된다 —
+     이 값은 병리에서는 그냥 안 쓰인다 */
+  const amend = useCan(cfg.amend?.need?.view);
   const { loading, data, error, reload } =
     useApi(() => (id ? cfg.api.listDetail(id) : Promise.resolve(null)), [id]);
 
@@ -154,11 +158,13 @@ function Detail({ cfg, id }) {
             <c.Detail key={id} d={data} cfg={cfg} />
             <div className="stack top">
               <Btn kind="line" onClick={() => nav(cfg.go.read(id))}>판독 화면</Btn>
-              <Btn kind="fill" onClick={() => nav(cfg.go.amend(id))}
-                   disabled={!amend.ok || !data.finalized}
-                   title={amend.attrs.title}>판독 정정</Btn>
+              {cfg.amend && (
+                <Btn kind="fill" onClick={() => nav(cfg.go.amend(id))}
+                     disabled={!amend.ok || !data.finalized}
+                     title={amend.attrs.title}>판독 정정</Btn>
+              )}
             </div>
-            {!data.finalized && (
+            {cfg.amend && !data.finalized && (
               <p className="muted small">확정된 판독이 있어야 정정할 수 있습니다.</p>
             )}
           </>

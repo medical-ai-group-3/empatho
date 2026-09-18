@@ -364,7 +364,7 @@ export const path = {
      않는다. 이 API 는 맨 뒤에 캐치올 라우트가 있어서 APPEND_SLASH
      리다이렉트 자체가 안 일어난다. 슬래시를 빠뜨리면 늘 깔끔한 404 다.
 
-     ⚠ 아래 custom action 들(queue·assign·upload·draft·finalize·amend)은
+     ⚠ 아래 custom action 들(queue·assign·upload·draft·finalize)은
        서버 코드로 확인했다 — 이들은 @action 이 아니라 core/urls.py 의
        명시 path() 라서 **슬래시가 없다.** 끝 슬래시가 붙는 것은 router 에
        등록된 것들뿐이다 (patients · studies · lesions · reports ·
@@ -384,7 +384,7 @@ export const path = {
   finalize:   (id, b)  => patch(`/specimens/${id}/finalize`, b),
 
   /* ⚠ 슬래시가 붙는다. **목록·생성만** 그렇다 (2026-09-16 확인).
-     queue·assign·upload·draft·finalize·amend 는 슬래시가 없는 게 맞다.
+     queue·assign·upload·draft·finalize 는 슬래시가 없는 게 맞다.
      Django APPEND_SLASH 가 GET 은 301 로 넘겨 주지만 POST 는 그 과정에서
      본문이 날아가므로, 붙는 자리는 처음부터 붙여 둔다 */
   /* ⚠ 봉투 언랩 — List.jsx 가 data.items/data.total 을 기대한다(위 queue
@@ -393,7 +393,10 @@ export const path = {
     const rows = raw?.results ?? raw?.items ?? (Array.isArray(raw) ? raw : []);
     return { ...raw, items: rows, total: raw?.count ?? raw?.total ?? rows.length };
   }),
-  amend:      (id, b)  => post(`/specimens/${id}/amend`, b),
+  /* ⚠ POST /specimens/{id}/amend 는 서버에 없다 (확정 사양서 §8-2 —
+     병리 결과 정정 경로를 두지 않기로 함. views/pathology.py 상단
+     docstring 참고). 예전엔 여기 amend() 가 있었는데 지웠다 — 부르면
+     404 만 나던 죽은 경로였다. */
 };
 
 /* ── 영상의학과 ───────────────────────────────────────────────

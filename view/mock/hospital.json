@@ -62,7 +62,6 @@
         "pathology.ai.run", "pathology.ai.view",
         "pathology.read.view", "pathology.read.draft", "pathology.read.finalize",
         "pathology.list.view",
-        "pathology.amend.view", "pathology.amend.save",
         "report.view.all"
       ]
     },
@@ -480,8 +479,6 @@
       "pathology.read.draft",
       "pathology.read.finalize",
       "pathology.list.view",
-      "pathology.amend.view",
-      "pathology.amend.save",
       "radiology.queue.view",
       "radiology.queue.assign",
       "radiology.upload.view",
@@ -791,9 +788,6 @@
     "ok": true
   },
   "PATCH /api/v1/hospital/specimens/{id}/finalize": {
-    "ok": true
-  },
-  "POST /api/v1/hospital/specimens/{id}/amend": {
     "ok": true
   },
   "GET /api/v1/hospital/exam-orders?status={s}&assigned={a}": {
