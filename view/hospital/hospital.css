@@ -175,6 +175,11 @@ input,select,textarea{font:inherit; color:inherit}
 .split{display:grid; grid-template-columns:1fr var(--pane-side);
   gap:var(--pane-gap); align-items:start}
 .split.wide{grid-template-columns:1fr var(--pane-side-wide)}
+/* 목록 1 : 상세 2 — 오른쪽이 고정폭이 아니라 화면 비율을 따라간다.
+   영상의학과 환자 목록(뷰어가 들어가는 상세)처럼 상세 쪽이 넓은 화면에서
+   같이 넓어져야 하는 자리에 쓴다(2026-09-18) — .wide 의 고정 440px로는
+   뷰어가 좁게 눌린다. */
+.split.third{grid-template-columns:minmax(0,1fr) minmax(0,2fr); align-items:stretch}
 .split-l,.split-r{min-width:0; display:flex; flex-direction:column;
   gap:var(--gap)}
 

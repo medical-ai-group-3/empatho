@@ -453,6 +453,12 @@ export const radiology = {
   list: {
     title: "전체 환자 목록",
     sub: "지난 검사까지 전부 찾아보는 자리입니다. 판독 정정도 여기서 들어갑니다.",
+    /* 상세에 뷰어가 들어가서(ListViewer) 고정폭(.wide, 440px)으로는
+       좁게 눌린다 — 목록:상세를 화면 비율로 1:2 잡는다(.split.third,
+       hospital.css). "내 업무"는 여기 상세가 이미 넓은 자리를 차지해서
+       뺀다(2026-09-18). */
+    splitSide: "third",
+    hideDashboard: true,
     listTitle: "검사 목록",
     searchHint: "환자 · 환자번호",
     /* 검색이 훑는 칸 — 검색창에 적어 둔 것과 같다 */

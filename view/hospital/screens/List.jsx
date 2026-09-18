@@ -66,7 +66,7 @@ function Inner({ cfg }) {
       <Body loading={loading} error={error} onRetry={reload}>
         {data && (
           <Split
-            side="wide"
+            side={c.splitSide ?? "wide"}
             empty="목록에서 한 사람을 고르면 여기에 상세가 보입니다"
             left={
               <>
@@ -95,11 +95,16 @@ function Inner({ cfg }) {
                     )}
                   </div>
                 </Card>
-                {/* 유방외과처럼 목록 아래에 둔다 — 환자 상세 자리가 아니다 */}
-                <SideDashboard stats={[
-                  { label: "전체", value: data.total },
-                  { label: "현재 표시", value: data.items.length },
-                ]} />
+                {/* 유방외과처럼 목록 아래에 둔다 — 환자 상세 자리가 아니다.
+                    ⚠ 과가 hideDashboard 를 켜면 안 그린다 — 영상의학과는
+                    상세가 뷰어까지 들어가서 목록:상세를 1:2로 넓히고
+                    "내 업무"는 빼기로 했다(2026-09-18). */}
+                {!c.hideDashboard && (
+                  <SideDashboard stats={[
+                    { label: "전체", value: data.total },
+                    { label: "현재 표시", value: data.items.length },
+                  ]} />
+                )}
               </>
             }
             right={pick ? <Detail cfg={cfg} id={pick} /> : null}
