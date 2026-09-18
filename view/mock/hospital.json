@@ -924,6 +924,7 @@
   },
   "GET /api/v1/hospital/studies/{id}/": {
     "id": "st-301",
+    "patient": 501,
     "patient_name": "김하늘",
     "age": 44,
     "sex": "여",
@@ -941,6 +942,7 @@
   },
   "GET /api/v1/hospital/studies/st-305/": {
     "id": "st-305",
+    "patient": 501,
     "patient_name": "김하늘",
     "age": 44,
     "sex": "여",
@@ -958,6 +960,7 @@
   },
   "GET /api/v1/hospital/studies/st-306/": {
     "id": "st-306",
+    "patient": 501,
     "patient_name": "김하늘",
     "age": 44,
     "sex": "여",
@@ -975,6 +978,7 @@
   },
   "GET /api/v1/hospital/studies/st-302/": {
     "id": "st-302",
+    "patient": 502,
     "patient_name": "정유진",
     "age": 56,
     "sex": "여",
@@ -1987,6 +1991,53 @@
       "at": "2026-09-10T11:00:00+09:00",
       "type": "병리 확진",
       "detail": "양성 — 섬유낭포성 변화"
+    }
+  ],
+
+  "GET /api/v1/hospital/patients/501/timeline": [
+    {
+      "at": "2026-09-15T10:05:00+09:00",
+      "type": "촬영",
+      "detail": "mammo"
+    },
+    {
+      "at": "2026-09-15T10:20:00+09:00",
+      "type": "AI 분석 완료",
+      "detail": null
+    },
+    {
+      "at": "2026-09-15T10:40:00+09:00",
+      "type": "촬영",
+      "detail": "us"
+    },
+    {
+      "at": "2026-09-15T10:55:00+09:00",
+      "type": "AI 분석 완료",
+      "detail": null
+    },
+    {
+      "at": "2026-09-15T11:50:00+09:00",
+      "type": "촬영",
+      "detail": "mri"
+    },
+    {
+      "at": "2026-09-15T15:30:00+09:00",
+      "type": "판독",
+      "detail": "BI-RADS 4b",
+      "assessment_id": 501
+    }
+  ],
+
+  "GET /api/v1/hospital/patients/502/timeline": [
+    {
+      "at": "2026-09-15T11:20:00+09:00",
+      "type": "촬영",
+      "detail": "mri"
+    },
+    {
+      "at": "2026-09-15T11:35:00+09:00",
+      "type": "AI 분석 완료",
+      "detail": null
     }
   ],
 

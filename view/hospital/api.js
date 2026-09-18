@@ -693,6 +693,12 @@ export const rad = {
     return raw?.results ?? raw?.items ?? [];
   }),
   amend:      (id, b)  => post(`/assessments/${id}/amend`, b),
+
+  /* ⚠ 2026-09-18 — 환자 목록(screens/List.jsx) 상세에 검사 이력을
+   * 붙이면서 추가했다. 유방외과 timeline과 같은 서버 경로다
+   * (PatientTimelineView, resource="patient") — MATRIX 에 이미
+   * RADIOLOGY: R 이 있어 그대로 부를 수 있다(surgery.py 새로 안 고쳐도 됨). */
+  timeline:   (pid)     => get(`/patients/${pid}/timeline`),
 };
 
 /* ── 검체 바인딩 (공용) ───────────────────────────────────────

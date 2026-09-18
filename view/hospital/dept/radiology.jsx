@@ -1,10 +1,45 @@
+import { Suspense, lazy, useState } from "react";
 import { rad } from "../api";
 import { go } from "../nav";
 import { Chip, Facts, Fold, Warn, useCan } from "../lib/Parts";
+import { Body } from "../lib/Body";
 import RadiologyAi from "./RadiologyAi";
-import { polygonsFromAi } from "../lib/Stage";
+import Stage, { polygonsFromAi } from "../lib/Stage";
+import { useApi } from "../lib/useApi";
+import { useFile } from "../lib/files";
 import { BIRADS, MODALITY, READ_STATUS, SEX, label, modality as asModality, text, tone }
   from "../codes";
+
+/* 영상 판독(screens/Read.jsx)과 환자 목록(screens/List.jsx) 둘 다 같은
+ * 규칙으로 뷰어에 무엇을 얹을지 정한다 — read.stage 하나였는데
+ * list.Detail 에도 같은 뷰어를 붙이면서(2026-09-18, 환자 목록 설계)
+ * 한 객체 리터럴 안에서 read.stage 를 list 쪽이 부를 수가 없어(자기
+ * 자신을 아직 다 만들기 전이라) 바깥으로 뺐다. */
+const MRIReviewGrid = lazy(() => import("../lib/dicom/MRIReviewGrid"));
+const DicomStackViewer = lazy(() => import("../lib/dicom/DicomStackViewer"));
+
+function radStage(d, i = 0) {
+  if (d.unit?.modality === "mri") {
+    return { volumeManifest: d.volume_manifest, volumeBase: d.volume_base };
+  }
+  if (d.unit?.modality === "mammo") {
+    return { stackManifest: d.stack_manifest, stackBase: d.stack_base };
+  }
+
+  const s = (d.series ?? [])[i];
+  const ai = d.ai;
+  let shapes = [];
+  const abstained = ai?.abstained ?? ai?.summary?.abstained;
+  if (ai && !abstained && ai.lesion_found !== false) {
+    if (asModality(ai.modality) === "us") shapes = polygonsFromAi(ai);
+  }
+  return {
+    image: s?.image,
+    maskImage: null,
+    w: s?.w, h: s?.h, alt: s?.name,
+    shapes,
+  };
+}
 
 /* 영상의학과 설정 — 공통 화면 다섯 장에 끼워 넣는 «다른 점»만 모은 파일
  * ════════════════════════════════════════════════════════════════
@@ -78,8 +113,79 @@ const api = {
   finalize:   (id, b) => rad.finalize(id, b),
   list:       (o)     => rad.list(o),
   amend:      (id, b) => rad.amend(id, b),
+  /* 환자 목록(4장) 상세에 검사 이력을 붙이려고 추가했다(2026-09-18) */
+  timeline:   (pid)   => rad.timeline(pid),
 };
 
+/* 환자 목록(4장) 상세용 뷰어 — 판독 화면(screens/Read.jsx)과 같은 규칙
+ * (radStage)으로 무엇을 그릴지 정하지만, 여기는 **조회 전용**이다.
+ * 병변 추가 · 오탐 표시 같은 판독 도구는 없다 — mode="review"를 그대로
+ * 넘긴다(공통 영상 Viewer 설계, 2026-09-17 문서 — 아직 컴포넌트 쪽
+ * mode 게이팅이 다 구현되진 않았지만 값은 미리 넘겨 둔다). */
+function ListViewer({ d, cfg, slide, onSlide, bright, contrast, mask }) {
+  const view = radStage(d, slide);
+  const isVolume = Boolean(view.volumeManifest);
+  const isStack = Boolean(view.stackManifest);
+  const isCornerstone = isVolume || isStack;
+  const scope = { kind: cfg.scopeKind, id: d.id };
+  const img = useFile(view.image, cfg.api.ticket, scope);
+  const msk = useFile(view.maskImage, cfg.api.ticket, scope);
+
+  return (
+    <div className="list-viewer">
+      {isVolume ? (
+        <Suspense fallback={<div className="mri-loading">MRI 뷰어 불러오는 중…</div>}>
+          <MRIReviewGrid lesions={d.lesions}
+            study={{ volume_manifest: view.volumeManifest, volume_base: view.volumeBase }}
+            mode="review" />
+        </Suspense>
+      ) : isStack ? (
+        <Suspense fallback={<div className="mri-loading">맘모 뷰어 불러오는 중…</div>}>
+          <DicomStackViewer manifestUrl={view.stackManifest} baseUrl={view.stackBase} mode="review" />
+        </Suspense>
+      ) : (
+        <Stage
+          src={img.src} w={view.w} h={view.h} alt={view.alt}
+          loading={img.loading} loadError={img.error}
+          bright={bright} contrast={contrast}
+          mask={msk.src} shapes={view.shapes ?? []}
+          opacity={mask}
+        />
+      )}
+      {!isCornerstone && (d.series ?? []).length > 1 && (
+        <div className="list-viewer-slides">
+          {d.series.map((s, i) => (
+            <button type="button" key={s.id ?? i}
+              className={i === slide ? "on" : ""}
+              onClick={() => onSlide(i)}>{s.name}</button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* 검사 이력 — 유방외과 Review.jsx 의 Timeline과 같은 모양(hospital.css
+ * 의 공용 .timeline 클래스). 서버 PatientTimelineView는 {at, type,
+ * detail, assessment_id} 를 준다 — label 없이 type 자체가 이미 한글
+ * ("촬영"·"AI 분석 완료"·"판독" 등)이라 그대로 제목으로 쓴다. */
+function ListTimeline({ events }) {
+  if (!events?.length) {
+    return <p className="muted small">아직 검사 이력이 없습니다.</p>;
+  }
+  return (
+    <div className="timeline">
+      {events.map((e, i) => (
+        <div className="row" key={i}>
+          <span className="dot" aria-hidden="true" />
+          <p className="label">{e.type}</p>
+          <p className="at">{e.at?.replace("T", " ").slice(0, 16)}</p>
+          {e.detail && <p className="detail">{e.detail}</p>}
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export const radiology = {
   key: "radiology",
@@ -240,32 +346,9 @@ export const radiology = {
                  2D 이미지 자리에 못 얹는다. volumeManifest를 주면
                  화면(screens/Read.jsx)이 이미지 대신 Cornerstone3D
                  기반 DicomMprPanel(Axial/Coronal/Sagittal)을 그린다.
-       좌표를 도형으로 바꾸는 자리는 lib/Stage.jsx 아래쪽에 모아 두었다 */
-    stage: (d, i = 0) => {
-      if (d.unit?.modality === "mri") {
-        return { volumeManifest: d.volume_manifest, volumeBase: d.volume_base };
-      }
-      if (d.unit?.modality === "mammo") {
-        return { stackManifest: d.stack_manifest, stackBase: d.stack_base };
-      }
-
-      const s = (d.series ?? [])[i];
-      const ai = d.ai;
-      let shapes = [];
-      const abstained = ai?.abstained ?? ai?.summary?.abstained;
-      if (ai && !abstained && ai.lesion_found !== false) {
-        /* 맘모는 위에서 이미 stackManifest로 반환하고 끝나서 여기 안
-           온다 — 남는 건 초음파(폴리곤)뿐이다. asModality로 정규화하는
-           이유는 서버가 "us"/"ultrasound" 둘 중 하나를 보낼 수 있어서다 */
-        if (asModality(ai.modality) === "us") shapes = polygonsFromAi(ai);
-      }
-      return {
-        image: s?.image,
-        maskImage: null,        /* 영상은 마스크 파일이 없다. 전부 좌표다 */
-        w: s?.w, h: s?.h, alt: s?.name,
-        shapes,
-      };
-    },
+       좌표를 도형으로 바꾸는 자리는 lib/Stage.jsx 아래쪽에 모아 두었다.
+       실제 함수는 파일 위쪽의 radStage() — list.Detail 도 같이 쓴다. */
+    stage: radStage,
 
     Info: ({ d, slide, onSlide }) => {
       const isMri = d.unit?.modality === "mri";
@@ -407,29 +490,60 @@ export const radiology = {
         : <Chip tone="dot">미열람</Chip>,
     }),
 
-    Detail: ({ d }) => (
-      <>
-        {d.contrast_allergy && <Warn>조영제 알레르기 — {d.contrast_allergy}</Warn>}
-        <Facts items={[
-          ["환자", `${d.patient_name} (${d.age}/${label(SEX, d.sex)})`],
-          ["환자번호", d.patient_no],
-          ["모달리티", label(MODALITY, asModality(d.modality))],
-          ["촬영 장비", d.device],
-          ["검사일", d.performed_at],
-          ["담당 판독의", d.assigned_to],
-          ["진행상황", text(d, "read_status", READ_STATUS, "status_label")],
-          ["유방외과 열람", d.viewed_at ?? "미열람"],
-        ]} />
-        <Fold title="판독 결과" open={Boolean(d.finalized)}>
-          {d.finalized ? (
-            <>
-              <Facts items={[["판정 등급", `BI-RADS ${d.category}`]]} />
-              <p className="quote">{d.finding_note}</p>
-            </>
-          ) : <p className="muted">아직 확정된 판독이 없습니다.</p>}
-        </Fold>
-      </>
-    ),
+    /* 2026-09-18 — 환자 목록 설계에 맞춰 뷰어·검사 이력을 추가했다.
+     * 상세(cfg.api.listDetail = rad.study)는 원래 category·finding_note
+     * 정도만 주는 가벼운 응답이라 뷰어를 못 그린다 — 판독 화면과 같은
+     * 무거운 응답(cfg.api.read = rad.read, series·volume manifest 포함)을
+     * 여기서 한 번 더 부른다. 조회 전용이라 저장은 안 한다 — 저장하려면
+     * [판독 화면으로] 버튼으로 Read.jsx에 가야 한다(그 화면이 그 일을 한다). */
+    Detail: ({ d, cfg }) => {
+      const read = useApi(() => cfg.api.read(d.id), [d.id]);
+      const timeline = useApi(
+        () => cfg.api.timeline(d.patient ?? d.patient_id),
+        [d.patient, d.patient_id],
+      );
+      const [slide, setSlide] = useState(0);
+      const [bright] = useState(100);
+      const [contrast] = useState(100);
+      const [mask] = useState(45);
+
+      return (
+        <>
+          {d.contrast_allergy && <Warn>조영제 알레르기 — {d.contrast_allergy}</Warn>}
+
+          <Body loading={read.loading} error={read.error} onRetry={read.reload}>
+            {read.data && (
+              <ListViewer d={read.data} cfg={cfg} slide={slide} onSlide={setSlide}
+                bright={bright} contrast={contrast} mask={mask} />
+            )}
+          </Body>
+
+          <p className="section-label">검사 이력</p>
+          <Body loading={timeline.loading} error={timeline.error} onRetry={timeline.reload}>
+            {timeline.data && <ListTimeline events={timeline.data} />}
+          </Body>
+
+          <Facts items={[
+            ["환자", `${d.patient_name} (${d.age}/${label(SEX, d.sex)})`],
+            ["환자번호", d.patient_no],
+            ["모달리티", label(MODALITY, asModality(d.modality))],
+            ["촬영 장비", d.device],
+            ["검사일", d.performed_at],
+            ["담당 판독의", d.assigned_to],
+            ["진행상황", text(d, "read_status", READ_STATUS, "status_label")],
+            ["유방외과 열람", d.viewed_at ?? "미열람"],
+          ]} />
+          <Fold title="판독 결과" open={Boolean(d.finalized)}>
+            {d.finalized ? (
+              <>
+                <Facts items={[["판정 등급", `BI-RADS ${d.category}`]]} />
+                <p className="quote">{d.finding_note}</p>
+              </>
+            ) : <p className="muted">아직 확정된 판독이 없습니다.</p>}
+          </Fold>
+        </>
+      );
+    },
   },
 
   /* ── 5장 · 판독 정정 ──────────────────────────────────── */
