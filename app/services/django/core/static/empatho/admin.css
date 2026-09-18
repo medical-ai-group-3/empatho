@@ -346,6 +346,34 @@ body,
 /* 0 건인 시간에도 바닥 자국을 남긴다 — 빈 시간대가 보이는 게 목적이다 */
 .e-chart .c-zero { fill: var(--e-border); }
 .e-chart .c-grid { stroke: var(--e-line-2); stroke-width: 1; }
+
+/* ══ 서버 상태 ═════════════════════════════════════════════════
+   색만으로 가르지 않는다. 점의 «찬 것 · 빈 것»과 글자(정상 · 실패)가
+   따로 말하게 둔다 — 색각이 다른 사람에게도 같은 화면이어야 한다 */
+.e-note { color: var(--e-warm); font-size: 13px; margin: 6px 0 14px; }
+
+.e-probe { width: 100%; border-collapse: collapse; font-size: 13px; }
+.e-probe th, .e-probe td {
+  text-align: left; padding: 9px 10px;
+  border-bottom: 1px solid var(--e-line-2);
+}
+.e-probe thead th {
+  color: var(--e-warm); font-weight: 600; font-size: 12px;
+  border-bottom: 1px solid var(--e-border);
+}
+.e-probe tbody th { font-weight: 600; white-space: nowrap; }
+.e-probe .num { text-align: right; font-variant-numeric: tabular-nums; }
+
+.e-dot {
+  display: inline-block; width: 8px; height: 8px; margin-right: 7px;
+  border-radius: 50%; vertical-align: 1px;
+}
+.e-probe tr.up   .e-dot { background: var(--e-cyan); }
+.e-probe tr.down .e-dot { background: transparent; box-shadow: inset 0 0 0 2px var(--e-warm); }
+.e-probe tr.down { color: var(--e-ink-2); }
+
+/* 무엇을 보라는 한 줄. 실패한 줄에만 붙는다 */
+.e-hint { display: block; color: var(--e-warm); font-size: 12px; margin-top: 2px; }
 .e-chart .c-ax   { fill: var(--e-faint); font-size: 10px; }
 .e-chart g:hover .c-done { fill: var(--e-wash); }
 

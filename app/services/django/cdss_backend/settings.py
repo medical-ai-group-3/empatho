@@ -183,6 +183,36 @@ ADMIN_AUTH_USER = os.environ.get("ADMIN_AUTH_USER", "cdss_admin")
 # 짧으면 도는 중인 것까지 세어 늘 빨간 숫자가 되고, 그러면 아무도 안 본다.
 ADMIN_INFERENCE_WAIT_MIN = int(os.environ.get("ADMIN_INFERENCE_WAIT_MIN", "30"))
 
+# admin 「서버 상태」가 찔러 보는 곳. compose 의 서비스 이름이다 — 찌르는 쪽이
+# 브라우저가 아니라 web 컨테이너라, 도커망 안에서 이름으로 닿는다. 로컬에서
+# Django 를 직접 띄우면 이름이 안 풀려 전부 실패로 보인다. env 로 덮는다
+# (GW_BASE=http://127.0.0.1:8091).
+#
+# TCP 연결만 본다. health 경로가 서비스마다 달라서 경로를 넣으면 살아 있는데도
+# 404 로 죽은 것처럼 보인다. 「듣고 있는가」까지가 여기서 볼 수 있는 것이다.
+#
+# tunnel 은 없다 — 포트를 호스트에 안 내보내서 찌를 자리가 없다.
+ADMIN_PROBES = {
+    "file-gateway": os.environ.get("GW_BASE", "http://file-gateway:8091"),
+    "llm-proxy": os.environ.get("LLM_BASE", "http://llm-proxy:8090"),
+    "notify": os.environ.get("NOTIFY_BASE", "http://notify:8092"),
+    "garage (S3)": os.environ.get("GARAGE_BASE", "http://garage:3900"),
+    "orthanc (PACS)": os.environ.get("ORTHANC_BASE", "http://orthanc:8042"),
+}
+
+# 연결 하나를 기다리는 시간.
+ADMIN_PROBE_TIMEOUT_SEC = float(os.environ.get("ADMIN_PROBE_TIMEOUT_SEC", "1.5"))
+
+# 화면 전체의 마감. 위 값만으로는 안 지켜진다 —
+#   · 이름 조회(getaddrinfo)는 소켓 타임아웃 밖이라 실패에 2~3초가 든다
+#   · celery 는 브로커에 다시 걸어 보느라 7초 넘게 잡아먹는다
+# 그래서 전부 한꺼번에 돌리고 여기서 끊는다. 못 끝낸 것은 「시간 초과」로 낸다.
+ADMIN_PROBE_DEADLINE_SEC = float(os.environ.get("ADMIN_PROBE_DEADLINE_SEC", "4"))
+
+# 상태 화면이 스스로 다시 뜨는 간격. 열어 두고 보는 화면이라 새로고침을 손으로
+# 누르게 두면 죽은 것을 한참 뒤에 안다. 짧게 잡으면 그만큼 자주 찌른다.
+ADMIN_STATUS_REFRESH_SEC = int(os.environ.get("ADMIN_STATUS_REFRESH_SEC", "30"))
+
 # Go → Django 내부 콜백(명세 21장)의 서명 키. conf/gosvc.env 의 CALLBACK_SECRET
 # 과 **같은 값**이어야 한다. 어긋나면 콜백이 401 로 조용히 거절된다.
 # 비어 있으면 콜백을 아예 받지 않는다 — 설정 누락을 통과로 취급하지 않는다.

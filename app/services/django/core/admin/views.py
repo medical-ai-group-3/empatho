@@ -6,7 +6,13 @@
 를 부르면 첫 화면 한 번에 스무 번 넘게 DB 를 친다.
 """
 
+import socket
+import threading
+import time
+from concurrent.futures import ThreadPoolExecutor, wait
 from datetime import timedelta
+from functools import partial
+from urllib.parse import urlparse
 
 from django.conf import settings
 from django.db.models import Count, Q
@@ -168,15 +174,140 @@ def dashboard(site, request):
 
 
 def status(site, request):
-    """DB · Redis · Celery · Garage · Orthanc 를 찔러 본다."""
-    return site.page(request, "admin/empatho/soon.html", "status",
-                     "서버 상태", {"what": "각 서비스를 찔러 보고 응답시간을 냅니다."})
+    """지금 무엇이 살아 있나. 찌르는 쪽은 브라우저가 아니라 web 컨테이너다."""
+    return site.page(request, "admin/empatho/status.html", "status", "서버 상태", {
+        "probes": probe_all(),
+        "checked_at": timezone.localtime().strftime("%H:%M:%S"),
+        "refresh_sec": settings.ADMIN_STATUS_REFRESH_SEC,
+    })
 
 
 def db_index(site, request):
     """표 목록 — 이름 · 한글명 · 행 수 · 컬럼 수."""
     return site.page(request, "admin/empatho/soon.html", "db",
                      "DB 조회", {"what": "표 구조와 값 분포를 봅니다."})
+
+
+# ── 서버 상태 ────────────────────────────────────────────────────────
+#
+# 셋을 각각 다르게 본다.
+#   DB       실제로 질의를 던진다. 연결만 봐서는 인증 · 권한 문제가 안 드러난다
+#   워커     브로커를 거쳐 ping 을 돌린다. 답한 워커 수가 곧 상태다
+#   나머지   TCP 연결까지만. health 경로가 서비스마다 달라 경로를 넣으면
+#            살아 있는데도 404 로 죽은 것처럼 보인다
+#
+# Redis 는 줄을 따로 안 세운다. 워커 ping 이 브로커를 거치므로 Redis 가
+# 죽으면 워커가 「응답 없음」으로 뜬다 — 두 줄이 늘 같이 움직인다.
+#
+# ⚠ 어느 것도 화면을 멎게 하면 안 된다. 예외는 전부 「실패」 한 줄로 바꾼다.
+
+
+def _result(name, ok, detail, ms, hint=""):
+    return {"name": name, "ok": ok, "detail": detail,
+            "ms": None if ms is None else round(ms * 1000), "hint": hint}
+
+
+def _timed(fn):
+    """(결과, 걸린 초). 예외는 부르는 쪽이 받는다."""
+    start = time.monotonic()
+    value = fn()
+    return value, time.monotonic() - start
+
+
+def probe_db():
+    from django.db import connection
+
+    try:
+        def run():
+            with connection.cursor() as cur:
+                cur.execute("SELECT 1")
+                cur.fetchone()
+        _, took = _timed(run)
+    except Exception as exc:
+        return _result("postgres", False, _why(exc), None,
+                       "web 이 DB 를 못 본다 — 다른 화면도 전부 안 뜬다")
+    finally:
+        # 딴 실에서 돌면 그 실의 연결이 남는다 — 화면을 열 때마다 쌓인다.
+        # 본 실의 것은 안 닫는다. 요청이 쓰는 연결이라 닫으면 그 요청이 깨진다.
+        if threading.current_thread() is not threading.main_thread():
+            connection.close()
+    return _result("postgres", True, "질의 응답", took)
+
+
+def probe_worker():
+    """Celery 워커. 답한 수를 낸다.
+
+    브로커가 죽어 있으면 여기서 예외가 난다 — 그래서 Redis 줄이 따로 없다.
+    """
+    from cdss_backend.celery import app
+
+    timeout = settings.ADMIN_PROBE_TIMEOUT_SEC
+    try:
+        replies, took = _timed(lambda: app.control.ping(timeout=timeout) or [])
+    except Exception as exc:
+        return _result("celery 워커", False, _why(exc), None,
+                       "브로커(redis)가 죽었을 수도 있다 — 소견문 생성이 멈춘다")
+    if not replies:
+        return _result("celery 워커", False, "응답한 워커 없음", took,
+                       "worker 컨테이너나 브로커를 본다")
+    return _result("celery 워커", True, "%d대 응답" % len(replies), took)
+
+
+def probe_tcp(name, base):
+    """듣고 있는가까지만. 주소는 settings.ADMIN_PROBES 에서 온다."""
+    parsed = urlparse(base)
+    host, port = parsed.hostname, parsed.port
+    if not host or not port:
+        return _result(name, False, "주소를 읽을 수 없다: %s" % base, None)
+
+    timeout = settings.ADMIN_PROBE_TIMEOUT_SEC
+    try:
+        def connect():
+            with socket.create_connection((host, port), timeout=timeout):
+                return True
+        _, took = _timed(connect)
+    except Exception as exc:
+        return _result(name, False, _why(exc), None, "%s:%s" % (host, port))
+    return _result(name, True, "%s:%s" % (host, port), took)
+
+
+def _why(exc):
+    """사람이 읽을 한 줄. 클래스 이름만으로는 무엇이 문제인지 안 보인다."""
+    text = str(exc).strip()
+    return text[:120] if text else type(exc).__name__
+
+
+def probe_all():
+    """전부 한꺼번에 돌리고 마감시각에 끊는다.
+
+    ⚠ **하나씩 부르면 안 된다.** 이름 조회 실패가 2~3초, celery 가 7초라
+      일곱 줄이면 20초가 넘는다 — 서버가 아플 때 열 화면인데 그때 제일 느려진다.
+
+    끊고 나서 기다리지 않는다(shutdown wait=False). 끝내지 못한 실은 알아서
+      끝난다 — 붙잡고 있으면 병렬로 돌린 뜻이 없어진다.
+    """
+    jobs = [("postgres", probe_db), ("celery 워커", probe_worker)]
+    jobs += [(name, partial(probe_tcp, name, base))
+             for name, base in settings.ADMIN_PROBES.items()]
+
+    deadline = settings.ADMIN_PROBE_DEADLINE_SEC
+    pool = ThreadPoolExecutor(max_workers=len(jobs),
+                              thread_name_prefix="admin-probe")
+    futures = {pool.submit(fn): name for name, fn in jobs}
+    wait(futures, timeout=deadline)
+    pool.shutdown(wait=False)
+
+    out = []
+    for future, name in futures.items():
+        if not future.done():
+            out.append(_result(name, False, "%g초 안에 답이 없다" % deadline,
+                               None, "죽었거나 아주 느리다"))
+            continue
+        try:
+            out.append(future.result())
+        except Exception as exc:          # 찌르는 함수가 터져도 화면은 뜬다
+            out.append(_result(name, False, _why(exc), None))
+    return out
 
 
 # ── 최근 24시간 막대 (SVG) ────────────────────────────────────────────

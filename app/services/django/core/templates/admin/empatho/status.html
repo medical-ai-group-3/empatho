@@ -1,0 +1,44 @@
+{% extends "admin/base_site.html" %}
+
+{% comment %}
+  자동 갱신. 스크립트를 안 쓰는 이유 — 이 화면은 서버가 그리고 끝이라
+  붙일 것이 새로고침 하나뿐이고, meta 는 CSP 나 정적파일에 걸리지 않는다.
+{% endcomment %}
+{% block extrahead %}{{ block.super }}
+<meta http-equiv="refresh" content="{{ refresh_sec }}">
+{% endblock %}
+
+{% block content %}
+<div class="e-box">
+  <h2>서버 상태</h2>
+  <p class="e-note">
+    web 컨테이너에서 찔러 본 결과입니다. 브라우저가 아니라 서버가 봅니다.
+    <b>{{ checked_at }}</b> 확인 · {{ refresh_sec }}초마다 다시 찌릅니다.
+  </p>
+
+  <table class="e-probe">
+    <thead>
+      <tr><th>서비스</th><th>상태</th><th class="num">응답</th><th>비고</th></tr>
+    </thead>
+    <tbody>
+      {% for p in probes %}
+        <tr class="{% if p.ok %}up{% else %}down{% endif %}">
+          <th scope="row">{{ p.name }}</th>
+          <td><span class="e-dot"></span>{% if p.ok %}정상{% else %}실패{% endif %}</td>
+          <td class="num">{% if p.ms is not None %}{{ p.ms }}ms{% else %}—{% endif %}</td>
+          <td>
+            {{ p.detail }}
+            {% if p.hint %}<span class="e-hint">{{ p.hint }}</span>{% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <p class="e-note">
+    redis 는 줄을 따로 두지 않습니다 — celery 워커 확인이 브로커를 거치므로
+    redis 가 죽으면 워커가 실패로 뜹니다.
+    tunnel 은 포트를 내보내지 않아 찌를 수 없습니다.
+  </p>
+</div>
+{% endblock %}
