@@ -51,15 +51,34 @@ function set(next) {
   for (const fn of subs) fn();
 }
 
-/* 로그인 성공 — 본문에 오는 것은 access 하나다.
+/* 로그인 성공.
  *
- * ⚠ **refresh 는 우리가 못 들고 있다.** 서버가 httpOnly 쿠키로만 내려주고
- *   (Secure · SameSite=None) JS 는 읽을 수 없다. 갱신할 때도 본문에 싣지
- *   않는다 — 서버가 쿠키에서 직접 읽는다. 전에 여기 refresh 를 담아 두던
- *   자리가 있었는데, 늘 undefined 였다. 지웠다.
+ * ⚠ **들었던 것과 다르다** (2026-09-17, empatho-app 의 Django 를 직접
+ *   보고 확인). 「refresh 는 httpOnly 쿠키로만 내려온다」고 적어 두었던
+ *   것이 사실이 아니었다 —
+ *
+ *     core/api/views.py  login() → Response(issue_pair(account))
+ *     core/api/auth.py   issue_pair() → { access, refresh }
+ *
+ *   **본문에 둘 다 온다.** Set-Cookie 를 심는 자리가 서버 어디에도 없다.
+ *
+ *   그래서 refresh 를 여기서 받아 둔다. 다만 **저장소에는 안 넣는다** —
+ *   메모리에만 둔다. 갱신 경로(`/token/refresh`)가 서버에 아직 없어서
+ *   지금은 쓸 데가 없고, 쓸 데 없는 장기 토큰을 sessionStorage 에
+ *   남겨 두는 것은 공용 PC 에서 그냥 손해다. 경로가 생기면 api.js 의
+ *   refreshAccess() 가 이것을 실어 보내게 고친다.
  */
-export const signIn = ({ access }) => set(access);
-export const signOut = () => set(null);
+let refreshToken = null;
+export const getRefresh = () => refreshToken;
+
+export const signIn = ({ access, refresh }) => {
+  refreshToken = refresh ?? null;
+  set(access);
+};
+export const signOut = () => {
+  refreshToken = null;
+  set(null);
+};
 
 /* api 층이 401 을 받고 조용히 갱신했을 때, 새 access 를 저장소에도 반영한다.
    안 하면 새로고침에 **옛 토큰**이 되살아나 바로 401 이 난다.

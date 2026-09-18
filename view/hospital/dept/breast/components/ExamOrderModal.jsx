@@ -16,7 +16,7 @@ export default function ExamOrderModal({ patient, onClose, onDone }) {
     setSaving(true);
     setError(null);
     try {
-      await api.createExamOrder({
+      await api.examOrder({
         patient_id: patient.patient_id,
         device,
         order_note: note,

@@ -19,6 +19,8 @@
  *   라우트를 「다섯 장 고정」에서 use 기반으로 바꿨다 (main.jsx 참고).
  */
 
+import { can } from "./perm";
+
 export const HOSPITAL = "미래 대학병원";
 export const PRODUCT = "EMPATHO";
 export const ROOT = "/hospital";
@@ -119,10 +121,76 @@ const DEPTS = [
         need: "breast.discordance.view", deep: true },
     ],
   },
+
+  {
+    key: "reception",
+    name: "원무과",
+    who: { name: "한지우", role: "주임" },
+    screens: [
+      { key: "", use: "reception.intake", menu: "접수", title: "접수 · 방문 환자 모니터링",
+        sub: "환자를 찾아 접수하면 간호 큐로 넘어갑니다. 검사 종류는 정하지 않습니다 — 의학적 판단이라 유방외과 몫입니다.",
+        need: "reception.intake.view" },
+
+      { key: "patients", use: "reception.patients", menu: "환자 목록", title: "환자 목록 · 예약",
+        sub: "환자를 찾아 정보를 고치거나 예약을 잡습니다.",
+        need: "reception.patients.view" },
+
+      { key: "requests", use: "reception.requests", menu: "예약 확인", title: "예약 확인",
+        sub: "앱으로 들어온 예약 신청을 확정합니다. 날짜와 시간만 정합니다.",
+        need: "reception.requests.view" },
+    ],
+  },
+
+  /* 관리자 — 화면이 하나뿐이고 그 하나도 Django admin 으로 넘기는 자리다.
+     우리가 관리자 화면을 짓지 않기로 했기 때문이다. 그래도 과 하나로 두는
+     이유는, 그래야 메뉴 · 권한 · 첫 화면(homeDept)이 전부 지금 틀대로
+     굴러가고 admin 만 따로 다루는 코드가 안 생긴다 */
+  {
+    key: "admin",
+    name: "관리자",
+    screens: [
+      { key: "", use: "admin.console", menu: "관리자", title: "관리자",
+        sub: "계정 승인과 자료 관리는 Django 관리자 화면에서 합니다.",
+        need: "admin.console.open" },
+    ],
+  },
+
+  /* ⚠ 간호과도 유방외과처럼 모양이 다르다. 집는 절차도, 판독도 없다 —
+     원무가 접수한 환자를 유방외과 의사에게 넘기고, 추적을 관리한다.
+     검체 바인딩(3장)은 화면이 따로 없다 — 유방외과와 같은 팝업을
+     1장 안에서 연다(간호과 명세 §3). */
+  {
+    key: "nursing",
+    name: "간호과",
+    who: { name: "정다은", role: "간호사" },
+    screens: [
+      { key: "", use: "nursing.waiting", menu: "내원 대기", title: "내원 대기 · 유방외과 배정",
+        sub: "지금 와 있는 환자를 접수 순서대로 보고 유방외과 의사에게 넘깁니다.",
+        need: "nursing.waiting.view" },
+
+      { key: "followups", use: "nursing.followups", menu: "추적 관리", title: "추적 대상 관리",
+        sub: "BI-RADS 3 확정 환자의 6·12·24개월 추적을 관리합니다.",
+        need: "nursing.followup.view" },
+    ],
+  },
 ];
 
 export { DEPTS };
 export const HOME = DEPTS[0];
+
+/* 회원가입 폼의 부서 선택지 — 위 DEPTS 와 다른 목록이다.
+   DEPTS 는 「화면이 있는 과」만 담는 라우팅 표라 원무·간호가 없다.
+   가입은 병원 전체 직원이 하는 것이라 다섯 과 모두 있어야 한다.
+
+   ⚠ key 는 화면 라우팅 키(breast)가 아니라 signup_staff 의 role
+   값이다 (2026-09-16 백엔드 확인) — 유방외과가 "surgery" 다. */
+export const STAFF_DEPTS = [
+  { key: "reception", name: "원무과" },
+  { key: "nursing",   name: "간호과" },
+  { key: "radiology", name: "영상의학과" },
+  { key: "surgery",   name: "유방외과" },
+  { key: "pathology", name: "병리과" },
+];
 
 export function findDept(key) {
   return DEPTS.find((d) => d.key === key) ?? null;
@@ -141,6 +209,29 @@ export function menuScreens(d) {
   return d.screens.filter((s) => !s.deep);
 }
 
+/* ── 내가 갈 수 있는 곳 ────────────────────────────────────────
+ *
+ * 화면이 하나라도 열리면 그 과는 보인다. 권한이 하나도 없는 과는 아예
+ * 안 띄운다 — 눌러 봐야 「열람 권한이 없습니다」만 나온다.
+ */
+export function myDepts() {
+  return DEPTS.filter((d) => d.screens.some((s) => can(s.need)));
+}
+
+/* 첫 화면으로 갈 곳.
+ *
+ * ⚠ **DEPTS[0] 로 고정하면 안 된다.** 그러면 원무 계정이 로그인하자마자
+ *   병리과로 떨어진다. 그 과에는 권한이 없어 메뉴가 비고, 갈 수 있는 과가
+ *   하나뿐이라 과 전환 드롭다운도 안 뜬다(Top.jsx) — 주소를 직접 치지
+ *   않는 한 빠져나올 수가 없다.
+ *
+ * 권한이 하나도 없으면 HOME 으로 떨어뜨린다. 거기서 「열람 권한이
+ * 없습니다」를 보는 편이 빈 화면보다 낫다.
+ */
+export function homeDept() {
+  return myDepts()[0] ?? HOME;
+}
+
 /* ── 주소 만들기 ───────────────────────────────────────────────
  *
  * 화면에서 주소 문자열을 직접 쓰지 않는다. 항상 이 함수를 통한다.
@@ -152,6 +243,7 @@ export function menuScreens(d) {
 const P = `${ROOT}/pathology`;
 const R = `${ROOT}/radiology`;
 const B = `${ROOT}/breast`;
+const N = `${ROOT}/nursing`;
 
 export const go = {
   /* ⚠ 과 바깥이다. 사람은 과에 딸린 것이 아니라서 /hospital/me 로 둔다 */
@@ -180,5 +272,17 @@ export const go = {
     review:      (id) => `${B}/patients/${id}/review`,
     decision:    (id) => `${B}/patients/${id}/decision`,
     discordance: (id) => `${B}/discordances/${id}`,
+  },
+
+  /* 원무는 지금 화면이 하나다. 캘린더 · 환자 목록 · 예약 확인이 뒤에 온다 */
+  reception: {
+    intake:   () => `${ROOT}/reception`,
+    patients: () => `${ROOT}/reception/patients`,
+    requests: () => `${ROOT}/reception/requests`,
+  },
+
+  nursing: {
+    waiting:   () => N,
+    followups: () => `${N}/followups`,
   },
 };

@@ -29,12 +29,12 @@
     "  값은 선택지 id 다. 안 고른 문항은 키를 빼고 보낸다.",
     "  answered_at · form_version 은 서버가 찍는다. 앱은 안 보낸다."
   ],
-  "POST /api/v1/auth/login": {
+  "POST /api/v1/login": {
     "ok": true,
     "patient_id": 1029304,
     "display_name": "이수진"
   },
-  "POST /api/v1/auth/logout": {
+  "POST /api/v1/logout": {
     "ok": true
   },
   "GET /api/v1/me": {
@@ -553,7 +553,7 @@
       }
     ],
     "answer": "죄송합니다. 그 질문에는 아직 답을 드리기 어렵습니다.\n\n이곳은 안내문에 나온 낱말의 뜻을 풀어 드리는 곳입니다. 회원님의 검사 결과에 대한 것은 진료 때 담당 주치의에게 문의해 주세요.",
-    "disclaimer": "이 대화는 회원님의 검사 결과를 참고하지 않습니다. 결과에 대한 질문은 담당의에게 문의해 주세요.",
+    "disclaimer": "이 답변은 진단이 아닙니다. 최종 판단은 진료 때 의료진이 합니다.",
     "stored": false
   },
   "GET /api/v1/notifications": {
@@ -693,5 +693,218 @@
     "kind": "marketing",
     "withdrawn_at": "2026-09-10T10:40:00+09:00",
     "detail": "마케팅 정보 수신 동의를 철회했습니다"
+  },
+  "POST /api/v1/me/medications/{id}/log": {
+    "log_id": "LG-77099",
+    "taken_at": "2026-09-17T16:55:00+09:00"
+  },
+  "DELETE /api/v1/me/medications/{id}/log/{logId}": {
+    "ok": true
+  },
+  "GET /api/v1/hospitals": {
+    "note": "검진과 진료를 받으실 수 있는 협력 병원입니다. 방문 전에 전화로 운영 시간을 확인해 주세요.",
+    "regions": [
+      "전체",
+      "유성구",
+      "서구",
+      "중구",
+      "동구",
+      "대덕구"
+    ],
+    "items": [
+      {
+        "hospital_id": "H-001",
+        "name": "미래 대학병원",
+        "dept": "유방외과 · 영상의학과 · 병리과",
+        "address": "대전 유성구 대학로 99",
+        "phone": "042-820-1234",
+        "hours": "평일 08:30–17:30 · 토 08:30–12:30",
+        "region": "유성구",
+        "lat": 36.3624,
+        "lng": 127.3565,
+        "is_partner": true,
+        "note": "지금 진료받고 계신 곳입니다"
+      },
+      {
+        "hospital_id": "H-002",
+        "name": "둔산 연세영상의학과",
+        "dept": "영상의학과",
+        "address": "대전 서구 둔산로 100",
+        "phone": "042-483-5678",
+        "hours": "평일 09:00–18:00 · 토 09:00–13:00",
+        "region": "서구",
+        "lat": 36.3515,
+        "lng": 127.3845,
+        "is_partner": true,
+        "note": null
+      },
+      {
+        "hospital_id": "H-003",
+        "name": "유성 여성의원",
+        "dept": "유방외과",
+        "address": "대전 유성구 봉명로 24",
+        "phone": "042-825-3344",
+        "hours": "평일 09:30–18:30",
+        "region": "유성구",
+        "lat": 36.354,
+        "lng": 127.343,
+        "is_partner": true,
+        "note": null
+      },
+      {
+        "hospital_id": "H-004",
+        "name": "중구 하나검진센터",
+        "dept": "건강검진 · 영상의학과",
+        "address": "대전 중구 중앙로 130",
+        "phone": "042-256-9900",
+        "hours": "평일 08:00–17:00",
+        "region": "중구",
+        "lat": 36.3255,
+        "lng": 127.421,
+        "is_partner": true,
+        "note": null
+      },
+      {
+        "hospital_id": "H-005",
+        "name": "대덕 미래의료원",
+        "dept": "유방외과 · 영상의학과",
+        "address": "대전 대덕구 계족로 620",
+        "phone": "042-633-2200",
+        "hours": "평일 09:00–18:00 · 토 09:00–13:00",
+        "region": "대덕구",
+        "lat": 36.386,
+        "lng": 127.415,
+        "is_partner": true,
+        "note": null
+      },
+      {
+        "hospital_id": "H-006",
+        "name": "동구 성심외과의원",
+        "dept": "유방외과",
+        "address": "대전 동구 대전로 780",
+        "phone": "042-284-7700",
+        "hours": "평일 09:00–18:00",
+        "region": "동구",
+        "lat": 36.332,
+        "lng": 127.438,
+        "is_partner": true,
+        "note": null
+      }
+    ]
+  },
+  "GET /api/v1/me/prescriptions": {
+    "note": "약은 처방하신 곳에서만 더하거나 고칠 수 있습니다. 앱에서는 드신 것을 기록하실 수 있어요.",
+    "items": [
+      {
+        "prescription_id": "RX-2026-0314",
+        "issued_on": "2026-03-14",
+        "prescriber": "박지훈",
+        "dept": "외과",
+        "hospital": "미래 대학병원",
+        "days": 90,
+        "status": "active",
+        "drugs": [
+          {
+            "drug_id": "MD-1001",
+            "name": "타목시펜정",
+            "ingredient": "타목시펜시트르산염 20mg",
+            "dose": "1정",
+            "times": [
+              "09:00"
+            ],
+            "per_day": 1,
+            "purpose": "호르몬 수용체가 있는 유방암이 다시 자라지 않도록 억제합니다.",
+            "how": "매일 같은 시각에 물과 함께 드세요. 씹거나 쪼개지 마세요.",
+            "watch": "다리가 붓거나 아프고, 숨이 차거나, 질 출혈이 있으면 바로 알려 주세요.",
+            "today": [
+              {
+                "time": "09:00",
+                "log_id": "LG-77001"
+              }
+            ]
+          },
+          {
+            "drug_id": "MD-1002",
+            "name": "칼디비타정",
+            "ingredient": "탄산칼슘 500mg · 콜레칼시페롤 400IU",
+            "dose": "1정",
+            "times": [
+              "09:00",
+              "19:00"
+            ],
+            "per_day": 2,
+            "purpose": "호르몬 치료 중에 뼈가 약해지는 것을 막아 줍니다.",
+            "how": "식사 직후에 드시면 속이 덜 불편합니다.",
+            "watch": "변비가 심하거나 속이 계속 불편하면 말씀해 주세요.",
+            "today": [
+              {
+                "time": "09:00",
+                "log_id": "LG-77002"
+              },
+              {
+                "time": "19:00",
+                "log_id": null
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "prescription_id": "RX-2026-0901",
+        "issued_on": "2026-09-01",
+        "prescriber": "김서연",
+        "dept": "외과",
+        "hospital": "미래 대학병원",
+        "days": 365,
+        "status": "active",
+        "drugs": [
+          {
+            "drug_id": "MD-1003",
+            "name": "페마라정",
+            "ingredient": "레트로졸 2.5mg",
+            "dose": "1정",
+            "times": [
+              "21:00"
+            ],
+            "per_day": 1,
+            "purpose": "폐경 후 호르몬을 줄여 암이 다시 생기는 것을 막습니다.",
+            "how": "매일 저녁 같은 시각에 드세요. 식사와 상관없습니다.",
+            "watch": "관절이 뻣뻣하거나 열감·식은땀이 잦으면 진료 때 말씀해 주세요.",
+            "today": [
+              {
+                "time": "21:00",
+                "log_id": null
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "prescription_id": "RX-2025-1120",
+        "issued_on": "2025-11-20",
+        "prescriber": "박지훈",
+        "dept": "외과",
+        "hospital": "미래 대학병원",
+        "days": 14,
+        "status": "ended",
+        "drugs": [
+          {
+            "drug_id": "MD-0901",
+            "name": "세프라딘캡슐",
+            "ingredient": "세프라딘 500mg",
+            "dose": "1캡슐",
+            "times": [
+              "08:00",
+              "20:00"
+            ],
+            "per_day": 2,
+            "purpose": "조직검사 자리에 균이 들어가지 않도록 예방했습니다.",
+            "how": "처방 기간을 다 채워 드셨습니다.",
+            "watch": null,
+            "today": []
+          }
+        ]
+      }
+    ]
   }
 }

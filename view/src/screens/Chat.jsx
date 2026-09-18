@@ -1,16 +1,32 @@
 import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { api } from "../api";
 import { Head } from "../lib/Screen";
+import Tilly from "../lib/Tilly";
 
 /* 12 · 안내 챗봇
  *
  * 안내문에 모르는 말이 나왔을 때 묻는 자리다. 「미세석회」가 무엇인지
  * 같은 것 말이다.
  *
- * ── 무엇을 하지 않는지가 먼저다 ───────────────────────────────
- * 이 챗봇은 **회원님의 검사 결과를 보지 않는다.** 낱말의 뜻을 풀어 줄
- * 뿐이고, 「제 결과는 어떤가요」에는 답할 수 없다. 그 경계가 흐리면
- * 환자가 여기서 들은 말을 진료 결과로 알아듣는다.
+ * ── 무엇에 답하는가 ───────────────────────────────────────────
+ * 두 가지이고, 서버가 둘을 구분해서 답한다.
+ *
+ *   낱말의 뜻   "미세석회가 뭔가요"   일반적인 설명을 해 준다
+ *   내 결과     "제 결과는 어떤가요"  **열려 있는** 검사 결과에 적힌 것만
+ *
+ * ⚠ 「열려 있는」이 핵심이다. 담당 의사가 대면 설명을 마친 리포트만
+ *   재료로 쓴다(서버가 explained_at 으로 판정한다). 설명 전에는 결과를
+ *   아예 안 보고 낱말 뜻만 답한다 — 환자가 의사보다 먼저 챗봇에서 자기
+ *   결과를 읽는 일을 막는 자리다.
+ *
+ * ⚠ 결과를 재료로 쓴다고 해서 **진단을 하지는 않는다.** 병명·치료·예후는
+ *   규칙으로 막고, 규칙을 어긴 답은 서버가 통째로 버리고 고정 문구로
+ *   되돌린다. 그래도 완전하지 않다 — 그래서 이 답을 리포트 본문과 같은
+ *   자리에, 같은 모양으로 그리면 안 된다.
+ *
+ * (2026-09-17 이전에는 결과를 아예 안 보는 낱말 전용 봇이었다. 서버가
+ *  붙으면서 범위가 늘었고, 그때 이 안내문이 사실과 어긋나 있었다.)
  *
  * 그래서 경계를 **세 번** 말한다.
  *   · 첫 화면의 안내 카드 — 묻기 전에 읽는다
@@ -32,13 +48,38 @@ import { Head } from "../lib/Screen";
 /* 무엇을 물어야 할지 모르는 사람을 위한 예시. 안내문에 실제로 나오는
    말에서 골랐다 — 챗봇이 답할 수 있는 것을 물어보게 해야 첫인상이
    「모르겠습니다」가 되지 않는다. */
-const EGS = ["미세석회가 뭔가요?", "조직검사는 아픈가요?", "양성이면 괜찮은 건가요?"];
+/* 처음 열었을 때 내미는 네 줄. 브랜드 가이드의 챗봇 화면 그대로다.
+ *
+ * ⚠ **넷이 하는 일이 서로 다르다.** 생김새가 같다고 다 질문인 것은
+ *   아니다 — 「다음 일정 확인하기」는 물어볼 말이 아니라 **예약 화면으로
+ *   가는 길**이고, 「자유롭게 물어보기」는 입력칸에 손을 놓아 주는 것이다.
+ *   넷 다 질문으로 보내면 앞의 둘만 답이 오고 뒤의 둘은 챗봇이 «무슨
+ *   말인지 모르겠다»고 답한다.
+ *
+ *   ask   그대로 물어본다
+ *   go    그 화면으로 간다
+ *   type  입력칸에 커서를 둔다 */
+const EGS = [
+  { kind: "ask",  ic: "▤", tx: "검사 정보가 궁금해요" },
+  { kind: "ask",  ic: "✦", tx: "치료 방법이 궁금해요" },
+  { kind: "go",   ic: "▦", tx: "다음 일정 확인하기", to: "/book" },
+  { kind: "type", ic: "◍", tx: "궁금한 걸 자유롭게 물어보기" },
+];
 
 export default function Chat() {
   const [msgs, setMsgs] = useState([]);
   const [q, setQ] = useState("");
   const [busy, setBusy] = useState(false);
   const endRef = useRef(null);
+  const boxRef = useRef(null);
+  const nav = useNavigate();
+
+  /* 제안 한 줄을 눌렀을 때. 무엇을 하는 줄인지는 EGS 가 들고 있다 */
+  function pick(e) {
+    if (e.kind === "go") return nav(e.to);
+    if (e.kind === "type") return boxRef.current?.focus();
+    ask(e.tx);
+  }
 
   /* 새 말이 붙으면 아래로 따라 내려간다. 안 그러면 답이 왔는데
      화면은 그대로라 «안 왔다»고 읽는다 */
@@ -77,36 +118,51 @@ export default function Chat() {
       <div className="pane chat">
         {msgs.length === 0 ? (
           <>
+            {/* 틸리가 먼저 묻는다. 빈 화면에 「무엇을 물어야 하나」를
+                사람이 혼자 고민하지 않게 하는 자리다 */}
+            <div className="chat-tri">
+              <Tilly mood="ask" size="md" alt="" />
+            </div>
+
             <div className="card">
               <span className="k">묻기 전에</span>
               <span className="s">
-                안내문에 나온 <b>낱말의 뜻</b>을 풀어 드립니다.
-                회원님의 검사 결과는 보지 않으므로,
-                결과에 대한 질문은 담당 주치의에게 문의해 주세요.
+                안내문에 나온 <b>낱말의 뜻</b>을 풀어 드리고,
+                담당 의사의 설명이 끝난 검사 결과에 대해서는
+                <b>결과에 적힌 범위 안에서</b> 안내해 드립니다.
+                진단과 치료는 담당 주치의가 정합니다.
               </span>
             </div>
 
             <p className="sec">이런 것을 물어보실 수 있습니다</p>
-            <div className="chips">
+            <div className="asks">
               {EGS.map((e) => (
-                <button key={e} className="chip" onClick={() => ask(e)}>
-                  {e}
+                <button key={e.tx} className="askrow" onClick={() => pick(e)}>
+                  <i className="ic" aria-hidden="true">{e.ic}</i>
+                  <span>{e.tx}</span>
+                  <i className="arw" aria-hidden="true">›</i>
                 </button>
               ))}
             </div>
           </>
         ) : (
           msgs.map((m, i) => (
+            /* 답에는 틸리 얼굴이 붙는다 — 누가 한 말인지 자리(왼오)에 더해
+               얼굴로도 보인다. 내 말에는 안 붙인다 */
             <div key={i} className={`bub ${m.who}${m.err ? " err" : ""}`}>
-              <p>{m.text}</p>
-              {m.note && <small>{m.note}</small>}
+              {m.who === "bot" && <Tilly mood="face" size="chip" alt="" />}
+              <span className="bub-b">
+                <p>{m.text}</p>
+                {m.note && <small>{m.note}</small>}
+              </span>
             </div>
           ))
         )}
 
         {busy && (
           <div className="bub bot wait" aria-live="polite">
-            <p>답을 찾고 있습니다…</p>
+            <Tilly mood="face" size="chip" alt="" />
+            <span className="bub-b"><p>답을 찾고 있습니다…</p></span>
           </div>
         )}
 
@@ -117,12 +173,15 @@ export default function Chat() {
       {/* form 으로 감싼다 — 휴대폰 자판의 «완료»와 엔터가 그냥 먹는다 */}
       <form className="askbar" onSubmit={(e) => { e.preventDefault(); ask(q); }}>
         <div className="askrow">
+          {/* 답을 기다리는 동안에도 칸은 살아 있다. 잠가 두면 자판이
+              내려가고 커서가 빠져서, 다음 질문을 치려면 한 번 더
+              눌러야 한다. 두 번 보내지는 것은 ask() 가 막는다 */}
           <input
+            ref={boxRef}
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="모르는 말을 물어보세요"
             aria-label="질문"
-            disabled={busy}
           />
           <button className="btn narrow" type="submit" disabled={!q.trim() || busy}>
             보내기

@@ -12,6 +12,9 @@ export default function Splash() {
   return (
     <div className="app">
       <div className="splash">
+        {/* ⚠ **맨 처음 화면에는 로고만 둔다.** 캐릭터를 같이 세우면
+            첫인상이 캐릭터가 된다 — 여기는 브랜드가 서는 자리다.
+            틸리는 들어간 뒤(홈 · 챗봇)에 만난다 */}
         <Logo size="lg" />
         <p className="tag">조기 발견이, 더 많은 내일을 만듭니다.</p>
         <span className="bar" aria-hidden="true"><i /></span>

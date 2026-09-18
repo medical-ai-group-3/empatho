@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Body } from "../lib/Body";
 import { Btn, Card, Page } from "../lib/Page";
@@ -41,8 +41,21 @@ function Inner({ cfg }) {
   const [sort, setSort] = useState(c.sorts[0].key);
   const [q, setQ] = useState("");
   const [pick, setPick] = useState(null);
+
+  /* ⚠ 전에는 서버에 q 를 실어 보내면서 **deps 에는 sort 만** 두었다.
+     그래서 글자를 쳐도 다시 안 부르고, 정렬을 바꾸는 순간에만 그때
+     쳐 둔 글자가 뒤늦게 서버로 나갔다 — 언제 서버가 거르고 언제 화면만
+     거르는지가 뒤죽박죽이었다.
+
+     목록 끝에 「{total}건 중 {n}건 표시」가 붙는 화면이라 **서버가 거르는
+     것이 맞다.** 지난 검체까지 전부 들어 있어서 화면에 온 것만 뒤지면
+     옛 환자를 못 찾는다. 서버 질의는 api.js 에 진작 있었다.
+
+     손이 멈추면 부른다 — 글자마다 부르지 않는다. 그 사이는 아래 match 가
+     화면에 온 것을 즉시 걸러 메운다. */
+  const qq = useDebounced(q, 300);
   const { loading, data, error, reload } =
-    useApi(() => cfg.api.list({ ordering: sort, q: q || undefined }), [sort]);
+    useApi(() => cfg.api.list({ ordering: sort, q: qq || undefined }), [sort, qq]);
 
   const scope = reportScope();
 
@@ -66,7 +79,9 @@ function Inner({ cfg }) {
 
                 <Table
                   cols={c.cols}
-                  rows={data.items.filter((r) => match(r, q)).map((r) => c.row(r))}
+                  rows={data.items
+                    .filter((r) => match(r, q, c.search))
+                    .map((r) => c.row(r))}
                   value={pick}
                   onPick={setPick}
                 />
@@ -87,12 +102,34 @@ function Inner({ cfg }) {
   );
 }
 
-/* 검색은 화면 안에서 거른다. 서버 질의(q)도 같이 보내지만, 응답이
-   오기 전에도 손에 잡히게 */
-function match(r, q) {
+/* 값이 멎기를 기다렸다 내준다. 서버 질의를 글자마다 보내지 않으려고 */
+function useDebounced(v, ms = 300) {
+  const [out, setOut] = useState(v);
+  useEffect(() => {
+    const t = setTimeout(() => setOut(v), ms);
+    return () => clearTimeout(t);
+  }, [v, ms]);
+  return out;
+}
+
+/* 서버가 거른 것을 화면에서 한 번 더 거른다 — 타자와 응답 사이를 메운다.
+ *
+ * **찾는 칸을 정해 둔다.** 전에는 행을 통째로 JSON 으로 만들어 훑었는데
+ * 두 가지가 나빴다.
+ *
+ *   · 사람이 안 보는 값까지 걸린다 — id · 상태 코드 · 시각의 초 단위가
+ *     다 문자열 안에 있어서, 「1」 한 글자에 거의 모든 행이 걸린다.
+ *     걸러 주는 것이 검색인데 아무것도 안 걸러진다
+ *   · 글자 하나 칠 때마다 행 수만큼 JSON.stringify 를 돈다
+ *
+ * 화면에 적힌 것만 본다 — 화면 위 「검색」이 짚는 것도 그것이다.
+ * 과마다 찾을 칸이 다르면 dept/*.jsx 의 list.search 로 넘기면 된다. */
+const FIELDS = ["patient_name", "patient_no", "specimen_no", "accession_no"];
+
+function match(r, q, fields = FIELDS) {
   const k = q.trim().toLowerCase();
   if (!k) return true;
-  return JSON.stringify(r).toLowerCase().includes(k);
+  return fields.some((f) => String(r[f] ?? "").toLowerCase().includes(k));
 }
 
 /* ⚠ id 가 없으면 서버를 부르지 않는다 */
@@ -110,7 +147,11 @@ function Detail({ cfg, id }) {
       <Body loading={loading} error={error} onRetry={reload}>
         {data && (
           <>
-            <c.Detail d={data} cfg={cfg} />
+            {/* ⚠ key 를 준다. 안 주면 환자를 바꿔도 같은 부품이 그대로
+                남아서, 접었다 편 상태(Fold)가 앞 환자 것으로 이어진다 —
+                「판독 결과」가 확정 여부에 따라 펼쳐져야 하는데 앞
+                사람의 상태를 물려받아 엉뚱하게 접혀 있거나 펼쳐진다 */}
+            <c.Detail key={id} d={data} cfg={cfg} />
             <div className="stack top">
               <Btn kind="line" onClick={() => nav(cfg.go.read(id))}>판독 화면</Btn>
               <Btn kind="fill" onClick={() => nav(cfg.go.amend(id))}

@@ -55,8 +55,14 @@
 .breast * {box-sizing:border-box}
 /* 원래 html, body, #root 에 걸려 있던 규칙. 유방외과 화면은 이제 쪽
    안에 들어앉으므로 높이를 100% 로 잡지 않는다 — 잡으면 hospital 의
-   .page 흐름과 싸운다 */
-.breast {margin:0; background:var(--bg); color:var(--ink);
+   .page 흐름과 싸운다.
+   ⚠ margin:0 은 여기 두면 안 된다 — .breast 는 main.page 그 자신이라
+   (className="page breast"), hospital.css 의 .page{margin:0 auto}
+   와 클래스 우선순위가 같아서 나중에 실리는 이 규칙이 이겨 버린다.
+   넓은 화면에서 내용이 왼쪽에 붙고 오른쪽에 빈 공간만 남는 걸로
+   보였던 원인이 이거였다 — body 기본 margin(8px) 초기화용으로 넣어둔
+   흔적인데 지금은 .breast 가 body가 아니라서 필요 없다. */
+.breast {background:var(--bg); color:var(--ink);
   font-family:var(--font-ui); font-size:14px; line-height:1.5;
   -webkit-font-smoothing:antialiased}
 .breast button {font:inherit; color:inherit; background:none; border:none; padding:0; cursor:pointer}
@@ -187,15 +193,50 @@
 @media (max-width:760px) {.breast .cols2 {grid-template-columns:1fr}}
 
 /* ── 검사 종합 확인 (화면2) ─────────────────── */
+/* 좌우 패널 너비를 --left-w/--right-w로 받는다(Review.jsx가 접힘
+   상태에 따라 인라인으로 넣어준다) — 접으면 34px 얇은 띠로 줄고,
+   그만큼 가운데 뷰어(1fr) 열이 자동으로 넓어진다. */
+/* 세 칸(진료 이력 · 뷰어 · 리포트) 높이를 여기서 하나로 고정한다 —
+   그전엔 align-items:start라 각 칸이 자기 내용물 높이대로(병리 원본
+   이미지는 원본 크기, MRI 패널은 자기 min-height 등) 제각각 자라서
+   옆줄이 들쑥날쑥했다. 이제 행 높이를 뷰포트 기준으로 한 번 정하고,
+   stretch로 세 칸을 그 높이에 맞춘 다음 각 칸 안에서 스크롤하게 한다. */
 .breast .review-grid {display:grid;
-  grid-template-columns:minmax(220px,0.9fr) minmax(0,1.6fr) minmax(260px,1fr);
-  gap:var(--gap); align-items:start}
-@media (max-width:1200px) {.breast .review-grid {grid-template-columns:1fr}}
+  grid-template-columns:var(--left-w, minmax(190px,0.6fr)) minmax(0,1.6fr) var(--right-w, minmax(280px,1.1fr));
+  /* height만으로는 그리드 "행" 자체의 크기가 안 정해진다(행은 기본
+     content-based) — grid-template-rows로 행 트랙을 컨테이너 높이에
+     못박아야 자식들의 height:100%/stretch가 실제로 먹는다. */
+  grid-template-rows:clamp(520px, calc(100vh - 230px), 800px);
+  gap:var(--gap); align-items:stretch;
+  height:clamp(520px, calc(100vh - 230px), 800px);
+  transition:grid-template-columns .18s ease}
+@media (max-width:1200px) {.breast .review-grid {grid-template-columns:1fr; grid-template-rows:none; height:auto}}
 
-.breast .panel-head {display:flex; align-items:center; margin-bottom:12px}
+.breast .panel-head {display:flex; align-items:center; margin-bottom:12px; flex:0 0 auto}
 .breast .panel-head h3 {margin-bottom:0}
-.breast .panel-head .collapse-btn {margin-left:auto; font-size:12px; color:var(--muted); font-weight:600}
-.breast .panel-head .collapse-btn:hover {color:var(--ink)}
+
+/* 슬라이드 패널 — 접히면 얇은 띠만 남고, 펼침/접힘 버튼은 그 경계에
+   반쯤 걸치는 작은 탭으로 붙는다(카드 안이 아니라 카드 테두리 위).
+   행 높이가 고정됐으니 카드 자신은 세로 flex로 재구성해서 내용물이
+   넘치면 카드 밖으로 자라는 대신 안에서 스크롤되게 한다. */
+.breast .side-panel {position:relative; min-width:0; min-height:0; overflow:visible;
+  display:flex; flex-direction:column}
+.breast .side-panel.collapsed {padding:12px 4px; display:flex; justify-content:center}
+.breast .side-panel > .body, .breast .side-panel .timeline-scroll, .breast .side-panel .report-stack {
+  flex:1; min-height:0; overflow-y:auto}
+
+.breast .side-collapsed-label {writing-mode:vertical-rl; text-orientation:mixed;
+  font-size:12px; font-weight:600; color:var(--muted); letter-spacing:.02em;
+  padding-top:4px}
+
+.breast .side-toggle {position:absolute; top:50%; transform:translateY(-50%);
+  z-index:5; width:20px; height:52px; padding:0;
+  border:1px solid var(--line); border-radius:var(--radius-sm);
+  background:var(--surface); color:var(--muted); font-size:15px; line-height:1;
+  cursor:pointer}
+.breast .side-toggle:hover {color:var(--ink); border-color:var(--accent)}
+.breast .side-toggle.left {right:-10px}
+.breast .side-toggle.right {left:-10px}
 
 .breast .timeline {display:flex; flex-direction:column}
 .breast .timeline .row {position:relative; padding:0 0 16px 18px; border-left:2px solid var(--line)}
@@ -217,6 +258,30 @@
 .breast .other-report .author {font-size:11.5px; color:var(--muted); margin-left:6px}
 .breast .other-report .summary {font-size:13.5px; margin-top:4px}
 .breast .other-report .at {font-size:11px; color:var(--muted); margin-top:4px}
+
+/* 검사 종합 확인 · 오른쪽 리포트 3단 — 예전엔 탭으로 갈아 끼웠는데,
+   그러면 AI/타부서 소견을 보면서 동시에 유방외과 소견을 못 썼다. 세
+   구역을 세로로 고정하고 각자 내부 스크롤을 준다 — AI·타부서(읽기
+   전용)는 항상 떠 있고, 유방외과 리포트(현재 모달리티 따라감)만 아래서
+   내용이 바뀐다. */
+.breast .report-stack {display:flex; flex-direction:column; gap:12px; min-height:0}
+.breast .report-block {border:1px solid var(--line); border-radius:var(--radius-sm); overflow:hidden}
+.breast .report-block h4 {margin:0; padding:9px 12px; font-size:12.5px; font-weight:700;
+  background:var(--surface-2); border-bottom:1px solid var(--line); color:var(--ink-2)}
+.breast .report-block-body {padding:12px}
+
+/* AI·타부서(읽기 전용)는 고정 높이로 눌러두고(fixed 폭만큼만 차지,
+   나머지는 자기 안에서 스크롤) — 그래야 아래 "유방외과 리포트"가
+   먹을 공간이 항상 남는다. 예전엔 셋 다 내용 크기대로 늘어나서 저장
+   버튼이 패널 아래로 밀려 안 보였다. */
+.breast .report-block.fixed {flex:0 0 150px; display:flex; flex-direction:column}
+.breast .report-block.fixed .report-block-body {flex:1; min-height:0; overflow-y:auto}
+
+/* 유방외과 리포트는 남는 공간을 다 가져가고, 그 안에서 textarea만
+   줄어들고(저장 버튼은 고정) — FinalReportForm이 height:100% flex
+   컬럼으로 그린다. */
+.breast .report-block.grow {flex:1 1 auto; min-height:180px; display:flex; flex-direction:column}
+.breast .report-block.grow .report-block-body {flex:1; min-height:0; display:flex; flex-direction:column; padding-bottom:12px}
 
 /* AIModelResult — 실제 MRI 모델 서빙 결과. 케이스별 기권(abstain)과
    모델 구조상 미지원(not_supported)은 겉모습부터 다르게 둔다 — 기권은
@@ -265,67 +330,6 @@
 .breast .slice-bar {display:flex; align-items:center; gap:10px; padding:10px 2px 0}
 .breast .slice-bar input[type="range"] {flex:1; accent-color:var(--accent)}
 .breast .slice-bar .count {font-size:11.5px; color:var(--muted); font-variant-numeric:tabular-nums; white-space:nowrap}
-
-/* cornerstone3D 뷰어 공통 오버레이(MPRViewer) — 로딩/오류 문구.
-   캔버스는 라이브러리가 직접 그린다(WebGL), 배경은 늘 검정이라
-   라이트/다크 테마와 무관하다. */
-.breast .volume3d-overlay {position:absolute; inset:0; display:flex; flex-direction:column;
-  align-items:center; justify-content:center; gap:4px; color:#fff; font-size:13px;
-  background:rgba(10,10,14,.55); text-align:center; padding:16px}
-.breast .volume3d-overlay.error {color:#ff8b85}
-.breast .volume3d-hint {position:absolute; left:10px; bottom:8px; margin:0; font-size:11px;
-  color:rgba(255,255,255,.65); pointer-events:none}
-
-/* MPRViewer — 축상·시상·관상 2D 단면 셋 + 3D를 2x2로 한 화면에.
-   MRI는 한 방향만 찍는 게 아니라 세 방향 다 봐야 한다는 요청 반영 —
-   ORTHOGRAPHIC 뷰포트 3개가 같은 볼륨을 서로 다른 단면으로 잘라 보여주고,
-   네 번째 칸은 MeshViewer(종양 표면 메시, Three.js)다. */
-.breast .mpr-wrap {position:relative; display:flex; flex-direction:column; gap:0;
-  border-radius:var(--radius-sm); overflow:hidden; background:#000}
-.breast .mpr-main {position:relative; display:grid; grid-template-columns:1.6fr 1fr;
-  gap:2px; aspect-ratio:16/10; background:#000}
-.breast .mpr-cell {position:relative; background:#000; overflow:hidden}
-.breast .mpr-cell-3d {min-width:0}
-.breast .mpr-2d-col {display:flex; flex-direction:column; gap:2px; min-width:0}
-.breast .mpr-2d-col .mpr-cell {flex:1; min-height:0}
-.breast .mpr-canvas {width:100%; height:100%}
-.breast .mpr-label {position:absolute; top:6px; left:8px; font-size:11px; font-weight:700;
-  letter-spacing:.02em; color:rgba(255,255,255,.9); text-shadow:0 1px 2px rgba(0,0,0,.7);
-  pointer-events:none; z-index:2}
-
-.breast .mpr-toolbar {display:flex; align-items:center; gap:18px; padding:9px 14px;
-  background:var(--panel-2, #14181f); border-top:1px solid var(--line-2, rgba(255,255,255,.08))}
-.breast .mpr-toggle {display:flex; align-items:center; gap:6px; font-size:12.5px;
-  color:var(--muted); cursor:pointer; user-select:none; white-space:nowrap}
-.breast .mpr-toggle input {accent-color:var(--accent); width:14px; height:14px; cursor:pointer}
-.breast .mpr-toolbar-spacer {flex:1}
-.breast .mpr-lesion-summary {font-size:12.5px; font-weight:600; color:var(--ink);
-  white-space:nowrap}
-
-/* MeshViewer — cornerstone과 무관한 Three.js 렌더 영역. 종양 메시가 검은
-   배경에 덜렁 떠 있지 않도록, 그 안(MeshViewer.jsx)에는 참고용 와이어프레임
-   껍질·스캔 그리드가, 여기 CSS에는 홀로그램 스캐너 느낌의 모서리 프레임과
-   위아래로 훑는 스캔 라인을 얹는다. */
-.breast .mesh3d {position:relative; width:100%; height:100%}
-.breast .mesh3d-meta {position:absolute; right:8px; top:6px; margin:0; font-size:10.5px;
-  color:rgba(255,255,255,.7); pointer-events:none; z-index:2; text-align:right}
-
-.breast .mesh3d-frame {position:absolute; inset:9px; pointer-events:none; z-index:1;
-  --c: rgba(79,215,255,.55);
-  background:
-    linear-gradient(var(--c),var(--c)) top left / 16px 2px no-repeat,
-    linear-gradient(var(--c),var(--c)) top left / 2px 16px no-repeat,
-    linear-gradient(var(--c),var(--c)) top right / 16px 2px no-repeat,
-    linear-gradient(var(--c),var(--c)) top right / 2px 16px no-repeat,
-    linear-gradient(var(--c),var(--c)) bottom left / 16px 2px no-repeat,
-    linear-gradient(var(--c),var(--c)) bottom left / 2px 16px no-repeat,
-    linear-gradient(var(--c),var(--c)) bottom right / 16px 2px no-repeat,
-    linear-gradient(var(--c),var(--c)) bottom right / 2px 16px no-repeat}
-.breast .mesh3d-frame::after {content:""; position:absolute; left:0; right:0; height:45%;
-  background:linear-gradient(180deg, transparent 0%, rgba(79,215,255,.1) 50%, transparent 100%);
-  animation:mesh3d-scan 3.4s linear infinite}
-@keyframes mesh3d-scan {0% {transform:translateY(-130%)} 100% {transform:translateY(280%)}}
-@media (prefers-reduced-motion: reduce) {.breast .mesh3d-frame::after {animation:none}}
 
 .breast .card-head {display:flex; align-items:baseline; gap:8px; margin-bottom:10px}
 .breast .card-head h3 {margin-bottom:0}

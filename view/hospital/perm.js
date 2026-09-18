@@ -64,8 +64,6 @@ const BREAST = [
     where: "1장 화면 자체" },
   { key: "breast.exam.order",        label: "유방외과 영상 검사 오더",
     where: "1장 [검사 오더] — 영상의학과 대기 큐에 새 오더를 만든다" },
-  { key: "breast.specimen.bind",     label: "유방외과 검체 바인딩",
-    where: "1장 [검체 등록] — 병리과 대기 큐에 검체를 올린다" },
   { key: "breast.review.view",       label: "유방외과 검사 종합 확인",
     where: "2장 화면 자체 — 영상·병리 결과를 함께 본다" },
   { key: "breast.decision.view",     label: "유방외과 수술 결정 보기",
@@ -80,10 +78,68 @@ const BREAST = [
     where: "4장 [처분] — 어느 쪽을 따를지 정한다" },
 ];
 
+/* 원무과 — 다섯 장 틀을 안 쓴다. 집는 절차도 판독도 없고,
+   환자를 시스템에 들여보내는 입구다 */
+const RECEPTION = [
+  { key: "reception.intake.view",   label: "원무 접수 화면 보기",
+    where: "1장 화면 자체" },
+  { key: "reception.patient.search", label: "원무 환자 검색",
+    where: "1장 검색창 — 이름 · 전화 · 생년월일" },
+  { key: "reception.patient.create", label: "원무 환자 등록",
+    where: "1장 [+] 등록 — 앱을 못 쓰는 환자를 위한 예외 경로" },
+  { key: "reception.checkin",       label: "원무 접수하기",
+    where: "1장 [접수하기] — 간호 큐에 올린다" },
+  { key: "reception.patients.view", label: "원무 환자 목록 보기",
+    where: "3장 화면 자체" },
+  { key: "reception.patient.edit",  label: "원무 환자 정보 수정",
+    where: "3장 오른쪽 [저장] — 성별 · 출생연도 · 알레르기" },
+  { key: "reception.reserve",       label: "원무 예약 잡기",
+    where: "3장 [예약] · [예약 완료]" },
+  { key: "reception.requests.view", label: "원무 예약 확인 화면 보기",
+    where: "4장 화면 자체 — 앱으로 들어온 신청" },
+  { key: "reception.confirm",       label: "원무 예약 확정",
+    where: "4장 [예약 확인] — requested 를 scheduled 로 옮긴다" },
+];
+
+/* 관리자 — 권한 하나뿐이다. 관리자 화면 안에서 무엇을 할 수 있는지는
+   Django admin 이 auth_user 권한으로 따로 정한다. 여기 것은 「그 문을 열
+   수 있는가」만 본다 */
+const ADMIN = [
+  { key: "admin.console.open", label: "관리자 화면 열기",
+    where: "관리자 화면 [관리자 화면 열기] — POST /admin-session 으로 "
+         + "Django admin 세션을 받는다. 서버도 role='admin' 을 다시 본다" },
+];
+
+/* 간호과 — 유방외과와 마찬가지로 집는 절차·판독이 없다. 대신 원무가
+   접수한 환자를 유방외과 의사에게 배정하고, BI-RADS 3 확정 환자의
+   추적(6·12·24개월)을 관리한다. 검체 바인딩은 간호과 명세 §3 참고. */
+const NURSING = [
+  { key: "nursing.waiting.view",     label: "간호과 내원 대기 보기",
+    where: "1장 화면 자체" },
+  { key: "nursing.waiting.assign",   label: "간호과 유방외과 배정",
+    where: "1장 [유방외과 큐로 전송] — patient.primary_staff_id 를 지정한다" },
+  { key: "nursing.followup.view",    label: "간호과 추적 대상 관리 보기",
+    where: "2장 화면 자체" },
+  { key: "nursing.followup.create",  label: "간호과 추적 회차 생성",
+    where: "2장 [추적 회차 생성]" },
+  { key: "nursing.followup.call",    label: "간호과 안내 콜 기록",
+    where: "2장 [안내 콜 기록 저장]" },
+];
+
 export const CATALOG = [
   ...deptPerms("pathology", "병리"),
   ...deptPerms("radiology", "영상"),
   ...BREAST,
+  ...RECEPTION,
+  ...ADMIN,
+  ...NURSING,
+
+  /* 검체 바인딩 — 간호과·유방외과 둘이 같은 팝업을 쓴다(§2-4). 과별
+     권한이 아니라 **단독 권한 클래스**로 둔다(간호과 명세 §3: "§15
+     매트릭스에 섞지 않고 단독 권한 클래스로 막는다"). 영상의학과는
+     제외하기로 팀에서 확정했다. */
+  { key: "specimen.bind", label: "검체 바인딩",
+    where: "간호과 1장 · 유방외과 1장의 [검체 바인딩/신청] 팝업 — 공용 컴포넌트" },
 
   /* 영상의학과에만 있는 것 — 병리에는 해당 동작이 없다 */
   { key: "radiology.retake",     label: "영상 재촬영 요청",

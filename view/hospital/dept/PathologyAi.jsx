@@ -1,4 +1,5 @@
 import { Chip } from "../lib/Parts";
+import { STIL_LEVEL, label } from "../codes";
 
 /* 병리 AI 소견 — 등급이 아니라 정량 지표다
  * ────────────────────────────────────────────────────────────────
@@ -22,8 +23,6 @@ import { Chip } from "../lib/Parts";
  *      (변동계수 ≈ 1.0). 평균은 우리가 만든 값이지 모델이 낸 값이
  *      아니다. 장마다 나란히 놓고 판독의가 분포를 본다.
  */
-
-const LEVEL = { low: "낮음", mid: "중등도", high: "높음" };
 
 export default function PathologyAi({ d }) {
   const rows = d.ai ?? [];
@@ -59,7 +58,7 @@ export default function PathologyAi({ d }) {
                   {r.stroma_status === "absent" ? (
                     <span className="ai-na inline">평가 불가 — 간질 없음</span>
                   ) : (
-                    <>{r.stil_calibrated}<i>%</i> <em>({LEVEL[r.stil_level] ?? r.stil_level})</em></>
+                    <>{r.stil_calibrated}<i>%</i> <em>({label(STIL_LEVEL, r.stil_level)})</em></>
                   )}
                 </dd>
               </div>

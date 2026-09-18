@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
-import { HOSPITAL } from "../brand";
 import { markWelcomeSeen } from "../lib/seen";
 import Logo from "../lib/Logo";
+import Tilly from "../lib/Tilly";
 
 /* 00 · 소개 — 한 장이다.
  *
@@ -14,21 +14,18 @@ import Logo from "../lib/Logo";
  *
  * 건너뛰기 단추가 없다. 한 장이라 건너뛸 것이 없다.
  *
- * ── 한 문단을 세 줄로 폈다 ────────────────────────────────────
- * 「검사 결과를 쉬운 말로 받아 보고, 방문을 신청하고, 문진을 미리
- * 작성하실 수 있습니다」는 한 줄로 읽으면 **셋이라는 것이 안 보인다.**
- * 그리고 화면의 반 넘게가 빈 채로 남았다.
+ * ── 배치 ─────────────────────────────────────────────────────
+ * 위 · 가운데 · 아래 셋으로 나눈다.
  *
- * 말을 늘린 것이 아니다. 같은 말을 셋으로 끊어 자리를 차지하게 했다.
- * 앞의 기호는 아래 탭에서 쓰는 것과 **같은 것**이라, 홈에 들어간 뒤
- * 그 탭을 찾을 때 눈이 한 번 본 모양을 따라간다.
+ *   위      로고(크게) + 서식 한 줄
+ *   가운데  틸리. **남는 자리를 여기가 먹는다** — 폰이 길면 여백이
+ *           틸리 둘레로 붙고, 짧으면 여기부터 줄어든다
+ *   아래    시작하기 + 면책 한 줄
+ *
+ * 전에는 「할 수 있는 일」 세 줄이 가운데 있었는데 뺐다. 로고 · 서식 ·
+ * 캐릭터 · 단추 넷으로 끝나는 편이 첫 화면답다 — 할 수 있는 일은
+ * 들어간 뒤 홈에서 타일로 보인다.
  */
-const CAN = [
-  { ic: "▤", tx: "검사 결과를 쉬운 말로 받아 보기" },
-  { ic: "▦", tx: "방문할 날짜 신청하기" },
-  { ic: "✓", tx: "문진 미리 작성해 두기" },
-];
-
 export default function Welcome() {
   const nav = useNavigate();
 
@@ -39,25 +36,33 @@ export default function Welcome() {
 
   return (
     <div className="wel">
-      <div className="wel-body">
-        <Logo size="lg" />
-        <div className="wel-tx">
-          <h2>{HOSPITAL} 환자용 앱</h2>
-          <p>진료와 검사에 관한 일을 여기에서 하실 수 있습니다.</p>
+      {/* 위·가운데·아래 셋으로 나눈다. 가운데가 늘어나며 남는 자리를
+          먹으므로, 폰이 길든 짧든 로고는 위쪽 · 단추는 아래쪽에 앉는다 */}
+      <div className="wel-top">
+        {/* ⚠ 받은 logo.svg 는 **E 마크 하나뿐**이다. 가이드의 첫 화면은
+            그 아래 워드마크와 서식이 같이 서는 조합이라, 없는 두 줄을
+            글자로 세운다. 워드마크가 들어간 SVG 가 오면 이 두 줄을
+            지우고 그림 하나로 바꾸면 된다 */}
+        <div className="lockup">
+          <Logo size="xl" />
+          <p className="lockup-nm">EMPATHO</p>
+          <p className="lockup-sub">FOR A KINDER TOMORROW</p>
         </div>
+        {/* 서식은 **명조**로 간다. 이 앱에서 명조는 안내문에만 쓰는
+            글꼴이라 「읽는 글」의 결이 있다 — 브랜드 한 줄에 그 결을
+            빌려 오면 고딕으로 쓴 것보다 차분하게 앉는다 */}
+        <p className="wel-tag">공감이 만드는<br />더 건강한 내일</p>
+      </div>
 
-        <ul className="wel-list">
-          {CAN.map((c) => (
-            <li key={c.tx}>
-              <i className="ic" aria-hidden="true">{c.ic}</i>
-              {c.tx}
-            </li>
-          ))}
-        </ul>
+      <div className="wel-mid">
+        <Tilly mood="hello" size="xl" alt="틸리가 인사하고 있어요" />
       </div>
 
       <div className="wel-foot">
-        <button className="btn" onClick={start}>시작하기</button>
+        <button className="btn wel-cta" onClick={start}>
+          <span>함께, 더 건강한 내일로</span>
+          <b>시작하기 <i aria-hidden="true">→</i></b>
+        </button>
         <p className="note c">
           이 앱의 안내는 진단서가 아닙니다. 최종 판단은 진료 때 의료진이 합니다.
         </p>

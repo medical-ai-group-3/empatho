@@ -3,6 +3,7 @@ import { api } from "../api";
 import { useApi } from "../lib/useApi";
 import { Body, Head } from "../lib/Screen";
 import { fmtStamp } from "../lib/when";
+import Tilly from "../lib/Tilly";
 
 /* 11 · 알림
  *
@@ -49,7 +50,9 @@ function Inner({ items }) {
   if (!items?.length) {
     return (
       <div className="empty">
-        <i className="ic" aria-hidden="true">◍</i>
+        {/* 빈 화면에 회색 동그라미 하나를 두는 것보다 틸리가 낫다.
+            «아무것도 없다»가 «고장 났다»로 읽히지 않는다 */}
+        <Tilly mood="alarm" size="md" alt="" />
         <p>받은 알림이 없습니다.</p>
       </div>
     );

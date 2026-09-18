@@ -106,7 +106,7 @@ function DoctorSummaryCard({ report }) {
   async function save() {
     setSaving(true);
     try {
-      await api.saveFinalReport(report.report_id, { doctor_summary: text });
+      await api.saveReport(report.report_id, { doctor_summary: text });
       setMsg("저장되었습니다");
     } finally {
       setSaving(false);
@@ -148,7 +148,7 @@ function DecisionForm({ patientId, report }) {
   async function save() {
     setSaving(true);
     try {
-      await api.createAssessment({
+      await api.assess({
         patient_id: patientId, decision_type: decisionType, decision_reason: reason,
       });
       setMsg("결정이 저장되었습니다");
@@ -193,7 +193,7 @@ function ExplainForm({ report, onSaved }) {
   async function save() {
     setSaving(true);
     try {
-      await api.explainReport(report.report_id, {
+      await api.explain(report.report_id, {
         explain_method: method, explain_content: content, patient_confirmed: confirmed,
       });
       setMsg("환자 설명이 기록되었습니다");
@@ -296,7 +296,7 @@ function LockPanel({ reportId, status, onUnlocked }) {
   async function unlock() {
     setUnlocking(true);
     try {
-      await api.unlockReport(reportId);
+      await api.unlock(reportId);
       onUnlocked?.();
     } finally {
       setUnlocking(false);

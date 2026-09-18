@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Body } from "../lib/Body";
 import { Btn, Card, Page } from "../lib/Page";
 import { Bar, Chip, Fold, Locked, useCan } from "../lib/Parts";
 import { useApi } from "../lib/useApi";
 import { can } from "../perm";
+import { RUN_STATUS, label, tone } from "../codes";
 
 /* ═══ 2장 · 업로드 ═══════════════════════════════════════════════
  *
@@ -29,14 +30,6 @@ import { can } from "../perm";
  */
 
 const POLL_MS = 5000;
-
-/* 서버가 주는 진행 상태를 사람 말로 */
-const STATUS = {
-  queued:  { label: "대기 중",  tone: "dot"  },
-  running: { label: "분석 중",  tone: "dot"  },
-  done:    { label: "완료",     tone: "line" },
-  failed:  { label: "실패",     tone: "fill" },
-};
 
 export default function UploadScreen({ cfg }) {
   const c = cfg.upload;
@@ -68,7 +61,13 @@ function Inner({ cfg, id }) {
 function Work({ cfg, id, d }) {
   const c = cfg.upload;
   const nav = useNavigate();
+  const loc = useLocation();
   const fileRef = useRef(null);
+
+  /* 큐에서 막 집어 온 길이면 오더 번호를 손에 들고 왔다 (1장 참고).
+     새로고침해서 바로 들어오면 없다 — 그때는 조회 응답에 실려 온 것을
+     쓰고, 그것도 없으면 과별 설정이 확정을 건너뛴다 */
+  const fromQueue = loc.state?.orderId ?? null;
   const send = useCan(c.need.send);
   const run = useCan(c.need.run);
 
@@ -109,7 +108,16 @@ function Work({ cfg, id, d }) {
     setBusy(true);
     setMsg(null);
     try {
-      if (cfg.api.complete) await cfg.api.complete(id);   // 영상: 오더 확정
+      /* 영상: 오더 확정. ⚠ 조회한 자료를 같이 넘긴다 — 확정은 이
+         화면의 id(study_id)가 아니라 오더 번호로 걸어야 한다
+         (dept/radiology.jsx 의 complete 참고). 큐에서 들고 온 번호가
+         있으면 그것을 먼저 세운다 */
+      if (cfg.api.complete) {
+        await cfg.api.complete(id, {
+          ...d,
+          exam_order_id: fromQueue ?? d.exam_order_id ?? d.order_id ?? null,
+        });
+      }
       await cfg.api.analyze(id);
       setProg({ status: "queued", pct: 0 });
     } catch (e) {
@@ -170,14 +178,14 @@ function Work({ cfg, id, d }) {
 
       {/* ── 오른쪽 · AI 분석 ───────────────────────────────── */}
       <Card title="AI 분석"
-            right={prog && <Chip tone={STATUS[prog.status]?.tone}>{STATUS[prog.status]?.label}</Chip>}>
+            right={prog && <Chip tone={tone("run", prog.status)}>{label(RUN_STATUS, prog.status)}</Chip>}>
         {!prog && (
           <p className="muted">아직 분석을 걸지 않았습니다.</p>
         )}
 
         {prog && (
           <>
-            <Bar value={prog.pct ?? 0} label={STATUS[prog.status]?.label} />
+            <Bar value={prog.pct ?? 0} label={label(RUN_STATUS, prog.status)} />
             {prog.status === "failed" && (
               <p className="hint">분석에 실패했습니다. 다시 걸어 보시고, 계속 실패하면 담당자에게 알려 주세요.</p>
             )}

@@ -6,6 +6,7 @@ import Choices from "../lib/Choices";
 import { Body, Head } from "../lib/Screen";
 import { fmtDateKey, fmtWhen } from "../lib/when";
 import { deptSuffix } from "../lib/dept";
+import { LIVE_ORDER, MODALITY, ORDER_STATUS, modality as asModality, text } from "../lib/codes";
 
 /* 05 · 예약
  *
@@ -134,12 +135,13 @@ function Inner({ d, reload }) {
                   <b>{fmtWhen(r.scheduled_at)}</b>
                   <span>
                     {/* 확인 중이면 검사 종류가 아직 없다. 병원이 정한다 */}
-                    {r.modality_label ?? r.hint ?? "검사 종류는 병원에서 정합니다"}
+                    {text({ ...r, modality: asModality(r.modality) }, "modality", MODALITY, "modality_label")
+                      || r.hint || "검사 종류는 병원에서 정합니다"}
                     {r.place ? ` · ${r.place}` : ""}
                   </span>
                 </span>
-                <span className={r.order_status === "ordered" ? "pill new" : "pill read"}>
-                  {r.status_label}
+                <span className={LIVE_ORDER.has(r.order_status) ? "pill new" : "pill read"}>
+                  {text(r, "order_status", ORDER_STATUS, "status_label")}
                 </span>
               </div>
 

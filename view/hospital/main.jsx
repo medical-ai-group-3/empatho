@@ -1,18 +1,26 @@
 import { StrictMode, Suspense, lazy, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
-  BrowserRouter, Navigate, Outlet, Route, Routes, useParams,
+  BrowserRouter, Navigate, Outlet, Route, Routes, useLocation,
 } from "react-router-dom";
+
+/* 팀 공용 디자인 시스템 토큰 — tokens.css/themes.css 는 :root 에 새 이름의
+   커스텀 프로퍼티만 얹으므로 전역으로 불러도 안전하다. base.css(전역
+   body/.btn/.card 규칙)는 여기서 안 부른다 — 회원가입 화면 전용으로
+   스코프한 styles/signup-ds.css 가 그 역할을 대신한다. */
+import "./styles/tokens.css";
+import "./styles/themes.css";
 
 import "./tokens.css";
 import "./hospital.css";
 
 import { apiInfo } from "./api";
-import { DEPTS, HOME, ROOT, deptPath, findDept } from "./nav";
+import { DEPTS, ROOT, deptPath, findDept, homeDept } from "./nav";
 import Top from "./lib/Top";
 import { useLoadMe } from "./lib/useMe";
 import { useSignedIn } from "./lib/session";
 import Login from "./screens/auth/Login";
+import Signup from "./screens/auth/Signup";
 import Boom from "./lib/Boom";
 
 import QueueScreen from "./screens/Queue";
@@ -21,6 +29,10 @@ import ReadScreen from "./screens/Read";
 import ListScreen from "./screens/List";
 import AmendScreen from "./screens/Amend";
 import MeScreen from "./screens/Me";
+import ReceptionIntake from "./screens/reception/Intake";
+import ReceptionPatients from "./screens/reception/Patients";
+import ReceptionRequests from "./screens/reception/Requests";
+import AdminConsole from "./screens/admin/Console";
 
 /* 유방외과 — 병리·영상과 화면 구성이 달라 자기 화면을 직접 들고 온다.
  *
@@ -33,9 +45,16 @@ const BreastReview = lazy(() => import("./dept/breast/screens/Review"));
 const BreastDecision = lazy(() => import("./dept/breast/screens/Decision"));
 const BreastDiscordance = lazy(() => import("./dept/breast/screens/Discordance"));
 
+/* 간호과도 breast처럼 자기 화면을 직접 들고 온다 — 다만 무거운 라이브러리를
+   끌지는 않는다. lazy는 다른 과 화면들과 코드 스플리팅 일관성 때문에 유지 */
+const NursingWaiting = lazy(() => import("./dept/nursing/screens/Waiting"));
+const NursingFollowups = lazy(() => import("./dept/nursing/screens/Followups"));
+
 import { pathology } from "./dept/pathology";
 import { breast } from "./dept/breast";
 import { radiology } from "./dept/radiology";
+import { reception } from "./dept/reception";
+import { nursing } from "./dept/nursing";
 
 /* 병원 웹 — 라우트
  * ════════════════════════════════════════════════════════════════
@@ -65,11 +84,28 @@ import { radiology } from "./dept/radiology";
  * ⚠ **뿌리 주소를 가로채지 않는다.** 그 자리는 환자 앱이다.
  */
 
-const CFG = { pathology, radiology, breast };
+const CFG = { pathology, radiology, breast, reception, nursing };
+
+/* 주소에서 과를 읽는다 — /hospital/reception/patients → "reception"
+ *
+ * ⚠ **useParams() 를 쓰면 안 된다.** Shell 이 걸린 라우트는 path="/hospital"
+ *   이고 그 아래가 path="reception" 처럼 리터럴이라, 어디에도 :dept 파라미터가
+ *   없다. useParams() 는 늘 빈 객체를 주고 findDept 가 null 을 돌려줘서
+ *   **상단 메뉴와 과 이름이 다섯 과 모두 통째로 사라진다.**
+ *   라우트를 «다섯 장 고정»에서 선언 기반으로 바꿀 때(6176ec0) 생긴 구멍이다.
+ *
+ *   라우트에 :dept 를 넣는 길도 있지만 그러면 과마다 화면 표를 따로 쓰는
+ *   지금 구조(deptRoutes)를 다시 손봐야 한다. 주소는 이미 과를 담고 있으니
+ *   읽기만 한다.
+ */
+function deptFromPath(pathname) {
+  /* "/hospital/reception/patients" → ["", "hospital", "reception", …] */
+  return findDept(pathname.split("/")[2] ?? "");
+}
 
 function Shell() {
-  const { dept } = useParams();
-  const d = findDept(dept);
+  const { pathname } = useLocation();
+  const d = deptFromPath(pathname);
   const [now, setNow] = useState(stamp);
 
   useEffect(() => {
@@ -108,7 +144,11 @@ function Shell() {
  * 생긴 뒤에 다룰 자리다.
  */
 function Gate({ children }) {
-  return useSignedIn() ? children : <Login />;
+  const [mode, setMode] = useState("login");
+  if (useSignedIn()) return children;
+  return mode === "signup"
+    ? <Signup onBack={() => setMode("login")} />
+    : <Login onSignup={() => setMode("signup")} />;
 }
 
 /* 로그인 응답(perms)이 올 때까지 기다린다. 안 기다리면 첫 그림에서
@@ -156,6 +196,18 @@ const SCREENS = {
   "breast.review":      BreastReview,
   "breast.decision":    BreastDecision,
   "breast.discordance": BreastDiscordance,
+
+  /* 원무과. 다섯 장 틀을 안 쓴다 — 집는 절차도 판독도 없고
+     환자를 시스템에 들여보내는 입구다 */
+  "reception.intake":   ReceptionIntake,
+  "reception.patients": ReceptionPatients,
+  "reception.requests": ReceptionRequests,
+
+  /* 관리자. 화면은 하나고 Django admin 으로 넘기는 자리다 */
+  "admin.console":      AdminConsole,
+
+  "nursing.waiting":   NursingWaiting,
+  "nursing.followups": NursingFollowups,
 };
 
 /* 과 하나의 화면들 — 몇 장이든 nav.js 의 표대로 만들어진다 */
@@ -187,15 +239,18 @@ function App() {
       <Gate>
       <Boot>
         <Routes>
-          <Route path={ROOT} element={<Navigate to={deptPath(HOME)} replace />} />
+          {/* ⚠ **Boot 안쪽이라서** homeDept() 가 제 답을 준다. 밖이면 아직
+              perms 가 없어 전부 false 로 보이고 늘 첫 과로 떨어진다 */}
+          <Route path={ROOT} element={<Navigate to={deptPath(homeDept())} replace />} />
           <Route path={ROOT} element={<Shell />}>
             {/* ⚠ 과 바깥에 있는 유일한 화면이다. Shell 은 그대로 쓰되
-                :dept 가 없어서 findDept 가 null 을 주고, 상단 메뉴가
-                자동으로 빈다 — Top 이 dept 없을 때를 이미 다룬다 */}
+                주소가 /hospital/me 라 deptFromPath 가 "me" 를 찾다 null 을
+                주고, 상단 메뉴가 자동으로 빈다 — Top 이 dept 없을 때를
+                이미 다룬다 */}
             <Route path="me" element={<MeScreen />} />
             {DEPTS.map((d) => deptRoutes(d.key))}
           </Route>
-          <Route path={`${ROOT}/*`} element={<Navigate to={deptPath(HOME)} replace />} />
+          <Route path={`${ROOT}/*`} element={<Navigate to={deptPath(homeDept())} replace />} />
         </Routes>
       </Boot>
       </Gate>

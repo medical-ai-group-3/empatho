@@ -25,7 +25,7 @@ import { signIn } from "../../lib/session";
  * 뜨면 사람이 비밀번호를 계속 다시 친다. 서버가 사정을 적어 보내면 그대로
  * 보여준다 (0012 의 account_status 가 그 자리다).
  */
-export default function Login() {
+export default function Login({ onSignup }) {
   const [loginId, setLoginId] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -85,6 +85,12 @@ export default function Login() {
         <p className="login-note">
           계정은 관리자가 만들고 승인합니다. 승인 전에는 로그인되지 않습니다.
         </p>
+
+        {onSignup && (
+          <button className="btn ghost" type="button" onClick={onSignup}>
+            계정이 없으신가요? 회원가입
+          </button>
+        )}
 
         {apiInfo.mock && (
           <p className="login-note mock">

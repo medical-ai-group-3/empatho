@@ -22,7 +22,7 @@
  *     trace_id 는 헤더 X-Trace-Id 에도 온다. 오류 화면에 작게 띄운다 —
  *     서버 쪽에서 로그를 찾을 때 이 값으로 찾는다
  *   · 배정 충돌은 409 + ALREADY_ASSIGNED. 영상·병리 공용이다
- *   · 영상 대기 큐도 /exam-orders/queue 로 통일
+ *   · 영상 대기 큐는 거른 목록이다 — /exam-orders?status=ordered&assigned=none
  *
  * 2026-09-16 2차 회신 반영분
  *   · 영상 판독 조회에 **과 이름이 앞에 붙는다** — /radiology/studies/{id}/read
@@ -128,12 +128,17 @@ export const ERR = {
  * 순간이 딱 경계라, 그냥 두면 **써 둔 소견이 날아간다.** 401 을 받으면
  * 한 번 갱신하고 원래 요청을 다시 보낸다.
  *
- *   POST /api/v1/token/refresh   본문 없음 → { access }
+ *   POST /api/v1/token/refresh   → { access }
  *
- * ⚠ **본문에 refresh 를 싣지 않는다.** 서버가 httpOnly 쿠키에서 직접
- *   읽는다. 그래서 JS 는 refresh 값을 아예 모른다 — credentials:"include"
- *   가 쿠키를 실어 보내는 것이 전부다. 그게 빠지면 쿠키가 안 가서
- *   갱신이 401 로 떨어진다 (전에 났던 사고다).
+ * ⚠ **이 경로가 아직 서버에 없다** (2026-09-17, empatho-app 의
+ *   core/api/urls.py 로 확인. health · tickets · login 셋뿐이다).
+ *   그래서 아래 갱신은 지금 늘 실패하고, 조용히 401 로 흘러간다.
+ *
+ * ⚠ 그리고 **refresh 는 쿠키가 아니라 본문에 온다.** 로그인 응답이
+ *   `{ access, refresh }` 다(auth.py 의 issue_pair). 전에 여기 적어
+ *   두었던 「httpOnly 쿠키로만 내려온다」가 틀렸다.
+ *   경로가 생기면 lib/session.js 의 getRefresh() 를 실어 보내도록
+ *   아래 본문 자리를 채운다 — 지금은 규격을 몰라 비워 둔다.
  *
  * 한 번에 하나만 돈다. 화면 여러 곳이 동시에 401 을 맞아도 갱신은 한 번만
  * 부르고 나머지는 그 결과를 기다린다 — 안 그러면 갱신을 네댓 번 부른다.
@@ -168,6 +173,27 @@ async function refreshAccess() {
    버리는 중이고, 갱신 자신에게 갱신을 걸면 무한히 돈다 */
 const NO_RETRY = new Set(["/login", "/logout", "/token/refresh"]);
 
+/* 슬래시 하나 때문에 조용히 깨지는 것을 **우리 쪽에서 막는다**
+ * ────────────────────────────────────────────────────────────────
+ * Django APPEND_SLASH 는 슬래시가 모자라면 301 로 넘겨 준다. GET 은
+ * 따라가면 그만이지만 POST·PATCH·PUT 은 **넘어가는 과정에서 본문이
+ * 사라진다** — 화면은 200 을 받고도 아무것도 안 바뀐다. 판독 확정이
+ * 여기 걸리면 「저장했습니다」를 보고 나가는데 서버엔 안 남는다.
+ *
+ * 어느 경로에 슬래시가 붙는지 아직 답을 못 받았는데(api 머리말 참고),
+ * **답을 기다릴 필요가 없다.** redirect:"manual" 로 두면 넘김이
+ * 일어났다는 것만은 알 수 있다. 그때 슬래시를 뒤집어 한 번 더 보낸다.
+ *
+ * ⚠ 다시 보내도 두 번 적용될 일이 없다 — 넘김이 일어났다는 것은
+ *   **첫 요청이 아무것도 안 바꿨다**는 뜻이기 때문이다.
+ *
+ * 규격이 확정되면 이 분기는 한 번도 안 타게 되고, 그때 지우면 된다. */
+function flipSlash(path) {
+  const [p, q = ""] = path.split("?");
+  const next = p.endsWith("/") ? p.slice(0, -1) : `${p}/`;
+  return q ? `${next}?${q}` : next;
+}
+
 async function call(method, path, body, opt = {}) {
   let res;
   try {
@@ -178,9 +204,12 @@ async function call(method, path, body, opt = {}) {
         ...(token ? { Authorization: `Bearer ${token}` } : null),
       },
       body: body ? JSON.stringify(body) : undefined,
-      /* ⚠ 빼지 말 것. refresh 가 httpOnly 쿠키에 있어서 이게 없으면
-         쿠키가 안 실린다 — 로그인도 갱신도 못 한다 */
+      /* 쿠키를 실어 보낸다. 지금 서버가 심는 쿠키는 없지만(위 갱신
+         주석 참고 — refresh 는 본문에 온다) 관리자 화면 열기가
+         세션 쿠키를 받아야 해서 필요하다. 빼면 그쪽이 깨진다 */
       credentials: "include",
+      /* 넘김을 우리가 받는다. 브라우저에 맡기면 본문이 조용히 날아간다 */
+      redirect: "manual",
     });
   } catch (e) {
     /* 서버에 닿지도 못했다. 브라우저 기본 문구("Failed to fetch")가
@@ -189,6 +218,13 @@ async function call(method, path, body, opt = {}) {
       status: 0, code: ERR.NETWORK, detail: e?.message ?? null,
       fields: null, traceId: null,
     });
+  }
+
+  /* 넘김을 맞았다 — 슬래시가 모자라거나 남는다. 뒤집어 한 번만 더.
+     본문도 Location 도 못 읽는(opaqueredirect) 응답이라 status 는 0 이다 */
+  if ((res.type === "opaqueredirect" || res.status === 301 || res.status === 308)
+      && !opt.noSlash) {
+    return call(method, flipSlash(path), body, { ...opt, noSlash: true });
   }
 
   /* 401 — access 가 만료됐다. 한 번 갱신하고 그대로 다시 보낸다.
@@ -225,7 +261,9 @@ function qs(o = {}) {
 
 /* ── 로그인 ───────────────────────────────────────────────────
  * 경로를 다희님 브랜치에서 확인했다 — 맞는 것은 /login 이다.
- * 환자 앱(src/api.js)이 쓰는 /auth/login 은 백엔드에 없는 경로다.
+ * (2026-09-17 empatho-app 의 core/api/urls.py 로 재확인. 환자 앱도
+ *  같은 문으로 들어간다 — 계정이 한 표라 role 로만 갈린다. src/api.js
+ *  가 쓰던 /auth/login 은 그래서 지웠다)
  *
  *   POST /api/v1/login  { login_id, password }  →  { access }
  *
@@ -251,6 +289,25 @@ export const login = (loginId, password) =>
  */
 export const me = () => get("/me");
 export const updateMe = (b) => put("/me", b);
+
+/* ── 관리자 화면 열기 ─────────────────────────────────────────
+ *
+ * 관리자가 로그인을 두 번 하지 않게 하는 자리다.
+ *
+ *   [관리자 화면 열기] → POST /admin-session → 새 탭으로 /admin/
+ *
+ * Django admin 의 인증 주체는 auth_user 이고 우리 API 의 주체는 account 라
+ * 서로 모른다. 이 요청이 그 사이를 잇는다 — 서버가 role 을 확인하고
+ * **세션 쿠키를 심어 준다.** 돌려받는 값은 열 주소 하나뿐이다.
+ *
+ * ⚠ 쿠키를 받아야 하므로 credentials 가 실려야 한다. call() 이 모든 요청에
+ *   credentials:"include" 를 이미 붙이므로 여기서 따로 할 일은 없다.
+ *
+ * ⚠ **응답을 받은 뒤에 열어야 한다.** 먼저 열면 세션이 아직 없어서
+ *   Django 로그인 화면이 뜬다 — 아무도 비밀번호를 모르는 계정이라 거기서
+ *   막힌다.
+ */
+export const adminSession = () => post("/admin-session");
 
 /* ── 로그아웃 ────────────────────────────────────────────────
  *
@@ -299,9 +356,10 @@ export const path = {
      리다이렉트 자체가 안 일어난다. 슬래시를 빠뜨리면 늘 깔끔한 404 다.
 
      ⚠ 아래 custom action 들(queue·assign·upload·draft·finalize·amend)은
-       「슬래시 없음」으로 들었는데, 그 확인도 같은 회신에서 나온 것이라
-       되물어 두었다. DRF 라우터는 @action 에도 슬래시를 붙이는 것이
-       기본이라 함께 확인이 필요하다. */
+       서버 코드로 확인했다 — 이들은 @action 이 아니라 core/urls.py 의
+       명시 path() 라서 **슬래시가 없다.** 끝 슬래시가 붙는 것은 router 에
+       등록된 것들뿐이다 (patients · studies · lesions · reports ·
+       followups · reservations · visits/today · me/reservation-requests). */
   specimen:   (id)     => get(`/specimens/${id}/`),
   assign:     (id)     => patch(`/specimens/${id}/assign`),
 
@@ -339,11 +397,15 @@ export const rad = {
      병리와 같은 사정인데 값이 다르다 — 영상은 status=ordered 다.
      안 담으면 이미 촬영·배정이 끝난 건까지 대기 큐에 섞인다.
 
-     ⚠ 다희님 회신에 이 경로가 두 가지로 적혀 있었다. 표에는
-       GET /exam-orders/queue, 접두 설명에는 radiology/queue 다.
-       어느 쪽인지 되물어 두었고, 답이 올 때까지 표 쪽을 따른다 —
-       지금까지 쓰던 것이고 목업도 그 모양이다. */
-  queue:      ()       => get(`/exam-orders/queue${qs({ status: "ordered", assigned: "none" })}`),
+     경로는 **서버 코드로 확정했다** — /exam-orders/queue 도 /radiology/queue
+     도 아니고, 걸러 낸 목록이다.
+
+       core/urls.py   path("exam-orders", ExamOrderQueueView)
+       그 뷰 독스트링  GET /exam-orders?status=ordered&assigned=none
+
+     큐는 결국 「거른 목록」이라 따로 경로를 두지 않는다. /ai-results?study=
+     · /assessments?study= 도 같은 모양이다. */
+  queue:      ()       => get(`/exam-orders${qs({ status: "ordered", assigned: "none" })}`),
   order:      (id)     => get(`/exam-orders/${id}`),
   assign:     (id)     => patch(`/exam-orders/${id}/assign`),
 
@@ -388,6 +450,15 @@ export const rad = {
   amend:      (id, b)  => post(`/assessments/${id}/amend`, b),
 };
 
+/* ── 검체 바인딩 (공용) ───────────────────────────────────────
+ * 간호과·유방외과 둘 다 같은 팝업(SpecimenBindingModal, hospital/lib/)을
+ * 쓴다 — 그 컴포넌트가 부르는 자리를 한 곳에 모아 둔다. 영상의학과는
+ * 이 화면을 쓰지 않기로 확정됐다(간호과 명세 §3). */
+export const specimens = {
+  lesionsByPatient: (pid) => get(`/lesions${qs({ patient: pid })}`),
+  bind: (b) => post("/specimens", b),
+};
+
 /* ── 유방외과 ─────────────────────────────────────────────────
  * 판독 단위가 없다. **환자가 단위다.**
  *
@@ -407,9 +478,10 @@ export const breast = {
   examOrder:    (b)  => post("/exam-orders", b),
   openDiscords: (pid) => get(`/discordances${qs({ patient: pid, status: "open" })}`),
 
-  /* 검체 바인딩 (팝업) — 병리과 대기 큐로 넘어간다 */
-  lesions:      (pid) => get(`/lesions${qs({ patient: pid })}`),
-  bindSpecimen: (b)  => post("/specimens", b),
+  /* 검체 바인딩 (팝업) — 병리과 대기 큐로 넘어간다. 간호과와 같은 팝업을
+     쓰므로 실제 호출은 specimens(공용)로 위임한다 */
+  lesions:      (pid) => specimens.lesionsByPatient(pid),
+  bindSpecimen: (b)  => specimens.bind(b),
 
   /* 2장 · 검사 종합 확인 */
   timeline:     (pid) => get(`/patients/${pid}/timeline`),
@@ -428,7 +500,150 @@ export const breast = {
   dispose:      (id, b) => patch(`/discordances/${id}/dispose`, b),
 };
 
+/* ── 간호과 ────────────────────────────────────────────────────
+ * 판독 단위가 없다. 유방외과처럼 자기 화면·자기 흐름이라 queue/upload/
+ * read/list/amend 틀을 안 쓴다.
+ *
+ *   1장 내원 대기·배정   원무가 접수한 환자를 유방외과 의사에게 넘긴다
+ *   2장 추적 대상 관리   BI-RADS 3 확정 환자의 6·12·24개월 추적
+ *   3장 검체 바인딩      유방외과와 같은 팝업(specimens, 위에서 공용화) */
+export const nursing = {
+  /* 1장 */
+  waitingArrived: () => get(`/exam-orders${qs({ status: "requested", visited: "yes", ordering: "visited_at" })}`),
+  scheduledToday: () => get(`/exam-orders${qs({ scheduled_on: "today", visited: "none" })}`),
+  examOrder:      (id) => get(`/exam-orders/${id}`),
+  patient:        (id) => get(`/patients/${id}`),
+  saveNote:       (examOrderId, note) => patch(`/exam-orders/${examOrderId}/note`, { note }),
+  surgeons:       () => get(`/staff${qs({ role: "surgery" })}`),
+  assignSurgeon:  (patientId, staffId) => patch(`/patients/${patientId}`, { primary_staff_id: staffId }),
+
+  /* 2장 */
+  followups:      () => get(`/followups${qs({ include_candidates: 1 })}`),
+  createFollowup: (b) => post("/followups", b),
+  logCall:        (id, b) => patch(`/followups/${id}/call`, b),
+};
+
 /* 부서 key 로 골라 쓴다 — 공통 화면들이 이걸로 갈라 부른다 */
-export const byDept = { pathology: path, radiology: rad, breast };
+/* ── 원무과 ───────────────────────────────────────────────────
+ * 경로를 다희님 구현에 맞췄다. 명세는 POST /exam-orders 하나였는데
+ * 동사별로 갈라 두셨다 — 접수 · 예약 · 촬영요청이 하는 일이 달라서
+ * 그쪽이 맞다.
+ *
+ * ⚠ search 는 q 가 없으면 서버가 **빈 목록**을 준다(qs.none()). 전체
+ *   환자를 실수로 긁지 않게 한 것이라 화면도 빈 검색어를 안 보낸다.
+ */
+export const reception = {
+  search:      (q)  => get(`/patients${qs({ q })}`),
+  register:    (b)  => post("/patients/register", b),
+  checkIn:     (b)  => post("/exam-orders/checkin", b),
+  todayStatus: ()   => get("/patients/today-status"),
+
+  /* 예약 캘린더 — 한 달 치를 한 번에 받는다. 조회 전용이다.
+     GET /exam-orders 는 한 경로에서 메서드로 갈린다(urls.py 의
+     _exam_orders_dispatch). GET 은 ExamOrderQueryView.list 로 간다.
+
+     ⚠ **끝 경계에 시각을 붙여야 한다.** 서버가 이렇게 거른다 —
+
+         qs.filter(scheduled_at__lte=p["scheduled_to"])
+
+       scheduled_at 은 DateTimeField 라 scheduled_to=2026-09-30 은
+       «30일 00:00:00» 이 된다. 그대로 보내면 **그 달 마지막 날 예약이
+       통째로 빠진다.** 날짜만 넘겨받아 여기서 시각을 붙인다.
+
+     ⚠ ordering 을 안 주면 서버 기본값이 visited_at 이다. 달력인데
+       내원 시각 순으로 와서 날짜별로 묶을 수가 없다. */
+  schedule: (from, to) =>
+    get(`/exam-orders${qs({
+      scheduled_from: `${from}T00:00:00`,
+      scheduled_to:   `${to}T23:59:59`,
+      ordering:       "scheduled_at",
+    })}`),
+
+  /* ── 3장 환자 목록 · 예약 ────────────────────────────────────
+   *
+   * ⚠ **검색어가 없으면 서버가 빈 목록을 준다.**
+   *
+   *     if not q and not status_param:
+   *         return qs.none()
+   *
+   *   그런데 status_param 은 «있는지»만 보고 **걸지는 않는다** — 아래로
+   *   내려가도 status 로 거르는 줄이 없다. 그래서 아무 값이나 status 에
+   *   넣으면 전체 목록이 온다. 목록 화면이 첫 그림에서 비지 않으려면
+   *   지금은 이 길뿐이다.
+   *   → 다희님께 «목록 전체를 받는 공식 방법»을 요청해 두었다. 생기면
+   *     아래 ALL 을 그것으로 바꾼다. */
+  list:   (p)      => get(`/patients${qs(p)}`),
+  detail: (id)     => get(`/patients/${id}/`),
+  /* ⚠ 여기로는 **이름·생년월일·전화를 못 고친다.** 그 셋은 patient_pii 에
+     있고 PatientSerializer 는 patient 표만 다룬다 (상세의 pii 는 읽기 전용).
+     고칠 수 있는 것은 성별 · 출생연도 · 알레르기 둘 · 주치의다 */
+  update: (id, b)  => patch(`/patients/${id}/`, b),
+
+  /* 같은 환자의 예약을 전부 본다 — 같은 날 중복 예약을 잡으려고 */
+  ordersOf: (id)   => get(`/exam-orders${qs({ patient: id, ordering: "scheduled_at" })}`),
+
+  /* [예약 완료]. **원무는 날짜만 정한다** — modality · exam_purpose ·
+     ordered_by 는 안 보낸다. 서버도 그 셋을 안 받는다
+     (ExamOrderScheduleSerializer 는 patient_id · scheduled_at 둘뿐) */
+  reserve: (b)     => post("/exam-orders/schedule", b),
+};
+
+/* 검색어 없이 목록 전체를 받는 열쇠 — 위 list 의 ⚠ 참고 */
+export const ALL_PATIENTS = { status: "all" };
+
+/* ── 4장 예약 확인 (앱 신청분) ──────────────────────────────────
+ *
+ * 3장과 다르다.
+ *   3장  원무가 새로 만든다      POST /exam-orders/schedule
+ *   4장  앱 신청을 확정한다      PATCH /exam-orders/{id}/confirm
+ *
+ * 거르는 조건 둘 다 서버가 받는다 (ExamOrderQueryView) —
+ *   status=requested   아직 확정 안 된 신청
+ *   visited=none       visited_at 이 빈 것. 차 있으면 이미 창구에 온
+ *                      환자라 예약 확인이 아니라 간호 큐로 간다
+ */
+reception.requests = () =>
+  get(`/exam-orders${qs({
+    status: "requested", visited: "none", ordering: "scheduled_at",
+  })}`);
+
+/* [예약 확인]. **날짜만 보낸다.**
+ *
+ * ⚠ 지금 서버는 modalities · exam_purpose · ordered_by 를 **필수로** 받고
+ *   그게 없으면 VALIDATION_ERROR 를 낸다. 팀 결정은 「원무는 날짜만 확정」
+ *   이라 반대다 — 명세가 반대로 적혀 그대로 구현된 것이고, scheduled_at 만
+ *   받도록 바뀔 예정이다. 그때까지 이 호출은 **목업에서만** 돈다.
+ *
+ * ⚠ 확정하면 order_status 가 **scheduled** 가 된다. ordered 가 아니다 —
+ *   검사 종류가 정해져야 ordered 이고 그건 유방외과 몫이다. 값이 새로
+ *   느는 것이라 DB 쪽은 따로 간다.
+ */
+reception.confirm = (id, scheduledAt) =>
+  patch(`/exam-orders/${id}/confirm`, { scheduled_at: scheduledAt });
+
+export const byDept = { pathology: path, radiology: rad, breast, reception, nursing };
+
+/* ── 직원 회원가입 ────────────────────────────────────────────
+ * 2026-09-16 백엔드 확정 — core/api/views.py 의 signup_staff.
+ *
+ *   POST /signup/staff
+ *   b:{staff_number, name, login_id, password, role}
+ *   role 은 다섯 값만 허용 — reception · nursing · radiology · surgery ·
+ *   pathology (admin · patient 를 보내면 VALIDATION_ERROR)
+ *
+ * 환자 가입(src/api.js)과 다른 점 — 마지막 submit 이 로그인으로 안
+ * 이어진다. login_id/staff_number 중복이면 서버가 이 호출에서 바로
+ * VALIDATION_ERROR 를 준다(별도 중복확인 API 없음). 성공하면
+ * account_status=pending · is_active=False 로 만들어지고 토큰은 안
+ * 온다 — 관리자 승인 후에야 로그인된다 (Login.jsx 의 account_status
+ * 처리와 같은 결).
+ *
+ * ⚠ 휴대전화 인증 없음. Account 에 phone 컬럼 자체가 없다
+ *   (phone_verified 만 미리 파 둔 빈 컬럼) — 요청 본문에도 없다.
+ */
+export const staffSignup = {
+  submit: (b) => post("/signup/staff", b),
+  // → {detail}
+};
 
 export const apiInfo = { base: BASE, mock: BASE === MOCK };

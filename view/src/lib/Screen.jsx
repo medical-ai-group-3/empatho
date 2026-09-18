@@ -1,4 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom";
+import Logo from "./Logo";
 
 /* 화면 하나의 껍데기 — 머리말 · 로딩 · 오류 · 본문.
  *
@@ -32,7 +33,12 @@ export function Head({ title, back = true, up = "/", right }) {
         </button>
       )}
       <h2>{title}</h2>
-      {right && <div className="right">{right}</div>}
+      {/* 오른쪽 끝에 작은 로고. 제목 옆에 붙이면 제목과 겨루고, 왼쪽은
+          뒤로가기 자리다 — 남는 자리는 여기뿐이다.
+          right 가 있는 화면에서는 양보한다. 한 자리에 둘을 밀어 넣으면
+          둘 다 작아진다 */}
+      {right ? <div className="right">{right}</div>
+             : <Logo size="sm" />}
     </div>
   );
 }

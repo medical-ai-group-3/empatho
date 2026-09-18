@@ -1,49 +1,25 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Anatomy3DViewer from "./Anatomy3DViewer";
 import Tumor3DViewer from "./Tumor3DViewer";
-import NiftiSliceViewer from "./NiftiSliceViewer";
-import { useNiftiVolume } from "../useNiftiVolume";
-
-const NIFTI_URL = "/samples/duke/duke_001_0000.nii";
-
-/* 실제 segmentation mask NIfTI가 준비되면 이 값을 경로로 교체한다. */
-const MASK_URL = null;
-
-const DEFAULT_LESIONS = [
-  {
-    lesion_id: "L-001",
-    mesh_url:
-      "/models/duke/DUKE_001_tumor_lesion01.stl",
-    color: "#C9828C",
-    location: "병변 01",
-  },
-  {
-    lesion_id: "L-002",
-    mesh_url:
-      "/models/duke/DUKE_001_tumor_lesion02.stl",
-    color: "#8FA8C2",
-    location: "병변 02",
-  },
-  {
-    lesion_id: "L-003",
-    mesh_url:
-      "/models/duke/DUKE_001_tumor_lesion03.stl",
-    color: "#B59A6A",
-    location: "병변 03",
-  },
-  {
-    lesion_id: "L-004",
-    mesh_url:
-      "/models/duke/DUKE_001_tumor_lesion04.stl",
-    color: "#9B8FB5",
-    location: "병변 04",
-  },
-];
+import DicomMprPanel from "./DicomMprPanel";
 
 export default function MRIReviewGrid({
-  lesions = DEFAULT_LESIONS,
+  /* ⚠ 기본값을 **빈 배열**로 둔다.
+   *
+   * 전에는 DEFAULT_LESIONS — DUKE 공개 데이터셋 환자의 종괴 메시 네 개가
+   * 기본값이었다. 호출부가 lesions 를 안 넘기거나 서버가 병변을 안 주면
+   * (undefined) 그 순간 **남의 환자 종괴가 이 환자 화면에 뜬다.**
+   * 판독 화면에서 화면만 봐서는 진짜인지 구분할 수 없다.
+   *
+   * (그 .stl 파일들은 저장소에 없어서 지금은 404 로 안 그려질 뿐이었다.
+   * 누가 public/models/duke/ 를 채우는 순간 조용히 진짜처럼 보이게 된다.)
+   *
+   * 비면 아무것도 안 그린다. 그게 맞는 상태다. */
+  lesions = [],
   selectedLesion: selectedLesionProp,
   onLesionChange,
+  study,
+  mode = "diagnostic",
 }) {
   const [localSelectedLesion, setLocalSelectedLesion] =
     useState(
@@ -54,27 +30,6 @@ export default function MRIReviewGrid({
 
   const selectedLesion =
     localSelectedLesion;
-
-  // 세 단면이 같은 볼륨·같은 crosshair 좌표를 공유한다 — 한 곳을
-  // 클릭/드래그하면 나머지 두 단면의 슬라이스와 crosshair가 같이 움직인다.
-  const { volume, loading, error } = useNiftiVolume(NIFTI_URL);
-  const { volume: maskVolume, loading: maskLoading, error: maskError } = useNiftiVolume(MASK_URL);
-  const [showMask, setShowMask] = useState(true);
-  const [maskOpacity, setMaskOpacity] = useState(0.45);
-  const [cursor, setCursor] = useState({ x: 0, y: 0, z: 0 });
-
-  useEffect(() => {
-    if (!volume) return;
-    const [nx, ny, nz] = volume.dims;
-    setCursor({
-      x: Math.floor(nx / 2),
-      y: Math.floor(ny / 2),
-      z: Math.floor(nz / 2),
-    });
-  }, [volume]);
-
-  const updateCursor = (partial) =>
-    setCursor((prev) => ({ ...prev, ...partial }));
 
   const validLesions = Array.isArray(lesions)
     ? lesions.filter(
@@ -156,6 +111,7 @@ export default function MRIReviewGrid({
                 }}
                 title={
                   lesion.location ||
+                  lesion.site ||
                   lesion.lesion_id ||
                   `병변 ${index + 1}`
                 }
@@ -190,70 +146,10 @@ export default function MRIReviewGrid({
       </section>
 
       <div className="mri-review-2d">
-        <div className="mri-overlay-toolbar">
-          <div className="mri-overlay-left">
-            <span className="mri-overlay-label">AI SEGMENTATION</span>
-            <span className={`mri-mask-status ${maskVolume ? "connected" : "pending"}`}>
-              {maskVolume ? "연결됨" : "MASK 대기"}
-            </span>
-          </div>
-          <label className="mri-mask-toggle">
-            <input type="checkbox" checked={showMask} onChange={(e) => setShowMask(e.target.checked)} disabled={!maskVolume} />
-            <span>Mask</span>
-          </label>
-          <label className="mri-opacity-control">
-            <span>Opacity</span>
-            <input type="range" min="0" max="1" step="0.05" value={maskOpacity} onChange={(e) => setMaskOpacity(Number(e.target.value))} disabled={!maskVolume || !showMask} />
-            <span>{Math.round(maskOpacity * 100)}%</span>
-          </label>
-        </div>
-
-        <NiftiSliceViewer
-          title="Axial"
-          axis="axial"
-          volume={volume}
-          maskVolume={maskVolume}
-          maskLoading={maskLoading}
-          loading={loading}
-          error={error}
-          maskError={maskError}
-          cursor={cursor}
-          showMask={showMask}
-          maskOpacity={maskOpacity}
-          selectedLesion={selectedLesion}
-          onCursorChange={updateCursor}
-        />
-
-        <NiftiSliceViewer
-          title="Coronal"
-          axis="coronal"
-          volume={volume}
-          maskVolume={maskVolume}
-          maskLoading={maskLoading}
-          loading={loading}
-          error={error}
-          maskError={maskError}
-          cursor={cursor}
-          showMask={showMask}
-          maskOpacity={maskOpacity}
-          selectedLesion={selectedLesion}
-          onCursorChange={updateCursor}
-        />
-
-        <NiftiSliceViewer
-          title="Sagittal"
-          axis="sagittal"
-          volume={volume}
-          maskVolume={maskVolume}
-          maskLoading={maskLoading}
-          loading={loading}
-          error={error}
-          maskError={maskError}
-          cursor={cursor}
-          showMask={showMask}
-          maskOpacity={maskOpacity}
-          selectedLesion={selectedLesion}
-          onCursorChange={updateCursor}
+        <DicomMprPanel
+          manifestUrl={study?.volume_manifest}
+          baseUrl={study?.volume_base}
+          mode={mode}
         />
       </div>
 
@@ -299,36 +195,8 @@ export default function MRIReviewGrid({
           grid-row: 1 / span 2;
           min-width: 0;
           min-height: 0;
-          display: grid;
-          grid-template-rows:
-            repeat(3, minmax(0, 1fr));
-          gap: 10px;
+          display: flex;
         }
-
-        .mri-overlay-toolbar {
-          position: absolute; z-index: 200; top: 7px; left: 9px; right: 9px;
-          height: 28px; display: flex; align-items: center; justify-content: flex-end;
-          gap: 10px; padding: 0 8px; border: 1px solid #343a40; border-radius: 5px;
-          background: rgba(17, 21, 24, 0.96); color: #fff; pointer-events: auto;
-        }
-        .mri-overlay-left { margin-right: auto; display: flex; align-items: center; gap: 6px; min-width: 0; }
-        .mri-overlay-label { color: #aeb4ba; font-size: 9px; letter-spacing: .06em; white-space: nowrap; }
-        .mri-mask-status { padding: 2px 5px; border: 1px solid #596169; border-radius: 3px; color: #8e959c; font-size: 8px; white-space: nowrap; }
-        .mri-mask-status.connected { color: #fff; }
-        .nifti-mask-badge {
-          padding: 2px 4px; border: 1px solid #596169; border-radius: 3px;
-          color: #c9828c; font-size: 8px; letter-spacing: .04em;
-        }
-        .nifti-mask-loading {
-          position: absolute; z-index: 50; top: 42px; right: 10px;
-          padding: 4px 6px; border: 1px solid #343a40; border-radius: 4px;
-          background: rgba(17,21,24,.9); color: #8e959c; font-size: 9px;
-        }
-        .mri-mask-toggle, .mri-opacity-control { display: flex; align-items: center; gap: 5px; color: #aeb4ba; font-size: 9px; white-space: nowrap; }
-        .mri-mask-toggle input { margin: 0; accent-color: #c9828c; }
-        .mri-opacity-control input[type="range"] { width: 70px; margin: 0; accent-color: #c9828c; cursor: pointer; }
-        .mri-opacity-control input[type="range"]:disabled { opacity: .35; cursor: default; }
-        .mri-opacity-control > span:last-child { width: 28px; text-align: right; color: #fff; font-variant-numeric: tabular-nums; }
 
         .mri-panel-title,
         .nifti-title {

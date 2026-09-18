@@ -72,8 +72,13 @@ a{color:inherit; text-decoration:none}
 .top .icon:hover{background:var(--bg); color:var(--pink)}
 .top .icon.on{color:var(--pink)}     /* 자동이 아니라 손으로 골라 둔 상태 */
 
+/* ⚠ 아래쪽에 **떠 있는 단추만큼 더** 비운다. 안 그러면 마지막 줄이
+   「상담」 단추에 가린다 — 실제로 달력 아래의 「예약 →」이 덮여서
+   누를 수가 없었다. 떠 있는 것을 놓았으면 그만큼 자리를 비켜 줘야 한다.
+   탭 자신의 여백은 .tabs 가 따로 가진다 */
 .pane{padding:var(--screen-pad); overflow-y:auto; flex:1; display:flex;
-  flex-direction:column; gap:var(--screen-gap); background:var(--bg)}
+  flex-direction:column; gap:var(--screen-gap); background:var(--bg);
+  padding-bottom:calc(var(--screen-pad) + var(--fab-size) + 22px)}
 .pane.mid{justify-content:center}
 
 /* ⚠ 이 한 줄이 없으면 폰에서 화면이 잘린다.
@@ -102,24 +107,27 @@ a{color:inherit; text-decoration:none}
   color:var(--faint); line-height:1.4; letter-spacing:.02em;
   display:flex; flex-direction:column; align-items:center;
   gap:var(--tab-ic-gap)}
-.tabs a.on{color:var(--pink); font-weight:700}
+.tabs a.on{color:var(--green); font-weight:700}
 .tabs .ic{display:flex; align-items:center; justify-content:center;
   width:var(--tab-ic-box); height:var(--tab-ic-box);
   border-radius:var(--tab-ic-radius); font-size:var(--tab-ic-fs);
   font-style:normal; transition:background var(--motion)}
-.tabs a.on .ic{background:var(--pink-bg)}
+.tabs a.on .ic{background:var(--blossom)}
 
 /* ── 단추 ─────────────────────────────────── */
-.btn{display:block; width:100%; background:var(--pink); color:var(--pink-ink);
+/* 주 단추는 **초록**이다. 가이드에서 「EMPATHO」 워드마크가 진초록이고
+   리본만 분홍인 것과 같은 규칙 — 하는 일은 초록이 지고 분홍은 거든다.
+   연분홍(--blossom)을 여기 쓰면 흰 글자가 안 읽힌다 (tokens.css 참고) */
+.btn{display:block; width:100%; background:var(--green); color:var(--green-ink);
   border-radius:var(--btn-radius); text-align:center; padding:var(--btn-pad);
   font-weight:700; font-size:var(--btn-fs); letter-spacing:.01em;
   transition:background var(--motion)}
-.btn:hover:not(:disabled){background:var(--pink-2)}
+.btn:hover:not(:disabled){background:var(--green-deep)}
 .btn:disabled{background:var(--off); color:var(--faint); cursor:not-allowed}
 
 /* 보조 — 연분홍 바탕에 핑크 글자 */
-.btn.soft{background:var(--pink-bg); color:var(--pink)}
-.btn.soft:hover:not(:disabled){background:var(--pink-3); color:var(--pink-ink)}
+.btn.soft{background:var(--blossom); color:var(--green)}
+.btn.soft:hover:not(:disabled){background:var(--pink-3); color:var(--green)}
 
 /* 3순위 — 바탕색에 테두리만 */
 .btn.ghost{background:var(--surface); color:var(--ink-2);
@@ -389,28 +397,19 @@ a{color:inherit; text-decoration:none}
    사진이 없다. 이름 첫 글자를 동그라미에 넣는다 — 없는 사진 자리를
    회색 사람 아이콘으로 채우는 것보다 낫다.
    오른쪽 아이콘은 원형 단추 둘(알림 · 밝기)이다. */
-.hhead{display:flex; align-items:center; gap:var(--hhead-gap)}
-.hhead .ava{flex:none; width:var(--ava); height:var(--ava);
-  border-radius:50%; background:var(--pink-bg); color:var(--pink);
-  display:flex; align-items:center; justify-content:center;
-  font-size:var(--ava-fs); font-weight:700}
-.hhead .who{flex:1; min-width:0; display:flex; flex-direction:column}
-.hhead .who small{font-size:var(--hhead-hi); color:var(--muted)}
-.hhead .who b{font-size:var(--hhead-nm); font-weight:700; color:var(--ink);
-  letter-spacing:-.015em}
 
-/* 원형 아이콘 단추 — 머리말 오른쪽. 알림 · 밝기가 같은 모양이다 */
-.hhead .icon{flex:none; width:var(--icon); height:var(--icon);
+/* 원형 아이콘 단추 — 홈 맨 위 오른쪽. 알림 · 설정이 같은 모양이다 */
+.hbar .icon{flex:none; width:var(--icon); height:var(--icon);
   border-radius:var(--icon-radius); background:var(--surface);
   border:var(--line-w) solid var(--card-line); box-shadow:var(--card-shadow);
   display:flex; align-items:center; justify-content:center;
   font-size:var(--icon-fs); line-height:1;
   color:var(--muted); position:relative}
-.hhead .icon:hover{color:var(--pink)}
-.hhead .icon.on{color:var(--pink)}   /* 밝기를 손으로 골라 둔 상태 */
-.hhead .icon svg{width:17px; height:17px}
+.hbar .icon:hover{color:var(--pink)}
+.hbar .icon.on{color:var(--pink)}   /* 밝기를 손으로 골라 둔 상태 */
+.hbar .icon svg{width:17px; height:17px}
 /* 안 읽은 알림 — 숫자를 안 쓴다. 몇 개인지보다 «있다»가 중요하다 */
-.hhead .icon .new{position:absolute; top:5px; right:5px;
+.hbar .icon .new{position:absolute; top:5px; right:5px;
   width:var(--bell-dot); height:var(--bell-dot); border-radius:50%;
   background:var(--pink); box-shadow:0 0 0 2px var(--surface)}
 
@@ -448,30 +447,39 @@ a{color:inherit; text-decoration:none}
   padding:var(--wel-pad);
   padding-bottom:calc(var(--wel-pad) + env(safe-area-inset-bottom, 0px))}
 
-.wel-body{flex:1; min-height:0; display:flex; flex-direction:column;
-  align-items:center; justify-content:center; gap:var(--wel-gap);
-  text-align:center; overflow-y:auto}
-/* .pane 과 같은 이유다 — 세 줄이 늘어난 만큼 짧은 폰에서는 자리가
-   빠듯한데, 안 막으면 덩어리가 눌리지 스크롤이 생기지 않는다 */
-.wel-body > *{flex:none}
-.wel-tx h2{margin:0; font-size:var(--wel-h-fs); font-weight:700;
-  line-height:1.35; letter-spacing:-.025em; color:var(--ink);
-  white-space:pre-line}       /* 제목의 줄바꿈은 손으로 정한다 */
-.wel-tx p{margin:var(--field-gap) 0 0; font-size:var(--wel-p-fs);
-  line-height:1.8; color:var(--muted)}
+/* 위 — 로고 조합과 서식. 화면을 열면 여기가 먼저 닿는다 */
+.wel-top{flex:none; display:flex; flex-direction:column; align-items:center;
+  gap:var(--wel-tag-gap); padding-top:var(--wel-gap)}
 
-/* 세 줄. 카드와 같은 면이라 홈에 들어갔을 때 낯설지 않다 */
-.wel-list{list-style:none; margin:0; padding:0; width:100%;
-  display:flex; flex-direction:column; gap:var(--wel-row-gap)}
-.wel-list li{display:flex; align-items:center; gap:var(--wel-ic-gap);
-  text-align:left; padding:var(--wel-row-pad);
-  font-size:var(--wel-row-fs); color:var(--ink-2);
-  background:var(--surface); border-radius:var(--card-radius);
-  border:var(--line-w) solid var(--card-line); box-shadow:var(--card-shadow)}
-.wel-list .ic{flex:none; width:var(--wel-ic); height:var(--wel-ic);
-  border-radius:50%; background:var(--pink-bg); color:var(--pink);
-  display:flex; align-items:center; justify-content:center;
-  font-size:var(--wel-ic-fs); line-height:1}
+/* 마크 · 이름 · 서식 세 줄이 한 덩어리. 자간을 크게 벌려 한 자씩 놓는다 —
+   목업의 워드마크가 그렇게 짜여 있고, 벌린 대문자는 그 자체로 차분하다 */
+.lockup{display:flex; flex-direction:column; align-items:center;
+  gap:var(--lock-gap)}
+.lockup-nm{margin:0; font-size:var(--lock-nm-fs); font-weight:700;
+  letter-spacing:var(--lock-nm-track); color:var(--green);
+  padding-left:var(--lock-nm-track)}   /* 마지막 자 뒤 자간만큼 되민다 */
+.lockup-sub{margin:calc(-1 * var(--lock-gap) / 2) 0 0;
+  font-size:var(--lock-sub-fs); font-weight:600;
+  letter-spacing:var(--lock-sub-track); color:var(--muted);
+  padding-left:var(--lock-sub-track)}
+
+/* 서식 한 줄 — 명조. 자간을 살짝 벌려 한 자씩 놓이게 한다 */
+.wel-tag{margin:0; text-align:center; font-family:var(--font-read);
+  font-size:var(--wel-tag-fs); line-height:var(--wel-tag-lh);
+  letter-spacing:var(--wel-tag-track); color:var(--ink-2)}
+
+/* 가운데 — 틸리. **남는 자리를 여기가 먹는다.** 폰이 길면 여백이 틸리
+   둘레로 붙고, 짧으면 여기부터 줄어든다 */
+.wel-mid{flex:1; min-height:0; display:flex; align-items:center;
+  justify-content:center; padding:var(--wel-gap) 0}
+.wel-mid .tilly{max-height:100%}
+
+/* 시작하기 — 두 줄. 위는 왜 시작하는지, 아래가 하는 일이다 */
+.wel-cta{display:flex; flex-direction:column; align-items:center;
+  gap:var(--wel-cta-gap); padding:var(--wel-cta-pad)}
+.wel-cta span{font-size:var(--wel-cta-s-fs); font-weight:500; opacity:.82}
+.wel-cta b{font-size:var(--wel-cta-b-fs); font-weight:700; letter-spacing:.01em}
+.wel-cta i{font-style:normal}
 
 .wel-foot{flex:none; display:flex; flex-direction:column;
   gap:var(--form-gap); align-items:stretch}
@@ -564,11 +572,12 @@ a{color:inherit; text-decoration:none}
    그림이 있으면 그림, 없으면 글자. 둘이 같은 높이를 쓰므로 파일을 넣고
    빼도 화면이 흔들리지 않는다. */
 .logo{display:block; width:auto; object-fit:contain}
+.logo.xl{height:var(--logo-xl)}
 .logo.lg{height:var(--logo-lg)}
 .logo.md{height:var(--logo-md)}
 .logo.sm{height:var(--logo-sm)}
 
-.mark{margin:0; font-weight:700; color:var(--pink);
+.mark{margin:0; font-weight:700; color:var(--green);
   letter-spacing:var(--brand-track)}
 .mark.lg{font-size:var(--brand-fs)}
 .mark.md{font-size:var(--brand-fs)}
@@ -727,3 +736,260 @@ a{color:inherit; text-decoration:none}
 
 /* 화면에서는 숨어 있다 — 위 @media print 만 이것을 꺼낸다 */
 .printhead{display:none}
+
+/* ── 틸리 ──────────────────────────────────────
+   그림이 없으면 부품이 아무것도 안 그린다(lib/Tilly) — 여기 규칙은
+   파일이 들어온 뒤에야 쓰인다. */
+.tilly{display:block; width:auto; object-fit:contain; user-select:none;
+  -webkit-user-drag:none}
+.tilly.sm{height:var(--tilly-sm)}
+.tilly.md{height:var(--tilly-md)}
+.tilly.lg{height:var(--tilly-lg)}
+.tilly.xl{height:var(--tilly-xl)}
+
+/* ── 떠 있는 챗봇 단추 ───────────────────────────
+   탭 **바로 위**에 앉힌다. 탭 높이를 모르므로 탭이 쓰는 바닥 여백에
+   탭 자신의 높이를 더해 띄운다 — 탭이 커져도 겹치지 않는다.
+
+   연분홍 면에 초록 글자다. 가이드의 리본·워드마크 규칙 그대로. */
+.chatfab{position:fixed; right:var(--fab-right);
+  bottom:calc(var(--nav-bottom) + var(--fab-size) + 18px);
+  display:flex; align-items:flex-end; justify-content:center;
+  z-index:40; text-decoration:none;
+  transition:transform var(--motion)}
+.chatfab:hover{transform:translateY(-3px)}
+.chatfab:active{transform:translateY(0)}
+
+/* **원도 바탕도 없다.** 틸리의 제 윤곽선 그대로 떠 있다.
+   대신 아래에 옅은 그림자를 깔아 «떠 있다»를 만든다 — 바탕이 없으면
+   화면에 눌어붙은 것처럼 보인다. filter 라 투명한 가장자리를 따라
+   그림자가 생긴다 (box-shadow 는 네모로 생긴다) */
+.chatfab .tilly.fab{height:var(--fab-size); width:auto;
+  filter:drop-shadow(0 6px 10px rgba(28,32,36,.22))}
+
+/* 그림이 아직 없을 때 — 빈자리 대신 글자가 선다 */
+.chatfab:not(:has(.tilly))::after{content:"상담";
+  padding:var(--pill-pad-y) var(--chip-pad-x);
+  background:var(--blossom); border-radius:999px;
+  box-shadow:var(--nav-shadow);
+  font-size:var(--tile-fs); font-weight:700; color:var(--green)}
+
+/* 앱 폭보다 넓은 화면에서는 앱 오른쪽 끝에 붙인다 — 화면 구석에 혼자
+   떨어져 있으면 이 앱의 것으로 안 보인다 */
+@media (min-width: 560px){
+  .chatfab{right:calc(50% - var(--app-max) / 2 + var(--fab-right))}
+}
+
+/* ── 홈 바로가기 타일 ────────────────────────────
+   탭에 없는 것만 온다. 아직 없는 기능은 **끈 채로** 두고 왜 못 누르는지
+   적는다 — 눌리는데 아무 일도 안 나는 것이 제일 나쁘다. */
+/* 홈의 주인공이다. 인사 · 틸리 바로 아래에 큼직하게 선다 —
+   가이드의 홈이 이 넉 장으로 시작한다. */
+.tiles{display:grid; grid-template-columns:1fr 1fr; gap:var(--tile-gap)}
+.tile{display:flex; flex-direction:column; align-items:center;
+  justify-content:center; gap:var(--card-tx-gap);
+  padding:var(--tile-pad); border-radius:var(--tile-radius);
+  background:var(--surface); box-shadow:var(--card-shadow);
+  border:var(--line-w) solid var(--card-line);
+  text-decoration:none; color:var(--ink); text-align:center}
+/* 동그라미가 아니라 **둥근 네모**다. 아이콘이 커지면 원 안에서 떠 보인다 */
+.tile .ic{display:flex; align-items:center; justify-content:center;
+  width:var(--tile-ic); height:var(--tile-ic);
+  border-radius:var(--tile-ic-r);
+  background:var(--blossom); color:var(--green);
+  font-size:var(--tile-ic-fs); flex:none}
+.tile b{font-size:var(--tile-fs); font-weight:700}
+.tile small{font-size:var(--tile-s-fs); color:var(--muted)}
+.tile.off{opacity:.55; cursor:not-allowed; box-shadow:none;
+  background:var(--bg); border-color:var(--line)}
+.tile.off .ic{background:var(--off); color:var(--faint)}
+
+/* ── 홈 인사 옆 틸리 ───────────────────────────
+   인사말과 나란히 선다. 글이 주인공이라 캐릭터는 오른쪽에서 거든다 */
+
+/* 챗봇 첫 화면의 틸리 — 가운데에 세운다 */
+.chat-tri{display:flex; justify-content:center;
+  padding:var(--screen-gap) 0 var(--card-gap)}
+
+/* 「답을 찾고 있습니다」 말풍선 안의 작은 틸리 */
+.bub.wait{display:flex; align-items:center; gap:var(--dot-gap)}
+.bub.wait .tilly{flex:none}
+
+
+/* ── 홈 머리 ─────────────────────────────────────
+   아이콘 줄과 큰 인사를 갈랐다. 전에는 작은 이름표 옆에 아이콘이
+   나란히 있었는데, 인사를 크게 세우면 같은 말이 두 번 나온다. */
+.hbar{display:flex; justify-content:flex-end; gap:var(--hhead-gap)}
+
+/* 인사 왼쪽 · 틸리 오른쪽. **덩어리째 아래로 내려앉아** 타일에 겹친다.
+   z-index 로 타일 위에 서고, 겹친 자리는 눌러도 타일이 눌리게
+   pointer-events 를 비운다 — 캐릭터는 장식이지 단추가 아니다 */
+.hello{display:flex; align-items:flex-start; gap:var(--hhead-gap);
+  margin:calc(-1 * var(--screen-gap) / 2) 0 calc(-1 * var(--hello-tri-lap));
+  position:relative; z-index:2; pointer-events:none}
+.hello-tx{flex:1; min-width:0; margin:0; display:flex;
+  flex-direction:column; gap:var(--hello-gap)}
+.hello-tri{flex:none; display:block; margin-right:var(--hello-tri-right)}
+/* 그림자가 있어야 «얹혀 있다»로 읽힌다. 없으면 타일에 인쇄된 것처럼
+   납작해진다. filter 라 투명한 윤곽선을 따라 그림자가 생긴다 */
+.hello-tri .tilly{filter:drop-shadow(0 8px 12px rgba(28,32,36,.16))}
+
+/* 타일은 아래에 깔린다 */
+.tiles{position:relative; z-index:1}
+.hello-tx b{font-size:var(--hello-b-fs); font-weight:700; color:var(--ink);
+  letter-spacing:-.02em; line-height:1.2}
+.hello-tx span{font-size:var(--hello-s-fs); color:var(--muted)}
+
+/* ── 챗봇 제안 줄 ────────────────────────────────
+   넷이 세로로 선다. 각 줄이 하는 일은 다르지만(묻기 · 이동 · 입력)
+   생김새는 같다 — 무엇이 일어날지는 글이 말한다. */
+.asks{display:flex; flex-direction:column; gap:var(--askrow-gap)}
+.askrow{display:flex; align-items:center; gap:var(--askrow-pad-x);
+  width:100%; text-align:left;
+  padding:var(--askrow-pad-y) var(--askrow-pad-x);
+  border-radius:var(--askrow-radius);
+  background:var(--surface); box-shadow:var(--card-shadow);
+  border:var(--line-w) solid var(--card-line);
+  font-size:var(--askrow-fs); color:var(--ink);
+  transition:background var(--motion)}
+.askrow:hover{background:var(--blush)}
+.askrow .ic{flex:none; display:flex; align-items:center; justify-content:center;
+  width:var(--askrow-ic); height:var(--askrow-ic); border-radius:999px;
+  background:var(--blossom); color:var(--green);
+  font-size:var(--askrow-ic-fs)}
+.askrow span{flex:1; min-width:0}
+.askrow .arw{flex:none; color:var(--faint); font-size:var(--card-arw-fs);
+  line-height:1}
+
+/* ── 말풍선 옆 얼굴 ──────────────────────────────
+   답에만 붙는다. 자리(왼오)가 이미 누구 말인지 말하고 있어서 얼굴은
+   거드는 쪽이다 — 그래서 작다. */
+.tilly.chip{width:var(--bub-face); height:var(--bub-face);
+  border-radius:999px; background:var(--blossom);
+  object-fit:cover; object-position:50% 38%; flex:none}
+.bub.bot{display:flex; align-items:flex-start; gap:var(--dot-gap);
+  background:none; box-shadow:none; padding:0; max-width:100%}
+.bub.bot .bub-b{flex:1; min-width:0; max-width:var(--bub-max);
+  background:var(--surface); box-shadow:var(--card-shadow);
+  border:var(--line-w) solid var(--card-line);
+  border-radius:var(--bub-radius);
+  border-top-left-radius:var(--bub-tail);
+  padding:var(--bub-pad-y) var(--bub-pad-x)}
+.bub.bot .bub-b p{margin:0; font-size:var(--bub-fs); line-height:var(--bub-lh)}
+.bub.bot .bub-b small{display:block; margin-top:var(--bub-note-gap);
+  font-size:var(--bub-note-fs); color:var(--muted)}
+.bub.bot.err .bub-b{border-color:var(--error)}
+
+/* ── 복약 관리 ───────────────────────────────────
+   처방전 한 장 안에 약이 여럿, 약 하나에 회차가 여럿이다. 세 겹이라
+   **선으로 가른다** — 카드를 세 번 겹치면 화면이 상자밭이 된다. */
+.card.rx{gap:var(--card-gap)}
+.card.rx.ended{opacity:.72}
+.rx-h{display:flex; align-items:flex-start; gap:var(--card-go-gap)}
+.rx-h .tx{flex:1; min-width:0; display:flex; flex-direction:column; gap:2px}
+.rx-h .tx b{font-size:var(--card-v-fs); font-weight:700}
+.rx-h .tx span{font-size:var(--card-s-fs); color:var(--muted)}
+
+/* 약 하나 — 처방전 안에서 가는 선으로 나뉜다 */
+.drug{padding-top:var(--list-gap); margin-top:var(--list-gap);
+  border-top:var(--line-w) solid var(--line-soft)}
+.drug-h .tx{display:flex; flex-direction:column; gap:2px}
+.drug-h .tx b{font-size:var(--card-v-fs); font-weight:700}
+.drug-h .tx span{font-size:var(--card-s-fs); color:var(--muted); line-height:1.5}
+
+/* 설명 펼치기 — 매일 보는 화면이라 기본은 접어 둔다 */
+.drug-more{display:flex; align-items:center; gap:var(--dot-gap);
+  margin-top:var(--opts-gap-card); padding:var(--more-pad-y) 0;
+  font-size:var(--med-note-fs); font-weight:600; color:var(--green)}
+.drug-more i{font-style:normal; font-size:var(--slot-s-fs)}
+
+.drug-info{margin:var(--dot-gap) 0 0; padding:var(--card-pad);
+  border-radius:var(--slot-radius); background:var(--blush)}
+.drug-info dt{font-size:var(--slot-s-fs); font-weight:700; color:var(--muted)}
+.drug-info dd{margin:2px 0 0; font-size:var(--med-note-fs); line-height:1.75;
+  color:var(--ink-2)}
+.drug-info dd + dt{margin-top:var(--opts-gap-card)}
+/* 「이럴 땐 알려 주세요」 — 다른 둘과 무게가 다르다. 왼쪽에 굵은 선을
+   세워 눈이 먼저 닿게 한다. 색을 새로 만들지는 않는다 */
+.drug-info dd.watch{padding-left:var(--dot-gap);
+  border-left:var(--flag-bar) solid var(--pink); font-weight:500}
+
+.med-slots{display:flex; flex-direction:column; gap:var(--slot-gap);
+  margin-top:var(--opts-gap-card)}
+.slot{display:flex; align-items:center; gap:var(--opt-icon-gap);
+  width:100%; text-align:left;
+  padding:var(--slot-pad-y) var(--slot-pad-x);
+  border-radius:var(--slot-radius);
+  background:var(--bg); border:var(--line-w) solid var(--line);
+  font-size:var(--slot-fs); color:var(--ink);
+  transition:background var(--motion), border-color var(--motion)}
+.slot i{flex:none; width:var(--slot-tick); height:var(--slot-tick);
+  border-radius:50%; box-shadow:inset 0 0 0 var(--slot-tick-r) var(--faint);
+  transition:box-shadow var(--motion)}
+.slot span{flex:1; font-weight:600; font-variant-numeric:tabular-nums}
+.slot em{font-style:normal; font-size:var(--slot-s-fs); color:var(--muted)}
+.slot:disabled{opacity:.6}
+/* 드신 회차 — 동그라미가 굵게 «찬다» */
+.slot.on{background:var(--blossom); border-color:transparent}
+.slot.on i{box-shadow:inset 0 0 0 calc(var(--slot-tick) / 2.6) var(--green)}
+.slot.on em{color:var(--green); font-weight:600}
+
+/* 처방에 적힌 문구 — 앱이 고쳐 쓰지 않고 그대로 옮긴다 */
+.med-note{margin:var(--opts-gap-card) 0 0; padding-left:var(--flag-bar);
+  border-left:var(--flag-bar) solid var(--blossom);
+  padding-inline-start:var(--dot-gap);
+  font-size:var(--med-note-fs); line-height:1.7; color:var(--ink-2)}
+.med-by{margin:var(--card-tx-gap) 0 0; font-size:var(--med-by-fs);
+  color:var(--faint)}
+
+/* ── 병원 찾기 ───────────────────────────────────
+   전화가 가장 중요한 손잡이라 단추로 세운다 — 번호를 옮겨 적게 하지 않는다 */
+.list .col.hos{gap:var(--card-tx-gap)}
+.hos-l{margin:0; font-size:var(--hos-l-fs); line-height:1.6; color:var(--muted)}
+/* 전화 · 지도 · 길찾기 셋이 나란히. 전화가 제일 자주 쓰여 왼쪽이다 */
+.hos-go{display:flex; gap:var(--row-gap); margin-top:var(--opts-gap-card)}
+.hos-go .btn.soft{flex:1; padding:var(--slot-pad-y) 0}
+.hos-mine{color:var(--green); font-weight:600}
+
+/* 가까운 순 — 누를 때 위치를 묻는다 */
+.nearbar{display:flex; flex-direction:column; gap:var(--dot-gap)}
+.nearbar .s{font-size:var(--card-s-fs); color:var(--green); font-weight:600}
+.nearbar .note{margin:0}
+
+/* ── 전화 확인 창 ────────────────────────────────
+   아이폰 통화 확인 창 모양. 가운데 선 상자, 굵은 번호, 아래 두 칸.
+   되돌릴 수 없는 쪽(전화 걸기)이 **오른쪽**이다 — 왼손 엄지가 먼저
+   닿는 자리를 취소에 준다. */
+.callveil{position:fixed; inset:0; z-index:60;
+  display:flex; align-items:center; justify-content:center;
+  padding:var(--screen-pad);
+  background:var(--call-veil); backdrop-filter:blur(3px);
+  animation:callin var(--motion) ease-out}
+@keyframes callin{from{opacity:0}to{opacity:1}}
+
+.callbox{width:var(--call-w); max-width:100%;
+  border-radius:var(--call-radius); overflow:hidden;
+  background:var(--surface); box-shadow:0 12px 40px rgba(0,0,0,.28);
+  text-align:center; outline:none}
+.callbox-b{padding:var(--call-pad)}
+.callbox-b b{display:block; font-size:var(--call-nm-fs); font-weight:700;
+  color:var(--ink); line-height:1.4}
+.callno{margin:var(--dot-gap) 0 0; font-size:var(--call-no-fs);
+  font-weight:600; color:var(--ink); letter-spacing:.01em;
+  font-variant-numeric:tabular-nums}
+
+/* 단추 두 칸. 가르는 선은 **한 겹만** 그린다 — 위쪽 테두리와 가운데
+   테두리를 따로 주면 어두운 판에서 두 줄로 보인다 */
+.callbox-a{display:flex; border-top:var(--line-w) solid var(--line)}
+.callbtn{flex:1; height:var(--call-btn-h); display:flex;
+  align-items:center; justify-content:center;
+  font-size:var(--call-btn-fs); color:var(--green);
+  text-decoration:none; background:none;
+  transition:background var(--motion)}
+.callbtn + .callbtn{border-left:var(--line-w) solid var(--line)}
+.callbtn:hover{background:var(--blush)}
+.callbtn.go{font-weight:700}
+
+@media (prefers-reduced-motion: reduce){
+  .callveil{animation:none}
+}

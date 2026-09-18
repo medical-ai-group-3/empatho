@@ -3,10 +3,12 @@ import { api } from "../api";
 import { useApi } from "../lib/useApi";
 import Calendar from "../lib/Calendar";
 import Coach from "../lib/Coach";
+import Tilly from "../lib/Tilly";
 import { COACH_HOME } from "../lib/seen";
 import { Body } from "../lib/Screen";
 import { fmtDay, fmtWhen } from "../lib/when";
 import { deptSuffix } from "../lib/dept";
+import { MODALITY, modality as asModality, text } from "../lib/codes";
 
 /* 03 · 홈
  *
@@ -65,20 +67,58 @@ function Inner({ d }) {
 
   return (
     <>
-      <div className="hhead">
-        {/* 사진이 없다. 이름 첫 글자를 넣는다 — 없는 사진 자리를 회색
-            사람 아이콘으로 채우는 것보다 낫다 */}
-        <span className="ava" aria-hidden="true">{d.display_name?.[0] ?? "·"}</span>
-        <span className="who">
-          <small>안녕하세요</small>
-          <b>{d.display_name} 님</b>
-        </span>
+      {/* 맨 위는 **아이콘만** 둔다. 이름은 아래 큰 인사가 맡는다 —
+          브랜드 가이드의 홈이 인사를 크게 세우는 구조라, 작은 이름표와
+          큰 인사가 같이 있으면 같은 말이 두 번 나온다 */}
+      <div className="hbar">
         <Link className="icon" to="/notis" aria-label="알림" data-coach="bell">
           <Bell />
           {/* 몇 개인지보다 «있다»가 중요하다. 숫자를 안 쓴다 */}
           {d.new_reports?.length > 0 && <i className="new" />}
         </Link>
         <Link className="icon" to="/settings" aria-label="설정"><Gear /></Link>
+      </div>
+
+      {/* 큰 인사 + 틸리.
+          alt 를 비운 것은 바로 옆에 같은 인사가 글로 있어서다 — 읽어 주는
+          기계가 두 번 말하면 성가시다 */}
+      {/* 인사는 왼쪽, 틸리는 오른쪽. 그리고 **틸리가 아래 타일에
+          걸터앉는다** — 이 덩어리가 아래로 음수 여백만큼 내려앉아
+          「검사 결과」 칸 위에 겹친다.
+
+          가운데에 세웠더니 캐릭터만 동떨어져 보였다. 걸쳐 두면 인사 ·
+          캐릭터 · 타일이 한 덩어리로 읽히고 화면에 깊이가 생긴다. */}
+      <div className="hello">
+        <p className="hello-tx">
+          <b>안녕하세요!</b>
+          <span>{d.display_name} 님, 오늘도 건강한 하루예요</span>
+        </p>
+        <span className="hello-tri" aria-hidden="true">
+          <Tilly mood="hello" size="lg" alt="" />
+        </span>
+      </div>
+
+      <div className="tiles">
+        <Link className="tile" to="/book">
+          <i className="ic" aria-hidden="true">▦</i>
+          <b>검사 일정</b>
+          <small>날짜 신청 · 확인</small>
+        </Link>
+        <Link className="tile" to="/results">
+          <i className="ic" aria-hidden="true">▤</i>
+          <b>검사 결과</b>
+          <small>안내문 받아 보기</small>
+        </Link>
+        <Link className="tile" to="/meds">
+          <i className="ic" aria-hidden="true">◈</i>
+          <b>복약 관리</b>
+          <small>오늘 드실 약</small>
+        </Link>
+        <Link className="tile" to="/hospitals">
+          <i className="ic" aria-hidden="true">✦</i>
+          <b>병원 찾기</b>
+          <small>협력 병원 · 전화</small>
+        </Link>
       </div>
 
       {d.last_visit_at && (
@@ -144,7 +184,9 @@ function Inner({ d }) {
                     <b>다음 {fmtWhen(next.scheduled_at)}</b>
                     <span>
                       {/* 신청 단계에서는 검사 종류가 아직 없다. 병원이 정한다 */}
-                      {next.modality_label || "검사 종류는 병원에서 정합니다"}
+                      {text({ ...next, modality: asModality(next.modality) },
+                            "modality", MODALITY, "modality_label")
+                        || "검사 종류는 병원에서 정합니다"}
                       {next.place ? ` · ${next.place}` : ""}
                     </span>
                   </>
@@ -161,6 +203,15 @@ function Inner({ d }) {
         />
       )}
 
+      {/* ── 바로가기 ──
+          ⚠ **아래 탭에 있는 것은 여기 두지 않는다.** 결과·예약·상담은
+            탭과 떠 있는 단추로 늘 닿으므로, 같은 길을 두 번 내면 화면만
+            길어진다. 전에 이 자리를 한 번 걷어냈던 이유가 그것이다.
+
+            그래서 남는 것이 「탭에 없고 아직 만들지도 않은」 둘이다.
+            브랜드 가이드의 홈에 있던 항목을 자리만 먼저 잡아 둔다 —
+            **끈 채로** 두고 왜 못 누르는지 적는다. 기능이 생기면 off 를
+            떼고 to 를 넣으면 된다 */}
       <p className="note">
         이 앱의 안내는 진단서가 아닙니다. 최종 판단은 진료 때 의료진이 합니다.
       </p>

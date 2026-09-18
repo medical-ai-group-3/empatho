@@ -13,6 +13,11 @@ const here = dirname(fileURLToPath(import.meta.url));
      넘기면 로그인이 유지되지 않는다. */
 const SERVER = process.env.EMPATHO_SERVER || "https://empatho.example.com";
 
+// 목업 모드에서 /admin 을 넘길 곳. Django admin 은 목업으로 흉내 낼 수 없어서
+// (진짜 화면이고 세션 쿠키로 돈다) 로컬 Django 를 본다.
+//   cd services/django && python manage.py runserver 8000
+const DJANGO = process.env.EMPATHO_DJANGO || "http://127.0.0.1:8000";
+
 // 가짜 API 로 돌릴지는 아래 defineConfig 의 mode 로 가른다.
 //   npm run dev        서버에 붙는다
 //   npm run dev:mock   가짜 API 로 혼자 돈다  (vite --mode mock)
@@ -61,6 +66,26 @@ function mockApi() {
 
        그래서 쿠키로 옮겼다. 브라우저마다 따로 기억하고, 그 편이 Django 가
        실제로 하는 일과도 같다. */
+  /* 열쇠에 {id} 를 쓰면 그 자리에 아무 값이나 와도 맞는다.
+     병원 웹 목업(mock/hospital.js)이 진작 하던 것을 이쪽에도 들였다 —
+     복약 기록처럼 **번호가 붙는 주소**가 생기면서 필요해졌다.
+     그 셋을 db.json 에 하나하나 적어 두는 것은 자료가 아니라 잡일이다.
+
+     ⚠ 정확히 맞는 열쇠를 **먼저** 본다. 여기는 못 찾았을 때만 온다 —
+       안 그러면 구체적인 열쇠를 {id} 짜리가 가로챈다 */
+  function wildcard(db, method, path) {
+    const parts = path.split("/");
+    for (const key of Object.keys(db)) {
+      const sp = key.indexOf(" ");
+      if (sp < 0) continue;
+      if (key.slice(0, sp) !== method) continue;
+      const kp = key.slice(sp + 1).split("/");
+      if (kp.length !== parts.length) continue;
+      if (kp.every((k, i) => k === parts[i] || /^\{.+\}$/.test(k))) return db[key];
+    }
+    return undefined;
+  }
+
   const SEEN = "empatho_mock_session";
   const isIn = (req) =>
     new RegExp(`(?:^|;\\s*)${SEEN}=1`).test(req.headers.cookie || "");
@@ -71,8 +96,8 @@ function mockApi() {
 
   // 로그인 전에도 부를 수 있는 곳. 나머지는 전부 401 이다.
   const OPEN = new Set([
-    "/api/v1/auth/login",
-    "/api/v1/auth/logout",
+    "/api/v1/login",
+    "/api/v1/logout",
     "/api/v1/signup/verify-phone",
     "/api/v1/signup/link",
   ]);
@@ -85,9 +110,9 @@ function mockApi() {
         if (!req.url.startsWith("/api/")) return next();
 
         const p0 = req.url.split("?")[0];
-        if (p0 === "/api/v1/auth/login" || p0 === "/api/v1/signup/link") {
+        if (p0 === "/api/v1/login" || p0 === "/api/v1/signup/link") {
           setIn(res, true);
-        } else if (p0 === "/api/v1/auth/logout") {
+        } else if (p0 === "/api/v1/logout") {
           setIn(res, false);
         } else if (!isIn(req) && !OPEN.has(p0)) {
           res.statusCode = 401;
@@ -111,7 +136,8 @@ function mockApi() {
         }
 
         const path = req.url.split("?")[0];
-        const hit = db[`${req.method} ${path}`] ?? db[path];
+        const hit = db[`${req.method} ${path}`] ?? db[path]
+                 ?? wildcard(db, req.method, path);
 
         // 판독 폴링을 흉내 낸다 — 부를 때마다 한 칸씩 나아간다.
         // 「분석 중」 화면을 진짜로 시험해 볼 수 있어야 한다.
@@ -205,10 +231,47 @@ export default defineConfig(({ mode }) => {
     port: 5173,
     // 개발 중에도 **상대 경로**로 부르게 한다. 코드에 주소를 박으면
     // 배포에서 교차 출처가 되고, 그때 CORS 목록에 없는 기기는 막힌다.
-    proxy: MOCK ? {} : {
-      "/api": { target: SERVER, changeOrigin: true },
-      "/svc": { target: SERVER, changeOrigin: true },
+    //
+    // /admin 과 /static 은 **두 모드 모두** 넘긴다.
+    //
+    //   Django admin 은 우리가 짓는 화면이 아니라 Django 가 주는 화면이다.
+    //   여기에 안 적으면 vite 의 SPA 폴백이 걸려서 **환자 앱 index.html 이
+    //   돌아온다** — 새 탭에 환자 앱이 뜨고, 404 도 아니라 200 이라 뭐가
+    //   잘못됐는지도 안 보인다.
+    //
+    //   /static 도 같이 넘긴다. admin 화면의 CSS 가 거기 있어서, 빠뜨리면
+    //   글자만 있는 admin 이 나온다 (conf/nginx/default.conf 도 같은 이유로
+    //   두 자리를 함께 넘긴다).
+    //
+    //   목업 모드에서는 붙을 서버가 없으므로 **로컬 Django** 를 본다.
+    //   띄워 두지 않았으면 연결 오류가 나는데, 그게 맞다 — 환자 앱이
+    //   대신 뜨는 것보다 무엇이 없는지가 분명하다.
+    //     python manage.py runserver 8000
+    proxy: {
+      ...(MOCK ? {} : {
+        "/api": { target: SERVER, changeOrigin: true },
+        "/svc": { target: SERVER, changeOrigin: true },
+      }),
+      "/admin":  { target: MOCK ? DJANGO : SERVER, changeOrigin: true },
+      "/static": { target: MOCK ? DJANGO : SERVER, changeOrigin: true },
     },
+  },
+
+  // cornerstone3D의 dicom-image-loader가 웹워커(decodeImageFrameWorker.js,
+  // ESM 모듈 워커)로 픽셀 디코딩을 한다 — 워커 산출물도 ESM이어야 한다.
+  // (유방외과 MRI DICOM 뷰어가 쓴다 — staff-view/vite.config.js 에서 옮겨 옴)
+  worker: { format: "es" },
+  // 코덱 wasm 로더(emscripten UMD 산출물)는 메인 엔트리에서는 안 보이고
+  // 워커 안에서만 import된다 — 자동 탐지가 안 되니 직접 올려서 미리
+  // 번들링(CJS→ESM interop 포함)하게 만든다. 안 하면 워커 안에서
+  // "does not provide an export named 'default'"로 조용히 죽는다.
+  optimizeDeps: {
+    include: [
+      "@cornerstonejs/codec-libjpeg-turbo-8bit/decodewasmjs",
+      "@cornerstonejs/codec-charls/decodewasmjs",
+      "@cornerstonejs/codec-openjpeg/decodewasmjs",
+      "@cornerstonejs/codec-openjph/wasmjs",
+    ],
   },
   };
 });

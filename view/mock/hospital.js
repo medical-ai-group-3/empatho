@@ -120,6 +120,53 @@ function pick(db, method, url) {
   return loose;
 }
 
+/* 요청 본문을 JSON 으로 읽는다. 깨진 본문은 빈 객체로 둔다 —
+   목업이 본문 파싱에서 500 을 내면 화면 쪽 문제와 구분이 안 된다. */
+function readBody(req, done) {
+  let raw = "";
+  /* ⚠ **인코딩을 먼저 정한다.** 안 정하면 조각이 Buffer 로 와서 조각마다
+     따로 문자열이 된다. 한글은 세 바이트라 조각 경계에 걸리면 그 글자가
+     깨진다 — 「김서연」이 「김<0xEC>…」가 된다. setEncoding 을 주면 Node 가
+     경계에 걸친 바이트를 다음 조각까지 들고 간다. */
+  req.setEncoding("utf8");
+  req.on("data", (c) => { raw += c; });
+  req.on("end", () => {
+    let body = {};
+    try { body = JSON.parse(raw || "{}"); } catch { /* 빈 객체로 둔다 */ }
+    done(body);
+  });
+}
+
+/* 목업 토큰에서 아이디를 되꺼낸다. 진짜 서버는 JWT 를 푼다 */
+function bearerId(req) {
+  const h = req.headers.authorization || "";
+  if (!h.startsWith("Bearer ")) return "";
+  const t = h.slice(7).trim();
+  return t.startsWith("mock.") ? t.slice(5) : "";
+}
+
+/* 아이디 앞머리로 과를 고른다. 긴 이름이 먼저다 —
+   "reception" 을 "rec" 로 먼저 걸러 버리면 안 된다 */
+const ROLE_HINT = [
+  ["reception", "reception"], ["radiology", "radiology"],
+  ["pathology", "pathology"], ["nursing", "nursing"],
+  ["surgery", "surgery"], ["admin", "admin"],
+  ["rec", "reception"], ["rad", "radiology"], ["path", "pathology"],
+  ["nur", "nursing"], ["sur", "surgery"],
+];
+function roleOf(id) {
+  const low = String(id).toLowerCase();
+  for (const [prefix, role] of ROLE_HINT) {
+    if (low.startsWith(prefix)) return role;
+  }
+  return "";
+}
+
+/* 이미 확정한 신청. **두 번 확정하면 409** 를 내려고 들고 있는다 —
+   실제 서버도 order_status 가 requested 가 아니면 ALREADY_CONFIRMED 다.
+   ⚠ 메모리라 vite 를 다시 띄우면 비워진다. 목업이라 그래도 된다 */
+const confirmed = new Set();
+
 export function hospitalRoutes() {
   return {
     name: "empatho-hospital-routes",
@@ -143,7 +190,12 @@ export default function hospitalMock() {
     apply: "serve",
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
-        if (!req.url.startsWith(PREFIX)) return next();
+        /* ⚠ 접두사 뒤에 **슬래시가 와야** 우리 것이다.
+           startsWith(PREFIX) 만 보면 `/api/v1/hospitals`(환자 앱의 병원
+           찾기)까지 가로챈다 — 글자만 보면 접두사로 시작하는 것이 맞아서
+           환자 앱 요청이 여기로 빨려 들어와 NOT_IN_MOCK 이 났다.
+           경계를 글자가 아니라 **경로 마디**로 본다 */
+        if (req.url !== PREFIX && !req.url.startsWith(`${PREFIX}/`)) return next();
 
         const path = req.url.split("?")[0];
 
@@ -165,6 +217,100 @@ export default function hospitalMock() {
           db = JSON.parse(readFileSync(resolve(here, "hospital.json"), "utf-8"));
         } catch (e) {
           return fail(res, "MOCK_BROKEN", String(e), 500);
+        }
+
+        /* ── 로그인 · 나 ──────────────────────────────────────────
+           **아이디에 따라 과가 갈린다.** 고정 응답 하나만 두면 어느 아이디로
+           들어와도 같은 사람이라, 원무·간호 화면을 열어 볼 수가 없다.
+
+           진짜 서버는 JWT 를 준다. 목업은 그 흉내만 낸다 — 아이디를 토큰에
+           담아 두고 /me 에서 되꺼내 그 과의 사람을 돌려준다.
+
+             rec1 · reception…   → 원무과      nur1 · nursing…   → 간호과
+             path1 · pathology…  → 병리과      rad1 · radiology… → 영상의학과
+             sur1 · surgery…     → 유방외과    admin1            → 관리자
+
+           못 알아보는 아이디는 hospital.json 의 GET …/me 를 그대로 준다. */
+        if (path === `${PREFIX}/login` && req.method === "POST") {
+          return readBody(req, (body) => {
+            const id = String(body.login_id || "").trim();
+            if (!id || !body.password) {
+              return fail(res, "UNAUTHENTICATED",
+                "아이디 또는 비밀번호가 올바르지 않습니다.", 401);
+            }
+            /* 승인 대기 계정을 볼 수 있게 남긴 자리 — 0012 의 account_status
+               가 pending 이면 is_active 가 False 라 로그인이 막힌다 */
+            if (id.startsWith("pending")) {
+              return fail(res, "UNAUTHENTICATED",
+                "승인 대기 중인 계정입니다. 관리자 승인 후 이용할 수 있습니다.", 401);
+            }
+            send(res, { access: `mock.${id}` });
+          });
+        }
+
+        if (path === `${PREFIX}/me` && req.method === "GET") {
+          const who = db.__accounts?.[roleOf(bearerId(req))];
+          if (who) return send(res, who);
+          /* 목록에 없으면 기존 고정 응답으로 떨어진다 */
+        }
+
+        /* ── 환자 등록 ────────────────────────────────────────────
+           **보낸 것을 돌려준다.** 고정 응답을 주면 홍길동을 등록해도 화면에
+           「새환자」가 채워져서 등록 → 칸 채움 → 접수 흐름을 볼 수가 없다.
+
+           환자번호는 서버가 발급한다 — 진짜 서버는 "P" + uuid4 앞 열 자리다
+           (PatientRegisterSerializer). 모양만 맞춰 흉내 낸다.
+
+           ⚠ 중복 판정은 여기서 안 한다. 진짜 서버도 새로 만든 것과 있던 것을
+             **똑같이 201 로** 주고 구분할 칸이 없어서, 화면이 등록 전에
+             GET /patients?q= 로 먼저 본다 (screens/reception/Register.jsx). */
+        if (path === `${PREFIX}/patients/register` && req.method === "POST") {
+          return readBody(req, (body) => {
+            const base = db[`POST ${PREFIX}/patients/register`] ?? {};
+            const id = 900 + Math.floor(Math.random() * 90);
+            const no = (Date.now().toString(36) + Math.random().toString(36).slice(2))
+              .slice(0, 10).toUpperCase();
+            send(res, {
+              ...base,
+              patient_id: id,
+              patient_number: `P${no}`,
+              pii: {
+                patient_id: id,
+                name: body.name ?? null,
+                birth_date: body.birth_date ?? null,
+                phone: body.phone ?? null,
+              },
+            });
+          });
+        }
+
+        /* ── 예약 확정 (4장) ────────────────────────────────────
+           **날짜만 받는다.** 원무가 날짜만 확정하는 자리라 modality ·
+           exam_purpose · ordered_by 는 안 온다 — 그건 유방외과가 정한다.
+
+           확정하면 order_status 는 **scheduled** 다. ordered 가 아니다 —
+           검사 종류가 정해져야 ordered 이고 그건 유방외과 몫이다.
+
+           ⚠ 진짜 서버(ExamOrderConfirmView)는 아직 그 셋을 필수로 받는다.
+             scheduled_at 만 받도록 바뀔 예정이고, 여기는 바뀐 뒤의 모양이다. */
+        const wantConfirm = path.match(
+          new RegExp(`^${PREFIX}/exam-orders/([^/]+)/confirm$`));
+        if (wantConfirm && req.method === "PATCH") {
+          const id = wantConfirm[1];
+          if (confirmed.has(id)) {
+            return fail(res, "ALREADY_CONFIRMED", "이미 확정된 예약입니다.", 409);
+          }
+          return readBody(req, (body) => {
+            confirmed.add(id);
+            send(res, {
+              exam_order_id: Number(id),
+              order_status: "scheduled",
+              scheduled_at: body.scheduled_at ?? null,
+              modality: null,
+              exam_purpose: null,
+              ordered_by: null,
+            });
+          });
         }
 
         const hit = pick(db, req.method, req.url);

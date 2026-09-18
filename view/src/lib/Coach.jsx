@@ -42,27 +42,39 @@ export default function Coach({ steps, seenKey }) {
   const step = steps[i];
 
   /* 대상을 잰다. 그리기 직전에 재야 자리가 안 튄다.
-     화면이 돌아가면 다시 잰다. */
+     화면이 돌아가면 다시 잰다.
+   *
+   * **짚을 것이 없으면 그 걸음은 지나간다** — 그 판단도 여기서 한다.
+   *
+   * ⚠ 전에는 「box 가 null 이면 건너뛴다」를 따로 useEffect 에 두었는데,
+   *   그게 **첫 걸음을 늘 건너뛰었다.** box 의 처음 값이 null 이라,
+   *   여기서 제대로 재어 넣어도 그 useEffect 는 이미 만들어진 «null
+   *   이던 시절»의 값을 들고 돌기 때문이다. React 는 이 자리에서 바뀐
+   *   값으로 다시 그리기 전에 밀린 useEffect 를 먼저 흘려보낸다.
+   *   그래서 홈에 처음 들어온 사람에게 안내가 「1 / 3」이 아니라
+   *   「2 / 3」부터 보였다.
+   *
+   *   «못 찾았다» 와 «아직 안 재었다» 를 같은 null 로 두었던 것이
+   *   화근이라, 못 찾은 그 자리에서 바로 넘긴다. */
   useLayoutEffect(() => {
     if (done || !step) return;
 
+    const find = () => document.querySelector(step.sel);
+
     function measure() {
-      const el = document.querySelector(step.sel);
-      if (!el) { setBox(null); return; }
+      const el = find();
+      if (!el) return;
       const r = el.getBoundingClientRect();
       setBox({ top: r.top, left: r.left, w: r.width, h: r.height });
     }
+
+    if (!find()) { setBox(null); next(); return; }
+
     measure();
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
-  }, [done, step]);
-
-  /* 짚을 것이 없으면 그 걸음은 지나간다. 화면에 없는 것을 가리키느니
-     아무 말도 안 하는 편이 낫다. */
-  useEffect(() => {
-    if (!done && step && box === null) next();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [box, step, done]);
+  }, [done, step]);
 
   useEffect(() => {
     if (done) return;
