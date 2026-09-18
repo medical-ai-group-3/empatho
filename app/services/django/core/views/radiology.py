@@ -32,6 +32,19 @@ class StudyViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = serializers.StudySerializer
 
 
+class PatientStudiesView(generics.ListAPIView):
+    """GET /patients/{id}/studies — 환자의 검사(Study) 목록."""
+
+    resource = "study"
+    permission_classes = [MatrixPermission]
+    serializer_class = serializers.StudySerializer
+
+    def get_queryset(self):
+        return models.Study.objects.filter(
+            patient_id=self.kwargs["pk"]
+        ).order_by("-performed_at")
+
+
 class ExamOrderQueueView(generics.ListAPIView):
     """GET /radiology/queue — ① 촬영 대기 리스트.
 

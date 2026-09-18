@@ -61,9 +61,11 @@ class FollowupViewSet(AuditMixin, OwnedOnlyMixin, viewsets.ModelViewSet):
 
             for a in candidates:
                 if a.lesion and a.lesion.patient_id not in tracked_patient_ids:
+                    pii = getattr(a.lesion.patient, "pii", None)
                     result.append({
                         "followup_id": None,
                         "patient": a.lesion.patient_id,
+                        "patient_name": pii.name if pii else None,
                         "status": "candidate",
                         "round_no": 0,
                     })
@@ -159,4 +161,24 @@ class FollowupCallView(AuditMixin, viewsets.ViewSet):
         followup.save()
 
         out = serializers.FollowupSerializer(followup)
+        return Response(out.data)
+
+
+class ExamOrderNoteView(AuditMixin, viewsets.ViewSet):
+    """PATCH /exam-orders/{id}/note — 내원 메모 저장."""
+
+    resource = "exam_order"
+    permission_classes = [MatrixPermission]
+    serializer_class = serializers.ExamOrderNoteSerializer
+
+    def partial_update(self, request, pk=None):
+        order = models.ExamOrder.objects.select_related("patient__pii").get(pk=pk)
+        serializer = serializers.ExamOrderNoteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        order.order_note = serializer.validated_data["note"]
+        order.updated_by = self._current_account()
+        order.save(update_fields=["order_note", "updated_by", "updated_at"])
+
+        out = serializers.ExamOrderSerializer(order)
         return Response(out.data)

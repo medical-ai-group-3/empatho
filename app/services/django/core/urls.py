@@ -81,6 +81,16 @@ urlpatterns = [
         views.QuestionnaireView.as_view({"patch": "partial_update"}),
         name="patient-questionnaire",
     ),
+    path(
+        "patients/<int:pk>/studies",
+        views.PatientStudiesView.as_view(),
+        name="patient-studies",
+    ),
+    path(
+        "exam-orders/<int:pk>/note",
+        views.ExamOrderNoteView.as_view({"patch": "partial_update"}),
+        name="exam-order-note",
+    ),
     path("radiology/queue", views.ExamOrderQueueView.as_view(), name="exam-order-queue"),
     path("exam-orders/queue", views.ExamOrderQueueView.as_view(), name="exam-order-queue-alias"),
     path(
@@ -135,6 +145,7 @@ urlpatterns = [
     path("reports/<int:pk>/unlock", views.ReportUnlockView.as_view({"patch": "partial_update"}), name="report-unlock"),
     path("discordances", views.DiscordanceListView.as_view(), name="discordance-list"),
     path("discordances/<int:pk>", views.DiscordanceDisposeView.as_view({"get": "retrieve", "patch": "partial_update"}), name="discordance-detail"),
+    path("discordances/<int:pk>/dispose", views.DiscordanceDisposeView.as_view({"get": "retrieve", "patch": "partial_update"}), name="discordance-dispose"),
     path("specimens/queue", views.SpecimenQueueView.as_view(), name="specimen-queue"),
     path("specimens/<int:pk>/assign", views.SpecimenAssignView.as_view({"patch": "partial_update"}), name="specimen-assign"),
     path("specimens/<int:pk>/ai-results", views.SpecimenAiResultView.as_view({"post": "start"}), name="specimen-ai-results-start"),

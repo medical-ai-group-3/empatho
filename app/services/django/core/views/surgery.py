@@ -332,19 +332,3 @@ class DiscordanceDisposeView(AuditMixin, viewsets.ViewSet):
         flag = models.DiscordanceFlag.objects.get(pk=pk)
         out = serializers.DiscordanceFlagSerializer(flag)
         return Response(out.data)
-    
-    def partial_ipdate(self, request, pk=None):
-        flag = models.DiscordanceFlag.objects.get(pk=pk)
-        serializer = serializers.DiscordanceDisposeSerializer(data = request.data)
-        serializer.is_valid(raise_exceptioin=True)
-        data = serializer.validated_data
-        
-        flag.disposition_type = data["disposition_type"]
-        flag.disposition_reason = data["disposition_reason"]
-        flag.disposed_by = getattr(request.user, "staff", None)
-        flag.closed_at = timezone.now()
-        flag.updated_by = self._current_account()
-        flag.save()
-        
-        out = serializers.DiscordanceFlagSerializer(flag)
-        return Response(out.data)

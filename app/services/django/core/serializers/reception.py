@@ -30,12 +30,41 @@ class PatientSerializer(serializers.ModelSerializer):
 
 class PatientDetailSerializer(PatientSerializer):
     pii = PatientPiiSerializer(read_only=True)
+    created_at = serializers.DateTimeField(read_only=True)
+
+    class Meta:
+        model = models.Patient
+        exclude = ("created_by", "updated_at", "updated_by")
 
 
 class ExamOrderSerializer(serializers.ModelSerializer):
     patient_name = serializers.CharField(
         source="patient.pii.name", read_only=True, default=None
     )
+    age = serializers.SerializerMethodField()
+    sex = serializers.CharField(source="patient.sex", read_only=True, allow_null=True)
+    visit_type = serializers.SerializerMethodField()
+
+    def get_age(self, obj) -> int | None:
+        pii = getattr(obj.patient, "pii", None)
+        birth_date = getattr(pii, "birth_date", None)
+        if birth_date is None:
+            return None
+
+        reference = obj.visited_at or obj.scheduled_at or timezone.now()
+        reference_date = reference.date()
+        return reference_date.year - birth_date.year - (
+            (reference_date.month, reference_date.day)
+            < (birth_date.month, birth_date.day)
+        )
+
+    def get_visit_type(self, obj) -> str:
+        first_visited_at = obj.patient.first_visited_at
+        if first_visited_at is None:
+            return "초진"
+        if obj.visited_at is not None and obj.visited_at <= first_visited_at:
+            return "초진"
+        return "재진"
 
     class Meta:
         model = models.ExamOrder
@@ -61,7 +90,7 @@ class PatientListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = models.Patient
-        fields = ("patient_id", "patient_number", "name", "phone", "birth_date", "birth_year", "sex")
+        fields = ("patient_id", "patient_number", "name", "phone", "birth_date", "birth_year", "sex", "has_allergy")
 
 
 # ── 워크플로 액션 전용 (쓰기) ──────────────────────────────────
@@ -180,12 +209,25 @@ class PatientRegisterSerializer(serializers.Serializer):
     birth_date = serializers.DateField()
     phone = serializers.CharField(max_length=30)
 
-    def create(self, validated_data):
+    def validate(self, attrs):
         existing = models.PatientPii.objects.filter(
-            name=validated_data["name"],
-            birth_date=validated_data["birth_date"],
-            phone=validated_data["phone"],
+            name=attrs["name"], birth_date=attrs["birth_date"], phone=attrs["phone"],
         ).first()
+        if existing is None:
+            conflict = models.PatientPii.objects.filter(phone=attrs["phone"]).exists()
+            if conflict:
+                raise serializers.ValidationError(
+                    {"phone": "이미 다른 환자에게 등록된 전화번호입니다."}
+                )
+        self._existing_pii = existing
+        return attrs
+
+    @property
+    def created(self):
+        return getattr(self, "_existing_pii", None) is None
+
+    def create(self, validated_data):
+        existing = self._existing_pii
         if existing:
             return existing.patient
 

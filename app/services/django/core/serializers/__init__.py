@@ -25,6 +25,7 @@ from .reception import (
 from .nursing import (
     FollowupSerializer,
     VisitCheckInSerializer,
+    ExamOrderNoteSerializer,
     FollowupCreateSerializer,
     FollowupCallSerializer,
     PrimaryStaffAssignSerializer,

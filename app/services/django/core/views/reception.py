@@ -298,8 +298,10 @@ class PatientRegisterView(AuditMixin, viewsets.ViewSet):
             created_by = self._current_account(),
             updated_by=self._current_account(),
         )
+        created = serializer.created
         out = serializers.PatientDetailSerializer(patient)
-        return Response(out.data, status=status.HTTP_201_CREATED)
+        data = {**out.data, "created": created}
+        return Response(data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
     
 class CheckInView(AuditMixin, viewsets.ViewSet):
     """§1 [접수하기] — POST /exam-orders (requested + visited_at)."""

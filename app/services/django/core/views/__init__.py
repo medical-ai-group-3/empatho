@@ -18,12 +18,14 @@ from .nursing import (
     VisitTodayViewSet,
     FollowupViewSet,
     QuestionnaireView,
+    ExamOrderNoteView,
     FollowupCreateView,
     FollowupCallView,
 )
 
 from .radiology import (
     StudyViewSet,
+    PatientStudiesView,
     ExamOrderQueueView,
     ExamOrderCompleteView,
     StudyStartView,
