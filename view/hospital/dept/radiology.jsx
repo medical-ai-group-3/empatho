@@ -298,7 +298,7 @@ export const radiology = {
         <>
           {d.patient.contrast_allergy && <Warn>조영제 알레르기 — {d.patient.contrast_allergy}</Warn>}
           <Facts items={[
-            ["환자", `${d.patient.name} (${d.patient.age}/${d.patient.sex})`],
+            ["환자", `${d.patient.name} (${d.patient.age}/${label(SEX, d.patient.sex)})`],
             ["환자번호", d.patient.no],
             ["검사명", d.unit.exam_name],
             ["모달리티", label(MODALITY, asModality(d.unit.modality))],
@@ -469,7 +469,7 @@ export const radiology = {
 
     Info: ({ d }) => (
       <Facts items={[
-        ["환자", `${d.patient.name} (${d.patient.age}/${d.patient.sex})`],
+        ["환자", `${d.patient.name} (${d.patient.age}/${label(SEX, d.patient.sex)})`],
         ["환자번호", d.patient.no],
         ["검사명", d.unit.exam_name],
         ["검사일시", d.unit.performed_at],

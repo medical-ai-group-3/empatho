@@ -5,6 +5,7 @@ import { Chip, Facts, Queue, Locked, Table } from "../../../lib/Parts";
 import { useApi } from "../../../lib/useApi";
 import { can } from "../../../perm";
 import SpecimenBindingModal from "../../../lib/SpecimenBindingModal";
+import { SEX, label } from "../../../codes";
 
 /* ═══ 1장 · 내원 대기 · 유방외과 배정 ══════════════════════════════
  *
@@ -74,7 +75,7 @@ function Inner({ cfg }) {
               items={items.map((it, i) => ({
                 id: it.id,
                 no: i + 1,
-                title: `${it.name} (${it.age}/${it.sex})`,
+                title: `${it.name} (${it.age}/${label(SEX, it.sex)})`,
                 sub: `${it.patient_number} · ${it.visited_at} 접수 · ${it.visit_type}`,
                 chip: it.status,
                 chipTone: it.status === "문진 중" ? "fill" : "line",
@@ -108,7 +109,7 @@ function Inner({ cfg }) {
                 ]}
                 rows={(today.data?.items ?? []).map((it) => ({
                   id: it.id,
-                  who: `${it.name} (${it.age}/${it.sex})`,
+                  who: `${it.name} (${it.age}/${label(SEX, it.sex)})`,
                   time: it.time,
                   kind: <Chip tone={it.followup_id ? "dot" : "line"}>{it.followup_id ? "추적 관찰" : "예약"}</Chip>,
                 }))}
@@ -153,7 +154,7 @@ function PatientDetail({ cfg, d, onAssigned }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <Facts items={[
-        ["환자", `${d.name} (${d.age}/${d.sex})`],
+        ["환자", `${d.name} (${d.age}/${label(SEX, d.sex)})`],
         ["환자번호", d.patient_number],
         ["내원 구분", d.visit_type],
         ["알레르기", d.allergy || "없음"],
