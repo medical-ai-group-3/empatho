@@ -432,8 +432,23 @@ class DiscordanceFlagAdmin(ReadMostly):
     ordering = ("flagged_at",)          # 오래된 것이 위
 
 
+#: 상세 화면에서 감추는 칸. 소견문 본문과 그 부속이다.
+#: 표는 그대로 보이고 나머지 20칸도 그대로 보인다 — 값만 안 보인다.
+REPORT_HIDDEN = ("narrative_text", "content_json", "evidence_links",
+                 "dropped_sentences", "notes", "unlock_reason")
+
+
 @admin.register(Report)
 class ReportAdmin(ReadMostly):
+    """환자 소견문. **본문은 admin 에서 안 보인다.**
+
+    관리자는 서버를 보는 사람이지 진료 기록을 읽는 사람이 아니다. 리포트가
+    제때 나갔는지 · 잠겼는지 · 몇 번 열렸는지는 보여야 하지만 환자에게 나가는
+    글 자체는 볼 이유가 없다. perms.py 에서 admin 만 report.view.all 을 빼
+    프론트를 막았고(다희님, 8b6d892), 여기가 그 나머지 반쪽이다 — 둘 다
+    해야 말이 된다.
+    """
+
     list_display = ("report_id", "patient_number", "report_type", "audience",
                     "socket_id", "lock_status", "patient_confirmed",
                     "view_count", "last_viewed_at")
@@ -444,8 +459,22 @@ class ReportAdmin(ReadMostly):
     date_hierarchy = "created_at"
     ordering = ("-created_at",)
 
-    # 본문은 목록에 안 낸다 — 길어서 표가 못 읽게 되고, 환자에게 나가는
-    # 글이라 목록에 펼쳐 두는 것이 맞지 않다
+    # 남기는 20칸. 누가 · 언제 · 어디까지 갔는지는 다 보인다.
+    fields = (
+        "study", "patient", "report_type", "audience", "socket_id",
+        "prompt_version", "fallback",
+        "lock_status", "unlocked_by", "unlocked_at",
+        "issued_by", "pdf_bucket", "pdf_object_key",
+        "explained_by", "explained_at", "explain_method", "patient_confirmed",
+        "last_viewed_at", "last_viewed_by", "view_count",
+    ) + AUDIT_RO
+
+    # lock_status — 잠금 해제는 유방외과 단독이다(§11.5). 뷰에 CanUnlockReport
+    #   를 걸어 놓고 admin 에서 손으로 풀 수 있으면 그 잠금이 무의미하다.
+    # 열람 3칸 — 서버가 찍는 값이라 손으로 고치면 감사 기록이 거짓이 된다.
+    readonly_fields = AUDIT_RO + ("lock_status", "last_viewed_at",
+                                  "last_viewed_by", "view_count")
+
     @admin.display(description="환자번호", ordering="patient__patient_number")
     def patient_number(self, obj):
         return obj.patient.patient_number
