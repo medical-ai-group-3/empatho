@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import * as cornerstone from "@cornerstonejs/core";
 import * as cornerstoneTools from "@cornerstonejs/tools";
 import { ensureCornerstoneInit } from "./cornerstoneInit";
+import { loadManifest } from "./manifest";
 
 /* 맘모 DICOM을 Cornerstone3D STACK 뷰포트로 보여준다 — 공통 영상 Viewer
  * 설계(2026-09-17) 3단계.
@@ -60,9 +61,11 @@ export default function DicomStackViewer({ manifestUrl, baseUrl, mode = "diagnos
         await ensureCornerstoneInit();
         if (cancelled) return;
 
-        const res = await fetch(manifestUrl);
-        if (!res.ok) throw new Error(`manifest 요청 실패 (${res.status})`);
-        const files = await res.json();
+        /* ⚠ 여기서 그냥 res.json() 을 하면, 샘플 자료가 없는 사람에게
+           「Unexpected token '<'」 가 그대로 뜬다 — Vite 가 404 에
+           index.html 을 돌려주기 때문이다. loadManifest 가 그걸 가려내고
+           「자료가 없습니다」로 바꿔 준다 (lib/dicom/manifest.js) */
+        const files = await loadManifest(manifestUrl);
         const imageIds = files.map((f) => `wadouri:${baseUrl}/${f}`);
         if (imageIds.length === 0) { setStatus("empty"); return; }
 

@@ -170,7 +170,7 @@ fromOrthanc:  cl.ObjectKeyPrefix != "dicom/instances/<UID>"  → 403
 
 | 항목 | 내용 |
 |---|---|
-| `public/dicom/…/mammo-stack-placeholder.json` | 파일이 저장소에 없다. `mock/hospital.json` 이 세 곳에서 가리키는데(`stack_manifest`) 없어서 Vite 가 `index.html` 을 돌려주고, 그걸 JSON 으로 읽다 **「Unexpected token '<'」** 가 난다. 영상 판독 화면에서 바로 보인다 |
+| ~~`public/dicom/…` 자료가 없을 때 「Unexpected token '<'」~~ | **처리함.** 자료는 여전히 저장소에 없다(용량 때문에 `.gitignore`). 다만 Vite 가 404 에 `index.html` 을 돌려주는 것을 `lib/dicom/manifest.js` 가 가려내고 「샘플 DICOM 자료가 없습니다」로 바꾼다. 맘모·MRI 뷰어 둘 다 적용 |
 | 로고 SVG | 지금 것은 자동 추적본(path 23개)이다. 워드마크가 들어간 원본이 오면 소개 화면의 글자 두 줄을 그림 하나로 바꾼다 |
 | 캐릭터 영문 표기 | 시트는 `Tily`(L 하나), 코드는 `Tilly` 다 |
 
