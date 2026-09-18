@@ -676,6 +676,20 @@ export const breast = {
   patient:      (id) => get(`/patients/${id}/`).then(normalizePatient),
   examOrder:    (b)  => post("/exam-orders", b),
 
+  /* "이상 없음 · 종결" — 촬영 없이 방문을 닫는다. exam_order 를 새로 만들지
+   * 않는다(모달리티 없는 오더를 지어낼 수 없다 — ExamOrderRequestSerializer가
+   * modality 를 필수로 받는다). 대신 이 환자를 여기로 데려온 exam_order를
+   * 찾아 그대로 종결시킨다 — reception.ordersOf 와 같은 조회를 쓴다.
+   *
+   * ⚠ 2026-09-18 다희님 확인 — PATCH /exam-orders/{id}/complete 는
+   * CanCompleteExamOrder 전용 클래스라 유방외과도 이제 부를 수 있다
+   * (feature/dahee, dd6268b). 몸통은 안 받는다 — order_status 만
+   * completed 로 바뀐다. exam_purpose 는 그대로 NULL로 남고(집계 안
+   * 잡힘), "촬영 후 종결"과 "안 찍고 종결"도 completed 하나로 안 갈린다.
+   * 둘 다 팀이 합의한 알려진 한계다 — 나중 과제로 미뤘다. */
+  ordersOf:        (patientId) => get(`/exam-orders${qs({ patient: patientId, ordering: "scheduled_at" })}`),
+  completeExamOrder: (examOrderId) => patch(`/exam-orders/${examOrderId}/complete`, {}),
+
   /* 2장 · 검사 종합 확인 */
   timeline:     (pid) => get(`/patients/${pid}/timeline`),
   studies:      (pid) => get(`/patients/${pid}/studies`),
