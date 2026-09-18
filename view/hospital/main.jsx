@@ -17,6 +17,7 @@ import "./hospital.css";
 import { apiInfo } from "./api";
 import { DEPTS, ROOT, deptPath, findDept, homeDept } from "./nav";
 import Top from "./lib/Top";
+import StickyMemo from "./lib/StickyMemo";
 import { useLoadMe } from "./lib/useMe";
 import { useSignedIn } from "./lib/session";
 import Login from "./screens/auth/Login";
@@ -128,6 +129,10 @@ function Shell() {
           목업 자료 — 지어낸 값입니다 · {apiInfo.base}
         </footer>
       )}
+      {/* Boom 바깥이다 — 라우트 쪽 화면이 죽어도 메모는 그대로 떠 있어야
+          한다. Shell은 <Outlet/>을 감싸는 자리라 과를 옮겨도(라우트가
+          바뀌어도) 다시 마운트되지 않는다 — 그래서 메모가 안 사라진다. */}
+      <StickyMemo />
     </div>
   );
 }
