@@ -58,7 +58,10 @@ class PatientTimelineView(AuditMixin, viewsets.ViewSet):
                 events.append({"at": ai.analyzed_at, "type": "AI 분석 완료", "detail": None})
 
         for assessment in models.Assessment.objects.filter(study__patient=patient):
-            events.append({"at": assessment.created_at, "type": "판독", "detail": assessment.category})
+            events.append({
+                "at": assessment.created_at, "type": "판독", "detail": assessment.category,
+                "assessment_id": assessment.assessment_id,
+            })
 
         for specimen in models.Specimen.objects.filter(patient=patient):
             if specimen.collected_at:
