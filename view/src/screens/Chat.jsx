@@ -50,13 +50,22 @@ import Tilly from "../lib/Tilly";
    「모르겠습니다」가 되지 않는다. */
 /* 처음 열었을 때 내미는 네 줄.
  *
- * ⚠ **넷이 하는 일이 서로 다르다.** 생김새가 같다고 다 질문인 것은
- *   아니다 — 「다음 일정 확인하기」는 물어볼 말이 아니라 **예약 화면으로
- *   가는 길**이고, 「자유롭게 물어보기」는 입력칸에 손을 놓아 주는 것이다.
+ * ⚠ **생김새가 같다고 다 질문인 것은 아니다.** 「다음 일정 확인하기」는
+ *   물어볼 말이 아니라 **예약 화면으로 가는 길**이다. 질문으로 보내면
+ *   챗봇이 「무슨 말인지 모르겠다」고 답한다.
  *
  *   ask   그대로 물어본다
  *   go    그 화면으로 간다
- *   type  입력칸에 커서를 둔다
+ *
+ * ⚠ 전에 있던 「궁금한 걸 자유롭게 물어보기」(type)는 뺐다. 하는 일이
+ *   입력칸에 커서를 두는 것 하나뿐인데, 그 입력칸은 아래에 늘 보이고
+ *   「모르는 말을 물어보세요」라고 이미 적혀 있다. 줄 하나를 거기 쓰느니
+ *   답할 수 있는 것을 하나 더 보여 주는 편이 낫다.
+ *
+ *   무엇보다 **「자유롭게」가 사실과 다르다.** 이 봇은 낱말 뜻과, 설명이
+ *   끝난 결과의 범위 안만 답한다. 치료·수술·예후는 규칙으로 막혀 있다.
+ *   바로 위 안내 카드가 그 경계를 말하는데 그 아래 줄이 「자유롭게」라고
+ *   하면 카드를 무르는 셈이다.
  *
  * ── 2026-09-18 문구를 바꿨다 ─────────────────────────────────
  *
@@ -81,8 +90,8 @@ import Tilly from "../lib/Tilly";
 const EGS = [
   { kind: "ask",  ic: "▤", tx: "미세석회가 뭔가요?" },
   { kind: "ask",  ic: "✦", tx: "조직검사는 어떻게 하나요?" },
+  { kind: "ask",  ic: "◍", tx: "양성이라는 게 무슨 뜻인가요?" },
   { kind: "go",   ic: "▦", tx: "다음 일정 확인하기", to: "/book" },
-  { kind: "type", ic: "◍", tx: "궁금한 걸 자유롭게 물어보기" },
 ];
 
 /* 답을 못 드렸을 때 대신 내미는 것 — B.
@@ -120,13 +129,11 @@ export default function Chat() {
   const [q, setQ] = useState("");
   const [busy, setBusy] = useState(false);
   const endRef = useRef(null);
-  const boxRef = useRef(null);
   const nav = useNavigate();
 
   /* 제안 한 줄을 눌렀을 때. 무엇을 하는 줄인지는 EGS 가 들고 있다 */
   function pick(e) {
     if (e.kind === "go") return nav(e.to);
-    if (e.kind === "type") return boxRef.current?.focus();
     ask(e.tx);
   }
 
@@ -245,7 +252,6 @@ export default function Chat() {
               내려가고 커서가 빠져서, 다음 질문을 치려면 한 번 더
               눌러야 한다. 두 번 보내지는 것은 ask() 가 막는다 */}
           <input
-            ref={boxRef}
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="모르는 말을 물어보세요"
