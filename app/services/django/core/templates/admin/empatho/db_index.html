@@ -1,0 +1,34 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<div class="e-box">
+  <h2>DB 조회</h2>
+  <p class="e-note">
+    표의 생김새를 봅니다. 「가림」이 붙은 표는 구조만 보이고 값 분포는 안 냅니다 —
+    개인정보가 들어 있는 표입니다. 고치는 것은 <b>DB 수정</b> 쪽입니다.
+  </p>
+
+  <table class="e-probe">
+    <thead>
+      <tr>
+        <th>표</th><th>이름</th>
+        <th class="num">행</th><th class="num">칸</th><th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for t in tables %}
+        <tr>
+          <th scope="row"><a href="{{ t.url }}">{{ t.table }}</a></th>
+          <td>{{ t.name }}</td>
+          <td class="num">{{ t.rows }}</td>
+          <td class="num">{{ t.columns }}</td>
+          <td>
+            {% if t.hidden %}<span class="e-tag">가림</span>{% endif %}
+            {% if t.admin_url %}<a class="e-quiet" href="{{ t.admin_url }}">수정</a>{% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

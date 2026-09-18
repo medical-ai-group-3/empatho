@@ -15,8 +15,10 @@ from functools import partial
 from urllib.parse import urlparse
 
 from django.conf import settings
+from django.contrib import admin
 from django.db.models import Count, Q
 from django.db.models.functions import TruncHour
+from django.http import Http404
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.html import format_html, format_html_join
@@ -183,9 +185,148 @@ def status(site, request):
 
 
 def db_index(site, request):
-    """표 목록 — 이름 · 한글명 · 행 수 · 컬럼 수."""
-    return site.page(request, "admin/empatho/soon.html", "db",
-                     "DB 조회", {"what": "표 구조와 값 분포를 봅니다."})
+    """표 목록 — 한글명 · 표 이름 · 행 수 · 칸 수."""
+    return site.page(request, "admin/empatho/db_index.html", "db",
+                     "DB 조회", {"tables": db_tables()})
+
+
+def db_detail(site, request, table):
+    """표 하나. 구조는 늘 보이고, 값 분포는 상태형 칸에만."""
+    model = _model_by_table(table)
+    if model is None:
+        raise Http404("그런 표가 없습니다: %s" % table)
+
+    hidden = _is_sensitive(model)
+    return site.page(request, "admin/empatho/db_detail.html", "db",
+                     _table_title(model), {
+                         "table": _table_row(model),
+                         "columns": db_columns(model),
+                         "spreads": [] if hidden else db_spreads(model),
+                         "hidden": hidden,
+                     })
+
+
+# ── DB 조회 ──────────────────────────────────────────────────────────
+#
+# 구조는 어느 표든 보인다. 막는 것은 **값**이다 — 표를 통째로 가리면 관리자가
+# 스키마도 못 봐서 일을 못 한다. 가릴 표는 settings.ADMIN_DB_SENSITIVE 다.
+#
+# 분포를 내는 칸은 **상태형뿐**이다(choices 가 있거나 참거짓). 자유 텍스트는
+# 어느 표든 안 낸다 — 길이 분포도 안 낸다. 몇 자인지도 사람을 좁히는 단서다.
+
+#: 한 칸에서 보여줄 값 가짓수. 넘치면 목록이 아니라 덤프가 된다
+SPREAD_LIMIT = 12
+
+
+def _models():
+    from django.apps import apps as django_apps
+
+    return sorted(django_apps.get_app_config("core").get_models(),
+                  key=lambda m: m._meta.db_table)
+
+
+def _model_by_table(table):
+    for model in _models():
+        if model._meta.db_table == table:
+            return model
+    return None
+
+
+def _is_sensitive(model):
+    return model._meta.db_table in settings.ADMIN_DB_SENSITIVE
+
+
+def _table_title(model):
+    name = model._meta.verbose_name
+    return "%s (%s)" % (name, model._meta.db_table)
+
+
+def _table_row(model):
+    meta = model._meta
+    return {
+        "name": str(meta.verbose_name),
+        "table": meta.db_table,
+        "rows": model.objects.count(),
+        "columns": len(meta.fields),
+        "hidden": _is_sensitive(model),
+        "url": reverse("admin:empatho_db_detail", args=[meta.db_table]),
+        "admin_url": (_url(model) if admin.site.is_registered(model) else ""),
+    }
+
+
+def db_tables():
+    return [_table_row(model) for model in _models()]
+
+
+def db_columns(model):
+    """칸의 생김새. 값이 아니라 구조다 — 민감한 표에서도 이건 보인다."""
+    out = []
+    for field in model._meta.fields:
+        out.append({
+            "name": field.column,
+            "type": _type_of(field),
+            "null": field.null,
+            "default": _default_of(field),
+            "kind": "상태" if _spreadable(field) else "",
+            "link": (field.related_model._meta.db_table
+                     if field.is_relation and field.related_model else ""),
+        })
+    return out
+
+
+def _type_of(field):
+    kind = field.get_internal_type().replace("Field", "").lower()
+    if getattr(field, "max_length", None):
+        return "%s(%d)" % (kind, field.max_length)
+    return kind
+
+
+def _default_of(field):
+    from django.db.models import NOT_PROVIDED
+
+    value = field.default
+    if value is NOT_PROVIDED:
+        return ""
+    if callable(value):
+        return value.__name__
+    return str(value)
+
+
+def _spreadable(field):
+    """분포를 내도 되는 칸인가.
+
+    상태형만 낸다 — 값이 미리 정해진 소수 집합이라 한 줄이 사람을 가리키지
+    않는다. 자유 텍스트 · 날짜 · 숫자 · 외래키는 그렇지 않다.
+    """
+    if field.is_relation or field.primary_key:
+        return False
+    if field.get_internal_type() == "BooleanField":
+        return True
+    return bool(field.choices)
+
+
+def db_spreads(model):
+    """상태형 칸마다 값별 개수. 칸 하나에 GROUP BY 한 번."""
+    out = []
+    for field in model._meta.fields:
+        if not _spreadable(field):
+            continue
+        rows = (model.objects.values(field.name)
+                .annotate(n=Count("*")).order_by("-n")[:SPREAD_LIMIT])
+        counted = [{"value": _label(r[field.name]), "n": r["n"]} for r in rows]
+        if counted:
+            out.append({"name": field.column, "rows": counted})
+    return out
+
+
+def _label(value):
+    if value is None:
+        return "(비어 있음)"
+    if value is True:
+        return "참"
+    if value is False:
+        return "거짓"
+    return str(value)
 
 
 # ── 서버 상태 ────────────────────────────────────────────────────────

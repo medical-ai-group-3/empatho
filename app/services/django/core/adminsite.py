@@ -97,6 +97,8 @@ class EmpathoAdminSite(AdminSite):
             path("status/", self._guard(v.status),
                  name="empatho_status"),
             path("db/", self._guard(v.db_index), name="empatho_db"),
+            path("db/<str:table>/", self._guard(v.db_detail),
+                 name="empatho_db_detail"),
         ]
         # 우리 것이 앞이다 — 뒤에 두면 Django 의 catch-all 이 먼저 잡는다
         return mine + super().get_urls()

@@ -1,0 +1,65 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<div class="e-box">
+  <h2>{{ table.name }} <small>{{ table.table }}</small></h2>
+  <p class="e-note">
+    {{ table.rows }}행 · {{ table.columns }}칸
+    {% if table.admin_url %}
+      · <a href="{{ table.admin_url }}">이 표 고치기</a>
+    {% endif %}
+    · <a href="{% url 'admin:empatho_db' %}">표 목록</a>
+  </p>
+
+  <table class="e-probe">
+    <thead>
+      <tr><th>칸</th><th>형</th><th>빈 값</th><th>기본값</th><th>비고</th></tr>
+    </thead>
+    <tbody>
+      {% for c in columns %}
+        <tr>
+          <th scope="row">{{ c.name }}</th>
+          <td>{{ c.type }}</td>
+          <td>{% if c.null %}허용{% else %}불가{% endif %}</td>
+          <td>{{ c.default|default:"—" }}</td>
+          <td>
+            {% if c.link %}→ {{ c.link }}{% endif %}
+            {% if c.kind %}<span class="e-tag">{{ c.kind }}</span>{% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% if hidden %}
+  <div class="e-box">
+    <h2>값 분포</h2>
+    <p class="e-note">
+      개인정보가 있는 표라 값은 내지 않습니다. 몇 건이 어느 값인지도
+      사람을 좁히는 단서가 됩니다. 위 구조는 그대로 보입니다.
+    </p>
+  </div>
+{% elif spreads %}
+  <div class="e-box">
+    <h2>값 분포</h2>
+    <p class="e-note">
+      값이 미리 정해진 칸만 냅니다. 자유롭게 적는 칸은 내지 않습니다.
+    </p>
+    <div class="e-spreads">
+      {% for s in spreads %}
+        <section>
+          <h3>{{ s.name }}</h3>
+          <table class="e-probe">
+            <tbody>
+              {% for r in s.rows %}
+                <tr><th scope="row">{{ r.value }}</th><td class="num">{{ r.n }}</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </section>
+      {% endfor %}
+    </div>
+  </div>
+{% endif %}
+{% endblock %}

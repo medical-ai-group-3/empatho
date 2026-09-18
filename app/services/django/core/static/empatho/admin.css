@@ -374,6 +374,29 @@ body,
 
 /* 무엇을 보라는 한 줄. 실패한 줄에만 붙는다 */
 .e-hint { display: block; color: var(--e-warm); font-size: 12px; margin-top: 2px; }
+
+/* ══ DB 조회 ═══════════════════════════════════════════════════ */
+.e-box h2 small {
+  color: var(--e-warm); font-size: 13px; font-weight: 400; margin-left: 6px;
+}
+
+/* 「가림」 · 「상태」 같은 짧은 표시. 색이 아니라 글자가 말하게 둔다 */
+.e-tag {
+  display: inline-block; padding: 1px 6px; margin-left: 4px;
+  border: 1px solid var(--e-border); border-radius: 3px;
+  font-size: 11px; color: var(--e-warm);
+}
+.e-quiet { color: var(--e-warm); font-size: 12px; margin-left: 8px; }
+
+/* 칸이 많아도 가로로 늘어놓는다 — 상태값은 가짓수가 적어 한 칸이 짧다 */
+.e-spreads {
+  display: grid; gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+}
+.e-spreads h3 {
+  font-size: 13px; font-weight: 600; margin: 0 0 4px;
+  color: var(--e-ink-2);
+}
 .e-chart .c-ax   { fill: var(--e-faint); font-size: 10px; }
 .e-chart g:hover .c-done { fill: var(--e-wash); }
 

@@ -213,6 +213,24 @@ ADMIN_PROBE_DEADLINE_SEC = float(os.environ.get("ADMIN_PROBE_DEADLINE_SEC", "4")
 # 누르게 두면 죽은 것을 한참 뒤에 안다. 짧게 잡으면 그만큼 자주 찌른다.
 ADMIN_STATUS_REFRESH_SEC = int(os.environ.get("ADMIN_STATUS_REFRESH_SEC", "30"))
 
+# admin 「DB 조회」에서 **값을 안 보여줄** 표. db_table 이름이다.
+#
+# 구조(컬럼 · 타입 · NULL · 기본값)는 어느 표든 보인다. 막는 것은 값 쪽이다 —
+# 표를 통째로 가리면 관리자가 스키마도 못 봐서 일을 못 한다.
+#
+#   patient_pii  이름 · 전화
+#   account      login_id · 해시
+#   consent      누가 무엇에 동의했나
+#   report       환자에게 나가는 소견문
+#
+# 분포는 원래 상태형 칸(choices · 참거짓)에만 낸다. 자유 텍스트는 어느 표든
+# 안 낸다 — 길이 분포도 안 낸다. 몇 자인지도 사람을 좁히는 단서가 된다.
+ADMIN_DB_SENSITIVE = [
+    t.strip() for t in os.environ.get(
+        "ADMIN_DB_SENSITIVE", "patient_pii,account,consent,report").split(",")
+    if t.strip()
+]
+
 # Go → Django 내부 콜백(명세 21장)의 서명 키. conf/gosvc.env 의 CALLBACK_SECRET
 # 과 **같은 값**이어야 한다. 어긋나면 콜백이 401 로 조용히 거절된다.
 # 비어 있으면 콜백을 아예 받지 않는다 — 설정 누락을 통과로 취급하지 않는다.
