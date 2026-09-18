@@ -29,6 +29,13 @@ class PatientViewSet(AuditMixin, OwnedOnlyMixin, viewsets.ModelViewSet):
     def get_queryset(self):
         qs = super().get_queryset()
 
+        # retrieve · update · partial_update · destroy 는 pk 로 단건을
+        # 찾는다 — 목록 유출 방지용 필터(q/status 없으면 빈 쿼리셋)를 걸면
+        # 안 된다. 그 필터는 list 에서 「전체 환자를 실수로 긁는 것」을
+        # 막으려는 것이라 list 에만 건다.
+        if self.action != "list":
+            return qs
+
         primary_staff_param = self.request.query_params.get("primary_staff")
         if primary_staff_param == "me":
             staff = getattr(self.request.user, "staff", None)
