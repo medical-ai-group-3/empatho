@@ -83,47 +83,108 @@ function MiniCalendar() {
   );
 }
 
+/* 상태 세 갈래 — 뱃지 색으로 바로 구분되게 한다(2026-09-18 참고 디자인:
+   표 형태 · # · 이름 · 상태 뱃지 · 수정 · 삭제). 클릭 한 번으로 다음
+   상태로 넘기는 게 아니라 ✎(수정)을 눌러야 바꾸게 했다 — 실수로
+   지나가다 상태가 바뀌면 안 된다. */
+const STATUS = [
+  { v: "todo", label: "할 일" },
+  { v: "doing", label: "진행 중" },
+  { v: "done", label: "완료" },
+];
+
 function TodoList() {
   const [items, setItems] = useState([]);
   const [text, setText] = useState("");
+  const [editing, setEditing] = useState(null); // 수정 중인 id
+  const [draft, setDraft] = useState({ text: "", status: "todo" });
 
   function add() {
     const v = text.trim();
     if (!v) return;
-    setItems((s) => [...s, { id: Date.now(), text: v, done: false }]);
+    setItems((s) => [...s, { id: Date.now(), text: v, status: "todo" }]);
     setText("");
-  }
-
-  function toggle(id) {
-    setItems((s) => s.map((it) => (it.id === id ? { ...it, done: !it.done } : it)));
   }
 
   function remove(id) {
     setItems((s) => s.filter((it) => it.id !== id));
+    if (editing === id) setEditing(null);
+  }
+
+  function startEdit(it) {
+    setEditing(it.id);
+    setDraft({ text: it.text, status: it.status });
+  }
+
+  function saveEdit(id) {
+    const v = draft.text.trim();
+    if (!v) { remove(id); return; }
+    setItems((s) => s.map((it) => (it.id === id ? { ...it, text: v, status: draft.status } : it)));
+    setEditing(null);
   }
 
   return (
     <div className="b-todo">
-      <div className="b-todo-add">
-        <input value={text} onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && add()}
-          placeholder="할 일 추가" />
-        <button type="button" className="btn ghost sm" onClick={add}>추가</button>
+      <div className="b-todo-head">
+        <span>할 일</span>
+        <div className="b-todo-add">
+          <input value={text} onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && add()}
+            placeholder="할 일 추가" />
+          <button type="button" className="btn ghost sm" onClick={add}>+ 추가</button>
+        </div>
       </div>
       {items.length === 0 ? (
         <p className="b-todo-empty">할 일이 없습니다</p>
       ) : (
-        <ul className="b-todo-list">
-          {items.map((it) => (
-            <li key={it.id} className={it.done ? "done" : ""}>
-              <label>
-                <input type="checkbox" checked={it.done} onChange={() => toggle(it.id)} />
-                <span>{it.text}</span>
-              </label>
-              <button type="button" aria-label="삭제" onClick={() => remove(it.id)}>×</button>
-            </li>
-          ))}
-        </ul>
+        <table className="b-todo-table">
+          <thead>
+            <tr><th>#</th><th>할 일</th><th>상태</th><th></th><th></th></tr>
+          </thead>
+          <tbody>
+            {items.map((it, i) => (
+              <tr key={it.id}>
+                {editing === it.id ? (
+                  <>
+                    <td>{i + 1}</td>
+                    <td>
+                      <input className="b-todo-edit-text" value={draft.text}
+                        onChange={(e) => setDraft((d) => ({ ...d, text: e.target.value }))}
+                        onKeyDown={(e) => e.key === "Enter" && saveEdit(it.id)}
+                        autoFocus />
+                    </td>
+                    <td>
+                      <select value={draft.status}
+                        onChange={(e) => setDraft((d) => ({ ...d, status: e.target.value }))}>
+                        {STATUS.map((s) => <option key={s.v} value={s.v}>{s.label}</option>)}
+                      </select>
+                    </td>
+                    <td colSpan={2} className="b-todo-actions">
+                      <button type="button" aria-label="저장" onClick={() => saveEdit(it.id)}>✓</button>
+                      <button type="button" aria-label="취소" onClick={() => setEditing(null)}>✕</button>
+                    </td>
+                  </>
+                ) : (
+                  <>
+                    <td>{i + 1}</td>
+                    <td className="b-todo-name">{it.text}</td>
+                    <td>
+                      <span className={`b-todo-pill ${it.status}`}>
+                        {STATUS.find((s) => s.v === it.status)?.label}
+                      </span>
+                    </td>
+                    <td className="b-todo-actions">
+                      <button type="button" aria-label="수정" onClick={() => startEdit(it)}>✎</button>
+                    </td>
+                    <td className="b-todo-actions">
+                      <button type="button" aria-label="삭제" onClick={() => remove(it.id)}>🗑</button>
+                    </td>
+                  </>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
       )}
     </div>
   );

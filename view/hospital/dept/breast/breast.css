@@ -413,20 +413,43 @@
 .breast .b-cal-grid span:empty {visibility:hidden}
 .breast .b-cal-today {background:var(--accent); color:#fff; font-weight:700}
 
-/* TODO */
+/* TODO — 표 형태(# · 할 일 · 상태 뱃지 · 수정 · 삭제), 2026-09-18
+   참고 디자인 반영. flex:1로 SideDashboard 남은 공간을 채운다. */
 .breast .b-todo {display:flex; flex-direction:column; gap:8px; flex:1; min-height:0}
-.breast .b-todo-add {display:flex; gap:6px}
-.breast .b-todo-add input {flex:1; min-width:0; border:1px solid var(--line);
+.breast .b-todo-head {display:flex; align-items:center; justify-content:space-between;
+  gap:10px; flex-wrap:wrap}
+.breast .b-todo-head > span {font-size:12.5px; font-weight:700; color:var(--muted)}
+.breast .b-todo-add {display:flex; gap:6px; flex:1; min-width:160px; justify-content:flex-end}
+.breast .b-todo-add input {flex:1; max-width:220px; min-width:0; border:1px solid var(--line);
   border-radius:var(--radius-sm); padding:6px 9px; font-size:12.5px}
 .breast .b-todo-empty {font-size:12.5px; color:var(--muted); text-align:center; padding:10px 0}
-.breast .b-todo-list {display:flex; flex-direction:column; gap:6px; overflow-y:auto}
-.breast .b-todo-list li {display:flex; align-items:center; gap:8px; font-size:12.5px}
-.breast .b-todo-list li label {flex:1; display:flex; align-items:center; gap:7px; min-width:0}
-.breast .b-todo-list li label span {overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
-.breast .b-todo-list li.done label span {color:var(--muted); text-decoration:line-through}
-.breast .b-todo-list li button {flex:none; border:none; background:none; color:var(--muted);
-  font-size:15px; line-height:1; cursor:pointer; padding:2px 4px}
-.breast .b-todo-list li button:hover {color:var(--danger)}
+
+.breast .b-todo-table {width:100%; border-collapse:collapse; font-size:12.5px; overflow-y:auto}
+.breast .b-todo-table thead th {text-align:left; font-weight:700; color:var(--muted);
+  font-size:11px; padding:0 6px 6px; border-bottom:1px solid var(--line)}
+.breast .b-todo-table thead th:first-child {width:22px}
+.breast .b-todo-table tbody td {padding:7px 6px; border-bottom:1px solid var(--line);
+  vertical-align:middle}
+.breast .b-todo-table tbody tr:last-child td {border-bottom:none}
+.breast .b-todo-name {max-width:0; width:100%; overflow:hidden; text-overflow:ellipsis;
+  white-space:nowrap}
+.breast .b-todo-actions {display:flex; gap:2px; white-space:nowrap}
+.breast .b-todo-table td.b-todo-actions {display:table-cell} /* colSpan 행은 td가 직접 flex 자식 */
+.breast .b-todo-actions button {flex:none; border:none; background:none; color:var(--muted);
+  font-size:13px; line-height:1; cursor:pointer; padding:3px 5px; border-radius:4px}
+.breast .b-todo-actions button:hover {background:var(--surface-2); color:var(--ink)}
+
+/* 상태 뱃지 — 색이 아니라 모양(테두리+색)으로도 갈리게 해서 색맹에도
+   구분된다. todo=중립, doing=경고색, done=성공색 */
+.breast .b-todo-pill {display:inline-block; padding:2px 9px; border-radius:999px;
+  font-size:11px; font-weight:700; border:1px solid var(--line); color:var(--muted)}
+.breast .b-todo-pill.doing {border-color:#eab30877; background:#fef9c3; color:#946800}
+.breast .b-todo-pill.done {border-color:#16a34a55; background:#dcfce7; color:#15803d}
+
+.breast .b-todo-edit-text {width:100%; border:1px solid var(--accent); border-radius:4px;
+  padding:4px 6px; font-size:12.5px}
+.breast td > select {border:1px solid var(--line); border-radius:4px; padding:3px 4px;
+  font-size:11.5px; background:var(--card)}
 
 .breast .kv {display:flex; flex-direction:column; gap:2px}
 .breast .kv .k {color:var(--muted); font-size:12px}
