@@ -546,6 +546,18 @@ function radUpload(raw = {}, order = {}) {
   };
 }
 
+/* ⚠ 2026-09-18 확인 — MRI 판독 화면 뷰어가 안 뜨는 문제의 원인. 이 함수는
+ * raw.study/raw.images 로 접혀 온다고 가정하고 patient·unit·series·ai·
+ * doctor 를 전부 다시 만드는데, mock/hospital.json 의 read 항목들은
+ * (st-302 등) patient·unit·volume_manifest·series 가 이미 맨 위 칸에
+ * 펴져 있다 — study 는 아예 없다. 그래서 study 가 빈 객체가 되고, 거기서
+ * 다시 만든 patient 가 「환자 (null/)」로, unit.modality 도 undefined가
+ * 돼서 stage()의 `d.unit?.modality === "mri"` 분기를 못 타 MRI 뷰어
+ * (MRIReviewGrid)가 아니라 일반 2D Stage로 떨어졌다.
+ *
+ * raw 에 이미 펴진 값이 있으면 그걸 먼저 쓴다 — study/images 로 다시
+ * 만드는 건 그 값이 없을 때(다희님이 확인한 실서버 모양)만 쓰는
+ * 대체 경로로 남긴다. */
 function radRead(raw = {}, upload = {}, order = {}) {
   const study = raw.study ?? upload.study ?? {};
   const row = radStudyRow(study, order);
@@ -554,14 +566,14 @@ function radRead(raw = {}, upload = {}, order = {}) {
   return {
     ...raw,
     ...row,
-    patient: radPatient(study, order),
-    unit: { ...row, id: row.study_id, no: row.study_id, exam_order_id: row.exam_order_id },
+    patient: raw.patient ?? radPatient(study, order),
+    unit: raw.unit ?? { ...row, id: row.study_id, no: row.study_id, exam_order_id: row.exam_order_id },
     files,
     images: files,
-    series: radSeries(files),
-    ai: radAi(raw.latest_ai_result, row.modality),
-    doctor: current ?? {},
-    finalized: row.finalized,
+    series: raw.series ?? radSeries(files),
+    ai: raw.ai ?? radAi(raw.latest_ai_result, row.modality),
+    doctor: raw.doctor ?? current ?? {},
+    finalized: raw.finalized ?? row.finalized,
   };
 }
 
