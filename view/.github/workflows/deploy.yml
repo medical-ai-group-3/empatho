@@ -1,0 +1,72 @@
+name: deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# 화면을 놓는 자리. empatho-app 의 nginx 가 이 폴더를 그대로 서빙한다.
+#
+# **체크아웃 밖이다.** checkout 은 git clean -ffdx 로 무시된 파일까지 지우므로,
+# 앱 저장소 안(web-dist/)에 두면 서버를 배포할 때마다 화면이 사라진다.
+# 09-17 에 인증서가 그렇게 없어져 nginx 가 죽었다.
+env:
+  WEB_DIST: /home/runner/empatho-web
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+
+      # 러너(WSL Ubuntu)에 node 가 없다. 여기서 받아 쓴다 — 서버에 따로
+      # 설치해 두면 판올림을 아무도 안 챙긴다.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # ci 는 package-lock.json 을 그대로 받는다. install 과 달리 잠금을
+      # 고쳐 쓰지 않아서, 사람 PC 와 서버가 같은 것을 받는다.
+      - run: npm ci
+
+      # 입구가 둘이다 — index.html(환자 앱) · hospital.html(병원 웹).
+      # vite.config.js 의 rollupOptions.input 이 둘을 같이 낸다.
+      - run: npm run build
+
+      # 빌드가 조용히 반쪽만 나오는 일이 있다. 내보내기 전에 막는다 —
+      # hospital.html 이 빠지면 /hospital 이 404 가 되는데, 배포는 초록불이라
+      # 한참 뒤에야 안다.
+      - name: 빌드 결과 확인
+        run: |
+          set -eu
+          test -f dist/index.html    || { echo "dist/index.html 이 없다"; exit 1; }
+          test -f dist/hospital.html || { echo "dist/hospital.html 이 없다"; exit 1; }
+          du -sh dist
+
+      # ⚠ 폴더를 **갈아끼우지 않는다. 안을 비우고 채운다.**
+      #   nginx 가 이 폴더를 바인드 마운트로 들고 있다. mv 로 새 폴더를 갖다
+      #   놓으면 컨테이너는 옛 폴더(다른 inode)를 계속 본다 — 화면이 안 바뀌는데
+      #   배포는 초록불인 상태가 된다. 09-17 에 마운트가 낡아 같은 일을 겪었다.
+      #
+      #   정적 파일이라 nginx 를 다시 읽힐 필요는 없다. 요청마다 디스크를 본다.
+      #   비우고 채우는 사이 몇 초는 404 가 날 수 있다.
+      - name: 화면 내보내기
+        run: |
+          set -eu
+          mkdir -p "$WEB_DIST"
+          find "$WEB_DIST" -mindepth 1 -delete
+          cp -a dist/. "$WEB_DIST"/
+          ls "$WEB_DIST"
+
+      # 실제로 열리는지 본다. nginx 는 앱 저장소 쪽이 띄우므로, 그게 죽어 있으면
+      # 여기서 걸린다 — 화면 담당이 「내 배포는 됐는데 안 보인다」로 헤매지 않게.
+      - name: 열리는지 확인
+        run: |
+          set -eu
+          code() { curl -sk -o /dev/null -w '%{http_code}' --max-time 20 "$@"; }
+          for p in / /hospital; do
+            c=$(code "https://127.0.0.1$p")
+            [ "$c" = 200 ] || { echo "$p → $c · empatho-app 쪽 nginx 를 확인할 것"; exit 1; }
+          done
+          echo "화면 배포 확인"
