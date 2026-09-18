@@ -1,0 +1,358 @@
+/* EMPATHO — Django admin 을 병원 웹과 같은 인상으로.
+ *
+ * Django 기본 파일(base.css · dark_mode.css)은 그대로 두고 :root 변수만 덮는다.
+ * 어두운 판은 Django 의 prefers-color-scheme 를 그대로 타고, 값만 병원 웹의
+ * 뷰어 색을 쓴다.
+ *
+ * ⚠ 색은 empatho-view/hospital/tokens.css 에서 손으로 옮겼다.
+ *   저장소가 달라 import 로 못 잇는다 — 저쪽이 바뀌면 여기도 바꿔야 한다.
+ */
+
+:root {
+  /* ══ 우리 색 — 위 목록 그대로 ═══════════════════════════════ */
+  --e-canvas: #FAFAF9;
+  --e-card:   #FFFFFF;
+  --e-border: #E8E6E5;
+  --e-warm:   #78716C;
+  --e-ink:    #0C0A09;
+  --e-soot:   #1C1917;
+  --e-wash:   #C1E1F7;
+  --e-cyan:   #3BA6F1;
+  --e-ink-2:  #44403C;
+  --e-faint:  #A8A29E;
+  --e-line-2: #F0EEED;
+  --e-cyan-ink: #FFFFFF;
+  --e-soot-ink: #FAFAF9;
+
+  /* ══ Django admin 변수를 우리 값으로 ════════════════════════
+     머리띠는 soot 다. 병원 웹 상단바가 흰 바탕이지만 admin 은 머리띠가
+     화면 폭을 가로지르는 구조라, 시안으로 깔면 강조색이 화면의 주인이
+     된다. 강조색은 «지금 할 일 하나»를 가리키는 자리로 남겨 둔다. */
+  --primary:    var(--e-soot);
+  --secondary:  var(--e-soot);
+  --primary-fg: var(--e-soot-ink);
+  --accent:     var(--e-cyan);
+
+  --body-fg:          var(--e-ink);
+  --body-bg:          var(--e-canvas);
+  --body-quiet-color: var(--e-warm);
+  --body-medium-color: var(--e-ink-2);
+  --body-loud-color:  var(--e-ink);
+
+  --header-color:          var(--e-soot-ink);
+  --header-branding-color: var(--e-soot-ink);
+  --header-bg:             var(--e-soot);
+  --header-link-color:     var(--e-soot-ink);
+
+  --breadcrumbs-fg:      var(--e-warm);
+  --breadcrumbs-link-fg: var(--e-ink-2);
+  --breadcrumbs-bg:      var(--e-line-2);
+
+  --link-fg:           #1B7FC4;   /* cyan 을 흰 바탕에서 읽히게 낮춘 값 */
+  --link-hover-color:  var(--e-ink);
+  --link-selected-fg:  var(--e-ink);
+
+  --hairline-color: var(--e-line-2);
+  --border-color:   var(--e-border);
+
+  --darkened-bg: var(--e-canvas);
+  --selected-bg: var(--e-line-2);
+  --selected-row: var(--e-wash);
+
+  /* 단추 — **채움은 시안 하나다.** 병원 웹의 규칙을 그대로 따른다:
+     「시안 채움 버튼은 화면당 하나, 그 화면에서 할 일 하나를 가리킨다」.
+     admin 에서 그 자리는 [저장] 이다. */
+  --button-bg:          var(--e-soot);
+  --button-fg:          var(--e-soot-ink);
+  --button-hover-bg:    var(--e-ink-2);
+  --default-button-bg:       var(--e-cyan);
+  --default-button-hover-bg: #2E93DC;
+  --close-button-bg:       var(--e-warm);
+  --close-button-hover-bg: var(--e-ink-2);
+
+  --object-tools-bg:       var(--e-ink-2);
+  --object-tools-hover-bg: var(--e-ink);
+}
+
+/* ══ 어두운 판 ════════════════════════════════════════════════
+   Django 의 dark_mode.css 가 이 미디어 쿼리로 변수를 덮는다. 우리 것이
+   뒤에 오므로 이 블록이 이긴다. 값은 병원 웹의 뷰어 색이다. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --e-canvas: #121212;
+    --e-card:   #1C1917;
+    --e-border: #44403C;
+    --e-line-2: #292524;
+    --e-ink:    #FAFAF9;
+    --e-ink-2:  #D6D3D1;
+    --e-warm:   #A8A29E;
+    --e-wash:   #1E3A52;
+
+    --primary:   var(--e-card);
+    --secondary: var(--e-card);
+    --header-bg: var(--e-card);
+
+    --breadcrumbs-bg:      var(--e-line-2);
+    --breadcrumbs-fg:      var(--e-warm);
+    --breadcrumbs-link-fg: var(--e-ink-2);
+
+    /* 어두운 바탕에서는 시안을 낮추지 않는다 — 낮추면 안 읽힌다 */
+    --link-fg:          var(--e-cyan);
+    --link-hover-color: var(--e-wash);
+    --link-selected-fg: var(--e-cyan);
+
+    --button-bg:       var(--e-border);
+    --button-fg:       var(--e-ink);
+    --button-hover-bg: var(--e-warm);
+
+    --darkened-bg:  var(--e-card);
+    --selected-bg:  var(--e-line-2);
+    --selected-row: var(--e-wash);
+  }
+}
+
+/* ══ 글꼴 ══════════════════════════════════════════════════════
+   병원 웹과 같은 것을 쓴다. 다만 **웹폰트를 새로 받아오지 않는다** —
+   admin 한 장 때문에 폰트를 내려받게 하지 않는다. 기기에 있으면 쓰고
+   없으면 시스템 글꼴로 떨어진다. 한글은 Noto Sans KR 이 받는다. */
+body,
+.button, input[type=submit], input[type=button], textarea, select, .vTextField {
+  font-family: "Inter", "Noto Sans KR", system-ui, -apple-system,
+               "Segoe UI", Roboto, sans-serif;
+}
+
+/* ══ 머리띠 ════════════════════════════════════════════════════ */
+#header { border-bottom: 1px solid var(--e-border); }
+
+/* 제목의 EMPATHO 만 시안으로 세운다 (admin.py 에서 span 을 넣는다) */
+#site-name .e-mark { color: var(--e-cyan); font-weight: 700; }
+
+/* ══ 승인 큐가 제일 많이 쓰인다 ════════════════════════════════
+   여기가 잘 보여야 한다는 것이 이 화면의 요구였다.
+
+   ⚠ 색만으로 가르지 않는다. 병원 웹의 규칙이기도 하고, 승인 대기 여부는
+     놓치면 사람이 못 들어오는 값이라 **왼쪽 굵은 선**으로도 세운다. */
+#changelist-form .results tr:has(td.field-account_status) td.field-account_status {
+  font-weight: 600;
+}
+.results td.field-is_active img { vertical-align: -2px; }
+
+/* 실행 줄(액션) — 승인·거절을 고르는 자리라 가라앉지 않게 */
+#changelist .actions {
+  background: var(--e-wash);
+  border: 1px solid var(--e-border);
+  border-radius: 8px;
+}
+@media (prefers-color-scheme: dark) {
+  #changelist .actions { background: var(--e-line-2); }
+}
+
+/* ══ 표 ════════════════════════════════════════════════════════
+   목록을 훑는 화면이라 줄이 눈에 따라와야 한다 */
+#result_list tbody tr:hover > * { background: var(--e-line-2); }
+#result_list th, #result_list td { border-bottom: 1px solid var(--e-line-2); }
+
+/* 숫자는 자리를 맞춘다 — 환자번호 · 오더번호가 세로로 읽힌다 */
+#result_list td.field-patient_number,
+#result_list td.field-exam_order_id,
+#result_list td.field-study_id,
+#result_list td.field-ai_result_id,
+#result_list td.field-report_id,
+#result_list td.field-discordance_flag_id {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ══ 사이드바 ══════════════════════════════════════════════════
+   get_app_list() 로 다섯 묶음을 만든다(core/admin.py). 묶음 제목이
+   목록과 같은 굵기면 묶인 것으로 안 보인다 */
+#nav-sidebar .module caption {
+  background: var(--e-line-2);
+  color: var(--e-ink-2);
+  font-size: 11px;
+  letter-spacing: .04em;
+}
+#nav-sidebar .current-model { background: var(--e-wash); }
+@media (prefers-color-scheme: dark) {
+  #nav-sidebar .current-model { background: var(--e-line-2); }
+}
+
+/* ══ 권한 격자 (core/admin_perms.py) ═══════════════════════════
+   그쪽은 인라인 <style> 로 제 색을 박아 두었다. 어두운 판에서 흰 상자가
+   되므로 여기서 변수로 되돌린다 — 그 파일을 고치지 않고 덮는다. */
+.permgrid th, .permgrid td { border-color: var(--e-border) !important; }
+.permgrid td.has { background: var(--e-line-2) !important; }
+.permgrid th.res span { color: var(--e-warm) !important; }
+.permgrid ul.solo { color: var(--e-warm) !important; }
+
+/* ══ 대시보드 (core/admin_dash.py) ═════════════════════════════
+   표 목록 위에 「지금 뭐가 밀려 있나」. 숫자만 나온다 */
+.e-dash { margin-bottom: 24px; }
+.e-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+@media (max-width: 1024px) { .e-row { grid-template-columns: 1fr; } }
+
+.e-box {
+  background: var(--e-card);
+  border: 1px solid var(--e-border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+}
+.e-box h2 {
+  margin: 0 0 10px;
+  font-size: 12px; font-weight: 600; letter-spacing: .04em;
+  color: var(--e-warm); background: none; padding: 0;
+}
+.e-box h2 small { font-weight: 400; color: var(--e-faint); }
+
+.e-cells { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* 칸 하나 — 누르면 그 필터가 걸린 목록으로 간다 */
+.e-cell {
+  flex: 1 1 96px; min-width: 96px;
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--e-border); border-radius: 8px;
+  background: var(--e-canvas);
+  text-decoration: none;
+}
+.e-cell:hover { border-color: var(--e-cyan); }
+.e-cell b {
+  font-size: 22px; font-weight: 600; line-height: 1.1;
+  color: var(--e-ink); font-variant-numeric: tabular-nums;
+}
+.e-cell span { font-size: 11px; color: var(--e-warm); }
+
+/* 오래 두면 안 되는 것 — **색만으로 가르지 않는다.** 왼쪽 굵은 선이 선다.
+   승인 대기를 놓치면 그 사람이 아예 못 들어오고, 미해소 불일치는 어느
+   큐에도 안 남는다 */
+.e-cell.warn { border-left: 3px solid var(--e-cyan); background: var(--e-wash); }
+.e-cell.warn b { color: var(--e-ink); }
+
+/* 역할별 분포 — 칸보다 작게. 밀린 일이 아니라 참고 값이다 */
+.e-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.e-chip {
+  padding: 3px 9px; border-radius: 999px;
+  border: 1px solid var(--e-border); background: var(--e-canvas);
+  font-size: 11px; color: var(--e-warm); text-decoration: none;
+}
+.e-chip:hover { border-color: var(--e-cyan); }
+.e-chip b { color: var(--e-ink); font-variant-numeric: tabular-nums; }
+
+@media (prefers-color-scheme: dark) {
+  .e-cell { background: var(--e-line-2); }
+  .e-chip { background: var(--e-line-2); }
+  .e-cell.warn { background: var(--e-wash); }
+  .e-cell.warn b, .e-cell.warn span { color: var(--e-ink); }
+}
+
+/* ══ 사이드바 (core/adminsite.py 의 _nav) ══════════════════════
+   Django 의 사이드바 «자리»는 그대로 쓰고 내용만 우리 것으로 바꾼다.
+   왼쪽 칸이라 **세로로 쌓는다** — 가로로 두면 화면 폭에 따라 줄이 접힌다. */
+#nav-sidebar.e-nav {
+  padding: 16px 12px;
+  background: var(--e-canvas);
+  border-right: 1px solid var(--e-border);
+  display: flex; flex-direction: column;
+}
+
+#nav-sidebar.e-nav ul {
+  display: flex; flex-direction: column; gap: 2px;
+  margin: 0; padding: 0; list-style: none;
+}
+/* Django 와 브라우저가 붙이는 목록 기호를 둘 다 끈다 —
+   문자로 그리는 것이라 글꼴에 없으면 ■ 로 나온다 */
+#nav-sidebar.e-nav li { list-style: none; }
+#nav-sidebar.e-nav li::marker,
+#nav-sidebar.e-nav li::before,
+#nav-sidebar.e-nav li::after,
+#nav-sidebar.e-nav a::after { content: none; }
+
+#nav-sidebar.e-nav a {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 9px 12px; border-radius: 8px;
+  border-left: 3px solid transparent;
+  font-size: 13px; color: var(--e-ink-2); text-decoration: none;
+  white-space: nowrap;
+}
+#nav-sidebar.e-nav a:hover { background: var(--e-line-2); color: var(--e-ink); }
+
+/* 지금 있는 자리 — 색만으로 가르지 않는다. 왼쪽 굵은 선이 같이 선다 */
+#nav-sidebar.e-nav a.on {
+  background: var(--e-card); color: var(--e-ink); font-weight: 600;
+  border-left-color: var(--e-cyan);
+  box-shadow: 0 1px 3px rgba(12, 10, 9, .06);
+}
+
+/* 「병원 웹으로」는 맨 아래로 내리고 선으로 가른다 — 메뉴가 아니라 나가는 문이다 */
+#nav-sidebar.e-nav .e-nav-foot {
+  margin-top: auto; padding-top: 12px;
+  border-top: 1px solid var(--e-border);
+}
+#nav-sidebar.e-nav .e-nav-foot a { color: var(--e-warm); font-size: 12px; }
+
+/* 승인 대기 건수. 0 이면 아예 안 붙는다 */
+.e-badge {
+  min-width: 20px; padding: 1px 7px; border-radius: 999px;
+  background: var(--e-cyan); color: var(--e-cyan-ink);
+  font-size: 11px; font-style: normal; font-weight: 600; text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 접는 손잡이 — 선만 남기고 가라앉힌다 */
+.toggle-nav-sidebar {
+  background: var(--e-canvas) !important;
+  border-right: 1px solid var(--e-border) !important;
+  color: var(--e-faint) !important;
+}
+.toggle-nav-sidebar:hover { color: var(--e-ink) !important; }
+
+/* ══ 빵부스러기 ════════════════════════════════════════════════
+   회색 띠를 걷어내고 가는 선 하나로 둔다. 여기는 «지금 어디인가»만
+   말하는 자리라 면으로 세울 이유가 없다 */
+.breadcrumbs {
+  background: var(--e-card) !important;
+  border-bottom: 1px solid var(--e-border);
+  padding: 10px 24px;
+  font-size: 12px;
+  color: var(--e-warm);
+}
+.breadcrumbs a { color: var(--e-warm); text-decoration: none; }
+.breadcrumbs a:hover { color: var(--e-ink); text-decoration: underline; }
+.breadcrumbs li[aria-current="page"] { color: var(--e-ink); font-weight: 600; }
+
+/* ══ 본문 ══════════════════════════════════════════════════════ */
+#content { padding: 20px 24px; }
+#content > h1 { font-size: 20px; font-weight: 600; margin: 0 0 16px; }
+
+/* 숫자가 0 인 칸은 흐리게. 링크는 살아 있다 */
+.e-cell.zero { opacity: .45; }
+.e-cell.zero:hover { opacity: 1; }
+
+.e-soon { color: var(--e-warm); font-size: 13px; margin: 6px 0; }
+
+@media (prefers-color-scheme: dark) {
+  #nav-sidebar.e-nav { background: var(--e-canvas); }
+  #nav-sidebar.e-nav a.on { background: var(--e-card); box-shadow: none; }
+  .breadcrumbs { background: var(--e-card) !important; }
+  .toggle-nav-sidebar { background: var(--e-canvas) !important; }
+}
+
+/* ══ 추론 막대 (core/admin/views.py 의 _chart) ═════════════════
+   서버가 SVG 를 만들어 넣는다. 색은 여기서 준다 — 파이썬에 색을 박으면
+   다크판이 안 따라온다 */
+.e-chart { width: 100%; height: auto; max-height: 200px; display: block; }
+.e-chart .c-done { fill: var(--e-cyan); }
+.e-chart .c-bad  { fill: var(--e-ink-2); }
+/* 0 건인 시간에도 바닥 자국을 남긴다 — 빈 시간대가 보이는 게 목적이다 */
+.e-chart .c-zero { fill: var(--e-border); }
+.e-chart .c-grid { stroke: var(--e-line-2); stroke-width: 1; }
+.e-chart .c-ax   { fill: var(--e-faint); font-size: 10px; }
+.e-chart g:hover .c-done { fill: var(--e-wash); }
+
+.e-legend { float: right; font-weight: 400; color: var(--e-warm); }
+.e-legend i {
+  display: inline-block; width: 9px; height: 9px; border-radius: 2px;
+  margin: 0 4px 0 12px; vertical-align: baseline;
+}
+.e-legend .k-done { background: var(--e-cyan); }
+.e-legend .k-bad  { background: var(--e-ink-2); }

@@ -18,7 +18,10 @@ DEBUG = os.environ.get("DJANGO_DEBUG", "True") == "True"
 ALLOWED_HOSTS = [h for h in os.environ.get("DJANGO_ALLOWED_HOSTS", "").split(",") if h]
 
 INSTALLED_APPS = [
-    "django.contrib.admin",
+    # "django.contrib.admin" 대신이다. admin.site 를 우리 것으로 바꿔
+    # 제목 · 색 · 사이드바 묶음을 준다 (core/adminsite.py).
+    # 사이드바는 base_site.html 에 넣는다 — 그 한 장만 덮는다.
+    "core.adminsite.EmpathoAdminConfig",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
@@ -56,7 +59,10 @@ WSGI_APPLICATION = "cdss_backend.wsgi.application"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        # ⚠ **DIRS 가 APP_DIRS 보다 먼저 찾아진다.** core 가 INSTALLED_APPS
+        #   에서 admin 앱보다 아래라, 여기 없으면 admin/base_site.html 을
+        #   Django 것이 먼저 잡아 사이드바와 CSS 가 안 붙는다.
+        "DIRS": [BASE_DIR / "core" / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -79,14 +85,9 @@ DATABASES = {
     }
 }
 
-# 검사·처방 시각을 다루므로 KST. USE_TZ=True 라 DB 에는 UTC 로 저장되고
-# 표시할 때만 KST 로 변환된다.
-#
-# 이게 성립하려면 시각 컬럼이 timestamptz 여야 한다. timestamp without time
-# zone 이면 Django 가 읽은 값이 naive 라 TIME_ZONE 으로 간주되고, 다시 저장할
-# 때 UTC 로 변환돼 매번 9시간씩 밀린다. 2026-09-02 에 업무 테이블 106개 컬럼을
-# 전부 timestamptz 로 바꿨다 — db/migrations/2026-09-02-timestamptz.sql.
-# 새 테이블도 반드시 timestamptz 로 만들 것.
+# DB 에는 UTC 로 저장되고 표시할 때만 KST 로 바뀐다.
+# ⚠ 시각 컬럼은 **반드시 timestamptz** 여야 한다. 아니면 저장할 때마다 9시간씩
+#   밀린다 — 2026-09-02 에 106개 컬럼을 고쳤다(db/migrations/2026-09-02-timestamptz.sql).
 LANGUAGE_CODE = "ko-kr"
 TIME_ZONE = "Asia/Seoul"
 USE_I18N = True
@@ -125,11 +126,8 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 
-# 명세서 §1-1 「직원 토큰과 환자 토큰의 스코프를 절대 섞지 않는다」.
-# 스코프는 account.role 에서 유도한다 — 발급하는 쪽이 임의로 정하지 못한다.
-#
-# SECRET 을 따로 두는 이유 — SECRET_KEY 를 돌리면 세션·CSRF 도 같이 끊긴다.
-# 토큰만 무효화하고 싶을 때가 있다.
+# 스코프는 account.role 에서 유도한다 — 발급하는 쪽이 임의로 못 정한다(명세 §1-1).
+# SECRET 이 따로인 이유 — SECRET_KEY 를 돌리면 세션·CSRF 까지 끊긴다.
 JWT = {
     "SECRET": os.environ.get("JWT_SECRET") or SECRET_KEY,
     "ALGORITHM": "HS256",
@@ -138,20 +136,15 @@ JWT = {
     "REFRESH_TTL_DAYS": int(os.environ.get("JWT_REFRESH_TTL_DAYS", "14")),
 }
 
-# Django admin 세션을 받을 auth_user 이름.
-#
-# 관리자가 여럿이어도 **이 하나를 같이 쓴다.** account.auth_user_id 같은 칸을
-# 만들지 않는 이유는, 그 칸이 생기면 account 와 auth_user 를 1:1 로 맞추는
-# 일이 따라붙고 계정이 늘 때마다 admin 사용자도 같이 만들어야 해서다.
-#
-# 비밀번호는 아무도 몰라도 된다 — POST /api/v1/admin-session 이 우리 로그인을
-# 거친 사람에게만 세션을 만들어 준다. 비밀번호로 /admin/ 에 직접 들어가는 길은
-# 쓰지 않는다. 다만 **superuser 하나는 따로 둬야 한다** — 서버가 망가져
-# API 가 안 돌 때 들어갈 길이 없으면 안 된다.
-#
-# ⚠ 누가 고쳤는지는 admin 의 LogEntry 로 못 가린다. 전부 이 사용자로 남는다.
-#   승인 이력은 staff.approved_by 로 따로 남는다.
+# Django admin 세션을 받을 auth_user. 관리자가 여럿이어도 이 하나를 같이 쓴다.
+# 비밀번호는 아무도 몰라도 된다 — POST /api/v1/admin-session 만이 세션을 만든다.
+# ⚠ 그래서 **누가 고쳤는지 안 남는다.** 승인 이력도 마찬가지다(approved_by 는 NULL).
+# ⚠ 비상용 superuser 를 따로 둘 것 — API 가 죽으면 여기로도 못 들어간다.
 ADMIN_AUTH_USER = os.environ.get("ADMIN_AUTH_USER", "cdss_admin")
+
+# 「추론 대기」 기준. 검사가 섰는데 이만큼 지나도록 ai_result 가 없으면 막힌 것이다.
+# 짧으면 도는 중인 것까지 세어 늘 빨간 숫자가 되고, 그러면 아무도 안 본다.
+ADMIN_INFERENCE_WAIT_MIN = int(os.environ.get("ADMIN_INFERENCE_WAIT_MIN", "30"))
 
 # Go → Django 내부 콜백(명세 21장)의 서명 키. conf/gosvc.env 의 CALLBACK_SECRET
 # 과 **같은 값**이어야 한다. 어긋나면 콜백이 401 로 조용히 거절된다.
