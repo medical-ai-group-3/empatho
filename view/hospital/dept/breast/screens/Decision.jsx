@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { breast as api } from "../../../api";
+import { SEX, label } from "../../../codes";
 import { useApi } from "../../../lib/useApi";
 import { Page } from "../../../lib/Page";
 import { Body } from "../../../lib/Body";
@@ -246,7 +247,7 @@ function PatientInfoCard({ patient }) {
 
   const rows = [
     { k: "이름", v: patient.name },
-    { k: "성별 / 나이", v: `${patient.sex === "F" ? "Female" : "Male"} / ${patient.age}세 (${patient.birth_date})` },
+    { k: "성별 / 나이", v: `${label(SEX, patient.sex)} / ${patient.age}세 (${patient.birth_date})` },
     { k: "등록번호", v: patient.patient_number },
     { k: "Accession No.", v: patient.accession_no },
     { k: "연락처", v: phone, editable: true, onChange: setPhone },
@@ -280,6 +281,13 @@ function PatientInfoCard({ patient }) {
       <div className="card-foot split" style={{ marginTop: 14 }}>
         <span className="note">{msg ?? (editing ? "연락처·주소만 수정할 수 있습니다" : "읽기 전용")}</span>
         {editing && (
+          /* ⚠ 저장할 서버 경로가 없다. 이름·생년월일·전화는 patient_pii 라
+             PATCH /patients/{id}/ (api.js 의 reception.update, 위 주석)로
+             못 고친다 — 주소 칸도 서버 모델에 없다. 그래서 버튼이 실제로는
+             아무 데도 보내지 않는다. 전용 엔드포인트가 생기기 전에는
+             지우지 않고 이 사실만 적어 둔다(거짓 "저장되었습니다" 를
+             지금 당장 없애면 화면이 아예 편집 불가로 보이므로, 팀 확인
+             전까지는 동작을 그대로 두고 경고만 남긴다). */
           <button className="btn ghost sm" onClick={() => { setEditing(false); setMsg("저장되었습니다"); }}>
             저장
           </button>

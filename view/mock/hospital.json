@@ -106,7 +106,7 @@
     }
   },
 
-  "GET /api/v1/hospital/patients?q={q}": [
+  "GET /api/v1/hospital/patients/?q={q}": [
     { "patient_id": 41, "patient_number": "E_1029304", "name": "김영희",
       "phone": "010-1234-5678", "birth_date": "1985-07-02", "birth_year": 1985,
       "sex": "female" },
@@ -238,7 +238,7 @@
     "  목록을 받는다 — api.js 의 ALL_PATIENTS."
   ],
 
-  "GET /api/v1/hospital/patients?status={s}": [
+  "GET /api/v1/hospital/patients/?status={s}": [
     { "patient_id": 41,"birth_date": "1985-07-02", "patient_number": "E_1029304", "name": "김영희",
       "phone": "010-1234-5678", "birth_year": 1985, "sex": "female",
       "has_allergy": true, "first_visited_at": "2026-03-11T09:20:00+09:00",
@@ -1398,7 +1398,7 @@
     }
   },
 
-  "GET /api/v1/hospital/patients?primary_staff=me&status=waiting": [
+  "GET /api/v1/hospital/patients/?primary_staff=me&status=waiting": [
     {
       "patient_id": "P-1001",
       "name": "김민지",
@@ -1428,13 +1428,17 @@
     }
   ],
 
-  "GET /api/v1/hospital/patients/P-1001": {
+  "GET /api/v1/hospital/patients/P-1001/": {
     "patient_id": "P-1001",
-    "name": "김민지",
-    "age": 47,
-    "sex": "F",
+    "sex": "female",
+    "birth_year": 1979,
     "patient_number": "20260001",
-    "birth_date": "1979-03-11",
+    "pii": {
+      "patient_id": "P-1001",
+      "name": "김민지",
+      "birth_date": "1979-03-11",
+      "phone": "010-1234-5601"
+    },
     "primary_staff_name": "서냐냥",
     "primary_staff_dept": "surgery",
     "last_visit_at": "2026-09-10T09:40:00+09:00",
@@ -1446,7 +1450,6 @@
     "family_history": "없음",
     "exam_summary": "맘모 09.08 · 병리 09.11 (영상·병리 불일치)",
     "accession_no": "E-1029301",
-    "phone": "010-1234-5601",
     "address": "서울시 강남구 ○○로 10",
     "referral_date": "2026-09-05",
     "clinical_note": "타원 초음파 결과 지참, 우측 유방 종괴 촉지",
@@ -1558,13 +1561,17 @@
     }
   },
 
-  "GET /api/v1/hospital/patients/P-1002": {
+  "GET /api/v1/hospital/patients/P-1002/": {
     "patient_id": "P-1002",
-    "name": "이서연",
-    "age": 52,
-    "sex": "F",
+    "sex": "female",
+    "birth_year": 1974,
     "patient_number": "20260002",
-    "birth_date": "1974-06-22",
+    "pii": {
+      "patient_id": "P-1002",
+      "name": "이서연",
+      "birth_date": "1974-06-22",
+      "phone": "010-2345-6702"
+    },
     "primary_staff_name": "서냐냥",
     "primary_staff_dept": "surgery",
     "last_visit_at": "2026-09-08T14:10:00+09:00",
@@ -1576,7 +1583,6 @@
     "family_history": "없음",
     "exam_summary": "초음파 09.08 (BI-RADS 3, 추적 권고)",
     "accession_no": "E-1029302",
-    "phone": "010-2345-6702",
     "address": "서울시 마포구 ○○로 22",
     "referral_date": "2026-09-03",
     "clinical_note": "정기 검진 중 발견된 병변",
@@ -1666,13 +1672,17 @@
     }
   },
 
-  "GET /api/v1/hospital/patients/P-1003": {
+  "GET /api/v1/hospital/patients/P-1003/": {
     "patient_id": "P-1003",
-    "name": "박지현",
-    "age": 39,
-    "sex": "F",
+    "sex": "female",
+    "birth_year": 1987,
     "patient_number": "20260003",
-    "birth_date": "1987-01-05",
+    "pii": {
+      "patient_id": "P-1003",
+      "name": "박지현",
+      "birth_date": "1987-01-05",
+      "phone": "010-3456-7803"
+    },
     "primary_staff_name": "서냐냥",
     "primary_staff_dept": "surgery",
     "last_visit_at": "2026-09-12T11:00:00+09:00",
@@ -1684,7 +1694,6 @@
     "family_history": "모 · 유방암",
     "exam_summary": "MRI 09.10 · 병리 09.12 (침윤성 유관암)",
     "accession_no": "E-1029303",
-    "phone": "010-3456-7803",
     "address": "경기도 성남시 ○○구 ○○로 5",
     "referral_date": "2026-09-02",
     "clinical_note": "타원 조직검사 결과 지참, 우측 유방 종괴",
@@ -1793,7 +1802,7 @@
     "detail": "촬영 요청이 영상의학과 큐로 전달되었습니다"
   },
 
-  "POST /api/v1/hospital/specimens": {
+  "POST /api/v1/hospital/specimens/": {
     "ok": true,
     "specimen_id": "SP-3099",
     "detail": "검체가 등록되었습니다"
@@ -2011,19 +2020,19 @@
     }
   ],
 
-  "PUT /api/v1/hospital/reports/R-9101": {
+  "PUT /api/v1/hospital/reports/R-9101/": {
     "ok": true,
     "report_id": "R-9101",
     "detail": "유방외과 종합 리포트가 저장되었습니다"
   },
 
-  "PUT /api/v1/hospital/reports/R-9001": {
+  "PUT /api/v1/hospital/reports/R-9001/": {
     "ok": true,
     "report_id": "R-9001",
     "detail": "유방외과 종합 리포트가 저장되었습니다"
   },
 
-  "PUT /api/v1/hospital/reports/R-9002": {
+  "PUT /api/v1/hospital/reports/R-9002/": {
     "ok": true,
     "report_id": "R-9002",
     "detail": "유방외과 종합 리포트가 저장되었습니다"

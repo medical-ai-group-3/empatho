@@ -470,23 +470,39 @@ export const specimens = {
  *
  * 2026-09-16 — staff-view/src/api.js 에서 옮겨 왔다. 그쪽은 봉투를 안
  * 벗기는 자체 call() 을 쓰고 있었는데, 여기 call() 은 벗겨서 준다.
- * 화면은 그대로 두고 이 층만 갈아 끼우면 된다. */
+ * 화면은 그대로 두고 이 층만 갈아 끼우면 된다.
+ *
+ * 2026-09-18 — 목업을 떼고 실제 patients/ 엔드포인트에 맞춘다. 상세
+ * (.../patients/{id}/)는 이름·생년월일·전화번호를 pii{} 로 접어서 준다
+ * (mock/hospital.json 의 해당 항목이 이미 이 모양이다 — 다른 과가 쓰는
+ * 같은 PatientSerializer). 목록(.../patients/?...)은 그대로 펴져 있다.
+ * 화면마다 patient.name 을 따로 풀어 쓰게 하지 않고 여기 한 곳에서
+ * 펴서 내보낸다 — dept/radiology.jsx 의 withFiles() 와 같은 자리다.
+ * age 가 없고 birth_year 만 오면 나이도 여기서 센다(reception/Patients.jsx
+ * 의 ageOf() 와 같은 계산). 죽은 코드(openDiscords·finalReport·
+ * lesions·bindSpecimen — 어디서도 안 부른다) 는 정리했다. */
+function normalizePatient(p) {
+  if (!p) return p;
+  const { pii, ...rest } = p;
+  return {
+    ...rest,
+    name:       pii?.name ?? rest.name ?? null,
+    birth_date: pii?.birth_date ?? rest.birth_date ?? null,
+    phone:      pii?.phone ?? rest.phone ?? null,
+    age:        rest.age ?? (rest.birth_year ? new Date().getFullYear() - rest.birth_year : null),
+  };
+}
+
 export const breast = {
   /* 1장 · 대기 환자 */
-  waiting:      ()   => get(`/patients/${qs({ primary_staff: "me", status: "waiting" })}`),
-  patient:      (id) => get(`/patients/${id}/`),
+  waiting:      ()   => get(`/patients/${qs({ primary_staff: "me", status: "waiting" })}`)
+                          .then((list) => list.map(normalizePatient)),
+  patient:      (id) => get(`/patients/${id}/`).then(normalizePatient),
   examOrder:    (b)  => post("/exam-orders", b),
-  openDiscords: (pid) => get(`/discordances${qs({ patient: pid, status: "open" })}`),
-
-  /* 검체 바인딩 (팝업) — 병리과 대기 큐로 넘어간다. 간호과와 같은 팝업을
-     쓰므로 실제 호출은 specimens(공용)로 위임한다 */
-  lesions:      (pid) => specimens.lesionsByPatient(pid),
-  bindSpecimen: (b)  => specimens.bind(b),
 
   /* 2장 · 검사 종합 확인 */
   timeline:     (pid) => get(`/patients/${pid}/timeline`),
   studies:      (pid) => get(`/patients/${pid}/studies`),
-  finalReport:  (pid) => get(`/reports/${qs({ patient: pid, type: "final" })}`),
 
   /* 3장 · 수술 결정 */
   assess:       (b)  => post("/assessments", b),

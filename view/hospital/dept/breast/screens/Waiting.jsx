@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { breast as api } from "../../../api";
+import { SEX, label } from "../../../codes";
 import { useApi } from "../../../lib/useApi";
 import { Page } from "../../../lib/Page";
 import { Body } from "../../../lib/Body";
@@ -74,7 +75,7 @@ export default function Waiting() {
                           onClick={() => setSelectedId(p.patient_id)}>
                         <td>{p.patient_number}</td>
                         <td>{p.name}</td>
-                        <td>{p.age}세 · {p.sex}</td>
+                        <td>{p.age}세 · {label(SEX, p.sex)}</td>
                         <td>
                           <span className="pill wait">{p.status}</span>
                           {p.has_open_discordance && (
@@ -135,7 +136,7 @@ function usePatient(id) {
 function PatientPanel({ patient, onNext, onExamOrder, onSpecimen, onReview, onDiscordance }) {
   const d = patient.open_discordance;
   const rows = [
-    { k: "성별·나이", v: `${patient.sex === "F" ? "여" : "남"} · ${patient.age}세` },
+    { k: "성별·나이", v: `${label(SEX, patient.sex)} · ${patient.age}세` },
     { k: "내원 목적", v: patient.visit_purpose },
     { k: "알레르기", v: patient.allergy },
     { k: "주 증상", v: patient.chief_complaint },
