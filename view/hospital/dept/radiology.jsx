@@ -513,40 +513,52 @@ export const radiology = {
       const [contrast] = useState(100);
       const [mask] = useState(45);
 
+      /* ⚠ 2026-09-18 — "목록·뷰어·상세" 3단으로 다시 짰다(설계 그림).
+       * 바깥 Split(목록 1 : 나머지)은 그대로 두고, "나머지" 안쪽을
+       * list-detail-cols로 한 번 더 갈라 뷰어(가운데)·상세정보(오른쪽,
+       * 검사 이력을 리스트로) 두 칸으로 만든다. 기능은 없어도 된다는
+       * 요구라 뷰어는 조회 전용(mode="review")만 유지한다. */
       return (
         <>
           {d.contrast_allergy && <Warn>조영제 알레르기 — {d.contrast_allergy}</Warn>}
 
-          <Body loading={read.loading} error={read.error} onRetry={read.reload}>
-            {read.data && (
-              <ListViewer d={read.data} cfg={cfg} slide={slide} onSlide={setSlide}
-                bright={bright} contrast={contrast} mask={mask} />
-            )}
-          </Body>
+          <div className="list-detail-cols">
+            <div className="list-detail-viewer">
+              <Body loading={read.loading} error={read.error} onRetry={read.reload}>
+                {read.data && (
+                  <ListViewer d={read.data} cfg={cfg} slide={slide} onSlide={setSlide}
+                    bright={bright} contrast={contrast} mask={mask} />
+                )}
+              </Body>
+            </div>
 
-          <p className="section-label">검사 이력</p>
-          <Body loading={timeline.loading} error={timeline.error} onRetry={timeline.reload}>
-            {timeline.data && <ListTimeline events={timeline.data} />}
-          </Body>
+            <div className="list-detail-info">
+              <Facts items={[
+                ["환자", `${d.patient_name} (${d.age}/${label(SEX, d.sex)})`],
+                ["환자번호", d.patient_no],
+                ["모달리티", label(MODALITY, asModality(d.modality))],
+                ["촬영 장비", d.device],
+                ["검사일", d.performed_at],
+                ["담당 판독의", d.assigned_to],
+                ["진행상황", text(d, "read_status", READ_STATUS, "status_label")],
+                ["유방외과 열람", d.viewed_at ?? "미열람"],
+              ]} />
 
-          <Facts items={[
-            ["환자", `${d.patient_name} (${d.age}/${label(SEX, d.sex)})`],
-            ["환자번호", d.patient_no],
-            ["모달리티", label(MODALITY, asModality(d.modality))],
-            ["촬영 장비", d.device],
-            ["검사일", d.performed_at],
-            ["담당 판독의", d.assigned_to],
-            ["진행상황", text(d, "read_status", READ_STATUS, "status_label")],
-            ["유방외과 열람", d.viewed_at ?? "미열람"],
-          ]} />
-          <Fold title="판독 결과" open={Boolean(d.finalized)}>
-            {d.finalized ? (
-              <>
-                <Facts items={[["판정 등급", `BI-RADS ${d.category}`]]} />
-                <p className="quote">{d.finding_note}</p>
-              </>
-            ) : <p className="muted">아직 확정된 판독이 없습니다.</p>}
-          </Fold>
+              <p className="section-label">검사 이력</p>
+              <Body loading={timeline.loading} error={timeline.error} onRetry={timeline.reload}>
+                {timeline.data && <ListTimeline events={timeline.data} />}
+              </Body>
+
+              <Fold title="판독 결과" open={Boolean(d.finalized)}>
+                {d.finalized ? (
+                  <>
+                    <Facts items={[["판정 등급", `BI-RADS ${d.category}`]]} />
+                    <p className="quote">{d.finding_note}</p>
+                  </>
+                ) : <p className="muted">아직 확정된 판독이 없습니다.</p>}
+              </Fold>
+            </div>
+          </div>
         </>
       );
     },

@@ -179,7 +179,14 @@ input,select,textarea{font:inherit; color:inherit}
    영상의학과 환자 목록(뷰어가 들어가는 상세)처럼 상세 쪽이 넓은 화면에서
    같이 넓어져야 하는 자리에 쓴다(2026-09-18) — .wide 의 고정 440px로는
    뷰어가 좁게 눌린다. */
-.split.third{grid-template-columns:minmax(0,1fr) minmax(0,2fr); align-items:stretch}
+.split.third{grid-template-columns:minmax(0,1fr) minmax(0,2.5fr); align-items:stretch}
+
+/* 상세 안을 뷰어(가운데)·환자 상세정보(오른쪽)로 한 번 더 가른다 —
+   목록·뷰어·상세 3단 설계(2026-09-18). 뷰어를 살짝 더 넓게 둔다. */
+.list-detail-cols{display:grid; grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);
+  gap:var(--gap); align-items:start}
+@media (max-width:900px){.list-detail-cols{grid-template-columns:1fr}}
+.list-detail-info{display:flex; flex-direction:column; gap:var(--gap-sm)}
 .split-l,.split-r{min-width:0; display:flex; flex-direction:column;
   gap:var(--gap)}
 
