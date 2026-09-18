@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { markWelcomeSeen } from "../lib/seen";
 import Logo from "../lib/Logo";
 import Tilly from "../lib/Tilly";
+import Icon from "../lib/Icon";
 
 /* 00 · 소개 — 한 장이다.
  *
@@ -61,7 +62,7 @@ export default function Welcome() {
       <div className="wel-foot">
         <button className="btn wel-cta" onClick={start}>
           <span>함께, 더 건강한 내일로</span>
-          <b>시작하기 <i aria-hidden="true">→</i></b>
+          <b>시작하기 <Icon name="arrowRight" /></b>
         </button>
         <p className="note c">
           이 앱의 안내는 진단서가 아닙니다. 최종 판단은 진료 때 의료진이 합니다.

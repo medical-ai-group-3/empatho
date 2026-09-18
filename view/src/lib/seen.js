@@ -19,7 +19,8 @@ export function markSeen(key) {
 }
 
 export const WELCOME = "empatho.welcome_seen";
-export const COACH_HOME = "empatho.coach_home";
+/* 틸리 소개를 더한 새 안내는 기존 안내를 본 기기에도 한 번 보여 준다. */
+export const COACH_HOME = "empatho.coach_home_v2";
 
 export const welcomeSeen = () => seen(WELCOME);
 export const markWelcomeSeen = () => markSeen(WELCOME);

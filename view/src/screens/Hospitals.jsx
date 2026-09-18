@@ -5,6 +5,7 @@ import Tilly from "../lib/Tilly";
 import { Body, Head } from "../lib/Screen";
 import { distanceKm, fmtKm, routeUrl, useNear } from "../lib/near";
 import Call from "../lib/Call";
+import Icon from "../lib/Icon";
 
 /* 14 · 병원 찾기
  *
@@ -74,7 +75,7 @@ function Inner({ d, near, region, setRegion, q, setQ }) {
   return (
     <>
       <label className="search">
-        <span aria-hidden="true">⌕</span>
+        <Icon name="search" />
         <input value={q} placeholder="병원 이름 · 진료과 · 주소"
                onChange={(e) => setQ(e.target.value)} />
       </label>

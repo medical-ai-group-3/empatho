@@ -4,6 +4,7 @@ import { useApi } from "../lib/useApi";
 import Tilly from "../lib/Tilly";
 import { Body, Head } from "../lib/Screen";
 import { fmtDayKey } from "../lib/when";
+import Icon from "../lib/Icon";
 
 /* 13 · 복약 관리
  *
@@ -199,7 +200,7 @@ function Rx({ rx, taken, busy, open, setOpen, onToggle, ended }) {
                 찾으러 스크롤을 해야 한다 — 처음 받은 약일 때 펴 본다 */}
             <button className="drug-more" aria-expanded={on}
                     onClick={() => setOpen(on ? null : g.drug_id)}>
-              <i aria-hidden="true">{on ? "▾" : "▸"}</i>
+              <Icon name={on ? "chevronDown" : "chevronRight"} />
               어떤 약인가요?
             </button>
 

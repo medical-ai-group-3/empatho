@@ -40,6 +40,8 @@
   "GET /api/v1/me": {
     "patient_id": 1029304,
     "display_name": "이수진",
+    "login_id": "soojin78",
+    "phone": "01012345678",
     "primary_staff_name": "박지훈",
     "primary_staff_dept": "surgery",
     "patient_number": "E_1029304",

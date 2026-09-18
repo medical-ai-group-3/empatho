@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useState } from "react";
 import { markSeen, seen } from "./seen";
+import Icon from "./Icon";
 
 /* 코치마크 — 화면 위에 얹어 «여기를 보라»고 짚는다.
  *
@@ -139,7 +140,7 @@ export default function Coach({ steps, seenKey }) {
         </div>
       </div>
 
-      <button className="coach-x" onClick={finish} aria-label="안내 닫기">✕</button>
+      <button className="coach-x" onClick={finish} aria-label="안내 닫기"><Icon name="close" /></button>
     </div>
   );
 }

@@ -3,7 +3,7 @@ import { useState } from "react";
 /* 틸리 — 앱의 건강 파트너 캐릭터
  * ════════════════════════════════════════════════════════════════
  *
- * 파일은 `public/tilly/<표정>.png` 만 본다. **없으면 아무것도 안 그린다** —
+ * 파일은 `public/tilly/`의 표정 PNG(로더는 GIF)를 본다. **없으면 아무것도 안 그린다** —
  * 빌드가 깨지지 않고, 파일을 넣는 순간 나타난다 (lib/Logo 와 같은 방식).
  *
  * public/ 에 두는 이유 — import 로 끌어오면 파일이 없을 때 빌드가 통째로
@@ -21,10 +21,10 @@ import { useState } from "react";
  *   public/tilly/alarm.png      알람                   알림이 없을 때
  *   public/tilly/rest.png       기대기                 목록이 비었을 때
  *   public/tilly/guide.png      안내 팻말              (아직 안 쓴다)
+ *   public/tilly/tilly_loading_spinner.gif  동그라미 로더  불러오는 중
  *
- * 투명 PNG 로, 화면 배율이 다양하니 **찍힐 크기의 3배**로 주면 안전하다
- * (홈 머리의 틸리가 56px 이면 168px 짜리). WebP 도 된다 — 확장자만
- * 아래 EXT 에서 바꾸면 된다.
+ * 투명 PNG/GIF 로, 화면 배율이 다양하니 **찍힐 크기의 3배**로 주면 안전하다
+ * (홈 머리의 틸리가 56px 이면 168px 짜리).
  *
  * ── 어디에 쓰고 어디에 안 쓰나 ───────────────────────────────
  *
@@ -39,7 +39,13 @@ import { useState } from "react";
  * 넣기 전에 이 주석을 한 번 읽기를 바란다.
  */
 
-const EXT = "png";
+const FILE = {
+  loading: "tilly_loading_spinner.gif",
+  chatbot: "tilly_chatbot.png",
+  chatbotBanner: "tily_chatbot_baner.png",
+  chatbotProfile: "tily_chatbot_profile.png",
+  hi: "tily_hi.png",
+};
 
 /* 표정 이름 → 읽어 주는 기계에 들려줄 말.
  * 장식이 아니라 «지금 무슨 상태인가»를 같이 지는 그림이라, 눈으로 못 보는
@@ -56,6 +62,11 @@ const SAY = {
   alarm: "틸리가 종을 들고 있어요",
   rest: "틸리가 쉬고 있어요",
   guide: "틸리가 안내 팻말을 들고 있어요",
+  loading: "틸리가 불러오는 중이에요",
+  chatbot: "안내 챗봇 틸리",
+  chatbotBanner: "안내 챗봇 틸리",
+  chatbotProfile: "안내 챗봇 틸리",
+  hi: "틸리가 인사하고 있어요",
 };
 
 /** 틸리 한 마리.
@@ -74,7 +85,7 @@ export default function Tilly({ mood = "hello", size = "md", alt }) {
   return (
     <img
       className={`tilly ${size}`}
-      src={`/tilly/${mood}.${EXT}`}
+      src={`/tilly/${FILE[mood] ?? `${mood}.png`}`}
       alt={alt ?? SAY[mood] ?? ""}
       aria-hidden={alt === "" ? "true" : undefined}
       draggable={false}

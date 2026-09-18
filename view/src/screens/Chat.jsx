@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { api } from "../api";
 import { Head } from "../lib/Screen";
 import Tilly from "../lib/Tilly";
+import Icon from "../lib/Icon";
 
 /* 12 · 안내 챗봇
  *
@@ -88,10 +89,10 @@ import Tilly from "../lib/Tilly";
  * 목업도 실서버도 답한다.
  */
 const EGS = [
-  { kind: "ask",  ic: "▤", tx: "미세석회가 뭔가요?" },
-  { kind: "ask",  ic: "✦", tx: "조직검사는 어떻게 하나요?" },
-  { kind: "ask",  ic: "◍", tx: "양성이라는 게 무슨 뜻인가요?" },
-  { kind: "go",   ic: "▦", tx: "다음 일정 확인하기", to: "/book" },
+  { kind: "ask",  icon: "chat_microcalcification.png", tx: "미세석회가 뭔가요?" },
+  { kind: "ask",  icon: "chat_biopsy.png", tx: "조직검사는 어떻게 하나요?" },
+  { kind: "ask",  icon: "chat_benign.png", tx: "양성이라는 게 무슨 뜻인가요?" },
+  { kind: "go",   icon: "chat_schedule.png", tx: "다음 일정 확인하기", to: "/book" },
 ];
 
 /* 답을 못 드렸을 때 대신 내미는 것 — B.
@@ -180,7 +181,7 @@ export default function Chat() {
             {/* 틸리가 먼저 묻는다. 빈 화면에 「무엇을 물어야 하나」를
                 사람이 혼자 고민하지 않게 하는 자리다 */}
             <div className="chat-tri">
-              <Tilly mood="ask" size="md" alt="" />
+              <Tilly mood="chatbotBanner" size="banner" alt="" />
             </div>
 
             <div className="card">
@@ -197,9 +198,9 @@ export default function Chat() {
             <div className="asks">
               {EGS.map((e) => (
                 <button key={e.tx} className="askrow" onClick={() => pick(e)}>
-                  <i className="ic" aria-hidden="true">{e.ic}</i>
+                  <img className="ask-image" src={`/tilly/${e.icon}`} alt="" aria-hidden="true" />
                   <span>{e.tx}</span>
-                  <i className="arw" aria-hidden="true">›</i>
+                  <Icon className="arw" name="chevronRight" />
                 </button>
               ))}
             </div>
@@ -209,7 +210,7 @@ export default function Chat() {
             /* 답에는 틸리 얼굴이 붙는다 — 누가 한 말인지 자리(왼오)에 더해
                얼굴로도 보인다. 내 말에는 안 붙인다 */
             <div key={i} className={`bub ${m.who}${m.err ? " err" : ""}`}>
-              {m.who === "bot" && <Tilly mood="face" size="chip" alt="" />}
+              {m.who === "bot" && <Tilly mood="chatbotProfile" size="profile" alt="" />}
               <span className="bub-b">
                 <p>{m.text}</p>
                 {m.note && <small>{m.note}</small>}
@@ -236,7 +237,7 @@ export default function Chat() {
 
         {busy && (
           <div className="bub bot wait" aria-live="polite">
-            <Tilly mood="face" size="chip" alt="" />
+            <Tilly mood="loading" size="chip" alt="" />
             <span className="bub-b"><p>답을 찾고 있습니다…</p></span>
           </div>
         )}

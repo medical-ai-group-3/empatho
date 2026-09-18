@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { useState } from "react";
 import { api } from "../api";
 import { useApi } from "../lib/useApi";
 import Calendar from "../lib/Calendar";
@@ -6,6 +7,7 @@ import Coach from "../lib/Coach";
 import Tilly from "../lib/Tilly";
 import { COACH_HOME } from "../lib/seen";
 import { Body } from "../lib/Screen";
+import Icon from "../lib/Icon";
 import { fmtDay, fmtWhen } from "../lib/when";
 import { deptSuffix } from "../lib/dept";
 import { MODALITY, modality as asModality, text } from "../lib/codes";
@@ -24,6 +26,10 @@ import { MODALITY, modality as asModality, text } from "../lib/codes";
 /* 처음 한 번만 뜨는 안내. 셋을 넘기지 않는다 — 열 개를 이어 붙이면
    결국 슬라이드와 같은 것이 되고, 같은 이유로 넘겨진다. */
 const COACH = [
+  { sel: '[data-coach="chatbot"]',
+    title: "안녕하세요, 틸리예요",
+    body: "저는 안내 챗봇이자 앱 사용을 돕는 건강 파트너예요. "
+        + "검사 안내문에 나온 낱말이나 다음에 할 일을 함께 살펴볼 수 있어요." },
   { sel: '[data-coach="quest"]',
     title: "검사 전에 여기부터",
     body: "촬영 방법이 달라지는 것들을 미리 여쭙습니다. "
@@ -34,6 +40,16 @@ const COACH = [
   { sel: '[data-coach="tab-book"]',
     title: "방문 신청은 예약에서",
     body: "날짜와 시간만 고르시면 됩니다. 검사 종류는 병원이 정합니다." },
+];
+
+/* 홈에 들어올 때마다 한 줄을 바꾼다. 매번 새로 고르되, 같은 화면에
+   머무는 동안에는 문구가 흔들리지 않도록 Inner가 처음 열릴 때만 정한다. */
+const GREETINGS = [
+  (name) => `${name} 님, 오늘도 건강한 하루예요`,
+  (name) => `${name} 님, 오늘도 틸리가 곁에 있을게요`,
+  (name) => `${name} 님의 건강한 하루를 응원해요`,
+  (name) => `${name} 님, 천천히 내 건강을 살펴봐요`,
+  (name) => `오늘 필요한 안내를 ${name} 님과 함께 볼게요`,
 ];
 
 /* 문진 카드에 뭐라고 쓸지. status 는 not_started · in_progress · done 이다. */
@@ -59,6 +75,10 @@ export default function Home() {
 }
 
 function Inner({ d }) {
+  const [greeting] = useState(() => {
+    const line = GREETINGS[Math.floor(Math.random() * GREETINGS.length)];
+    return line(d.display_name);
+  });
   const q = d.questionnaire ?? {};
   const done = q.status === "done";
   const pct = q.total ? Math.round((q.answered / q.total) * 100) : 0;
@@ -91,33 +111,34 @@ function Inner({ d }) {
       <div className="hello">
         <p className="hello-tx">
           <b>안녕하세요!</b>
-          <span>{d.display_name} 님, 오늘도 건강한 하루예요</span>
+          <span className="hello-greeting">{greeting}</span>
         </p>
+        <img className="hello-bg" src="/tilly/tily_background.png" alt="" aria-hidden="true" />
         <span className="hello-tri" aria-hidden="true">
-          <Tilly mood="hello" size="lg" alt="" />
+          <Tilly mood="hi" size="lg" alt="" />
         </span>
       </div>
 
+      <div className="quick-head">
+        <Icon name="sparkle" />
+        <b>빠른 메뉴</b>
+      </div>
       <div className="tiles">
         <Link className="tile" to="/book">
-          <i className="ic" aria-hidden="true">▦</i>
+          <MenuIcon file="exam_schedule_icon.png" />
           <b>검사 일정</b>
-          <small>날짜 신청 · 확인</small>
         </Link>
         <Link className="tile" to="/results">
-          <i className="ic" aria-hidden="true">▤</i>
+          <MenuIcon file="exam_results_icon.png" />
           <b>검사 결과</b>
-          <small>안내문 받아 보기</small>
         </Link>
         <Link className="tile" to="/meds">
-          <i className="ic" aria-hidden="true">◈</i>
+          <MenuIcon file="medication_icon.png" />
           <b>복약 관리</b>
-          <small>오늘 드실 약</small>
         </Link>
         <Link className="tile" to="/hospitals">
-          <i className="ic" aria-hidden="true">✦</i>
+          <MenuIcon file="hospital_finder_icon.png" />
           <b>병원 찾기</b>
-          <small>협력 병원 · 전화</small>
         </Link>
       </div>
 
@@ -129,7 +150,7 @@ function Inner({ d }) {
       )}
 
       {/* ── 문진 — 맨 위. 다 쓰기 전에는 강조 바탕이다 ── */}
-      <Link className={done ? "card go" : "card go accent"} to="/quest"
+      <Link className={done ? "card go quest-card" : "card go accent quest-card"} to="/quest"
             data-coach="quest">
         <span className="tx">
           <span className="k">자가검진 문진{q.required ? " · 필수" : ""}</span>
@@ -139,8 +160,8 @@ function Inner({ d }) {
             <span className="prog"><i style={{ width: `${pct}%` }} /></span>
           )}
         </span>
+        {!done && <img className="quest-pop" src="/tilly/tily_pop.png" alt="" aria-hidden="true" />}
         {done && <span className="pill ok">완료</span>}
-        <span className="arw" aria-hidden="true">›</span>
       </Link>
 
       {/* ── 새 안내문 — 있을 때만 ──
@@ -160,7 +181,7 @@ function Inner({ d }) {
             <span className={locked ? "pill read" : "pill new"}>
               {locked ? "잠김" : "새 안내"}
             </span>
-            {!locked && <span className="arw" aria-hidden="true">›</span>}
+            {!locked && <Icon className="arw" name="chevronRight" />}
           </>
         );
         return locked ? (
@@ -197,7 +218,7 @@ function Inner({ d }) {
                   </>
                 )}
               </span>
-              <Link className="more" to="/book">예약 →</Link>
+              <Link className="more" to="/book">예약 <Icon name="arrowRight" /></Link>
             </>
           }
         />
@@ -222,6 +243,11 @@ function Inner({ d }) {
       <Coach seenKey={COACH_HOME} steps={COACH} />
     </>
   );
+}
+
+/* 메뉴 이름이 아이콘의 뜻을 이미 말해 주므로 장식 이미지로 처리한다. */
+function MenuIcon({ file }) {
+  return <img className="menu-icon" src={`/tilly/${file}`} alt="" aria-hidden="true" />;
 }
 
 /* 톱니 — 설정. 종과 같은 굵기·같은 모서리로 그려야 둘이 한 벌로 보인다. */

@@ -18,9 +18,9 @@ import { Body, Head } from "../lib/Screen";
  * 홈 머리말의 톱니에서 온다. 아래 탭에는 없다 — 매일 누를 것이 아니다.
  */
 const THEMES = [
-  { id: "system", label: "자동" },
-  { id: "light",  label: "밝게" },
-  { id: "dark",   label: "어둡게" },
+  { id: "system", label: "기기 설정" },
+  { id: "light",  label: "라이트 모드" },
+  { id: "dark",   label: "다크 모드" },
 ];
 
 export default function Settings() {
@@ -61,9 +61,9 @@ function Inner({ c }) {
         <div className="card flag"><span className="s">{msg.text}</span></div>
       )}
 
-      <h3 className="sec">화면 밝기</h3>
+      <h3 className="sec">테마</h3>
       <div className="card">
-        <div className="seg" role="radiogroup" aria-label="화면 밝기">
+        <div className="seg" role="radiogroup" aria-label="테마">
           {THEMES.map((t) => (
             <button key={t.id} type="button" role="radio"
                     aria-checked={theme === t.id}
@@ -73,7 +73,7 @@ function Inner({ c }) {
             </button>
           ))}
         </div>
-        <span className="s">「자동」은 휴대폰 설정을 따라갑니다.</span>
+        <span className="s">기기 설정은 휴대폰의 라이트·다크 모드를 따라갑니다.</span>
       </div>
 
       <h3 className="sec">글씨 크기</h3>

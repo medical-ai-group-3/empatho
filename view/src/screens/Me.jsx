@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { api } from "../api";
 import { useApi } from "../lib/useApi";
 import { Body, Head } from "../lib/Screen";
-import { deptSuffix } from "../lib/dept";
+import { deptLabel } from "../lib/dept";
 import { fmtDay, fmtDayKey } from "../lib/when";
 
 /* 10 · 내 정보
@@ -51,6 +51,10 @@ export default function Me() {
 function Inner({ me }) {
   const nav = useNavigate();
   const [busy, setBusy] = useState(false);
+  const progress = me.questionnaire_progress;
+  const questionnaire = me.questionnaire_status === "done"
+    ? "작성 완료"
+    : progress?.total ? `${progress.answered} / ${progress.total} 문항 작성` : null;
 
   async function logout() {
     setBusy(true);
@@ -81,25 +85,26 @@ function Inner({ me }) {
         </p>
       </div>
 
-      {(me.primary_staff_name || me.last_visit_at) && (
-        <div className="card">
-          {me.primary_staff_name ? (
-            <>
-              <span className="k">담당 주치의</span>
-              <span className="v">
-                {me.primary_staff_name}
-                {deptSuffix(me.primary_staff_dept)}
-              </span>
-            </>
-          ) : (
-            <span className="k">내원 기록</span>
-          )}
-          {me.last_visit_at && (
-            <span className="s">
-              마지막 내원 {fmtDay(me.last_visit_at)}
-              {deptSuffix(me.last_visit_dept)}
-            </span>
-          )}
+      {(me.primary_staff_name || me.last_visit_at || questionnaire) && (
+        <div className="card me-care">
+          <span className="k">내 진료 정보</span>
+          <div className="me-care-grid">
+            {me.primary_staff_name && (
+              <Info label="담당 주치의" value={me.primary_staff_name} />
+            )}
+            {deptLabel(me.primary_staff_dept) && (
+              <Info label="담당 진료과" value={deptLabel(me.primary_staff_dept)} />
+            )}
+            {me.last_visit_at && (
+              <Info label="마지막 내원" value={fmtDay(me.last_visit_at)} />
+            )}
+            {deptLabel(me.last_visit_dept) && (
+              <Info label="최근 내원 진료과" value={deptLabel(me.last_visit_dept)} />
+            )}
+            {questionnaire && <Info label="자가검진 문진" value={questionnaire} />}
+            {me.login_id && <Info label="로그인 아이디" value={me.login_id} />}
+            {me.phone && <Info label="휴대폰 번호" value={maskPhone(me.phone)} />}
+          </div>
         </div>
       )}
 
@@ -117,4 +122,15 @@ function Inner({ me }) {
       </p>
     </>
   );
+}
+
+function Info({ label, value }) {
+  return <span><small>{label}</small><b>{value}</b></span>;
+}
+
+function maskPhone(phone) {
+  const digits = String(phone).replace(/\D/g, "");
+  return digits.length >= 10
+    ? `${digits.slice(0, 3)}-****-${digits.slice(-4)}`
+    : String(phone);
 }

@@ -6,6 +6,7 @@ import App, { Bare } from "./App.jsx";
 import Boom from "./lib/Boom.jsx";
 import RequireAuth from "./lib/RequireAuth.jsx";
 import { Head } from "./lib/Screen.jsx";
+import Icon from "./lib/Icon.jsx";
 import { applyScale, applyTheme, readScale, readTheme } from "./lib/theme.js";
 import Book from "./screens/Book.jsx";
 import Chat from "./screens/Chat.jsx";
@@ -42,7 +43,7 @@ function Missing() {
       <Head title="없는 화면" />
       <div className="pane">
         <div className="empty">
-          <i className="ic" aria-hidden="true">◍</i>
+          <Icon name="help" className="ic" />
           <p>주소가 잘못되었거나 사라진 화면입니다.</p>
         </div>
         <Link className="btn ghost" to="/">홈으로</Link>

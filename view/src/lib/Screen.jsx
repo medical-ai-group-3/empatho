@@ -1,5 +1,7 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import Logo from "./Logo";
+import Icon from "./Icon";
+import Tilly from "./Tilly";
 
 /* 화면 하나의 껍데기 — 머리말 · 로딩 · 오류 · 본문.
  *
@@ -29,7 +31,7 @@ export function Head({ title, back = true, up = "/", right }) {
           aria-label="뒤로"
           onClick={() => (orphan ? nav(up, { replace: true }) : nav(-1))}
         >
-          ‹
+          <Icon name="chevronRight" className="back-icon" />
         </button>
       )}
       <h2>{title}</h2>
@@ -70,7 +72,7 @@ export function Body({ loading, error, onRetry, children }) {
         {/* 가운데에 세운다. 위쪽에 한 줄만 붙여 두면 화면이 잘못 뜬
             것처럼 보인다 */}
         <div className="empty">
-          <i className="ic" aria-hidden="true">◍</i>
+          <Tilly mood="loading" size="loading" alt="" />
           <p>불러오는 중…</p>
         </div>
       </div>
