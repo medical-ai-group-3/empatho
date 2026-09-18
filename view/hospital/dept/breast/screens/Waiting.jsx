@@ -135,7 +135,7 @@ function usePatient(id) {
 function PatientPanel({ patient, onNext, onExamOrder, onSpecimen, onReview, onDiscordance }) {
   const d = patient.open_discordance;
   const rows = [
-    { k: "성별·나이", v: `${patient.sex === "F" ? "여" : "남"} · ${patient.age}세` },
+    { k: "성별·나이", v: `${patient.sex === "F" ? "여" : patient.sex === "M" ? "남" : "-"} · ${patient.age}세` },
     { k: "내원 목적", v: patient.visit_purpose },
     { k: "알레르기", v: patient.allergy },
     { k: "주 증상", v: patient.chief_complaint },
@@ -152,7 +152,7 @@ function PatientPanel({ patient, onNext, onExamOrder, onSpecimen, onReview, onDi
         </div>
 
         <div className="pt-head">
-          <span className="avatar" aria-hidden="true">{patient.name[0]}</span>
+          <span className="avatar" aria-hidden="true">{patient.name?.[0]}</span>
           <span>
             <span className="name">{patient.name}</span>
             <p className="sub">{patient.patient_number} · {patient.visit_type}</p>

@@ -473,7 +473,11 @@ export const specimens = {
  * 화면은 그대로 두고 이 층만 갈아 끼우면 된다. */
 export const breast = {
   /* 1장 · 대기 환자 */
-  waiting:      ()   => get(`/patients${qs({ primary_staff: "me", status: "waiting" })}`),
+  /* ⚠ 서버가 페이지네이션 봉투({count,results,…})로 준다. 화면(Waiting.jsx)은
+     배열 하나를 기대해서(list.length·list.map) 언랩해서 넘긴다 — 병리·영상
+     큐가 이미 하던 것과 같다. */
+  waiting:      ()   => get(`/patients${qs({ primary_staff: "me", status: "waiting" })}`)
+    .then((raw) => raw?.results ?? raw?.items ?? (Array.isArray(raw) ? raw : [])),
   patient:      (id) => get(`/patients/${id}/`),
   examOrder:    (b)  => post("/exam-orders", b),
   openDiscords: (pid) => get(`/discordances${qs({ patient: pid, status: "open" })}`),
