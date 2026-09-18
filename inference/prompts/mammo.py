@@ -8,7 +8,7 @@ from prompts import base
 
 # 2026-09-09.a 신규. base 의 SYSTEM SCHEMA build를 쓴다 
 # 2026-09-09.b  base.SYSTEM — 번호 붙은 항목은 항목마다 문장을 끊는다
-VERSION = "mammo-2026-09-09.b"
+VERSION = "mammo-2026-09-18"
 
 SOCKET_IDS = {"4b"}
 
@@ -21,8 +21,23 @@ REQUIRED = ("lesions", "summary")
 # certainty : 축 확신도 합. 내부 계산용 
 
 def _one(l: dict) -> str :
-    """병변 한 건을 한줄로. 서술어는 값만 이어 붙인다."""
-    parts = [str(l.get("kind"))]
+    """병변 한 건을 한줄로. 서술어는 값만 이어 붙인다.
+    
+    맘모는 영상 넷(좌우 × CC/MLO)이 한 검진이다. 앱 서버가 넷을 합치면서
+    병변마다 image 를 붙여 준다 — 그게 없으면 좌우를 구분할 수 없어
+    소견문으로 못 쓴다. 한 장만 보낸 경우에는 image 가 없고, 그때는
+    예전처럼 종류부터 시작한다.
+    """
+    parts = []
+    img = l.get("image") or {}
+    if img.get("laterality") or img.get("view") :
+        side = {
+            "left": "좌측",
+            "right": "우측"
+        }.get(img.get("laterality"), "")
+        parts.append(f"{side} {img.get('view') or ''}".strip())
+    parts.append(str(l.get("kind")))
+        
     if l.get("birads") :
         parts.append(f"BI-RADS {l['birads']}")
     dd = l.get("descriptors") or {}
