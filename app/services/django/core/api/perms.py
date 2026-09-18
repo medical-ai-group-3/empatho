@@ -11,7 +11,7 @@ PATHOLOGY_PERMS = [
     "pathology.ai.run", "pathology.ai.view",
     "pathology.read.view", "pathology.read.draft", "pathology.read.finalize",
     "pathology.list.view",
-    "pathology.amend.view", "pathology.amend.save",
+    # amend(정정)는 없다 — 확정 사양서 §8-2, 확정 후 오류는 새 검체로 처리한다.
 ]
 
 RADIOLOGY_PERMS = [
@@ -71,21 +71,17 @@ ADMIN_PERMS = [
 COMMON_PERMS = ["report.view.all"]
 
 ROLE_PERMS = {
-    "pathology": PATHOLOGY_PERMS,
-    "radiology": RADIOLOGY_PERMS,
-    "reception": RECEPTION_PERMS,
-    "nursing": NURSING_PERMS,
-    "surgery": BREAST_PERMS,
+    "pathology": PATHOLOGY_PERMS + COMMON_PERMS,
+    "radiology": RADIOLOGY_PERMS + COMMON_PERMS,
+    "reception": RECEPTION_PERMS + COMMON_PERMS,
+    "nursing": NURSING_PERMS + COMMON_PERMS,
+    "surgery": BREAST_PERMS + COMMON_PERMS,
     "admin": ADMIN_PERMS,
 }
 
 
 def perms_for_role(role):
-    base = ROLE_PERMS.get(role, [])
-    # 관리자는 COMMON_PERMS(report.view.all) 를 못 받는다 — ADMIN_PERMS 가
-    # 일부러 뺀 것을 여기서 도로 붙이면 안 된다(09-18 팀 확인: 관리자는
-    # 환자 리포트 본문을 볼 필요가 없다). Django admin 의 ReportAdmin 쪽
-    # 접근은 core/admin.py 에서 별도로 막는다.
-    if role == "admin":
-        return base
-    return base + COMMON_PERMS
+    # 공통 권한은 ROLE_PERMS 에 비관리자 역할만 포함한다. ADMIN_PERMS 는
+    # report.view.all 없이 유지하며, Django admin 접근은 core/admin.py 에서
+    # 별도로 막는다.
+    return ROLE_PERMS.get(role, [])

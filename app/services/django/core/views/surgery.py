@@ -99,7 +99,21 @@ class SurgeryReportViewSet(AuditMixin, OwnedOnlyMixin, viewsets.ModelViewSet):
 
     def update(self, request, *args, **kwargs):
         report = self.get_object()
-        report.content_json = request.data.get("content_json", report.content_json)
+        incoming = request.data.get("content_json")
+        if incoming is not None:
+            if not isinstance(incoming, dict):
+                raise ApiError("VALIDATION_ERROR", "content_json은 객체여야 합니다.")
+
+            current = report.content_json if isinstance(report.content_json, dict) else {}
+            merged = {**current, **incoming}
+            current_by_modality = current.get("by_modality")
+            incoming_by_modality = incoming.get("by_modality")
+            if isinstance(current_by_modality, dict) or isinstance(incoming_by_modality, dict):
+                merged["by_modality"] = {
+                    **(current_by_modality if isinstance(current_by_modality, dict) else {}),
+                    **(incoming_by_modality if isinstance(incoming_by_modality, dict) else {}),
+                }
+            report.content_json = merged
         report.updated_by = self._current_account()
         report.save()
         out = serializers.ReportSerializer(report)

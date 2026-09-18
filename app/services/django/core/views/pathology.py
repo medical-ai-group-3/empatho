@@ -1,8 +1,8 @@
 """병리과(pathology) view — 2026-09-14 화면명세 기준.
 
-주의: specimen.assigned_to, specimen.clinical_note, specimen.amend_history,
-report.viewed_by 는 아직 마이그레이션이 안 와서 assign/amend 는 컬럼이
-생기기 전까지 AttributeError 가 날 수 있다.
+확정 사양서 §8-2: 병리 결과 정정 경로를 두지 않는다 — 확정 후 오류는
+새 검체로 처리한다. POST /specimens/{id}/amend 는 만들지 않는다(예전
+초안엔 있었으나 무효).
 """
 
 from rest_framework import viewsets, status, generics
@@ -85,7 +85,6 @@ class SpecimenAiResultView(AuditMixin, viewsets.ViewSet):
                 updated_by=self._current_account(),
             )
             results.append(result)
-            # TODO: Celery task 등록 — run_status queued → running → done/failed
             run_inference.delay(result.pk)
         out = serializers.AiResultSerializer(results, many=True)
         return Response(out.data, status=status.HTTP_202_ACCEPTED)
@@ -138,41 +137,3 @@ class SpecimenFinalizeView(AuditMixin, viewsets.ViewSet):
 
         out = serializers.SpecimenSerializer(specimen)
         return Response(out.data)
-
-class SpecimenAmendView(AuditMixin, viewsets.ViewSet):
-    """§5 POST /specimens/{id}/amend — 판독 정정. 옛 값은 amend_history 에 보존."""
-
-    resource = "specimen_pathology"
-    permission_classes = [MatrixPermission, CanFinalizePathologyRead]
-
-    def create(self, request, pk=None):
-        specimen = models.Specimen.objects.get(pk=pk)
-        serializer = serializers.SpecimenAmendSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
-
-        old_value = {
-            "diagnosis": specimen.diagnosis,
-            "b_category": specimen.b_category,
-            "finding_note": specimen.finding_note,
-            "reported_by": specimen.reported_by_id,
-            "finalized_at": specimen.finalized_at.isoformat() if specimen.finalized_at else None,
-            "amended_at": timezone.now().isoformat(),
-            "amend_reason": data["amend_reason"],
-        }
-
-        history = specimen.amend_history or []
-        history.append(old_value)
-        specimen.amend_history = history
-
-        specimen.diagnosis = data["diagnosis"]
-        specimen.b_category = data["b_category"]
-        specimen.finding_note = data.get("finding_note", specimen.finding_note)
-        specimen.reported_by = getattr(request.user, "staff", None)
-        specimen.updated_by = self._current_account()
-        specimen.save()
-
-        # TODO: discordance 재평가 로직 — 영상 최종 판정과 다시 대조
-
-        out = serializers.SpecimenSerializer(specimen)
-        return Response(out.data, status=status.HTTP_201_CREATED)

@@ -161,7 +161,6 @@ urlpatterns = [
     path("exam-orders/checkin", views.CheckInView.as_view({"post": "create"}), name="exam-order-checkin"),
     path("exam-orders/schedule", views.ExamOrderScheduleView.as_view({"post": "create"}), name="exam-order-schedule"),
     path("exam-orders/<int:pk>/assign", views.ExamOrderAssignView.as_view({"patch": "partial_update"}), name="exam-order-assign"),
-    path("specimens/<int:pk>/amend", views.SpecimenAmendView.as_view({"post": "create"}), name="specimen-amend"),
     path("me", views.MeView.as_view({"get": "list"}), name="me"),
 ]
 

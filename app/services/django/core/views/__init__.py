@@ -60,5 +60,4 @@ from .pathology import(
     SpecimenAiResultView,
     SpecimenDraftView,
     SpecimenFinalizeView,
-    SpecimenAmendView,
 )

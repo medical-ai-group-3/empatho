@@ -18,6 +18,18 @@ class PermsForRoleTests(SimpleTestCase):
             for common in COMMON_PERMS:
                 self.assertIn(common, perms)
 
+    def test_role_permissions_are_returned_without_extra_function_merge(self):
+        expected = {
+            "reception": ROLE_PERMS["reception"],
+            "nursing": ROLE_PERMS["nursing"],
+            "radiology": ROLE_PERMS["radiology"],
+            "pathology": ROLE_PERMS["pathology"],
+            "surgery": ROLE_PERMS["surgery"],
+            "admin": ROLE_PERMS["admin"],
+        }
+        for role, role_perms in expected.items():
+            self.assertEqual(perms_for_role(role), role_perms)
+
     def test_common_perms_not_duplicated(self):
         for role in ROLE_PERMS:
             perms = perms_for_role(role)
