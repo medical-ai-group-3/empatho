@@ -11,7 +11,6 @@ import "../breast.css";   /* 유방외과 전용 — .breast 안에 갇혀 있�
 import ExamOrderModal from "../components/ExamOrderModal";
 import CloseVisitModal from "../components/CloseVisitModal";
 import SpecimenBindingModal from "../../../lib/SpecimenBindingModal";
-import { SEX, label } from "../../../codes";
 
 /* 화면 1 · 대기 환자 · 진료 시작 ("/")
  *
