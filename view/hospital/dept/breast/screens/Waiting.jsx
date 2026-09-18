@@ -11,6 +11,7 @@ import "../breast.css";   /* 유방외과 전용 — .breast 안에 갇혀 있�
 import ExamOrderModal from "../components/ExamOrderModal";
 import CloseVisitModal from "../components/CloseVisitModal";
 import SpecimenBindingModal from "../../../lib/SpecimenBindingModal";
+import SideDashboard from "../components/SideDashboard";
 
 /* 화면 1 · 대기 환자 · 진료 시작 ("/")
  *
@@ -61,32 +62,39 @@ export default function Waiting() {
         <Body loading={loading} error={error} onRetry={reload}>
           {list && (
             <div className="split">
-              <div className="card">
-                <h3>대기 목록 ({list.length})</h3>
-                <table className="list">
-                  <thead>
-                    <tr>
-                      <th>환자번호</th><th>이름</th><th>나이/성별</th><th>진행상황</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {list.map((p) => (
-                      <tr key={p.patient_id}
-                          className={p.patient_id === selectedId ? "on" : ""}
-                          onClick={() => setSelectedId(p.patient_id)}>
-                        <td>{p.patient_number}</td>
-                        <td>{p.name}</td>
-                        <td>{p.age}세 · {label(SEX, p.sex)}</td>
-                        <td>
-                          <span className="pill wait">{p.status}</span>
-                          {p.has_open_discordance && (
-                            <span className="pill danger" style={{ marginLeft: 6 }}>불일치</span>
-                          )}
-                        </td>
+              {/* 왼쪽 칸 — 목록은 환자 수만큼만 키를 먹는다. 환자가 몇 명
+                  안 되면 오른쪽(늘 키가 큰 환자 상세) 밑으로 빈 공간이
+                  남았었다. SideDashboard를 flex:1로 붙여 나머지 세로
+                  공간을 채운다 — b-left-col(breast.css) 참고. */}
+              <div className="b-left-col">
+                <div className="card">
+                  <h3>대기 목록 ({list.length})</h3>
+                  <table className="list">
+                    <thead>
+                      <tr>
+                        <th>환자번호</th><th>이름</th><th>나이/성별</th><th>진행상황</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {list.map((p) => (
+                        <tr key={p.patient_id}
+                            className={p.patient_id === selectedId ? "on" : ""}
+                            onClick={() => setSelectedId(p.patient_id)}>
+                          <td>{p.patient_number}</td>
+                          <td>{p.name}</td>
+                          <td>{p.age}세 · {label(SEX, p.sex)}</td>
+                          <td>
+                            <span className="pill wait">{p.status}</span>
+                            {p.has_open_discordance && (
+                              <span className="pill danger" style={{ marginLeft: 6 }}>불일치</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <SideDashboard list={list} />
               </div>
 
               <div>

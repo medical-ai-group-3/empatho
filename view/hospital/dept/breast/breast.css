@@ -378,9 +378,55 @@
   font-weight:800; color:var(--muted); font-size:13px}
 @media (max-width:720px) {.breast .vs {grid-template-columns:1fr}}
 
-/* 대기 화면 2단 */
-.breast .split {display:grid; grid-template-columns:minmax(0,1.4fr) minmax(0,1fr); gap:var(--gap)}
+/* 대기 화면 2단 — 목록 1 : 상세 2 (2026-09-18 레이아웃 설계) */
+.breast .split {display:grid; grid-template-columns:minmax(0,1fr) minmax(0,2fr); gap:var(--gap);
+  align-items:stretch}
 @media (max-width:960px) {.breast .split {grid-template-columns:1fr}}
+
+/* 왼쪽 칸 — 목록 카드는 내용만큼, 그 아래 내 업무 패널이 flex:1로
+   남은 세로 공간을 채운다. 오른쪽(환자 상세)은 늘 키가 커서, 이게
+   없으면 환자 수가 적을 때 왼쪽 밑에 빈 공간이 남았다. */
+.breast .b-left-col {display:flex; flex-direction:column; gap:var(--gap); min-height:0}
+.breast .b-dash {flex:1; display:flex; flex-direction:column; min-height:280px}
+.breast .b-dash-body {display:flex; flex-direction:column; gap:16px; flex:1; overflow-y:auto}
+
+/* 오늘 현황 — 지어낸 로그가 아니라 지금 대기 목록에서 바로 세는 값 */
+.breast .b-dash-summary {display:flex; gap:10px}
+.breast .b-dash-stat {flex:1; display:flex; flex-direction:column; align-items:center;
+  gap:2px; padding:10px 8px; border-radius:var(--radius-sm); background:var(--surface-2);
+  border:1px solid var(--line)}
+.breast .b-dash-num {font-size:20px; font-weight:800; line-height:1}
+.breast .b-dash-num.warn {color:var(--danger)}
+.breast .b-dash-label {font-size:11.5px; color:var(--muted)}
+
+/* 미니 캘린더 */
+.breast .b-cal {display:flex; flex-direction:column; gap:6px}
+.breast .b-cal-head {display:flex; align-items:center; justify-content:center; gap:10px;
+  font-size:13px}
+.breast .b-cal-nav {border:none; background:none; color:var(--muted); font-size:15px;
+  cursor:pointer; line-height:1; padding:2px 6px; border-radius:4px}
+.breast .b-cal-nav:hover {background:var(--surface-2); color:var(--ink)}
+.breast .b-cal-grid {display:grid; grid-template-columns:repeat(7,1fr); gap:2px;
+  text-align:center; font-size:11.5px}
+.breast .b-cal-week span {color:var(--muted); font-weight:600; padding-bottom:2px}
+.breast .b-cal-grid span {padding:4px 0; border-radius:4px; color:var(--ink)}
+.breast .b-cal-grid span:empty {visibility:hidden}
+.breast .b-cal-today {background:var(--accent); color:#fff; font-weight:700}
+
+/* TODO */
+.breast .b-todo {display:flex; flex-direction:column; gap:8px; flex:1; min-height:0}
+.breast .b-todo-add {display:flex; gap:6px}
+.breast .b-todo-add input {flex:1; min-width:0; border:1px solid var(--line);
+  border-radius:var(--radius-sm); padding:6px 9px; font-size:12.5px}
+.breast .b-todo-empty {font-size:12.5px; color:var(--muted); text-align:center; padding:10px 0}
+.breast .b-todo-list {display:flex; flex-direction:column; gap:6px; overflow-y:auto}
+.breast .b-todo-list li {display:flex; align-items:center; gap:8px; font-size:12.5px}
+.breast .b-todo-list li label {flex:1; display:flex; align-items:center; gap:7px; min-width:0}
+.breast .b-todo-list li label span {overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.breast .b-todo-list li.done label span {color:var(--muted); text-decoration:line-through}
+.breast .b-todo-list li button {flex:none; border:none; background:none; color:var(--muted);
+  font-size:15px; line-height:1; cursor:pointer; padding:2px 4px}
+.breast .b-todo-list li button:hover {color:var(--danger)}
 
 .breast .kv {display:flex; flex-direction:column; gap:2px}
 .breast .kv .k {color:var(--muted); font-size:12px}
