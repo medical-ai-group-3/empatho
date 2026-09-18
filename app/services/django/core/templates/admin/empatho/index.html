@@ -1,0 +1,10 @@
+{% extends "admin/index.html" %}
+
+{% comment %}
+/admin/ 은 표 목록이다 — 사이드바의 「DB 수정」이 여기로 온다.
+대시보드는 /admin/dashboard/ 에 따로 있다.
+
+⚠ Django 의 index.html 이 nav-sidebar 를 비운다(자기 app_list 를 본문에
+  그리므로). block.super 로는 그 «빈 것»이 오므로 조각을 직접 넣는다.
+{% endcomment %}
+{% block nav-sidebar %}{% include "admin/empatho/_nav.html" %}{% endblock %}

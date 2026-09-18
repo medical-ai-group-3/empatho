@@ -1,0 +1,26 @@
+{% extends "admin/base.html" %}
+{% load i18n static %}
+
+{# ⚠ 이 파일은 Django 것을 **덮는다**(shadow). base_site.html 은 제목과 머리띠
+   두 블록뿐이라 옮겨 적을 것이 적어서 그렇게 했다. Django 를 올릴 때 이
+   파일이 바뀌었는지만 보면 된다 — 나머지 템플릿은 하나도 안 건드린다.
+
+   Django 6.1 원본에서 옮긴 것: title · branding 두 블록.
+   더한 것: extrastyle 의 CSS 한 장, nav-sidebar 의 우리 내비. #}
+
+{% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block extrastyle %}{{ block.super }}
+  <link rel="stylesheet" href="{% static 'empatho/admin.css' %}">
+{% endblock %}
+
+{% block branding %}
+<div id="site-name"><a href="{% url 'admin:index' %}">{{ site_header|default:_('Django administration') }}</a></div>
+{% if user.is_anonymous %}
+  {% include "admin/color_theme_toggle.html" %}
+{% endif %}
+{% endblock %}
+
+{% block nav-global %}{% endblock %}
+
+{% block nav-sidebar %}{% include "admin/empatho/_nav.html" %}{% endblock %}

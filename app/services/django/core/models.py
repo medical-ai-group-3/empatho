@@ -138,6 +138,8 @@ class Account(AuditBase):
 
     class Meta:
         db_table = 'account'
+        verbose_name = "계정"
+        verbose_name_plural = "계정"
         constraints = [
             models.CheckConstraint(condition=Q(role__in=ROLE), name='account_role_ck'),
             models.CheckConstraint(condition=Q(account_status__in=ACCOUNT_STATUS),
@@ -171,6 +173,8 @@ class Staff(AuditBase):
 
     class Meta:
         db_table = 'staff'
+        verbose_name = "직원"
+        verbose_name_plural = "직원"
 
 
 class Patient(AuditBase):
@@ -200,6 +204,8 @@ class Patient(AuditBase):
 
     class Meta:
         db_table = 'patient'
+        verbose_name = "환자"
+        verbose_name_plural = "환자"
 
 
 class PatientPii(AuditBase):
@@ -213,6 +219,8 @@ class PatientPii(AuditBase):
 
     class Meta:
         db_table = 'patient_pii'
+        verbose_name = "환자 개인정보"
+        verbose_name_plural = "환자 개인정보"
 
 
 class Consent(AuditBase):
@@ -232,6 +240,8 @@ class Consent(AuditBase):
 
     class Meta:
         db_table = 'consent'
+        verbose_name = "동의"
+        verbose_name_plural = "동의"
         constraints = [
             models.CheckConstraint(condition=Q(doc_type__in=DOC_TYPE),
                                    name='consent_doc_type_ck'),
@@ -263,6 +273,8 @@ class Followup(AuditBase):
 
     class Meta:
         db_table = 'followup'
+        verbose_name = "추적 관찰"
+        verbose_name_plural = "추적 관찰"
         constraints = [
             models.CheckConstraint(condition=Q(status__in=FOLLOWUP_STATUS),
                                    name='followup_status_ck'),
@@ -327,6 +339,8 @@ class ExamOrder(AuditBase):
 
     class Meta:
         db_table = 'exam_order'
+        verbose_name = "검사 오더"
+        verbose_name_plural = "검사 오더"
         constraints = [
             models.CheckConstraint(
                 condition=Q(exam_purpose__in=EXAM_PURPOSE)
@@ -390,6 +404,8 @@ class Study(AuditBase):
 
     class Meta:
         db_table = 'study'
+        verbose_name = "검사(영상)"
+        verbose_name_plural = "검사(영상)"
         constraints = [
             models.CheckConstraint(condition=Q(modality__in=MODALITY),
                                    name='study_modality_ck'),
@@ -450,6 +466,8 @@ class StorageObject(AuditBase):
 
     class Meta:
         db_table = 'storage_object'
+        verbose_name = "저장 파일"
+        verbose_name_plural = "저장 파일"
         constraints = [
             # 주소가 적어도 하나는 있어야 한다.
             # DICOM 은 Orthanc 에, 나머지는 Garage 에 둔다. DICOM 도 I-1 때는
@@ -503,6 +521,8 @@ class Image(AuditBase):
 
     class Meta:
         db_table = 'image'
+        verbose_name = "영상 파일"
+        verbose_name_plural = "영상 파일"
         constraints = [
             models.CheckConstraint(condition=Q(kind__in=IMAGE_KIND),
                                    name='image_kind_ck'),
@@ -534,7 +554,10 @@ class AiModel(AuditBase):
     registered_at = models.DateTimeField(blank=True, null=True)
 
     class Meta:
+        # 표 이름은 model 이다 — 클래스 이름만 AiModel 이다(위 주석 참고)
         db_table = 'model'
+        verbose_name = "AI 모델"
+        verbose_name_plural = "AI 모델"
 
 
 class AiResult(AuditBase):
@@ -577,6 +600,8 @@ class AiResult(AuditBase):
 
     class Meta:
         db_table = 'ai_result'
+        verbose_name = "AI 결과"
+        verbose_name_plural = "AI 결과"
         constraints = [
             # storage_object_owner_ck 와 같은 모양이다.
             models.CheckConstraint(
@@ -636,6 +661,8 @@ class Lesion(AuditBase):
 
     class Meta:
         db_table = 'lesion'
+        verbose_name = "병변"
+        verbose_name_plural = "병변"
         constraints = [
             # v10 에서 빠져 있던 것. choices 는 폼 검증이라 DB 는 아무 문자열이나
             # 받았다. 병리는 여기 없다 — 검체가 병변에 붙지 병변이 병리에서 나지 않는다.
@@ -682,6 +709,8 @@ class Assessment(AuditBase):
 
     class Meta:
         db_table = 'assessment'
+        verbose_name = "판정"
+        verbose_name_plural = "판정"
         constraints = [
             models.CheckConstraint(condition=Q(read_stage__in=READ_STAGE),
                                    name='assessment_read_stage_ck'),
@@ -756,6 +785,8 @@ class Specimen(AuditBase):
 
     class Meta:
         db_table = 'specimen'
+        verbose_name = "검체"
+        verbose_name_plural = "검체"
         constraints = [
             models.CheckConstraint(condition=Q(accession_status__in=ACCESSION_STATUS),
                                    name='specimen_accession_status_ck'),
@@ -802,6 +833,8 @@ class DiscordanceFlag(AuditBase):
 
     class Meta:
         db_table = 'discordance_flag'
+        verbose_name = "불일치 플래그"
+        verbose_name_plural = "불일치 플래그"
         constraints = [
             models.CheckConstraint(
                 condition=Q(disposition_type__in=DISPOSITION_TYPE)
@@ -857,6 +890,8 @@ class Report(AuditBase):
 
     class Meta:
         db_table = 'report'
+        verbose_name = "리포트"
+        verbose_name_plural = "리포트"
         constraints = [
             # lesion_modality_ck 와 같은 누락이었다 — 값 집합은 정의해 뒀는데
             # CHECK 을 안 걸어서 DB 가 아무 문자열이나 받았다.
@@ -891,6 +926,8 @@ class Notification(AuditBase):
 
     class Meta:
         db_table = 'notification'
+        verbose_name = "알림"
+        verbose_name_plural = "알림"
         constraints = [
             models.CheckConstraint(condition=Q(notification_type__in=NOTIFICATION_TYPE),
                                    name='notification_type_ck'),
