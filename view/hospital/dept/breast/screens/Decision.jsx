@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { breast as api } from "../../../api";
+import { SEX, label } from "../../../codes";
 import { useApi } from "../../../lib/useApi";
 import { Page } from "../../../lib/Page";
 import { Body } from "../../../lib/Body";
@@ -8,10 +9,14 @@ import { go } from "../../../nav";
 import "../breast.css";   /* 유방외과 전용 — .breast 안에 갇혀 있다. 네 화면이 각자
                              끌고 온다: 주소로 곧장 들어와도 스타일이 빠지면 안 된다 */
 
+/* 서버 DECISION_VALUE 그대로다(2026-09-18 확인, models.py:80) — "수술함/
+ * 안 함/보류"라는 세 갈래를 우리가 새로 지은 게 아니라 서버 값이다.
+ * decision_type 은 이 화면이 늘 "surgery" 하나로 고정해 보낸다 — 다른
+ * 값(biopsy·imaging·rebiopsy)은 이 화면에서 다루는 결정이 아니다. */
 const DECISIONS = [
-  { v: "surgery",    label: "수술 시행" },
-  { v: "no_surgery", label: "수술하지 않음" },
-  { v: "hold",       label: "보류" },
+  { v: "yes",   label: "수술 시행" },
+  { v: "no",    label: "수술하지 않음" },
+  { v: "defer", label: "보류" },
 ];
 const EXPLAIN_METHODS = ["대면", "유선", "영상"];
 
@@ -46,6 +51,15 @@ function Inner({ patient, onReload }) {
   const report = patient.report;
   const unlock = useApi(() => api.unlockStatus(report.report_id), [report.report_id]);
 
+  /* 수술 결정은 assessment 한 건에 매달린다(models.py:675 — study 에 물려
+   * 있지 patient 에 안 물려 있다). patient_id 로는 못 찾고, timeline 의
+   * "판독" 이벤트가 assessment_id 를 실어 준다(2026-09-18, 다희님 —
+   * feature/dahee 6774208). 이 환자의 가장 최근 판독을 결정 대상으로
+   * 삼는다. */
+  const timeline = useApi(() => api.timeline(patient.patient_id), [patient.patient_id]);
+  const reads = (timeline.data ?? []).filter((e) => e.type === "판독" && e.assessment_id != null);
+  const assessmentId = reads.length ? reads[reads.length - 1].assessment_id : null;
+
   return (
     <div className="cols3">
       <div>
@@ -78,7 +92,7 @@ function Inner({ patient, onReload }) {
       </div>
 
       <div>
-        <DecisionForm patientId={patient.patient_id} report={report} />
+        <DecisionForm assessmentId={assessmentId} assessmentIdLoading={timeline.loading} />
         <ExplainForm report={report} onSaved={onReload} />
       </div>
 
@@ -98,15 +112,21 @@ function Inner({ patient, onReload }) {
   );
 }
 
+/* ⚠ 2026-09-18 다희님 확인 — report.content_json 하나에 전부 담긴다:
+ * { doctor_summary, by_modality: {mammo, us, mri} }. PUT /reports/{id}/
+ * 는 이 필드만 본다(surgery.py:97-103) — doctor_summary 를 최상위로
+ * 보내던 예전 코드는 그동안 아무 것도 저장하지 못하고 있었다. 모달리티별
+ * 덮어쓰기(merge)는 서버가 처리하기로 했다 — 여기서는 그냥 이 모양대로
+ * 보내기만 한다. */
 function DoctorSummaryCard({ report }) {
-  const [text, setText] = useState(report.doctor_summary ?? "");
+  const [text, setText] = useState(report.content_json?.doctor_summary ?? "");
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState(null);
 
   async function save() {
     setSaving(true);
     try {
-      await api.saveReport(report.report_id, { doctor_summary: text });
+      await api.saveReport(report.report_id, { content_json: { doctor_summary: text } });
       setMsg("저장되었습니다");
     } finally {
       setSaving(false);
@@ -117,8 +137,12 @@ function DoctorSummaryCard({ report }) {
     <div className="card">
       <div className="card-head">
         <h3>의사 종합 리포트</h3>
+        {/* ⚠ doctor_summary_author 도 서버 Report 모델에 없는 필드다(목업
+            전용). 지금 로그인한 의사 이름을 붙이려면 세션 쪽에서 가져와야
+            하는데 그 경로가 아직 없어 일단 안 지우고 옵셔널 체이닝만
+            건다 — 실서버에서는 빈 칸으로 보인다. */}
         <span className="person-chip" style={{ marginLeft: "auto" }}>
-          <span className="avatar sm" aria-hidden="true">{report.doctor_summary_author[0]}</span>
+          <span className="avatar sm" aria-hidden="true">{report.doctor_summary_author?.[0]}</span>
           <span className="id">
             <b>{report.doctor_summary_author}</b>
             <span>유방외과</span>
@@ -139,17 +163,21 @@ function DoctorSummaryCard({ report }) {
   );
 }
 
-function DecisionForm({ patientId, report }) {
-  const [decisionType, setDecisionType] = useState(report.decision?.decision_type ?? "surgery");
-  const [reason, setReason] = useState(report.decision?.decision_reason ?? "");
+function DecisionForm({ assessmentId, assessmentIdLoading }) {
+  /* ⚠ report.decision 은 서버에 없는 필드다(Report 모델엔 decision_*
+   * 이 없다 — 그건 Assessment 쪽이다). 예전엔 여기서 그 값으로 초깃값을
+   * 채웠는데, 있지도 않은 이전 결정을 읽는 척하던 것이라 뺐다. 저장된
+   * 값을 다시 읽어오는 확정된 경로가 생기면 그때 채운다. */
+  const [decisionValue, setDecisionValue] = useState(DECISIONS[0].v);
+  const [reason, setReason] = useState("");
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState(null);
 
   async function save() {
     setSaving(true);
     try {
-      await api.assess({
-        patient_id: patientId, decision_type: decisionType, decision_reason: reason,
+      await api.decide(assessmentId, {
+        decision_type: "surgery", decision_value: decisionValue, decision_reason: reason,
       });
       setMsg("결정이 저장되었습니다");
     } finally {
@@ -163,8 +191,8 @@ function DecisionForm({ patientId, report }) {
       <div className="radio-group" style={{ marginTop: 12 }}>
         {DECISIONS.map((d) => (
           <label className="radio-row" key={d.v}>
-            <input type="radio" name="decision_type" value={d.v}
-              checked={decisionType === d.v} onChange={() => setDecisionType(d.v)} />
+            <input type="radio" name="decision_value" value={d.v}
+              checked={decisionValue === d.v} onChange={() => setDecisionValue(d.v)} />
             {d.label}
           </label>
         ))}
@@ -174,8 +202,10 @@ function DecisionForm({ patientId, report }) {
         <textarea value={reason} onChange={(e) => setReason(e.target.value)} />
       </div>
       <div className="card-foot split">
-        <span className="note">{msg}</span>
-        <button className="btn ghost" onClick={save} disabled={saving}>
+        <span className="note">
+          {msg ?? (!assessmentIdLoading && !assessmentId ? "판독 기록이 아직 없어 저장할 수 없습니다" : null)}
+        </span>
+        <button className="btn ghost" onClick={save} disabled={saving || !assessmentId}>
           {saving ? "저장 중…" : "결정 저장"}
         </button>
       </div>
@@ -246,7 +276,7 @@ function PatientInfoCard({ patient }) {
 
   const rows = [
     { k: "이름", v: patient.name },
-    { k: "성별 / 나이", v: `${patient.sex === "F" ? "Female" : "Male"} / ${patient.age}세 (${patient.birth_date})` },
+    { k: "성별 / 나이", v: `${label(SEX, patient.sex)} / ${patient.age}세 (${patient.birth_date})` },
     { k: "등록번호", v: patient.patient_number },
     { k: "Accession No.", v: patient.accession_no },
     { k: "연락처", v: phone, editable: true, onChange: setPhone },
@@ -280,6 +310,13 @@ function PatientInfoCard({ patient }) {
       <div className="card-foot split" style={{ marginTop: 14 }}>
         <span className="note">{msg ?? (editing ? "연락처·주소만 수정할 수 있습니다" : "읽기 전용")}</span>
         {editing && (
+          /* ⚠ 저장할 서버 경로가 없다. 이름·생년월일·전화는 patient_pii 라
+             PATCH /patients/{id}/ (api.js 의 reception.update, 위 주석)로
+             못 고친다 — 주소 칸도 서버 모델에 없다. 그래서 버튼이 실제로는
+             아무 데도 보내지 않는다. 전용 엔드포인트가 생기기 전에는
+             지우지 않고 이 사실만 적어 둔다(거짓 "저장되었습니다" 를
+             지금 당장 없애면 화면이 아예 편집 불가로 보이므로, 팀 확인
+             전까지는 동작을 그대로 두고 경고만 남긴다). */
           <button className="btn ghost sm" onClick={() => { setEditing(false); setMsg("저장되었습니다"); }}>
             저장
           </button>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { breast as api } from "../../../api";
+import { SEX, label } from "../../../codes";
 import { useApi } from "../../../lib/useApi";
 import { Page } from "../../../lib/Page";
 import { Body } from "../../../lib/Body";
@@ -8,6 +9,7 @@ import { go } from "../../../nav";
 import "../breast.css";   /* 유방외과 전용 — .breast 안에 갇혀 있다. 네 화면이 각자
                              끌고 온다: 주소로 곧장 들어와도 스타일이 빠지면 안 된다 */
 import ExamOrderModal from "../components/ExamOrderModal";
+import CloseVisitModal from "../components/CloseVisitModal";
 import SpecimenBindingModal from "../../../lib/SpecimenBindingModal";
 import { SEX, label } from "../../../codes";
 
@@ -26,7 +28,7 @@ export default function Waiting() {
   const loc = useLocation();
   const { loading, data: list, error, reload } = useApi(() => api.waiting());
   const [selectedId, setSelectedId] = useState(null);
-  const [modal, setModal] = useState(null); // "exam" | "specimen" | null
+  const [modal, setModal] = useState(null); // "exam" | "specimen" | "close" | null
 
   useEffect(() => {
     if (!list || list.length === 0) return;
@@ -96,6 +98,7 @@ export default function Waiting() {
                       onNext={() => setSelectedId(nextAfter(list, selectedId))}
                       onExamOrder={() => setModal("exam")}
                       onSpecimen={() => setModal("specimen")}
+                      onClose={() => setModal("close")}
                       onReview={() => nav(go.breast.review(detail.data.patient_id))}
                       onDiscordance={() =>
                         nav(go.breast.discordance(detail.data.open_discordance.discordance_id))}
@@ -119,6 +122,14 @@ export default function Waiting() {
             setSelectedId((cur) => nextAfter(list, cur));
           }} />
       )}
+      {modal === "close" && detail.data && (
+        <CloseVisitModal patient={detail.data} onClose={() => setModal(null)}
+          onDone={() => {
+            setModal(null);
+            setSelectedId((cur) => nextAfter(list, cur));
+            reload(true);
+          }} />
+      )}
     </Page>
   );
 }
@@ -133,7 +144,7 @@ function usePatient(id) {
  * 있으니 다음 환자로 넘어갈 때 손이 버튼을 쫓아다닐 일이 없다.
  * 알림 박스도 "있으면 나타나고 없으면 사라지는" 것이 아니라 늘 같은
  * 자리에 있고 내용만(불일치 있음/없음) 바뀐다. */
-function PatientPanel({ patient, onNext, onExamOrder, onSpecimen, onReview, onDiscordance }) {
+function PatientPanel({ patient, onNext, onExamOrder, onSpecimen, onClose, onReview, onDiscordance }) {
   const d = patient.open_discordance;
   const rows = [
     { k: "성별·나이", v: `${label(SEX, patient.sex)} · ${patient.age}세` },
@@ -188,9 +199,11 @@ function PatientPanel({ patient, onNext, onExamOrder, onSpecimen, onReview, onDi
           <div className="right-group">
             <button className="btn ghost" onClick={onExamOrder}>촬영 요청</button>
             <button className="btn ghost" onClick={onSpecimen}>검체 신청</button>
-            {/* 명세서 §2-1 버튼은 [다음환자][촬영요청][검체신청][진료보기] 4개뿐이다.
-                수술 결정(화면3)은 여기서 바로 가지 않는다 — 검사 종합 확인(화면2)을
-                먼저 보고 그 화면에서 수술 결정으로 넘어간다. */}
+            {/* 명세서 §2-1 버튼은 [다음환자][촬영요청][검체신청][진료보기]
+                4개였는데, "이상 없음 · 종결"을 다섯째로 추가했다 — 촬영이
+                필요 없다고 판단되는 환자를 오더 없이 바로 닫는 길이
+                없었다(CloseVisitModal.jsx 참고, 2026-09-18). */}
+            <button className="btn ghost" onClick={onClose}>이상 없음 · 종결</button>
             <button className="btn" onClick={onReview}>진료 보기</button>
           </div>
         </div>

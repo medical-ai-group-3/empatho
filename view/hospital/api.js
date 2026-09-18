@@ -346,8 +346,11 @@ export const path = {
   /* ⚠ 서버는 큐를 **기본 필터 없이** 준다 (2026-09-16 다희님 확인).
      이 두 조건을 안 담으면 이미 남이 집어간 검체까지 대기 큐에 뜬다.
      기본값이 아니라 **우리가 정하는 조건**이라 여기 적어 둔다 */
-  /* ⚠ 봉투 언랩 — Queue.jsx 가 {items,total}을 기대한다. 3c1ee79 정리
-     때 빠졌던 것 (rad.list 옆의 같은 메모 참고). */
+  /* ⚠ 2026-09-18 다희님 확인(feature/dahee) — 봉투 언랩. Queue.jsx 가
+   * data.items/data.total 을 기대하는데(공용 화면, rad.queue()와 같은
+   * 계약) 여기는 서버 페이지네이션 봉투({count,results,…})를 그대로
+   * 주고 있었다 — 판독 단위를 검체 하나로 잡는 병리과 큐가 실서버에서
+   * 크래시 나던 자리다. */
   queue:      ()       => get(`/specimens/queue${qs({ status: "bound", assigned: "none" })}`)
     .then((raw) => {
       const rows = raw?.results ?? raw?.items ?? (Array.isArray(raw) ? raw : []);
@@ -384,7 +387,8 @@ export const path = {
      queue·assign·upload·draft·finalize·amend 는 슬래시가 없는 게 맞다.
      Django APPEND_SLASH 가 GET 은 301 로 넘겨 주지만 POST 는 그 과정에서
      본문이 날아가므로, 붙는 자리는 처음부터 붙여 둔다 */
-  /* ⚠ 봉투 언랩 — List.jsx 가 {items,total}을 기대한다. */
+  /* ⚠ 봉투 언랩 — List.jsx 가 data.items/data.total 을 기대한다(위 queue
+   * 와 같은 자리). */
   list:       (o = {}) => get(`/specimens/${qs(o)}`).then((raw) => {
     const rows = raw?.results ?? raw?.items ?? (Array.isArray(raw) ? raw : []);
     return { ...raw, items: rows, total: raw?.count ?? raw?.total ?? rows.length };
@@ -646,19 +650,21 @@ export const rad = {
      표에 있다(study에 매달려 있지 patient/report에 직접 안 물린다).
      4장 목록 상세가 "BI-RADS undefined" 를 냈던 게 이 자리다. 확정된
      (최신, 정정으로 덮이지 않은) 판독을 찾아 radStudyRow 에 얹는다. */
-  study:      (id)     => get(`/studies/${id}/`).then(async (raw) => {
+  study:      async (id) => {
+    const raw = await get(`/studies/${id}/`);
     const [order, current] = await Promise.all([
       raw?.exam_order ? rad.order(raw.exam_order).catch(() => ({})) : Promise.resolve({}),
       radCurrentAssessment(id),
     ]);
     return radStudyRow(raw, order, current);
-  }),
+  },
   /* ⚠ 서버가 페이지네이션 봉투({count,results,…})로 준다. List.jsx 는
      {items,total}을 기대한다(data.items.filter · data.total) — 병리·영상
      큐가 이미 하던 언랩과 같은 자리다. 행마다 exam_order 를 더 불러
      radStudyRow 로 patient_name 등을 채운다(목록 행엔 category 를 안
      보여줘서 assessment 는 여기선 안 붙인다 — 상세를 열 때 study()가 한다). */
-  list:       (o = {}) => get(`/studies/${qs(o)}`).then(async (raw) => {
+  list:       async (o = {}) => {
+    const raw = await get(`/studies/${qs(o)}`);
     const rows = raw?.results ?? raw?.items ?? (Array.isArray(raw) ? raw : []);
     const items = await Promise.all(rows.map(async (row) => {
       const orderId = row.exam_order_id ?? row.exam_order;
@@ -666,8 +672,11 @@ export const rad = {
       return radStudyRow(row, order);
     }));
     return { ...raw, items, total: raw?.count ?? raw?.total ?? rows.length };
+  },
+  history:    (id)     => get(`/assessments${qs({ study: id })}`).then((raw) => {
+    if (Array.isArray(raw)) return raw;
+    return raw?.results ?? raw?.items ?? [];
   }),
-  history:    (id)     => get(`/assessments${qs({ study: id })}`),
   amend:      (id, b)  => post(`/assessments/${id}/amend`, b),
 };
 
@@ -676,8 +685,8 @@ export const rad = {
  * 쓴다 — 그 컴포넌트가 부르는 자리를 한 곳에 모아 둔다. 영상의학과는
  * 이 화면을 쓰지 않기로 확정됐다(간호과 명세 §3). */
 export const specimens = {
-  lesionsByPatient: (pid) => get(`/lesions${qs({ patient: pid })}`),
-  bind: (b) => post("/specimens", b),
+  lesionsByPatient: (pid) => get(`/lesions/${qs({ patient: pid })}`),
+  bind: (b) => post("/specimens/", b),
 };
 
 /* ── 유방외과 ─────────────────────────────────────────────────
@@ -691,30 +700,71 @@ export const specimens = {
  *
  * 2026-09-16 — staff-view/src/api.js 에서 옮겨 왔다. 그쪽은 봉투를 안
  * 벗기는 자체 call() 을 쓰고 있었는데, 여기 call() 은 벗겨서 준다.
- * 화면은 그대로 두고 이 층만 갈아 끼우면 된다. */
+ * 화면은 그대로 두고 이 층만 갈아 끼우면 된다.
+ *
+ * 2026-09-18 — 목업을 떼고 실제 patients/ 엔드포인트에 맞춘다. 상세
+ * (.../patients/{id}/)는 이름·생년월일·전화번호를 pii{} 로 접어서 준다
+ * (mock/hospital.json 의 해당 항목이 이미 이 모양이다 — 다른 과가 쓰는
+ * 같은 PatientSerializer). 목록(.../patients/?...)은 그대로 펴져 있다.
+ * 화면마다 patient.name 을 따로 풀어 쓰게 하지 않고 여기 한 곳에서
+ * 펴서 내보낸다 — dept/radiology.jsx 의 withFiles() 와 같은 자리다.
+ * age 가 없고 birth_year 만 오면 나이도 여기서 센다(reception/Patients.jsx
+ * 의 ageOf() 와 같은 계산). 죽은 코드(openDiscords·finalReport·
+ * lesions·bindSpecimen — 어디서도 안 부른다) 는 정리했다. */
+function normalizePatient(p) {
+  if (!p) return p;
+  const { pii, ...rest } = p;
+  return {
+    ...rest,
+    name:       pii?.name ?? rest.name ?? null,
+    birth_date: pii?.birth_date ?? rest.birth_date ?? null,
+    phone:      pii?.phone ?? rest.phone ?? null,
+    age:        rest.age ?? (rest.birth_year ? new Date().getFullYear() - rest.birth_year : null),
+  };
+}
+
 export const breast = {
   /* 1장 · 대기 환자 */
   /* ⚠ 서버가 페이지네이션 봉투({count,results,…})로 준다. 화면(Waiting.jsx)은
      배열 하나를 기대해서(list.length·list.map) 언랩해서 넘긴다 — 병리·영상
-     큐가 이미 하던 것과 같다. */
-  waiting:      ()   => get(`/patients${qs({ primary_staff: "me", status: "waiting" })}`)
-    .then((raw) => raw?.results ?? raw?.items ?? (Array.isArray(raw) ? raw : [])),
-  patient:      (id) => get(`/patients/${id}/`),
+     큐가 이미 하던 것과 같다. pii{} 로 접힌 이름·생년월일·전화도 여기서
+     normalizePatient 로 펴서 내보낸다. */
+  waiting:      ()   => get(`/patients/${qs({ primary_staff: "me", status: "waiting" })}`)
+    .then((raw) => {
+      const rows = raw?.results ?? raw?.items ?? (Array.isArray(raw) ? raw : []);
+      return rows.map(normalizePatient);
+    }),
+  patient:      (id) => get(`/patients/${id}/`).then(normalizePatient),
   examOrder:    (b)  => post("/exam-orders", b),
-  openDiscords: (pid) => get(`/discordances${qs({ patient: pid, status: "open" })}`),
 
-  /* 검체 바인딩 (팝업) — 병리과 대기 큐로 넘어간다. 간호과와 같은 팝업을
-     쓰므로 실제 호출은 specimens(공용)로 위임한다 */
-  lesions:      (pid) => specimens.lesionsByPatient(pid),
-  bindSpecimen: (b)  => specimens.bind(b),
+  /* "이상 없음 · 종결" — 촬영 없이 방문을 닫는다. exam_order 를 새로 만들지
+   * 않는다(모달리티 없는 오더를 지어낼 수 없다 — ExamOrderRequestSerializer가
+   * modality 를 필수로 받는다). 대신 이 환자를 여기로 데려온 exam_order를
+   * 찾아 그대로 종결시킨다 — reception.ordersOf 와 같은 조회를 쓴다.
+   *
+   * ⚠ 2026-09-18 다희님 확인 — PATCH /exam-orders/{id}/complete 는
+   * CanCompleteExamOrder 전용 클래스라 유방외과도 이제 부를 수 있다
+   * (feature/dahee, dd6268b). 몸통은 안 받는다 — order_status 만
+   * completed 로 바뀐다. exam_purpose 는 그대로 NULL로 남고(집계 안
+   * 잡힘), "촬영 후 종결"과 "안 찍고 종결"도 completed 하나로 안 갈린다.
+   * 둘 다 팀이 합의한 알려진 한계다 — 나중 과제로 미뤘다. */
+  ordersOf:        (patientId) => get(`/exam-orders${qs({ patient: patientId, ordering: "scheduled_at" })}`),
+  completeExamOrder: (examOrderId) => patch(`/exam-orders/${examOrderId}/complete`, {}),
 
   /* 2장 · 검사 종합 확인 */
   timeline:     (pid) => get(`/patients/${pid}/timeline`),
   studies:      (pid) => get(`/patients/${pid}/studies`),
-  finalReport:  (pid) => get(`/reports${qs({ patient: pid, type: "final" })}`),
 
-  /* 3장 · 수술 결정 */
-  assess:       (b)  => post("/assessments", b),
+  /* 3장 · 수술 결정
+   *
+   * ⚠ 2026-09-18 다희님 확인 — POST /assessments 가 아니다. 그런 생성
+   * 경로가 서버에 없다. 실제로는 PATCH /assessments/{id}/decision
+   * (SurgeryDecisionSerializer: decision_type·decision_value·
+   * decision_reason)이고, 건드릴 assessment 는 patient_id 로 못 찾는다
+   * — study 에 물려 있다. GET /patients/{id}/timeline 의 "판독" 이벤트가
+   * 이제 assessment_id 를 실어 준다(feature/dahee, 6774208) — 화면이
+   * 거기서 집어 온다. */
+  decide:       (assessmentId, b) => patch(`/assessments/${assessmentId}/decision`, b),
   saveReport:   (rid, b) => put(`/reports/${rid}/`, b),
   explain:      (rid, b) => patch(`/reports/${rid}/explain`, b),
   unlockStatus: (rid) => get(`/reports/${rid}/unlock-status`),
@@ -722,9 +772,10 @@ export const breast = {
 
   /* 4장 · 판정 불일치 처분 */
   discordance:  (id) => get(`/discordances/${id}`),
-  /* ⚠ 2026-09-18 문서 대조 — 접미사 /dispose 없이 상세 경로 그대로 PATCH.
-     예전엔 /discordances/{id}/dispose 로 부르고 있었는데
-     docs/backend-api-reference.md §5 는 접미사 없는 이 경로다 */
+  /* ⚠ 2026-09-18 다희님 브랜치(dahee)에서 발견 — 접미사 /dispose 가 없다.
+   * urls.py 를 다시 보니 실제로 `path("discordances/<int:pk>", ...,
+   * {"patch": "partial_update"})` 다 — 상세 경로 그대로 PATCH 하는 것이지
+   * /dispose 가 따로 붙지 않는다. 여기가 계속 틀려 있었다. */
   dispose:      (id, b) => patch(`/discordances/${id}`, b),
 };
 
@@ -746,9 +797,10 @@ export const nursing = {
   assignSurgeon:  (patientId, staffId) => patch(`/patients/${patientId}/`, { primary_staff_id: staffId }),
 
   /* 2장 */
-  followups:      () => get(`/followups${qs({ include_candidates: 1 })}`),
-  /* ⚠ 2026-09-18 문서 대조 — docs/backend-api-reference.md §3 은
-     POST /followups/new 다. 접미사 없이 부르던 것을 고쳤다 */
+  /* ⚠ router.register(r"followups", ...) 로 등록된 목록이라 슬래시가
+     붙는다 (core/urls.py 확인). createFollowup 은 별도 path()
+     "/followups/new" 라 슬래시가 없는 게 맞다 — 헷갈리지 않게 갈라 둔다. */
+  followups:      () => get(`/followups/${qs({ include_candidates: 1 })}`),
   createFollowup: (b) => post("/followups/new", b),
   logCall:        (id, b) => patch(`/followups/${id}/call`, b),
 };
@@ -763,7 +815,7 @@ export const nursing = {
  *   환자를 실수로 긁지 않게 한 것이라 화면도 빈 검색어를 안 보낸다.
  */
 export const reception = {
-  search:      (q)  => get(`/patients${qs({ q })}`),
+  search:      (q)  => get(`/patients/${qs({ q })}`),
   register:    (b)  => post("/patients/register", b),
   checkIn:     (b)  => post("/exam-orders/checkin", b),
   todayStatus: ()   => get("/patients/today-status"),
@@ -802,7 +854,7 @@ export const reception = {
    *   지금은 이 길뿐이다.
    *   → 다희님께 «목록 전체를 받는 공식 방법»을 요청해 두었다. 생기면
    *     아래 ALL 을 그것으로 바꾼다. */
-  list:   (p)      => get(`/patients${qs(p)}`),
+  list:   (p)      => get(`/patients/${qs(p)}`),
   detail: (id)     => get(`/patients/${id}/`),
   /* ⚠ 여기로는 **이름·생년월일·전화를 못 고친다.** 그 셋은 patient_pii 에
      있고 PatientSerializer 는 patient 표만 다룬다 (상세의 pii 는 읽기 전용).

@@ -3,6 +3,7 @@ import { specimens } from "../api";
 import { useApi } from "./useApi";
 import { Body } from "./Body";
 import { Facts, Table } from "./Parts";
+import { SEX, label } from "../codes";
 
 /* 검체 바인딩 팝업 — 간호과·유방외과 공용 컴포넌트(간호과 명세 §2-4:
  * "유방외과와 같은 컴포넌트다 — 부서별로 새로 만들지 않는다"). 띄우는
@@ -83,7 +84,7 @@ export default function SpecimenBindingModal({ patient, onClose, onDone }) {
         </div>
         <div className="modal-body">
           <Facts items={[
-            ["환자", `${patient.name} (${patient.age}세 · ${patient.sex})`],
+            ["환자", `${patient.name} (${patient.age}세 · ${label(SEX, patient.sex)})`],
             ["환자번호", patient.patient_number],
           ]} />
 

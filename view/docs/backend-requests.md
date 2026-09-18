@@ -145,24 +145,19 @@
 
 ---
 
-## 4. 🟡 DICOM 을 브라우저에서 못 받는다
+## 4. ~~DICOM 을 브라우저에서 못 받는다~~ — 해결
 
-Go 관문은 DICOM 에 대해 티켓 범위를 **정확히 일치**로 본다.
+Go 는 DICOM 에 대해서만 티켓 범위를 **정확히 일치**로 봤고(`fromOrthanc`),
+`POST /tickets` 는 앞머리를 `{종류}/{id}` 로만 만들어서 둘이 영영 안 맞았다.
+그 모양을 낼 수 있는 것은 `issue()` 를 직접 부르는 Celery 뿐이었다.
 
-```
-fromOrthanc:  cl.ObjectKeyPrefix != "dicom/instances/<UID>"  → 403
-```
+**Go 쪽에서 풀었다** (empatho-app `feature/dicom-scope`). 올릴 때 Orthanc 에
+어느 Django 대상 것인지 적어 두고, 내려줄 때 그걸 티켓과 대조한다. 그래서
+**파일과 똑같은 검사 티켓 하나로** 맘모도 MRI 도 받는다. Django 는 안 고쳤다 —
+`download`·`tile` 로 `study` 티켓을 내는 것은 이미 되던 일이다.
 
-그런데 `POST /tickets` 는 그 모양의 범위를 **낼 수가 없다.** `scope_kind`
-로 받는 값이 `study`·`specimen`·`report`·`account` 넷뿐이라 접두사가 늘
-`study/201` 꼴로 나온다. 둘이 영영 안 맞는다.
-
-지금 그 접두사를 만들 수 있는 것은 **Celery 뿐**이다 — 추론에 파일을
-넘길 때 `issue("download", "dicom/instances", uid)` 를 직접 부른다
-(`core/tasks.py`). 사람이 지나가는 길이 아니다.
-
-→ **맘모 원본 한 장과 MRI 시리즈를 판독 화면에서 받을 길이 없다.**
-화면은 지금 빈 뷰어 대신 이유를 띄운다(`hospital/lib/files.js`).
+> ⚠ 그 기능 **전에 올라간 자료에는 적힌 것이 없다.** 그런 자료는 403 이다 —
+> 다시 올리거나 Orthanc 메타데이터를 채워야 한다.
 
 ---
 
@@ -170,7 +165,7 @@ fromOrthanc:  cl.ObjectKeyPrefix != "dicom/instances/<UID>"  → 403
 
 | 항목 | 내용 |
 |---|---|
-| `public/dicom/…/mammo-stack-placeholder.json` | 파일이 저장소에 없다. `mock/hospital.json` 이 세 곳에서 가리키는데(`stack_manifest`) 없어서 Vite 가 `index.html` 을 돌려주고, 그걸 JSON 으로 읽다 **「Unexpected token '<'」** 가 난다. 영상 판독 화면에서 바로 보인다 |
+| ~~`public/dicom/…` 자료가 없을 때 「Unexpected token '<'」~~ | **처리함.** 자료는 여전히 저장소에 없다(용량 때문에 `.gitignore`). 다만 Vite 가 404 에 `index.html` 을 돌려주는 것을 `lib/dicom/manifest.js` 가 가려내고 「샘플 DICOM 자료가 없습니다」로 바꾼다. 맘모·MRI 뷰어 둘 다 적용 |
 | 로고 SVG | 지금 것은 자동 추적본(path 23개)이다. 워드마크가 들어간 원본이 오면 소개 화면의 글자 두 줄을 그림 하나로 바꾼다 |
 | 캐릭터 영문 표기 | 시트는 `Tily`(L 하나), 코드는 `Tilly` 다 |
 
