@@ -11,16 +11,9 @@ import { useState } from "react";
  *
  * ── 넣을 파일 ────────────────────────────────────────────────
  *
- *   public/tilly/hello.png      안녕하세요!            인사 · 홈 머리
- *   public/tilly/wait.png       조금만 기다려주세요!    불러오는 중
- *   public/tilly/ask.png        궁금한 게 있으세요?     챗봇 첫 화면
- *   public/tilly/checking.png   확인해볼게요!          챗봇이 답 찾는 중
- *   public/tilly/done.png       도움이 되었길 바라요!   답을 마친 뒤
- *   public/tilly/bye.png        또 만나요!             로그아웃
- *   public/tilly/face.png       얼굴만                 떠 있는 상담 단추
- *   public/tilly/alarm.png      알람                   알림이 없을 때
- *   public/tilly/rest.png       기대기                 목록이 비었을 때
- *   public/tilly/guide.png      안내 팻말              (아직 안 쓴다)
+ *   public/tilly/tily_hello.png  인사 · 웰컴 화면
+ *   public/tilly/tily_alarm.png  알림이 없을 때
+ *   public/tilly/tily_rest.png   목록이 비었을 때
  *   public/tilly/tilly_loading_spinner.gif  동그라미 로더  불러오는 중
  *
  * 투명 PNG/GIF 로, 화면 배율이 다양하니 **찍힐 크기의 3배**로 주면 안전하다
