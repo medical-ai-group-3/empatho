@@ -392,6 +392,154 @@ export const path = {
  */
 const RAD = "/radiology";
 
+/* 영상의학과 백엔드 원본 응답을 공용 화면 계약으로 변환한다. */
+function radPatient(source = {}, order = {}) {
+  const patientId = source.patient_id ?? source.patient ?? order.patient_id ?? order.patient;
+  return {
+    name: source.patient_name ?? order.patient_name ?? source.patient?.name
+      ?? order.patient?.name ?? (patientId == null ? "" : `환자 #${patientId}`),
+    age: source.age ?? order.age ?? source.patient?.age ?? order.patient?.age ?? null,
+    sex: source.sex ?? order.sex ?? source.patient?.sex ?? order.patient?.sex ?? "",
+    no: source.patient_no ?? source.patient_number ?? order.patient_no
+      ?? order.patient_number ?? source.patient?.patient_number
+      ?? order.patient?.patient_number ?? "",
+    contrast_allergy: source.contrast_allergy ?? order.contrast_allergy
+      ?? ((source.has_allergy ?? order.has_allergy) ? (source.allergy_note
+        ?? order.allergy_note ?? true) : null),
+  };
+}
+
+function radOrderRow(raw = {}) {
+  const patient = radPatient(raw);
+  return {
+    ...raw,
+    id: raw.exam_order_id ?? raw.id,
+    patient_name: patient.name,
+    patient_no: patient.no,
+    age: patient.age,
+    sex: patient.sex,
+    contrast_allergy: patient.contrast_allergy,
+    device: raw.device ?? raw.device_name ?? "",
+    exam_name: raw.exam_name ?? raw.exam_purpose ?? "",
+    purpose: raw.purpose ?? raw.order_note ?? "",
+    finalized: raw.finalized ?? raw.order_status === "completed",
+  };
+}
+
+function radFile(raw = {}) {
+  const bytes = raw.byte_size ?? raw.size;
+  const size = typeof bytes === "number"
+    ? `${(bytes / 1048576).toFixed(1)} MB`
+    : (raw.size ?? "");
+  const image = raw.image ?? (raw.sop_instance_uid
+    ? { sop: raw.sop_instance_uid }
+    : raw.orthanc_series_id
+      ? { series: raw.orthanc_series_id }
+      : raw.object_key
+        ? { key: raw.object_key }
+        : null);
+  return {
+    ...raw,
+    id: raw.storage_object_id ?? raw.id,
+    name: raw.name ?? raw.sop_instance_uid ?? raw.series_uid ?? `파일 ${raw.storage_object_id ?? ""}`,
+    size,
+    w: raw.w ?? raw.width_px,
+    h: raw.h ?? raw.height_px,
+    image,
+  };
+}
+
+function radSeries(files = []) {
+  const groups = new Map();
+  files.forEach((file) => {
+    const key = file.series_uid ?? file.orthanc_series_id ?? file.id;
+    const group = groups.get(key) ?? {
+      id: key,
+      name: file.series_uid ?? file.series_role ?? file.name,
+      count: 0,
+      files: [],
+    };
+    group.count += 1;
+    group.files.push(file);
+    groups.set(key, group);
+  });
+  return [...groups.values()].map((group) => ({
+    ...group,
+    w: group.files[0]?.w,
+    h: group.files[0]?.h,
+    image: group.files[0]?.image ?? null,
+  }));
+}
+
+function radAi(raw, modality) {
+  if (!raw) return null;
+  const result = raw.result && typeof raw.result === "object" ? raw.result : raw;
+  return {
+    ...result,
+    modality: result.modality ?? modality,
+    abstained: result.abstained ?? raw.abstained,
+    abstain_reason: result.abstain_reason ?? raw.abstain_reason,
+    run_status: raw.run_status ?? result.run_status,
+    ai_result_id: raw.ai_result_id ?? result.ai_result_id,
+  };
+}
+
+function radStudyRow(raw = {}, order = {}) {
+  const patient = radPatient(raw, order);
+  const studyId = raw.study_id ?? raw.id;
+  return {
+    ...raw,
+    id: studyId,
+    study_id: studyId,
+    patient_name: patient.name,
+    patient_no: patient.no,
+    age: patient.age,
+    sex: patient.sex,
+    contrast_allergy: patient.contrast_allergy,
+    exam_name: order.exam_name ?? order.exam_purpose ?? raw.exam_name ?? "",
+    purpose: order.purpose ?? order.order_note ?? raw.purpose ?? "",
+    device: raw.device ?? raw.device_name ?? "",
+    exam_order_id: raw.exam_order_id ?? raw.exam_order ?? order.exam_order_id,
+    finalized: raw.finalized ?? raw.read_status === "finalized",
+    viewed_at: raw.viewed_at ?? raw.report?.viewed_at ?? null,
+  };
+}
+
+function radUpload(raw = {}, order = {}) {
+  const study = raw.study ?? {};
+  const files = (raw.storage_objects ?? raw.files ?? []).map(radFile);
+  const row = radStudyRow(study, order);
+  return {
+    ...raw,
+    ...row,
+    study,
+    files,
+    series: raw.series ?? radSeries(files),
+    ai: raw.ai ?? null,
+    exam_order_id: row.exam_order_id ?? order.exam_order_id,
+    order,
+  };
+}
+
+function radRead(raw = {}, upload = {}, order = {}) {
+  const study = raw.study ?? upload.study ?? {};
+  const row = radStudyRow(study, order);
+  const files = (raw.images ?? upload.files ?? []).map(radFile);
+  const current = raw.current_assessment ?? null;
+  return {
+    ...raw,
+    ...row,
+    patient: radPatient(study, order),
+    unit: { ...row, id: row.study_id, no: row.study_id, exam_order_id: row.exam_order_id },
+    files,
+    images: files,
+    series: radSeries(files),
+    ai: radAi(raw.latest_ai_result, row.modality),
+    doctor: current ?? {},
+    finalized: row.finalized,
+  };
+}
+
 export const rad = {
   /* ⚠ 서버는 큐를 **기본 필터 없이** 준다 (2026-09-16 다희님 확인).
      병리와 같은 사정인데 값이 다르다 — 영상은 status=ordered 다.
@@ -405,8 +553,12 @@ export const rad = {
 
      큐는 결국 「거른 목록」이라 따로 경로를 두지 않는다. /ai-results?study=
      · /assessments?study= 도 같은 모양이다. */
-  queue:      ()       => get(`/exam-orders${qs({ status: "ordered", assigned: "none" })}`),
-  order:      (id)     => get(`/exam-orders/${id}`),
+  queue:      ()       => get(`/exam-orders${qs({ status: "ordered", assigned: "none" })}`)
+    .then((raw) => {
+      const rows = raw?.results ?? raw?.items ?? (Array.isArray(raw) ? raw : []);
+      return { ...raw, items: rows.map(radOrderRow), total: raw?.count ?? raw?.total ?? rows.length };
+    }),
+  order:      (id)     => get(`/exam-orders/${id}`).then(radOrderRow),
   assign:     (id)     => patch(`/exam-orders/${id}/assign`),
 
   /* ⚠ **Study 를 만드는 유일한 경로다** (2026-09-16 확인).
@@ -421,14 +573,22 @@ export const rad = {
   /* ⚠ **과 이름이 붙는다.** /studies/{id}/upload 가 아니라
      /radiology/studies/{id}/upload 다 (2026-09-16 정정). 판독 조회와
      같은 자리에 있다. 전에 「판독 조회만 붙는다」고 들었던 것이 틀렸다. */
-  uploadInfo: (id)     => get(`${RAD}/studies/${id}/upload`),
+  uploadInfo: (id)     => get(`${RAD}/studies/${id}/upload`).then(async (raw) => {
+    const examOrderId = raw?.study?.exam_order;
+    const order = examOrderId ? await rad.order(examOrderId).catch(() => ({})) : {};
+    return radUpload(raw, order);
+  }),
   ticket:     (b)      => post("/tickets", b),
   complete:   (id)     => patch(`/exam-orders/${id}/complete`),
   analyze:    (id)     => post(`/studies/${id}/ai-results`),
   progress:   (id)     => get(`/ai-results${qs({ study: id })}`),
   retake:     (b)      => post("/exam-orders", b),
 
-  read:       (id)     => get(`${RAD}/studies/${id}/read`),
+  read:       async (id) => {
+    const raw = await get(`${RAD}/studies/${id}/read`);
+    const upload = await rad.uploadInfo(id);
+    return radRead(raw, upload, upload.order ?? {});
+  },
   draft:      (id, b)  => put(`/studies/${id}/assessment/draft`, b),
   finalize:   (id, b)  => patch(`/studies/${id}/finalize`, b),
 
@@ -444,9 +604,25 @@ export const rad = {
   addLesion:  (b)      => post("/lesions/", b),
   falsePos:   (id)     => patch(`/lesions/${id}/`, { is_false_positive: true }),
 
-  study:      (id)     => get(`/studies/${id}/`),
-  list:       (o = {}) => get(`/studies/${qs(o)}`),
-  history:    (id)     => get(`/assessments${qs({ study: id })}`),
+  study:      async (id) => {
+    const raw = await get(`/studies/${id}/`);
+    const order = raw?.exam_order ? await rad.order(raw.exam_order).catch(() => ({})) : {};
+    return radStudyRow(raw, order);
+  },
+  list:       async (o = {}) => {
+    const raw = await get(`/studies/${qs(o)}`);
+    const rows = raw?.results ?? raw?.items ?? (Array.isArray(raw) ? raw : []);
+    const items = await Promise.all(rows.map(async (row) => {
+      const orderId = row.exam_order_id ?? row.exam_order;
+      const order = orderId ? await rad.order(orderId).catch(() => ({})) : {};
+      return radStudyRow(row, order);
+    }));
+    return { ...raw, items, total: raw?.count ?? raw?.total ?? rows.length };
+  },
+  history:    (id)     => get(`/assessments${qs({ study: id })}`).then((raw) => {
+    if (Array.isArray(raw)) return raw;
+    return raw?.results ?? raw?.items ?? [];
+  }),
   amend:      (id, b)  => post(`/assessments/${id}/amend`, b),
 };
 
@@ -534,8 +710,8 @@ export const nursing = {
   assignSurgeon:  (patientId, staffId) => patch(`/patients/${patientId}/`, { primary_staff_id: staffId }),
 
   /* 2장 */
-  followups:      () => get(`/followups${qs({ include_candidates: 1 })}`),
-  createFollowup: (b) => post("/followups", b),
+  followups:      () => get(`/followups/${qs({ include_candidates: 1 })}`),
+  createFollowup: (b) => post("/followups/new", b),
   logCall:        (id, b) => patch(`/followups/${id}/call`, b),
 };
 

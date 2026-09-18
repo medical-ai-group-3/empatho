@@ -97,7 +97,20 @@ function Inner({ cfg, id, d }) {
   );
   const history = inline.length > 0
     ? inline
-    : (Array.isArray(far.data) ? far.data : far.data?.items ?? []);
+    : (Array.isArray(far.data)
+      ? far.data
+      : far.data?.results ?? far.data?.items ?? []);
+
+  /* 정정 API는 study_id가 아니라 assessment_id를 받는다.
+     확정된 판독 중 아직 superseded_by가 없는 현재 판독만 대상으로
+     삼는다. ID가 없으면 저장을 막아 숫자가 우연히 맞는 다른 판정을
+     정정할 가능성을 없앤다. */
+  const assessmentId = (
+    d.current_assessment?.read_stage === "final"
+      ? d.current_assessment.assessment_id
+      : null
+  ) ?? history.find((a) => a.read_stage === "final" && !a.superseded_by)?.assessment_id
+    ?? null;
 
   const [f, setF] = useState({
     decision_reason: "",
@@ -111,8 +124,12 @@ function Inner({ cfg, id, d }) {
   const ready = f.decision_reason.trim() && f.category && f.finding_note.trim();
 
   async function save() {
+    if (!assessmentId) {
+      setMsg("정정할 확정 판독 ID를 찾을 수 없습니다.");
+      return;
+    }
     setBusy(true); setMsg(null);
-    try { await cfg.api.amend(id, f); nav(cfg.go.list()); }
+    try { await cfg.api.amend(assessmentId, f); nav(cfg.go.list()); }
     catch (e) { setMsg(e.detail || "정정 저장에 실패했습니다."); setBusy(false); }
   }
 
@@ -209,7 +226,7 @@ function Inner({ cfg, id, d }) {
         onDraft={() => nav(cfg.go.read(id))}
         onSave={save}
         busy={busy}
-        canSave={Boolean(ready)}
+        canSave={Boolean(ready && assessmentId)}
         draftLabel="판독 화면으로"
         draftNeed={cfg.read.need.view}
         saveNeed={c.need.save}
@@ -218,7 +235,8 @@ function Inner({ cfg, id, d }) {
       <p className="muted small">
         「판독 화면으로」는 저장하지 않고 돌아갑니다. 여기 쓰신 내용은 남지 않습니다.
       </p>
-      {!ready && <p className="muted small">정정 사유 · {c.categoryLabel} · 정정 판독 내용을 모두 채워야 저장할 수 있습니다.</p>}
+      {!assessmentId && <p className="muted small">정정할 확정 판독 ID를 찾지 못해 저장할 수 없습니다.</p>}
+      {assessmentId && !ready && <p className="muted small">정정 사유 · {c.categoryLabel} · 정정 판독 내용을 모두 채워야 저장할 수 있습니다.</p>}
     </div>
   );
 }

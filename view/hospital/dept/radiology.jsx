@@ -72,35 +72,14 @@ const api = {
   history:    (id)    => rad.history(id),
   analyze:    (id)    => rad.analyze(id),
   progress:   (id)    => rad.progress(id),
-  /* ⚠ 저장 파일 목록이 판독 조회에 없다 (2026-09-16 확인).
-     업로드 조회에만 있어서 한 번 더 부른다. 판독 화면에서 「업로드
-     조회」를 부르는 게 이름은 안 맞지만 화면은 돈다.
-     read 응답에 files 가 들어가면 아래 Promise.all 을 지우면 된다 */
-  read: async (id) => {
-    const [r, up] = await Promise.all([rad.read(id), rad.uploadInfo(id)]);
-    return { ...r, series: withFiles(r.series, up) };
-  },
+  /* 원본 응답과 업로드 파일 목록을 화면 계약으로 합치는 일은 api.js가 맡는다. */
+  read:       (id)    => rad.read(id),
   draft:      (id, b) => rad.draft(id, b),
   finalize:   (id, b) => rad.finalize(id, b),
   list:       (o)     => rad.list(o),
   amend:      (id, b) => rad.amend(id, b),
 };
 
-
-/* 판독 조회의 시리즈에 업로드 조회의 파일(주소·크기)을 얹는다.
-   이름이 같은 것끼리 맞추고, 못 맞추면 순서대로 짝짓는다 */
-function withFiles(series = [], up = {}) {
-  const files = up.files ?? up.series ?? [];
-  const byName = new Map(files.map((f) => [f.name, f]));
-  return series.map((s, i) => {
-    const f = byName.get(s.name) ?? files[i] ?? {};
-    return {
-      ...s,
-      w: s.w ?? f.w, h: s.h ?? f.h,
-      image: s.image ?? f.image ?? (f.key ? { key: f.key } : null),
-    };
-  });
-}
 
 export const radiology = {
   key: "radiology",
