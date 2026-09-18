@@ -183,6 +183,16 @@ class AccountAdmin(admin.ModelAdmin):
                 staff.save(update_fields=["approved_at", "updated_at"])
             done += 1
 
+            # approved_by 를 못 채우는 대신 여기가 「누가 눌렀나」를 남긴다.
+            # LogEntry 는 auth_user 로 찍히고 그 화면에서 바로 보인다.
+            #
+            # 메시지를 손으로 만든다 — log_change 는 기본으로 폼이 바꾼 칸을
+            # 적는데, 액션은 폼을 안 거쳐서 그대로 두면 빈 줄이 남는다.
+            self.log_change(
+                request, account,
+                "%s — account_status=%s · is_active=%s"
+                % (word, status, approved))
+
             logger.info(
                 "admin %s account_id=%s login_id=%s role=%s → %s",
                 word, account.account_id, account.login_id, account.role, status)

@@ -155,12 +155,10 @@ def dash_numbers(request):
     }
 
 
-# ── 화면 넷 ──────────────────────────────────────────────────────────
+# ── 우리 화면 ────────────────────────────────────────────────────────
 #
 # 전부 site.page() 를 거친다 — each_context 를 넣어야 머리띠와 사이드바가
 # 붙는다. 빠뜨리면 맨 화면이 나온다.
-#
-# ⚠ 지금은 대시보드만 채워져 있다. 나머지 셋은 자리만 잡아 두었다.
 
 
 def dashboard(site, request):
@@ -173,12 +171,6 @@ def status(site, request):
     """DB · Redis · Celery · Garage · Orthanc 를 찔러 본다."""
     return site.page(request, "admin/empatho/soon.html", "status",
                      "서버 상태", {"what": "각 서비스를 찔러 보고 응답시간을 냅니다."})
-
-
-def accounts(site, request):
-    """승인 대기 목록과 승인 · 거절."""
-    return site.page(request, "admin/empatho/soon.html", "accounts",
-                     "계정 승인", {"what": "승인 대기 계정을 여기서 처리합니다."})
 
 
 def db_index(site, request):
