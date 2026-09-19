@@ -42,6 +42,7 @@ from .radiology import (
 )
 
 from .surgery import (
+    FinalReportView,
     ExamOrderRequestView,
     PatientTimelineView,
     SurgeryReportViewSet,

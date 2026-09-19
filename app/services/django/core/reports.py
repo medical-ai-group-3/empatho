@@ -52,3 +52,26 @@ def issue_stage_report(ai) :
                 report.pk, "신규" if created else "기존", study_id, socket_id)
     return report 
     
+    
+def issue_final_report(patient_id, ai_ids, staff=None) :
+    """고른 판독들을 묶어 종합 소견서 두 벌(의사용·환자용)을 세운다.
+
+    검사 리포트와 달리 study 가 비어 있다 — 여러 검사를 가로지르기 때문이다.
+    무엇을 묶었는지는 content_json 에 남긴다. Report 에서 AiResult 로 가는 FK 가
+    없어서 이 목록이 유일한 기록이고, 소견문을 다시 맡길 때도 여기서 읽는다.
+    """
+    out = []
+    for audience in ("clinician", "patient") :
+        report = models.Report.objects.create(
+            patient_id=patient_id, 
+            report_type="final",
+            socket_id="7",
+            audience=audience, 
+            issued_by=staff, 
+            content_json={"source_ai_ids": list(ai_ids)},
+        )
+        request_narrative.delay(report.pk)
+        out.append(report)
+    
+    logger.info("[report] 종합 소견서 %s 환자 %s 판독 %s", [r.pk for r in out], patient_id, list(ai_ids))
+    return out 

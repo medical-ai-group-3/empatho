@@ -218,8 +218,39 @@ def run_inference(ai_result_id) :
     logger.info("[run_inference] 행 %s %s %.1f초", ai.pk, ai.run_status, float(ai.elapsed_sec))
     return ai.run_status
 
+def _narrative_result(report, ai_result_id) :
+    """리포트 서버에 넘길 판독값을 만든다. 소켓 7 만 모양이 다르다.
+
+      검사 리포트  판독 하나의 result 를 그대로 넘긴다
+      종합 소견서  고른 판독들을 stages 로 묶고 청중을 붙인다
+
+    묶을 목록은 발급할 때 content_json 에 적어 두었다 — Report 에서 AiResult 로
+    가는 FK 가 없어서 지금 다시 찾아낼 방법이 없다.
+    """
+    if report.socket_id != "7" :
+        ai = AiResult.objects.get(pk=ai_result_id)
+        result = (ai.result or {}).get("result")
+        if not isinstance(result, dict) :
+            logger.warning("[narrative] 리포트 %s 판독 %s 에 결과가 없다", report.pk, ai.pk)
+            return None
+        return result
+
+    ids = (report.content_json or {}).get("source_ai_ids") or []
+    rows = {a.pk: a for a in AiResult.objects.filter(pk__in=ids)}
+    stages = []
+    for pk in ids :                       # 의사가 고른 순서를 지킨다
+        ai = rows.get(pk)
+        result = (ai.result or {}).get("result") if ai else None
+        if isinstance(result, dict) :
+            stages.append({"socket": SOCKET[ai.study.modality if ai.study_id else "pathology"],
+                           "result": result})
+    if not stages :
+        logger.warning("[narrative] 종합 리포트 %s 에 묶을 판독이 없다", report.pk)
+        return None
+    return {"stages": stages, "audience": report.audience}
+
 @shared_task(bind=True, queue="io")
-def request_narrative(self, report_id, ai_result_id) :
+def request_narrative(self, report_id, ai_result_id=None) :
     """리포트 한 건의 AI 소견문을 리포트 서버에 맡긴다.
 
     ■ 왜 태스크인가
@@ -246,13 +277,13 @@ def request_narrative(self, report_id, ai_result_id) :
         GPU 를 붙잡는다는 우려는 큐를 가른 뒤(2026-09-19) 약해졌다 —
         소견문은 io 워커에서 돌고 판독(8001)과 다른 프로세스(8002)다.
     """
-    report = Report.objects.get(pk=report_id) 
-    ai = AiResult.objects.get(pk=ai_result_id)
-    
+    report = Report.objects.get(pk=report_id)    
     # 봉투가 아니라 안쪽을 보낸다. 리포트 서버는 /analyze 의 result 를 그대로
     # 받는다 — 봉투째 주면 lesion_found 를 못 찾아 「병변이 검출되지
     # 않았습니다」가 나간다.
-    result = (ai.result or {}).get("result")
+    result = _narrative_result(report, ai_result_id)
+    if result is None :
+        return "no_result"
     if not isinstance(result, dict) :
         logger.warning("[narrative] 리포트 %s 판독 %s 에 결과가 없다", report_id, ai.pk)
         return "no_result"

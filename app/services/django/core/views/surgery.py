@@ -10,9 +10,7 @@ from .. import models, serializers
 from ..mixins import AuditMixin
 from core.api.permissions import MatrixPermission, OwnedOnlyMixin, CanDisposeDiscordance
 from core.api.errors import ApiError
-from core.api.permissions import CanBindSpecimen, CanDecideAssessment, CanUnlockReport
-
-
+from core.api.permissions import CanBindSpecimen, CanDecideAssessment, CanUnlockReport, CanIssueFinalReport
 class ExamOrderRequestView(AuditMixin, viewsets.ViewSet):
     """§1 POST /exam-orders — 촬영 요청 팝업(유방외과가 만드는 오더)."""
 
@@ -82,8 +80,11 @@ class SurgeryReportViewSet(AuditMixin, OwnedOnlyMixin, viewsets.ModelViewSet):
     serializer_class = serializers.ReportSerializer
     
     def owned_queryset(self, queryset, account):
-        return queryset.filter(patient__account=account, lock_status="unlocked")
-    
+        # 환자에게는 환자용만. 의사용에는 BI-RADS · px · sTIL 이 그대로 들어 있다 —
+        # 환자용 소견문에서 걷어낸 것들이 이 문으로 다 나간다.
+        return queryset.filter(patient__account=account, lock_status="unlocked",
+                               audience="patient")
+
     def is_owned_by(self, obj, account):
         return obj.patient.account_id == account.account_id
 
@@ -95,7 +96,9 @@ class SurgeryReportViewSet(AuditMixin, OwnedOnlyMixin, viewsets.ModelViewSet):
             qs = qs.filter(patient_id=patient_id)
         if report_type:
             qs = qs.filter(report_type=report_type)
-        return qs
+        # 정렬을 안 걸면 목록 순서가 DB 마음이다. 의사가 이 목록에서 고른 순서가
+        # 그대로 종합 소견서의 검사 순서가 되므로, 뒤섞이면 글도 뒤섞인다.
+        return qs.order_by("report_id")
 
     def update(self, request, *args, **kwargs):
         report = self.get_object()
@@ -114,6 +117,21 @@ class SurgeryReportViewSet(AuditMixin, OwnedOnlyMixin, viewsets.ModelViewSet):
                     **(incoming_by_modality if isinstance(incoming_by_modality, dict) else {}),
                 }
             report.content_json = merged
+
+        # 소견문 수정 — 진료 완료 전까지만 연다. 완료 뒤에는 환자가 이미 읽은
+        # 글이라 말없이 바뀌면 안 된다. 고치려면 새로 발급한다.
+        text = request.data.get("narrative_text")
+        if text is not None:
+            if not isinstance(text, str):
+                raise ApiError("VALIDATION_ERROR", "narrative_text는 문자열이어야 합니다.")
+            if report.lock_status != "locked":
+                raise ApiError("VALIDATION_ERROR", "진료가 완료된 소견서는 고칠 수 없습니다.")
+            report.narrative_text = text
+            # AI 가 쓴 글인지 사람이 고친 글인지 남긴다 — 화면이 표시에 쓰고,
+            # 「의사가 매번 고치는 부분」을 찾아 프롬프트를 손볼 단서가 된다.
+            cur = report.content_json if isinstance(report.content_json, dict) else {}
+            report.content_json = {**cur, "edited_by_clinician": True}
+
         report.updated_by = self._current_account()
         report.save()
         out = serializers.ReportSerializer(report)
@@ -238,19 +256,61 @@ class ReportUnlockView(AuditMixin, viewsets.ViewSet):
         report.updated_by = self._current_account()
         report.save()
         
-        from .. import notify
-        notify.send(
-            patient=report.patient, 
-            type="report_ready",
-            message="검사 결과가 도착했습니다. 앱에서 확인해 주세요.", 
-            ref_type="report",
-            ref_id=report.pk
-        )
+        # 환자에게는 환자용 한 벌만 알린다. 종합 소견서는 의사용·환자용 두 벌이
+        # 같이 풀려서, 안 가리면 같은 결과로 알림이 두 번 간다.
+        if report.audience != "clinician":
+            from .. import notify
+            notify.send(
+                patient=report.patient,
+                type="report_ready",
+                message="검사 결과가 도착했습니다. 앱에서 확인해 주세요.",
+                ref_type="report",
+                ref_id=report.pk
+            )
 
         out = serializers.ReportSerializer(report)
         return Response(out.data)
 
+class FinalReportView(viewsets.ViewSet):
+    """POST /reports/final — 고른 검사 판독문들을 종합 소견서 두 벌로 묶는다."""
 
+    resource = "report"
+    permission_classes = [MatrixPermission, CanIssueFinalReport]
+
+    def create(self, request):
+        patient_id = request.data.get("patient_id")
+        report_ids = request.data.get("source_report_ids")
+        if not patient_id or not isinstance(report_ids, list) or not report_ids:
+            raise ApiError("VALIDATION_ERROR",
+                           "patient_id 와 source_report_ids 가 필요합니다.")
+
+        found = {r.pk: r for r in models.Report.objects.filter(
+            pk__in=report_ids, patient_id=patient_id, report_type="stage")}
+        missing = [i for i in report_ids if i not in found]
+        if missing:
+            raise ApiError("VALIDATION_ERROR",
+                           f"이 환자의 검사 판독문이 아닙니다: {missing}")
+
+        # Report 에서 AiResult 로 가는 FK 가 없다. 리포트를 세울 때 쓴 열쇠를
+        # 그대로 되짚는다. 병리는 study 가 비어 있어 검체로만 닿는다.
+        ai_ids = []
+        for rid in report_ids:
+            r = found[rid]
+            key = ({"specimen_id": r.specimen_id} if r.specimen_id
+                   else {"study_id": r.study_id, "specimen_id": None})
+            ai = (models.AiResult.objects
+                  .filter(run_status="done", **key)
+                  .order_by("-analyzed_at").first())
+            if ai is None:
+                raise ApiError("VALIDATION_ERROR",
+                               f"판독문 {rid} 의 판독 결과를 찾지 못했습니다.")
+            ai_ids.append(ai.pk)
+
+        from .. import reports
+        out = reports.issue_final_report(
+            patient_id, ai_ids, getattr(request.user, "staff", None))
+        return Response(serializers.ReportSerializer(out, many=True).data,
+                        status=status.HTTP_201_CREATED)
 
 class SpecimenBindViewSet(AuditMixin, viewsets.ViewSet):
     """§4 POST /specimens — 검체 바인딩.

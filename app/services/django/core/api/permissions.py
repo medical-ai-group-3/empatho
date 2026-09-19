@@ -328,7 +328,7 @@ class CanCompleteExamOrder(MatrixPermission):
 
 #: 리포트 열람 잠금 해제 — 유방외과 단독 (§11.5)
 CanUnlockReport = IsRole.of(SURGERY, code="UNLOCK_ROLE_ONLY_SURGERY")
-
+CanIssueFinalReport = IsRole.of(SURGERY, code="FINAL_REPORT_ROLE_ONLY_SURGERY")
 # ── 판독 확정 — 부서 자체를 잠근다 ──────────────────────────────────────
 # MATRIX 는 study:U · assessment:U · specimen_pathology:U 칸으로 "이 역할이
 # 이 리소스를 건드릴 수 있는가"만 표현한다. 관리자 화면에서 그 칸을 다른
