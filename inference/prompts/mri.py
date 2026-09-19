@@ -59,6 +59,17 @@ def facts(r:dict) -> list[str]:
                    f"{l.get('quadrant')}, 유두거리 {l.get('nipple_distance_mm')}mm.")
     return out
 
+def plain(r: dict) -> list[str]:
+    """환자용 값. 치밀도는 빼둔다 — 숫자를 지워도 「치밀하다」가
+    환자에게는 나쁜 소식으로 읽히는데, 그 자체로는 판정이 아니다."""
+    tumor = r.get("tumor")
+    if not tumor :
+        return ["조영 촬영이 없어 눈에 띄는 부분은 확인하지 않았습니다."]
+    if not tumor.get("lesion_count") :
+        return ["따로 눈에 띄는 부분이 관찰되지 않았습니다."]
+    return ["눈에 띄는 부분이 관찰되었습니다.",
+            "위치와 크기는 담당 의사가 확인합니다."]
+
 NOTES = {
     "MR-N01": "조영 후 볼륨이 없어 밀도만 산출했습니다. 병변 유무는 알 수 없습니다.",
     "MR-N02": "유방·치밀 조직 부피는 복셀 수이며 mm³ 로 환산하지 않았습니다. "

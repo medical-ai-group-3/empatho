@@ -18,7 +18,7 @@ from prompts import base
 #               SYSTEM·SCHEMA·build 는 base 로 옮겼다
 
 # 2026-09-09.b  base.SYSTEM — 번호 붙은 항목은 항목마다 문장을 끊는다
-VERSION = "us-2026-09-09.b"
+VERSION = "us-2026-09-20.a"
 
 # 이 프롬프트가 담당하는 소켓, prompts/__init__.py 의 표가 이걸로 만들어진다 
 SOCKET_IDS = {"4","5"}
@@ -91,6 +91,24 @@ def facts(r: dict) -> list[str]:
     out.append(f"마스크 신뢰도는 {(r.get('mask_reliability') or {}).get('level')}입니다.")
     return out
     
+    
+def plain(r: dict) -> list[str]:
+    """환자용 값. 수치도 전문 용어도 넣지 않는다.
+
+    facts() 를 넘기고 「쉽게 바꿔라」 하면 안 된다 — 모델은 모르는 말을
+    아는 말로 바꾼다. 병리에서 간질(stroma)이 간(liver)이 되어
+    「암세포가 간에 침투」로 나간 것을 확인했다(2026-09-20).
+    """
+    if not r.get("lesion_found") :
+        return ["따로 눈에 띄는 부분이 관찰되지 않았습니다."]
+
+    out = ["눈에 띄는 부분이 관찰되었습니다."]
+    if r.get("orientation_label") :
+        out.append(f"모양은 {r['orientation_label']}입니다.")
+    band = base.birads_plain((r.get("grade") or {}).get("display"))
+    if band :
+        out.append(band + ".")
+    return out
 # 안내 문구표. 모델을 거치지 않고 이 문장이 그래도 나간다 
 # 문구를 고치면 VERSION 도 올린다 
 NOTES = { 

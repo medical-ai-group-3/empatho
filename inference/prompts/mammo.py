@@ -82,6 +82,23 @@ def facts(r:dict) -> list[str]:
         out.append("생검 권고 대상 병변이 있습니다")
     return out 
 
+def plain(r: dict) -> list[str]:
+    """환자용 값. 개수도 등급 번호도 내보내지 않는다."""
+    s = r.get("summary") or {}
+    if s.get("abstained") :
+        return ["이번 촬영에서는 판정이 이루어지지 않았습니다.",
+                "이상이 없다는 뜻은 아닙니다."]
+    if not s.get("n_lesions") :
+        return ["따로 눈에 띄는 부분이 관찰되지 않았습니다."]
+
+    out = ["눈에 띄는 부분이 관찰되었습니다."]
+    band = base.birads_plain(s.get("max_birads"))
+    if band :
+        out.append(band + ".")
+    if s.get("biopsy") :
+        out.append("조직 검사를 권하는 부분이 있습니다.")
+    return out
+
 NOTES = {
     "MG-N01": "검출이 없으면 기권입니다. 정상이라는 판정이 아닙니다. "
               "서술어 모델에 '소견 없음' 항목이 없습니다.",
