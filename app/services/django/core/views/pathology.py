@@ -25,7 +25,7 @@ class SpecimenQueueView(generics.ListAPIView):
     serializer_class = serializers.SpecimenSerializer
 
     def get_queryset(self):
-        qs = models.Specimen.objects.all().order_by("collected_at")
+        qs = models.Specimen.objects.select_related("patient__pii").order_by("collected_at")
 
         status_param = self.request.query_params.get("status")
         if status_param:

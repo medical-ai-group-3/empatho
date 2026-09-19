@@ -29,12 +29,48 @@ from core.api.errors import ApiError
 
 
 class StudyViewSet(viewsets.ReadOnlyModelViewSet):
-    """GET /studies, GET /studies/{id} — 검사(Study) 목록/단건 조회."""
+    """GET /studies, GET /studies/{id} — 검사(Study) 목록/단건 조회.
+
+    ?q= 로 환자 이름·환자번호 검색, ?ordering= 으로 정렬(기본 -performed_at).
+    ?status= 로 quality_status 를 명시하지 않으면 반려본(rejected)은 목록
+    에서 뺀다 — 반려는 재촬영 대상이라 판독 목록에 섞이면 안 된다
+    (09-18 백엔드 대조 ⑨, 지금까지 get_queryset 이 없어 검색·정렬이
+    전부 장식이었고 반려본도 그대로 섞여 있었다).
+    """
 
     resource = "study"
     permission_classes = [MatrixPermission]
-    queryset = models.Study.objects.select_related("patient__pii")
     serializer_class = serializers.StudySerializer
+
+    ORDERING_FIELDS = {
+        "performed_at": "performed_at",
+        "patient_name": "patient__pii__name",
+        "read_status": "read_status",
+    }
+
+    def get_queryset(self):
+        qs = models.Study.objects.select_related("patient__pii")
+
+        status_param = self.request.query_params.get("status")
+        if status_param:
+            qs = qs.filter(quality_status=status_param)
+        else:
+            qs = qs.exclude(quality_status="rejected")
+
+        q = self.request.query_params.get("q", "").strip()
+        if q:
+            qs = qs.filter(
+                Q(patient__pii__name__icontains=q) |
+                Q(patient__patient_number__icontains=q)
+            )
+
+        ordering = self.request.query_params.get("ordering", "-performed_at")
+        field = ordering.lstrip("-")
+        if field in self.ORDERING_FIELDS:
+            db_field = self.ORDERING_FIELDS[field]
+            qs = qs.order_by(("-" + db_field) if ordering.startswith("-") else db_field)
+
+        return qs
 
 
 class PatientStudiesView(generics.ListAPIView):

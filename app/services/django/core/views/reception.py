@@ -185,9 +185,7 @@ class ExamOrderConfirmView(AuditMixin, viewsets.ViewSet):
             order.updated_by = self._current_account()
             order.save()
 
-            all_rows = [order]
-
-        out = serializers.ExamOrderSerializer(all_rows, many=True)
+        out = serializers.ExamOrderSerializer(order)
         return Response(out.data, status=status.HTTP_200_OK)
 
 class ExamOrderQueryView(

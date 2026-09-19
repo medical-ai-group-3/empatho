@@ -1,16 +1,16 @@
-"""병리과(pathology) serializer — 2026-09-14 화면명세 기준."""
+"""병리과(pathology) serializer — 2026-09-14 화면명세 기준.
+
+SpecimenSerializer 는 여기 안 둔다 — core/serializers/__init__.py 가
+surgery.py 의 SpecimenSerializer 만 재수출해서, 여기 따로 정의하면
+`serializers.SpecimenSerializer` 를 쓰는 코드엔 하나도 안 닿는 죽은
+클래스가 된다(09-18 발견 — 처음엔 여기 뒀다가 테스트로 이걸 잡았다).
+"""
 
 from rest_framework import serializers
 
 from .. import models
 
 AUDIT_FIELDS = ("created_at", "created_by", "updated_at", "updated_by")
-
-
-class SpecimenSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = models.Specimen
-        exclude = AUDIT_FIELDS
 
 
 class AiResultSerializer(serializers.ModelSerializer):

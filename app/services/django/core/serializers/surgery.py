@@ -1,6 +1,7 @@
 """유방외과(surgery) serializer — 2026-09-14 화면명세 기준."""
 
 from rest_framework import serializers
+from django.utils import timezone
 
 from .. import models
 
@@ -20,6 +21,30 @@ class DiscordanceFlagSerializer(serializers.ModelSerializer):
 
 
 class SpecimenSerializer(serializers.ModelSerializer):
+    """serializers.SpecimenSerializer 로 패키지 전체(병리·유방외과)가 쓴다
+    — core/serializers/__init__.py 가 이 클래스만 재수출한다. 병리 판독
+    화면(toRead)이 환자 이름·나이·성별을 따로 조회하지 않게 StudySerializer
+    와 같은 계산 필드를 둔다(09-18 백엔드 대조 ③)."""
+
+    patient_name = serializers.CharField(
+        source="patient.pii.name", read_only=True, default=None
+    )
+    age = serializers.SerializerMethodField()
+    sex = serializers.CharField(source="patient.sex", read_only=True, allow_null=True)
+
+    def get_age(self, obj) -> int | None:
+        pii = getattr(obj.patient, "pii", None)
+        birth_date = getattr(pii, "birth_date", None)
+        if birth_date is None:
+            return None
+
+        reference = obj.collected_at or timezone.now()
+        reference_date = reference.date()
+        return reference_date.year - birth_date.year - (
+            (reference_date.month, reference_date.day)
+            < (birth_date.month, birth_date.day)
+        )
+
     class Meta:
         model = models.Specimen
         exclude = AUDIT_FIELDS

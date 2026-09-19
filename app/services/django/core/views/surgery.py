@@ -265,7 +265,7 @@ class SpecimenBindViewSet(AuditMixin, viewsets.ViewSet):
         return [MatrixPermission()]
     
     def list(self, request):
-        qs = models.Specimen.objects.select_related("patient").all()
+        qs = models.Specimen.objects.select_related("patient__pii").all()
         ordering = request.query_params.get("ordering")
         allowed = {
             "patient__name": "patient__pii_name",
