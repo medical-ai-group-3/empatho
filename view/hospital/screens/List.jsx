@@ -169,7 +169,10 @@ function Detail({ cfg, id }) {
                 「판독 결과」가 확정 여부에 따라 펼쳐져야 하는데 앞
                 사람의 상태를 물려받아 엉뚱하게 접혀 있거나 펼쳐진다 */}
             <c.Detail key={id} d={data} cfg={cfg} />
-            <div className="stack top">
+            {/* ⚠ 목록·뷰어·상세 3단(list-detail-cols) 아래에 오다 보니
+                구분선(.stack.top의 border-top)에 걸친 것처럼 보였다 —
+                오른쪽 끝으로 붙인다(2026-09-19). */}
+            <div className="stack top" style={{ justifyContent: "flex-end" }}>
               <Btn kind="line" onClick={() => nav(cfg.go.read(id))}>판독 화면</Btn>
               {cfg.amend && (
                 <Btn kind="fill" onClick={() => nav(cfg.go.amend(id))}
