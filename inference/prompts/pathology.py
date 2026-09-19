@@ -27,7 +27,8 @@ from prompts import base
 # 2026-09-09.a  신규. sTIL 수치 제외 판
 # 2026-09-09.b  base.SYSTEM — 번호 붙은 항목은 항목마다 문장을 끊는다
 # 2026-09-10.a  k* 폐기 확정 — sTIL 복원. 구간과 nc_ratio 는 뺀다
-VERSION = "pathology-2026-09-10.a"
+# 2026-09-20.a  plain() — 환자용은 「나왔다」까지만 쓴다
+VERSION = "pathology-2026-09-20.a"
 
 SOCKET_IDS = {"1", "2"}
 

@@ -8,7 +8,8 @@ from prompts import base
 
 # 2026-09-09.a 신규. base 의 SYSTEM SCHEMA build를 쓴다 
 # 2026-09-09.b  base.SYSTEM — 번호 붙은 항목은 항목마다 문장을 끊는다
-VERSION = "mammo-2026-09-18"
+# 2026-09-20     plain() — 환자용은 개수도 등급 번호도 내보내지 않는다
+VERSION = "mammo-2026-09-20"
 
 SOCKET_IDS = {"4b"}
 

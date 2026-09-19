@@ -3,8 +3,8 @@
     초음파 · 맘모 · MRI · 병리 판독  ─▶  소켓 7  ─┬─▶ 의사용
                                                 └─▶ 환자용
 
-수치 문장을 여기서 새로 쓰지 않는다. 각 모달리티 프롬프트의 facts() · numbers() 를
-그대로 부른다 — 베끼면 모달리티가 늘 때마다 두 곳을 고쳐야 하고, 두 곳이 어긋나면
+문장을 여기서 새로 쓰지 않는다. 각 모달리티 프롬프트의 facts() · plain() · numbers()
+를 그대로 부른다 — 베끼면 모달리티가 늘 때마다 두 곳을 고쳐야 하고, 두 곳이 어긋나면
 종합 소견서만 조용히 옛 규칙으로 쓰인다.
 
 받는 모양
@@ -17,13 +17,16 @@
     clinician  지금까지와 같다. 수치를 그대로 옮기고 **보존**을 검사한다
     patient    수치와 전문 용어를 걷어낸다. 검사가 반대다 — 수치가 **남아 있으면** 버린다
 
-⚠ 환자용 뼈대는 모달리티 facts() 를 쓰지 않는다. 거기엔 수치가 들어 있어서,
-  되돌림이 일어나는 순간 환자에게 수치가 그대로 나간다. 유무만 쓰는 문장을 따로 만든다.
+⚠ 환자용은 어디서도 facts() 를 쓰지 않는다 — 모델 입력도 뼈대도 plain() 이다.
+  facts() 에는 수치와 전문 용어가 들어 있고, 모델은 모르는 말을 아는 말로 바꾼다.
+  간질(stroma)이 간(liver)이 되어 「암세포가 간에 침투」로 나갔다(2026-09-20 실측).
 """
 from prompts import base
 
 # 2026-09-19.a  신규
-VERSION = "summary-2026-09-20.a"
+# 2026-09-20.a  환자용은 facts() 가 아니라 plain() 을 넘긴다
+# 2026-09-20.b  환자용 뼈대도 plain() 으로 · must_keep() — 등급 문장 보존
+VERSION = "summary-2026-09-20.b"
 
 SOCKET_IDS = {"7"}
 REQUIRED = ("stages",)
@@ -42,12 +45,13 @@ SYSTEM_PATIENT = """
   BI-RADS 같은 분류 기호를 쓰지 않는다.
   전문 용어는 쉬운 말로 바꾼다. 바꿀 수 없으면 괄호로 풀어 준다.
   판독값에 없는 소견을 지어내지 않는다.
+  「없다」 · 「정상이다」로 단정하지 않는다. 확인되지 않은 것과 다르다.
+  장기 이름을 바꿔 쓰지 않는다. 모르는 용어는 옮기지 말고 빼라.
+  검사 결과의 정도를 낮추거나 높여 쓰지 않는다. 준 문장 그대로 옮긴다.
   악성 여부를 말하지 않는다. 진단하지 않고 치료를 권하지 않는다.
   검사마다 문장을 끊는다.
   존댓말로 쓴다. 머리말 없이 내용부터 쓴다.
   마지막 문장은 자세한 내용을 담당 의사에게 듣도록 안내한다.
-  「없다」 · 「정상이다」로 단정하지 않는다. 확인되지 않은 것과 다르다.
-  장기 이름을 바꿔 쓰지 않는다. 모르는 용어는 옮기지 말고 빼라.
 """
 
 NOTES = {
@@ -72,17 +76,10 @@ def _stages(r) :
     return out
 
 
-def _seen(r, socket) :
-    """이 검사에서 「볼 것이 있었나」. 수치가 아니라 유무만 본다 —
-    환자용 뼈대에 수치가 새지 않게 하려는 자리다."""
-    if socket == "5" :
-        return bool(r.get("lesion_found"))
-    if socket == "4b" :
-        s = r.get("summary") or {}
-        return None if s.get("abstained") else bool(s.get("n_lesions"))
-    if socket == "3" :
-        return bool((r.get("tumor") or {}).get("lesion_count"))
-    return True                          # 병리는 늘 결과가 있다
+def _plain(p, res) :
+    """환자용 문장. plain() 이 없는 소켓은 유무조차 말하지 않는다 —
+    facts() 로 되돌리면 수치와 전문 용어가 그대로 나간다."""
+    return p.plain(res) if hasattr(p, "plain") else ["결과가 나왔습니다."]
 
 
 def values(r) :
@@ -96,28 +93,22 @@ def values(r) :
     out = []
     for socket, p, res in _stages(r) :
         name = (PLAIN if _patient(r) else NAME).get(socket, socket)
-        say = p.plain if _patient(r) and hasattr(p, "plain") else p.facts
-        out.append((name, " ".join(say(res))))
+        say = _plain(p, res) if _patient(r) else p.facts(res)
+        out.append((name, " ".join(say)))
     return out or [("검사", "묶을 판독 결과가 없습니다.")]
 
 
 def facts(r) :
     """뼈대. 모델이 실패하거나 검사에 걸리면 이것이 그대로 나간다."""
     if _patient(r) :
-        out = []
-        for socket, _p, res in _stages(r) :
-            name = PLAIN.get(socket, socket)
-            seen = _seen(res, socket)
-            if seen is None :
-                out.append(f"{name}에서는 판정이 이루어지지 않았습니다.")
-            elif socket == "1" :
-                out.append(f"{name} 결과가 나왔습니다.")
-            elif seen :
-                out.append(f"{name}에서 관찰된 소견이 있습니다.")
-            else :
-                out.append(f"{name}에서 특별히 관찰된 소견은 없습니다.")
+        # 모델에 넘긴 것과 같은 문장을 쓴다. 뼈대가 모델 입력보다 적게 말하면,
+        # 되돌림이 일어날 때마다 환자가 받는 정보가 조용히 줄어든다.
+        out = [f"{PLAIN.get(socket, socket)} — " + " ".join(_plain(p, res))
+               for socket, p, res in _stages(r)]
+        if not out :
+            return ["묶을 검사 결과가 없습니다."]
         out.append("자세한 내용은 담당 의사의 설명으로 확인해 주십시오.")
-        return out or ["묶을 검사 결과가 없습니다."]
+        return out
 
     out = []
     for socket, p, res in _stages(r) :
@@ -149,6 +140,29 @@ def numbers(r) :
 def forbidden(r) :
     """참이면 report.py 가 검사 방향을 뒤집는다."""
     return _patient(r)
+
+
+def must_keep(r) :
+    """글자 그대로 남아 있어야 하는 문장. 바뀌면 모델 출력을 버린다.
+
+    수치 검사로는 못 잡는 구멍을 막는다. BI-RADS 4~5 라서 코드가 넘긴
+    「추가 확인이 시급한 정도입니다」를 모델이 「추가적으로 확인이 필요할
+    것으로 보입니다」로 낮춰 쓴 것을 확인했다(2026-09-20). 숫자가 아니니
+    숫자 검사에 걸리지 않고, 환자를 안심시키는 방향이라 위험한 쪽이다.
+
+    등급 문장만 본다. 나머지는 모델이 다시 써도 뜻이 안 바뀐다 —
+    이 문장은 「얼마나 급한가」 하나만 싣고 있어서 바꿔 쓸 여지가 없다.
+    """
+    if not _patient(r) :
+        return []
+    bands = set(base.BIRADS_PLAIN.values())
+    out = []
+    for _socket, p, res in _stages(r) :
+        for s in _plain(p, res) :
+            s = s.rstrip(".")
+            if s in bands and s not in out :
+                out.append(s)
+    return out
 
 
 def system(r) :

@@ -204,6 +204,14 @@ def report(socket_id: str, result: dict, evidence: list[str] = []):
     
     if not ban and hit:
         return  _done(socket_id, p, skeleton, note_lines, f"numbers_changed: {','.join(hit)}")
+
+    # 수치가 아니라 문장을 지켜야 하는 것도 있다. 등급을 환자 말로 바꾼 문장이
+    # 그렇다 — 「시급한 정도입니다」를 「필요할 것으로 보입니다」로 낮춰 쓰면
+    # 숫자 검사에 안 걸리고 뜻만 약해진다. 글자 그대로 있는지 본다.
+    miss = [s for s in (p.must_keep(result) if hasattr(p, "must_keep") else [])
+            if s not in text]
+    if miss:
+        return  _done(socket_id, p, skeleton, note_lines, f"phrase_changed: {miss[0][:24]}")
     # evidence 는 받은 것을 그대로 돌려준다. 문장별이 아니라 리포트 단위다 -
     # 어느 사진 어느 병변인지는 화면이 마스크와 수치로 따로 보여준다.
     return _done(socket_id, p, text, note_lines, None, evidence)

@@ -11,7 +11,8 @@
 from prompts import base
 
 # 2026-09-09.b  base.SYSTEM — 번호 붙은 항목은 항목마다 문장을 끊는다
-VERSION = "mri-2026-09-09.b"
+# 2026-09-20.a  plain() — 환자용은 치밀도를 빼고 유무만 쓴다
+VERSION = "mri-2026-09-20.a"
 
 SOCKET_IDS = {"3"}
 
