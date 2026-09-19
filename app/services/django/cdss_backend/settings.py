@@ -305,6 +305,9 @@ SPECTACULAR_SETTINGS = {
 # Redis 컨테이너를 브로커로 사용. redis 는 docker 안에 있으니까 찾는다 
 CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", "redis://redis:6379/0")
 CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", "redis://redis:6379/1")
+# 일감을 성격으로 가른다. 판독은 워크스테이션 GPU 가 직렬이라 한 줄로 서야
+# 하지만, 소견문·알림·문자는 서로 기다릴 이유가 없다. 안 적으면 gpu 로 간다.
+CELERY_TASK_DEFAULT_QUEUE = "gpu"
 
 # 판독은 한 건이 오래걸림. 기본값은 제한이 없이 가지고 있어서 워크스테이션이 멈추면 워커가 영원히 돌고있다 
 # soft : 예외를 던짐 = 기권으로 처리

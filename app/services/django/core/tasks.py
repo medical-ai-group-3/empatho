@@ -144,8 +144,15 @@ def run_inference(ai_result_id) :
         else :
             out = _analyze(modality, socket, _ref(ai, modality))
             
+        # 기권이면 파생물이 없다. 추론 서버는 실패도 200 에 abstained 로
+        # 돌려주는 것이 규약이라 그때는 result 칸 자체가 안 온다. 그대로
+        # 읽으면 KeyError 로 터지고, 정상 기권이 failed 로 둔갑한다 —
+        # 09-19 MRI 가 그랬다(mesh.split 에 out["result"]).
+        if out.get("abstained") or "result" not in out :
+            logger.info("[run_inference] 행 %s 기권 - %s", ai.pk, out.get("reason"))
+            
         # MRI 응답은 대부분이 3D 메시다. 걷어내지 않으면 jsonb 한 칸이 그 크기가 된다.
-        if modality == "mri" :
+        elif modality == "mri" :
             out = _store_meshes(out, ai)
         
         elif modality in ("pathology", "us") :
@@ -211,8 +218,8 @@ def run_inference(ai_result_id) :
     logger.info("[run_inference] 행 %s %s %.1f초", ai.pk, ai.run_status, float(ai.elapsed_sec))
     return ai.run_status
 
-@shared_task
-def request_narrative(report_id, ai_result_id) :
+@shared_task(bind=True, queue="io")
+def request_narrative(self, report_id, ai_result_id) :
     """리포트 한 건의 AI 소견문을 리포트 서버에 맡긴다.
 
     ■ 왜 태스크인가
@@ -229,9 +236,15 @@ def request_narrative(report_id, ai_result_id) :
         어느 쪽이 이겼는지 알 수 없다.
 
     ■ 실패해도 리포트는 남는다
-        명세 규칙이다 — 리포트 서버가 죽어도 리포트는 발급된다. 그래서
-        예외를 올리지 않고 재시도도 하지 않는다. 재시도가 GPU 를 붙잡으면
-        판독이 밀린다. 다시 만들지는 사람이 정한다.
+        명세 규칙이다 — 리포트 서버가 죽어도 리포트는 발급된다. 예외를
+        올리지 않는다.
+        연결이 안 되거나 5xx 면 두 번까지 다시 건다(20초 간격). 터널이
+        잠깐 끊기거나 리포트 서버가 재기동 중인 경우가 대부분이라 그때는
+        기다리면 된다. 4xx 는 우리가 잘못 보낸 것이라 다시 보내도 같다.
+        그래도 안 되면 notes 에 사유를 남긴다. 빈칸으로 두면 화면이
+        「아직 생성 중」과 구분을 못 해 영원히 기다린다.
+        GPU 를 붙잡는다는 우려는 큐를 가른 뒤(2026-09-19) 약해졌다 —
+        소견문은 io 워커에서 돌고 판독(8001)과 다른 프로세스(8002)다.
     """
     report = Report.objects.get(pk=report_id) 
     ai = AiResult.objects.get(pk=ai_result_id)
@@ -269,8 +282,21 @@ def request_narrative(report_id, ai_result_id) :
         with urllib.request.urlopen(req, timeout=330) as r :
             out = json.loads(r.read())
     except Exception as exc :
-        logger.warning("[narrative] 리포트 %s 못 보냈다 (%s)", 
-                       report_id, type(exc).__name__)
+        # 콜백이 먼저 들어왔을 수 있다. 그 사이에 글이 도착했으면 다시 걸 이유가 없다 
+        report.refresh_from_db() 
+        if report.narrative_text:
+            logger.info("[narrative] 리포트 %s 콜백이 먼저 들어왔다.", report_id)
+            return "arrived_late"
+        
+        # 4xx 는 우리가 잘 못 보낸거라 다시보내도 같은 결과 
+        # 나모지는 잠시 뒤에 시도하면 될 수 있다 
+        code = getattr(exc, "code", None)
+        if (code is None or code >=500) and self.request.retries < 2 :
+            raise self.retry(exc=exc, countdown=20)
+        
+        logger.warning("[narrative] 리포트 %s 못 보냄 (%s)", report_id, type(exc).__name__)
+        report.notes = {**(report.notes or {}), "narrative_error": f"{type(exc).__name__}: {exc}"[:300]}
+        report.save(update_fields=["notes", "updated_at"])
         return f"failed:{type(exc).__name__}"
     
     logger.info("[narrative] 리포트 %s 보냄 / 소켓 %s / fallback=%s", report_id, report.socket_id, out.get("fallback"))
