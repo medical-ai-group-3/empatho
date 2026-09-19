@@ -835,11 +835,23 @@ export const nursing = {
  * ⚠ search 는 q 가 없으면 서버가 **빈 목록**을 준다(qs.none()). 전체
  *   환자를 실수로 긁지 않게 한 것이라 화면도 빈 검색어를 안 보낸다.
  */
+/* ⚠ 2026-09-19 확인 — 서버가 주는 페이지네이션 봉투({count,results,…})를
+ * 안 벗기고 그대로 넘기던 자리가 이 과에 몇 군데 남아 있었다. 병리·영상
+ * 큐에서 이미 겪은 것과 같은 문제인데(2026-09-18, path.queue()/rad.queue()
+ * 참고) 원무는 그때 안 고쳤다 — 접수 화면이 정확히 여기서 죽었다
+ * ("object is not iterable" — Calendar.jsx가 봉투 객체를 for…of 로
+ * 돌리려다 난 에러). 화면들이 배열을 그대로 기대하므로(항목 하나
+ * 씌우는 {items,total} 이 아니라) 배열만 뽑아 돌려준다. */
+function unwrapList(raw) {
+  if (Array.isArray(raw)) return raw;
+  return raw?.results ?? raw?.items ?? [];
+}
+
 export const reception = {
-  search:      (q)  => get(`/patients/${qs({ q })}`),
+  search:      (q)  => get(`/patients/${qs({ q })}`).then(unwrapList),
   register:    (b)  => post("/patients/register", b),
   checkIn:     (b)  => post("/exam-orders/checkin", b),
-  todayStatus: ()   => get("/patients/today-status"),
+  todayStatus: ()   => get("/patients/today-status").then(unwrapList),
 
   /* 예약 캘린더 — 한 달 치를 한 번에 받는다. 조회 전용이다.
      GET /exam-orders 는 한 경로에서 메서드로 갈린다(urls.py 의
@@ -860,7 +872,7 @@ export const reception = {
       scheduled_from: `${from}T00:00:00`,
       scheduled_to:   `${to}T23:59:59`,
       ordering:       "scheduled_at",
-    })}`),
+    })}`).then(unwrapList),
 
   /* ── 3장 환자 목록 · 예약 ────────────────────────────────────
    *
@@ -875,7 +887,7 @@ export const reception = {
    *   지금은 이 길뿐이다.
    *   → 다희님께 «목록 전체를 받는 공식 방법»을 요청해 두었다. 생기면
    *     아래 ALL 을 그것으로 바꾼다. */
-  list:   (p)      => get(`/patients/${qs(p)}`),
+  list:   (p)      => get(`/patients/${qs(p)}`).then(unwrapList),
   detail: (id)     => get(`/patients/${id}/`),
   /* ⚠ 여기로는 **이름·생년월일·전화를 못 고친다.** 그 셋은 patient_pii 에
      있고 PatientSerializer 는 patient 표만 다룬다 (상세의 pii 는 읽기 전용).
@@ -883,7 +895,7 @@ export const reception = {
   update: (id, b)  => patch(`/patients/${id}/`, b),
 
   /* 같은 환자의 예약을 전부 본다 — 같은 날 중복 예약을 잡으려고 */
-  ordersOf: (id)   => get(`/exam-orders${qs({ patient: id, ordering: "scheduled_at" })}`),
+  ordersOf: (id)   => get(`/exam-orders${qs({ patient: id, ordering: "scheduled_at" })}`).then(unwrapList),
 
   /* [예약 완료]. **원무는 날짜만 정한다** — modality · exam_purpose ·
      ordered_by 는 안 보낸다. 서버도 그 셋을 안 받는다
