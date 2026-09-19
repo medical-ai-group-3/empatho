@@ -1,9 +1,11 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { api } from "../api";
 import { useApi } from "../lib/useApi";
 import Switch from "../lib/Switch";
 import { SCALES, useScale, useTheme } from "../lib/theme";
 import { Body, Head } from "../lib/Screen";
+import { clearSeen, COACH_HOME } from "../lib/seen";
 
 /* 11 · 설정
  *
@@ -37,6 +39,7 @@ export default function Settings() {
 }
 
 function Inner({ c }) {
+  const navigate = useNavigate();
   const [theme, setTheme] = useTheme();
   const [scale, setScale] = useScale();
   const [push, setPush] = useState(() =>
@@ -53,6 +56,11 @@ function Inner({ c }) {
       setPush((p) => ({ ...p, [kind]: !on }));   // 실패하면 되돌린다
       setMsg({ ok: false, text: e.detail || e.message });
     }
+  }
+
+  function replayGuide() {
+    clearSeen(COACH_HOME);
+    navigate("/");
   }
 
   return (
@@ -102,6 +110,15 @@ function Inner({ c }) {
                     onChange={(v) => togglePush(p.kind, v)} />
           </div>
         ))}
+      </div>
+
+      <h3 className="sec">도움말</h3>
+      <div className="card">
+        <span className="k">앱 사용법</span>
+        <span className="s">틸리가 주요 기능을 다시 안내해 드립니다.</span>
+        <button className="btn ghost" type="button" onClick={replayGuide}>
+          앱 사용법 다시 보기
+        </button>
       </div>
 
       <p className="note">

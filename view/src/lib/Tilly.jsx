@@ -14,6 +14,7 @@ import { useState } from "react";
  *   public/tilly/tily_hello.png  인사 · 웰컴 화면
  *   public/tilly/tily_alarm.png  알림이 없을 때
  *   public/tilly/tily_rest.png   목록이 비었을 때
+ *   public/tilly/tily_error.png  연결·불러오기 오류
  *   public/tilly/tilly_loading_spinner.gif  동그라미 로더  불러오는 중
  *
  * 투명 PNG/GIF 로, 화면 배율이 다양하니 **찍힐 크기의 3배**로 주면 안전하다
@@ -37,6 +38,7 @@ const FILE = {
   hello: "tily_hello.png",
   alarm: "tily_alarm.png",
   rest: "tily_rest.png",
+  error: "tily_error.png",
   chatbot: "tilly_chatbot.png",
   chatbotBanner: "tily_chatbot_baner.png",
   chatbotProfile: "tily_chatbot_profile.png",
@@ -57,6 +59,7 @@ const SAY = {
   face: "틸리",
   alarm: "틸리가 종을 들고 있어요",
   rest: "틸리가 쉬고 있어요",
+  error: "틸리가 다시 확인하고 있어요",
   guide: "틸리가 안내 팻말을 들고 있어요",
   loading: "틸리가 불러오는 중이에요",
   chatbot: "안내 챗봇 틸리",

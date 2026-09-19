@@ -18,6 +18,12 @@ export function markSeen(key) {
   try { localStorage.setItem(key, "1"); } catch { /* 이번 방문에만 적용된다 */ }
 }
 
+/* 설정에서 「앱 사용법 다시 보기」를 눌렀을 때만 지운다. 첫 사용 안내를
+   매번 되살리지 않으면서, 필요할 때는 사용자가 직접 다시 볼 수 있다. */
+export function clearSeen(key) {
+  try { localStorage.removeItem(key); } catch { /* 저장소를 못 쓰면 다음 화면에서 보이지 않는다 */ }
+}
+
 export const WELCOME = "empatho.welcome_seen";
 /* 틸리 소개를 더한 새 안내는 기존 안내를 본 기기에도 한 번 보여 준다. */
 export const COACH_HOME = "empatho.coach_home_v2";

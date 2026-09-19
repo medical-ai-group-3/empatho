@@ -81,9 +81,15 @@ export function Body({ loading, error, onRetry, children }) {
   if (error) {
     return (
       <div className="pane">
-        <div className="card flag">
-          <span className="k">{error.code || "오류"}</span>
-          <span className="s">{error.detail || error.message}</span>
+        <div className="empty error-state">
+          {/* tily_error.png 가 아직 없으면 Tilly가 조용히 자리를 비운다.
+              이미지가 추가되는 즉시 같은 자리에서 보인다. */}
+          <Tilly mood="error" size="lg" alt="" />
+          <div className="card flag">
+            <span className="k">{error.code || "오류"}</span>
+            <span className="s">{error.detail || error.message || "불러오지 못했습니다."}</span>
+          </div>
+          <p>인터넷 연결을 확인한 뒤 다시 시도해 주세요.</p>
         </div>
         <button className="btn ghost" onClick={onRetry}>다시 시도</button>
       </div>

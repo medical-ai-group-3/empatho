@@ -45,7 +45,7 @@ const COACH = [
 /* 홈에 들어올 때마다 한 줄을 바꾼다. 매번 새로 고르되, 같은 화면에
    머무는 동안에는 문구가 흔들리지 않도록 Inner가 처음 열릴 때만 정한다. */
 const GREETINGS = [
-  (name) => `${name} 님, 오늘도 건강한 하루예요`,
+  (name) => `${name} 님, 오늘도 건강한 하루에요`,
   (name) => `${name} 님, 오늘도 틸리가 곁에 있을게요`,
   (name) => `${name} 님의 건강한 하루를 응원해요`,
   (name) => `${name} 님, 천천히 내 건강을 살펴봐요`,
@@ -61,6 +61,9 @@ function questLine(q) {
 
 export default function Home() {
   const { loading, data, error, reload } = useApi(() => api.home());
+  // 홈의 다음 복용은 처방 원본에서 읽는다. 홈 응답에 복용 기록을 복제하면
+  // 체크한 직후 두 화면의 값이 서로 어긋날 수 있다.
+  const prescriptions = useApi(() => api.prescriptions());
 
   return (
     <>
@@ -68,13 +71,13 @@ export default function Home() {
           그 자리를 인사와 알림에 내주는 편이 낫다. 뒤로가기도 없다 —
           돌아갈 위가 없다. */}
       <Body loading={loading} error={error} onRetry={reload}>
-        {data && <Inner d={data} />}
+        {data && <Inner d={data} prescriptions={prescriptions.data} />}
       </Body>
     </>
   );
 }
 
-function Inner({ d }) {
+function Inner({ d, prescriptions }) {
   const [greeting] = useState(() => {
     const line = GREETINGS[Math.floor(Math.random() * GREETINGS.length)];
     return line(d.display_name);
@@ -85,7 +88,9 @@ function Inner({ d }) {
   const next = d.next_reservation;
   const cal = d.calendar;
   const newReport = d.new_reports?.find((r) => r.lock_status !== "locked");
+  const nextMedication = findNextMedication(prescriptions);
   const todayTasks = [
+    nextMedication,
     !done && {
       to: "/quest", icon: "help", title: questLine(q),
       detail: q.hint || "검사 전에 문진을 마쳐 주세요",
@@ -99,7 +104,7 @@ function Inner({ d }) {
       icon: "results", title: "새 안내문을 확인해 주세요",
       detail: newReport.title,
     },
-  ].filter(Boolean);
+  ].filter(Boolean).slice(0, 3);
 
   return (
     <>
@@ -290,6 +295,33 @@ function TodayTasks({ tasks }) {
       </div>
     </section>
   );
+}
+
+/* 복용 기록이 없는 회차만 고른다. 이미 지난 시각이면 「다음」이라고
+   속이지 않고 복용 확인이 필요하다고 말한다. */
+function findNextMedication(prescriptions) {
+  const pending = (prescriptions?.items ?? [])
+    .filter((rx) => rx.status !== "ended")
+    .flatMap((rx) => (rx.drugs ?? []).flatMap((g) =>
+      (g.today ?? []).filter((t) => !t.log_id).map((t) => ({ g, t }))
+    ))
+    .sort((a, b) => a.t.time.localeCompare(b.t.time));
+  if (!pending.length) return null;
+
+  const now = new Date();
+  const minutes = now.getHours() * 60 + now.getMinutes();
+  const asMinutes = (time) => {
+    const [hour, minute] = time.split(":").map(Number);
+    return hour * 60 + minute;
+  };
+  const item = pending.find(({ t }) => asMinutes(t.time) >= minutes) ?? pending[0];
+  const upcoming = asMinutes(item.t.time) >= minutes;
+
+  return {
+    to: "/meds", icon: "pill",
+    title: upcoming ? `다음 복용 ${item.t.time}` : `${item.t.time} 복용 확인`,
+    detail: `${item.g.name} · ${item.g.dose}`,
+  };
 }
 
 /* 톱니 — 설정. 종과 같은 굵기·같은 모서리로 그려야 둘이 한 벌로 보인다. */
