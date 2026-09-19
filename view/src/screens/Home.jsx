@@ -140,6 +140,7 @@ function Inner({ d, prescriptions }) {
         </span>
       </div>
 
+      {d.today_visit?.active && <TodayVisit visit={d.today_visit} />}
       {todayTasks.length > 0 && <TodayTasks tasks={todayTasks} />}
 
       <div className="quick-head">
@@ -293,6 +294,21 @@ function TodayTasks({ tasks }) {
           </Link>
         ))}
       </div>
+    </section>
+  );
+}
+
+/* 접수 뒤에만 오는 당일 동선이다. 내부 처리 단계 대신 환자가 실제로
+   움직여야 하는 다음 장소 하나만 보여 준다. */
+function TodayVisit({ visit }) {
+  return (
+    <section className="today-visit" aria-labelledby="today-visit-title">
+      <span className="today-visit-icon"><Icon name="hospital" /></span>
+      <span className="today-visit-text">
+        <span className="k" id="today-visit-title">오늘 병원 안내</span>
+        <b>다음 진료: {visit.next_location}</b>
+        {visit.note && <span>{visit.note}</span>}
+      </span>
     </section>
   );
 }

@@ -15,16 +15,62 @@
    다르게 굴어야 한다(다시 로그인 / 권한 없음).
    ───────────────────────────────────────────────────────────────── */
 export class ApiError extends Error {
-  constructor(status, code, detail) {
+  constructor(status, code, detail, traceId = null) {
     super(detail || code || `HTTP ${status}`);
     this.name = "ApiError";
     this.status = status;
     this.code = code || "UNKNOWN";
     this.detail = detail || "";
+    this.traceId = traceId;
   }
 }
 
-async function call(path, { method = "GET", body, signal, headers } = {}) {
+/* 실제 Django는 access 토큰을 요구한다. 토큰은 페이지를 닫으면 사라지는
+   메모리에만 두고, 새로 연 탭에서는 refresh 쿠키로 다시 받는다. */
+let accessToken = null;
+let refreshing = null;
+
+export function setAccessToken(token) {
+  accessToken = token || null;
+}
+
+function unwrap(data) {
+  return data && typeof data === "object" && "success" in data ? data.data : data;
+}
+
+function apiError(status, data, fallback, traceId) {
+  const error = data?.error;
+  return new ApiError(
+    status,
+    error?.code || data?.code,
+    error?.message || data?.detail || fallback,
+    data?.trace_id || traceId,
+  );
+}
+
+async function refreshAccess() {
+  if (refreshing) return refreshing;
+  refreshing = (async () => {
+    try {
+      const res = await fetch("/api/v1/token/refresh", {
+        method: "POST",
+        headers: { Accept: "application/json" },
+        credentials: "include",
+      });
+      const payload = await res.json().catch(() => null);
+      const next = res.ok ? unwrap(payload)?.access : null;
+      if (next) setAccessToken(next);
+      return next || null;
+    } catch {
+      return null;
+    } finally {
+      refreshing = null;
+    }
+  })();
+  return refreshing;
+}
+
+async function call(path, { method = "GET", body, signal, headers, retried = false } = {}) {
   if (!path.startsWith("/")) {
     throw new Error(`상대 경로여야 한다: ${path}`);
   }
@@ -34,10 +80,11 @@ async function call(path, { method = "GET", body, signal, headers } = {}) {
     headers: {
       Accept: "application/json",
       ...(body ? { "Content-Type": "application/json" } : {}),
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       ...headers,
     },
     body: body ? JSON.stringify(body) : undefined,
-    credentials: "same-origin",
+    credentials: "include",
   });
 
   if (res.status === 204) return null;
@@ -48,10 +95,18 @@ async function call(path, { method = "GET", body, signal, headers } = {}) {
     try { data = JSON.parse(text); } catch { /* 본문이 JSON 이 아닐 때 */ }
   }
 
-  if (!res.ok) {
-    throw new ApiError(res.status, data?.code, data?.detail || text.slice(0, 300));
+  /* 새로고침 뒤 access는 비어 있지만 refresh 쿠키가 남아 있을 수 있다.
+     로그인·갱신 요청 자체에는 이 과정을 걸지 않는다. */
+  if (res.status === 401 && !retried
+      && path !== "/api/v1/login" && path !== "/api/v1/token/refresh") {
+    const next = await refreshAccess();
+    if (next) return call(path, { method, body, signal, headers, retried: true });
   }
-  return data;
+
+  if (!res.ok || data?.success === false) {
+    throw apiError(res.status, data, text.slice(0, 300), res.headers.get("X-Trace-Id"));
+  }
+  return unwrap(data);
 }
 
 export const get  = (p, o)       => call(p, { ...o, method: "GET" });
@@ -198,11 +253,18 @@ export const api = {
   //     있고 role 로만 갈린다 — 그래서 병원 웹과 경로가 같다. 앱이
   //     따로 쓸 로그인이 있는 줄 알았던 것이 착각이었다.
   //
-  //     ⚠ refresh 가 **본문에 온다.** 쿠키가 아니다. 지금은 화면이
-  //       access 만 쓰고 있고, 갱신 경로(`/token/refresh`)는 서버에
-  //       아직 없다 — 생기면 이 refresh 를 들고 가야 한다.
-  login:        (id, pw)   => post("/api/v1/login", { login_id: id, password: pw }),
-  logout:       ()         => post("/api/v1/logout"),
+  //     refresh_token 은 httpOnly 쿠키로 서버가 보관한다. access 토큰은
+  //     이 파일의 메모리에만 두며, 새로고침 뒤에는 `/token/refresh`로
+  //     다시 받는다.
+  login:        async (id, pw) => {
+    const session = await post("/api/v1/login", { login_id: id, password: pw });
+    setAccessToken(session?.access);
+    return session;
+  },
+  logout:       async () => {
+    try { return await post("/api/v1/logout"); }
+    finally { setAccessToken(null); }
+  },
   me:           ()         => get("/api/v1/me"),
 
   // 02  가입 — 세 걸음이다.

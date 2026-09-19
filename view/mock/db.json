@@ -96,6 +96,11 @@
       "modality_label": "유방초음파",
       "place": "영상의학과 3번"
     },
+    "today_visit": {
+      "active": true,
+      "next_location": "3층 유방외과 2진료실",
+      "note": "호출 전까지 대기해 주세요."
+    },
     "calendar": {
       "month": "2026-09",
       "marks": [

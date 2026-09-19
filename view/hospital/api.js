@@ -342,6 +342,47 @@ export async function logout() {
 
 /* ── 병리과 ───────────────────────────────────────────────────
  * 판독 단위는 검체(specimen) 다. */
+
+/* ⚠ 2026-09-19 확인 — SpecimenSerializer 가 exclude=AUDIT_FIELDS 인
+ * 맨몸 ModelSerializer 라 모델 컬럼 이름 그대로 나간다(services/django
+ * core/serializers/pathology.py). dept/pathology.jsx 다섯 장이 기대하는
+ * patient_name·age·sex·specimen_no·kind·method 는 죄다 없고, 대신
+ * specimen_id·patient(FK id)·specimen_label·specimen_type·
+ * guidance_route 로 온다 — 영상의학과 radOrderRow() 처럼 이름만 바꿔
+ * 될 자리가 아니라 patient 는 아예 **다른 테이블 id 라 조인이 필요하다.**
+ * 이 화면들은 원래 병리 서버 응답이 patient_name 등을 직접 준다고
+ * (목업 그대로) 믿고 있었다 — 그래서 실서버에서는 환자 이름·나이·성별
+ * 칸이 통째로 비어 있었다.
+ *
+ * 병리 서버에 검체 목록에 환자 정보를 얹어 주는 별도 경로가 없어서
+ * (breast.waiting() 도 같은 사정으로 patients/ 를 직접 부른다) 검체
+ * 한 건마다 GET /patients/{id}/ 를 한 번 더 불러 합친다 — dept/
+ * pathology.jsx 의 read() 가 이미 Promise.all 로 두 응답을 합치던
+ * 것과 같은 자리다.
+ *
+ * site(병변 위치)·radiology_summary·guide_images·other_specimens·
+ * viewed_at 은 Specimen·Lesion 모델 어디에도 없다 — 실제로 있는지
+ * 아직 확인 못 했다. 없는 조인을 지어내지 않고 그대로 비워 둔다
+ * (있으면 화면이 알아서 숨긴다, 다섯 장 다 ?? 로 방어돼 있다). */
+async function pathSpecimenRow(raw = {}) {
+  const patientId = raw.patient;
+  const patient = patientId == null ? null
+    : await get(`/patients/${patientId}/`).then(normalizePatient).catch(() => null);
+  return {
+    ...raw,
+    id: raw.specimen_id ?? raw.id,
+    patient_name: patient?.name ?? (patientId == null ? "" : `환자 #${patientId}`),
+    age: patient?.age ?? null,
+    sex: patient?.sex ?? "",
+    patient_no: patient?.patient_number ?? "",
+    birth: patient?.birth_date ?? null,
+    specimen_no: raw.specimen_label ?? raw.specimen_no,
+    kind: raw.specimen_type ?? raw.kind,
+    method: raw.guidance_route ?? raw.method,
+    finalized: raw.finalized ?? Boolean(raw.finalized_at),
+  };
+}
+
 export const path = {
   /* ⚠ 서버는 큐를 **기본 필터 없이** 준다 (2026-09-16 다희님 확인).
      이 두 조건을 안 담으면 이미 남이 집어간 검체까지 대기 큐에 뜬다.
@@ -352,9 +393,10 @@ export const path = {
    * 주고 있었다 — 판독 단위를 검체 하나로 잡는 병리과 큐가 실서버에서
    * 크래시 나던 자리다. */
   queue:      ()       => get(`/specimens/queue${qs({ status: "bound", assigned: "none" })}`)
-    .then((raw) => {
+    .then(async (raw) => {
       const rows = raw?.results ?? raw?.items ?? (Array.isArray(raw) ? raw : []);
-      return { ...raw, items: rows, total: raw?.count ?? raw?.total ?? rows.length };
+      const items = await Promise.all(rows.map(pathSpecimenRow));
+      return { ...raw, items, total: raw?.count ?? raw?.total ?? items.length };
     }),
   /* ⚠ 상세에도 슬래시가 붙는다 (2026-09-16 다희님이 직접 요청을 넣어
      확인). 전에 「병리는 상세에 슬래시가 없다」고 들었던 것이 틀렸다 —
@@ -369,7 +411,7 @@ export const path = {
        명시 path() 라서 **슬래시가 없다.** 끝 슬래시가 붙는 것은 router 에
        등록된 것들뿐이다 (patients · studies · lesions · reports ·
        followups · reservations · visits/today · me/reservation-requests). */
-  specimen:   (id)     => get(`/specimens/${id}/`),
+  specimen:   (id)     => get(`/specimens/${id}/`).then(pathSpecimenRow),
   assign:     (id)     => patch(`/specimens/${id}/assign`),
 
   uploadInfo: (id)     => get(`/specimens/${id}/upload`),
@@ -389,9 +431,10 @@ export const path = {
      본문이 날아가므로, 붙는 자리는 처음부터 붙여 둔다 */
   /* ⚠ 봉투 언랩 — List.jsx 가 data.items/data.total 을 기대한다(위 queue
    * 와 같은 자리). */
-  list:       (o = {}) => get(`/specimens/${qs(o)}`).then((raw) => {
+  list:       (o = {}) => get(`/specimens/${qs(o)}`).then(async (raw) => {
     const rows = raw?.results ?? raw?.items ?? (Array.isArray(raw) ? raw : []);
-    return { ...raw, items: rows, total: raw?.count ?? raw?.total ?? rows.length };
+    const items = await Promise.all(rows.map(pathSpecimenRow));
+    return { ...raw, items, total: raw?.count ?? raw?.total ?? items.length };
   }),
   /* ⚠ POST /specimens/{id}/amend 는 서버에 없다 (확정 사양서 §8-2 —
      병리 결과 정정 경로를 두지 않기로 함. views/pathology.py 상단
@@ -815,7 +858,12 @@ export const nursing = {
   patient:        (id) => get(`/patients/${id}/`),
   saveNote:       (examOrderId, note) => patch(`/exam-orders/${examOrderId}/note`, { note }),
   surgeons:       () => get(`/staff${qs({ role: "surgery" })}`),
-  assignSurgeon:  (patientId, staffId) => patch(`/patients/${patientId}/`, { primary_staff_id: staffId }),
+  /* ⚠ 2026-09-19 확인 — PatientSerializer 가 내는 이름은 primary_staff_id
+   * 가 아니라 모델 필드 그대로인 primary_staff 다(core/serializers/
+   * reception.py, core/models.py Patient.primary_staff). DRF 는 모르는
+   * 키를 그냥 무시하고 200 을 돌려주기 때문에, 예전 이름으로는 응답은
+   * 정상인데 실제로는 아무것도 안 바뀌는 채로 넘어가고 있었다. */
+  assignSurgeon:  (patientId, staffId) => patch(`/patients/${patientId}/`, { primary_staff: staffId }),
 
   /* 2장 */
   /* ⚠ router.register(r"followups", ...) 로 등록된 목록이라 슬래시가
@@ -917,10 +965,13 @@ export const ALL_PATIENTS = { status: "all" };
  *   visited=none       visited_at 이 빈 것. 차 있으면 이미 창구에 온
  *                      환자라 예약 확인이 아니라 간호 큐로 간다
  */
+/* ⚠ 2026-09-19 확인 — 위 reception 본체의 다섯 함수와 같은 봉투 문제가
+ * 여기도 있었다. Requests.jsx 는 list.data 를 배열로 바로 쓴다
+ * (rows = list.data ?? []). */
 reception.requests = () =>
   get(`/exam-orders${qs({
     status: "requested", visited: "none", ordering: "scheduled_at",
-  })}`);
+  })}`).then(unwrapList);
 
 /* [예약 확인]. **날짜만 보낸다.**
  *

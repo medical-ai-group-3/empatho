@@ -87,7 +87,11 @@ function toRead(s, up) {
     unit: {
       id: s.id, no: s.specimen_no, kind: s.kind, method: s.method,
       collected_at: s.collected_at, site: s.site,
-      reported_by: s.reported_by, status_label: s.status_label,
+      /* ⚠ 서버는 코드(accession_status)만 준다 — 4장 목록(list.row)과
+         같은 방식으로 여기서도 라벨을 입힌다. s.status_label 을 그대로
+         읽던 전 코드는 그런 필드가 서버에 없어 항상 빈칸이었다. */
+      reported_by: s.reported_by,
+      status_label: text(s, "accession_status", ACCESSION_STATUS, "status_label"),
       amend_history: s.amend_history ?? [],
     },
     radiology_summary: s.radiology_summary ?? null,

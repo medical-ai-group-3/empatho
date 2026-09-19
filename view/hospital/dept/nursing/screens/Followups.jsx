@@ -136,19 +136,31 @@ function Inner({ cfg }) {
 
 function RowActions({ cfg, f, onPick, onDone }) {
   const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
 
   /* 명세에 종결·재진입 전용 엔드포인트가 없다 — "정해지지 않은 것"에
      안 걸린 진짜 빈틈이다. 상태만 바꾸는 것도 결국 그 회차에 손대는
      일이라 PATCH /followups/{id}/call을 그대로 빌려 쓴다(백엔드가
-     전용 경로를 열어 주면 그쪽으로 바꾸면 된다). */
+     전용 경로를 열어 주면 그쪽으로 바꾸면 된다).
+
+     ⚠ 2026-09-19 확인 — 실서버 FollowupCallSerializer는 status 라는
+     칸을 아예 안 받는다(call_result 만 받는다, core/serializers/
+     nursing.py). 즉 이 「빌려 쓰기」는 지금 실서버에서는 항상 400 이다.
+     예전엔 catch 가 없어서 버튼이 조용히 스피너만 멈추고 아무 것도
+     안 알려줬다 — 실패를 화면에 보이게 한다(진짜 고치려면 전용
+     엔드포인트가 서버에 생겨야 한다, 프론트만으로는 못 고친다). */
   async function resolve() {
     setBusy(true);
+    setErr(null);
     try { await cfg.api.logCall(f.id, { status: "resolved" }); onDone?.(); }
+    catch (e) { setErr(e.detail || "종결 처리에 실패했습니다."); }
     finally { setBusy(false); }
   }
   async function reopen() {
     setBusy(true);
+    setErr(null);
     try { await cfg.api.logCall(f.id, { status: "open" }); onDone?.(); }
+    catch (e) { setErr(e.detail || "재진입 처리에 실패했습니다."); }
     finally { setBusy(false); }
   }
 
@@ -160,10 +172,13 @@ function RowActions({ cfg, f, onPick, onDone }) {
   const viewOnly = isTerminal || isDeclined;
 
   return (
-    <div className="stack">
-      <button className="btn line" onClick={onPick} disabled={isCandidate || viewOnly}>콜 기록</button>
-      <button className="btn line" onClick={reopen} disabled={busy || !isDeclined}>재진입</button>
-      <button className="btn line" onClick={resolve} disabled={busy || isCandidate || viewOnly}>종결</button>
+    <div className="stack" style={{ flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+      <div className="stack">
+        <button className="btn line" onClick={onPick} disabled={isCandidate || viewOnly}>콜 기록</button>
+        <button className="btn line" onClick={reopen} disabled={busy || !isDeclined}>재진입</button>
+        <button className="btn line" onClick={resolve} disabled={busy || isCandidate || viewOnly}>종결</button>
+      </div>
+      {err && <span className="muted small" role="alert">{err}</span>}
     </div>
   );
 }
