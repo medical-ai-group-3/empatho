@@ -193,6 +193,7 @@ a{color:inherit; text-decoration:none}
 .quest-pop{position:absolute; right:calc(var(--card-pad) / 3); bottom:calc(-1 * var(--card-pad) / 2);
   height:86px; width:auto; object-fit:contain; pointer-events:none}
 .quest-card.accent .tx{padding-right:76px}
+.quest-card.accent .s{color:light-dark(#000000, #FFFFFF)}
 
 /* ── 목록 ─────────────────────────────────── */
 .list{display:flex; flex-direction:column; background:var(--surface);
@@ -810,16 +811,18 @@ a{color:inherit; text-decoration:none}
 /* 접수된 환자에게만 보이는 당일 동선. 「다음 진료」 한 줄이 주인공이고,
    병원 내부의 세세한 처리 단계는 환자 화면에 싣지 않는다. */
 .today-visit{display:flex; align-items:center; gap:var(--card-go-gap); padding:var(--card-pad);
-  border:var(--line-w) solid var(--pink-3); border-radius:var(--card-radius);
+  border:var(--line-w) solid #7A1E3A; border-radius:var(--card-radius);
   background:var(--pink-bg); box-shadow:var(--card-shadow)}
-.today-visit-icon{width:var(--top-back); height:var(--top-back); border-radius:var(--icon-radius);
+.today-visit-icon{width:calc(var(--top-back) * 1.15); height:calc(var(--top-back) * 1.15); border-radius:var(--icon-radius);
   display:flex; align-items:center; justify-content:center; flex:none;
   background:var(--surface); color:var(--pink)}
 .today-visit-icon .svg-icon{width:18px; height:18px}
+.today-visit-tilly{width:calc(var(--top-back) * 1.28); height:calc(var(--top-back) * 1.28);
+  object-fit:contain}
 .today-visit-text{display:flex; flex-direction:column; gap:var(--card-tx-gap); min-width:0}
 .today-visit-text .k{color:var(--pink)}
 .today-visit-text b{font-size:var(--card-v-fs); color:var(--ink); letter-spacing:-.012em}
-.today-visit-text > span:last-child{font-size:var(--card-s-fs); color:var(--muted)}
+.today-visit-text > span:last-child{font-size:var(--card-s-fs); color:light-dark(#000000, #FFFFFF)}
 
 /* 홈에서 여러 카드에 흩어진 일을 한 번 더 묶는다. 새 기능을 만들기보다,
    환자가 지금 먼저 해야 할 곳으로 바로 갈 수 있게 순서만 세운다. */
@@ -828,15 +831,17 @@ a{color:inherit; text-decoration:none}
 .today-tasks-head{display:flex; align-items:center; gap:var(--card-tx-gap);
   padding:var(--card-pad); padding-bottom:var(--card-tx-gap); color:var(--ink)}
 .today-tasks-head .svg-icon{width:16px; height:16px; color:var(--pink); stroke-width:2.2}
+.today-tasks-tilly{width:32px; height:32px; object-fit:contain; margin:-7px 0}
 .today-tasks-head b{font-size:var(--card-v-fs); font-weight:700}
 .today-tasks-head span{margin-left:auto; color:var(--muted); font-size:var(--card-s-fs)}
 .today-tasks-list{display:flex; flex-direction:column}
 .today-tasks-list a{display:flex; align-items:center; gap:var(--card-go-gap);
   padding:var(--card-pad); border-top:var(--line-w) solid var(--line-soft)}
 .today-tasks-list a:hover{background:var(--blush)}
-.today-task-icon{width:var(--icon); height:var(--icon); border-radius:var(--icon-radius);
+.today-task-icon{width:calc(var(--icon) * 1.15); height:calc(var(--icon) * 1.15); border-radius:var(--icon-radius);
   display:flex; align-items:center; justify-content:center; background:var(--blossom); color:var(--pink); flex:none}
 .today-task-icon .svg-icon{width:17px; height:17px}
+.today-task-image{width:calc(var(--icon) * 1.08); height:calc(var(--icon) * 1.08); object-fit:contain}
 .today-task-text{display:flex; flex-direction:column; flex:1; min-width:0}
 .today-task-text b{font-size:var(--card-s-fs); color:var(--ink)}
 .today-task-text span{font-size:var(--card-k-fs); color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
@@ -905,18 +910,18 @@ a{color:inherit; text-decoration:none}
   transform:translateX(50%); pointer-events:none}
 .hello-tx{flex:1; min-width:0; margin:0; display:flex; position:relative; z-index:1;
   flex-direction:column; gap:var(--hello-gap)}
-.hello-greeting{padding:8px 10px;
+.hello-message{display:flex; flex-direction:column; gap:3px; padding:8px 10px;
   border-radius:14px; background:light-dark(rgba(255,255,255,.84),rgba(28,31,36,.88));
   border:2px solid var(--pink-3);
   box-shadow:0 4px 14px light-dark(rgba(70,35,42,.08),rgba(0,0,0,.22));
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   backdrop-filter:blur(7px)}
-.hello-tip{align-self:flex-start; padding:6px 9px; border-radius:12px;
-  color:var(--pink) !important; font-size:var(--tiny-fs) !important; font-weight:600;
-  letter-spacing:.01em; white-space:nowrap; border:1px solid var(--pink-3);
-  background:light-dark(rgba(255,255,255,.72),rgba(28,31,36,.78));
-  box-shadow:0 3px 10px light-dark(rgba(70,35,42,.06),rgba(0,0,0,.18));
-  backdrop-filter:blur(5px)}
+.hello-date{font-size:var(--tiny-fs) !important; color:var(--muted) !important; font-weight:600}
+.hello-visit{font-size:var(--card-v-fs) !important; color:var(--ink) !important; font-weight:700;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.hello-health-label{margin-top:2px; font-size:var(--tiny-fs) !important; color:var(--pink) !important;
+  font-weight:700; letter-spacing:.01em}
+.hello-health-tip{font-size:var(--tiny-fs) !important; color:var(--ink-2) !important; font-weight:600;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
 .hello-tri{flex:none; display:block; margin-right:var(--hello-tri-right);
   position:relative; z-index:1}
 /* 그림자가 있어야 «얹혀 있다»로 읽힌다. 없으면 타일에 인쇄된 것처럼

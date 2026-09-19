@@ -50,26 +50,14 @@ function visitOrdinal(n) {
   return `${n}번째`;
 }
 
-function greetingFor(home) {
+function visitGreeting(home) {
   const name = home.display_name || "환자";
-  const reservation = home.next_reservation;
   const visits = Number(home.visit_count);
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const booked = reservation?.scheduled_at ? new Date(reservation.scheduled_at) : null;
 
-  if (home.today_visit?.active && Number.isFinite(visits) && visits > 0) {
+  if (Number.isFinite(visits) && visits > 0) {
     return `${name} 님, ${visitOrdinal(visits)} 방문이에요.`;
   }
-
-  if (booked) {
-    const bookedDay = new Date(booked.getFullYear(), booked.getMonth(), booked.getDate());
-    const daysAway = Math.round((bookedDay - today) / 86400000);
-    if (daysAway === 1) {
-      return `${name} 님, 내일 ${reservation.modality_label || "검사"} 예약이 있어요.`;
-    }
-  }
-  return `${name} 님, 오늘 일정을 확인해요.`;
+  return `${name} 님, 방문 일정을 확인해요.`;
 }
 
 function todayLabel() {
@@ -103,7 +91,7 @@ export default function Home() {
 }
 
 function Inner({ d, prescriptions }) {
-  const greeting = greetingFor(d);
+  const visit = visitGreeting(d);
   const q = d.questionnaire ?? {};
   const done = q.status === "done";
   const pct = q.total ? Math.round((q.answered / q.total) * 100) : 0;
@@ -114,11 +102,11 @@ function Inner({ d, prescriptions }) {
   const todayTasks = [
     nextMedication,
     !done && {
-      to: "/quest", icon: "help", title: questLine(q),
+      to: "/quest", icon: "help", image: "exam_results_icon.png", title: questLine(q),
       detail: q.hint || "검사 전에 문진을 마쳐 주세요",
     },
     next && {
-      to: "/book", icon: "calendar", title: `다음 예약 ${fmtWhen(next.scheduled_at)}`,
+      to: "/book", icon: "calendar", image: "exam_schedule_icon.png", title: `다음 예약 ${fmtWhen(next.scheduled_at)}`,
       detail: next.place || "예약 장소를 확인해 주세요",
     },
     newReport && {
@@ -154,8 +142,12 @@ function Inner({ d, prescriptions }) {
       <div className="hello">
         <p className="hello-tx">
           <b>안녕하세요!</b>
-          <span className="hello-greeting">{todayLabel()} · {greeting}</span>
-          <span className="hello-tip">오늘의 건강 한마디 · 물 한 잔으로 가볍게 시작해요</span>
+          <span className="hello-message">
+            <span className="hello-date">{todayLabel()}</span>
+            <span className="hello-visit">{visit}</span>
+            <span className="hello-health-label">오늘의 건강 한마디</span>
+            <span className="hello-health-tip">식후 약은 꼭 식후에 드세요.</span>
+          </span>
         </p>
         <img className="hello-bg" src="/tilly/tily_background.png" alt="" aria-hidden="true" />
         <span className="hello-tri" aria-hidden="true">
@@ -301,14 +293,18 @@ function TodayTasks({ tasks }) {
   return (
     <section className="today-tasks" aria-labelledby="today-tasks-title">
       <div className="today-tasks-head">
-        <Icon name="sparkle" />
+        <img className="today-tasks-tilly" src="/tilly/alram.png" alt="" aria-hidden="true" />
         <b id="today-tasks-title">오늘의 할 일</b>
         <span>{tasks.length}개</span>
       </div>
       <div className="today-tasks-list">
         {tasks.map((task) => (
           <Link key={task.to} to={task.to}>
-            <span className="today-task-icon"><Icon name={task.icon} /></span>
+            <span className="today-task-icon">
+              {task.image
+                ? <img className="today-task-image" src={`/tilly/${task.image}`} alt="" aria-hidden="true" />
+                : <Icon name={task.icon} />}
+            </span>
             <span className="today-task-text">
               <b>{task.title}</b>
               <span>{task.detail}</span>
@@ -326,7 +322,9 @@ function TodayTasks({ tasks }) {
 function TodayVisit({ visit }) {
   return (
     <section className="today-visit" aria-labelledby="today-visit-title">
-      <span className="today-visit-icon"><Icon name="hospital" /></span>
+      <span className="today-visit-icon">
+        <img className="today-visit-tilly" src="/tilly/hospital_finder_icon.png" alt="" aria-hidden="true" />
+      </span>
       <span className="today-visit-text">
         <span className="k" id="today-visit-title">오늘 병원 안내</span>
         <b>다음 진료: {visit.next_location}</b>
@@ -357,7 +355,7 @@ function findNextMedication(prescriptions) {
   const upcoming = asMinutes(item.t.time) >= minutes;
 
   return {
-    to: "/meds", icon: "pill",
+    to: "/meds", icon: "pill", image: "medication_icon.png",
     title: upcoming ? `다음 복용 ${item.t.time}` : `${item.t.time} 복용 확인`,
     detail: `${item.g.name} · ${item.g.dose}`,
   };

@@ -60,17 +60,17 @@
    *   본문 글자로 쓸 수 있는데, 연하게 만들면 그 선을 넘는다.
    *   외침을 줄이려면 채도를, 읽힘을 지키려면 명도를 — 둘은 다른
    *   손잡이다. */
-  --pink:    light-dark(#9E6470, #BE949C);   /* Primary — 핵심 포인트 · 선택 */
-  --pink-2:  light-dark(#BB8B96, #CDA8B0);   /* Muted   — 버튼 · 강조 요소 */
-  --pink-3:  light-dark(#D3B2B8, #DCC6CB);   /* Soft    — 배지 · 아이콘 · 차트 */
-  --pink-bg: light-dark(#EFE4E5, #342A2D);   /* 강조 배경 · 알림 배경 */
-  --blush:   light-dark(#F7F2F1, #2A2427);   /* 섹션 배경 — 어두운 값은
+  --pink:    light-dark(#7A1E3A, #E47FA3);   /* Primary — 핵심 포인트 · 선택 */
+  --pink-2:  light-dark(#B24A6B, #9B1F4E);   /* Muted   — 버튼 · 강조 요소 */
+  --pink-3:  light-dark(#D9A0A8, #C9658A);   /* Soft    — 배지 · 아이콘 · 차트 */
+  --pink-bg: light-dark(#FBDCE1, #4E0A24);   /* 강조 배경 · 알림 배경 */
+  --blush:   light-dark(#F7EFEA, #25191D);   /* 섹션 배경 — 어두운 값은
                                                 Pink Tint 를 Surface 쪽으로
                                                 60% 당긴 것이다 */
 
   /* 핑크 위에 얹는 글자. 밝은 판은 흰 글자, 어두운 판은 **검은 글자**다 —
      어두운 판의 핑크가 밝아서 흰 글자가 안 읽힌다 */
-  --pink-ink: light-dark(#FFFFFF, #1C2024);
+  --pink-ink: light-dark(#FFFFFF, #FFFFFF);
 
   /* ── 브랜드 가이드의 여섯 색 (2026-09-17 전달본) ──────────────
      #0A522C #00503B #E7B5BD #D8D1C4 #6A7078 #1C2024
@@ -89,25 +89,25 @@
 
   /* 초록 — 주요 동작. 어두운 판은 밝혀 쓴다(#0A522C 는 어두운 바탕에서
      글자로 안 읽힌다). 어두운 값은 #121317 위 대비 6.57:1 */
-  --green:      light-dark(#0A522C, #5CA97F);
-  --green-deep: light-dark(#00503B, #063B2A);  /* 더 깊은 면 — 앱 아이콘 판 */
-  --green-ink:  light-dark(#FFFFFF, #06251A);  /* 초록 위에 얹는 글자 */
+  --green:      light-dark(#B24A6B, #9B1F4E);
+  --green-deep: light-dark(#7A1E3A, #4E0A24);  /* 더 깊은 면 — 앱 아이콘 판 */
+  --green-ink:  light-dark(#FFFFFF, #FFFFFF);  /* 초록 위에 얹는 글자 */
 
   /* 리본 분홍 — **면에만** 쓴다. 글자로 쓰지 말 것(위 ⚠ 참고) */
-  --blossom: light-dark(#EBD3D5, #433437);
+  --blossom: light-dark(#E8CDBD, #4E0A24);
 
   /* 모래빛 — 구분선 · 가라앉은 면. 회색 선보다 따뜻하다 */
-  --sand: light-dark(#D8D1C4, #332F2A);
+  --sand: light-dark(#E8CDBD, #3B2E2F);
 
   /* 무채색 */
-  --ink:       light-dark(#1C2024, #E9ECEF);  /* 주요 텍스트 */
-  --ink-2:     light-dark(#454A50, #D2D6DA);  /* 제목 · 강조 텍스트 */
-  --muted:     light-dark(#6A7078, #AEB3B8);  /* 설명 · 보조 텍스트 */
-  --faint:     light-dark(#AEB3B8, #767C84);  /* 비활성 · 플레이스홀더 */
-  --line:      light-dark(#E1E4E8, #3A3F46);  /* 테두리 · 구분선 */
-  --line-soft: light-dark(#EDEFF1, #2C3137);  /* 목록 사이 — Border 를 옅게 */
-  --surface:   light-dark(#FFFFFF, #1C1F24);  /* 카드 · 모달 */
-  --bg:        light-dark(#FAF7F5, #121317);  /* 전체 배경 — 가이드의
+  --ink:       light-dark(#3B2E2F, #FFFFFF);  /* 주요 텍스트 */
+  --ink-2:     light-dark(#4E0A24, #FFF0F4);  /* 제목 · 강조 텍스트 */
+  --muted:     light-dark(#A67C6B, #E47FA3);  /* 설명 · 보조 텍스트 */
+  --faint:     light-dark(#B99B90, #B87993);  /* 비활성 · 플레이스홀더 */
+  --line:      light-dark(#E8CDBD, #623747);  /* 테두리 · 구분선 */
+  --line-soft: light-dark(#F2E2D9, #40262F);  /* 목록 사이 — Border 를 옅게 */
+  --surface:   light-dark(#FFFFFF, #3B2E2F);  /* 카드 · 모달 */
+  --bg:        light-dark(#F7EFEA, #000000);  /* 전체 배경 — 가이드의
                                                 아이보리 쪽으로 살짝 덥혔다 */
 
   /* 상태 — 핑크를 쓰지 않는다.
@@ -117,15 +117,15 @@
   --ok:    #4CAF8A;
   --warn:  #E6C46A;
   --error: #E08C8C;
-  --info:  light-dark(#6A7078, #7BA7D9);
-  --off:   light-dark(#D9DDE1, #262A31);
+  --info:  light-dark(#A67C6B, #E47FA3);
+  --off:   light-dark(#E8CDBD, #33232A);
 
   /* 그림자는 어두운 판에서 안 보인다. 색을 투명으로 두어 끈다 */
   /* 테두리 대신 옅은 그림자로 면을 띄운다. 어두운 판에서는 그림자가
      안 보이므로 **가는 테두리**가 대신 선다 — 두 판이 같은 두께로
      보이도록 한쪽이 꺼지면 다른 쪽이 켜진다 */
   --shadow:    light-dark(rgba(28,32,36,.07), transparent);
-  --card-line: light-dark(transparent, #3A3F46);
+  --card-line: light-dark(transparent, #623747);
   --card-shadow: 0 2px 10px var(--shadow);
   --nav-shadow:  0 6px 24px var(--shadow);
 
