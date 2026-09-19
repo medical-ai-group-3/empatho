@@ -43,12 +43,24 @@ const COACH = [
 
 /* 날씨처럼 외부 정보에 기대지 않고, 이미 병원이 가진 일정만 쓴다.
    내일 예약은 가장 가까운 행동이라 날짜보다 먼저 알려 준다. */
+function visitOrdinal(n) {
+  if (n === 1) return "첫";
+  if (n === 2) return "두 번째";
+  if (n === 3) return "세 번째";
+  return `${n}번째`;
+}
+
 function greetingFor(home) {
   const name = home.display_name || "환자";
   const reservation = home.next_reservation;
+  const visits = Number(home.visit_count);
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const booked = reservation?.scheduled_at ? new Date(reservation.scheduled_at) : null;
+
+  if (home.today_visit?.active && Number.isFinite(visits) && visits > 0) {
+    return `${name} 님, ${visitOrdinal(visits)} 방문이에요.`;
+  }
 
   if (booked) {
     const bookedDay = new Date(booked.getFullYear(), booked.getMonth(), booked.getDate());
@@ -57,12 +69,12 @@ function greetingFor(home) {
       return `${name} 님, 내일 ${reservation.modality_label || "검사"} 예약이 있어요.`;
     }
   }
-  return `${name} 님, 오늘은 ${now.getMonth() + 1}월 ${now.getDate()}일이에요.`;
+  return `${name} 님, 오늘 일정을 확인해요.`;
 }
 
-function todayTip() {
+function todayLabel() {
   const now = new Date();
-  return `${now.getMonth() + 1}월 ${now.getDate()}일(${WDS[now.getDay()]}) · 물 한 잔으로 가볍게 시작해요`;
+  return `${now.getMonth() + 1}월 ${now.getDate()}일(${WDS[now.getDay()]})`;
 }
 
 /* 문진 카드에 뭐라고 쓸지. status 는 not_started · in_progress · done 이다. */
@@ -142,8 +154,8 @@ function Inner({ d, prescriptions }) {
       <div className="hello">
         <p className="hello-tx">
           <b>안녕하세요!</b>
-          <span className="hello-greeting">{greeting}</span>
-          <span className="hello-tip">{todayTip()}</span>
+          <span className="hello-greeting">{todayLabel()} · {greeting}</span>
+          <span className="hello-tip">오늘의 건강 한마디 · 물 한 잔으로 가볍게 시작해요</span>
         </p>
         <img className="hello-bg" src="/tilly/tily_background.png" alt="" aria-hidden="true" />
         <span className="hello-tri" aria-hidden="true">
