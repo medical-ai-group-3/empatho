@@ -118,6 +118,37 @@ def main() -> int :
     ok &= check("리포트 별칭 4 -> 5", status == 200 and d.get("socket_id") == "5",
                 f"HTTP {status} / {d.get('socket_id')}")
 
+        # 소켓 7 — 종합 소견서. 청중 둘을 다 본다.
+    # 초음파 병변 한 건이면 지켜야 할 수치가 7개 나온다(등급 + 형태 6).
+    #   의사용   그 7개가 소견문에 남아 있어야 한다
+    #   환자용   7개가 하나도 없어야 한다
+    # 모델이 살아 있으면 검사를 통과한 문장이 나오고, 죽어 있거나 규칙을 어기면
+    # 뼈대로 되돌아간다. 세 경우 모두 결론이 같아서 Ollama 없이도 이 검사는 유효하다.
+    US7 = {"lesion_found": True,
+           "shape": {"max_diameter_px": 160.3, 
+                     "area_px": 9599.0,
+                     "height_width_ratio": 0.763, 
+                     "solidity": 0.812,
+                     "boundary_irregularity": 1.164, 
+                     "circularity": 0.518},
+           "orientation_label": "가로로 긴 형태",
+           "grade": {"display": "4~5", "confidence": "보통"},
+           "mask_reliability": {"level": "높음"}}
+    NUMS = ["4~5", "160.3", "9599.0", "0.763", "0.812", "1.164", "0.518"]
+
+    for audience, keep in (("clinician", True), ("patient", False)) :
+        status, d = post_report("7", {"stages": [{"socket": "5", "result": US7}],
+                                      "audience": audience})
+        text = d.get("소견") or ""
+        left = [n for n in NUMS if n in text]
+        ok &= check(f"POST /report/7 {audience} 가 200", status == 200,
+                    f"HTTP {status} {str(d.get('_body'))[:80] if status != 200 else ''}")
+        ok &= check(f"  {audience} 소견문이 비어 있지 않음", bool(text),
+                    f"{d.get('fallback')} / {text[:40]}")
+        ok &= check(f"  {audience} 수치 {'보존' if keep else '제거'}",
+                    len(left) == len(NUMS) if keep else not left,
+                    f"7개 중 {len(left)}개 남음 {left if left != NUMS else ''}")
+        
     try :
         with urllib.request.urlopen(f"{REPORT}/health", timeout=15) as r:
             ok &= check("리포트 health 가 200", r.status == 200)

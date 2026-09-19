@@ -185,23 +185,25 @@ def report(socket_id: str, result: dict, evidence: list[str] = []):
         return _done(socket_id, p, skeleton, note_lines, "no_numbers_to_verify")
     
     try :
-        out = _ask(base.SYSTEM, base.build(p.values(result)), base.SCHEMA)
+        # 청중이 둘인 소켓은 규칙이 다르게 적용
+        system = p.system(result) if hasattr(p, "system") else base.SYSTEM
+        out = _ask(system, base.build(p.values(result)), base.SCHEMA)
         text = (out.get("소견") or "").strip()
     except Exception as exc :
         return _done(socket_id, p, skeleton, note_lines, f"llm_failed:{type(exc).__name__}")
 
-    # 넘긴 수치가 소견문에 그대로 남아 있는지 본다. 글자열로 찾는 단순한 검사다.
-    # 값을 바꿔 쓰면 그 값은 사라지므로 여기서 걸린다. 반대로 문장을 어떻게
-    # 다듬든 숫자만 그대로면 통과한다 — 우리가 막으려는 것은 문체가 아니다.
-    # 숫자 경계를 본다. 부분문자열로 찾으면 0.0 이 100.0 안에서 걸려
-    # 「종양 면적 비율 0.0%」가 빠진 것을 못 잡는다(09-09 병리에서 실제 발생).
-    missing = [n for n in keep
-               if not re.search(rf"(?<![\d.]){re.escape(n)}(?![\d.])", text)]
-    if missing:
-        # 모델이 수치를 바꿨다. 그 출력은 통째로 버린다.
-        # 어느 값이 사라졌는지 fallback 에 남겨 나중에 프롬프트를 고칠 단서로 쓴다.
-        return  _done(socket_id, p, skeleton, note_lines, "numbers_changed: "+",".join(missing))
-
+    # 검사 방향이 소켓마다 다르다.
+    #   보존  수치가 글에 그대로 남아 있어야 한다 (지금까지)
+    #   금지  수치가 나타나면 안 된다 — 환자용 소견서가 그렇다.
+    #         수치를 순화하기로 했으므로, 남아 있다는 것은 모델이 안 순화했다는 뜻이다
+    ban = hasattr(p, "forbidden") and p.forbidden(result)
+    hit = [n for n in keep if bool(re.search(rf"(?<![\d.]){re.escape(n)}(?![\d.])", text)) is bool(ban)]
+    
+    if ban and hit:
+        return  _done(socket_id, p, skeleton, note_lines, f"numbers_leaked: {','.join(hit)}")
+    
+    if not ban and hit:
+        return  _done(socket_id, p, skeleton, note_lines, f"numbers_changed: {','.join(hit)}")
     # evidence 는 받은 것을 그대로 돌려준다. 문장별이 아니라 리포트 단위다 -
     # 어느 사진 어느 병변인지는 화면이 마스크와 수치로 따로 보여준다.
     return _done(socket_id, p, text, note_lines, None, evidence)
