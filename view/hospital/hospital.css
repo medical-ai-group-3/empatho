@@ -930,6 +930,13 @@ td.none,tr.none td{text-align:center; padding:var(--card-pad) 0}
   color:var(--warm); line-height:1.5}
 .login-note.mock{color:var(--cyan)}
 
+/* Caps Lock 켜짐 — 실패 메시지(빨강 느낌 없음)와 갈라 보이게 경고색만 쓴다.
+   비밀번호 실패가 아니라 "이대로면 실패할 것"이라는 사전 경고라서 톤이
+   다르다 */
+.login-caps{margin:calc(-1 * var(--gap-xs)) 0 0; padding:6px 10px;
+  border-radius:var(--radius-xs); background:#fdf3e0; color:#8a5a00;
+  font-size:var(--hint-fs); font-weight:600}
+
 /* 제목 왼쪽 뒤로 단추 — 유방외과 화면들이 쓴다 (Page 의 back) */
 .phead-back{flex:none; width:26px; height:26px; border-radius:var(--radius-sm);
   color:var(--warm); font-size:var(--h1-fs); line-height:1;

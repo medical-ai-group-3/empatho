@@ -30,8 +30,19 @@ export default function Login({ onSignup }) {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+  const [capsOn, setCapsOn] = useState(false);
 
   const ready = loginId.trim() && password && !busy;
+
+  /* Caps Lock 켜진 채로 비밀번호를 치면 매번 실패하는데 본인은 눈치를
+     못 챈다("아이디 또는 비밀번호가 올바르지 않습니다"만 반복해서
+     보임) — 누를 때마다 현재 상태를 확인해 바로 알려준다. keydown·
+     keyup 둘 다 걸어야 Shift 로 대문자 한 글자만 친 경우와 안 섞인다. */
+  function checkCaps(e) {
+    if (typeof e.getModifierState === "function") {
+      setCapsOn(e.getModifierState("CapsLock"));
+    }
+  }
 
   async function submit(e) {
     e.preventDefault();
@@ -71,8 +82,12 @@ export default function Login({ onSignup }) {
               <span>비밀번호</span>
               <input type="password" value={password}
                      onChange={(e) => setPassword(e.target.value)}
+                     onKeyDown={checkCaps} onKeyUp={checkCaps}
                      autoComplete="current-password" disabled={busy} />
             </label>
+            {capsOn && (
+              <p className="login-caps" role="alert">⇪ Caps Lock이 켜져 있습니다.</p>
+            )}
 
             {error && <Failed error={error} />}
 
