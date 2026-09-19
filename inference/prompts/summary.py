@@ -23,7 +23,7 @@
 from prompts import base
 
 # 2026-09-19.a  신규
-VERSION = "summary-2026-09-19.a"
+VERSION = "summary-2026-09-20.a"
 
 SOCKET_IDS = {"7"}
 REQUIRED = ("stages",)
