@@ -46,6 +46,7 @@
     "primary_staff_dept": "surgery",
     "patient_number": "E_1029304",
     "birth_date": "1978-04-21",
+    "visit_count": 3,
     "last_visit_at": "2026-09-03T10:20:00+09:00",
     "last_visit_dept": "영상의학과",
     "questionnaire_status": "in_progress",
@@ -67,6 +68,7 @@
   },
   "GET /api/v1/home": {
     "display_name": "이수진",
+    "visit_count": 3,
     "primary_staff_name": "박지훈",
     "primary_staff_dept": "surgery",
     "last_visit_at": "2026-09-03T10:20:00+09:00",
@@ -91,7 +93,7 @@
     "next_reservation": {
       "exam_order_id": 77021,
       "order_status": "ordered",
-      "scheduled_at": "2026-09-15T14:00:00+09:00",
+      "scheduled_at": "2026-09-20T14:00:00+09:00",
       "modality": "us",
       "modality_label": "유방초음파",
       "place": "영상의학과 3번"
@@ -110,7 +112,7 @@
           "label": "검사 완료"
         },
         {
-          "date": "2026-09-15",
+          "date": "2026-09-20",
           "kind": "confirmed",
           "label": "유방초음파 14:00"
         },

@@ -1,5 +1,4 @@
 import { Link } from "react-router-dom";
-import { useState } from "react";
 import { api } from "../api";
 import { useApi } from "../lib/useApi";
 import Calendar from "../lib/Calendar";
@@ -8,7 +7,7 @@ import Tilly from "../lib/Tilly";
 import { COACH_HOME } from "../lib/seen";
 import { Body } from "../lib/Screen";
 import Icon from "../lib/Icon";
-import { fmtDay, fmtWhen } from "../lib/when";
+import { fmtDay, fmtWhen, WDS } from "../lib/when";
 import { deptSuffix } from "../lib/dept";
 import { MODALITY, modality as asModality, text } from "../lib/codes";
 
@@ -42,15 +41,29 @@ const COACH = [
     body: "날짜와 시간만 고르시면 됩니다. 검사 종류는 병원이 정합니다." },
 ];
 
-/* 홈에 들어올 때마다 한 줄을 바꾼다. 매번 새로 고르되, 같은 화면에
-   머무는 동안에는 문구가 흔들리지 않도록 Inner가 처음 열릴 때만 정한다. */
-const GREETINGS = [
-  (name) => `${name} 님, 오늘도 건강한 하루에요`,
-  (name) => `${name} 님, 오늘도 틸리가 곁에 있을게요`,
-  (name) => `${name} 님의 건강한 하루를 응원해요`,
-  (name) => `${name} 님, 천천히 내 건강을 살펴봐요`,
-  (name) => `오늘 필요한 안내를 ${name} 님과 함께 볼게요`,
-];
+/* 날씨처럼 외부 정보에 기대지 않고, 이미 병원이 가진 일정만 쓴다.
+   내일 예약은 가장 가까운 행동이라 날짜보다 먼저 알려 준다. */
+function greetingFor(home) {
+  const name = home.display_name || "환자";
+  const reservation = home.next_reservation;
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const booked = reservation?.scheduled_at ? new Date(reservation.scheduled_at) : null;
+
+  if (booked) {
+    const bookedDay = new Date(booked.getFullYear(), booked.getMonth(), booked.getDate());
+    const daysAway = Math.round((bookedDay - today) / 86400000);
+    if (daysAway === 1) {
+      return `${name} 님, 내일 ${reservation.modality_label || "검사"} 예약이 있어요.`;
+    }
+  }
+  return `${name} 님, 오늘은 ${now.getMonth() + 1}월 ${now.getDate()}일이에요.`;
+}
+
+function todayTip() {
+  const now = new Date();
+  return `${now.getMonth() + 1}월 ${now.getDate()}일(${WDS[now.getDay()]}) · 물 한 잔으로 가볍게 시작해요`;
+}
 
 /* 문진 카드에 뭐라고 쓸지. status 는 not_started · in_progress · done 이다. */
 function questLine(q) {
@@ -78,10 +91,7 @@ export default function Home() {
 }
 
 function Inner({ d, prescriptions }) {
-  const [greeting] = useState(() => {
-    const line = GREETINGS[Math.floor(Math.random() * GREETINGS.length)];
-    return line(d.display_name);
-  });
+  const greeting = greetingFor(d);
   const q = d.questionnaire ?? {};
   const done = q.status === "done";
   const pct = q.total ? Math.round((q.answered / q.total) * 100) : 0;
@@ -133,6 +143,7 @@ function Inner({ d, prescriptions }) {
         <p className="hello-tx">
           <b>안녕하세요!</b>
           <span className="hello-greeting">{greeting}</span>
+          <span className="hello-tip">{todayTip()}</span>
         </p>
         <img className="hello-bg" src="/tilly/tily_background.png" alt="" aria-hidden="true" />
         <span className="hello-tri" aria-hidden="true">

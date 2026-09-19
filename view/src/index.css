@@ -909,7 +909,10 @@ a{color:inherit; text-decoration:none}
   border-radius:14px; background:light-dark(rgba(255,255,255,.84),rgba(28,31,36,.88));
   border:2px solid var(--pink-3);
   box-shadow:0 4px 14px light-dark(rgba(70,35,42,.08),rgba(0,0,0,.22));
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   backdrop-filter:blur(7px)}
+.hello-tip{padding-left:2px; color:var(--pink) !important; font-size:var(--tiny-fs) !important;
+  font-weight:600; letter-spacing:.01em; white-space:nowrap}
 .hello-tri{flex:none; display:block; margin-right:var(--hello-tri-right);
   position:relative; z-index:1}
 /* 그림자가 있어야 «얹혀 있다»로 읽힌다. 없으면 타일에 인쇄된 것처럼

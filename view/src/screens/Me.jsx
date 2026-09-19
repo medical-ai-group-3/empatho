@@ -85,7 +85,7 @@ function Inner({ me }) {
         </p>
       </div>
 
-      {(me.primary_staff_name || me.last_visit_at || questionnaire) && (
+      {(me.primary_staff_name || me.last_visit_at || me.visit_count != null || questionnaire) && (
         <div className="card me-care">
           <span className="k">내 진료 정보</span>
           <div className="me-care-grid">
@@ -97,6 +97,9 @@ function Inner({ me }) {
             )}
             {me.last_visit_at && (
               <Info label="마지막 내원" value={fmtDay(me.last_visit_at)} />
+            )}
+            {me.visit_count != null && (
+              <Info label="내원 횟수" value={`${me.visit_count}회`} />
             )}
             {deptLabel(me.last_visit_dept) && (
               <Info label="최근 내원 진료과" value={deptLabel(me.last_visit_dept)} />
