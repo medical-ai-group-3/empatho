@@ -38,6 +38,12 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 
 from sockets import gpu, mammo, mri, pathology, us
+from starlette.formparsers import MultiPartParser
+
+# Starlette 는 1MB 넘는 부분을 우리 코드에 넘기기 전에 임시 파일로 쓴다.
+# 환자 영상이 그렇게 되면 안 된다 — 우리가 지울 수 없는 자리다.
+# 제일 큰 것이 맘모 DICOM 20MB 라 64MB 면 충분하다.
+MultiPartParser.spool_max_size = 64 * 1024 * 1024
 
 # 가중치 뿌리. 배포 때 supervisord.conf 가 실제 경로를 넣는다.
 MODEL_ROOT = pathlib.Path(os.getenv("MODEL_ROOT", "/models"))
@@ -196,7 +202,7 @@ def healthz():
 
 
 @app.post("/analyze/{socket_id}")
-async def analyze(socket_id: str, image: UploadFile = File(...), post: UploadFile | None = File(None)):
+def analyze(socket_id: str, image: UploadFile = File(...), post: UploadFile | None = File(None)):
     """영상 한 장을 받아 소켓 번호에 맞는 모델로 보낸다.
 
     앱 서버(Celery 워커)가 부르는 유일한 판독 창구다. 어느 모달리티인지는
@@ -228,7 +234,7 @@ async def analyze(socket_id: str, image: UploadFile = File(...), post: UploadFil
     # ② 영상을 통째로 읽는다. 디스크에 쓰지 않는다 — 환자 영상이 워크스테이션에
     #    남지 않아야 하고, 남겨도 우리가 지울 방법이 없다.
     #    info 는 기권할 때도 함께 나가서, 무엇을 보냈는지 되짚을 수 있게 한다.
-    data = await image.read()
+    data = image.file.read()
     info = {
         "filename": image.filename,
         "content_type": image.content_type,
@@ -278,7 +284,7 @@ async def analyze(socket_id: str, image: UploadFile = File(...), post: UploadFil
         # 모르는 인자가 들어가면 거기서 터진다.
         extra = {}
         if post is not None:
-            extra["post"] = await post.read()
+            extra["post"] = post.file.read()
             extra["post_filename"] = post.filename
         result = mod.predict(data, filename=image.filename, **extra, **(THRESHOLDS.get(mod.NAME) or {}))
         
