@@ -1,5 +1,6 @@
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import Tilly from "./lib/Tilly";
+import Icon from "./lib/Icon";
 
 /* 로그인한 뒤의 껍데기 — 아래 탭은 여기 한 곳에만 있다.
  *
@@ -21,10 +22,10 @@ import Tilly from "./lib/Tilly";
  * 떠 있는 자리가 챗봇에 더 맞기도 하다 — 「지금 보는 화면에 대해 물어본다」는
  * 쓰임이라 늘 손에 닿는 곳에 있는 편이 낫다. */
 const TABS = [
-  { to: "/",        ic: "⌂", label: "홈"     },
-  { to: "/results", ic: "▤", label: "결과"   },
-  { to: "/book",    ic: "▦", label: "예약"   },
-  { to: "/me",      ic: "☰", label: "내 정보" },
+  { to: "/",        ic: "home",     label: "홈"     },
+  { to: "/results", ic: "results",  label: "결과"   },
+  { to: "/book",    ic: "calendar", label: "예약"   },
+  { to: "/me",      ic: "user",     label: "내 정보" },
 ];
 
 export default function App() {
@@ -43,7 +44,7 @@ export default function App() {
                조용히 끊긴다 */
             data-coach={`tab-${t.to.replace("/", "") || "home"}`}
           >
-            <i className="ic">{t.ic}</i>
+            <Icon className="ic" name={t.ic} />
             {t.label}
           </NavLink>
         ))}
@@ -63,7 +64,7 @@ function ChatFab() {
   if (pathname === "/chat") return null;
 
   return (
-    <NavLink className="chatfab" to="/chat"
+    <NavLink className="chatfab" to="/chat" data-coach="chatbot"
              aria-label="안내 챗봇에게 묻기" title="안내 챗봇에게 묻기">
       {/* **원에 가두지 않는다.** 틸리의 제 윤곽선 그대로 떠 있다.
           동그라미로 오려 내면 스티커를 붙인 것처럼 보이고, 틸리가
@@ -76,7 +77,7 @@ function ChatFab() {
 
           글자를 빼도 되는 이유는 틸리가 이 앱에서 유일한 얼굴이라서다.
           눈으로 못 보는 사람에게는 aria-label 이 대신 말한다 */}
-      <Tilly mood="ask" size="fab" alt="" />
+      <Tilly mood="chatbot" size="fab" alt="" />
     </NavLink>
   );
 }

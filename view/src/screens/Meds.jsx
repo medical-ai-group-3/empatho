@@ -4,6 +4,7 @@ import { useApi } from "../lib/useApi";
 import Tilly from "../lib/Tilly";
 import { Body, Head } from "../lib/Screen";
 import { fmtDayKey } from "../lib/when";
+import Icon from "../lib/Icon";
 
 /* 13 · 복약 관리
  *
@@ -76,6 +77,8 @@ function Inner({ d }) {
   const slots = live.flatMap((rx) =>
     (rx.drugs ?? []).flatMap((g) => (g.today ?? []).map((t) => ({ g, t }))));
   const done = slots.filter(({ g, t }) => taken[`${g.drug_id}-${t.time}`]).length;
+  const percent = slots.length ? Math.round((done / slots.length) * 100) : 0;
+  const remaining = slots.length - done;
 
   async function toggle(g, time) {
     const key = `${g.drug_id}-${time}`;
@@ -112,14 +115,19 @@ function Inner({ d }) {
     <>
       {/* 오늘 몇 회 중 몇 회. **약 종류가 아니라 회차로** 센다 —
           하루 두 번 먹는 약이 있어서 종류로 세면 안 맞는다 */}
-      <div className="card">
-        <span className="k">오늘 복용</span>
-        <span className="v">{done} / {slots.length} 회</span>
+      <div className="card med-summary">
+        <div className="med-summary-head">
+          <span className="k">오늘 복용</span>
+          <span className="med-summary-percent">{percent}%</span>
+        </div>
+        <span className="v">{done} / {slots.length} 회 완료</span>
         <span className="prog">
-          <i style={{ width: `${slots.length ? (done / slots.length) * 100 : 0}%` }} />
+          <i style={{ width: `${percent}%` }} />
         </span>
-        {slots.length > 0 && done === slots.length && (
-          <span className="s">오늘 드실 약을 다 드셨습니다.</span>
+        {slots.length > 0 && (
+          <span className="s">
+            {remaining ? `오늘 ${remaining}회 복용이 남았습니다.` : "오늘 드실 약을 다 드셨습니다."}
+          </span>
         )}
       </div>
 
@@ -152,6 +160,7 @@ function Inner({ d }) {
 
 /* 처방전 한 장 — 누가 · 언제 · 며칠분, 그리고 그 안의 약들 */
 function Rx({ rx, taken, busy, open, setOpen, onToggle, ended }) {
+  const period = prescriptionPeriod(rx);
   return (
     <div className={ended ? "card rx ended" : "card rx"}>
       <div className="rx-h">
@@ -164,6 +173,17 @@ function Rx({ rx, taken, busy, open, setOpen, onToggle, ended }) {
         </span>
         {ended && <span className="pill read">종료</span>}
       </div>
+
+      {!ended && period?.needsCheck && (
+        <div className="rx-period">
+          <b>{period.overdue ? "처방 기간 확인이 필요해요" : "처방 기간이 곧 끝나요"}</b>
+          <span>
+            {period.endLabel}까지 {rx.days}일분 처방으로 표시됩니다. {period.overdue
+              ? "아직 복용 중이라면 임의로 조절하지 말고 병원에 연락해 확인해 주세요."
+              : "다음 처방이나 복용 계획은 병원에 확인해 주세요."}
+          </span>
+        </div>
+      )}
 
       {(rx.drugs ?? []).map((g) => {
         const on = open === g.drug_id;
@@ -199,7 +219,7 @@ function Rx({ rx, taken, busy, open, setOpen, onToggle, ended }) {
                 찾으러 스크롤을 해야 한다 — 처음 받은 약일 때 펴 본다 */}
             <button className="drug-more" aria-expanded={on}
                     onClick={() => setOpen(on ? null : g.drug_id)}>
-              <i aria-hidden="true">{on ? "▾" : "▸"}</i>
+              <Icon name={on ? "chevronDown" : "chevronRight"} />
               어떤 약인가요?
             </button>
 
@@ -217,4 +237,22 @@ function Rx({ rx, taken, busy, open, setOpen, onToggle, ended }) {
       })}
     </div>
   );
+}
+
+/* 날짜만 있는 처방일은 기기 시간대 영향을 받지 않게 직접 만든다. 수량을
+   모르는 앱이 「약이 떨어진다」고 말하는 대신, 처방 기간만 확인한다. */
+function prescriptionPeriod(rx) {
+  if (!rx.issued_on || !rx.days) return null;
+  const [year, month, day] = rx.issued_on.split("-").map(Number);
+  const end = new Date(year, month - 1, day);
+  end.setDate(end.getDate() + rx.days - 1);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const daysLeft = Math.round((end - today) / 86400000);
+  const endLabel = `${end.getFullYear()}.${String(end.getMonth() + 1).padStart(2, "0")}.${String(end.getDate()).padStart(2, "0")}`;
+  return {
+    endLabel,
+    overdue: daysLeft < 0,
+    needsCheck: daysLeft < 0 || daysLeft <= 7,
+  };
 }

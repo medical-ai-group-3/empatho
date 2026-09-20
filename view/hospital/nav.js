@@ -4,14 +4,16 @@
  * **화면을 더하거나 주소를 바꿀 일이 생기면 이 파일만 고친다.**
  * 상단 메뉴도, 권한에 따라 메뉴를 감추는 것도 여기 표에서 만들어진다.
  *
- * 병리과와 영상의학과는 화면 다섯 장의 구조가 같다. 같은 번호끼리
+ * 병리과와 영상의학과는 화면 1~4장의 구조가 같다. 같은 번호끼리
  * 짝이 맞게 두었으니 한쪽을 고치면 다른 쪽도 같이 보면 된다.
  *
  *   1장  대기 큐      아직 아무도 안 집은 것. 집으면 남의 화면에서 사라진다
  *   2장  업로드       파일을 올리고 AI 분석을 건다. 분석이 여기서 끝난다
  *   3장  판독         원본 + 마스크를 보고 소견을 쓴다. 저장하면 유방외과로
  *   4장  전체 목록    지난 것까지 전부. 찾아보는 자리
- *   5장  판독 정정    이미 확정한 판독을 고친다. 이력이 남는다
+ *
+ * ⚠ **5장(판독 정정)은 영상의학과에만 있다.** 병리는 확정 사양서 §8-2로
+ *   정정 경로를 두지 않기로 했다 — 확정 후 오류는 새 검체로 처리한다.
  *
  * ⚠ **유방외과는 이 다섯 장과 모양이 다르다.** 집는 절차가 없고(내 환자가
  *   곧 큐다) 올리는 단계도 없다. 대신 검사 오더 · 검체 바인딩 · 수술 결정 ·
@@ -19,7 +21,7 @@
  *   라우트를 「다섯 장 고정」에서 use 기반으로 바꿨다 (main.jsx 참고).
  */
 
-import { can } from "./perm";
+import { can, getMe } from "./perm";
 
 export const HOSPITAL = "미래 대학병원";
 export const PRODUCT = "EMPATHO";
@@ -55,7 +57,7 @@ const DEPTS = [
         need: "pathology.queue.view" },
 
       { key: "specimens", use: "list", menu: "환자 목록", title: "전체 환자 목록",
-        sub: "지난 검체까지 전부 찾아보는 자리입니다. 판독 정정도 여기서 들어갑니다.",
+        sub: "지난 검체까지 전부 찾아보는 자리입니다.",
         need: "pathology.list.view" },
 
       { key: "specimens/:id/upload", use: "upload", menu: "업로드", title: "조직 이미지 업로드",
@@ -66,9 +68,8 @@ const DEPTS = [
         sub: "원본 조직 이미지에 AI 분할 마스크를 얹어 보고 소견을 씁니다. 저장하면 유방외과로 전송됩니다.",
         need: "pathology.read.view", deep: true },
 
-      { key: "read/:id/amend", use: "amend", menu: "판독 정정", title: "병리 판독 정정",
-        sub: "이미 확정한 판독을 고칩니다. 옛 값은 지워지지 않고 이력에 남습니다.",
-        need: "pathology.amend.view", deep: true },
+      /* 판독 정정(5장) 없음 — 확정 사양서 §8-2, 병리는 정정 경로를
+         두지 않는다. 서버에 route 자체가 없다 */
     ],
   },
 
@@ -106,6 +107,10 @@ const DEPTS = [
     screens: [
       { key: "", use: "breast.waiting", menu: "대기 환자", title: "대기 환자",
         sub: "내 환자 목록입니다. 병리·영상과 달리 집는 절차가 없습니다 — 주치의로 배정된 환자가 곧 큐입니다.",
+        need: "breast.waiting.view" },
+
+      { key: "patients", use: "breast.patients", menu: "전체 환자", title: "전체 환자 목록",
+        sub: "진료 이력이 있는 환자를 검색하고 검사 종합·수술 결정 화면으로 이동합니다.",
         need: "breast.waiting.view" },
 
       { key: "patients/:id/review", use: "breast.review", menu: "검사 종합", title: "검사 종합 확인",
@@ -229,7 +234,45 @@ export function myDepts() {
  * 없습니다」를 보는 편이 빈 화면보다 낫다.
  */
 export function homeDept() {
+  /* 로그인 응답의 소속을 먼저 따른다. 백엔드 배포본마다 dept ·
+     department · dept_name 중 어느 칸을 내려줄지 달랐고, 한글 과명도
+     그대로 오는 계정이 있다. 그 차이 때문에 인식하지 못하면 DEPTS의
+     첫 항목(pathology)으로 떨어졌다. 여기서 모두 라우트 키로 맞춘다. */
+  const me = getMe() ?? {};
+  const declared = me.dept || me.department || me.dept_key || me.dept_name || me.role;
+  const key = deptKey(declared) ?? deptFromPerms(me.perms);
+  const own = key ? findDept(key) : null;
+  /* 소속은 권한 목록보다 우선한다. 실제 서버에서 화면별 perms가 아직
+     늦게 내려오거나 일부만 내려와도, 원무과가 DEPTS 첫 항목인 병리과로
+     떨어지면 안 된다. 소속 대시보드에서 권한이 없는 동작만 따로 막는다. */
+  if (own) return own;
   return myDepts()[0] ?? HOME;
+}
+
+/* 서버 코드·한글 표시명·예전 surgery 코드를 모두 화면 라우트 키로 번역한다. */
+function deptKey(value) {
+  const raw = String(value ?? "").trim().toLowerCase();
+  const names = {
+    pathology: "pathology", "병리": "pathology", "병리과": "pathology",
+    radiology: "radiology", "영상의학": "radiology", "영상의학과": "radiology",
+    breast: "breast", surgery: "breast", "유방외과": "breast",
+    reception: "reception", "원무": "reception", "원무과": "reception",
+    nursing: "nursing", "간호": "nursing", "간호과": "nursing",
+    admin: "admin", "관리자": "admin",
+  };
+  return names[raw] ?? null;
+}
+
+/* 소속 칸이 아직 없는 서버도 화면별 권한은 내려줄 수 있다. 그때는
+   권한 앞머리에서 가장 많이 나타나는 과를 소속으로 쓴다. */
+function deptFromPerms(perms) {
+  if (!Array.isArray(perms)) return null;
+  const counts = new Map();
+  for (const permission of perms) {
+    const key = deptKey(String(permission).split(".")[0]);
+    if (key) counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
 }
 
 /* ── 주소 만들기 ───────────────────────────────────────────────
@@ -254,7 +297,7 @@ export const go = {
     list:   () => `${P}/specimens`,
     upload: (id) => `${P}/specimens/${id}/upload`,
     read:   (id) => `${P}/read/${id}`,
-    amend:  (id) => `${P}/read/${id}/amend`,
+    /* amend 없음 — 확정 사양서 §8-2, 병리는 정정 경로를 두지 않는다 */
   },
   radiology: {
     queue:  () => R,
@@ -269,6 +312,7 @@ export const go = {
   breast: {
     queue:       () => B,
     waiting:     () => B,
+    patients:    () => `${B}/patients`,
     review:      (id) => `${B}/patients/${id}/review`,
     decision:    (id) => `${B}/patients/${id}/decision`,
     discordance: (id) => `${B}/discordances/${id}`,

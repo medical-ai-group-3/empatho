@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { breast as api } from "../../../api";
+import { SEX, label } from "../../../codes";
 import { useApi } from "../../../lib/useApi";
 import { Page } from "../../../lib/Page";
 import { Body } from "../../../lib/Body";
@@ -8,7 +9,9 @@ import { go } from "../../../nav";
 import "../breast.css";   /* 유방외과 전용 — .breast 안에 갇혀 있다. 네 화면이 각자
                              끌고 온다: 주소로 곧장 들어와도 스타일이 빠지면 안 된다 */
 import ExamOrderModal from "../components/ExamOrderModal";
+import CloseVisitModal from "../components/CloseVisitModal";
 import SpecimenBindingModal from "../../../lib/SpecimenBindingModal";
+import SideDashboard from "../../../lib/SideDashboard";
 
 /* 화면 1 · 대기 환자 · 진료 시작 ("/")
  *
@@ -25,7 +28,7 @@ export default function Waiting() {
   const loc = useLocation();
   const { loading, data: list, error, reload } = useApi(() => api.waiting());
   const [selectedId, setSelectedId] = useState(null);
-  const [modal, setModal] = useState(null); // "exam" | "specimen" | null
+  const [modal, setModal] = useState(null); // "exam" | "specimen" | "close" | null
 
   useEffect(() => {
     if (!list || list.length === 0) return;
@@ -59,32 +62,42 @@ export default function Waiting() {
         <Body loading={loading} error={error} onRetry={reload}>
           {list && (
             <div className="split">
-              <div className="card">
-                <h3>대기 목록 ({list.length})</h3>
-                <table className="list">
-                  <thead>
-                    <tr>
-                      <th>환자번호</th><th>이름</th><th>나이/성별</th><th>진행상황</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {list.map((p) => (
-                      <tr key={p.patient_id}
-                          className={p.patient_id === selectedId ? "on" : ""}
-                          onClick={() => setSelectedId(p.patient_id)}>
-                        <td>{p.patient_number}</td>
-                        <td>{p.name}</td>
-                        <td>{p.age}세 · {p.sex}</td>
-                        <td>
-                          <span className="pill wait">{p.status}</span>
-                          {p.has_open_discordance && (
-                            <span className="pill danger" style={{ marginLeft: 6 }}>불일치</span>
-                          )}
-                        </td>
+              {/* 왼쪽 칸 — 목록은 환자 수만큼만 키를 먹는다. 환자가 몇 명
+                  안 되면 오른쪽(늘 키가 큰 환자 상세) 밑으로 빈 공간이
+                  남았었다. SideDashboard를 flex:1로 붙여 나머지 세로
+                  공간을 채운다 — b-left-col(breast.css) 참고. */}
+              <div className="b-left-col">
+                <div className="card">
+                  <h3>대기 목록 ({list.length})</h3>
+                  <table className="list">
+                    <thead>
+                      <tr>
+                        <th>환자번호</th><th>이름</th><th>나이/성별</th><th>진행상황</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {list.map((p) => (
+                        <tr key={p.patient_id}
+                            className={p.patient_id === selectedId ? "on" : ""}
+                            onClick={() => setSelectedId(p.patient_id)}>
+                          <td>{p.patient_number}</td>
+                          <td>{p.name}</td>
+                          <td>{p.age}세 · {label(SEX, p.sex)}</td>
+                          <td>
+                            <span className="pill wait">{p.status}</span>
+                            {p.has_open_discordance && (
+                              <span className="pill danger" style={{ marginLeft: 6 }}>불일치</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <SideDashboard stats={[
+                  { label: "오늘 대기", value: list.length },
+                  { label: "불일치 확인", value: list.filter((p) => p.has_open_discordance).length, warn: true },
+                ]} />
               </div>
 
               <div>
@@ -95,6 +108,7 @@ export default function Waiting() {
                       onNext={() => setSelectedId(nextAfter(list, selectedId))}
                       onExamOrder={() => setModal("exam")}
                       onSpecimen={() => setModal("specimen")}
+                      onClose={() => setModal("close")}
                       onReview={() => nav(go.breast.review(detail.data.patient_id))}
                       onDiscordance={() =>
                         nav(go.breast.discordance(detail.data.open_discordance.discordance_id))}
@@ -118,6 +132,14 @@ export default function Waiting() {
             setSelectedId((cur) => nextAfter(list, cur));
           }} />
       )}
+      {modal === "close" && detail.data && (
+        <CloseVisitModal patient={detail.data} onClose={() => setModal(null)}
+          onDone={() => {
+            setModal(null);
+            setSelectedId((cur) => nextAfter(list, cur));
+            reload(true);
+          }} />
+      )}
     </Page>
   );
 }
@@ -132,10 +154,10 @@ function usePatient(id) {
  * 있으니 다음 환자로 넘어갈 때 손이 버튼을 쫓아다닐 일이 없다.
  * 알림 박스도 "있으면 나타나고 없으면 사라지는" 것이 아니라 늘 같은
  * 자리에 있고 내용만(불일치 있음/없음) 바뀐다. */
-function PatientPanel({ patient, onNext, onExamOrder, onSpecimen, onReview, onDiscordance }) {
+function PatientPanel({ patient, onNext, onExamOrder, onSpecimen, onClose, onReview, onDiscordance }) {
   const d = patient.open_discordance;
   const rows = [
-    { k: "성별·나이", v: `${patient.sex === "F" ? "여" : "남"} · ${patient.age}세` },
+    { k: "성별·나이", v: `${label(SEX, patient.sex)} · ${patient.age}세` },
     { k: "내원 목적", v: patient.visit_purpose },
     { k: "알레르기", v: patient.allergy },
     { k: "주 증상", v: patient.chief_complaint },
@@ -152,7 +174,7 @@ function PatientPanel({ patient, onNext, onExamOrder, onSpecimen, onReview, onDi
         </div>
 
         <div className="pt-head">
-          <span className="avatar" aria-hidden="true">{patient.name[0]}</span>
+          <span className="avatar" aria-hidden="true">{patient.name?.[0]}</span>
           <span>
             <span className="name">{patient.name}</span>
             <p className="sub">{patient.patient_number} · {patient.visit_type}</p>
@@ -187,9 +209,11 @@ function PatientPanel({ patient, onNext, onExamOrder, onSpecimen, onReview, onDi
           <div className="right-group">
             <button className="btn ghost" onClick={onExamOrder}>촬영 요청</button>
             <button className="btn ghost" onClick={onSpecimen}>검체 신청</button>
-            {/* 명세서 §2-1 버튼은 [다음환자][촬영요청][검체신청][진료보기] 4개뿐이다.
-                수술 결정(화면3)은 여기서 바로 가지 않는다 — 검사 종합 확인(화면2)을
-                먼저 보고 그 화면에서 수술 결정으로 넘어간다. */}
+            {/* 명세서 §2-1 버튼은 [다음환자][촬영요청][검체신청][진료보기]
+                4개였는데, "이상 없음 · 종결"을 다섯째로 추가했다 — 촬영이
+                필요 없다고 판단되는 환자를 오더 없이 바로 닫는 길이
+                없었다(CloseVisitModal.jsx 참고, 2026-09-18). */}
+            <button className="btn ghost" onClick={onClose}>이상 없음 · 종결</button>
             <button className="btn" onClick={onReview}>진료 보기</button>
           </div>
         </div>

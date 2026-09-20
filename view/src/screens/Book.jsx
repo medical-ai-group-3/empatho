@@ -6,6 +6,7 @@ import Choices from "../lib/Choices";
 import { Body, Head } from "../lib/Screen";
 import { fmtDateKey, fmtWhen } from "../lib/when";
 import { deptSuffix } from "../lib/dept";
+import Call from "../lib/Call";
 import { LIVE_ORDER, MODALITY, ORDER_STATUS, modality as asModality, text } from "../lib/codes";
 
 /* 05 · 예약
@@ -53,6 +54,7 @@ function Inner({ d, reload }) {
   const qLeft = reqQ.filter((q) => !qa[q.id]).length;
   const hadAll = reqQ.length > 0 && reqQ.every((q) => q.answer);
   const [asking, setAsking] = useState(null); // 취소를 되묻는 중인 예약 id
+  const [calling, setCalling] = useState(false);
 
   const slots = d.open_slots ?? [];
   // 열린 자리를 달력 표시로 바꾼다. 여러 달에 걸치면 첫 달만 보여준다 —
@@ -145,6 +147,9 @@ function Inner({ d, reload }) {
                 </span>
               </div>
 
+              <VisitGuide reservation={r} phone={d.hospital_phone}
+                          onCall={() => setCalling(true)} />
+
               {/* 취소는 되돌릴 수 없다. 한 번 더 묻는다 — 실수로 눌러서
                   자리를 잃으면 다시 잡는 것은 전화를 걸어야 한다 */}
               {r.can_cancel && (
@@ -235,6 +240,34 @@ function Inner({ d, reload }) {
         {d.note}
         {d.hospital_phone && <> 문의 {d.hospital_phone}</>}
       </p>
+      {calling && d.hospital_phone && (
+        <Call name="예약 변경 문의" phone={d.hospital_phone}
+              onClose={() => setCalling(false)} />
+      )}
     </>
+  );
+}
+
+function VisitGuide({ reservation, phone, onCall }) {
+  const confirmed = LIVE_ORDER.has(reservation.order_status);
+
+  return (
+    <div className="visit-guide">
+      <b>방문 전 확인</b>
+      <ul>
+        {confirmed ? (
+          <>
+            <li>예약 시간과 장소를 다시 확인해 주세요.</li>
+            <li>검사 준비는 안내문과 의료진의 안내를 우선해 주세요.</li>
+          </>
+        ) : (
+          <li>병원 확인 후 검사 종류와 장소를 알림으로 안내해 드려요.</li>
+        )}
+      </ul>
+      <div className="visit-guide-actions">
+        <span>날짜나 시간 변경이 필요하면 병원에 문의해 주세요.</span>
+        {phone && <button className="lnk" type="button" onClick={onCall}>변경 문의</button>}
+      </div>
+    </div>
   );
 }

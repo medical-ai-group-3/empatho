@@ -342,11 +342,62 @@ export async function logout() {
 
 /* ── 병리과 ───────────────────────────────────────────────────
  * 판독 단위는 검체(specimen) 다. */
+
+/* ⚠ 2026-09-19 확인 — SpecimenSerializer 가 exclude=AUDIT_FIELDS 인
+ * 맨몸 ModelSerializer 라 모델 컬럼 이름 그대로 나간다(services/django
+ * core/serializers/pathology.py). dept/pathology.jsx 다섯 장이 기대하는
+ * patient_name·age·sex·specimen_no·kind·method 는 죄다 없고, 대신
+ * specimen_id·patient(FK id)·specimen_label·specimen_type·
+ * guidance_route 로 온다 — 영상의학과 radOrderRow() 처럼 이름만 바꿔
+ * 될 자리가 아니라 patient 는 아예 **다른 테이블 id 라 조인이 필요하다.**
+ * 이 화면들은 원래 병리 서버 응답이 patient_name 등을 직접 준다고
+ * (목업 그대로) 믿고 있었다 — 그래서 실서버에서는 환자 이름·나이·성별
+ * 칸이 통째로 비어 있었다.
+ *
+ * 병리 서버에 검체 목록에 환자 정보를 얹어 주는 별도 경로가 없어서
+ * (breast.waiting() 도 같은 사정으로 patients/ 를 직접 부른다) 검체
+ * 한 건마다 GET /patients/{id}/ 를 한 번 더 불러 합친다 — dept/
+ * pathology.jsx 의 read() 가 이미 Promise.all 로 두 응답을 합치던
+ * 것과 같은 자리다.
+ *
+ * site(병변 위치)·radiology_summary·guide_images·other_specimens·
+ * viewed_at 은 Specimen·Lesion 모델 어디에도 없다 — 실제로 있는지
+ * 아직 확인 못 했다. 없는 조인을 지어내지 않고 그대로 비워 둔다
+ * (있으면 화면이 알아서 숨긴다, 다섯 장 다 ?? 로 방어돼 있다). */
+async function pathSpecimenRow(raw = {}) {
+  const patientId = raw.patient;
+  const patient = patientId == null ? null
+    : await get(`/patients/${patientId}/`).then(normalizePatient).catch(() => null);
+  return {
+    ...raw,
+    id: raw.specimen_id ?? raw.id,
+    patient_name: patient?.name ?? (patientId == null ? "" : `환자 #${patientId}`),
+    age: patient?.age ?? null,
+    sex: patient?.sex ?? "",
+    patient_no: patient?.patient_number ?? "",
+    birth: patient?.birth_date ?? null,
+    specimen_no: raw.specimen_label ?? raw.specimen_no,
+    kind: raw.specimen_type ?? raw.kind,
+    method: raw.guidance_route ?? raw.method,
+    finalized: raw.finalized ?? Boolean(raw.finalized_at),
+  };
+}
+
 export const path = {
   /* ⚠ 서버는 큐를 **기본 필터 없이** 준다 (2026-09-16 다희님 확인).
      이 두 조건을 안 담으면 이미 남이 집어간 검체까지 대기 큐에 뜬다.
      기본값이 아니라 **우리가 정하는 조건**이라 여기 적어 둔다 */
-  queue:      ()       => get(`/specimens/queue${qs({ status: "bound", assigned: "none" })}`),
+  /* ⚠ 2026-09-18 다희님 확인(feature/dahee) — 봉투 언랩. Queue.jsx 가
+   * data.items/data.total 을 기대하는데(공용 화면, rad.queue()와 같은
+   * 계약) 여기는 서버 페이지네이션 봉투({count,results,…})를 그대로
+   * 주고 있었다 — 판독 단위를 검체 하나로 잡는 병리과 큐가 실서버에서
+   * 크래시 나던 자리다. */
+  queue:      ()       => get(`/specimens/queue${qs({ status: "bound", assigned: "none" })}`)
+    .then(async (raw) => {
+      const rows = raw?.results ?? raw?.items ?? (Array.isArray(raw) ? raw : []);
+      const items = await Promise.all(rows.map(pathSpecimenRow));
+      return { ...raw, items, total: raw?.count ?? raw?.total ?? items.length };
+    }),
   /* ⚠ 상세에도 슬래시가 붙는다 (2026-09-16 다희님이 직접 요청을 넣어
      확인). 전에 「병리는 상세에 슬래시가 없다」고 들었던 것이 틀렸다 —
      슬래시 없이 부르면 그냥 404 다.
@@ -355,12 +406,12 @@ export const path = {
      않는다. 이 API 는 맨 뒤에 캐치올 라우트가 있어서 APPEND_SLASH
      리다이렉트 자체가 안 일어난다. 슬래시를 빠뜨리면 늘 깔끔한 404 다.
 
-     ⚠ 아래 custom action 들(queue·assign·upload·draft·finalize·amend)은
+     ⚠ 아래 custom action 들(queue·assign·upload·draft·finalize)은
        서버 코드로 확인했다 — 이들은 @action 이 아니라 core/urls.py 의
        명시 path() 라서 **슬래시가 없다.** 끝 슬래시가 붙는 것은 router 에
        등록된 것들뿐이다 (patients · studies · lesions · reports ·
        followups · reservations · visits/today · me/reservation-requests). */
-  specimen:   (id)     => get(`/specimens/${id}/`),
+  specimen:   (id)     => get(`/specimens/${id}/`).then(pathSpecimenRow),
   assign:     (id)     => patch(`/specimens/${id}/assign`),
 
   uploadInfo: (id)     => get(`/specimens/${id}/upload`),
@@ -375,11 +426,20 @@ export const path = {
   finalize:   (id, b)  => patch(`/specimens/${id}/finalize`, b),
 
   /* ⚠ 슬래시가 붙는다. **목록·생성만** 그렇다 (2026-09-16 확인).
-     queue·assign·upload·draft·finalize·amend 는 슬래시가 없는 게 맞다.
+     queue·assign·upload·draft·finalize 는 슬래시가 없는 게 맞다.
      Django APPEND_SLASH 가 GET 은 301 로 넘겨 주지만 POST 는 그 과정에서
      본문이 날아가므로, 붙는 자리는 처음부터 붙여 둔다 */
-  list:       (o = {}) => get(`/specimens/${qs(o)}`),
-  amend:      (id, b)  => post(`/specimens/${id}/amend`, b),
+  /* ⚠ 봉투 언랩 — List.jsx 가 data.items/data.total 을 기대한다(위 queue
+   * 와 같은 자리). */
+  list:       (o = {}) => get(`/specimens/${qs(o)}`).then(async (raw) => {
+    const rows = raw?.results ?? raw?.items ?? (Array.isArray(raw) ? raw : []);
+    const items = await Promise.all(rows.map(pathSpecimenRow));
+    return { ...raw, items, total: raw?.count ?? raw?.total ?? items.length };
+  }),
+  /* ⚠ POST /specimens/{id}/amend 는 서버에 없다 (확정 사양서 §8-2 —
+     병리 결과 정정 경로를 두지 않기로 함. views/pathology.py 상단
+     docstring 참고). 예전엔 여기 amend() 가 있었는데 지웠다 — 부르면
+     404 만 나던 죽은 경로였다. */
 };
 
 /* ── 영상의학과 ───────────────────────────────────────────────
@@ -391,6 +451,187 @@ export const path = {
  *   붙는 것이면 지금 그대로다.
  */
 const RAD = "/radiology";
+
+/* 영상의학과 백엔드 원본 응답을 공용 화면 계약으로 변환한다.
+ * main 브랜치(9858a55 align radiology screens with API responses)에서
+ * 가져왔다 — dahee는 316da61에서 갈라진 뒤 이 레이어가 없었다. Read·
+ * Amend 화면이 d.patient / d.unit / d.ai 를 그대로 기대하고 있어서
+ * (dept/radiology.jsx), 여기 없이는 둘 다 "Cannot read properties of
+ * undefined (reading 'name')"로 죽는다. */
+function radPatient(source = {}, order = {}) {
+  const patientId = source.patient_id ?? source.patient ?? order.patient_id ?? order.patient;
+  return {
+    name: source.patient_name ?? order.patient_name ?? source.patient?.name
+      ?? order.patient?.name ?? (patientId == null ? "" : `환자 #${patientId}`),
+    age: source.age ?? order.age ?? source.patient?.age ?? order.patient?.age ?? null,
+    sex: source.sex ?? order.sex ?? source.patient?.sex ?? order.patient?.sex ?? "",
+    no: source.patient_no ?? source.patient_number ?? order.patient_no
+      ?? order.patient_number ?? source.patient?.patient_number
+      ?? order.patient?.patient_number ?? "",
+    contrast_allergy: source.contrast_allergy ?? order.contrast_allergy
+      ?? ((source.has_allergy ?? order.has_allergy) ? (source.allergy_note
+        ?? order.allergy_note ?? true) : null),
+  };
+}
+
+function radOrderRow(raw = {}) {
+  const patient = radPatient(raw);
+  return {
+    ...raw,
+    id: raw.exam_order_id ?? raw.id,
+    patient_name: patient.name,
+    patient_no: patient.no,
+    age: patient.age,
+    sex: patient.sex,
+    contrast_allergy: patient.contrast_allergy,
+    device: raw.device ?? raw.device_name ?? "",
+    exam_name: raw.exam_name ?? raw.exam_purpose ?? "",
+    purpose: raw.purpose ?? raw.order_note ?? "",
+    finalized: raw.finalized ?? raw.order_status === "completed",
+  };
+}
+
+function radFile(raw = {}) {
+  const bytes = raw.byte_size ?? raw.size;
+  const size = typeof bytes === "number"
+    ? `${(bytes / 1048576).toFixed(1)} MB`
+    : (raw.size ?? "");
+  const image = raw.image ?? (raw.sop_instance_uid
+    ? { sop: raw.sop_instance_uid }
+    : raw.orthanc_series_id
+      ? { series: raw.orthanc_series_id }
+      : raw.object_key
+        ? { key: raw.object_key }
+        : null);
+  return {
+    ...raw,
+    id: raw.storage_object_id ?? raw.id,
+    name: raw.name ?? raw.sop_instance_uid ?? raw.series_uid ?? `파일 ${raw.storage_object_id ?? ""}`,
+    size,
+    w: raw.w ?? raw.width_px,
+    h: raw.h ?? raw.height_px,
+    image,
+  };
+}
+
+function radSeries(files = []) {
+  const groups = new Map();
+  files.forEach((file) => {
+    const key = file.series_uid ?? file.orthanc_series_id ?? file.id;
+    const group = groups.get(key) ?? {
+      id: key,
+      name: file.series_uid ?? file.series_role ?? file.name,
+      count: 0,
+      files: [],
+    };
+    group.count += 1;
+    group.files.push(file);
+    groups.set(key, group);
+  });
+  return [...groups.values()].map((group) => ({
+    ...group,
+    w: group.files[0]?.w,
+    h: group.files[0]?.h,
+    image: group.files[0]?.image ?? null,
+  }));
+}
+
+function radAi(raw, modality) {
+  if (!raw) return null;
+  const result = raw.result && typeof raw.result === "object" ? raw.result : raw;
+  return {
+    ...result,
+    modality: result.modality ?? modality,
+    abstained: result.abstained ?? raw.abstained,
+    abstain_reason: result.abstain_reason ?? raw.abstain_reason,
+    run_status: raw.run_status ?? result.run_status,
+    ai_result_id: raw.ai_result_id ?? result.ai_result_id,
+  };
+}
+
+/* ⚠ dahee 쪽에서 추가한 것 — category · finding_note. main의 radStudyRow는
+   이 둘을 안 채운다(Assessment 표 조회가 없어서). List 상세의 "BI-RADS
+   undefined"가 main에도 그대로 있다는 뜻이라, 여기 파라미터로 최신 확정
+   판독을 받아 얹는다. 호출부(rad.study)가 비동기로 구해서 넘겨준다. */
+function radStudyRow(raw = {}, order = {}, assessment = null) {
+  const patient = radPatient(raw, order);
+  const studyId = raw.study_id ?? raw.id;
+  return {
+    ...raw,
+    id: studyId,
+    study_id: studyId,
+    patient_name: patient.name,
+    patient_no: patient.no,
+    age: patient.age,
+    sex: patient.sex,
+    contrast_allergy: patient.contrast_allergy,
+    exam_name: order.exam_name ?? order.exam_purpose ?? raw.exam_name ?? "",
+    purpose: order.purpose ?? order.order_note ?? raw.purpose ?? "",
+    device: raw.device ?? raw.device_name ?? "",
+    exam_order_id: raw.exam_order_id ?? raw.exam_order ?? order.exam_order_id,
+    finalized: raw.finalized ?? raw.read_status === "finalized",
+    viewed_at: raw.viewed_at ?? raw.report?.viewed_at ?? null,
+    category: assessment?.category ?? raw.category,
+    finding_note: assessment?.finding_note ?? raw.finding_note,
+  };
+}
+
+function radUpload(raw = {}, order = {}) {
+  const study = raw.study ?? {};
+  const files = (raw.storage_objects ?? raw.files ?? []).map(radFile);
+  const row = radStudyRow(study, order);
+  return {
+    ...raw,
+    ...row,
+    study,
+    files,
+    series: raw.series ?? radSeries(files),
+    ai: raw.ai ?? null,
+    exam_order_id: row.exam_order_id ?? order.exam_order_id,
+    order,
+  };
+}
+
+/* ⚠ 2026-09-18 확인 — MRI 판독 화면 뷰어가 안 뜨는 문제의 원인. 이 함수는
+ * raw.study/raw.images 로 접혀 온다고 가정하고 patient·unit·series·ai·
+ * doctor 를 전부 다시 만드는데, mock/hospital.json 의 read 항목들은
+ * (st-302 등) patient·unit·volume_manifest·series 가 이미 맨 위 칸에
+ * 펴져 있다 — study 는 아예 없다. 그래서 study 가 빈 객체가 되고, 거기서
+ * 다시 만든 patient 가 「환자 (null/)」로, unit.modality 도 undefined가
+ * 돼서 stage()의 `d.unit?.modality === "mri"` 분기를 못 타 MRI 뷰어
+ * (MRIReviewGrid)가 아니라 일반 2D Stage로 떨어졌다.
+ *
+ * raw 에 이미 펴진 값이 있으면 그걸 먼저 쓴다 — study/images 로 다시
+ * 만드는 건 그 값이 없을 때(다희님이 확인한 실서버 모양)만 쓰는
+ * 대체 경로로 남긴다. */
+function radRead(raw = {}, upload = {}, order = {}) {
+  const study = raw.study ?? upload.study ?? {};
+  const row = radStudyRow(study, order);
+  const files = (raw.images ?? upload.files ?? []).map(radFile);
+  const current = raw.current_assessment ?? null;
+  return {
+    ...raw,
+    ...row,
+    patient: raw.patient ?? radPatient(study, order),
+    unit: raw.unit ?? { ...row, id: row.study_id, no: row.study_id, exam_order_id: row.exam_order_id },
+    files,
+    images: files,
+    series: raw.series ?? radSeries(files),
+    ai: raw.ai ?? radAi(raw.latest_ai_result, row.modality),
+    doctor: raw.doctor ?? current ?? {},
+    finalized: raw.finalized ?? row.finalized,
+  };
+}
+
+/* 최신 확정(final, 정정으로 안 덮인) 판독을 찾는다 — rad.study()·radRead
+   둘 다 쓴다 */
+async function radCurrentAssessment(studyId) {
+  const hist = await rad.history(studyId).catch(() => []);
+  const rows = Array.isArray(hist) ? hist : (hist?.results ?? hist?.items ?? []);
+  return rows.find((a) => a.read_stage === "final" && !a.superseded_by)
+    ?? rows.find((a) => a.read_stage === "final")
+    ?? null;
+}
 
 export const rad = {
   /* ⚠ 서버는 큐를 **기본 필터 없이** 준다 (2026-09-16 다희님 확인).
@@ -405,8 +646,14 @@ export const rad = {
 
      큐는 결국 「거른 목록」이라 따로 경로를 두지 않는다. /ai-results?study=
      · /assessments?study= 도 같은 모양이다. */
-  queue:      ()       => get(`/exam-orders${qs({ status: "ordered", assigned: "none" })}`),
-  order:      (id)     => get(`/exam-orders/${id}`),
+  /* ⚠ 봉투 언랩 — Queue.jsx 가 {items,total}을 기대한다. 행마다
+     radOrderRow 로 patient_name·age·sex 등을 만들어 얹는다. */
+  queue:      ()       => get(`/exam-orders${qs({ status: "ordered", assigned: "none" })}`)
+    .then((raw) => {
+      const rows = raw?.results ?? raw?.items ?? (Array.isArray(raw) ? raw : []);
+      return { ...raw, items: rows.map(radOrderRow), total: raw?.count ?? raw?.total ?? rows.length };
+    }),
+  order:      (id)     => get(`/exam-orders/${id}`).then(radOrderRow),
   assign:     (id)     => patch(`/exam-orders/${id}/assign`),
 
   /* ⚠ **Study 를 만드는 유일한 경로다** (2026-09-16 확인).
@@ -421,14 +668,26 @@ export const rad = {
   /* ⚠ **과 이름이 붙는다.** /studies/{id}/upload 가 아니라
      /radiology/studies/{id}/upload 다 (2026-09-16 정정). 판독 조회와
      같은 자리에 있다. 전에 「판독 조회만 붙는다」고 들었던 것이 틀렸다. */
-  uploadInfo: (id)     => get(`${RAD}/studies/${id}/upload`),
+  uploadInfo: (id)     => get(`${RAD}/studies/${id}/upload`).then(async (raw) => {
+    const examOrderId = raw?.study?.exam_order;
+    const order = examOrderId ? await rad.order(examOrderId).catch(() => ({})) : {};
+    return radUpload(raw, order);
+  }),
   ticket:     (b)      => post("/tickets", b),
   complete:   (id)     => patch(`/exam-orders/${id}/complete`),
   analyze:    (id)     => post(`/studies/${id}/ai-results`),
   progress:   (id)     => get(`/ai-results${qs({ study: id })}`),
   retake:     (b)      => post("/exam-orders", b),
 
-  read:       (id)     => get(`${RAD}/studies/${id}/read`),
+  /* ⚠ withFiles(dept/radiology.jsx)가 series에 파일 주소를 얹는 것과
+     별개로, 여기서 patient/unit/ai 자체를 못 만들면 화면이 첫 줄에서
+     죽는다(d.patient.name). uploadInfo를 한 번 더 불러 order를 얻는다 —
+     read 응답에 order 정보가 안 실려 있어서다. */
+  read:       async (id) => {
+    const raw = await get(`${RAD}/studies/${id}/read`);
+    const upload = await rad.uploadInfo(id);
+    return radRead(raw, upload, upload.order ?? {});
+  },
   draft:      (id, b)  => put(`/studies/${id}/assessment/draft`, b),
   finalize:   (id, b)  => patch(`/studies/${id}/finalize`, b),
 
@@ -444,10 +703,45 @@ export const rad = {
   addLesion:  (b)      => post("/lesions/", b),
   falsePos:   (id)     => patch(`/lesions/${id}/`, { is_false_positive: true }),
 
-  study:      (id)     => get(`/studies/${id}/`),
-  list:       (o = {}) => get(`/studies/${qs(o)}`),
-  history:    (id)     => get(`/assessments${qs({ study: id })}`),
+  /* ⚠ GET /studies/{id}/ 에는 patient_name 등은 이제 오지만(2026-09-18
+     백엔드 확정), category · finding_note 는 여전히 없다 — Assessment
+     표에 있다(study에 매달려 있지 patient/report에 직접 안 물린다).
+     4장 목록 상세가 "BI-RADS undefined" 를 냈던 게 이 자리다. 확정된
+     (최신, 정정으로 덮이지 않은) 판독을 찾아 radStudyRow 에 얹는다. */
+  study:      async (id) => {
+    const raw = await get(`/studies/${id}/`);
+    const [order, current] = await Promise.all([
+      raw?.exam_order ? rad.order(raw.exam_order).catch(() => ({})) : Promise.resolve({}),
+      radCurrentAssessment(id),
+    ]);
+    return radStudyRow(raw, order, current);
+  },
+  /* ⚠ 서버가 페이지네이션 봉투({count,results,…})로 준다. List.jsx 는
+     {items,total}을 기대한다(data.items.filter · data.total) — 병리·영상
+     큐가 이미 하던 언랩과 같은 자리다. 행마다 exam_order 를 더 불러
+     radStudyRow 로 patient_name 등을 채운다(목록 행엔 category 를 안
+     보여줘서 assessment 는 여기선 안 붙인다 — 상세를 열 때 study()가 한다). */
+  list:       async (o = {}) => {
+    const raw = await get(`/studies/${qs(o)}`);
+    const rows = raw?.results ?? raw?.items ?? (Array.isArray(raw) ? raw : []);
+    const items = await Promise.all(rows.map(async (row) => {
+      const orderId = row.exam_order_id ?? row.exam_order;
+      const order = orderId ? await rad.order(orderId).catch(() => ({})) : {};
+      return radStudyRow(row, order);
+    }));
+    return { ...raw, items, total: raw?.count ?? raw?.total ?? rows.length };
+  },
+  history:    (id)     => get(`/assessments${qs({ study: id })}`).then((raw) => {
+    if (Array.isArray(raw)) return raw;
+    return raw?.results ?? raw?.items ?? [];
+  }),
   amend:      (id, b)  => post(`/assessments/${id}/amend`, b),
+
+  /* ⚠ 2026-09-18 — 환자 목록(screens/List.jsx) 상세에 검사 이력을
+   * 붙이면서 추가했다. 유방외과 timeline과 같은 서버 경로다
+   * (PatientTimelineView, resource="patient") — MATRIX 에 이미
+   * RADIOLOGY: R 이 있어 그대로 부를 수 있다(surgery.py 새로 안 고쳐도 됨). */
+  timeline:   (pid)     => get(`/patients/${pid}/timeline`),
 };
 
 /* ── 검체 바인딩 (공용) ───────────────────────────────────────
@@ -455,8 +749,11 @@ export const rad = {
  * 쓴다 — 그 컴포넌트가 부르는 자리를 한 곳에 모아 둔다. 영상의학과는
  * 이 화면을 쓰지 않기로 확정됐다(간호과 명세 §3). */
 export const specimens = {
+  /* 목록 경로에는 끝 슬래시를 붙이지 않는다. 실제 API와 목업 모두
+     /lesions?patient=… 형식이며, /lesions/?…는 별도 경로로 처리돼
+     검체 바인딩 팝업의 병변 목록이 404가 났다. */
   lesionsByPatient: (pid) => get(`/lesions${qs({ patient: pid })}`),
-  bind: (b) => post("/specimens", b),
+  bind: (b) => post("/specimens/", b),
 };
 
 /* ── 유방외과 ─────────────────────────────────────────────────
@@ -470,34 +767,91 @@ export const specimens = {
  *
  * 2026-09-16 — staff-view/src/api.js 에서 옮겨 왔다. 그쪽은 봉투를 안
  * 벗기는 자체 call() 을 쓰고 있었는데, 여기 call() 은 벗겨서 준다.
- * 화면은 그대로 두고 이 층만 갈아 끼우면 된다. */
+ * 화면은 그대로 두고 이 층만 갈아 끼우면 된다.
+ *
+ * 2026-09-18 — 목업을 떼고 실제 patients/ 엔드포인트에 맞춘다. 상세
+ * (.../patients/{id}/)는 이름·생년월일·전화번호를 pii{} 로 접어서 준다
+ * (mock/hospital.json 의 해당 항목이 이미 이 모양이다 — 다른 과가 쓰는
+ * 같은 PatientSerializer). 목록(.../patients/?...)은 그대로 펴져 있다.
+ * 화면마다 patient.name 을 따로 풀어 쓰게 하지 않고 여기 한 곳에서
+ * 펴서 내보낸다 — dept/radiology.jsx 의 withFiles() 와 같은 자리다.
+ * age 가 없고 birth_year 만 오면 나이도 여기서 센다(reception/Patients.jsx
+ * 의 ageOf() 와 같은 계산). 죽은 코드(openDiscords·finalReport·
+ * lesions·bindSpecimen — 어디서도 안 부른다) 는 정리했다. */
+function normalizePatient(p) {
+  if (!p) return p;
+  const { pii, ...rest } = p;
+  return {
+    ...rest,
+    name:       pii?.name ?? rest.name ?? null,
+    birth_date: pii?.birth_date ?? rest.birth_date ?? null,
+    phone:      pii?.phone ?? rest.phone ?? null,
+    age:        rest.age ?? (rest.birth_year ? new Date().getFullYear() - rest.birth_year : null),
+  };
+}
+
 export const breast = {
   /* 1장 · 대기 환자 */
-  waiting:      ()   => get(`/patients${qs({ primary_staff: "me", status: "waiting" })}`),
-  patient:      (id) => get(`/patients/${id}`),
+  /* ⚠ 서버가 페이지네이션 봉투({count,results,…})로 준다. 화면(Waiting.jsx)은
+     배열 하나를 기대해서(list.length·list.map) 언랩해서 넘긴다 — 병리·영상
+     큐가 이미 하던 것과 같다. pii{} 로 접힌 이름·생년월일·전화도 여기서
+     normalizePatient 로 펴서 내보낸다. */
+  waiting:      ()   => get(`/patients/${qs({ primary_staff: "me", status: "waiting" })}`)
+    .then((raw) => {
+      const rows = raw?.results ?? raw?.items ?? (Array.isArray(raw) ? raw : []);
+      return rows.map(normalizePatient);
+    }),
+  /* 유방외과 전체 환자 목록은 병원 전체 명부가 아니라 내 과에 배정된
+     환자를 모두 본다. 대기 상태만 빼고 "all"로 가져와, 아래 뷰어의
+     patient_id와 유방외과 검사 이력이 같은 환자를 가리키게 한다. */
+  patients:     ()   => get(`/patients/${qs({ primary_staff: "me", status: "all" })}`)
+    .then((raw) => {
+      const rows = raw?.results ?? raw?.items ?? (Array.isArray(raw) ? raw : []);
+      return rows.map(normalizePatient);
+    }),
+  patient:      (id) => get(`/patients/${id}/`).then(normalizePatient),
   examOrder:    (b)  => post("/exam-orders", b),
-  openDiscords: (pid) => get(`/discordances${qs({ patient: pid, status: "open" })}`),
 
-  /* 검체 바인딩 (팝업) — 병리과 대기 큐로 넘어간다. 간호과와 같은 팝업을
-     쓰므로 실제 호출은 specimens(공용)로 위임한다 */
-  lesions:      (pid) => specimens.lesionsByPatient(pid),
-  bindSpecimen: (b)  => specimens.bind(b),
+  /* "이상 없음 · 종결" — 촬영 없이 방문을 닫는다. exam_order 를 새로 만들지
+   * 않는다(모달리티 없는 오더를 지어낼 수 없다 — ExamOrderRequestSerializer가
+   * modality 를 필수로 받는다). 대신 이 환자를 여기로 데려온 exam_order를
+   * 찾아 그대로 종결시킨다 — reception.ordersOf 와 같은 조회를 쓴다.
+   *
+   * ⚠ 2026-09-18 다희님 확인 — PATCH /exam-orders/{id}/complete 는
+   * CanCompleteExamOrder 전용 클래스라 유방외과도 이제 부를 수 있다
+   * (feature/dahee, dd6268b). 몸통은 안 받는다 — order_status 만
+   * completed 로 바뀐다. exam_purpose 는 그대로 NULL로 남고(집계 안
+   * 잡힘), "촬영 후 종결"과 "안 찍고 종결"도 completed 하나로 안 갈린다.
+   * 둘 다 팀이 합의한 알려진 한계다 — 나중 과제로 미뤘다. */
+  ordersOf:        (patientId) => get(`/exam-orders${qs({ patient: patientId, ordering: "scheduled_at" })}`),
+  completeExamOrder: (examOrderId) => patch(`/exam-orders/${examOrderId}/complete`, {}),
 
   /* 2장 · 검사 종합 확인 */
   timeline:     (pid) => get(`/patients/${pid}/timeline`),
   studies:      (pid) => get(`/patients/${pid}/studies`),
-  finalReport:  (pid) => get(`/reports${qs({ patient: pid, type: "final" })}`),
 
-  /* 3장 · 수술 결정 */
-  assess:       (b)  => post("/assessments", b),
-  saveReport:   (rid, b) => put(`/reports/${rid}`, b),
+  /* 3장 · 수술 결정
+   *
+   * ⚠ 2026-09-18 다희님 확인 — POST /assessments 가 아니다. 그런 생성
+   * 경로가 서버에 없다. 실제로는 PATCH /assessments/{id}/decision
+   * (SurgeryDecisionSerializer: decision_type·decision_value·
+   * decision_reason)이고, 건드릴 assessment 는 patient_id 로 못 찾는다
+   * — study 에 물려 있다. GET /patients/{id}/timeline 의 "판독" 이벤트가
+   * 이제 assessment_id 를 실어 준다(feature/dahee, 6774208) — 화면이
+   * 거기서 집어 온다. */
+  decide:       (assessmentId, b) => patch(`/assessments/${assessmentId}/decision`, b),
+  saveReport:   (rid, b) => put(`/reports/${rid}/`, b),
   explain:      (rid, b) => patch(`/reports/${rid}/explain`, b),
   unlockStatus: (rid) => get(`/reports/${rid}/unlock-status`),
   unlock:       (rid) => patch(`/reports/${rid}/unlock`, {}),
 
   /* 4장 · 판정 불일치 처분 */
   discordance:  (id) => get(`/discordances/${id}`),
-  dispose:      (id, b) => patch(`/discordances/${id}/dispose`, b),
+  /* ⚠ 2026-09-18 다희님 브랜치(dahee)에서 발견 — 접미사 /dispose 가 없다.
+   * urls.py 를 다시 보니 실제로 `path("discordances/<int:pk>", ...,
+   * {"patch": "partial_update"})` 다 — 상세 경로 그대로 PATCH 하는 것이지
+   * /dispose 가 따로 붙지 않는다. 여기가 계속 틀려 있었다. */
+  dispose:      (id, b) => patch(`/discordances/${id}`, b),
 };
 
 /* ── 간호과 ────────────────────────────────────────────────────
@@ -512,14 +866,22 @@ export const nursing = {
   waitingArrived: () => get(`/exam-orders${qs({ status: "requested", visited: "yes", ordering: "visited_at" })}`),
   scheduledToday: () => get(`/exam-orders${qs({ scheduled_on: "today", visited: "none" })}`),
   examOrder:      (id) => get(`/exam-orders/${id}`),
-  patient:        (id) => get(`/patients/${id}`),
+  patient:        (id) => get(`/patients/${id}/`),
   saveNote:       (examOrderId, note) => patch(`/exam-orders/${examOrderId}/note`, { note }),
   surgeons:       () => get(`/staff${qs({ role: "surgery" })}`),
-  assignSurgeon:  (patientId, staffId) => patch(`/patients/${patientId}`, { primary_staff_id: staffId }),
+  /* ⚠ 2026-09-19 확인 — PatientSerializer 가 내는 이름은 primary_staff_id
+   * 가 아니라 모델 필드 그대로인 primary_staff 다(core/serializers/
+   * reception.py, core/models.py Patient.primary_staff). DRF 는 모르는
+   * 키를 그냥 무시하고 200 을 돌려주기 때문에, 예전 이름으로는 응답은
+   * 정상인데 실제로는 아무것도 안 바뀌는 채로 넘어가고 있었다. */
+  assignSurgeon:  (patientId, staffId) => patch(`/patients/${patientId}/`, { primary_staff: staffId }),
 
   /* 2장 */
-  followups:      () => get(`/followups${qs({ include_candidates: 1 })}`),
-  createFollowup: (b) => post("/followups", b),
+  /* ⚠ router.register(r"followups", ...) 로 등록된 목록이라 슬래시가
+     붙는다 (core/urls.py 확인). createFollowup 은 별도 path()
+     "/followups/new" 라 슬래시가 없는 게 맞다 — 헷갈리지 않게 갈라 둔다. */
+  followups:      () => get(`/followups/${qs({ include_candidates: 1 })}`),
+  createFollowup: (b) => post("/followups/new", b),
   logCall:        (id, b) => patch(`/followups/${id}/call`, b),
 };
 
@@ -532,11 +894,23 @@ export const nursing = {
  * ⚠ search 는 q 가 없으면 서버가 **빈 목록**을 준다(qs.none()). 전체
  *   환자를 실수로 긁지 않게 한 것이라 화면도 빈 검색어를 안 보낸다.
  */
+/* ⚠ 2026-09-19 확인 — 서버가 주는 페이지네이션 봉투({count,results,…})를
+ * 안 벗기고 그대로 넘기던 자리가 이 과에 몇 군데 남아 있었다. 병리·영상
+ * 큐에서 이미 겪은 것과 같은 문제인데(2026-09-18, path.queue()/rad.queue()
+ * 참고) 원무는 그때 안 고쳤다 — 접수 화면이 정확히 여기서 죽었다
+ * ("object is not iterable" — Calendar.jsx가 봉투 객체를 for…of 로
+ * 돌리려다 난 에러). 화면들이 배열을 그대로 기대하므로(항목 하나
+ * 씌우는 {items,total} 이 아니라) 배열만 뽑아 돌려준다. */
+function unwrapList(raw) {
+  if (Array.isArray(raw)) return raw;
+  return raw?.results ?? raw?.items ?? [];
+}
+
 export const reception = {
-  search:      (q)  => get(`/patients${qs({ q })}`),
+  search:      (q)  => get(`/patients/${qs({ q })}`).then(unwrapList),
   register:    (b)  => post("/patients/register", b),
   checkIn:     (b)  => post("/exam-orders/checkin", b),
-  todayStatus: ()   => get("/patients/today-status"),
+  todayStatus: ()   => get("/patients/today-status").then(unwrapList),
 
   /* 예약 캘린더 — 한 달 치를 한 번에 받는다. 조회 전용이다.
      GET /exam-orders 는 한 경로에서 메서드로 갈린다(urls.py 의
@@ -557,7 +931,7 @@ export const reception = {
       scheduled_from: `${from}T00:00:00`,
       scheduled_to:   `${to}T23:59:59`,
       ordering:       "scheduled_at",
-    })}`),
+    })}`).then(unwrapList),
 
   /* ── 3장 환자 목록 · 예약 ────────────────────────────────────
    *
@@ -572,7 +946,7 @@ export const reception = {
    *   지금은 이 길뿐이다.
    *   → 다희님께 «목록 전체를 받는 공식 방법»을 요청해 두었다. 생기면
    *     아래 ALL 을 그것으로 바꾼다. */
-  list:   (p)      => get(`/patients${qs(p)}`),
+  list:   (p)      => get(`/patients/${qs(p)}`).then(unwrapList),
   detail: (id)     => get(`/patients/${id}/`),
   /* ⚠ 여기로는 **이름·생년월일·전화를 못 고친다.** 그 셋은 patient_pii 에
      있고 PatientSerializer 는 patient 표만 다룬다 (상세의 pii 는 읽기 전용).
@@ -580,7 +954,7 @@ export const reception = {
   update: (id, b)  => patch(`/patients/${id}/`, b),
 
   /* 같은 환자의 예약을 전부 본다 — 같은 날 중복 예약을 잡으려고 */
-  ordersOf: (id)   => get(`/exam-orders${qs({ patient: id, ordering: "scheduled_at" })}`),
+  ordersOf: (id)   => get(`/exam-orders${qs({ patient: id, ordering: "scheduled_at" })}`).then(unwrapList),
 
   /* [예약 완료]. **원무는 날짜만 정한다** — modality · exam_purpose ·
      ordered_by 는 안 보낸다. 서버도 그 셋을 안 받는다
@@ -602,10 +976,13 @@ export const ALL_PATIENTS = { status: "all" };
  *   visited=none       visited_at 이 빈 것. 차 있으면 이미 창구에 온
  *                      환자라 예약 확인이 아니라 간호 큐로 간다
  */
+/* ⚠ 2026-09-19 확인 — 위 reception 본체의 다섯 함수와 같은 봉투 문제가
+ * 여기도 있었다. Requests.jsx 는 list.data 를 배열로 바로 쓴다
+ * (rows = list.data ?? []). */
 reception.requests = () =>
   get(`/exam-orders${qs({
     status: "requested", visited: "none", ordering: "scheduled_at",
-  })}`);
+  })}`).then(unwrapList);
 
 /* [예약 확인]. **날짜만 보낸다.**
  *
@@ -627,7 +1004,9 @@ export const byDept = { pathology: path, radiology: rad, breast, reception, nurs
  * 2026-09-16 백엔드 확정 — core/api/views.py 의 signup_staff.
  *
  *   POST /signup/staff
- *   b:{staff_number, name, login_id, password, role}
+ *   b:{staff_number, full_name, login_id, password, role}
+ *   ⚠ 2026-09-18 docs/backend-api-reference.md §1 대조 — 필드명이 name 이
+ *     아니라 full_name 이다. Signup.jsx 도 이 이름으로 보낸다
  *   role 은 다섯 값만 허용 — reception · nursing · radiology · surgery ·
  *   pathology (admin · patient 를 보내면 VALIDATION_ERROR)
  *

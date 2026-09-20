@@ -76,7 +76,7 @@ export function Search({ placeholder = "검색", value, onChange }) {
    무엇을 고르라고 말한다. */
 export function Split({ side = "normal", left, right, empty = "왼쪽에서 하나를 고르세요" }) {
   return (
-    <div className={`split ${side === "wide" ? "wide" : ""}`}>
+    <div className={`split ${side === "wide" ? "wide" : ""} ${side === "third" ? "third" : ""}`}>
       <div className="split-l">{left}</div>
       <aside className="split-r">
         {right ?? <div className="slot"><b>{empty}</b></div>}

@@ -265,7 +265,11 @@ export default function hospitalMock() {
               return fail(res, "UNAUTHENTICATED",
                 "승인 대기 중인 계정입니다. 관리자 승인 후 이용할 수 있습니다.", 401);
             }
-            send(res, { access: `mock.${id}` });
+            /* HTTP Authorization 헤더는 ISO-8859-1 범위만 받는다. 목업
+               아이디에 한글 이름을 넣어도 그대로 토큰으로 쓰면 다음 /me
+               요청 자체가 브라우저에서 막힌다. 실제 JWT도 ASCII이므로,
+               목업은 로그인 아이디 대신 영문 역할값으로 고정한다. */
+            send(res, { access: `mock.${roleOf(id) || "staff"}` });
           });
         }
 

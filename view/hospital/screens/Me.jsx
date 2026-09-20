@@ -4,7 +4,7 @@ import { useMe } from "../lib/useMe";
 import { logout as apiLogout, updateMe } from "../api";
 import { signOut } from "../lib/session";
 import { Page, Card, Btn } from "../lib/Page";
-import { Chip, Facts } from "../lib/Parts";
+import { Chip, Facts, Fold } from "../lib/Parts";
 
 /* 내 정보 — 내가 누구이고, 무엇을 할 수 있고, 무엇을 바꿀 수 있는가
  * ════════════════════════════════════════════════════════════════
@@ -227,7 +227,12 @@ function NotifyCard({ me }) {
   );
 }
 
-/* ── 내 권한 ─────────────────────────────────────────────────── */
+/* ── 내 권한 ───────────────────────────────────────────────────
+ * ⚠ 2026-09-19 — 목록이 과·화면별로 쭉 나열돼서 너무 길고, 의사가
+ *   평소에 직접 들여다볼 일은 없다(권한이 없으면 메뉴가 그냥 안 보이는
+ *   식이라 — 위 주석 참고). 그래서 기본은 접어 두고, "관리자에게 뭘
+ *   요청해야 하는지 확인하려는" 사람만 펼쳐 보게 Fold로 감쌌다.
+ *   몇 개 중 몇 개인지는 접힌 채로도 Card 헤더에서 바로 보인다. */
 function PermsCard({ me }) {
   const mine = new Set(me.perms ?? []);
   const hasCount = CATALOG.filter((p) => mine.has(p.key)).length;
@@ -239,43 +244,49 @@ function PermsCard({ me }) {
     >
       <p className="muted small">
         권한은 관리자가 계정마다 켜고 끕니다. 필요한 권한이 꺼져 있으면
-        관리자에게 문의하세요. 꺼진 것도 무엇이 있는지 보이도록 함께 적어 둡니다.
+        관리자에게 문의하세요.
       </p>
 
-      {GROUPS.map((g) => {
-        const rows = CATALOG.filter((p) => groupOf(p.key) === g.key);
-        if (rows.length === 0) return null;
-        const on = rows.filter((p) => mine.has(p.key)).length;
+      <Fold title="자세히 보기" open={false}>
+        <p className="muted small">
+          꺼진 것도 무엇이 있는지 보이도록 함께 적어 둡니다.
+        </p>
 
-        return (
-          <section key={g.key} className="perm-g">
-            <h3>
-              {g.name}
-              <span className="muted small">{rows.length}개 중 {on}개</span>
-            </h3>
-            {g.note && <p className="muted small perm-note">{g.note}</p>}
-            <ul className="perms">
-              {rows.map((p) => {
-                const has = mine.has(p.key);
-                return (
-                  <li key={p.key} className={has ? "on" : "off"}>
-                    <i className="mk" aria-hidden="true">{has ? "●" : "○"}</i>
-                    <span className="perm-tx">
-                      <b>{p.label}</b>
-                      <small>{p.where}</small>
-                    </span>
-                    {/* ⚠ Chip 을 안 쓴다. 이 판의 칩 세 톤은 「진행중·끝남·
-                        기계가 도는 중」이라는 뜻이 정해져 있어서(Parts.jsx),
-                        「권한 있음/없음」에 갖다 쓰면 그 어휘가 흐려진다.
-                        모양으로 가르는 규칙은 왼쪽 ●/○ 가 지킨다 */}
-                    <span className="perm-st">{has ? "있음" : "없음"}</span>
-                  </li>
-                );
-              })}
-            </ul>
-          </section>
-        );
-      })}
+        {GROUPS.map((g) => {
+          const rows = CATALOG.filter((p) => groupOf(p.key) === g.key);
+          if (rows.length === 0) return null;
+          const on = rows.filter((p) => mine.has(p.key)).length;
+
+          return (
+            <section key={g.key} className="perm-g">
+              <h3>
+                {g.name}
+                <span className="muted small">{rows.length}개 중 {on}개</span>
+              </h3>
+              {g.note && <p className="muted small perm-note">{g.note}</p>}
+              <ul className="perms">
+                {rows.map((p) => {
+                  const has = mine.has(p.key);
+                  return (
+                    <li key={p.key} className={has ? "on" : "off"}>
+                      <i className="mk" aria-hidden="true">{has ? "●" : "○"}</i>
+                      <span className="perm-tx">
+                        <b>{p.label}</b>
+                        <small>{p.where}</small>
+                      </span>
+                      {/* ⚠ Chip 을 안 쓴다. 이 판의 칩 세 톤은 「진행중·끝남·
+                          기계가 도는 중」이라는 뜻이 정해져 있어서(Parts.jsx),
+                          「권한 있음/없음」에 갖다 쓰면 그 어휘가 흐려진다.
+                          모양으로 가르는 규칙은 왼쪽 ●/○ 가 지킨다 */}
+                      <span className="perm-st">{has ? "있음" : "없음"}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          );
+        })}
+      </Fold>
     </Card>
   );
 }

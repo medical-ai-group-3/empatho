@@ -151,6 +151,29 @@
 .breast .pill.warn {background:var(--warn-weak); color:var(--warn)}
 .breast .pill.ok {background:var(--ok-weak); color:var(--ok)}
 
+/* ── 영상-병리 불일치 처분 ─────────────────────────────────── */
+.breast .discordance-summary {margin-bottom:16px}
+.breast .discordance-summary .card-head {align-items:flex-start; margin-bottom:14px}
+.breast .discordance-summary .card-head h3 {margin:8px 0 0}
+.breast .discordance-patient-info {display:flex; flex-wrap:wrap; gap:8px 20px;
+  color:var(--muted); font-size:12.5px}
+.breast .discordance-patient-info b {margin-left:5px; color:var(--ink); font-weight:600}
+.breast .discordance-compare {display:grid; grid-template-columns:1fr auto 1fr; align-items:center;
+  gap:12px; margin-top:16px; padding:14px; border-radius:var(--radius-sm);
+  background:var(--danger-weak); border:1px solid color-mix(in srgb, var(--danger) 35%, var(--line))}
+.breast .discordance-grade {display:flex; flex-direction:column; gap:3px; min-width:0}
+.breast .discordance-grade:first-child {text-align:right}
+.breast .discordance-grade span {font-size:12px; color:var(--ink-2); font-weight:600}
+.breast .discordance-grade b {font-size:21px; color:var(--danger); letter-spacing:-.02em}
+.breast .discordance-vs {font-size:22px; color:var(--danger); font-weight:700}
+.breast .discordance-reason {display:flex; flex-direction:column; gap:4px; margin-top:14px; font-size:13px}
+.breast .discordance-reason span {font-size:12px; color:var(--muted); font-weight:600}
+.breast .discordance-reason b {font-weight:500}
+@media (max-width:560px) {
+  .breast .discordance-compare {gap:8px; padding:12px}
+  .breast .discordance-grade b {font-size:17px}
+}
+
 /* ── 표 ────────────────────────────────────── */
 .breast table.list {width:100%; border-collapse:collapse; font-size:13px}
 .breast table.list th {text-align:left; color:var(--muted); font-weight:600;
@@ -159,6 +182,11 @@
 .breast table.list tbody tr {cursor:pointer}
 .breast table.list tbody tr:hover {background:var(--surface-2)}
 .breast table.list tbody tr.on {background:var(--accent-weak)}
+
+/* ── 전체 환자 목록 ─────────────────────────────────────────── */
+.breast .breast-list-viewer {height:680px; display:flex; min-width:0; overflow:hidden;
+  border:var(--hair, 1px) solid var(--line); border-radius:var(--radius-sm)}
+.breast .breast-list-viewer .viewer-shell {height:100%}
 
 /* ── 폼 ────────────────────────────────────── */
 .breast .field {display:flex; flex-direction:column; gap:6px; margin-bottom:14px}
@@ -191,6 +219,17 @@
 @media (max-width:1080px) {.breast .cols3 {grid-template-columns:1fr}}
 .breast .cols2 {display:grid; grid-template-columns:1fr 1fr; gap:var(--gap); align-items:start}
 @media (max-width:760px) {.breast .cols2 {grid-template-columns:1fr}}
+
+/* 수술 결정은 열마다 따로 쌓지 않는다. 한 행에 있는 세 카드를 같은
+   그리드 행에 놓아, 내용 길이가 달라도 카드 아래 선이 나란히 끝난다. */
+.breast .decision-grid {display:grid; grid-template-columns:repeat(3, minmax(0, 1fr));
+  gap:var(--gap); align-items:stretch}
+/* 공통 카드의 세로 여백 규칙은 그리드 안에서는 적용하지 않는다.
+   행 간격은 grid gap 하나로 관리해 세 열의 윗선과 아랫선이 정확히 맞는다. */
+.breast .decision-grid > .card {height:100%; margin-top:0}
+@media (max-width:1080px) {
+  .breast .decision-grid {grid-template-columns:1fr}
+}
 
 /* ── 검사 종합 확인 (화면2) ─────────────────── */
 /* 좌우 패널 너비를 --left-w/--right-w로 받는다(Review.jsx가 접힘
@@ -356,7 +395,25 @@
 .breast .card-foot.split {justify-content:space-between; align-items:center}
 .breast .card-foot .note {font-size:12px; color:var(--muted)}
 
-/* ── 리포트 잠금 상태 카드 ──────────────────── */
+/* 수술 결정 화면의 처방 초안. API가 붙으면 같은 입력값을 처방 생성
+   요청으로 보내고, 환자 앱 복약 관리에는 서버가 저장한 처방만 보인다. */
+.breast .prescription-draft .card-head {align-items:flex-start}
+.breast .prescription-draft .card-head .meta {display:block; margin:4px 0 0; line-height:1.4}
+.breast .prescription-drug {padding:14px 0; border-top:1px solid var(--line-2)}
+.breast .prescription-drug-head {display:flex; align-items:center; margin-bottom:12px; font-size:13px}
+.breast .prescription-drug-head .edit-btn {margin-left:auto; font-size:12px; font-weight:600; color:var(--danger)}
+.breast .prescription-grid {display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:0 10px}
+.breast .prescription-actions {gap:8px}
+.breast .prescription-actions .note {margin-left:auto; text-align:right}
+@media (max-width:760px) {
+  .breast .prescription-grid {grid-template-columns:1fr}
+  .breast .prescription-actions {flex-wrap:wrap}
+  .breast .prescription-actions .note {order:3; width:100%; margin-left:0; text-align:left}
+}
+
+/* ── 의사 최종 소견 안의 환자 리포트 잠금 상태 ─────────────── */
+.breast .explain-lock {margin-top:18px; padding-top:16px; border-top:1px solid var(--line-2)}
+.breast .explain-lock .section-label {margin-top:0; margin-bottom:10px}
 .breast .lock-panel {display:flex; flex-direction:column; align-items:center; text-align:center;
   padding:6px 0 4px}
 .breast .lock-icon {width:40px; height:40px; border-radius:50%; background:var(--line-2);
@@ -378,9 +435,21 @@
   font-weight:800; color:var(--muted); font-size:13px}
 @media (max-width:720px) {.breast .vs {grid-template-columns:1fr}}
 
-/* 대기 화면 2단 */
-.breast .split {display:grid; grid-template-columns:minmax(0,1.4fr) minmax(0,1fr); gap:var(--gap)}
+/* 대기 화면 2단 — 목록 1 : 상세 2 (2026-09-18 레이아웃 설계) */
+.breast .split {display:grid; grid-template-columns:minmax(0,1fr) minmax(0,2fr); gap:var(--gap);
+  align-items:stretch}
 @media (max-width:960px) {.breast .split {grid-template-columns:1fr}}
+
+/* 왼쪽 칸 — 목록 카드는 내용만큼, 그 아래 내 업무 패널(SideDashboard,
+   hospital/lib/에 공용으로 옮겼다 — 2026-09-18, 간호·병리·영상에도
+   같은 위젯을 쓴다)이 flex:1로 남은 세로 공간을 채운다. 오른쪽(환자
+   상세)은 늘 키가 커서, 이게 없으면 환자 수가 적을 때 왼쪽 밑에 빈
+   공간이 남았다. 위젯 안 내용(캘린더·TODO 등) 자체의 모양은
+   hospital.css 에 공용으로 있고, 여기는 "남는 공간을 채운다"는
+   유방외과만의 사정만 얹는다. */
+.breast .b-left-col {display:flex; flex-direction:column; gap:var(--gap); min-height:0}
+.breast .b-dash {flex:1; min-height:280px}
+.breast .b-dash-body {flex:1; overflow-y:auto}
 
 .breast .kv {display:flex; flex-direction:column; gap:2px}
 .breast .kv .k {color:var(--muted); font-size:12px}

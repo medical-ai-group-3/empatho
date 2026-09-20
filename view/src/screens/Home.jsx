@@ -6,7 +6,8 @@ import Coach from "../lib/Coach";
 import Tilly from "../lib/Tilly";
 import { COACH_HOME } from "../lib/seen";
 import { Body } from "../lib/Screen";
-import { fmtDay, fmtWhen } from "../lib/when";
+import Icon from "../lib/Icon";
+import { fmtDay, fmtWhen, WDS } from "../lib/when";
 import { deptSuffix } from "../lib/dept";
 import { MODALITY, modality as asModality, text } from "../lib/codes";
 
@@ -24,6 +25,10 @@ import { MODALITY, modality as asModality, text } from "../lib/codes";
 /* 처음 한 번만 뜨는 안내. 셋을 넘기지 않는다 — 열 개를 이어 붙이면
    결국 슬라이드와 같은 것이 되고, 같은 이유로 넘겨진다. */
 const COACH = [
+  { sel: '[data-coach="chatbot"]',
+    title: "안녕하세요, 틸리예요",
+    body: "저는 안내 챗봇이자 앱 사용을 돕는 건강 파트너예요. "
+        + "검사 안내문에 나온 낱말이나 다음에 할 일을 함께 살펴볼 수 있어요." },
   { sel: '[data-coach="quest"]',
     title: "검사 전에 여기부터",
     body: "촬영 방법이 달라지는 것들을 미리 여쭙습니다. "
@@ -36,6 +41,30 @@ const COACH = [
     body: "날짜와 시간만 고르시면 됩니다. 검사 종류는 병원이 정합니다." },
 ];
 
+/* 날씨처럼 외부 정보에 기대지 않고, 이미 병원이 가진 일정만 쓴다.
+   내일 예약은 가장 가까운 행동이라 날짜보다 먼저 알려 준다. */
+function visitOrdinal(n) {
+  if (n === 1) return "첫";
+  if (n === 2) return "두 번째";
+  if (n === 3) return "세 번째";
+  return `${n}번째`;
+}
+
+function visitGreeting(home) {
+  const name = home.display_name || "환자";
+  const visits = Number(home.visit_count);
+
+  if (Number.isFinite(visits) && visits > 0) {
+    return `${name} 님, ${visitOrdinal(visits)} 방문이에요.`;
+  }
+  return `${name} 님, 방문 일정을 확인해요.`;
+}
+
+function todayLabel() {
+  const now = new Date();
+  return `${now.getMonth() + 1}월 ${now.getDate()}일(${WDS[now.getDay()]})`;
+}
+
 /* 문진 카드에 뭐라고 쓸지. status 는 not_started · in_progress · done 이다. */
 function questLine(q) {
   if (q.status === "done") return "작성을 마쳤습니다";
@@ -45,6 +74,9 @@ function questLine(q) {
 
 export default function Home() {
   const { loading, data, error, reload } = useApi(() => api.home());
+  // 홈의 다음 복용은 처방 원본에서 읽는다. 홈 응답에 복용 기록을 복제하면
+  // 체크한 직후 두 화면의 값이 서로 어긋날 수 있다.
+  const prescriptions = useApi(() => api.prescriptions());
 
   return (
     <>
@@ -52,18 +84,37 @@ export default function Home() {
           그 자리를 인사와 알림에 내주는 편이 낫다. 뒤로가기도 없다 —
           돌아갈 위가 없다. */}
       <Body loading={loading} error={error} onRetry={reload}>
-        {data && <Inner d={data} />}
+        {data && <Inner d={data} prescriptions={prescriptions.data} />}
       </Body>
     </>
   );
 }
 
-function Inner({ d }) {
+function Inner({ d, prescriptions }) {
+  const visit = visitGreeting(d);
   const q = d.questionnaire ?? {};
   const done = q.status === "done";
   const pct = q.total ? Math.round((q.answered / q.total) * 100) : 0;
   const next = d.next_reservation;
   const cal = d.calendar;
+  const newReport = d.new_reports?.find((r) => r.lock_status !== "locked");
+  const nextMedication = findNextMedication(prescriptions);
+  const todayTasks = [
+    nextMedication,
+    !done && {
+      to: "/quest", icon: "help", image: "exam_results_icon.png", title: questLine(q),
+      detail: q.hint || "검사 전에 문진을 마쳐 주세요",
+    },
+    next && {
+      to: "/book", icon: "calendar", image: "exam_schedule_icon.png", title: `다음 예약 ${fmtWhen(next.scheduled_at)}`,
+      detail: next.place || "예약 장소를 확인해 주세요",
+    },
+    newReport && {
+      to: `/reports/${newReport.report_id}`,
+      icon: "results", title: "새 안내문을 확인해 주세요",
+      detail: newReport.title,
+    },
+  ].filter(Boolean).slice(0, 3);
 
   return (
     <>
@@ -91,33 +142,42 @@ function Inner({ d }) {
       <div className="hello">
         <p className="hello-tx">
           <b>안녕하세요!</b>
-          <span>{d.display_name} 님, 오늘도 건강한 하루예요</span>
+          <span className="hello-message">
+            <span className="hello-date">{todayLabel()}</span>
+            <span className="hello-visit">{visit}</span>
+            <span className="hello-health-label">오늘의 건강 한마디</span>
+            <span className="hello-health-tip">식후 약은 꼭 식후에 드세요.</span>
+          </span>
         </p>
+        <img className="hello-bg" src="/tilly/tily_background.png" alt="" aria-hidden="true" />
         <span className="hello-tri" aria-hidden="true">
-          <Tilly mood="hello" size="lg" alt="" />
+          <Tilly mood="hi" size="lg" alt="" />
         </span>
       </div>
 
+      {d.today_visit?.active && <TodayVisit visit={d.today_visit} />}
+      {todayTasks.length > 0 && <TodayTasks tasks={todayTasks} />}
+
+      <div className="quick-head">
+        <Icon name="sparkle" />
+        <b>빠른 메뉴</b>
+      </div>
       <div className="tiles">
         <Link className="tile" to="/book">
-          <i className="ic" aria-hidden="true">▦</i>
+          <MenuIcon file="exam_schedule_icon.png" />
           <b>검사 일정</b>
-          <small>날짜 신청 · 확인</small>
         </Link>
         <Link className="tile" to="/results">
-          <i className="ic" aria-hidden="true">▤</i>
+          <MenuIcon file="exam_results_icon.png" />
           <b>검사 결과</b>
-          <small>안내문 받아 보기</small>
         </Link>
         <Link className="tile" to="/meds">
-          <i className="ic" aria-hidden="true">◈</i>
+          <MenuIcon file="medication_icon.png" />
           <b>복약 관리</b>
-          <small>오늘 드실 약</small>
         </Link>
         <Link className="tile" to="/hospitals">
-          <i className="ic" aria-hidden="true">✦</i>
+          <MenuIcon file="hospital_finder_icon.png" />
           <b>병원 찾기</b>
-          <small>협력 병원 · 전화</small>
         </Link>
       </div>
 
@@ -129,7 +189,7 @@ function Inner({ d }) {
       )}
 
       {/* ── 문진 — 맨 위. 다 쓰기 전에는 강조 바탕이다 ── */}
-      <Link className={done ? "card go" : "card go accent"} to="/quest"
+      <Link className={done ? "card go quest-card" : "card go accent quest-card"} to="/quest"
             data-coach="quest">
         <span className="tx">
           <span className="k">자가검진 문진{q.required ? " · 필수" : ""}</span>
@@ -139,8 +199,8 @@ function Inner({ d }) {
             <span className="prog"><i style={{ width: `${pct}%` }} /></span>
           )}
         </span>
+        {!done && <img className="quest-pop" src="/tilly/tily_pop.png" alt="" aria-hidden="true" />}
         {done && <span className="pill ok">완료</span>}
-        <span className="arw" aria-hidden="true">›</span>
       </Link>
 
       {/* ── 새 안내문 — 있을 때만 ──
@@ -160,7 +220,7 @@ function Inner({ d }) {
             <span className={locked ? "pill read" : "pill new"}>
               {locked ? "잠김" : "새 안내"}
             </span>
-            {!locked && <span className="arw" aria-hidden="true">›</span>}
+            {!locked && <Icon className="arw" name="chevronRight" />}
           </>
         );
         return locked ? (
@@ -197,7 +257,7 @@ function Inner({ d }) {
                   </>
                 )}
               </span>
-              <Link className="more" to="/book">예약 →</Link>
+              <Link className="more" to="/book">예약 <Icon name="arrowRight" /></Link>
             </>
           }
         />
@@ -222,6 +282,83 @@ function Inner({ d }) {
       <Coach seenKey={COACH_HOME} steps={COACH} />
     </>
   );
+}
+
+/* 메뉴 이름이 아이콘의 뜻을 이미 말해 주므로 장식 이미지로 처리한다. */
+function MenuIcon({ file }) {
+  return <img className="menu-icon" src={`/tilly/${file}`} alt="" aria-hidden="true" />;
+}
+
+function TodayTasks({ tasks }) {
+  return (
+    <section className="today-tasks" aria-labelledby="today-tasks-title">
+      <div className="today-tasks-head">
+        <img className="today-tasks-tilly" src="/tilly/alram.png" alt="" aria-hidden="true" />
+        <b id="today-tasks-title">오늘의 할 일</b>
+        <span>{tasks.length}개</span>
+      </div>
+      <div className="today-tasks-list">
+        {tasks.map((task) => (
+          <Link key={task.to} to={task.to}>
+            <span className="today-task-icon">
+              {task.image
+                ? <img className="today-task-image" src={`/tilly/${task.image}`} alt="" aria-hidden="true" />
+                : <Icon name={task.icon} />}
+            </span>
+            <span className="today-task-text">
+              <b>{task.title}</b>
+              <span>{task.detail}</span>
+            </span>
+            <Icon className="arw" name="chevronRight" />
+          </Link>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/* 접수 뒤에만 오는 당일 동선이다. 내부 처리 단계 대신 환자가 실제로
+   움직여야 하는 다음 장소 하나만 보여 준다. */
+function TodayVisit({ visit }) {
+  return (
+    <section className="today-visit" aria-labelledby="today-visit-title">
+      <span className="today-visit-icon">
+        <img className="today-visit-tilly" src="/tilly/hospital_finder_icon.png" alt="" aria-hidden="true" />
+      </span>
+      <span className="today-visit-text">
+        <span className="k" id="today-visit-title">오늘 병원 안내</span>
+        <b>다음 진료: {visit.next_location}</b>
+        {visit.note && <span>{visit.note}</span>}
+      </span>
+    </section>
+  );
+}
+
+/* 복용 기록이 없는 회차만 고른다. 이미 지난 시각이면 「다음」이라고
+   속이지 않고 복용 확인이 필요하다고 말한다. */
+function findNextMedication(prescriptions) {
+  const pending = (prescriptions?.items ?? [])
+    .filter((rx) => rx.status !== "ended")
+    .flatMap((rx) => (rx.drugs ?? []).flatMap((g) =>
+      (g.today ?? []).filter((t) => !t.log_id).map((t) => ({ g, t }))
+    ))
+    .sort((a, b) => a.t.time.localeCompare(b.t.time));
+  if (!pending.length) return null;
+
+  const now = new Date();
+  const minutes = now.getHours() * 60 + now.getMinutes();
+  const asMinutes = (time) => {
+    const [hour, minute] = time.split(":").map(Number);
+    return hour * 60 + minute;
+  };
+  const item = pending.find(({ t }) => asMinutes(t.time) >= minutes) ?? pending[0];
+  const upcoming = asMinutes(item.t.time) >= minutes;
+
+  return {
+    to: "/meds", icon: "pill", image: "medication_icon.png",
+    title: upcoming ? `다음 복용 ${item.t.time}` : `${item.t.time} 복용 확인`,
+    detail: `${item.g.name} · ${item.g.dose}`,
+  };
 }
 
 /* 톱니 — 설정. 종과 같은 굵기·같은 모서리로 그려야 둘이 한 벌로 보인다. */

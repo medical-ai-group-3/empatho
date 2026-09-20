@@ -5,6 +5,8 @@ import { Chip, Facts, Queue, Locked, Table } from "../../../lib/Parts";
 import { useApi } from "../../../lib/useApi";
 import { can } from "../../../perm";
 import SpecimenBindingModal from "../../../lib/SpecimenBindingModal";
+import { SEX, label } from "../../../codes";
+import SideDashboard from "../../../lib/SideDashboard";
 
 /* ═══ 1장 · 내원 대기 · 유방외과 배정 ══════════════════════════════
  *
@@ -38,6 +40,39 @@ export default function NursingWaiting({ cfg }) {
 
 const POLL_MS = 7000;
 
+function examOrder(it) {
+  if (!it) return it;
+  return {
+    ...it,
+    id: it.exam_order_id,
+    patient_id: it.patient,
+    name: it.patient_name ?? `환자 #${it.patient}`,
+    patient_number: it.patient_number ?? `#${it.patient}`,
+    status: it.order_status,
+    visit_type: it.visit_type ?? it.exam_purpose ?? "-",
+    time: it.time ?? it.scheduled_at?.slice(11, 16) ?? "-",
+  };
+}
+
+/* ⚠ 2026-09-18 다희님 확인(feature/dahee) — sex 를 그대로 꽂으면 null 일 때
+ * "null" 글자가 그대로 찍힌다. codes.js 의 SEX 표 + label() 을 거친다 —
+ * 값이 없으면 빈칸이다. */
+function person(it) {
+  const detail = [it.age, label(SEX, it.sex)].filter(Boolean).join("/");
+  return detail ? `${it.name} (${detail})` : it.name;
+}
+
+function queueItem(it, no) {
+  return {
+    id: it.exam_order_id,
+    no,
+    title: `${it.patient_name ?? `환자 #${it.patient}`} (${it.age ?? "-"}/${label(SEX, it.sex) || "-"})`,
+    sub: `${it.patient ?? "-"} · ${it.visited_at ?? "-"} 접수 · ${it.visit_type ?? "-"}`,
+    chip: it.order_status,
+    chipTone: it.order_status === "문진 중" ? "fill" : "line",
+  };
+}
+
 function Inner({ cfg }) {
   const arrived = useApi(() => cfg.api.waitingArrived(), []);
   const today = useApi(() => cfg.api.scheduledToday(), []);
@@ -55,12 +90,12 @@ function Inner({ cfg }) {
 
   /* 처음 들어왔을 때 맨 위(가장 먼저 접수한 사람)를 자동으로 골라 둔다 */
   useEffect(() => {
-    if (selectedId == null && arrived.data?.items?.length) {
-      setSelectedId(arrived.data.items[0].id);
+    if (selectedId == null && arrived.data?.results?.length) {
+      setSelectedId(arrived.data.results[0].exam_order_id);
     }
   }, [arrived.data, selectedId]);
 
-  const items = arrived.data?.items ?? [];
+  const items = (arrived.data?.results ?? []).map(examOrder);
 
   return (
     <Page crumb={[cfg.name, "내원 대기 · 유방외과 배정"]}
@@ -71,14 +106,7 @@ function Inner({ cfg }) {
         <Card title="내원한 대기 환자" pad={false}>
           <Body loading={arrived.loading} error={arrived.error} onRetry={arrived.reload}>
             <Queue
-              items={items.map((it, i) => ({
-                id: it.id,
-                no: i + 1,
-                title: `${it.name} (${it.age}/${it.sex})`,
-                sub: `${it.patient_number} · ${it.visited_at} 접수 · ${it.visit_type}`,
-                chip: it.status,
-                chipTone: it.status === "문진 중" ? "fill" : "line",
-              }))}
+              items={(arrived.data?.results ?? []).map((it, i) => queueItem(it, i + 1))}
               value={selectedId}
               onPick={setSelectedId}
               emptyText="내원한 대기 환자가 없습니다"
@@ -92,13 +120,13 @@ function Inner({ cfg }) {
               ? <div className="slot"><b>왼쪽 목록에서 한 사람을 고르세요</b></div>
               : (
                 <Body loading={detail.loading} error={detail.error} onRetry={detail.reload}>
-                  {detail.data && <PatientDetail cfg={cfg} d={detail.data}
+                  {detail.data && <PatientDetail cfg={cfg} d={examOrder(detail.data)}
                     onAssigned={() => { setSelectedId(null); arrived.reload(); }} />}
                 </Body>
               )}
           </Card>
 
-          <Card title="금일 내원 예정" right={<span className="hint">예약 {today.data?.items?.length ?? 0}건</span>} pad={false}>
+          <Card title="금일 내원 예정" right={<span className="hint">예약 {today.data?.results?.length ?? 0}건</span>} pad={false}>
             <Body loading={today.loading} error={today.error} onRetry={today.reload}>
               <Table
                 cols={[
@@ -106,15 +134,23 @@ function Inner({ cfg }) {
                   { key: "time", label: "시간" },
                   { key: "kind", label: "구분" },
                 ]}
-                rows={(today.data?.items ?? []).map((it) => ({
+                rows={(today.data?.results ?? []).map(examOrder).map((it) => ({
                   id: it.id,
-                  who: `${it.name} (${it.age}/${it.sex})`,
+                  who: person(it),
                   time: it.time,
                   kind: <Chip tone={it.followup_id ? "dot" : "line"}>{it.followup_id ? "추적 관찰" : "예약"}</Chip>,
                 }))}
               />
             </Body>
           </Card>
+
+          {/* n-side-stack 은 이미 .card 를 flex:1 로 쌓는 틀이라(hospital.css:1207)
+              SideDashboard(자기도 .card)를 셋째로 얹기만 하면 된다 —
+              새 CSS 없이 그대로 맞는다. */}
+          <SideDashboard stats={[
+            { label: "내원 대기", value: items.length },
+            { label: "금일 예약", value: today.data?.results?.length ?? 0 },
+          ]} />
         </div>
       </div>
     </Page>
@@ -126,7 +162,7 @@ function Inner({ cfg }) {
    보여준다 — 환자마다 항목이 다를 수 있어 고정 입력칸으로 안 만든다
    (간호과 명세 §1: "환자가 앱에서 낸 것을 그대로 본다"). */
 function PatientDetail({ cfg, d, onAssigned }) {
-  const [note, setNote] = useState(d.note ?? "");
+  const [note, setNote] = useState(d.order_note ?? "");
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState(null);
   const [modal, setModal] = useState(null); // "specimen" | "assign"
@@ -153,11 +189,11 @@ function PatientDetail({ cfg, d, onAssigned }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <Facts items={[
-        ["환자", `${d.name} (${d.age}/${d.sex})`],
+        ["환자", person(d)],
         ["환자번호", d.patient_number],
         ["내원 구분", d.visit_type],
         ["알레르기", d.allergy || "없음"],
-        ["주 증상", d.chief_complaint],
+        ["주 증상", d.chief_complaint || "-"],
       ]} />
 
       <div>
@@ -202,9 +238,8 @@ function AssignModal({ cfg, patient, onClose, onDone }) {
   const [staffId, setStaffId] = useState(null);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState(null);
-
   useEffect(() => {
-    if (!staffId && data?.items?.length) setStaffId(data.items[0].id);
+    if (!staffId && data?.results?.length) setStaffId(data.results[0].staff_id);
   }, [data, staffId]);
 
   async function confirm() {
@@ -233,7 +268,11 @@ function AssignModal({ cfg, patient, onClose, onDone }) {
           <Body loading={loading} error={error} onRetry={reload}>
             <Table
               cols={[{ key: "name", label: "의사" }, { key: "role", label: "직책" }]}
-              rows={(data?.items ?? []).map((s) => ({ id: s.id, name: s.name, role: s.role }))}
+              rows={(data?.results ?? []).map((s) => ({
+                id: s.staff_id,
+                name: s.full_name,
+                role: s.staff_number,
+              }))}
               value={staffId}
               onPick={setStaffId}
             />

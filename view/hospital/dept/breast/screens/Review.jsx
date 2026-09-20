@@ -117,6 +117,10 @@ function Inner({ patient, timeline }) {
   );
 }
 
+/* ⚠ 서버 PatientTimelineView(2026-09-18 확인)는 {at, type, detail,
+ * assessment_id} 만 준다 — label 이 없다. type 자체가 이미 "촬영"·
+ * "AI 분석 완료"·"판독"·"검체 채취"·"병리 확진" 같은 한글이라 그대로
+ * 제목으로 쓴다. */
 function Timeline({ events }) {
   if (events.length === 0) {
     return <p style={{ fontSize: 13, color: "var(--muted)" }}>아직 기록이 없습니다</p>;
@@ -126,7 +130,7 @@ function Timeline({ events }) {
       {events.map((e, i) => (
         <div className="row" key={i}>
           <span className="dot" aria-hidden="true" />
-          <p className="label">{e.label}</p>
+          <p className="label">{e.type}</p>
           <p className="at">{e.at?.replace("T", " ").slice(0, 16)}</p>
           {e.detail && <p className="detail">{e.detail}</p>}
         </div>
@@ -146,8 +150,10 @@ function ReportPanel({ patient, currentModality }) {
 
   /* 유방외과 소견은 지금 뷰어가 보여주는 모달리티별로 따로 쓴다 —
    * MRI에서 쓰던 걸 초음파로 넘어갔다가 다시 MRI로 돌아와도 그대로
-   * 남아 있어야 하니 modality별 텍스트를 따로 들고 있는다. */
-  const [surgeonReports, setSurgeonReports] = useState({});
+   * 남아 있어야 하니 modality별 텍스트를 따로 들고 있는다. 서버 저장분
+   * (content_json.by_modality, 2026-09-18 다희님 확인)으로 초깃값을
+   * 채운다 — 전엔 새로고침마다 빈 칸으로 시작해서 저장했던 게 안 보였다. */
+  const [surgeonReports, setSurgeonReports] = useState(() => report.content_json?.by_modality ?? {});
 
   return (
     <div className="report-stack">
@@ -199,11 +205,16 @@ function FinalReportForm({ report, modality, text, onTextChange }) {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState(null);
 
+  /* ⚠ 2026-09-18 다희님 확인 — PUT /reports/{id}/ 는 content_json 만 본다
+   * (surgery.py:97-103). { modality, doctor_summary } 를 최상위로 보내던
+   * 건 그동안 서버 값을 하나도 안 바꾸고 있었다. 모달리티별로 서로
+   * 덮어쓰지 않게 merge 하는 건 서버가 한다 — by_modality.{modality} 한
+   * 칸만 보내면 된다. */
   async function save() {
     setSaving(true);
     setMsg(null);
     try {
-      await api.saveReport(report.report_id, { modality, doctor_summary: text });
+      await api.saveReport(report.report_id, { content_json: { by_modality: { [modality]: text } } });
       setMsg("저장되었습니다");
     } finally {
       setSaving(false);

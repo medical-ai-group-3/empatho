@@ -62,7 +62,6 @@
         "pathology.ai.run", "pathology.ai.view",
         "pathology.read.view", "pathology.read.draft", "pathology.read.finalize",
         "pathology.list.view",
-        "pathology.amend.view", "pathology.amend.save",
         "report.view.all"
       ]
     },
@@ -106,7 +105,7 @@
     }
   },
 
-  "GET /api/v1/hospital/patients?q={q}": [
+  "GET /api/v1/hospital/patients/?q={q}": [
     { "patient_id": 41, "patient_number": "E_1029304", "name": "김영희",
       "phone": "010-1234-5678", "birth_date": "1985-07-02", "birth_year": 1985,
       "sex": "female" },
@@ -238,7 +237,7 @@
     "  목록을 받는다 — api.js 의 ALL_PATIENTS."
   ],
 
-  "GET /api/v1/hospital/patients?status={s}": [
+  "GET /api/v1/hospital/patients/?status={s}": [
     { "patient_id": 41,"birth_date": "1985-07-02", "patient_number": "E_1029304", "name": "김영희",
       "phone": "010-1234-5678", "birth_year": 1985, "sex": "female",
       "has_allergy": true, "first_visited_at": "2026-03-11T09:20:00+09:00",
@@ -480,8 +479,6 @@
       "pathology.read.draft",
       "pathology.read.finalize",
       "pathology.list.view",
-      "pathology.amend.view",
-      "pathology.amend.save",
       "radiology.queue.view",
       "radiology.queue.assign",
       "radiology.upload.view",
@@ -793,9 +790,6 @@
   "PATCH /api/v1/hospital/specimens/{id}/finalize": {
     "ok": true
   },
-  "POST /api/v1/hospital/specimens/{id}/amend": {
-    "ok": true
-  },
   "GET /api/v1/hospital/exam-orders?status={s}&assigned={a}": {
     "items": [
       {
@@ -930,6 +924,7 @@
   },
   "GET /api/v1/hospital/studies/{id}/": {
     "id": "st-301",
+    "patient": 501,
     "patient_name": "김하늘",
     "age": 44,
     "sex": "여",
@@ -947,6 +942,7 @@
   },
   "GET /api/v1/hospital/studies/st-305/": {
     "id": "st-305",
+    "patient": 501,
     "patient_name": "김하늘",
     "age": 44,
     "sex": "여",
@@ -964,6 +960,7 @@
   },
   "GET /api/v1/hospital/studies/st-306/": {
     "id": "st-306",
+    "patient": 501,
     "patient_name": "김하늘",
     "age": 44,
     "sex": "여",
@@ -981,6 +978,7 @@
   },
   "GET /api/v1/hospital/studies/st-302/": {
     "id": "st-302",
+    "patient": 502,
     "patient_name": "정유진",
     "age": 56,
     "sex": "여",
@@ -1398,7 +1396,40 @@
     }
   },
 
-  "GET /api/v1/hospital/patients?primary_staff=me&status=waiting": [
+  "GET /api/v1/hospital/patients/?primary_staff=me&status=all": [
+    {
+      "patient_id": "P-1001",
+      "name": "김민지",
+      "age": 47,
+      "sex": "F",
+      "patient_number": "20260001",
+      "status": "재진",
+      "first_visited_at": "2026-03-11T09:20:00+09:00",
+      "phone": "010-1234-5601"
+    },
+    {
+      "patient_id": "P-1002",
+      "name": "이서연",
+      "age": 52,
+      "sex": "F",
+      "patient_number": "20260002",
+      "status": "재진",
+      "first_visited_at": "2025-11-07T14:10:00+09:00",
+      "phone": "010-4377-1221"
+    },
+    {
+      "patient_id": "P-1003",
+      "name": "박지현",
+      "age": 39,
+      "sex": "F",
+      "patient_number": "20260003",
+      "status": "초진",
+      "first_visited_at": null,
+      "phone": "010-6333-0184"
+    }
+  ],
+
+  "GET /api/v1/hospital/patients/?primary_staff=me&status=waiting": [
     {
       "patient_id": "P-1001",
       "name": "김민지",
@@ -1428,13 +1459,17 @@
     }
   ],
 
-  "GET /api/v1/hospital/patients/P-1001": {
+  "GET /api/v1/hospital/patients/P-1001/": {
     "patient_id": "P-1001",
-    "name": "김민지",
-    "age": 47,
-    "sex": "F",
+    "sex": "female",
+    "birth_year": 1979,
     "patient_number": "20260001",
-    "birth_date": "1979-03-11",
+    "pii": {
+      "patient_id": "P-1001",
+      "name": "김민지",
+      "birth_date": "1979-03-11",
+      "phone": "010-1234-5601"
+    },
     "primary_staff_name": "서냐냥",
     "primary_staff_dept": "surgery",
     "last_visit_at": "2026-09-10T09:40:00+09:00",
@@ -1446,7 +1481,6 @@
     "family_history": "없음",
     "exam_summary": "맘모 09.08 · 병리 09.11 (영상·병리 불일치)",
     "accession_no": "E-1029301",
-    "phone": "010-1234-5601",
     "address": "서울시 강남구 ○○로 10",
     "referral_date": "2026-09-05",
     "clinical_note": "타원 초음파 결과 지참, 우측 유방 종괴 촉지",
@@ -1548,7 +1582,7 @@
           "abstained": true
         }
       },
-      "doctor_summary": "",
+      "content_json": { "doctor_summary": "", "by_modality": {} },
       "doctor_summary_author": "서냐냥",
       "decision": null,
       "explain_method": null,
@@ -1558,13 +1592,17 @@
     }
   },
 
-  "GET /api/v1/hospital/patients/P-1002": {
+  "GET /api/v1/hospital/patients/P-1002/": {
     "patient_id": "P-1002",
-    "name": "이서연",
-    "age": 52,
-    "sex": "F",
+    "sex": "female",
+    "birth_year": 1974,
     "patient_number": "20260002",
-    "birth_date": "1974-06-22",
+    "pii": {
+      "patient_id": "P-1002",
+      "name": "이서연",
+      "birth_date": "1974-06-22",
+      "phone": "010-2345-6702"
+    },
     "primary_staff_name": "서냐냥",
     "primary_staff_dept": "surgery",
     "last_visit_at": "2026-09-08T14:10:00+09:00",
@@ -1576,7 +1614,6 @@
     "family_history": "없음",
     "exam_summary": "초음파 09.08 (BI-RADS 3, 추적 권고)",
     "accession_no": "E-1029302",
-    "phone": "010-2345-6702",
     "address": "서울시 마포구 ○○로 22",
     "referral_date": "2026-09-03",
     "clinical_note": "정기 검진 중 발견된 병변",
@@ -1656,7 +1693,7 @@
           "abstained": false
         }
       },
-      "doctor_summary": "",
+      "content_json": { "doctor_summary": "", "by_modality": {} },
       "doctor_summary_author": "서냐냥",
       "decision": null,
       "explain_method": null,
@@ -1666,13 +1703,17 @@
     }
   },
 
-  "GET /api/v1/hospital/patients/P-1003": {
+  "GET /api/v1/hospital/patients/P-1003/": {
     "patient_id": "P-1003",
-    "name": "박지현",
-    "age": 39,
-    "sex": "F",
+    "sex": "female",
+    "birth_year": 1987,
     "patient_number": "20260003",
-    "birth_date": "1987-01-05",
+    "pii": {
+      "patient_id": "P-1003",
+      "name": "박지현",
+      "birth_date": "1987-01-05",
+      "phone": "010-3456-7803"
+    },
     "primary_staff_name": "서냐냥",
     "primary_staff_dept": "surgery",
     "last_visit_at": "2026-09-12T11:00:00+09:00",
@@ -1684,7 +1725,6 @@
     "family_history": "모 · 유방암",
     "exam_summary": "MRI 09.10 · 병리 09.12 (침윤성 유관암)",
     "accession_no": "E-1029303",
-    "phone": "010-3456-7803",
     "address": "경기도 성남시 ○○구 ○○로 5",
     "referral_date": "2026-09-02",
     "clinical_note": "타원 조직검사 결과 지참, 우측 유방 종괴",
@@ -1773,7 +1813,7 @@
           "abstained": false
         }
       },
-      "doctor_summary": "영상·병리 모두 악성 소견 일치. 수술적 절제 권고.",
+      "content_json": { "doctor_summary": "영상·병리 모두 악성 소견 일치. 수술적 절제 권고.", "by_modality": {} },
       "doctor_summary_author": "서냐냥",
       "decision": {
         "decision_type": "surgery",
@@ -1793,7 +1833,26 @@
     "detail": "촬영 요청이 영상의학과 큐로 전달되었습니다"
   },
 
-  "POST /api/v1/hospital/specimens": {
+  "PATCH /api/v1/hospital/assessments/1001/decision": {
+    "assessment_id": 1001,
+    "decision_type": "surgery",
+    "decision_value": "yes",
+    "decision_reason": "침윤성 유관암, 병기 확인 후 절제 필요"
+  },
+  "PATCH /api/v1/hospital/assessments/1002/decision": {
+    "assessment_id": 1002,
+    "decision_type": "surgery",
+    "decision_value": "defer",
+    "decision_reason": ""
+  },
+  "PATCH /api/v1/hospital/assessments/1003/decision": {
+    "assessment_id": 1003,
+    "decision_type": "surgery",
+    "decision_value": "defer",
+    "decision_reason": ""
+  },
+
+  "POST /api/v1/hospital/specimens/": {
     "ok": true,
     "specimen_id": "SP-3099",
     "detail": "검체가 등록되었습니다"
@@ -1809,17 +1868,20 @@
     },
     "lesion": {
       "lesion_id": "L-1001-A",
+      "specimen_id": "SP-1001-A",
       "site": "우측 유방 상외측(UOQ)",
       "size_mm": 14
     },
     "radiology_reading": {
       "assessor": "영상의학과 이도윤",
+      "birads": "4",
       "assessment": "BI-RADS 4 (악성 의심)",
       "finding": "경계 불규칙 종괴, 미세석회화 동반",
       "read_at": "2026-09-09T10:20:00+09:00"
     },
     "pathology_reading": {
       "assessor": "병리과 한소영",
+      "b_category": "b2",
       "assessment": "양성 — 섬유선종",
       "finding": "섬유상피성 병변, 악성 소견 없음",
       "read_at": "2026-09-11T16:05:00+09:00"
@@ -1830,7 +1892,7 @@
     "created_at": "2026-09-11T16:10:00+09:00"
   },
 
-  "PATCH /api/v1/hospital/discordances/D-2001/dispose": {
+  "PATCH /api/v1/hospital/discordances/D-2001": {
     "ok": true,
     "discordance_id": "D-2001",
     "flag_status": "closed",
@@ -1902,128 +1964,161 @@
 
   "GET /api/v1/hospital/patients/P-1003/timeline": [
     {
-      "type": "study",
-      "label": "맘모그래피 촬영",
       "at": "2026-09-10T09:20:00+09:00",
-      "detail": "MG · 양측"
+      "type": "촬영",
+      "detail": "mammo"
     },
     {
-      "type": "ai_result",
-      "label": "AI 판독 완료",
       "at": "2026-09-10T09:34:00+09:00",
-      "detail": "BI-RADS 5 의심"
+      "type": "AI 분석 완료",
+      "detail": null
     },
     {
-      "type": "study",
-      "label": "유방 초음파 촬영",
       "at": "2026-09-10T10:05:00+09:00",
-      "detail": "US · 우측"
+      "type": "촬영",
+      "detail": "us"
     },
     {
-      "type": "ai_result",
-      "label": "AI 판독 완료",
       "at": "2026-09-10T10:18:00+09:00",
-      "detail": "종괴 18mm, 경계 불규칙"
+      "type": "AI 분석 완료",
+      "detail": null
     },
     {
-      "type": "assessment",
-      "label": "영상의학과 판독 확정",
       "at": "2026-09-10T14:00:00+09:00",
-      "detail": "BI-RADS 5"
+      "type": "판독",
+      "detail": "BI-RADS 5",
+      "assessment_id": 1003
     },
     {
-      "type": "specimen_collected",
-      "label": "검체 채취",
       "at": "2026-09-11T11:00:00+09:00",
-      "detail": "core needle biopsy"
+      "type": "검체 채취",
+      "detail": "SP-3003"
     },
     {
-      "type": "specimen_finalized",
-      "label": "병리 판독 확정",
       "at": "2026-09-12T09:40:00+09:00",
+      "type": "병리 확진",
       "detail": "침윤성 유관암"
     }
   ],
 
   "GET /api/v1/hospital/patients/P-1002/timeline": [
     {
-      "type": "study",
-      "label": "유방 초음파 촬영",
       "at": "2026-09-08T14:10:00+09:00",
-      "detail": "US · 좌측"
+      "type": "촬영",
+      "detail": "us"
     },
     {
-      "type": "ai_result",
-      "label": "AI 판독 완료",
       "at": "2026-09-08T14:22:00+09:00",
-      "detail": "BI-RADS 3 의심"
+      "type": "AI 분석 완료",
+      "detail": null
     },
     {
-      "type": "assessment",
-      "label": "영상의학과 판독 확정",
       "at": "2026-09-08T14:30:00+09:00",
-      "detail": "BI-RADS 3"
+      "type": "판독",
+      "detail": "BI-RADS 3",
+      "assessment_id": 1002
     },
     {
-      "type": "specimen_collected",
-      "label": "검체 채취",
       "at": "2026-09-09T09:10:00+09:00",
-      "detail": "core needle biopsy"
+      "type": "검체 채취",
+      "detail": "SP-3002"
     },
     {
-      "type": "specimen_finalized",
-      "label": "병리 판독 확정",
       "at": "2026-09-10T11:00:00+09:00",
+      "type": "병리 확진",
       "detail": "양성 — 섬유낭포성 변화"
+    }
+  ],
+
+  "GET /api/v1/hospital/patients/501/timeline": [
+    {
+      "at": "2026-09-15T10:05:00+09:00",
+      "type": "촬영",
+      "detail": "mammo"
+    },
+    {
+      "at": "2026-09-15T10:20:00+09:00",
+      "type": "AI 분석 완료",
+      "detail": null
+    },
+    {
+      "at": "2026-09-15T10:40:00+09:00",
+      "type": "촬영",
+      "detail": "us"
+    },
+    {
+      "at": "2026-09-15T10:55:00+09:00",
+      "type": "AI 분석 완료",
+      "detail": null
+    },
+    {
+      "at": "2026-09-15T11:50:00+09:00",
+      "type": "촬영",
+      "detail": "mri"
+    },
+    {
+      "at": "2026-09-15T15:30:00+09:00",
+      "type": "판독",
+      "detail": "BI-RADS 4b",
+      "assessment_id": 501
+    }
+  ],
+
+  "GET /api/v1/hospital/patients/502/timeline": [
+    {
+      "at": "2026-09-15T11:20:00+09:00",
+      "type": "촬영",
+      "detail": "mri"
+    },
+    {
+      "at": "2026-09-15T11:35:00+09:00",
+      "type": "AI 분석 완료",
+      "detail": null
     }
   ],
 
   "GET /api/v1/hospital/patients/P-1001/timeline": [
     {
-      "type": "study",
-      "label": "맘모그래피 촬영",
       "at": "2026-09-08T09:00:00+09:00",
-      "detail": "MG · 양측"
+      "type": "촬영",
+      "detail": "mammo"
     },
     {
-      "type": "ai_result",
-      "label": "AI 판독 완료",
       "at": "2026-09-08T09:15:00+09:00",
-      "detail": "BI-RADS 4 의심"
+      "type": "AI 분석 완료",
+      "detail": null
     },
     {
-      "type": "assessment",
-      "label": "영상의학과 판독 확정",
       "at": "2026-09-09T10:20:00+09:00",
-      "detail": "BI-RADS 4"
+      "type": "판독",
+      "detail": "BI-RADS 4",
+      "assessment_id": 1001
     },
     {
-      "type": "specimen_collected",
-      "label": "검체 채취",
       "at": "2026-09-10T11:20:00+09:00",
-      "detail": "core needle biopsy"
+      "type": "검체 채취",
+      "detail": "SP-3001"
     },
     {
-      "type": "specimen_finalized",
-      "label": "병리 판독 확정",
       "at": "2026-09-11T16:05:00+09:00",
+      "type": "병리 확진",
       "detail": "양성 — 섬유선종"
     }
   ],
 
-  "PUT /api/v1/hospital/reports/R-9101": {
+  "PUT /api/v1/hospital/reports/R-9101/": {
     "ok": true,
     "report_id": "R-9101",
     "detail": "유방외과 종합 리포트가 저장되었습니다"
   },
 
-  "PUT /api/v1/hospital/reports/R-9001": {
+  "PUT /api/v1/hospital/reports/R-9001/": {
     "ok": true,
     "report_id": "R-9001",
     "detail": "유방외과 종합 리포트가 저장되었습니다"
   },
 
-  "PUT /api/v1/hospital/reports/R-9002": {
+  "PUT /api/v1/hospital/reports/R-9002/": {
     "ok": true,
     "report_id": "R-9002",
     "detail": "유방외과 종합 리포트가 저장되었습니다"
@@ -2308,7 +2403,6 @@
     ]
   },
 
-  "PATCH /api/v1/hospital/patients/{id}": { "ok": true },
   "PATCH /api/v1/hospital/exam-orders/{id}/note": { "ok": true },
 
   "GET /api/v1/hospital/followups?include_candidates=1": {
@@ -2347,6 +2441,6 @@
         "call_at": "2026-09-05", "call_result": "거부" }
     ]
   },
-  "POST /api/v1/hospital/followups": { "ok": true },
+  "POST /api/v1/hospital/followups/new": { "ok": true },
   "PATCH /api/v1/hospital/followups/{id}/call": { "ok": true }
 }

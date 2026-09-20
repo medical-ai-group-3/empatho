@@ -5,6 +5,7 @@ import { Btn, Card, Page } from "../lib/Page";
 import { Chip, Locked, Search, Sort, Split, Table, useCan } from "../lib/Parts";
 import { useApi } from "../lib/useApi";
 import { can, reportScope } from "../perm";
+import SideDashboard from "../lib/SideDashboard";
 
 /* ═══ 4장 · 전체 환자 목록 ═══════════════════════════════════════
  *
@@ -65,34 +66,46 @@ function Inner({ cfg }) {
       <Body loading={loading} error={error} onRetry={reload}>
         {data && (
           <Split
-            side="wide"
+            side={c.splitSide ?? "wide"}
             empty="목록에서 한 사람을 고르면 여기에 상세가 보입니다"
             left={
-              <Card
-                title={c.listTitle}
-                right={<Search placeholder={c.searchHint} value={q} onChange={setQ} />}
-                pad={false}
-              >
-                <div className="tbl-top">
-                  <Sort items={c.sorts} value={sort} onChange={setSort} />
-                </div>
+              <>
+                <Card
+                  title={c.listTitle}
+                  right={<Search placeholder={c.searchHint} value={q} onChange={setQ} />}
+                  pad={false}
+                >
+                  <div className="tbl-top">
+                    <Sort items={c.sorts} value={sort} onChange={setSort} />
+                  </div>
 
-                <Table
-                  cols={c.cols}
-                  rows={data.items
-                    .filter((r) => match(r, q, c.search))
-                    .map((r) => c.row(r))}
-                  value={pick}
-                  onPick={setPick}
-                />
+                  <Table
+                    cols={c.cols}
+                    rows={data.items
+                      .filter((r) => match(r, q, c.search))
+                      .map((r) => c.row(r))}
+                    value={pick}
+                    onPick={setPick}
+                  />
 
-                <div className="tbl-foot">
-                  <span>{data.total}건 중 {data.items.length}건 표시</span>
-                  {scope?.key === "own" && (
-                    <span className="muted">내가 맡은 환자만 보입니다</span>
-                  )}
-                </div>
-              </Card>
+                  <div className="tbl-foot">
+                    <span>{data.total}건 중 {data.items.length}건 표시</span>
+                    {scope?.key === "own" && (
+                      <span className="muted">내가 맡은 환자만 보입니다</span>
+                    )}
+                  </div>
+                </Card>
+                {/* 유방외과처럼 목록 아래에 둔다 — 환자 상세 자리가 아니다.
+                    ⚠ 과가 hideDashboard 를 켜면 안 그린다 — 영상의학과는
+                    상세가 뷰어까지 들어가서 목록:상세를 1:2로 넓히고
+                    "내 업무"는 빼기로 했다(2026-09-18). */}
+                {!c.hideDashboard && (
+                  <SideDashboard stats={[
+                    { label: "전체", value: data.total },
+                    { label: "현재 표시", value: data.items.length },
+                  ]} />
+                )}
+              </>
             }
             right={pick ? <Detail cfg={cfg} id={pick} /> : null}
           />
@@ -136,7 +149,11 @@ function match(r, q, fields = FIELDS) {
 function Detail({ cfg, id }) {
   const c = cfg.list;
   const nav = useNavigate();
-  const amend = useCan(cfg.amend.need.view);
+  /* ⚠ 병리는 cfg.amend 가 없다 (확정 사양서 §8-2 — 정정 경로를 두지
+     않는다). useCan 은 훅이라 조건부로 못 부르니 항상 부르지만,
+     아래 "판독 정정" 버튼은 cfg.amend 가 있을 때만 렌더링된다 —
+     이 값은 병리에서는 그냥 안 쓰인다 */
+  const amend = useCan(cfg.amend?.need?.view);
   const { loading, data, error, reload } =
     useApi(() => (id ? cfg.api.listDetail(id) : Promise.resolve(null)), [id]);
 
@@ -152,13 +169,18 @@ function Detail({ cfg, id }) {
                 「판독 결과」가 확정 여부에 따라 펼쳐져야 하는데 앞
                 사람의 상태를 물려받아 엉뚱하게 접혀 있거나 펼쳐진다 */}
             <c.Detail key={id} d={data} cfg={cfg} />
-            <div className="stack top">
+            {/* ⚠ 목록·뷰어·상세 3단(list-detail-cols) 아래에 오다 보니
+                구분선(.stack.top의 border-top)에 걸친 것처럼 보였다 —
+                오른쪽 끝으로 붙인다(2026-09-19). */}
+            <div className="stack top" style={{ justifyContent: "flex-end" }}>
               <Btn kind="line" onClick={() => nav(cfg.go.read(id))}>판독 화면</Btn>
-              <Btn kind="fill" onClick={() => nav(cfg.go.amend(id))}
-                   disabled={!amend.ok || !data.finalized}
-                   title={amend.attrs.title}>판독 정정</Btn>
+              {cfg.amend && (
+                <Btn kind="fill" onClick={() => nav(cfg.go.amend(id))}
+                     disabled={!amend.ok || !data.finalized}
+                     title={amend.attrs.title}>판독 정정</Btn>
+              )}
             </div>
-            {!data.finalized && (
+            {cfg.amend && !data.finalized && (
               <p className="muted small">확정된 판독이 있어야 정정할 수 있습니다.</p>
             )}
           </>

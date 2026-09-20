@@ -24,7 +24,15 @@ const KEY = "empatho_staff_token";
 
 function load() {
   try {
-    return sessionStorage.getItem(KEY);
+    const saved = sessionStorage.getItem(KEY);
+    /* Authorization 값에 비 ASCII 문자가 있으면 fetch가 요청을 보내기
+       전에 예외를 낸다. 예전 목업이 한글 로그인 아이디를 그대로 넣어
+       남긴 세션은 로그인 화면으로 되돌려 복구한다. */
+    if (saved && !/^[\x00-\x7F]+$/.test(saved)) {
+      sessionStorage.removeItem(KEY);
+      return null;
+    }
+    return saved;
   } catch {
     return null;              // 사생활 보호 모드 등에서 막힐 수 있다
   }
@@ -52,6 +60,16 @@ function set(next) {
 }
 
 /* 로그인 성공.
+ *
+ * ⚠⚠ 2026-09-18 — docs/backend-api-reference.md §1 과 이 파일이 서로
+ *   반대로 말하고 있다. 문서는 "로그인이 refresh_token 을 httpOnly 쿠키로
+ *   내려주고 POST /token/refresh 가 이미 있다"고 적혀 있는데, 바로 아래
+ *   주석(2026-09-17 자)은 "본문에 access·refresh 가 둘 다 온다, 쿠키
+ *   자리는 없다"고 반대로 적혀 있다. 둘 중 하나가 낡은 것이다 — 실 서버로
+ *   직접 확인하기 전엔 섣불리 코드를 안 바꾼다(본문 모델로 짜여 있는 지금
+ *   코드는 서버가 쿠키 모델이어도 최소한 깨지진 않는다, refresh 를 그냥
+ *   안 쓰게 될 뿐이다). 확인되면 이 파일의 refreshToken/getRefresh 를
+ *   걷어내고 쿠키만 믿는 쪽으로 정리할 것.
  *
  * ⚠ **들었던 것과 다르다** (2026-09-17, empatho-app 의 Django 를 직접
  *   보고 확인). 「refresh 는 httpOnly 쿠키로만 내려온다」고 적어 두었던

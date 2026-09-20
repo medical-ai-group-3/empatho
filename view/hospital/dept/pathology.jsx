@@ -1,8 +1,12 @@
 import { path } from "../api";
 import { go } from "../nav";
 import { Chip, Facts, Fold } from "../lib/Parts";
+import { Body } from "../lib/Body";
+import { useApi } from "../lib/useApi";
+import { useFile } from "../lib/files";
+import Stage from "../lib/Stage";
 import PathologyAi from "./PathologyAi";
-import { ACCESSION_STATUS, B_CATEGORY, B_CATEGORY_LABEL, DIAGNOSIS,
+import { ACCESSION_STATUS, B_CATEGORY, B_CATEGORY_LABEL, DIAGNOSIS, SEX,
          label, text, tone } from "../codes";
 
 /* 병리과 설정 — 공통 화면 다섯 장에 끼워 넣는 «다른 점»만 모은 파일
@@ -15,8 +19,9 @@ import { ACCESSION_STATUS, B_CATEGORY, B_CATEGORY_LABEL, DIAGNOSIS,
  *   판독 단위   검사(study) 가 아니라 **검체(specimen)**
  *   등급 체계   BI-RADS 가 아니라 **b_category (b1~b5)**
  *   AI 소견     등급·크기·확신도가 아니라 **sTIL · TSR · 세포 수 · 간질**
- *   정정 이력   새 행이 아니라 **amend_history (JSONB)**
- *   없는 것     조영제 알레르기 · 재촬영 · 병변 추가 · 모달리티 구분
+ *   없는 것     조영제 알레르기 · 재촬영 · 병변 추가 · 모달리티 구분 ·
+ *               **판독 정정(5장)** — 확정 사양서 §8-2, 병리는 정정
+ *               경로를 두지 않는다. 확정 후 오류는 새 검체로 처리한다
  */
 
 /* ── 서버 부르는 자리를 공통 이름으로 맞춘다 ──────────────────
@@ -48,14 +53,36 @@ const api = {
   draft:      (id, b) => path.draft(id, b),
   finalize:   (id, b) => path.finalize(id, b),
   list:       (o)     => path.list(o),
-  amend:      (id, b) => path.amend(id, b),
+  /* amend 없음 — 확정 사양서 §8-2: 병리는 판독 정정 경로를 두지 않는다.
+     확정 후 오류는 새 검체로 처리한다 (services/django/core/views/
+     pathology.py 상단 docstring) */
   /* complete 없음 — 병리에는 «오더 확정» 단계가 없다 */
 };
+
+/* GET /specimens/{id}/upload 이 주는 StorageObject 원본 필드를 화면이
+ * 기대하는 {id, name, w, h, image} 모양으로 바꾼다 — api.js 의 radFile()과
+ * 같은 자리다. 병리는 storage_objects 가 아니라 uploads 로 온다
+ * ({specimen_id, uploads} — views/pathology.py 의 SpecimenUploadListView). */
+function pathFile(raw = {}) {
+  const bytes = raw.byte_size;
+  const size = typeof bytes === "number" ? `${(bytes / 1048576).toFixed(1)} MB` : "";
+  const image = raw.image ?? (raw.object_key ? { key: raw.object_key } : null);
+  return {
+    ...raw,
+    id: raw.storage_object_id ?? raw.id,
+    name: raw.name ?? raw.object_key ?? `파일 ${raw.storage_object_id ?? ""}`,
+    size,
+    w: raw.w ?? raw.width_px,
+    h: raw.h ?? raw.height_px,
+    image,
+  };
+}
 
 /* 서버 두 응답 → 판독 화면이 쓰는 한 덩어리.
  *
  * **서버 모양이 바뀌면 여기만 고친다.** 화면 다섯 장은 이 모양만 안다. */
 function toRead(s, up) {
+  const files = (up.uploads ?? []).map(pathFile);
   return {
     patient: {
       name: s.patient_name, age: s.age, sex: s.sex,
@@ -64,20 +91,25 @@ function toRead(s, up) {
     unit: {
       id: s.id, no: s.specimen_no, kind: s.kind, method: s.method,
       collected_at: s.collected_at, site: s.site,
-      reported_by: s.reported_by, status_label: s.status_label,
+      /* ⚠ 서버는 코드(accession_status)만 준다 — 4장 목록(list.row)과
+         같은 방식으로 여기서도 라벨을 입힌다. s.status_label 을 그대로
+         읽던 전 코드는 그런 필드가 서버에 없어 항상 빈칸이었다. */
+      reported_by: s.reported_by,
+      status_label: text(s, "accession_status", ACCESSION_STATUS, "status_label"),
       amend_history: s.amend_history ?? [],
     },
     radiology_summary: s.radiology_summary ?? null,
     /* 크롭 한 장 = 원본 + (있으면) 마스크.
        ⚠ 마스크는 아직 생산자가 없다. 판독 서버가 조직 마스크 생성을
-         꺼 두었다. 없으면 「마스크 없음」으로 뜨고 원본만 보인다 */
-    crops: (up.files ?? []).map((f) => ({
+         꺼 두었다. 없으면 「마스크 없음」으로 뜨고 원본만 보인다.
+         StorageObject 에 mask 칸이 없어서 항상 null 이다 */
+    crops: files.map((f) => ({
       id: f.id, name: f.name,
       w: f.w ?? 512, h: f.h ?? 512,      /* 크롭은 512×512 */
-      image: f.image ?? (f.key ? { key: f.key } : null),
+      image: f.image,
       mask: f.mask ?? null,
     })),
-    images: (up.files ?? []).map((f) => ({ id: f.id, name: f.name })),
+    images: files.map((f) => ({ id: f.id, name: f.name })),
     ai: s.ai ?? [],
     doctor: s.doctor ?? {},
   };
@@ -105,7 +137,7 @@ export const pathology = {
 
     row: (it) => ({
       id: it.id,
-      title: `${it.patient_name} (${it.age}/${it.sex})`,
+      title: `${it.patient_name} (${it.age}/${label(SEX, it.sex)})`,
       sub: `${it.specimen_no} · ${it.site}`,
       chip: it.method,
       chipTone: "line",
@@ -114,7 +146,7 @@ export const pathology = {
     Detail: ({ d }) => (
       <>
         <Facts items={[
-          ["환자", `${d.patient_name} (${d.age}/${d.sex})`],
+          ["환자", `${d.patient_name} (${d.age}/${label(SEX, d.sex)})`],
           ["검체번호", d.specimen_no],
           ["종류", d.kind],
           ["채취 방식", d.method],
@@ -177,7 +209,7 @@ export const pathology = {
     Info: ({ d }) => (
       <>
         <Facts items={[
-          ["환자", `${d.patient_name} (${d.age}/${d.sex})`],
+          ["환자", `${d.patient_name} (${d.age}/${label(SEX, d.sex)})`],
           ["검체번호", d.specimen_no],
           ["종류", d.kind],
           ["병변 위치", d.site],
@@ -223,7 +255,7 @@ export const pathology = {
     Info: ({ d, slide, onSlide }) => (
       <>
         <Facts items={[
-          ["환자", `${d.patient.name} (${d.patient.age}/${d.patient.sex})`],
+          ["환자", `${d.patient.name} (${d.patient.age}/${label(SEX, d.patient.sex)})`],
           ["검체번호", d.unit.no],
           ["종류", d.unit.kind],
           ["채취 방식", d.unit.method],
@@ -286,7 +318,11 @@ export const pathology = {
   /* ── 4장 · 전체 환자 목록 ─────────────────────────────── */
   list: {
     title: "전체 환자 목록",
-    sub: "지난 검체까지 전부 찾아보는 자리입니다. 판독 정정도 여기서 들어갑니다.",
+    sub: "지난 검체까지 전부 찾아보는 자리입니다.",
+    /* 영상의학과 목록과 같은 목록 1 : 상세 2 구조다. 병리는 한 검체의
+       조직 사진만 보므로 모달리티 탭 없이 첫 조직 사진을 고정으로 둔다. */
+    splitSide: "third",
+    hideDashboard: true,
     listTitle: "검체 목록",
     searchHint: "환자 · 검체번호",
     /* 검색이 훑는 칸. **검색창에 적어 둔 것과 같아야 한다** —
@@ -315,7 +351,7 @@ export const pathology = {
        unbound 는 이 목록에 안 뜬다 — 바인딩 전 검체다 */
     row: (r) => ({
       id: r.id,
-      patient: `${r.patient_name} (${r.age}/${r.sex})`,
+      patient: `${r.patient_name} (${r.age}/${label(SEX, r.sex)})`,
       specimen: r.specimen_no,
       collected: r.collected_at,
       status: <Chip tone={tone("accession", r.accession_status)}>
@@ -327,10 +363,30 @@ export const pathology = {
         : <Chip tone="dot">미열람</Chip>,
     }),
 
-    Detail: ({ d }) => (
-      <>
+    Detail: ({ d, cfg }) => <PathologyListDetail d={d} cfg={cfg} />,
+  },
+
+  /* 5장(판독 정정) 없음 — 확정 사양서 §8-2: 병리는 정정 경로를 두지
+     않는다. 확정 후 오류는 새 검체로 처리한다. List.jsx 가 cfg.amend
+     존재 여부로 버튼을 감추고, nav.js 에도 이 과의 amend 라우트가 없다. */
+};
+
+/* 병리과 목록의 오른쪽 상세. 영상의학과 목록과 같은 «조회 전용 뷰어 ·
+ * 상세 정보» 두 칸이지만, 병리는 검체의 첫 조직 사진만 고정으로 보인다.
+ * 사진을 넘기거나 판독 도구를 여는 기능은 목록에 두지 않는다. */
+function PathologyListDetail({ d, cfg }) {
+  const read = useApi(() => cfg.api.read(d.id), [d.id]);
+
+  return (
+    <div className="list-detail-cols">
+      <div className="list-detail-viewer">
+        <Body loading={read.loading} error={read.error} onRetry={read.reload}>
+          {read.data && <FixedTissueViewer read={read.data} cfg={cfg} />}
+        </Body>
+      </div>
+      <div className="list-detail-info">
         <Facts items={[
-          ["환자", `${d.patient_name} (${d.age}/${d.sex})`],
+          ["환자", `${d.patient_name} (${d.age}/${label(SEX, d.sex)})`],
           ["검체번호", d.specimen_no],
           ["종류", d.kind],
           ["채취일시", d.collected_at],
@@ -349,33 +405,22 @@ export const pathology = {
             </>
           ) : <p className="muted">아직 확정된 판독이 없습니다.</p>}
         </Fold>
-      </>
-    ),
-  },
+      </div>
+    </div>
+  );
+}
 
-  /* ── 5장 · 판독 정정 ──────────────────────────────────── */
-  amend: {
-    title: "병리 판독 정정",
-    sub: "이미 확정한 판독을 고칩니다. 옛 값은 검체 이력에 그대로 남습니다.",
-    imageTitle: "크롭 조직 이미지",
-    categoryLabel: "등급 (B 분류)",
-    categories: B_CATEGORY,
-    saveHint: "저장하면 옛 값이 이력에 쌓이고 새 값이 유방외과로 전송됩니다. 확진이 바뀌면 영상 판정과의 대조가 다시 돕니다.",
-    need: { view: "pathology.amend.view", save: "pathology.amend.save" },
+function FixedTissueViewer({ read, cfg }) {
+  const crop = read.crops?.[0] ?? null;
+  const original = useFile(crop?.image, cfg.api.ticket, { kind: cfg.scopeKind, id: read.unit.id });
+  const mask = useFile(crop?.mask, cfg.api.ticket, { kind: cfg.scopeKind, id: read.unit.id });
 
-    /* 병리는 이력이 검체 안에 들어 있다 (amend_history JSONB).
-       따로 부르지 않는다 */
-    history: (d) => d.unit?.amend_history ?? [],
-
-    Info: ({ d }) => (
-      <Facts items={[
-        ["환자", `${d.patient.name} (${d.patient.age}/${d.patient.sex})`],
-        ["생년월일", d.patient.birth],
-        ["검체번호", d.unit.no],
-        ["채취일시", d.unit.collected_at],
-        ["담당 병리의", d.unit.reported_by],
-      ]} />
-    ),
-  },
-};
+  return (
+    <div className="list-viewer pathology-fixed-viewer">
+      <Stage src={original.src} w={crop?.w} h={crop?.h}
+        alt={crop?.name ?? "조직 사진"} loading={original.loading} loadError={original.error}
+        mask={mask.src} mode="review" />
+    </div>
+  );
+}
 

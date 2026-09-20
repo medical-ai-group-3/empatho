@@ -8,9 +8,12 @@ import hospitalMock, { hospitalRoutes } from "./mock/hospital.js";
 const here = dirname(fileURLToPath(import.meta.url));
 
 // 붙을 서버. 자리를 옮기면 이것만 바꾼다 — 코드에는 주소가 없다.
-/* 개발에서 `npm run dev` 가 /api · /svc 를 넘길 곳.
-   ⚠ https 다. 배포가 HTTPS 로 바뀌었고, refresh 쿠키가 Secure 라 http 로
-     넘기면 로그인이 유지되지 않는다. */
+// ⚠ 2026-09-18 수용님 확인 — 실서버는 docker 로 돌고 domain 은
+//   https://empatho.example.com 다(DNS 로 사설망 app-host 을 가리킨다,
+//   즉 캠퍼스/사내망 안에서만 닿는다 — 이 저장소를 여는 컴퓨터가 그
+//   네트워크 밖이면 이 주소로도 연결이 안 된다). https 인 이유가
+//   중요하다 — 로그인 응답의 refresh_token 쿠키가 Secure 속성이라
+//   http 로 붙으면 브라우저가 쿠키 자체를 버린다.
 const SERVER = process.env.EMPATHO_SERVER || "https://empatho.example.com";
 
 // 목업 모드에서 /admin 을 넘길 곳. Django admin 은 목업으로 흉내 낼 수 없어서

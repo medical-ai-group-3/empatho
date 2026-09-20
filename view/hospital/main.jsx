@@ -17,6 +17,7 @@ import "./hospital.css";
 import { adminSession, apiInfo } from "./api";
 import { DEPTS, ROOT, deptPath, findDept, homeDept } from "./nav";
 import Top from "./lib/Top";
+import StickyMemo from "./lib/StickyMemo";
 import { useLoadMe, useMe } from "./lib/useMe";
 import { useSignedIn } from "./lib/session";
 import Login from "./screens/auth/Login";
@@ -41,6 +42,7 @@ import AdminConsole from "./screens/admin/Console";
  *   쓰는 선생님도 3D 라이브러리를 통째로 내려받는다 — 실제로 묶음이
  *   194kB 에서 739kB 로 뛰었다. 유방외과 화면에 들어갈 때만 받게 한다. */
 const BreastWaiting = lazy(() => import("./dept/breast/screens/Waiting"));
+const BreastPatients = lazy(() => import("./dept/breast/screens/Patients"));
 const BreastReview = lazy(() => import("./dept/breast/screens/Review"));
 const BreastDecision = lazy(() => import("./dept/breast/screens/Decision"));
 const BreastDiscordance = lazy(() => import("./dept/breast/screens/Discordance"));
@@ -75,6 +77,7 @@ import { nursing } from "./dept/nursing";
  *   /hospital/radiology/read/:id/amend 5장 판독 정정
  *
  *   /hospital/breast                  1장 대기 환자
+ *   /hospital/breast/patients         전체 환자 목록
  *   /hospital/breast/patients/:id/review    2장 검사 종합 확인
  *   /hospital/breast/patients/:id/decision  3장 수술 결정
  *   /hospital/breast/discordances/:id       4장 판정 불일치 처분
@@ -128,6 +131,10 @@ function Shell() {
           목업 자료 — 지어낸 값입니다 · {apiInfo.base}
         </footer>
       )}
+      {/* Boom 바깥이다 — 라우트 쪽 화면이 죽어도 메모는 그대로 떠 있어야
+          한다. Shell은 <Outlet/>을 감싸는 자리라 과를 옮겨도(라우트가
+          바뀌어도) 다시 마운트되지 않는다 — 그래서 메모가 안 사라진다. */}
+      <StickyMemo />
     </div>
   );
 }
@@ -235,6 +242,7 @@ const SCREENS = {
   /* 유방외과. 이름에 과를 붙여 둔다 — 「대기」가 과마다 다른 화면이라
      queue 처럼 짧게 두면 어느 과 것인지 안 보인다 */
   "breast.waiting":     BreastWaiting,
+  "breast.patients":    BreastPatients,
   "breast.review":      BreastReview,
   "breast.decision":    BreastDecision,
   "breast.discordance": BreastDiscordance,
@@ -283,7 +291,7 @@ function App() {
         <Routes>
           {/* ⚠ **Boot 안쪽이라서** homeDept() 가 제 답을 준다. 밖이면 아직
               perms 가 없어 전부 false 로 보이고 늘 첫 과로 떨어진다 */}
-          <Route path={ROOT} element={<Navigate to={deptPath(homeDept())} replace />} />
+          <Route path={ROOT} element={<HomeRedirect />} />
           <Route path={ROOT} element={<Shell />}>
             {/* ⚠ 과 바깥에 있는 유일한 화면이다. Shell 은 그대로 쓰되
                 주소가 /hospital/me 라 deptFromPath 가 "me" 를 찾다 null 을
@@ -292,12 +300,20 @@ function App() {
             <Route path="me" element={<MeScreen />} />
             {DEPTS.map((d) => deptRoutes(d.key))}
           </Route>
-          <Route path={`${ROOT}/*`} element={<Navigate to={deptPath(homeDept())} replace />} />
+          <Route path={`${ROOT}/*`} element={<HomeRedirect />} />
         </Routes>
       </Boot>
       </Gate>
     </BrowserRouter>
   );
+}
+
+/* App을 처음 그릴 때는 아직 /me 응답이 없다. JSX 안에서
+   homeDept()를 바로 실행하면 그 순간의 빈 권한으로 병리과 주소가
+   고정된다. Boot가 권한을 읽고 난 뒤 이 컴포넌트가 렌더될 때 계산해야
+   각 계정이 자기 부서 대시보드로 간다. */
+function HomeRedirect() {
+  return <Navigate to={deptPath(homeDept())} replace />;
 }
 
 function stamp() {

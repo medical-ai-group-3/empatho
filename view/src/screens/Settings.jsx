@@ -1,9 +1,11 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { api } from "../api";
 import { useApi } from "../lib/useApi";
 import Switch from "../lib/Switch";
 import { SCALES, useScale, useTheme } from "../lib/theme";
 import { Body, Head } from "../lib/Screen";
+import { clearSeen, COACH_HOME } from "../lib/seen";
 
 /* 11 · 설정
  *
@@ -18,9 +20,9 @@ import { Body, Head } from "../lib/Screen";
  * 홈 머리말의 톱니에서 온다. 아래 탭에는 없다 — 매일 누를 것이 아니다.
  */
 const THEMES = [
-  { id: "system", label: "자동" },
-  { id: "light",  label: "밝게" },
-  { id: "dark",   label: "어둡게" },
+  { id: "system", label: "기기 설정" },
+  { id: "light",  label: "라이트 모드" },
+  { id: "dark",   label: "다크 모드" },
 ];
 
 export default function Settings() {
@@ -37,6 +39,7 @@ export default function Settings() {
 }
 
 function Inner({ c }) {
+  const navigate = useNavigate();
   const [theme, setTheme] = useTheme();
   const [scale, setScale] = useScale();
   const [push, setPush] = useState(() =>
@@ -55,15 +58,20 @@ function Inner({ c }) {
     }
   }
 
+  function replayGuide() {
+    clearSeen(COACH_HOME);
+    navigate("/");
+  }
+
   return (
     <>
       {msg && (
         <div className="card flag"><span className="s">{msg.text}</span></div>
       )}
 
-      <h3 className="sec">화면 밝기</h3>
+      <h3 className="sec">테마</h3>
       <div className="card">
-        <div className="seg" role="radiogroup" aria-label="화면 밝기">
+        <div className="seg" role="radiogroup" aria-label="테마">
           {THEMES.map((t) => (
             <button key={t.id} type="button" role="radio"
                     aria-checked={theme === t.id}
@@ -73,7 +81,7 @@ function Inner({ c }) {
             </button>
           ))}
         </div>
-        <span className="s">「자동」은 휴대폰 설정을 따라갑니다.</span>
+        <span className="s">기기 설정은 휴대폰의 라이트·다크 모드를 따라갑니다.</span>
       </div>
 
       <h3 className="sec">글씨 크기</h3>
@@ -102,6 +110,15 @@ function Inner({ c }) {
                     onChange={(v) => togglePush(p.kind, v)} />
           </div>
         ))}
+      </div>
+
+      <h3 className="sec">도움말</h3>
+      <div className="card">
+        <span className="k">앱 사용법</span>
+        <span className="s">틸리가 주요 기능을 다시 안내해 드립니다.</span>
+        <button className="btn ghost" type="button" onClick={replayGuide}>
+          앱 사용법 다시 보기
+        </button>
       </div>
 
       <p className="note">

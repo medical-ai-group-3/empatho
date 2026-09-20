@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import * as cornerstone from "@cornerstonejs/core";
 import * as cornerstoneTools from "@cornerstonejs/tools";
 import { ensureCornerstoneInit } from "./cornerstoneInit";
+import { loadManifest } from "./manifest";
 
 /* DICOM Series를 Cornerstone3D Volume으로 읽어 Axial/Coronal/Sagittal
  * 세 방향(ORTHOGRAPHIC)으로 보여준다. CrosshairsTool이 세 뷰포트를 같은
@@ -82,9 +83,10 @@ export default function DicomMprPanel({ manifestUrl, baseUrl, mode = "diagnostic
         await ensureCornerstoneInit();
         if (cancelled) return;
 
-        const res = await fetch(manifestUrl);
-        if (!res.ok) throw new Error(`manifest 요청 실패 (${res.status})`);
-        const files = await res.json();
+        /* ⚠ res.json() 을 바로 하면 안 된다 — DicomStackViewer 와 같은 사정.
+           자료가 없으면 Vite 가 index.html 을 돌려줘서 「Unexpected token
+           '<'」 가 화면에 뜬다 (lib/dicom/manifest.js) */
+        const files = await loadManifest(manifestUrl);
         const imageIds = files.map((f) => `wadouri:${baseUrl}/${f}`);
 
         cornerstone.getRenderingEngine(RENDERING_ENGINE_ID)?.destroy();
