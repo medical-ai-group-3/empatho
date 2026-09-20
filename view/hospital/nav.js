@@ -234,18 +234,45 @@ export function myDepts() {
  * 없습니다」를 보는 편이 빈 화면보다 낫다.
  */
 export function homeDept() {
-  /* 로그인 응답의 소속을 먼저 따른다. 권한이 여러 과에 걸쳐 있거나
-     아직 과별 권한을 백엔드가 넓게 내려주는 계정도 있으므로, 화면 표의
-     순서(pathology가 첫 번째)로 대시보드를 고르면 안 된다.
-     서버의 유방외과 코드 surgery만 라우트 코드 breast로 번역한다. */
-  const declared = getMe()?.dept ?? getMe()?.role;
-  const key = declared === "surgery" ? "breast" : declared;
+  /* 로그인 응답의 소속을 먼저 따른다. 백엔드 배포본마다 dept ·
+     department · dept_name 중 어느 칸을 내려줄지 달랐고, 한글 과명도
+     그대로 오는 계정이 있다. 그 차이 때문에 인식하지 못하면 DEPTS의
+     첫 항목(pathology)으로 떨어졌다. 여기서 모두 라우트 키로 맞춘다. */
+  const me = getMe() ?? {};
+  const declared = me.dept || me.department || me.dept_key || me.dept_name || me.role;
+  const key = deptKey(declared) ?? deptFromPerms(me.perms);
   const own = key ? findDept(key) : null;
   /* 소속은 권한 목록보다 우선한다. 실제 서버에서 화면별 perms가 아직
      늦게 내려오거나 일부만 내려와도, 원무과가 DEPTS 첫 항목인 병리과로
      떨어지면 안 된다. 소속 대시보드에서 권한이 없는 동작만 따로 막는다. */
   if (own) return own;
   return myDepts()[0] ?? HOME;
+}
+
+/* 서버 코드·한글 표시명·예전 surgery 코드를 모두 화면 라우트 키로 번역한다. */
+function deptKey(value) {
+  const raw = String(value ?? "").trim().toLowerCase();
+  const names = {
+    pathology: "pathology", "병리": "pathology", "병리과": "pathology",
+    radiology: "radiology", "영상의학": "radiology", "영상의학과": "radiology",
+    breast: "breast", surgery: "breast", "유방외과": "breast",
+    reception: "reception", "원무": "reception", "원무과": "reception",
+    nursing: "nursing", "간호": "nursing", "간호과": "nursing",
+    admin: "admin", "관리자": "admin",
+  };
+  return names[raw] ?? null;
+}
+
+/* 소속 칸이 아직 없는 서버도 화면별 권한은 내려줄 수 있다. 그때는
+   권한 앞머리에서 가장 많이 나타나는 과를 소속으로 쓴다. */
+function deptFromPerms(perms) {
+  if (!Array.isArray(perms)) return null;
+  const counts = new Map();
+  for (const permission of perms) {
+    const key = deptKey(String(permission).split(".")[0]);
+    if (key) counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
 }
 
 /* ── 주소 만들기 ───────────────────────────────────────────────
