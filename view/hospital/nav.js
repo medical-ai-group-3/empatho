@@ -21,7 +21,7 @@
  *   라우트를 「다섯 장 고정」에서 use 기반으로 바꿨다 (main.jsx 참고).
  */
 
-import { can } from "./perm";
+import { can, getMe } from "./perm";
 
 export const HOSPITAL = "미래 대학병원";
 export const PRODUCT = "EMPATHO";
@@ -234,6 +234,14 @@ export function myDepts() {
  * 없습니다」를 보는 편이 빈 화면보다 낫다.
  */
 export function homeDept() {
+  /* 로그인 응답의 소속을 먼저 따른다. 권한이 여러 과에 걸쳐 있거나
+     아직 과별 권한을 백엔드가 넓게 내려주는 계정도 있으므로, 화면 표의
+     순서(pathology가 첫 번째)로 대시보드를 고르면 안 된다.
+     서버의 유방외과 코드 surgery만 라우트 코드 breast로 번역한다. */
+  const declared = getMe()?.dept ?? getMe()?.role;
+  const key = declared === "surgery" ? "breast" : declared;
+  const own = key ? findDept(key) : null;
+  if (own && own.screens.some((s) => can(s.need))) return own;
   return myDepts()[0] ?? HOME;
 }
 
