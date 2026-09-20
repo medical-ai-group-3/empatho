@@ -146,10 +146,12 @@ def send_sms(phone, text) :
     if not to:
         return False 
     
-    data = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S,000Z")
+    # 변수 이름을 date 로 둔다 — 바로 아래 Request(data=...) 와 겹치면
+    # 어느 쪽을 고치는지 헷갈린다. 헤더 항목 이름도 솔라피가 date 로 읽는다.
+    date = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
     salt = secrets.token_hex(16)
-    sig = hmac.new(settings.SOLAPI_SECRET.encode(), 
-                   (data + salt).encode(), hashlib.sha256).hexdigest()
+    sig = hmac.new(settings.SOLAPI_SECRET.encode(),
+                   (date + salt).encode(), hashlib.sha256).hexdigest()
     
     try :
         req = urllib.request.Request(
@@ -163,7 +165,7 @@ def send_sms(phone, text) :
             }).encode(), 
             headers={
                 "Authorization": (f"HMAC-SHA256 apiKey={settings.SOLAPI_KEY}, "
-                                  f"data={data}, salt={salt}, signature={sig}"),
+                                  f"date={date}, salt={salt}, signature={sig}"),
                 "Content-Type": "application/json"
             })
         with urllib.request.urlopen(req, timeout=20) as r :
@@ -181,14 +183,16 @@ def _sms_text(note):
     """문자 본문. 푸시와 달리 제목 칸이 없어서 보내는 곳을 본문에 적는다.
 
     낯선 번호로 「검사 결과가 도착했습니다」만 오면 스미싱으로 읽힌다.
-    링크도 붙인다 — 푸시는 눌러서 열리지만 문자는 갈 길이 없다.
+
+    링크는 넣지 않는다. 앱 주소를 그대로 적으면 EUC-KR 90바이트를 넘겨
+    LMS 가 되고 요금이 3배다. 짧은 주소가 생기면 그때 SMS_LINK 설정을
+    따로 두고 붙인다 — PATIENT_APP_URL 은 푸시가 눌렸을 때 열 곳이라
+    용도가 다르다.
 
     ⚠ 진단명 · 수치 · 검사 내용은 넣지 않는다. 문자는 잠금 화면에 그대로
       뜨고 가족이 볼 수 있다. 「도착했다」까지만 알리고 내용은 앱에서 본다.
     """
-    parts = [p for p in (settings.SMS_PREFIX, note.message,
-                         settings.PATIENT_APP_URL) if p]
-    return " ".join(parts)
+    return " ".join(p for p in (settings.SMS_PREFIX, note.message) if p)
 
 def deliver(note) :
     """환자 알림 한 건을 바깥으로 내보낸다. 성공한 채널 이름을 낸다.

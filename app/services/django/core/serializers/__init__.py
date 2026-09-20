@@ -21,6 +21,8 @@ from .reception import (
     ExamOrderScheduleSerializer,
     ExamOrderConfirmSerializer,
     MeSerializer,
+    PushTokenSerializer,
+    NotificationSerializer,
 )
 from .nursing import (
     FollowupSerializer,

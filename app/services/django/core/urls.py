@@ -56,6 +56,7 @@ router.register(r"lesions", views.LesionViewSet, basename="lesion")
 router.register(r"specimens", views.SpecimenBindViewSet, basename="specimen")
 router.register(r"reports", views.SurgeryReportViewSet, basename="report")
 router.register(r"studies", views.StudyViewSet, basename="study")
+router.register(r"notifications", views.NotificationViewSet, basename="notification")
 
 
 
@@ -145,7 +146,7 @@ urlpatterns = [
     path("reports/<int:pk>/explain", views.ReportExplainView.as_view({"patch": "partial_update"}), name="report-explain"),
     path("reports/<int:pk>/unlock-status", views.ReportUnlockStatusView.as_view({"get": "retrieve"}), name="report-unlock-status"),
     path("reports/<int:pk>/unlock", views.ReportUnlockView.as_view({"patch": "partial_update"}), name="report-unlock"),
-        path("reports/final", views.FinalReportView.as_view({"post": "create"}), name="report-final"),
+    path("reports/final", views.FinalReportView.as_view({"post": "create"}), name="report-final"),
     path("discordances", views.DiscordanceListView.as_view(), name="discordance-list"),
     path("discordances/<int:pk>", views.DiscordanceDisposeView.as_view({"get": "retrieve", "patch": "partial_update"}), name="discordance-detail"),
     path("discordances/<int:pk>/dispose", views.DiscordanceDisposeView.as_view({"get": "retrieve", "patch": "partial_update"}), name="discordance-dispose"),
@@ -163,5 +164,6 @@ urlpatterns = [
     path("exam-orders/schedule", views.ExamOrderScheduleView.as_view({"post": "create"}), name="exam-order-schedule"),
     path("exam-orders/<int:pk>/assign", views.ExamOrderAssignView.as_view({"patch": "partial_update"}), name="exam-order-assign"),
     path("me", views.MeView.as_view({"get": "list"}), name="me"),
+    path("me/push-token", views.PushTokenView.as_view({"patch": "partial_update"}), name="me-push-token"),
 ]
 

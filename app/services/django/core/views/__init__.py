@@ -13,6 +13,8 @@ from .reception import (
     CheckInView,
     ExamOrderScheduleView,
     MeView,
+    PushTokenView,
+    NotificationViewSet,
 )
 from .nursing import (
     VisitTodayViewSet,

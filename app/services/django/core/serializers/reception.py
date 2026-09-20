@@ -291,3 +291,21 @@ class MeSerializer(serializers.Serializer):
 
     def get_perms(self, account):
         return perms_for_role(account.role)
+
+class PushTokenSerializer(serializers.Serializer):
+    """FCM 기기 토큰. 앱이 켜질 때마다 보낸다 — 토큰은 조용히 바뀐다."""
+
+    push_token = serializers.CharField(max_length=255, allow_blank=True)
+    
+class NotificationSerializer(serializers.ModelSerializer):
+    """알림 한 건.
+
+    AUDIT_FIELDS 를 그대로 쓰지 않는다. created_at 이 「언제 온 알림인가」라
+    화면이 반드시 쓰는 값인데, 그 묶음에 들어 있어서 같이 빠진다.
+    다시 선언하면 DRF 가 「exclude 에 있는 걸 또 선언했다」고 막는다 —
+    빼는 목록에서 덜어내는 것이 맞다.
+    """
+
+    class Meta:
+        model = models.Notification
+        exclude = ("created_by", "updated_at", "updated_by")

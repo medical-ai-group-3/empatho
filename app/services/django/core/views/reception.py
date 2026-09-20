@@ -369,3 +369,66 @@ class MeView(viewsets.ViewSet):
     def list(self, request):
         out = serializers.MeSerializer(request.user)
         return Response(out.data)
+    
+class PushTokenView(viewsets.ViewSet):
+    """PATCH /me/push-token — 앱이 받은 FCM 토큰을 자기 계정에 붙인다.
+
+    빈 문자열을 보내면 지운다. 로그아웃할 때 앱이 그렇게 부른다 —
+    안 지우면 그 기기를 쓰는 다음 사람에게 남의 알림이 간다.
+
+    대상이 요청 본문이 아니라 토큰에서 나온다. 남의 계정에 붙일 길이 없다.
+    """
+
+    permission_classes = [IsAuthenticatedAccount]
+
+    def partial_update(self, request, pk=None):
+        serializer = serializers.PushTokenSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        account = request.user
+        account.push_token = serializer.validated_data["push_token"] or None
+        account.save(update_fields=["push_token"])
+        return Response({"push_token": account.push_token})
+    
+class NotificationViewSet(AuditMixin, OwnedOnlyMixin, viewsets.ModelViewSet):
+    """GET /notifications/ · PATCH /notifications/{id}/ — 내 알림.
+
+    격자가 전 역할에 RU(own_only) 를 준다. 만드는 것은 시스템이라 사람에게
+    C 가 없고 DELETE 도 없다 — 매트릭스가 알아서 403 을 낸다.
+    """
+
+    resource = "notification"
+    permission_classes = [MatrixPermission]
+    queryset = models.Notification.objects.all()
+    serializer_class = serializers.NotificationSerializer
+
+    def owned_queryset(self, queryset, account):
+        # 수신자는 환자 아니면 의료진 하나다. 계정에 딸린 쪽으로 건다.
+        staff = getattr(account, "staff", None)
+        if staff is not None:
+            return queryset.filter(staff=staff)
+        return queryset.filter(patient__account=account)
+
+    def is_owned_by(self, obj, account):
+        staff = getattr(account, "staff", None)
+        if staff is not None:
+            return obj.staff_id == staff.pk
+        return obj.patient is not None and obj.patient.account_id == account.account_id
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        if self.request.query_params.get("unread") == "true":
+            qs = qs.filter(acknowledged_at__isnull=True)
+        ntype = self.request.query_params.get("type")
+        if ntype:
+            qs = qs.filter(notification_type=ntype)
+        return qs.order_by("-created_at")
+
+    def update(self, request, *args, **kwargs):
+        # 확인 처리만 연다. 본문·수신자·종류는 시스템이 쓴 그대로 둔다 —
+        # 기본 동작에 맡기면 매트릭스 U 하나로 message 까지 고쳐진다.
+        note = self.get_object()
+        if request.data.get("acknowledged") is True and note.acknowledged_at is None:
+            note.acknowledged_at = timezone.now()
+            note.updated_by = self._current_account()
+            note.save(update_fields=["acknowledged_at", "updated_by", "updated_at"])
+        return Response(serializers.NotificationSerializer(note).data)
