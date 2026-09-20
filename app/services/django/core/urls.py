@@ -156,6 +156,9 @@ urlpatterns = [
     path("specimens/<int:pk>/draft", views.SpecimenDraftView.as_view({"put": "update"}), name="specimen-draft"),
     path("specimens/<int:pk>/finalize", views.SpecimenFinalizeView.as_view({"patch": "partial_update"}), name="specimen-finalize"),
     path("specimens/<int:pk>/upload", views.SpecimenUploadListView.as_view({"get": "retrieve"}), name="specimen-upload"),
+    # 09-20 추가 — 업로드 취소. study/specimen 어느 쪽 소유든 같은 경로 하나다
+    # (views/storage.py 의 StorageObjectCancelView 참고).
+    path("storage-objects/<int:pk>/cancel", views.StorageObjectCancelView.as_view({"patch": "cancel"}), name="storage-object-cancel"),
     path("staff",views.StaffListView.as_view(), name ="staff-list"),
     path("followups/new", views.FollowupCreateView.as_view({"post": "create"}), name="followup-create"),
     path("followups/<int:pk>/call", views.FollowupCallView.as_view({"patch": "partial_update"}), name="followup-call"),

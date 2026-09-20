@@ -463,6 +463,12 @@ class StorageObject(AuditBase):
     byte_size = models.BigIntegerField(blank=True, null=True)
     checksum_sha256 = models.CharField(max_length=64, blank=True, null=True)
     deleted_at = models.DateTimeField(blank=True, null=True)   # 소프트 삭제
+    # PATCH /storage-objects/{id}/cancel (업로드 취소) 전용 — 누가 · 왜.
+    # AiResult 가 이미 붙은 뒤에는 취소 자체가 막혀서(뷰가 409), 이 둘은
+    # 「분석 시작 전에 취소된」 행에만 찍힌다.
+    deleted_by = models.ForeignKey('Account', models.PROTECT, blank=True, null=True,
+                                   related_name='+', db_column='deleted_by')
+    delete_reason = models.CharField(max_length=250, blank=True, null=True)
 
     class Meta:
         db_table = 'storage_object'

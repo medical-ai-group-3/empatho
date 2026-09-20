@@ -105,6 +105,11 @@ INFRA_ERRORS = [
 HANDOVER_ERRORS = [
     _spec("STUDY_NOT_READ_READY", 409, "업로드된 영상이 없어 판독을 시작할 수 없습니다.",
           "study 에 storage_object 가 하나도 없다 — Go 웹훅 대기 중"),
+    # 09-20 — PATCH /storage-objects/{id}/cancel (업로드 취소). AiResult 가
+    # 이미 붙은 뒤에는 취소를 막는다 — 분석이 이미 그 파일을 봤을 수 있다.
+    _spec("CANCEL_NOT_ALLOWED_AFTER_ANALYSIS", 409,
+          "분석이 시작된 파일은 취소할 수 없습니다. 정정이 필요하면 관리자에게 문의하세요.",
+          "해당 study/specimen 에 AiResult 가 이미 있다"),
 ]
 
 SPEC_CODES = frozenset(e.code for e in SPEC_ERRORS)

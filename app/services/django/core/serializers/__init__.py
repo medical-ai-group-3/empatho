@@ -63,3 +63,6 @@ from .pathology import(
     SpecimenFinalizeSerializer,
     StorageObjectSerializer,
 )
+from .storage import (
+    StorageObjectCancelSerializer,
+)

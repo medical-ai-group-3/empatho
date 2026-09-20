@@ -376,7 +376,9 @@ class SpecimenUploadListView(viewsets.ViewSet):
 
     def retrieve(self, request, pk=None):
         specimen = models.Specimen.objects.get(pk=pk)
-        objects = models.StorageObject.objects.filter(specimen=specimen)
+        # 취소된(soft-delete) 파일은 업로드 목록에서 뺀다.
+        objects = models.StorageObject.objects.filter(
+            specimen=specimen, deleted_at__isnull=True)
         out = serializers.StorageObjectSerializer(objects, many=True)
         return Response({"specimen_id": specimen.specimen_id, "uploads": out.data})
 

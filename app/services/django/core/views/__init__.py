@@ -64,3 +64,6 @@ from .pathology import(
     SpecimenDraftView,
     SpecimenFinalizeView,
 )
+from .storage import (
+    StorageObjectCancelView,
+)

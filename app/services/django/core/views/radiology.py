@@ -171,7 +171,9 @@ class StudyUploadView(AuditMixin, viewsets.ViewSet):
 
     def retrieve(self, request, pk=None):
         study = self._get_study(pk)
-        objects = study.storage_objects.all().order_by("series_uid")
+        # 취소된(soft-delete) 파일은 업로드 목록에서 뺀다.
+        objects = study.storage_objects.filter(
+            deleted_at__isnull=True).order_by("series_uid")
         return Response({
             "study": serializers.StudySerializer(study).data,
             "storage_objects": serializers.StorageObjectSerializer(objects, many=True).data,
@@ -207,7 +209,9 @@ class StudyReadView(viewsets.ViewSet):
         except models.Study.DoesNotExist:
             raise ApiError("NOT_FOUND")
 
-        if not study.storage_objects.exists():
+        # 취소된(soft-delete) 파일은 「업로드된 것」으로 안 친다.
+        images = study.storage_objects.filter(deleted_at__isnull=True)
+        if not images.exists():
             raise ApiError("STUDY_NOT_READ_READY")
 
         lesions = study.lesions.all()
@@ -221,7 +225,7 @@ class StudyReadView(viewsets.ViewSet):
         return Response({
             "study": serializers.StudySerializer(study).data,
             "images": serializers.StorageObjectSerializer(
-                study.storage_objects.all(), many=True).data,
+                images, many=True).data,
             "lesions": serializers.LesionSerializer(lesions, many=True).data,
             "latest_ai_result": (
                 serializers.AiResultSerializer(latest_ai_result).data

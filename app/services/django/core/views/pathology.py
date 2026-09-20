@@ -69,7 +69,11 @@ class SpecimenAiResultView(AuditMixin, viewsets.ViewSet):
     def start(self, request, pk=None):
         specimen = models.Specimen.objects.get(pk=pk)
         results = []
-        for storage_object in models.StorageObject.objects.filter(specimen=specimen):
+        # deleted_at 이 빈 것만 본다 — 취소된 크롭은 분석 대상이 아니다
+        # (views/radiology.py 의 AiResultQueueView.start() 와 같은 자리).
+        objects = models.StorageObject.objects.filter(
+            specimen=specimen, deleted_at__isnull=True)
+        for storage_object in objects:
             # 크롭 한 장이 판독 한 번이다.
             #
             # specimen 을 반드시 채운다 — ai_result_owner_ck 가 study·specimen
