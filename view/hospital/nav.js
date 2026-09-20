@@ -109,6 +109,10 @@ const DEPTS = [
         sub: "내 환자 목록입니다. 병리·영상과 달리 집는 절차가 없습니다 — 주치의로 배정된 환자가 곧 큐입니다.",
         need: "breast.waiting.view" },
 
+      { key: "patients", use: "breast.patients", menu: "전체 환자", title: "전체 환자 목록",
+        sub: "진료 이력이 있는 환자를 검색하고 검사 종합·수술 결정 화면으로 이동합니다.",
+        need: "breast.waiting.view" },
+
       { key: "patients/:id/review", use: "breast.review", menu: "검사 종합", title: "검사 종합 확인",
         sub: "영상과 병리 결과를 함께 놓고 봅니다.",
         need: "breast.review.view", deep: true },
@@ -270,6 +274,7 @@ export const go = {
   breast: {
     queue:       () => B,
     waiting:     () => B,
+    patients:    () => `${B}/patients`,
     review:      (id) => `${B}/patients/${id}/review`,
     decision:    (id) => `${B}/patients/${id}/decision`,
     discordance: (id) => `${B}/discordances/${id}`,

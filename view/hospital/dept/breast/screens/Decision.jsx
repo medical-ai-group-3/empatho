@@ -22,8 +22,9 @@ const EXPLAIN_METHODS = ["대면", "유선", "영상"];
 
 /* 화면 3 · 수술 결정 및 환자 설명 ("/patients/:id/decision")
  *
- * 3열: (좌)AI·의사 종합 리포트 열람·작성 / (중)수술 여부·결정 사유 + 의사
- * 최종 소견·환자 설명 / (우)환자 정보 + 리포트 잠금 상태.
+ * 3열 2행: (좌)AI·의사 종합 리포트 / (중)수술 여부·환자 처방 /
+ * (우)환자 정보·의사 최종 소견. 환자 리포트 상태와 잠금 해제는 최종
+ * 소견 카드 안에서 함께 처리한다.
  *
  * 잠금 해제 3조건(①전 레코드 확정 ②대조 종결 ③대면 설명 완료)은 서버가
  * 판단해서 GET /reports/{id}/unlock-status 로 내려준다 — 화면은 그 결과를
@@ -61,53 +62,45 @@ function Inner({ patient, onReload }) {
   const assessmentId = reads.length ? reads[reads.length - 1].assessment_id : null;
 
   return (
-    <div className="cols3">
-      <div>
-        <div className="card">
-          <div className="card-head">
-            <h3>AI 종합 리포트</h3>
-            <span className="pill" style={{ background: "var(--accent-weak)", color: "var(--accent)" }}>
-              {report.ai_modality_count}개 모달리티 통합
-            </span>
-          </div>
-          <p className="section-label">요약</p>
-          <p className="card-text">{report.ai_summary || "아직 생성되지 않았습니다"}</p>
-          {report.ai_evidence?.length > 0 && (
-            <>
-              <p className="section-label">근거</p>
-              <ul className="bullets">
-                {report.ai_evidence.map((e) => <li key={e}>{e}</li>)}
-              </ul>
-            </>
-          )}
-          {report.ai_suggestion && (
-            <>
-              <p className="section-label">참고 제안</p>
-              <p className="card-text">{report.ai_suggestion}</p>
-            </>
-          )}
-        </div>
+    <div className="decision-grid">
+      {/* 1행 — 왼쪽 AI 종합 · 중앙 수술 여부 · 오른쪽 환자 정보 */}
+      <AiSummaryCard report={report} />
+      <DecisionForm assessmentId={assessmentId} assessmentIdLoading={timeline.loading} />
+      <PatientInfoCard patient={patient} />
 
-        <DoctorSummaryCard report={report} />
-      </div>
+      {/* 2행 — 각 열의 두 번째 작업. 행 높이를 공유해 카드 끝이 맞는다. */}
+      <DoctorSummaryCard report={report} />
+      <PrescriptionDraft />
+      <ExplainForm report={report} onSaved={onReload} unlock={unlock} />
+    </div>
+  );
+}
 
-      <div>
-        <DecisionForm assessmentId={assessmentId} assessmentIdLoading={timeline.loading} />
-        <ExplainForm report={report} onSaved={onReload} />
+function AiSummaryCard({ report }) {
+  return (
+    <div className="card">
+      <div className="card-head">
+        <h3>AI 종합 리포트</h3>
+        <span className="pill" style={{ background: "var(--accent-weak)", color: "var(--accent)" }}>
+          {report.ai_modality_count}개 모달리티 통합
+        </span>
       </div>
-
-      <div>
-        <PatientInfoCard patient={patient} />
-        <div className="card">
-          <h3>환자 리포트 상태</h3>
-          <Body loading={unlock.loading} error={unlock.error} onRetry={unlock.reload}>
-            {unlock.data && (
-              <LockPanel reportId={report.report_id} status={unlock.data}
-                onUnlocked={() => { unlock.reload(); onReload?.(); }} />
-            )}
-          </Body>
-        </div>
-      </div>
+      <p className="section-label">요약</p>
+      <p className="card-text">{report.ai_summary || "아직 생성되지 않았습니다"}</p>
+      {report.ai_evidence?.length > 0 && (
+        <>
+          <p className="section-label">근거</p>
+          <ul className="bullets">
+            {report.ai_evidence.map((e) => <li key={e}>{e}</li>)}
+          </ul>
+        </>
+      )}
+      {report.ai_suggestion && (
+        <>
+          <p className="section-label">참고 제안</p>
+          <p className="card-text">{report.ai_suggestion}</p>
+        </>
+      )}
     </div>
   );
 }
@@ -213,7 +206,83 @@ function DecisionForm({ assessmentId, assessmentIdLoading }) {
   );
 }
 
-function ExplainForm({ report, onSaved }) {
+/* 처방은 환자 앱의 GET /me/prescriptions 가 읽는 원천 데이터다.
+ * 아직 병원 웹에서 새 처방을 만드는 서버 경로가 없으므로, 이 화면은 입력
+ * 초안만 다룬다. 저장 버튼을 눌러도 사라지는 가짜 처방을 만들지 않도록 API
+ * 계약이 붙을 때까지 비활성으로 둔다.
+ *
+ * 백엔드 요청안:
+ * POST /patients/{patient_id}/prescriptions
+ * { drugs:[{ name, dose, times:["09:00"], days, purpose, how }] }
+ * → 환자 앱 GET /me/prescriptions 의 prescription/drugs 모양으로 저장 */
+const emptyDrug = () => ({ name: "", dose: "", times: "", days: "", purpose: "", how: "" });
+
+function PrescriptionDraft() {
+  const [drugs, setDrugs] = useState([emptyDrug()]);
+
+  function change(index, key, value) {
+    setDrugs((rows) => rows.map((drug, i) => i === index ? { ...drug, [key]: value } : drug));
+  }
+
+  function remove(index) {
+    setDrugs((rows) => rows.length === 1 ? rows : rows.filter((_, i) => i !== index));
+  }
+
+  return (
+    <div className="card prescription-draft">
+      <div className="card-head">
+        <div>
+          <h3>환자 처방</h3>
+          <p className="meta">저장된 처방은 환자 앱의 복약 관리에 표시됩니다.</p>
+        </div>
+        <span className="pill wait">API 연결 대기</span>
+      </div>
+
+      {drugs.map((drug, index) => (
+        <div className="prescription-drug" key={index}>
+          <div className="prescription-drug-head">
+            <b>약 {index + 1}</b>
+            {drugs.length > 1 && <button className="edit-btn" onClick={() => remove(index)}>삭제</button>}
+          </div>
+          <div className="prescription-grid">
+            <div className="field">
+              <label>약 이름 <span className="req">*</span></label>
+              <input value={drug.name} onChange={(e) => change(index, "name", e.target.value)} placeholder="약 이름" />
+            </div>
+            <div className="field">
+              <label>1회 복용량 <span className="req">*</span></label>
+              <input value={drug.dose} onChange={(e) => change(index, "dose", e.target.value)} placeholder="예: 1정" />
+            </div>
+            <div className="field">
+              <label>복용 시간 <span className="req">*</span></label>
+              <input value={drug.times} onChange={(e) => change(index, "times", e.target.value)} placeholder="예: 09:00, 19:00" />
+            </div>
+            <div className="field">
+              <label>처방 일수 <span className="req">*</span></label>
+              <input type="number" min="1" value={drug.days} onChange={(e) => change(index, "days", e.target.value)} placeholder="일수" />
+            </div>
+          </div>
+          <div className="field">
+            <label>처방 목적</label>
+            <input value={drug.purpose} onChange={(e) => change(index, "purpose", e.target.value)} placeholder="환자 앱에 표시할 처방 목적" />
+          </div>
+          <div className="field" style={{ marginBottom: 0 }}>
+            <label>복용 안내</label>
+            <textarea value={drug.how} onChange={(e) => change(index, "how", e.target.value)} placeholder="환자 앱에 표시할 복용 방법과 안내" />
+          </div>
+        </div>
+      ))}
+
+      <div className="card-foot split prescription-actions">
+        <button className="btn ghost sm" onClick={() => setDrugs((rows) => [...rows, emptyDrug()])}>+ 약 추가</button>
+        <span className="note">처방 생성 API가 연결되면 저장할 수 있습니다.</span>
+        <button className="btn" disabled>처방 저장</button>
+      </div>
+    </div>
+  );
+}
+
+function ExplainForm({ report, onSaved, unlock }) {
   const [method, setMethod] = useState(report.explain_method ?? EXPLAIN_METHODS[0]);
   const [content, setContent] = useState(report.explain_content ?? "");
   const [confirmed, setConfirmed] = useState(report.patient_confirmed ?? false);
@@ -264,6 +333,15 @@ function ExplainForm({ report, onSaved }) {
           {saving ? "저장 중…" : "설명 기록 저장"}
         </button>
       </div>
+      <section className="explain-lock" aria-label="환자 리포트 상태">
+        <p className="section-label">환자 리포트 상태</p>
+        <Body loading={unlock.loading} error={unlock.error} onRetry={unlock.reload}>
+          {unlock.data && (
+            <LockPanel reportId={report.report_id} status={unlock.data}
+              onUnlocked={() => { unlock.reload(); onSaved?.(); }} />
+          )}
+        </Body>
+      </section>
     </div>
   );
 }

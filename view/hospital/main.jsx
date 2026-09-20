@@ -42,6 +42,7 @@ import AdminConsole from "./screens/admin/Console";
  *   쓰는 선생님도 3D 라이브러리를 통째로 내려받는다 — 실제로 묶음이
  *   194kB 에서 739kB 로 뛰었다. 유방외과 화면에 들어갈 때만 받게 한다. */
 const BreastWaiting = lazy(() => import("./dept/breast/screens/Waiting"));
+const BreastPatients = lazy(() => import("./dept/breast/screens/Patients"));
 const BreastReview = lazy(() => import("./dept/breast/screens/Review"));
 const BreastDecision = lazy(() => import("./dept/breast/screens/Decision"));
 const BreastDiscordance = lazy(() => import("./dept/breast/screens/Discordance"));
@@ -76,6 +77,7 @@ import { nursing } from "./dept/nursing";
  *   /hospital/radiology/read/:id/amend 5장 판독 정정
  *
  *   /hospital/breast                  1장 대기 환자
+ *   /hospital/breast/patients         전체 환자 목록
  *   /hospital/breast/patients/:id/review    2장 검사 종합 확인
  *   /hospital/breast/patients/:id/decision  3장 수술 결정
  *   /hospital/breast/discordances/:id       4장 판정 불일치 처분
@@ -198,6 +200,7 @@ const SCREENS = {
   /* 유방외과. 이름에 과를 붙여 둔다 — 「대기」가 과마다 다른 화면이라
      queue 처럼 짧게 두면 어느 과 것인지 안 보인다 */
   "breast.waiting":     BreastWaiting,
+  "breast.patients":    BreastPatients,
   "breast.review":      BreastReview,
   "breast.decision":    BreastDecision,
   "breast.discordance": BreastDiscordance,

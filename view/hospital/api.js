@@ -798,6 +798,14 @@ export const breast = {
       const rows = raw?.results ?? raw?.items ?? (Array.isArray(raw) ? raw : []);
       return rows.map(normalizePatient);
     }),
+  /* 유방외과 전체 환자 목록은 병원 전체 명부가 아니라 내 과에 배정된
+     환자를 모두 본다. 대기 상태만 빼고 "all"로 가져와, 아래 뷰어의
+     patient_id와 유방외과 검사 이력이 같은 환자를 가리키게 한다. */
+  patients:     ()   => get(`/patients/${qs({ primary_staff: "me", status: "all" })}`)
+    .then((raw) => {
+      const rows = raw?.results ?? raw?.items ?? (Array.isArray(raw) ? raw : []);
+      return rows.map(normalizePatient);
+    }),
   patient:      (id) => get(`/patients/${id}/`).then(normalizePatient),
   examOrder:    (b)  => post("/exam-orders", b),
 

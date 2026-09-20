@@ -1,7 +1,8 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { apiInfo, login as doLogin } from "../../api";
 import { Card } from "../../lib/Page";
-import { HOSPITAL, PRODUCT } from "../../nav";
+import { HOSPITAL, PRODUCT, ROOT } from "../../nav";
 import { signIn } from "../../lib/session";
 
 /* 직원 로그인
@@ -26,6 +27,7 @@ import { signIn } from "../../lib/session";
  * 보여준다 (0012 의 account_status 가 그 자리다).
  */
 export default function Login({ onSignup }) {
+  const navigate = useNavigate();
   const [loginId, setLoginId] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -53,8 +55,11 @@ export default function Login({ onSignup }) {
       /* 본문에는 access 하나만 온다. refresh 는 httpOnly 쿠키로 따로
          내려와서 JS 가 못 본다 — 받을 것이 없다 */
       const { access } = await doLogin(loginId.trim(), password);
-      /* 토큰이 들어가면 Boot 가 다시 서면서 /me 를 부른다 */
+      /* 토큰이 들어가면 Boot 가 다시 서면서 /me 를 부른다. 로그아웃한
+         위치가 /hospital/me 였더라도 그대로 복귀하지 않고, 루트의
+         homeDept() 리다이렉트로 해당 계정의 대시보드를 연다. */
       signIn({ access });
+      navigate(ROOT, { replace: true });
     } catch (e2) {
       setError(e2);
       setBusy(false);

@@ -1,6 +1,10 @@
 import { path } from "../api";
 import { go } from "../nav";
 import { Chip, Facts, Fold } from "../lib/Parts";
+import { Body } from "../lib/Body";
+import { useApi } from "../lib/useApi";
+import { useFile } from "../lib/files";
+import Stage from "../lib/Stage";
 import PathologyAi from "./PathologyAi";
 import { ACCESSION_STATUS, B_CATEGORY, B_CATEGORY_LABEL, DIAGNOSIS, SEX,
          label, text, tone } from "../codes";
@@ -315,6 +319,10 @@ export const pathology = {
   list: {
     title: "전체 환자 목록",
     sub: "지난 검체까지 전부 찾아보는 자리입니다.",
+    /* 영상의학과 목록과 같은 목록 1 : 상세 2 구조다. 병리는 한 검체의
+       조직 사진만 보므로 모달리티 탭 없이 첫 조직 사진을 고정으로 둔다. */
+    splitSide: "third",
+    hideDashboard: true,
     listTitle: "검체 목록",
     searchHint: "환자 · 검체번호",
     /* 검색이 훑는 칸. **검색창에 적어 둔 것과 같아야 한다** —
@@ -355,8 +363,28 @@ export const pathology = {
         : <Chip tone="dot">미열람</Chip>,
     }),
 
-    Detail: ({ d }) => (
-      <>
+    Detail: ({ d, cfg }) => <PathologyListDetail d={d} cfg={cfg} />,
+  },
+
+  /* 5장(판독 정정) 없음 — 확정 사양서 §8-2: 병리는 정정 경로를 두지
+     않는다. 확정 후 오류는 새 검체로 처리한다. List.jsx 가 cfg.amend
+     존재 여부로 버튼을 감추고, nav.js 에도 이 과의 amend 라우트가 없다. */
+};
+
+/* 병리과 목록의 오른쪽 상세. 영상의학과 목록과 같은 «조회 전용 뷰어 ·
+ * 상세 정보» 두 칸이지만, 병리는 검체의 첫 조직 사진만 고정으로 보인다.
+ * 사진을 넘기거나 판독 도구를 여는 기능은 목록에 두지 않는다. */
+function PathologyListDetail({ d, cfg }) {
+  const read = useApi(() => cfg.api.read(d.id), [d.id]);
+
+  return (
+    <div className="list-detail-cols">
+      <div className="list-detail-viewer">
+        <Body loading={read.loading} error={read.error} onRetry={read.reload}>
+          {read.data && <FixedTissueViewer read={read.data} cfg={cfg} />}
+        </Body>
+      </div>
+      <div className="list-detail-info">
         <Facts items={[
           ["환자", `${d.patient_name} (${d.age}/${label(SEX, d.sex)})`],
           ["검체번호", d.specimen_no],
@@ -377,12 +405,22 @@ export const pathology = {
             </>
           ) : <p className="muted">아직 확정된 판독이 없습니다.</p>}
         </Fold>
-      </>
-    ),
-  },
+      </div>
+    </div>
+  );
+}
 
-  /* 5장(판독 정정) 없음 — 확정 사양서 §8-2: 병리는 정정 경로를 두지
-     않는다. 확정 후 오류는 새 검체로 처리한다. List.jsx 가 cfg.amend
-     존재 여부로 버튼을 감추고, nav.js 에도 이 과의 amend 라우트가 없다. */
-};
+function FixedTissueViewer({ read, cfg }) {
+  const crop = read.crops?.[0] ?? null;
+  const original = useFile(crop?.image, cfg.api.ticket, { kind: cfg.scopeKind, id: read.unit.id });
+  const mask = useFile(crop?.mask, cfg.api.ticket, { kind: cfg.scopeKind, id: read.unit.id });
+
+  return (
+    <div className="list-viewer pathology-fixed-viewer">
+      <Stage src={original.src} w={crop?.w} h={crop?.h}
+        alt={crop?.name ?? "조직 사진"} loading={original.loading} loadError={original.error}
+        mask={mask.src} mode="review" />
+    </div>
+  );
+}
 

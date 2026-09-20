@@ -69,25 +69,43 @@ function Inner({ d, onDisposed }) {
 
   return (
     <>
-      <div className="card" style={{ marginBottom: 16 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span className="pill danger">불일치 · {d.flag_status === "open" ? "미해결" : "해결"}</span>
-          <span style={{ fontSize: 13, color: "var(--muted)" }}>{d.lesion.lesion_id} · {d.lesion.size_mm}mm</span>
+      <div className="card discordance-summary">
+        <div className="card-head">
+          <div>
+            <span className="pill danger">불일치 · {d.flag_status === "open" ? "미해결" : "해결"}</span>
+            <h3>{d.patient.name} · 영상-병리 대조</h3>
+          </div>
+          <span className="meta">{d.lesion.lesion_id} · {specimenId(d)}</span>
         </div>
-        <p style={{ marginTop: 8, fontSize: 13.5 }}>{d.violated_rule}</p>
+        <div className="discordance-patient-info">
+          <span>병변 위치 <b>{d.lesion.site}</b></span>
+          <span>병변 크기 <b>{d.lesion.size_mm}mm</b></span>
+          <span>검체 <b>{specimenId(d)}</b></span>
+        </div>
+        <div className="discordance-compare" aria-label="영상과 병리 판정 비교">
+          <ComparisonGrade label="영상 판정" value={birads(d.radiology_reading)} />
+          <span className="discordance-vs" aria-hidden="true">↔</span>
+          <ComparisonGrade label="병리 판정" value={bCategory(d.pathology_reading)} />
+        </div>
+        <div className="discordance-reason">
+          <span>불일치 사유</span>
+          <b>{d.violated_rule}</b>
+        </div>
       </div>
 
       <div className="vs">
         <div className="side">
           <h3>영상의학과 판정</h3>
-          <div className="kv"><span className="k">판정</span><span className="v">{d.radiology_reading.assessment}</span></div>
+          <div className="kv"><span className="k">BI-RADS</span><span className="v">{birads(d.radiology_reading)}</span></div>
+          <div className="kv" style={{ marginTop: 8 }}><span className="k">상세 판정</span><span className="v">{d.radiology_reading.assessment}</span></div>
           <div className="kv" style={{ marginTop: 8 }}><span className="k">소견</span><span className="v">{d.radiology_reading.finding}</span></div>
           <div className="kv" style={{ marginTop: 8 }}><span className="k">판독의</span><span className="v">{d.radiology_reading.assessor}</span></div>
         </div>
         <div className="mid">VS</div>
         <div className="side">
           <h3>병리과 판정</h3>
-          <div className="kv"><span className="k">판정</span><span className="v">{d.pathology_reading.assessment}</span></div>
+          <div className="kv"><span className="k">B 분류</span><span className="v">{bCategory(d.pathology_reading)}</span></div>
+          <div className="kv" style={{ marginTop: 8 }}><span className="k">상세 판정</span><span className="v">{d.pathology_reading.assessment}</span></div>
           <div className="kv" style={{ marginTop: 8 }}><span className="k">소견</span><span className="v">{d.pathology_reading.finding}</span></div>
           <div className="kv" style={{ marginTop: 8 }}><span className="k">판독의</span><span className="v">{d.pathology_reading.assessor}</span></div>
         </div>
@@ -116,4 +134,31 @@ function Inner({ d, onDisposed }) {
       </div>
     </>
   );
+}
+
+function ComparisonGrade({ label, value }) {
+  return (
+    <span className="discordance-grade">
+      <span>{label}</span>
+      <b>{value}</b>
+    </span>
+  );
+}
+
+function birads(reading = {}) {
+  if (reading.birads != null) return `BI-RADS ${String(reading.birads).toUpperCase()}`;
+  return reading.assessment?.match(/BI-RADS\s*([0-9]+[a-c]?)/i)?.[0]?.toUpperCase()
+    ?? reading.assessment
+    ?? "—";
+}
+
+function bCategory(reading = {}) {
+  if (reading.b_category != null) return String(reading.b_category).toUpperCase();
+  return reading.assessment?.match(/B[1-5]/i)?.[0]?.toUpperCase()
+    ?? reading.assessment
+    ?? "—";
+}
+
+function specimenId(d) {
+  return d.specimen?.specimen_id ?? d.specimen_id ?? d.lesion?.specimen_id ?? "검체 정보 없음";
 }

@@ -1396,6 +1396,39 @@
     }
   },
 
+  "GET /api/v1/hospital/patients/?primary_staff=me&status=all": [
+    {
+      "patient_id": "P-1001",
+      "name": "김민지",
+      "age": 47,
+      "sex": "F",
+      "patient_number": "20260001",
+      "status": "재진",
+      "first_visited_at": "2026-03-11T09:20:00+09:00",
+      "phone": "010-1234-5601"
+    },
+    {
+      "patient_id": "P-1002",
+      "name": "이서연",
+      "age": 52,
+      "sex": "F",
+      "patient_number": "20260002",
+      "status": "재진",
+      "first_visited_at": "2025-11-07T14:10:00+09:00",
+      "phone": "010-4377-1221"
+    },
+    {
+      "patient_id": "P-1003",
+      "name": "박지현",
+      "age": 39,
+      "sex": "F",
+      "patient_number": "20260003",
+      "status": "초진",
+      "first_visited_at": null,
+      "phone": "010-6333-0184"
+    }
+  ],
+
   "GET /api/v1/hospital/patients/?primary_staff=me&status=waiting": [
     {
       "patient_id": "P-1001",
@@ -1835,17 +1868,20 @@
     },
     "lesion": {
       "lesion_id": "L-1001-A",
+      "specimen_id": "SP-1001-A",
       "site": "우측 유방 상외측(UOQ)",
       "size_mm": 14
     },
     "radiology_reading": {
       "assessor": "영상의학과 이도윤",
+      "birads": "4",
       "assessment": "BI-RADS 4 (악성 의심)",
       "finding": "경계 불규칙 종괴, 미세석회화 동반",
       "read_at": "2026-09-09T10:20:00+09:00"
     },
     "pathology_reading": {
       "assessor": "병리과 한소영",
+      "b_category": "b2",
       "assessment": "양성 — 섬유선종",
       "finding": "섬유상피성 병변, 악성 소견 없음",
       "read_at": "2026-09-11T16:05:00+09:00"

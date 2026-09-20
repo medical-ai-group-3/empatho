@@ -24,7 +24,15 @@ const KEY = "empatho_staff_token";
 
 function load() {
   try {
-    return sessionStorage.getItem(KEY);
+    const saved = sessionStorage.getItem(KEY);
+    /* Authorization 값에 비 ASCII 문자가 있으면 fetch가 요청을 보내기
+       전에 예외를 낸다. 예전 목업이 한글 로그인 아이디를 그대로 넣어
+       남긴 세션은 로그인 화면으로 되돌려 복구한다. */
+    if (saved && !/^[\x00-\x7F]+$/.test(saved)) {
+      sessionStorage.removeItem(KEY);
+      return null;
+    }
+    return saved;
   } catch {
     return null;              // 사생활 보호 모드 등에서 막힐 수 있다
   }
