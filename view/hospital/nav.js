@@ -241,7 +241,10 @@ export function homeDept() {
   const declared = getMe()?.dept ?? getMe()?.role;
   const key = declared === "surgery" ? "breast" : declared;
   const own = key ? findDept(key) : null;
-  if (own && own.screens.some((s) => can(s.need))) return own;
+  /* 소속은 권한 목록보다 우선한다. 실제 서버에서 화면별 perms가 아직
+     늦게 내려오거나 일부만 내려와도, 원무과가 DEPTS 첫 항목인 병리과로
+     떨어지면 안 된다. 소속 대시보드에서 권한이 없는 동작만 따로 막는다. */
+  if (own) return own;
   return myDepts()[0] ?? HOME;
 }
 

@@ -749,7 +749,10 @@ export const rad = {
  * 쓴다 — 그 컴포넌트가 부르는 자리를 한 곳에 모아 둔다. 영상의학과는
  * 이 화면을 쓰지 않기로 확정됐다(간호과 명세 §3). */
 export const specimens = {
-  lesionsByPatient: (pid) => get(`/lesions/${qs({ patient: pid })}`),
+  /* 목록 경로에는 끝 슬래시를 붙이지 않는다. 실제 API와 목업 모두
+     /lesions?patient=… 형식이며, /lesions/?…는 별도 경로로 처리돼
+     검체 바인딩 팝업의 병변 목록이 404가 났다. */
+  lesionsByPatient: (pid) => get(`/lesions${qs({ patient: pid })}`),
   bind: (b) => post("/specimens/", b),
 };
 

@@ -47,7 +47,10 @@ export default function SpecimenBindingModal({ patient, onClose, onDone }) {
   const lesions = (data?.items ?? []).filter((l) => l.patient_id === patient.patient_id);
 
   const [lesionId, setLesionId] = useState(null);
-  const [label, setLabel] = useState("");
+  /* codes.js의 label()을 가리지 않게 검체 라벨 상태는 별도 이름을 쓴다.
+     같은 이름이면 첫 렌더에서 성별 표기를 만들 때 문자열을 함수처럼
+     호출하게 되어 팝업 자체가 열리지 않는다. */
+  const [specimenLabel, setSpecimenLabel] = useState("");
   const [type, setType] = useState(TYPES[0].value);
   const [guide, setGuide] = useState(GUIDES[0].value);
   const [collectedAt, setCollectedAt] = useState(nowLocal());
@@ -62,7 +65,7 @@ export default function SpecimenBindingModal({ patient, onClose, onDone }) {
       await specimens.bind({
         patient_id: patient.patient_id,
         lesion_id: lesionId,
-        specimen_label: label,
+        specimen_label: specimenLabel,
         specimen_type: type,
         guidance_route: guide,
         collected_at: collectedAt,
@@ -112,7 +115,7 @@ export default function SpecimenBindingModal({ patient, onClose, onDone }) {
           <div className="fields">
             <label className="field">
               <span>검체 라벨</span>
-              <input value={label} onChange={(e) => setLabel(e.target.value)}
+              <input value={specimenLabel} onChange={(e) => setSpecimenLabel(e.target.value)}
                 placeholder="예: S-20260915-001" />
             </label>
             <label className="field">
