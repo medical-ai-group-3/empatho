@@ -459,9 +459,9 @@ a{color:inherit; text-decoration:none}
   padding:var(--wel-pad);
   padding-bottom:calc(var(--wel-pad) + env(safe-area-inset-bottom, 0px))}
 
-/* 위 — 로고 조합과 서식. 화면을 열면 여기가 먼저 닿는다 */
-.wel-top{flex:none; display:flex; flex-direction:column; align-items:center;
-  gap:var(--wel-tag-gap); padding-top:var(--wel-gap)}
+/* 로고 조합과 서식은 단추 위의 남는 자리를 받아 화면 가운데에 선다. */
+.wel-top{flex:1; min-height:0; display:flex; flex-direction:column; align-items:center;
+  justify-content:center; gap:var(--wel-tag-gap)}
 
 /* 마크 · 이름 · 서식 세 줄이 한 덩어리. 자간을 크게 벌려 한 자씩 놓는다 —
    목업의 워드마크가 그렇게 짜여 있고, 벌린 대문자는 그 자체로 차분하다 */
@@ -479,12 +479,6 @@ a{color:inherit; text-decoration:none}
 .wel-tag{margin:0; text-align:center; font-family:var(--font-read);
   font-size:var(--wel-tag-fs); line-height:var(--wel-tag-lh);
   letter-spacing:var(--wel-tag-track); color:var(--ink-2)}
-
-/* 가운데 — 틸리. **남는 자리를 여기가 먹는다.** 폰이 길면 여백이 틸리
-   둘레로 붙고, 짧으면 여기부터 줄어든다 */
-.wel-mid{flex:1; min-height:0; display:flex; align-items:center;
-  justify-content:center; padding:var(--wel-gap) 0}
-.wel-mid .tilly{max-height:100%}
 
 /* 시작하기 — 두 줄. 위는 왜 시작하는지, 아래가 하는 일이다 */
 .wel-cta{display:flex; flex-direction:column; align-items:center;
