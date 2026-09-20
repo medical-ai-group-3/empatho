@@ -26,7 +26,8 @@ from prompts import base
 # 2026-09-19.a  신규
 # 2026-09-20.a  환자용은 facts() 가 아니라 plain() 을 넘긴다
 # 2026-09-20.b  환자용 뼈대도 plain() 으로 · must_keep() — 등급 문장 보존
-VERSION = "summary-2026-09-20.b"
+# 2026-09-21.a  등급 문장을 「· 그대로」 줄로 따로 넘긴다 — 매번 되돌아가던 것
+VERSION = "summary-2026-09-21.a"
 
 SOCKET_IDS = {"7"}
 REQUIRED = ("stages",)
@@ -47,7 +48,9 @@ SYSTEM_PATIENT = """
   판독값에 없는 소견을 지어내지 않는다.
   「없다」 · 「정상이다」로 단정하지 않는다. 확인되지 않은 것과 다르다.
   장기 이름을 바꿔 쓰지 않는다. 모르는 용어는 옮기지 말고 빼라.
-  검사 결과의 정도를 낮추거나 높여 쓰지 않는다. 준 문장 그대로 옮긴다.
+  이름이 「· 그대로」로 끝나는 줄은 글자 하나 바꾸지 말고 문장에 그대로 넣는다.
+  쉽게 풀어 쓰는 것은 나머지 줄에만 한다.
+  그 줄은 검사의 정도를 담고 있어 조금만 바꿔도 뜻이 달라진다.
   악성 여부를 말하지 않는다. 진단하지 않고 치료를 권하지 않는다.
   검사마다 문장을 끊는다.
   존댓말로 쓴다. 머리말 없이 내용부터 쓴다.
@@ -81,6 +84,19 @@ def _plain(p, res) :
     facts() 로 되돌리면 수치와 전문 용어가 그대로 나간다."""
     return p.plain(res) if hasattr(p, "plain") else ["결과가 나왔습니다."]
 
+def _split_band(p, res) :
+    """환자용 문장을 「풀어 써도 되는 것」과 「그대로 옮겨야 하는 것」으로 가른다.
+
+    등급 문장만 후자다. 한 덩어리로 주면 「쉽게 풀어 써라」와 「그대로 옮겨라」가
+    같은 줄에 걸려서 모델이 매번 풀어 쓴다 — 「추가 확인이 시급한 정도입니다」를
+    「추가적으로 확인이 필요할 것으로 보입니다」로 바꿨다(2026-09-20 실측).
+    표를 나눠 주면 어느 줄이 고정인지 모델이 구분할 수 있다.
+    """
+    bands = set(base.BIRADS_PLAIN.values())
+    free, fixed = [], []
+    for s in _plain(p, res) :
+        (fixed if s.rstrip(".") in bands else free).append(s)
+    return free, fixed
 
 def values(r) :
     """모델에 넘길 표. 청중에 따라 **넘기는 값 자체가** 다르다.
@@ -89,14 +105,21 @@ def values(r) :
     말을 아는 말로 바꾼다 — 간질(stroma)이 간(liver)이 되어 「암세포가 간에
     침투한 림프구」로 나갔다(2026-09-20 실측). 수치 검사는 숫자만 보므로
     이런 것을 하나도 못 잡는다. 그래서 순화를 모델이 아니라 모달리티가 한다.
+
+    환자용은 한 검사가 두 줄이 될 수 있다. 「· 그대로」가 붙은 줄은 손대면
+    안 되는 문장이다 — must_keep() 이 그 줄을 지키는지 검사한다.
     """
     out = []
     for socket, p, res in _stages(r) :
         name = (PLAIN if _patient(r) else NAME).get(socket, socket)
-        say = _plain(p, res) if _patient(r) else p.facts(res)
-        out.append((name, " ".join(say)))
+        if not _patient(r) :
+            out.append((name, " ".join(p.facts(res))))
+            continue
+        free, fixed = _split_band(p, res)
+        out.append((name, " ".join(free) or "결과가 나왔습니다."))
+        for s in fixed :
+            out.append((name + " · 그대로", s))
     return out or [("검사", "묶을 판독 결과가 없습니다.")]
-
 
 def facts(r) :
     """뼈대. 모델이 실패하거나 검사에 걸리면 이것이 그대로 나간다."""
@@ -155,12 +178,11 @@ def must_keep(r) :
     """
     if not _patient(r) :
         return []
-    bands = set(base.BIRADS_PLAIN.values())
     out = []
     for _socket, p, res in _stages(r) :
-        for s in _plain(p, res) :
+        for s in _split_band(p, res)[1] :
             s = s.rstrip(".")
-            if s in bands and s not in out :
+            if s not in out :
                 out.append(s)
     return out
 
