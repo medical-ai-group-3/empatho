@@ -104,6 +104,14 @@ function Work({ cfg, id, d }) {
     e.target.value = "";     // 같은 파일을 다시 고를 수 있게
   }
 
+  /* 아직 전송 전인 파일은 즉시 목록에서 뺀다. 잘못 고른 촬영본을
+     그대로 분석에 넘기지 않게 하는 마지막 확인 단계다. 실제 서버에
+     올라간 파일의 삭제는 파일 게이트웨이 삭제 API가 준비된 뒤에만
+     허용해야 한다 — 화면에서만 지운 척하면 더 위험하다. */
+  function removePicked(fileId) {
+    setPicked((files) => files.filter((file) => file.id !== fileId));
+  }
+
   async function analyze() {
     setBusy(true);
     setMsg(null);
@@ -155,6 +163,10 @@ function Work({ cfg, id, d }) {
             <li key={f.id}>
               <b>{f.name}</b><span>{f.size}</span>
               <Chip tone="dot">전송 준비 중</Chip>
+              <button className="btn ghost file-remove" type="button"
+                      onClick={() => removePicked(f.id)}>
+                제외
+              </button>
             </li>
           ))}
           {(d.files ?? []).length === 0 && picked.length === 0 && (
