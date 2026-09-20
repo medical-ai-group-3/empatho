@@ -290,6 +290,12 @@ export const login = (loginId, password) =>
 export const me = () => get("/me");
 export const updateMe = (b) => put("/me", b);
 
+/* 직원·환자 공용 알림. router 목록은 서버 설정에 따라 배열 또는
+   {count, results}로 올 수 있어 화면에는 항상 배열만 넘긴다. */
+export const notifications = () => get("/notifications/").then(unwrapList);
+export const acknowledgeNotification = (id) =>
+  patch(`/notifications/${id}/`, { acknowledged: true });
+
 /* ── 관리자 화면 열기 ─────────────────────────────────────────
  *
  * 관리자가 로그인을 두 번 하지 않게 하는 자리다.
@@ -823,7 +829,9 @@ export const breast = {
    * completed 로 바뀐다. exam_purpose 는 그대로 NULL로 남고(집계 안
    * 잡힘), "촬영 후 종결"과 "안 찍고 종결"도 completed 하나로 안 갈린다.
    * 둘 다 팀이 합의한 알려진 한계다 — 나중 과제로 미뤘다. */
-  ordersOf:        (patientId) => get(`/exam-orders${qs({ patient: patientId, ordering: "scheduled_at" })}`),
+  /* 실서버는 목록을 { count, results } 봉투로 감싼다. 목업의 배열과
+     모양이 달라 종결 팝업에서 .filter 오류가 나던 자리다. */
+  ordersOf:        (patientId) => get(`/exam-orders${qs({ patient: patientId, ordering: "scheduled_at" })}`).then(unwrapList),
   completeExamOrder: (examOrderId) => patch(`/exam-orders/${examOrderId}/complete`, {}),
 
   /* 2장 · 검사 종합 확인 */

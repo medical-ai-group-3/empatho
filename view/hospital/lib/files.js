@@ -95,6 +95,10 @@ function targetOf(spec, scope) {
 /* 범위 하나에 티켓 하나를 기억해 둔다. 장마다 새로 받지 않는다 */
 const tickets = new Map();
 
+/* 업로드는 같은 대상의 여러 장을 올릴 수 있다. tile 티켓과 목적이 달라
+   섞어 쓰면 안 되므로 별도 캐시를 둔다. */
+const uploadTickets = new Map();
+
 async function getTicket(issue, t) {
   const hit = tickets.get(t.scopeKey);
   /* 만료 30초 전부터는 새로 받는다 — 받는 도중에 끊기지 않게 */
@@ -118,6 +122,95 @@ async function getTicket(issue, t) {
 /* 화면이 닫히면 티켓도 버린다 */
 export function dropTickets() {
   tickets.clear();
+  uploadTickets.clear();
+}
+
+/* 파일 올리기
+ *
+ * 다운로드 티켓(tile)은 화면을 보는 동안 재사용하지만, 업로드 티켓은
+ * 파일의 종류·크기 제한까지 확인해야 하므로 파일 하나를 올릴 때마다
+ * 새로 받는다. Django에는 바이트를 보내지 않고, 발급받은 짧은 수명
+ * 티켓으로 Go file-gateway에만 원본을 보낸다.
+ *
+ * issue  cfg.api.ticket
+ * scope  { kind: "study" | "specimen", id }
+ * purpose "dicom_upload" | "wsi_upload"
+ */
+async function getUploadTicket(issue, scope, purpose, contentType, refresh = false) {
+  const key = `${purpose}:${scope.kind}/${scope.id}`;
+  const cached = uploadTickets.get(key);
+  if (!refresh && cached && cached.expires > Date.now() + 10000) return cached.token;
+
+  const ticket = await issue({
+    purpose,
+    scope_kind: scope.kind,
+    scope_id: scope.id,
+    content_type: contentType,
+  });
+  if (!ticket?.token) throw new Error("업로드 권한을 받지 못했습니다.");
+  const expires = ticket.expires_at ? Date.parse(ticket.expires_at) : Date.now() + 290000;
+  uploadTickets.set(key, { token: ticket.token, expires, maxBytes: ticket.max_bytes });
+  return ticket.token;
+}
+
+async function postFile(token, file, contentType) {
+  let res;
+  try {
+    res = await fetch(`${SVC}/files`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": contentType,
+        "X-Filename": file.name,
+      },
+      body: file,
+    });
+  } catch (e) {
+    throw Object.assign(new Error(e?.message || "파일 서버에 연결하지 못했습니다."), {
+      status: 0,
+    });
+  }
+
+  if (res.ok) return res.status === 204 ? null : res.json().catch(() => null);
+
+  let detail = "파일을 올리지 못했습니다.";
+  let code = null;
+  try {
+    const body = await res.json();
+    detail = body?.error?.message ?? body?.detail ?? detail;
+    code = body?.error?.code ?? body?.code ?? null;
+  } catch { /* 본문이 없는 gateway 오류도 위 문구로 안내한다. */ }
+  if (res.status === 403) detail = "이 파일을 올릴 권한이 없습니다.";
+  if (res.status === 413 || code === "UPLOAD_TOO_LARGE") detail = "파일 크기가 허용 용량을 초과했습니다.";
+  if (res.status === 422 || code === "TARGET_NOT_FOUND") detail = "검사 또는 검체 정보를 찾지 못했습니다. 화면을 새로고침해 주세요.";
+  if (res.status === 502 || code === "CALLBACK_FAILED") {
+    detail = "파일은 저장되었지만 등록 확인에 실패했습니다. 다시 올리지 말고 담당자에게 알려 주세요.";
+  }
+  throw Object.assign(new Error(detail), { status: res.status, code });
+}
+
+export async function uploadFile(issue, scope, file, purpose) {
+  if (!issue || !scope?.kind || scope.id == null || !file) {
+    throw new Error("업로드 정보를 준비하지 못했습니다.");
+  }
+
+  const contentType = file.type || "application/octet-stream";
+  const token = await getUploadTicket(issue, scope, purpose, contentType);
+  const cacheKey = `${purpose}:${scope.kind}/${scope.id}`;
+  const maxBytes = uploadTickets.get(cacheKey)?.maxBytes;
+  if (maxBytes != null && file.size > Number(maxBytes)) {
+    throw new Error("파일 크기가 허용 용량을 초과했습니다.");
+  }
+
+  try {
+    return await postFile(token, file, contentType);
+  } catch (e) {
+    /* 업로드 티켓은 300초짜리다. 401일 때만 새 티켓으로 한 번 재시도한다.
+       502 CALLBACK_FAILED는 파일이 이미 저장됐을 수 있어 절대 재시도하지 않는다. */
+    if (e?.status !== 401) throw e;
+    const fresh = await getUploadTicket(issue, scope, purpose, contentType, true);
+    return postFile(fresh, file, contentType);
+  }
 }
 
 /* 한 장을 blob 주소로 바꿔 준다.

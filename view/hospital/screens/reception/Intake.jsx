@@ -263,7 +263,7 @@ function Picked({ patient, busy, onCheckIn }) {
     <div className="picked">
       <dl className="kv">
         <dt>환자번호</dt><dd>{patient.patient_number}</dd>
-        <dt>생년</dt><dd>{patient.birth_year ?? "—"}</dd>
+        <dt>생년월일</dt><dd className="num">{patient.birth_date ?? patient.birth_year ?? "—"}</dd>
         <dt>성별</dt><dd>{label(SEX, patient.sex) || "—"}</dd>
       </dl>
       <Btn kind="fill" onClick={onCheckIn}

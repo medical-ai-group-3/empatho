@@ -143,10 +143,22 @@ function filter(rows, only) {
 }
 
 
-/* 나이는 출생연도로 센다. 서버 목록이 birth_year 만 주기 때문이다 —
-   생일이 지났는지는 모르므로 «만 나이»가 아니라 연 나이다 */
+/* 생년월일이 있으면 기준일에 맞춘 만 나이를, 없으면 기존 출생연도
+   정보로 계산한 연 나이를 쓴다. 예약 목록과 상세의 나이가 어긋나지
+   않도록 한 곳에서 계산한다. */
 function ageOf(r) {
   if (r.age != null) return r.age;
+  const birthDate = r.pii?.birth_date ?? r.birth_date ?? null;
+  if (birthDate) {
+    const birth = new Date(`${String(birthDate).slice(0, 10)}T00:00:00`);
+    if (!Number.isNaN(birth.getTime())) {
+      const today = new Date();
+      let age = today.getFullYear() - birth.getFullYear();
+      const beforeBirthday = today.getMonth() < birth.getMonth()
+        || (today.getMonth() === birth.getMonth() && today.getDate() < birth.getDate());
+      return age - Number(beforeBirthday);
+    }
+  }
   if (!r.birth_year) return null;
   return new Date().getFullYear() - r.birth_year;
 }
@@ -209,7 +221,6 @@ function Detail({ patient, onSaved, onReserve }) {
      목록 값으로 세우면 저장할 때 메모를 빈 값으로 덮어쓴다 */
   const form = full.data && {
     sex: full.data.sex ?? "",
-    birth_year: full.data.birth_year ?? "",
     has_allergy: full.data.has_allergy === true,
     allergy_note: full.data.allergy_note ?? "",
     ...edited,
@@ -223,7 +234,6 @@ function Detail({ patient, onSaved, onReserve }) {
     try {
       await api.update(patient.patient_id, {
         sex: form.sex || null,
-        birth_year: form.birth_year === "" ? null : Number(form.birth_year),
         has_allergy: form.has_allergy,
         allergy_note: form.has_allergy ? form.allergy_note : "",
       });
@@ -257,7 +267,7 @@ function Detail({ patient, onSaved, onReserve }) {
             </dl>
             <Warn>이름 · 생년월일 · 전화는 이 화면에서 고칠 수 없습니다.</Warn>
 
-            <div className="fields">
+            <div className="fields one">
               <label className="field">
                 <span>성별</span>
                 <select value={form.sex} onChange={(e) => set("sex", e.target.value)}
@@ -266,11 +276,6 @@ function Detail({ patient, onSaved, onReserve }) {
                   <option value="female">여</option>
                   <option value="male">남</option>
                 </select>
-              </label>
-              <label className="field">
-                <span>출생연도</span>
-                <input inputMode="numeric" value={form.birth_year} disabled={busy}
-                       onChange={(e) => set("birth_year", e.target.value.replace(/\D/g, ""))} />
               </label>
             </div>
 

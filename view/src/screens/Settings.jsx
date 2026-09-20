@@ -1,10 +1,6 @@
-import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { api } from "../api";
-import { useApi } from "../lib/useApi";
-import Switch from "../lib/Switch";
 import { SCALES, useScale, useTheme } from "../lib/theme";
-import { Body, Head } from "../lib/Screen";
+import { Head } from "../lib/Screen";
 import { clearSeen, COACH_HOME } from "../lib/seen";
 
 /* 11 · 설정
@@ -26,38 +22,18 @@ const THEMES = [
 ];
 
 export default function Settings() {
-  const { loading, data, error, reload } = useApi(() => api.consents());
-
   return (
     <>
       <Head title="설정" />
-      <Body loading={loading} error={error} onRetry={reload}>
-        {data && <Inner c={data} />}
-      </Body>
+      <Inner />
     </>
   );
 }
 
-function Inner({ c }) {
+function Inner() {
   const navigate = useNavigate();
   const [theme, setTheme] = useTheme();
   const [scale, setScale] = useScale();
-  const [push, setPush] = useState(() =>
-    Object.fromEntries((c.push_settings ?? []).map((p) => [p.kind, p.enabled])));
-  const [msg, setMsg] = useState(null);
-
-  async function togglePush(kind, on) {
-    // 먼저 켜 두고 부른다. 스위치가 손끝을 따라와야지, 왕복을 기다렸다
-    // 움직이면 «안 눌렸나» 싶어 한 번 더 누른다.
-    setPush((p) => ({ ...p, [kind]: on }));
-    try {
-      await api.setPush(kind, on);
-    } catch (e) {
-      setPush((p) => ({ ...p, [kind]: !on }));   // 실패하면 되돌린다
-      setMsg({ ok: false, text: e.detail || e.message });
-    }
-  }
-
   function replayGuide() {
     clearSeen(COACH_HOME);
     navigate("/");
@@ -65,10 +41,6 @@ function Inner({ c }) {
 
   return (
     <>
-      {msg && (
-        <div className="card flag"><span className="s">{msg.text}</span></div>
-      )}
-
       <h3 className="sec">테마</h3>
       <div className="card">
         <div className="seg" role="radiogroup" aria-label="테마">
@@ -102,14 +74,11 @@ function Inner({ c }) {
       </div>
 
       <h3 className="sec">알림</h3>
-      <div className="list">
-        {(c.push_settings ?? []).map((p) => (
-          <div key={p.kind}>
-            <span className="tx"><b>{p.label}</b></span>
-            <Switch on={!!push[p.kind]} label={p.label}
-                    onChange={(v) => togglePush(p.kind, v)} />
-          </div>
-        ))}
+      <div className="card">
+        <span className="k">알림 수신 설정</span>
+        <span className="s">
+          알림 종류별 수신 설정은 준비 중입니다. 새 알림은 알림 목록에서 확인할 수 있습니다.
+        </span>
       </div>
 
       <h3 className="sec">도움말</h3>
@@ -122,8 +91,7 @@ function Inner({ c }) {
       </div>
 
       <p className="note">
-        화면 설정은 이 기기에만 적용됩니다. 알림은 계정에 저장되어
-        다른 기기에서도 같습니다.
+        화면 설정은 이 기기에만 적용됩니다.
       </p>
     </>
   );

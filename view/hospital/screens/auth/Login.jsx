@@ -124,16 +124,12 @@ export default function Login({ onSignup }) {
   );
 }
 
-/* 실패 한 줄. code 와 trace_id 를 같이 낸다 —
-   문구만 뜨면 백엔드에서 로그를 찾을 단서가 없다. */
+/* 실패 한 줄. 로그인 화면에서는 내부 오류 코드·추적 번호를 노출하지
+   않는다. 사용자에게는 해결 방법이 되는 문구만 보여 준다. */
 function Failed({ error }) {
   return (
     <div className="login-err" role="alert">
       <b>{message(error)}</b>
-      <small>
-        {error.code}
-        {error.traceId && <> · {error.traceId}</>}
-      </small>
     </div>
   );
 }

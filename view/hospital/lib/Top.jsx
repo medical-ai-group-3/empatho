@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, NavLink } from "react-router-dom";
 import { HOSPITAL, PRODUCT, deptPath, go, homeDept, menuScreens, myDepts } from "../nav";
 import { can } from "../perm";
+import { acknowledgeNotification, notifications } from "../api";
 import { useMe } from "./useMe";
 
 /* 상단바 — 지금 어느 과의 어느 화면인지, 그리고 내가 누구인지
@@ -25,21 +26,67 @@ export default function Top({ dept, now }) {
      못 간다. 상단 메뉴는 «지금 과의 화면 다섯 장»만 만들기 때문이다. */
   const depts = myDepts();
   const [open, setOpen] = useState(false);
+  const [bellOpen, setBellOpen] = useState(false);
+  const [bellLoading, setBellLoading] = useState(false);
+  const [bellError, setBellError] = useState(null);
+  const [bellItems, setBellItems] = useState([]);
   const box = useRef(null);
+  const bellBox = useRef(null);
 
   /* 바깥을 누르거나 Esc 로 닫는다. 열어 둔 채 다른 곳을 누르면
      닫히는 게 당연해서, 안 닫히면 고장으로 본다 */
   useEffect(() => {
-    if (!open) return;
-    const away = (e) => { if (!box.current?.contains(e.target)) setOpen(false); };
-    const esc = (e) => { if (e.key === "Escape") setOpen(false); };
+    if (!open && !bellOpen) return;
+    const away = (e) => {
+      if (!box.current?.contains(e.target)) setOpen(false);
+      if (!bellBox.current?.contains(e.target)) setBellOpen(false);
+    };
+    const esc = (e) => {
+      if (e.key === "Escape") { setOpen(false); setBellOpen(false); }
+    };
     document.addEventListener("mousedown", away);
     document.addEventListener("keydown", esc);
     return () => {
       document.removeEventListener("mousedown", away);
       document.removeEventListener("keydown", esc);
     };
-  }, [open]);
+  }, [open, bellOpen]);
+
+  async function toggleBell() {
+    if (bellOpen) {
+      setBellOpen(false);
+      return;
+    }
+    setOpen(false);
+    setBellOpen(true);
+    setBellLoading(true);
+    setBellError(null);
+    try {
+      setBellItems(await notifications());
+    } catch (e) {
+      setBellError(e.detail || e.message || "알림을 불러오지 못했습니다.");
+    } finally {
+      setBellLoading(false);
+    }
+  }
+
+  async function acknowledge(item) {
+    const id = item.notification_id ?? item.id;
+    if (!id || item.acknowledged_at) return;
+    /* 먼저 표시를 바꿔 두고 실패하면 원래 목록을 다시 받는다. */
+    setBellItems((items) => items.map((n) =>
+      (n.notification_id ?? n.id) === id
+        ? { ...n, acknowledged_at: new Date().toISOString() }
+        : n));
+    try {
+      await acknowledgeNotification(id);
+    } catch {
+      try { setBellItems(await notifications()); } catch { /* 다음 열기에서 다시 시도 */ }
+    }
+  }
+
+  const todayItems = bellItems.filter(isTodayNotification);
+  const unreadCount = todayItems.filter((n) => !n.acknowledged_at).length;
 
   return (
     <header className="top">
@@ -100,9 +147,44 @@ export default function Top({ dept, now }) {
       )}
 
       <div className="top-r">
-        <button className="bell" aria-label="알림 3건">
-          <span aria-hidden="true">◍</span><i>3</i>
-        </button>
+        <span className="bell-wrap" ref={bellBox}>
+          <button className="bell" aria-label="내게 온 오늘 알림" title="내게 온 오늘 알림"
+                  aria-expanded={bellOpen} aria-haspopup="dialog" onClick={toggleBell}>
+            <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none"
+                 stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 9a6 6 0 0 0-12 0c0 7-3 8-3 8h18s-3-1-3-8" />
+              <path d="M10 21h4" />
+            </svg>
+            {unreadCount > 0 && <i>{unreadCount > 9 ? "9+" : unreadCount}</i>}
+          </button>
+          {bellOpen && (
+            <section className="notice-pop" role="dialog" aria-label="내게 온 오늘 알림">
+              <header><b>내게 온 오늘 알림</b><button onClick={() => setBellOpen(false)} aria-label="닫기">×</button></header>
+              {bellLoading && <p className="notice-state">알림을 불러오는 중…</p>}
+              {!bellLoading && bellError && <p className="notice-state bad">{bellError}</p>}
+              {!bellLoading && !bellError && todayItems.length === 0 && (
+                <p className="notice-state">오늘 온 알림이 없습니다.</p>
+              )}
+              {!bellLoading && !bellError && todayItems.length > 0 && (
+                <ul>
+                  {todayItems.map((item) => {
+                    const id = item.notification_id ?? item.id;
+                    const unread = !item.acknowledged_at;
+                    return (
+                      <li key={id}>
+                        <button className={unread ? "new" : undefined} onClick={() => acknowledge(item)}>
+                          <b>{item.message}</b>
+                          <span>{notificationTime(item.sent_at ?? item.created_at)}</span>
+                          {unread && <em>새 알림</em>}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </section>
+          )}
+        </span>
         <span className="when">{now}</span>
 
         {/* 이름을 누르면 내 정보로 간다.
@@ -130,4 +212,22 @@ export default function Top({ dept, now }) {
       </div>
     </header>
   );
+}
+
+function isTodayNotification(item) {
+  const value = item.sent_at ?? item.created_at;
+  if (!value) return false;
+  const date = new Date(value);
+  const today = new Date();
+  return !Number.isNaN(date.getTime())
+    && date.getFullYear() === today.getFullYear()
+    && date.getMonth() === today.getMonth()
+    && date.getDate() === today.getDate();
+}
+
+function notificationTime(value) {
+  if (!value) return "방금";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "오늘";
+  return new Intl.DateTimeFormat("ko-KR", { hour: "2-digit", minute: "2-digit" }).format(date);
 }

@@ -61,6 +61,28 @@ input,select,textarea{font:inherit; color:inherit}
   border-radius:var(--round); background:var(--soot); color:var(--soot-ink);
   font-size:var(--bell-dot-fs); font-style:normal; font-weight:700;
   display:flex; align-items:center; justify-content:center}
+.bell-wrap{position:relative; display:flex}
+.notice-pop{position:absolute; z-index:30; top:calc(100% + var(--gap-sm)); right:0;
+  width:min(var(--notice-pop-w), calc(100vw - var(--top-pad-x) * 2));
+  background:var(--card); border:var(--hair) solid var(--border); border-radius:var(--card-radius);
+  box-shadow:var(--card-shadow); overflow:hidden}
+.notice-pop header{display:flex; align-items:center; justify-content:space-between;
+  padding:var(--card-pad-sm) var(--card-pad); border-bottom:var(--hair) solid var(--border)}
+.notice-pop header b{font-size:var(--card-h-fs)}
+.notice-pop header button{font-size:var(--card-h-fs); color:var(--warm); line-height:1}
+.notice-pop ul{margin:0; padding:0; list-style:none; max-height:calc(var(--top-h) * 7); overflow:auto}
+.notice-pop li + li{border-top:var(--hair) solid var(--line-2)}
+.notice-pop li button{width:100%; display:grid; grid-template-columns:1fr auto; gap:var(--gap-xs);
+  padding:var(--row-pad-y) var(--row-pad-x)}
+.notice-pop li button:hover{background:var(--canvas)}
+.notice-pop li button b{font-size:var(--row-fs); font-weight:500; min-width:0; overflow:hidden;
+  text-overflow:ellipsis; white-space:nowrap}
+.notice-pop li button span{grid-row:2; font-size:var(--crumb-fs); color:var(--warm)}
+.notice-pop li button em{grid-column:2; grid-row:1 / span 2; align-self:center; font-size:var(--crumb-fs);
+  color:var(--cyan); font-style:normal}
+.notice-pop li button:not(.new) b{font-weight:400; color:var(--ink-2)}
+.notice-state{margin:0; padding:var(--card-pad); color:var(--warm); font-size:var(--sub-fs)}
+.notice-state.bad{color:var(--ink)}
 .when{font-size:var(--top-fs); color:var(--warm);
   font-variant-numeric:tabular-nums}
 .me{display:flex; align-items:center; gap:var(--gap-tight)}
@@ -624,6 +646,7 @@ td.none,tr.none td{text-align:center; padding:var(--card-pad) 0}
 
 /* ── 2장 · 업로드 ──────────────────────────────────────────── */
 .drop-t{margin:0 0 var(--gap-sm) 0; font-size:var(--kv-fs); color:var(--warm)}
+.drop.dragging{border-color:var(--cyan); background:var(--canvas); box-shadow:inset 0 0 0 1px var(--cyan)}
 
 .files{list-style:none; margin:var(--gap-sm) 0 0 0; padding:0;
   display:flex; flex-direction:column; gap:var(--gap-xs)}
@@ -1163,6 +1186,7 @@ td.none,tr.none td{text-align:center; padding:var(--card-pad) 0}
    칸 둘을 나란히 — 성별·출생연도처럼 짧은 것끼리 */
 .fields{display:grid; grid-template-columns:1fr 1fr; gap:var(--gap-sm);
   margin-bottom:var(--card-gap)}
+.fields.one{grid-template-columns:1fr}
 .card .field + .field,.card .fields + .field{margin-top:var(--card-gap)}
 
 /* 한 줄짜리 체크. .checks 는 여러 줄 목록용이라 따로 둔다 */

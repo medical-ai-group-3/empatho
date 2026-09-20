@@ -84,7 +84,7 @@ function Inner({ cfg }) {
 
   /* 여럿이 보는 목록이라 주기적으로 다시 부른다 — 간호과 명세: 5~10초 폴링 */
   useEffect(() => {
-    const t = setInterval(arrived.reload, POLL_MS);
+    const t = setInterval(() => arrived.reload(true), POLL_MS);
     return () => clearInterval(t);
   }, [arrived.reload]);
 
@@ -238,6 +238,15 @@ function AssignModal({ cfg, patient, onClose, onDone }) {
   const [staffId, setStaffId] = useState(null);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState(null);
+
+  /* 마우스뿐 아니라 키보드로도 즉시 닫는다. 실수로 연 배정 창에서
+     작성 중이던 화면으로 빠르게 돌아갈 수 있어야 한다. */
+  useEffect(() => {
+    const escape = (e) => { if (e.key === "Escape" && !saving) onClose?.(); };
+    window.addEventListener("keydown", escape);
+    return () => window.removeEventListener("keydown", escape);
+  }, [onClose, saving]);
+
   useEffect(() => {
     if (!staffId && data?.results?.length) setStaffId(data.results[0].staff_id);
   }, [data, staffId]);

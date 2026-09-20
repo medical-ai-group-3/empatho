@@ -112,6 +112,7 @@ async function call(path, { method = "GET", body, signal, headers, retried = fal
 export const get  = (p, o)       => call(p, { ...o, method: "GET" });
 export const post = (p, body, o) => call(p, { ...o, method: "POST", body });
 export const put  = (p, body, o) => call(p, { ...o, method: "PUT", body });
+export const patch = (p, body, o) => call(p, { ...o, method: "PATCH", body });
 export const del  = (p, o)       => call(p, { ...o, method: "DELETE" });
 
 /* 질의 문자열. 빈 값은 빼고 붙인다 — `?q=` 만 달랑 가면 서버가 «빈
@@ -333,8 +334,17 @@ export const api = {
   chat:         (q)        => post("/api/v1/chat", { question: q }),
 
   // 09  알림
-  notifications: ()        => get("/api/v1/notifications"),
-  markRead:      (id)      => post(`/api/v1/notifications/${id}/read`),
+  // Django router는 목록을 { count, results }로 감싼다. 화면은 목업과
+  // 같은 { items }만 보도록 여기서 맞춘다. 읽음은 별도 /read 경로가
+  // 아니라 PATCH 본문 acknowledged:true가 서버 규격이다.
+  notifications: ()        => get("/api/v1/notifications/").then((raw) => ({
+    ...(raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {}),
+    items: Array.isArray(raw) ? raw : (raw?.results ?? raw?.items ?? []),
+  })),
+  markRead:      (id)      => patch(`/api/v1/notifications/${id}/`, { acknowledged: true }),
+  // FCM에서 얻은 기기 토큰을 계정에 연결하는 API다. 알림 종류별 수신
+  // 설정 API는 아직 서버에 없으므로 Settings의 토글과 혼용하지 않는다.
+  registerPushToken: (token) => patch("/api/v1/me/push-token", { push_token: token || "" }),
 
   // 11  복약 관리 — **처방전이 원천이다**
   //
@@ -388,5 +398,4 @@ export const api = {
   //     화면은 그때만 철회 자리를 낸다 — 눌러도 안 되는 것을 흐리게
   //     두면 「왜 안 되지」를 만든다.
   withdrawConsent: (kind)  => post(`/api/v1/consents/${kind}/withdraw`),
-  setPush:       (kind, on) => put(`/api/v1/notifications/settings/${kind}`, { enabled: on }),
 };
