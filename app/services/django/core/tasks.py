@@ -31,6 +31,7 @@ ai_result 한 행이 판독 한 번이다. 어느 파일을 어느 소켓으로 
     채로 남아 화면이 영원히 기다린다 — 실패는 화면에 보여야 하는 정보다.
 """
 
+from datetime import timedelta
 import json 
 import logging 
 import time 
@@ -40,13 +41,14 @@ import base64
 import http.client
 import urllib.error
 
-from celery import shared_task 
+from celery import shared_task
+from . import notify 
 from .api.tickets import issue 
 from django.utils import timezone
 
 from . import mesh 
 from celery.exceptions import SoftTimeLimitExceeded
-from .models import AiResult, Report, StorageObject, Lesion
+from .models import AiResult, ExamOrder, Notification, Report, StorageObject, Lesion
 
 logger = logging.getLogger(__name__) 
 
@@ -766,3 +768,57 @@ def _walk_ref(node, planned_key, saved) :
     if isinstance(node, list) :
         return any(_walk_ref(v, planned_key, saved) for v in node)
     return False 
+
+@shared_task(queue="io")
+def deliver_external(notification_id) :
+    """알림 한 건을 바깥 채널로 내보낸다(FCM · SMS).
+
+    태스크로 떼어 둔 이유 — 외부 호출은 느리고 자주 실패한다. notify.send()
+    안에서 부르면 잠금 해제나 판독 뒤처리가 그만큼 붙잡힌다.
+
+    재시도하지 않는다. 푸시가 안 가면 SMS 로 한 번 더 시도하고 거기서 끝낸다 —
+    같은 알림을 여러 번 보내는 쪽이 못 보내는 쪽보다 나쁘다.
+    """
+    from . import delivery 
+    note = Notification.objects.get(pk=notification_id)
+    channel = delivery.deliver(note)
+    if channel :
+        note.channel = channel 
+        if note.sent_at is None: 
+            note.sent_at = timezone.now() 
+        note.save(update_fields=["channel", "sent_at", "updated_at"])
+    return channel or "none"
+
+@shared_task(queue="io")
+def reservation_reminders() :
+    """내일 예약을 환자에게 알린다. beat 가 한 시간마다 부른다.
+
+    「24시간 안」을 훑는 이유 — 서버가 꺼져 있던 시간이 있어도 다음 주기에
+    늦게라도 나간다. 정확한 시점 하나만 보면 그 창을 놓치는 순간 끝이다.
+
+    같은 예약에 두 번 보내지 않는 것은 Notification 을 조회해서 막는다.
+    표시용 칸을 따로 두지 않는 이유 — 보낸 기록이 이미 그 표에 있다.
+    """
+    now = timezone.now()
+    orders = (ExamOrder.objects
+              .filter(scheduled_at__gt=now,
+                      scheduled_at__lte=now + timedelta(hours=24))
+              .exclude(order_status__in=["cancelled", "completed"])
+              .select_related("patient"))
+
+    sent = 0
+    for order in orders :
+        if Notification.objects.filter(notification_type="reservation_reminder",
+                                       ref_type="exam_order",
+                                       ref_id=order.pk).exists() :
+            continue
+        when = timezone.localtime(order.scheduled_at)
+        notify.send(patient=order.patient,
+                    type="reservation_reminder",
+                    message=f"내일 {when:%H시 %M분} 검사 예약이 있습니다.",
+                    ref_type="exam_order", ref_id=order.pk,
+                    severity="normal")
+        sent += 1
+
+    logger.info("[reminder] 예약 하루 전 알림 %s건", sent)
+    return sent

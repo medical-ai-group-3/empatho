@@ -265,7 +265,8 @@ class ReportUnlockView(AuditMixin, viewsets.ViewSet):
                 type="report_ready",
                 message="검사 결과가 도착했습니다. 앱에서 확인해 주세요.",
                 ref_type="report",
-                ref_id=report.pk
+                ref_id=report.pk,
+                severity="sev1",
             )
 
         out = serializers.ReportSerializer(report)

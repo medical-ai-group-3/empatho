@@ -308,6 +308,15 @@ CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", "redis://redis:6
 # 일감을 성격으로 가른다. 판독은 워크스테이션 GPU 가 직렬이라 한 줄로 서야
 # 하지만, 소견문·알림·문자는 서로 기다릴 이유가 없다. 안 적으면 gpu 로 간다.
 CELERY_TASK_DEFAULT_QUEUE = "gpu"
+# 예약 하루 전 알림. 한 시간마다 훑는다 — 정확히 24시간 전 한 점만 노리면
+# 그때 서버가 꺼져 있었을 경우 영영 못 보낸다.
+CELERY_BEAT_SCHEDULE = {
+    "reservation-reminders": {
+        "task": "core.tasks.reservation_reminders",
+        "schedule": 3600.0,
+        "options": {"queue": "io"},
+    },
+}
 
 # 판독은 한 건이 오래걸림. 기본값은 제한이 없이 가지고 있어서 워크스테이션이 멈추면 워커가 영원히 돌고있다 
 # soft : 예외를 던짐 = 기권으로 처리
@@ -318,3 +327,22 @@ CELERY_TASK_TIME_LIMIT = 1320
 # 일이 끝나면 큐에서 삭제, 기본값은 꺼내자마자 삭제 
 # 워커가 중간에 죽으면 그 일이 전부 사라짐 
 CELERY_TASK_ACKS_LATE = True
+
+# ── 외부 알림 발송 ────────────────────────────────────────────────
+# 키가 없으면 core/delivery.py 가 조용히 건너뛴다. 운영에 넣기 전에도
+# 나머지가 그대로 돌아야 해서 기본값을 빈 문자열로 둔다.
+#
+# FCM_CREDENTIALS_B64 는 서비스 계정 JSON 을 통째로 base64 한 값이다.
+# JSON 을 그대로 env 에 넣으면 따옴표 때문에 파싱이 깨진다.
+#   base64 -w0 fcm-service-account.json
+FCM_PROJECT_ID = os.environ.get("FCM_PROJECT_ID", "")
+FCM_CREDENTIALS_B64 = os.environ.get("FCM_CREDENTIALS_B64", "")
+PATIENT_APP_URL = os.environ.get("PATIENT_APP_URL", "")
+
+# 솔라피. SOLAPI_FROM 은 **사전등록된 발신번호**만 쓸 수 있다(전기통신사업법).
+SOLAPI_KEY = os.environ.get("SOLAPI_KEY", "")
+SOLAPI_SECRET = os.environ.get("SOLAPI_SECRET", "")
+SOLAPI_FROM = os.environ.get("SOLAPI_FROM", "")
+
+# 문자 앞에 붙일 보내는 곳. 없으면 안 붙는다.
+SMS_PREFIX = os.environ.get("SMS_PREFIX", "")

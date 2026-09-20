@@ -55,8 +55,7 @@ PURPOSE_ROLES = {
     "download": frozenset({RADIOLOGY, PATHOLOGY, SURGERY, NURSING, PATIENT}),
     "tile": frozenset({RADIOLOGY, PATHOLOGY, SURGERY}),
     # 로그인한 누구나 낼 수 있다. 다만 **자기 것만** 나온다 — 아래 TicketView.
-    NOTIFY: frozenset({RADIOLOGY, PATHOLOGY, SURGERY, NURSING, RECEPTION,
-                       ADMIN, PATIENT}),
+    NOTIFY: frozenset({RADIOLOGY, PATHOLOGY, SURGERY, NURSING, RECEPTION, ADMIN}),
 }
 
 # purpose 가 붙을 수 있는 대상. 하나뿐이면 요청에 scope_kind 가 없어도 된다.

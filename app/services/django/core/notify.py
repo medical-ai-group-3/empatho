@@ -26,12 +26,20 @@ def send(patient=None, staff=None, *, type, message, ref_type=None, ref_id=None,
         staff=staff, 
         notification_type = type, 
         severity=severity, 
-        channel="sse",
+        channel="sse" if staff is not None else "app",
         message=message, 
         ref_type=ref_type, 
         ref_id=ref_id
     )
-    
+    # 바깥 발송은 여기서 떼어 보낸다. account 가 없어도 문자는 갈 수 있으므로
+    # 아래 early return 보다 위에 둔다.
+    from .tasks import deliver_external
+    deliver_external.delay(note.pk)
+    # 환자는 SSE 를 쓰지 않는다. 앱은 FCM 으로 받고, 앱 안 종 아이콘은 알림
+    # 목록 API 로 채운다. 둘 다 흘리면 같은 알림이 두 번 뜨는데, 그걸 막으려면
+    # 「누가 접속해 있나」를 서버가 알아야 한다. 경로를 하나로 줄인다.
+    if patient is not None:
+        return note
     account = (patient or staff).account
     if account is None:
         return note 

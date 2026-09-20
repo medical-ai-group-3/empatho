@@ -110,6 +110,17 @@ class ReservationViewSet(AuditMixin, OwnedOnlyMixin, viewsets.ViewSet):
             serializers.PatientExamOrderSerializer if patient is not None
             else serializers.ExamOrderSerializer
         )
+        if rows :
+            from .. import notify 
+            when = timezone.localtime(rows[0].scheduled_at)
+            notify.send(
+                patient=rows[0].patient, 
+                type="reservation_created",
+                message=f"{when:%m월 %d일 %H시} 검사 예약이 확정되었습니다.", 
+                ref_type="exam_order",
+                ref_id=rows[0].pk,
+                severity="normal",
+            )
         out = out_serializer_class(rows, many=True)
         return Response(out.data, status=status.HTTP_201_CREATED)
 

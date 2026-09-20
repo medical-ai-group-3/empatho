@@ -56,7 +56,7 @@ DIAGNOSIS = ["benign", "malignant"]
 B_CATEGORY = ["b1", "b2", "b3", "b4", "b5"]
 NOTIFICATION_TYPE = ["followup", "discordance", "report_ready",
                      "reservation_requested", "reservation_created",
-                     "reservation_changed"]
+                     "reservation_changed", "reservation_reminder"]
 DISPOSITION_TYPE = ["rebiopsy", "excision", "no_action"]
 
 # choices 로만 두는 값 집합

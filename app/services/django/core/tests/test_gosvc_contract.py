@@ -98,10 +98,17 @@ class NotifyTicketTests(Base):
         self.assertEqual(PURPOSE_SCOPES[NOTIFY], ("account",))
         self.assertIs(SCOPE_MODEL["account"], Account)
 
-    def test_로그인한_누구나_낼_수_있다(self):
-        for account in (self.staff_account, self.patient_account):
-            r = self.ask(account, purpose=NOTIFY, scope_id=account.pk)
-            self.assertEqual(r.status_code, 200, account.role)
+    def test_의료진만_낼_수_있다(self):
+        # 환자는 SSE 를 쓰지 않는다(2026-09-20). 앱은 FCM 으로 받고 종 아이콘은
+        # 알림 목록 API 로 채운다. 둘 다 흘리면 같은 알림이 두 번 뜬다.
+        r = self.ask(self.staff_account, purpose=NOTIFY,
+                     scope_id=self.staff_account.pk)
+        self.assertEqual(r.status_code, 200)
+
+        r = self.ask(self.patient_account, purpose=NOTIFY,
+                     scope_id=self.patient_account.pk)
+        self.assertEqual(r.status_code, 403)
+        self.assertEqual(r.json()["error"]["code"], "ROLE_FORBIDDEN")
 
     def test_자기_계정이_실린다(self):
         r = self.ask(self.staff_account, purpose=NOTIFY,
@@ -126,11 +133,11 @@ class NotifyTicketTests(Base):
                          str(self.staff_account.pk))
 
     def test_토큰_클레임도_자기_것이다(self):
-        r = self.ask(self.patient_account, purpose=NOTIFY,
-                     scope_id=self.staff_account.pk)
+        r = self.ask(self.staff_account, purpose=NOTIFY,
+                     scope_id=self.patient_account.pk)
         decoded = self.claims_of(r.json()["data"]["token"])
         self.assertEqual(decoded["purpose"], NOTIFY)
-        self.assertEqual(decoded["scope_id"], str(self.patient_account.pk))
+        self.assertEqual(decoded["scope_id"], str(self.staff_account.pk))
 
     def test_상한이_없다(self):
         # 파일 전송이 아니다

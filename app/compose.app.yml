@@ -64,6 +64,21 @@ services:
       redis:
         condition: service_healthy
 
+# 주기 작업만 낸다. 실제 실행은 worker-io 가 한다 — beat 는 큐에 넣기만 하고,
+# 두 개 띄우면 같은 알림이 두 번 간다. 한 대만 돈다.
+  beat:
+    build: ./services/django
+    container_name: beat
+    restart: unless-stopped
+    command: celery -A cdss_backend beat --loglevel=info
+    env_file:
+      - ${CONF:-./conf}/web.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
 # Go service 
   file-gateway:
     build: ./services/gosvc

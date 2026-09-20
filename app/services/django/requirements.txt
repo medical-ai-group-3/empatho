@@ -22,3 +22,7 @@ whitenoise==6.9.0
 
 celery==5.5.3
 redis==6.4.0
+
+# FCM 은 서비스 계정 JWT(RS256)로 OAuth2 토큰을 받는다. PyJWT 혼자서는
+# RSA 서명을 못 한다 — 이것이 있어야 algorithm="RS256" 이 동작한다.
+cryptography==46.0.1
