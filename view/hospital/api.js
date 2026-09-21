@@ -644,17 +644,13 @@ export const rad = {
      병리와 같은 사정인데 값이 다르다 — 영상은 status=ordered 다.
      안 담으면 이미 촬영·배정이 끝난 건까지 대기 큐에 섞인다.
 
-     경로는 **서버 코드로 확정했다** — /exam-orders/queue 도 /radiology/queue
-     도 아니고, 걸러 낸 목록이다.
-
-       core/urls.py   path("exam-orders", ExamOrderQueueView)
-       그 뷰 독스트링  GET /exam-orders?status=ordered&assigned=none
-
-     큐는 결국 「거른 목록」이라 따로 경로를 두지 않는다. /ai-results?study=
-     · /assessments?study= 도 같은 모양이다. */
+     일반 `/exam-orders` 목록은 `assigned=none` 필터를 처리하지 않는다.
+     그러면 이미 다른 영상의학과 선생님이 맡은 오더까지 섞이고, 선두를
+     받을 때마다 409 ALREADY_ASSIGNED가 난다. 배정되지 않은 촬영 오더만
+     거르는 전용 경로 `/radiology/queue`를 써야 한다. */
   /* ⚠ 봉투 언랩 — Queue.jsx 가 {items,total}을 기대한다. 행마다
      radOrderRow 로 patient_name·age·sex 등을 만들어 얹는다. */
-  queue:      ()       => get(`/exam-orders${qs({ status: "ordered", assigned: "none" })}`)
+  queue:      ()       => get(`${RAD}/queue${qs({ status: "ordered", assigned: "none" })}`)
     .then((raw) => {
       const rows = raw?.results ?? raw?.items ?? (Array.isArray(raw) ? raw : []);
       return { ...raw, items: rows.map(radOrderRow), total: raw?.count ?? raw?.total ?? rows.length };
