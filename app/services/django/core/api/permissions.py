@@ -7,10 +7,12 @@
 같은 값을 두 표에 두면 CHECK 으로 못 거는 동기화 규칙이 생긴다.
 
 v10 에서 빠진 리소스 — 되살리면 여기 추가
-    prescription   처방 · 약국 4 개 표가 없다 (12 장 전체)
     audit_metric   감사지표 표가 없다 (13.3 · 13.4)
-    문서 §15 에는 두 행이 있지만 쓸 수 있는 테이블이 없어 뺐다. 못 쓰는 권한이
+    문서 §15 에는 이 행이 있지만 쓸 수 있는 테이블이 없어 뺐다. 못 쓰는 권한이
     표에 있으면 다음 사람이 테이블이 있는 줄 안다.
+    (prescription 은 09-21 Prescription 모델과 함께 추가했다 — v10 에 없던
+     것을 새로 판 것이지 문서 §15 에 있던 것을 되살린 게 아니다. 아래
+     MATRIX 의 prescription 행 주석 참고)
 
 단독 권한은 매트릭스에 섞지 않고 아래 별도 클래스로 세운다. 표 한 칸을 고쳐서
 조용히 풀리면 안 되는 것들이다 — 풀리는 순간 미처리 건이 어느 큐에도 안 남는다.
@@ -154,6 +156,14 @@ MATRIX = {
     "consent": {
         RECEPTION: NONE, NURSING: NONE, RADIOLOGY: NONE,
         PATHOLOGY: NONE, SURGERY: NONE, PATIENT: _r("CR", own_only=True),
+    },
+    # v10 신설 (09-21, models.py 의 Prescription 참고). 처방은 유방외과만
+    # 만든다. 원무는 서류 발급 화면에서 조회만 한다 — §11 리포트 발급과
+    # 같은 결이라 report 행의 RECEPTION: _r("C", note="발급만") 과 짝지어
+    # 읽으면 된다(그쪽은 발급, 이쪽은 조회).
+    "prescription": {
+        RECEPTION: _r("R", note="서류 발급 화면 조회"), NURSING: NONE, RADIOLOGY: NONE,
+        PATHOLOGY: NONE, SURGERY: _r("CR"), PATIENT: NONE,
     },
 }
 

@@ -34,11 +34,13 @@ class MatrixTests(SimpleTestCase):
             self.assertIn(resource, perm.MATRIX, resource)
 
     def test_v10_에_없는_리소스는_뺐다(self):
-        self.assertNotIn("prescription", perm.MATRIX)
+        # prescription 은 09-21 v10 신설로 추가됐다(models.py 의 Prescription
+        # 참고) — 더는 「없어서 뺀」 쪽이 아니다.
         self.assertNotIn("audit_metric", perm.MATRIX)
 
     def test_인계문서_화면이_쓰는_리소스가_있다(self):
-        for resource in ("storage_object", "patient_pii", "notification", "consent"):
+        for resource in ("storage_object", "patient_pii", "notification", "consent",
+                         "prescription"):
             self.assertIn(resource, perm.MATRIX, resource)
 
 

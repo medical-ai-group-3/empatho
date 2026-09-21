@@ -426,3 +426,64 @@ class DiscordanceDisposeView(AuditMixin, viewsets.ViewSet):
         flag = models.DiscordanceFlag.objects.get(pk=pk)
         out = serializers.DiscordanceFlagSerializer(flag)
         return Response(out.data)
+
+
+class PrescriptionViewSet(AuditMixin, viewsets.ViewSet):
+    """POST/GET /patients/{id}/prescriptions — 유방외과 처방.
+
+    매트릭스의 prescription 행(SURGERY: CR, RECEPTION: R)이 그대로 갈라
+    준다 — 생성은 유방외과만, 조회는 유방외과 + 원무(서류 발급 화면)다.
+    MatrixPermission 하나로 충분해서 별도 IsRole 을 안 쓴다.
+    """
+
+    resource = "prescription"
+    permission_classes = [MatrixPermission]
+
+    def _get_patient(self, pk):
+        try:
+            return models.Patient.objects.get(pk=pk)
+        except models.Patient.DoesNotExist:
+            raise ApiError("NOT_FOUND")
+
+    def list(self, request, pk=None):
+        patient = self._get_patient(pk)
+        qs = patient.prescriptions.order_by("-prescribed_at", "-created_at")
+        out = serializers.PrescriptionSerializer(qs, many=True)
+        return Response(out.data)
+
+    def create(self, request, pk=None):
+        patient = self._get_patient(pk)
+        serializer = serializers.PrescriptionCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        exam_order = None
+        report = None
+        if data.get("exam_order_id") is not None:
+            try:
+                exam_order = models.ExamOrder.objects.get(pk=data["exam_order_id"])
+            except models.ExamOrder.DoesNotExist:
+                raise ApiError("VALIDATION_ERROR", "존재하지 않는 검사 오더입니다.")
+            if exam_order.patient_id != patient.pk:
+                raise ApiError("VALIDATION_ERROR", "다른 환자의 검사 오더입니다.")
+        else:
+            try:
+                report = models.Report.objects.get(pk=data["report_id"])
+            except models.Report.DoesNotExist:
+                raise ApiError("VALIDATION_ERROR", "존재하지 않는 리포트입니다.")
+            if report.patient_id != patient.pk:
+                raise ApiError("VALIDATION_ERROR", "다른 환자의 리포트입니다.")
+
+        account = self._current_account()
+        prescription = models.Prescription.objects.create(
+            patient=patient,
+            exam_order=exam_order,
+            report=report,
+            content=data.get("content"),
+            prescribed_by=account,
+            prescribed_at=timezone.now(),
+            created_by=account,
+            updated_by=account,
+        )
+        out = serializers.PrescriptionSerializer(prescription)
+        return Response(out.data, status=status.HTTP_201_CREATED)

@@ -151,6 +151,13 @@ urlpatterns = [
         name="assessment-decision",
     ),
     path("patients/<int:pk>/timeline", views.PatientTimelineView.as_view({"get": "retrieve"}), name="patient-timeline"),
+    # 09-21 추가 — 유방외과 처방. 생성은 유방외과만, 조회는 유방외과+원무
+    # (views/surgery.py 의 PrescriptionViewSet 참고).
+    path(
+        "patients/<int:pk>/prescriptions",
+        views.PrescriptionViewSet.as_view({"get": "list", "post": "create"}),
+        name="patient-prescriptions",
+    ),
     path("reports/<int:pk>/explain", views.ReportExplainView.as_view({"patch": "partial_update"}), name="report-explain"),
     path("reports/<int:pk>/unlock-status", views.ReportUnlockStatusView.as_view({"get": "retrieve"}), name="report-unlock-status"),
     path("reports/<int:pk>/unlock", views.ReportUnlockView.as_view({"patch": "partial_update"}), name="report-unlock"),

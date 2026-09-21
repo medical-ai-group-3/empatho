@@ -56,7 +56,9 @@ from .surgery import (
     SurgeryDecisionSerializer,
     ReportExplainSerializer,
     SpecimenBindSerializer,
-    DiscordanceDisposeSerializer
+    DiscordanceDisposeSerializer,
+    PrescriptionSerializer,
+    PrescriptionCreateSerializer,
 )
 from .pathology import(
     SpecimenDraftSerializer,

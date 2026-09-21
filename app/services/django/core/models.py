@@ -908,6 +908,44 @@ class Report(AuditBase):
         ]
 
 
+class Prescription(AuditBase):
+    """유방외과 처방 1건.
+
+    ⚠ v10 신설 — DB_스키마_v10_20260908.docx 에 없던 표다. 처방 API가
+    아직 없어 화면이 임시 상태였던 것을 메우려고 09-21 추가했다. 팀 확인
+    대상 — 문서에 반영 요청할 것 (§15 의 「prescription 표가 없다」 메모와
+    같은 자리).
+
+    exam_order 또는 report 중 **정확히 하나**에 매달린다 — StorageObject의
+    owner 제약(study/specimen/report 중 하나)과 같은 자리다. 검사(오더)
+    시점에 바로 처방할 수도, 확정 리포트를 보고 처방할 수도 있어 둘 다
+    열어 두되 동시에 채우거나 둘 다 비우는 것은 막는다.
+    """
+
+    prescription_id = models.BigAutoField(primary_key=True)
+    patient = models.ForeignKey(Patient, models.PROTECT, related_name='prescriptions')
+    exam_order = models.ForeignKey(ExamOrder, models.PROTECT, blank=True, null=True,
+                                   related_name='prescriptions')
+    report = models.ForeignKey('Report', models.PROTECT, blank=True, null=True,
+                               related_name='prescriptions')
+    # 약품명 · 용법 등. 항목 수가 처방마다 달라 고정 칼럼으로 못 쪼갠다 —
+    # Report.content_json 과 같은 사정이다.
+    content = models.JSONField(blank=True, null=True)
+    prescribed_by = models.ForeignKey('Account', models.PROTECT, blank=True, null=True,
+                                      related_name='+', db_column='prescribed_by')
+    prescribed_at = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        db_table = 'prescription'
+        verbose_name = "처방"
+        verbose_name_plural = "처방"
+        constraints = [
+            models.CheckConstraint(
+                condition=Exact(NumNonNulls('exam_order', 'report'), 1),
+                name='prescription_owner_ck'),
+        ]
+
+
 class Notification(AuditBase):
     """알림 발송 · 확인 이력. 환자 또는 의료진 하나가 수신자."""
 

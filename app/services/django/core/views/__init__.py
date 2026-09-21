@@ -57,6 +57,7 @@ from .surgery import (
     SpecimenUploadListView,
     DiscordanceListView,
     DiscordanceDisposeView,
+    PrescriptionViewSet,
 )
 from .pathology import(
     SpecimenQueueView,

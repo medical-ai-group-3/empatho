@@ -112,3 +112,30 @@ class DiscordanceDisposeSerializer(serializers.Serializer):
         if not value.strip():
             raise serializers.ValidationError("처분 사유는 필수입니다.")
         return value
+
+
+class PrescriptionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.Prescription
+        exclude = AUDIT_FIELDS
+
+
+class PrescriptionCreateSerializer(serializers.Serializer):
+    """POST /patients/{id}/prescriptions — 처방 생성.
+
+    exam_order_id · report_id 중 **정확히 하나**만 받는다 — Prescription
+    의 owner CHECK(exam_order/report 중 하나)과 짝이다. 어느 환자 것인지는
+    URL 의 patient pk 로 이미 정해지므로 여기서는 안 받는다 — 뷰가 그
+    오더/리포트가 실제로 이 환자 것인지 대조한다."""
+
+    exam_order_id = serializers.IntegerField(required=False)
+    report_id = serializers.IntegerField(required=False)
+    content = serializers.JSONField(required=False)
+
+    def validate(self, attrs):
+        has_order = attrs.get("exam_order_id") is not None
+        has_report = attrs.get("report_id") is not None
+        if has_order == has_report:
+            raise serializers.ValidationError(
+                "exam_order_id 또는 report_id 중 하나만 지정해야 합니다.")
+        return attrs
