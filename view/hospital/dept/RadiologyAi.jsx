@@ -214,17 +214,13 @@ function Mri({ a }) {
         <section className="ai-card" key={l.id ?? i}>
           <div className="ai-h"><b>병변 {i + 1}</b></div>
           <dl className="ai-m two">
-            <div><dt>부피</dt><dd>{num(l.volume_mm3)} <i>mm³</i></dd></div>
+            <div><dt>부피</dt><dd>{num(l.volume_cm3)} <i>cm³</i></dd></div>
             <div><dt>최대 직경</dt><dd>{num(l.max_diameter_mm)} <i>mm</i></dd></div>
             <div><dt>유두 거리</dt><dd>{num(l.nipple_distance_mm)} <i>mm</i></dd></div>
             <div><dt>사분면</dt><dd>{l.quadrant ?? "—"}</dd></div>
           </dl>
-          <p className="muted small">중심좌표 {fmtXyz(l.centroid)}</p>
-          {/* ⚠ MRI 는 3D 메시라 2D 뷰어에 얹지 않는다 — 얹을 도형이
-              없어서 「영상에서 보기」가 가리킬 자리가 없다. 맘모·초음파와
-              달리 여기만 그렇다는 것을 글로 적어 둔다 */}
           <p className="muted small">
-            2D 뷰어에는 표시되지 않습니다 — 3D 메시라 Garage 에서 봅니다.
+            현재 분석 결과에는 2D 단면 좌표가 없어 위치 표시는 제공하지 않습니다.
           </p>
         </section>
       ))}
@@ -246,6 +242,10 @@ function num(n, digits = 1) {
  *   쪽이 어느 것인지 고르게 했다. */
 function pct(n, digits = 0) {
   if (n == null) return "—";
+  /* 초음파 서버의 등급·마스크 신뢰도는 현재 '높음'·'보통' 같은
+     서술값으로 온다. 숫자 확신도로 가정해 곱하면 NaN%가 되므로 그대로
+     보여 준다. 숫자(0~1)만 백분율로 바꾼다. */
+  if (typeof n !== "number") return String(n);
   return `${(n * 100).toFixed(digits)}%`;
 }
 
@@ -253,9 +253,4 @@ function pct(n, digits = 0) {
 function pctOf(n, digits = 0) {
   if (n == null) return "—";
   return `${Number(n).toFixed(digits)}%`;
-}
-
-function fmtXyz(c) {
-  if (!c) return "—";
-  return `(${c.x}, ${c.y}, ${c.z})`;
 }

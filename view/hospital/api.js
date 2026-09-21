@@ -544,14 +544,49 @@ function radSeries(files = []) {
 
 function radAi(raw, modality) {
   if (!raw) return null;
-  const result = raw.result && typeof raw.result === "object" ? raw.result : raw;
+  /* AiResult.result 는 추론 서버의 응답 봉투다.
+     { result: { ...실제 판독값 } } 형태를 한 겹만 벗기면 봉투를 AI
+     소견 컴포넌트에 넘기게 되고, summary·lesions·lesion_found가 전부
+     undefined라 분석이 끝나도 화면이 비어 보인다. 실데이터와 목업 모두
+     받도록 안쪽 판독값까지 안전하게 꺼낸다. */
+  const envelope = raw.result && typeof raw.result === "object" ? raw.result : raw;
+  const result = envelope.result && typeof envelope.result === "object"
+    ? envelope.result
+    : envelope;
+  const shape = result.shape ?? {};
+  const grade = result.grade ?? {};
+  const reliability = result.mask_reliability ?? {};
   return {
     ...result,
-    modality: result.modality ?? modality,
-    abstained: result.abstained ?? raw.abstained,
-    abstain_reason: result.abstain_reason ?? raw.abstain_reason,
-    run_status: raw.run_status ?? result.run_status,
-    ai_result_id: raw.ai_result_id ?? result.ai_result_id,
+    modality: result.modality ?? envelope.modality ?? modality,
+    abstained: result.abstained ?? envelope.abstained ?? raw.abstained,
+    abstain_reason: result.abstain_reason ?? envelope.reason ?? envelope.abstain_reason ?? raw.abstain_reason,
+    run_status: raw.run_status ?? envelope.run_status ?? result.run_status,
+    ai_result_id: raw.ai_result_id ?? envelope.ai_result_id ?? result.ai_result_id,
+
+    /* 초음파 서빙 값은 화면 표기명과 조금 다르다. 원본 키도 보존하면서
+       화면에서 쓰는 별칭을 붙여 두면 AI 소견과 영상 위 윤곽이 함께 나온다. */
+    category: result.category ?? grade.display,
+    category_confidence: result.category_confidence ?? grade.confidence,
+    mask_confidence: result.mask_confidence ?? reliability.level,
+    orientation: result.orientation ?? result.orientation_label,
+    polygon: result.polygon ?? result.polygons,
+    /* MRI는 병변 배열을 tumor 안에 넣어 보낸다. 공통 AI 패널이 같은
+       lesions 칸을 보도록 펼쳐 두되, 좌표가 없는 결과를 2D 오버레이로
+       꾸며 내지는 않는다. */
+    lesions: result.lesions ?? result.tumor?.lesions ?? [],
+    density: result.density && {
+      ...result.density,
+      percent: result.density.percent ?? result.density.dense_density_pct,
+    },
+    shape: {
+      ...shape,
+      area: shape.area ?? shape.area_px,
+      max_diameter: shape.max_diameter ?? shape.max_diameter_px,
+      aspect_ratio: shape.aspect_ratio ?? shape.height_width_ratio,
+      convexity: shape.convexity ?? shape.solidity,
+      roughness: shape.roughness ?? shape.boundary_irregularity,
+    },
   };
 }
 
