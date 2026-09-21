@@ -254,7 +254,15 @@ export const radiology = {
     sub: "촬영본을 올리고 AI 분석을 겁니다. 분석이 끝나야 판독으로 넘어갑니다.",
     infoTitle: "환자 · 검사 정보",
     dropText: "촬영본을 드래그하세요",
-    accept: ".dcm,.zip,image/*,video/*",
+    acceptFor: (d) => {
+      const modality = String(d?.modality ?? d?.unit?.modality ?? "").toLowerCase();
+      /* MG와 MRI는 Orthanc/DICOM 경로를 타야 하므로 이미지 파일을
+         허용하면 저장은 되지만 판독용 시리즈가 만들어지지 않는다. */
+      if (modality === "mammo" || modality === "mg" || modality === "mammography" || modality === "mri") {
+        return ".dcm,.zip,application/dicom,application/zip";
+      }
+      return ".dcm,.zip,image/*,video/*";
+    },
     estimate: "초음파 약 0.4초 · 맘모 약 33.5초(4뷰) · MRI 약 175초. MRI 는 화면 앞에서 기다리지 않아도 됩니다 — 큐로 나갔다 들어와도 진행 상태가 그대로 보입니다.",
     need: {
       view: "radiology.upload.view",
