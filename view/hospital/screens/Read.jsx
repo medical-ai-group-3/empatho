@@ -202,6 +202,7 @@ function Inner({ cfg, id, d }) {
               mask={msk.src} shapes={view.shapes ?? []}
               opacity={mask}
               pick={pick} onPick={setPick}
+              annotationTools={cfg.scopeKind === "study"}
               full={full} onFull={() => setFull((v) => !v)}
             />
           )}

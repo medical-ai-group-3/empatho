@@ -373,6 +373,12 @@ input,select,textarea{font:inherit; color:inherit}
 .vside .field ::placeholder{color:var(--v-warm)}
 .vside .ai-card{background:var(--v-bg); border-color:var(--v-line)}
 .vside .ai-card .ai-m dt,.vside .ai-card .ai-m dd i,.vside .ai-card .ai-m dd em{color:var(--v-warm)}
+.vtool.on{background:var(--v-accent);color:var(--v-ink);border-color:var(--v-accent)}
+.stage-annotations{pointer-events:none}
+.stage-annotation{fill:rgba(116,212,255,.12);stroke:#74d4ff;stroke-width:2}
+.stage-annotation line{stroke:#74d4ff;stroke-width:2}
+.stage-annotation circle{fill:#74d4ff;stroke:none}
+.stage-annotation text{fill:#ffffff;stroke:#171514;stroke-width:3;paint-order:stroke;font-size:15px;font-weight:700}
 
 /* 판독은 한 화면에서 오래 비교하는 작업이므로, 제목과 저장줄을 뺀 세로
    공간을 뷰어·AI 소견·의사 소견 카드가 전부 사용한다. */

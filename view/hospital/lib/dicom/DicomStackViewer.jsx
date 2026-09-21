@@ -30,8 +30,8 @@ const TOOLS = [
   { key: "wl", label: "창값", toolName: "WindowLevel" },
   { key: "pan", label: "이동", toolName: "Pan" },
   { key: "zoom", label: "확대", toolName: "Zoom" },
-  { key: "length", label: "측정", toolName: "Length" },
-  { key: "rect", label: "사각형 ROI", toolName: "RectangleROI" },
+  { key: "length", label: "길이 측정", toolName: "Length" },
+  { key: "rect", label: "박스 그리기", toolName: "RectangleROI" },
   { key: "brush", label: "마스크", toolName: "Brush" },
 ];
 

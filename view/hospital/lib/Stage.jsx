@@ -39,6 +39,7 @@ export default function Stage({
   loading, loadError,
   bright = 100, contrast = 100,   /* 화면 보정 — 창값이 아니다 */
   onFull, full,
+  annotationTools = false,
   mode = "diagnostic",  /* "diagnostic" | "review" — 공통 Viewer 설계
     (2026-09-17). review는 조회만 한다 — 도형을 눌러 고르는 것도
     "판독 보조 조작"이라 막는다. 탐색(맞춤·확대·축소·전체화면)과 마스크
@@ -48,6 +49,9 @@ export default function Stage({
   const boxRef = useRef(null);
   const [t, setT] = useState({ z: 1, x: 0, y: 0 });
   const [drag, setDrag] = useState(null);
+  const [tool, setTool] = useState("pan");
+  const [draftMark, setDraftMark] = useState(null);
+  const [marks, setMarks] = useState([]);
   /* 깨진 «주소»를 담는다 — true/false 가 아니다.
    *
    * ⚠ 참·거짓으로 두면 **한 장이 깨진 판정을 다음 장까지 끌고 간다.**
@@ -117,15 +121,39 @@ export default function Stage({
     });
   }
 
+  function imagePoint(e) {
+    const r = boxRef.current?.getBoundingClientRect();
+    if (!r) return null;
+    return { x: clamp((e.clientX - r.left - t.x) / t.z, 0, w), y: clamp((e.clientY - r.top - t.y) / t.z, 0, h) };
+  }
+
   function down(e) {
     if (e.button !== 0) return;
+    if (annotationTools && tool !== "pan") {
+      const start = imagePoint(e);
+      if (start) setDraftMark({ kind: tool, start, end: start });
+      return;
+    }
     setDrag({ x: e.clientX - t.x, y: e.clientY - t.y });
   }
   function move(e) {
+    if (draftMark) {
+      const end = imagePoint(e);
+      if (end) setDraftMark((mark) => mark && { ...mark, end });
+      return;
+    }
     if (!drag) return;
     setT((p) => ({ ...p, x: e.clientX - drag.x, y: e.clientY - drag.y }));
   }
-  const up = () => setDrag(null);
+  const up = () => {
+    setDrag(null);
+    if (draftMark) {
+      const dx = draftMark.end.x - draftMark.start.x;
+      const dy = draftMark.end.y - draftMark.start.y;
+      if (Math.hypot(dx, dy) > 2) setMarks((items) => [...items, { ...draftMark, id: crypto.randomUUID?.() ?? String(Date.now()) }]);
+      setDraftMark(null);
+    }
+  };
 
   const ready = Boolean(src && w && h);
 
@@ -135,6 +163,11 @@ export default function Stage({
         <button className="vtool" onClick={fit} aria-label="화면에 맞춤" title="화면에 맞춤">⌖</button>
         <button className="vtool" onClick={() => zoom(1)} aria-label="확대" title="확대">＋</button>
         <button className="vtool" onClick={() => zoom(-1)} aria-label="축소" title="축소">－</button>
+        {annotationTools && <>
+          <button className={`vtool ${tool === "pan" ? "on" : ""}`} onClick={() => setTool("pan")} title="이동">이동</button>
+          <button className={`vtool ${tool === "length" ? "on" : ""}`} onClick={() => setTool("length")} title="길이 측정">길이</button>
+          <button className={`vtool ${tool === "rect" ? "on" : ""}`} onClick={() => setTool("rect")} title="박스 그리기">박스</button>
+        </>}
         <span className="vzoom">{Math.round(t.z * 100)}%</span>
         <button className="vtool" onClick={onFull}
                 aria-label={full ? "전체화면 끄기" : "전체화면"}
@@ -189,11 +222,25 @@ export default function Stage({
                 ))}
               </svg>
             )}
+            {annotationTools && (marks.length > 0 || draftMark) && (
+              <svg className="stage-svg stage-annotations" viewBox={`0 0 ${w} ${h}`} width={w} height={h}>
+                {[...marks, ...(draftMark ? [{ ...draftMark, id: "draft" }] : [])].map((mark) => <Annotation key={mark.id} mark={mark} />)}
+              </svg>
+            )}
           </div>
         )}
       </div>
     </div>
   );
+}
+
+function Annotation({ mark }) {
+  const { start, end } = mark;
+  if (mark.kind === "length") {
+    const length = Math.hypot(end.x - start.x, end.y - start.y).toFixed(1);
+    return <g className="stage-annotation"><line x1={start.x} y1={start.y} x2={end.x} y2={end.y} /><circle cx={start.x} cy={start.y} r="4" /><circle cx={end.x} cy={end.y} r="4" /><text x={(start.x + end.x) / 2} y={(start.y + end.y) / 2 - 6}>{length} px</text></g>;
+  }
+  return <rect className="stage-annotation" x={Math.min(start.x, end.x)} y={Math.min(start.y, end.y)} width={Math.abs(end.x - start.x)} height={Math.abs(end.y - start.y)} />;
 }
 
 /* 도형 하나.
