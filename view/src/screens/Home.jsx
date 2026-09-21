@@ -77,7 +77,7 @@ function todayLabel() {
 
 /* 문진 카드에 뭐라고 쓸지. status 는 not_started · in_progress · done 이다. */
 function questLine(q) {
-  if (q.status === "done") return "작성을 마쳤습니다";
+  if (q.status === "done") return "자가검진 작성 완료!";
   if (q.status === "in_progress") return `${q.answered} / ${q.total} 문항 작성`;
   return "아직 작성하지 않았습니다";
 }

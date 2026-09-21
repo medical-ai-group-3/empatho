@@ -2219,7 +2219,7 @@ a {
   font-size: var(--card-v-fs) !important;
   color: var(--ink) !important;
   font-weight: 700;
-  white-space: normal;
+  white-space: pre-line;
   overflow: hidden;
   text-overflow: ellipsis;
 }
