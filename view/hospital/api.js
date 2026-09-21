@@ -666,9 +666,18 @@ function radRead(raw = {}, upload = {}, order = {}) {
   /* read 응답이 images: []를 포함해도 실제 업로드 파일은 upload
      응답(storage_objects/files)에 있을 수 있다. 빈 배열을 우선하면
      업로드가 성공한 검사도 판독 화면에서 원본 없음으로 표시된다. */
-  const rawImages = Array.isArray(raw.images) ? raw.images : [];
-  const uploadFiles = Array.isArray(upload.files) ? upload.files : [];
-  const files = (rawImages.length > 0 ? rawImages : uploadFiles).map(radFile);
+  const rawImages = Array.isArray(raw.images) ? raw.images.map(radFile) : [];
+  const uploadFiles = Array.isArray(upload.files) ? upload.files.map(radFile) : [];
+  /* 업로드 응답에는 저장소 object_key가, read 응답에는 DICOM 메타데이터가
+     각각 따로 올 수 있다. 같은 순번의 정보를 합쳐 실제로 내려받을 수
+     있는 key/sop를 모두 보존한다. */
+  const files = uploadFiles.length
+    ? uploadFiles.map((file, i) => ({
+        ...(rawImages[i] ?? {}),
+        ...file,
+        image: file.image ?? rawImages[i]?.image ?? null,
+      }))
+    : rawImages;
   const current = raw.current_assessment ?? null;
   return {
     ...raw,
