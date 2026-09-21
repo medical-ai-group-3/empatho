@@ -48,3 +48,9 @@ public/dicom/
 public/mesh/
 public/models/
 public/samples/
+
+# 설계 원본 PDF — 10.5MB 다. **저장소에 올리지 않는다.**
+# 한 번 올라가면 히스토리에 박혀 못 뺀다(clone 마다 따라다닌다).
+# 같은 화면의 목업 HTML 일곱 개(docs/mockup/, 220KB)는 올린다 —
+# 앞으로 계속 읽을 기준이고 텍스트라 diff 도 된다.
+docs/*.pdf

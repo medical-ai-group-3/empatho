@@ -9,7 +9,9 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "dev:mock": "vite --mode mock",
-    "dev:hos": "vite --mode mock --open /hospital"
+    "dev:hos": "vite --mode mock --open /hospital",
+    "check": "node scripts/check-names.mjs && node scripts/check-screens.mjs",
+    "check:names": "node scripts/check-names.mjs"
   },
   "dependencies": {
     "@cornerstonejs/core": "^5.10.4",
