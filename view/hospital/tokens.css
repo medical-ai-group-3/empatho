@@ -515,6 +515,8 @@
   --resv-state-w: calc(30px * var(--sp));   /* 지난 예약의 상태 칸 */
   --resv-label-w: calc(36px * var(--sp));   /* 「날짜」 「시간」 */
 
+  --up-side:      360px;                    /* 업로드 오른쪽 — 품질·분석 */
+
   /* 4.4 히스토리 레일 — 판독 화면 왼쪽. 날짜만 크게 */
   --prail-w:      200px;
   --prail-d-fs:   calc(13px * var(--ft));

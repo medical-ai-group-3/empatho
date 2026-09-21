@@ -1227,7 +1227,10 @@
     }
    }
   ],
-  "ai": null
+  "ai": null,
+  "study": {
+   "exam_order": "eo-w1"
+  }
  },
  "GET /api/v1/hospital/studies/{id}/": {
   "id": "st-301",

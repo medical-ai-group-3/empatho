@@ -712,6 +712,15 @@ a.frow:hover .frow-k{color:var(--ink)}
 .nside-row b{font-size:var(--srow-fs); font-weight:600; color:var(--ink);
   white-space:nowrap}
 
+/* ── 촬영 업로드 (screens/Upload.jsx) ────────────────────────
+   배치는 docs/mockup/RadiologyUpload.html — 두 단.
+   왼쪽이 「올리는 일」, 오른쪽이 「넘기는 일」 */
+.up-cols{display:grid; gap:var(--desk-gap); align-items:start;
+  grid-template-columns:minmax(0, 1.5fr) var(--up-side)}
+.up-col{display:flex; flex-direction:column; gap:var(--desk-gap); min-width:0}
+.up-col > .card{margin-top:0}
+@media (max-width:1100px){.up-cols{grid-template-columns:1fr}}
+
 /* ── 4.4 히스토리 레일 (screens/Read.jsx) ────────────────────
    **판독은 이전과 견주는 일이다.** 왼쪽에 지난 기록, 가운데 뷰어,
    오른쪽에 쓰는 칸. 색을 안 쓴다 — 날짜만 진하고 나머지는 흐리다 */
