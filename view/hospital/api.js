@@ -432,7 +432,25 @@ export const path = {
   specimen:   (id)     => get(`/specimens/${id}/`).then(pathSpecimenRow),
   assign:     (id)     => patch(`/specimens/${id}/assign`),
 
-  uploadInfo: (id)     => get(`/specimens/${id}/upload`),
+  /* 업로드 화면은 파일 목록 응답만으로는 환자·검체 정보를 채울 수
+     없다. 영상 업로드 화면처럼 상세 응답과 업로드 응답을 합쳐서
+     공통 Upload.jsx 가 기대하는 {files, patient_name, ...} 모양으로
+     정규화한다. 기존에는 upload 응답의 specimen_id/uploads 만 그대로
+     넘겨 환자 정보가 undefined 로 보이고, 파일 목록도 화면 계약과
+     어긋났다. */
+  uploadInfo: async (id) => {
+    const [specimen, raw] = await Promise.all([
+      get(`/specimens/${id}/`).then(pathSpecimenRow),
+      get(`/specimens/${id}/upload`),
+    ]);
+    const uploads = raw?.uploads ?? raw?.files ?? [];
+    return {
+      ...raw,
+      ...specimen,
+      files: uploads.map(pathFile),
+      specimen_id: specimen.id,
+    };
+  },
   ticket:     (b)      => post("/tickets", b),   /* lib/files.js 가 쓴다 */
   analyze:    (id)     => post(`/specimens/${id}/ai-results`),
   progress:   (id)     => get(`/ai-results${qs({ specimen: id })}`),
