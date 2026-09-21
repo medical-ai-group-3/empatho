@@ -41,7 +41,7 @@ const WEEK = ["일", "월", "화", "수", "목", "금", "토"];
    여기가 저절로 이름으로 바뀐다 */
 const who = (r) => r.patient_name || `#${r.patient}`;
 
-export default function Calendar({ onOpenDate }) {
+export default function Calendar({ onOpenDate, compact = false, className = "" }) {
   const now = new Date();
   const [ym, setYm] = useState({ y: now.getFullYear(), m: now.getMonth() + 1 });
   /* 고른 날 — **강조만 한다.** 한 번 클릭으로는 아무 데도 안 간다.
@@ -85,7 +85,8 @@ export default function Calendar({ onOpenDate }) {
 
   return (
     <Card
-      title="예약 캘린더"
+      title={compact ? "캘린더" : "예약 캘린더"}
+      className={`reservation-calendar${compact ? " compact" : ""} ${className}`}
       right={
         <div className="cal-nav">
           <button className="cal-mv" onClick={() => move(-1)} aria-label="이전 달">‹</button>
@@ -98,14 +99,15 @@ export default function Calendar({ onOpenDate }) {
       <Body loading={list.loading} error={list.error} onRetry={list.reload}>
         {list.data && (
           <>
-            <div className="cal">
+            <div className={`cal${compact ? " cal-compact" : ""}`}>
               <Grid ym={ym} last={last} byDay={byDay} today={key(now.getFullYear(), now.getMonth() + 1, now.getDate())}
                     pickDay={pickDay} onPickDay={setPickDay} onOpenDate={onOpenDate} />
-              <Tree ym={ym} byDay={byDay} total={total}
-                    pickDay={pickDay} onPickDay={setPickDay} onOpenDate={onOpenDate} />
+              {!compact && <Tree ym={ym} byDay={byDay} total={total}
+                pickDay={pickDay} onPickDay={setPickDay} onOpenDate={onOpenDate} />}
             </div>
-            <p className="hint">
-              날짜를 <b>더블클릭</b>하면 예약 화면으로 넘어갑니다. 여기서는 예약을 만들거나 고치지 않습니다.
+            <p className="hint">{compact
+              ? "예약이 있는 날짜를 표시합니다. 날짜를 더블클릭하면 예약 화면으로 이동합니다."
+              : <>날짜를 <b>더블클릭</b>하면 예약 화면으로 넘어갑니다. 여기서는 예약을 만들거나 고치지 않습니다.</>}
             </p>
             {list.data.some((r) => !r.patient_name) && (
               <Warn>서버가 이름을 주지 않는 예약은 환자 번호로 표시합니다.</Warn>

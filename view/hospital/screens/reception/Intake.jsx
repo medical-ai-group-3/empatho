@@ -153,8 +153,8 @@ export default function Intake({ integrated = false, embedded = false }) {
         ? "환자를 확인해 접수하고, 내원 환자에서 간호 확인 후 유방외과로 전달합니다."
         : "환자를 찾아 접수합니다. 검사 종류는 정하지 않습니다."}
     >
-      <div className="split">
-        <div className="split-l">
+      <div className={integrated ? "reception-top-grid" : "split"}>
+        <div className={integrated ? "reception-top-intake" : "split-l"}>
           <Card
             title="접수"
             className="reception-intake-card"
@@ -199,13 +199,18 @@ export default function Intake({ integrated = false, embedded = false }) {
           </Card>
         </div>
 
-        <div className="split-r">
+        <div className={integrated ? "reception-top-monitor" : "split-r"}>
           <Card className="reception-monitor-card" title="방문 환자 모니터링" right={<Chip>30초마다</Chip>}>
             <Body loading={today.loading} error={today.error} onRetry={today.reload}>
               {today.data && <Monitor rows={today.data} />}
             </Body>
           </Card>
         </div>
+
+        {integrated && (
+          <Calendar compact onOpenDate={(date) =>
+            navigate(`${go.nursing.patients()}?date=${date}`)} />
+        )}
       </div>
 
       {!integrated && !embedded && <>
