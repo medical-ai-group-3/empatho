@@ -3,6 +3,7 @@
 from rest_framework import viewsets, status, generics
 from rest_framework.response import Response
 
+from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 
@@ -474,16 +475,42 @@ class PrescriptionViewSet(AuditMixin, viewsets.ViewSet):
             if report.patient_id != patient.pk:
                 raise ApiError("VALIDATION_ERROR", "다른 환자의 리포트입니다.")
 
+        # content 안의 약을 **행으로도 펼 수 있는지** 먼저 본다. 통과하지
+        # 못하면 처방 자체를 거절한다 — 행이 안 생기면 환자 앱에 회차를 걸
+        # 열쇠가 없어(medication_log 가 약을 가리킨다) 약이 보여도
+        # 「먹었다」를 못 누른다. 약이 없는 content 는 그대로 통과한다.
+        rows = serializers.drug_rows(data.get("content"))
+
         account = self._current_account()
-        prescription = models.Prescription.objects.create(
-            patient=patient,
-            exam_order=exam_order,
-            report=report,
-            content=data.get("content"),
-            prescribed_by=account,
-            prescribed_at=timezone.now(),
-            created_by=account,
-            updated_by=account,
-        )
+        # 처방과 약을 한 덩어리로 넣는다. 중간에 터져서 약 행 없는 처방이
+        # 남으면 환자 화면에 빈 카드가 뜬다.
+        with transaction.atomic():
+            prescription = models.Prescription.objects.create(
+                patient=patient,
+                exam_order=exam_order,
+                report=report,
+                content=data.get("content"),
+                prescribed_by=account,
+                prescribed_at=timezone.now(),
+                created_by=account,
+                updated_by=account,
+            )
+            # content 는 의사가 보낸 것 **그대로의 원본**으로 남는다. 아래
+            # 행은 그것을 지우는 것이 아니라, 환자 앱이 회차를 걸 수 있게
+            # 같은 내용을 열쇠 있는 모양으로 한 벌 더 펴 두는 것이다.
+            # 자세한 것은 core/models.py 의 PrescriptionDrug 머리말 참고.
+            models.PrescriptionDrug.objects.bulk_create([
+                models.PrescriptionDrug(
+                    prescription=prescription,
+                    name=row["name"],
+                    ingredient=row.get("ingredient") or None,
+                    dose=row["dose"],
+                    times=row["times"],
+                    days=row["days"],
+                    purpose=row.get("purpose") or None,
+                    how=row.get("how") or None,
+                    watch=row.get("watch") or None,
+                ) for row in rows])
+
         out = serializers.PrescriptionSerializer(prescription)
         return Response(out.data, status=status.HTTP_201_CREATED)

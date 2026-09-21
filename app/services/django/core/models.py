@@ -949,6 +949,112 @@ class Prescription(AuditBase):
         ]
 
 
+# ── 처방 약 · 복약 기록 ───────────────────────────────────────────────────
+#
+# 위 Prescription(09-21 다희님)에 **매달리는** 두 표다. 그쪽을 고치지 않는다 —
+# content(jsonb)도 exam_order/report owner CHECK 도 그대로 둔다.
+#
+# ── 왜 content 만으로는 안 되나 ─────────────────────────────────────
+#
+# 환자 앱의 복약 관리가 「먹었다」를 적는다. 그 기록이 약 한 줄을 가리켜야
+# 하는데 **jsonb 안의 배열에는 가리킬 열쇠가 없다.** 순서로 가리키면 의사가
+# 약을 하나 지우는 순간 지난 기록이 전부 다른 약을 가리킨다.
+#
+# 그래서 content 를 없애지 않고, 저장할 때 그 안의 drugs 를 행으로도 편다
+# (core/views/surgery.py 의 PrescriptionViewSet.create). content 는 의사가
+# 보낸 것 그대로의 원본이고, 아래 표는 환자 앱이 회차를 걸 수 있는 열쇠다.
+#
+# ── 환자에게 언제 보이나 ────────────────────────────────────────────
+#
+# ⚠ **저장하는 즉시 보인다.** 리포트의 lock_status 를 따르지 않는다
+#   (2026-09-21 팀 결정). 약은 오늘부터 먹어야 하는 것이라 대면 설명
+#   날짜까지 묶어 두면 복약이 그만큼 늦어진다.
+#
+#   잠금이 막으려던 것은 「설명 전에 환자가 결과를 먼저 읽는 것」인데 처방에는
+#   소견이 실리지 않으므로 그 취지도 깨지지 않는다. 그래서 **purpose · how ·
+#   watch 에 소견 문장을 적지 말 것** — 적는 순간 잠금 우회로가 된다.
+
+class PrescriptionDrug(models.Model):
+    """처방 안의 약 한 줄.
+
+    ⚠ AuditBase 를 안 쓴다. Prescription 이 감사 칸을 들고 있고, 약은 그것과
+      **함께 생겼다 함께 사라지는** 종속물이다. 약마다 created_by 를 또 두면
+      처방의 것과 다를 수 있는 것처럼 보인다 — 그런 경로는 없다.
+    """
+
+    drug_id = models.BigAutoField(primary_key=True)
+    prescription = models.ForeignKey(Prescription, models.CASCADE, related_name='drugs')
+    name = models.CharField(max_length=200)
+    # 성분명. 같은 성분의 다른 제품으로 바뀌었을 때 환자가 알아보게 한다.
+    ingredient = models.CharField(max_length=200, blank=True, null=True)
+    dose = models.CharField(max_length=50)              # 1회 복용량 — "1정"
+    # 하루 중 언제 먹나. ["09:00", "19:00"] 다.
+    #
+    # ⚠ 개수(per_day)를 따로 두지 않는다. times 의 길이가 곧 그것이라
+    #   두 칸을 두면 어긋날 수 있고, 어긋나면 어느 쪽이 맞는지 아무도 모른다.
+    times = models.JSONField(default=list)
+    # 이 약을 며칠 먹나. **약마다 다르다** (2026-09-21 팀 결정) — 한 장 안에
+    # 3일치 진통제와 30일치 호르몬제가 같이 나온다. 그래서 Prescription 이
+    # 아니라 여기 있다.
+    days = models.IntegerField()
+    purpose = models.CharField(max_length=250, blank=True, null=True)   # 무엇에 쓰나요
+    how = models.TextField(blank=True, null=True)                       # 어떻게 드시나요
+    watch = models.TextField(blank=True, null=True)                     # 이럴 땐 알려 주세요
+
+    class Meta:
+        db_table = 'prescription_drug'
+        verbose_name = "처방 약"
+        verbose_name_plural = "처방 약"
+        constraints = [
+            models.CheckConstraint(condition=Q(days__gte=1),
+                                   name='prescription_drug_days_ck'),
+        ]
+
+    def __str__(self):
+        return "%s %s" % (self.name, self.dose)
+
+
+class MedicationLog(models.Model):
+    """「먹었다」 한 번.
+
+    ── 시각을 둘로 나눠 둔다 ───────────────────────────────────────
+    slot_time   어느 회차인가 ("09:00"). 앱이 보낸다.
+    taken_at    실제로 누른 때. **서버가 찍는다.**
+
+    ⚠ 앱이 보낸 시각을 taken_at 에 넣지 않는다. 기기 시계가 틀어진 만큼
+      기록이 어긋나는데, 나중에 「언제 드셨나요」를 되짚을 때 그것이 유일한
+      근거다.
+
+    ⚠ 환자가 잘못 눌렀을 때는 **행을 지운다**(DELETE .../log/{id}).
+      취소 표시를 남기지 않는 이유는 그것이 자료가 아니라 오타이기 때문이다.
+    """
+
+    log_id = models.BigAutoField(primary_key=True)
+    drug = models.ForeignKey(PrescriptionDrug, models.CASCADE, related_name='logs')
+    # 약에서 처방을 거쳐 환자로 갈 수 있지만, 조회가 늘 환자에서 시작해서
+    # 두 번 건너야 한다. 자주 도는 길이라 여기 둔다.
+    patient = models.ForeignKey(Patient, models.PROTECT, related_name='medication_logs')
+    slot_time = models.CharField(max_length=5)          # "09:00"
+    taken_at = models.DateTimeField(auto_now_add=True)
+    # 어느 날의 회차인가. taken_at 에서 뽑을 수도 있지만 자정 직전에 누른
+    # 「저녁 약」이 다음 날로 넘어가면 안 된다 — 앱이 보는 날짜를 그대로 둔다.
+    taken_on = models.DateField()
+
+    class Meta:
+        db_table = 'medication_log'
+        verbose_name = "복약 기록"
+        verbose_name_plural = "복약 기록"
+        constraints = [
+            # 같은 날 같은 회차를 두 번 적지 않는다. 화면이 낙관적으로
+            # 채우는 자리라 두 번 눌리는 일이 실제로 난다.
+            models.UniqueConstraint(fields=['drug', 'taken_on', 'slot_time'],
+                                    name='medication_log_slot_uq'),
+        ]
+
+    def __str__(self):
+        return "%s %s %s" % (self.drug_id, self.taken_on, self.slot_time)
+
+
 class Notification(AuditBase):
     """알림 발송 · 확인 이력. 환자 또는 의료진 하나가 수신자."""
 

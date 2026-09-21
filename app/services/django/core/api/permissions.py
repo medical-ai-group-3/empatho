@@ -161,9 +161,21 @@ MATRIX = {
     # 만든다. 원무는 서류 발급 화면에서 조회만 한다 — §11 리포트 발급과
     # 같은 결이라 report 행의 RECEPTION: _r("C", note="발급만") 과 짝지어
     # 읽으면 된다(그쪽은 발급, 이쪽은 조회).
+    # 09-21 — PATIENT 를 NONE 에서 R(own_only)로 연다. 환자 앱 복약 관리가
+    # /me/prescriptions 로 자기 처방을 읽어야 한다. R 뿐이다 — 「먹었다」를
+    # 적는 것은 아래 medication_log 행이고, 둘을 나눈 이유가 그것이다.
+    # 한 행으로 두면 환자에게 C 를 줘야 하고 그러면 처방 자체를 만들 길이 열린다.
     "prescription": {
         RECEPTION: _r("R", note="서류 발급 화면 조회"), NURSING: NONE, RADIOLOGY: NONE,
-        PATHOLOGY: NONE, SURGERY: _r("CR"), PATIENT: NONE,
+        PATHOLOGY: NONE, SURGERY: _r("CR"),
+        PATIENT: _r("R", own_only=True, note="/me/prescriptions"),
+    },
+    # 09-21 신설. 환자가 유일하게 쓰는 임상 자료다. C 와 D 만 준다 —
+    # U 가 없는 이유는 고칠 것이 없기 때문이다. 잘못 눌렀으면 지운다.
+    "medication_log": {
+        RECEPTION: NONE, NURSING: _r("R"), RADIOLOGY: NONE,
+        PATHOLOGY: NONE, SURGERY: _r("R"),
+        PATIENT: _r("CRD", own_only=True),
     },
 }
 

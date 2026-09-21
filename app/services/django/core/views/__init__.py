@@ -76,3 +76,7 @@ from .storage import (
 from .personal_note import (
     PersonalNoteViewSet,
 )
+from .prescription import (
+    MyPrescriptionView,
+    MedicationLogView,
+)

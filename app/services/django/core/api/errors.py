@@ -97,6 +97,9 @@ INFRA_ERRORS = [
     # 명세 §1-4 25개엔 없어 여기 둔다.
     _spec("FINALIZE_ROLE_ONLY_RADIOLOGY", 403, "판독 확정 · 임시저장 · 정정은 영상의학과만 할 수 있습니다."),
     _spec("FINALIZE_ROLE_ONLY_PATHOLOGY", 403, "확진 확정 · 임시저장 · 정정은 병리과만 할 수 있습니다."),
+    # 09-21 복약 기록(POST /me/medications/{id}/log). 같은 회차를 두 번 적으려
+    # 할 때 — 화면이 낙관적으로 채우는 자리라 두 번 눌리는 일이 실제로 난다.
+    _spec("MEDICATION_ALREADY_LOGGED", 409, "이미 복용하신 것으로 기록되어 있습니다."),
     # 09-21 환자 앱 약 정보 찾기(GET /drugs). 바깥 공공데이터(식약처 e약은요)를
     # 부르는 유일한 자리다 — UPSTREAM_LLM_UNAVAILABLE 과 나눠 둔다. 둘을 한
     # 코드로 묶으면 화면이 「어느 쪽이 죽었나」를 말할 수 없다.

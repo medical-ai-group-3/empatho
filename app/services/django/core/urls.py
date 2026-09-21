@@ -183,6 +183,20 @@ urlpatterns = [
     path("exam-orders/<int:pk>/assign", views.ExamOrderAssignView.as_view({"patch": "partial_update"}), name="exam-order-assign"),
     path("me", views.MeView.as_view({"get": "list"}), name="me"),
     path("me/push-token", views.PushTokenView.as_view({"patch": "partial_update"}), name="me-push-token"),
+
+    # ── 환자 앱 복약 관리 ───────────────────────────────────────────────
+    # 의사 쪽(patients/{id}/prescriptions)은 위에 이미 있다. 여기는 그것이
+    # 남긴 것을 환자가 보고 「먹었다」를 적는 자리다.
+    # core/views/prescription.py 참고.
+    path("me/prescriptions",
+         views.MyPrescriptionView.as_view({"get": "list"}),
+         name="me-prescriptions"),
+    path("me/medications/<int:drug_id>/log",
+         views.MedicationLogView.as_view({"post": "create"}),
+         name="me-medication-log"),
+    path("me/medications/<int:drug_id>/log/<int:log_id>",
+         views.MedicationLogView.as_view({"delete": "destroy"}),
+         name="me-medication-log-undo"),
     # 09-21 추가 — todo · 스티키 메모 공용(views/personal_note.py 참고).
     # 본인 것만 본다. 매트릭스 밖이라 부서 표에 안 올린다.
     path(

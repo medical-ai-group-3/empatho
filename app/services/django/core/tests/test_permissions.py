@@ -43,6 +43,40 @@ class MatrixTests(SimpleTestCase):
                          "prescription"):
             self.assertIn(resource, perm.MATRIX, resource)
 
+    def test_복약_기록_행이_있다(self):
+        # 09-21 환자 앱 복약 관리. prescription 과 나눠 둔 행이다.
+        self.assertIn("medication_log", perm.MATRIX)
+
+
+class MedicationTests(SimpleTestCase):
+    """처방은 유방외과가 쓰고 환자는 읽기만, 복약 기록은 환자만 쓴다."""
+
+    def test_환자는_처방을_읽기만_한다(self):
+        rule = perm.MATRIX["prescription"][perm.PATIENT]
+        self.assertEqual(set(rule.actions), {"R"})
+        # 남의 처방이 보이면 안 된다.
+        self.assertTrue(rule.own_only)
+
+    def test_처방을_만드는_것은_유방외과뿐이다(self):
+        for role, rule in perm.MATRIX["prescription"].items():
+            if role == perm.SURGERY:
+                self.assertIn("C", rule.actions)
+            else:
+                self.assertNotIn("C", rule.actions, role)
+
+    def test_복약_기록은_환자가_쓰고_지운다(self):
+        rule = perm.MATRIX["medication_log"][perm.PATIENT]
+        # U 는 없다 — 잘못 눌렀으면 고치는 게 아니라 지운다.
+        self.assertEqual(set(rule.actions), {"C", "R", "D"})
+        self.assertTrue(rule.own_only)
+
+    def test_의료진은_복약_기록을_쓰지_못한다(self):
+        for role, rule in perm.MATRIX["medication_log"].items():
+            if role == perm.PATIENT:
+                continue
+            self.assertNotIn("C", rule.actions, role)
+            self.assertNotIn("D", rule.actions, role)
+
 
 class V10ScreenTests(SimpleTestCase):
     """v10 에서 컬럼이 신설되거나 표가 흡수되며 §15 가 못 따라간 U 권한.
