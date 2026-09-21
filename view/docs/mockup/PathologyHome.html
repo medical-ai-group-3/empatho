@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>병리과 · 홈</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:'IBM Plex Sans KR',system-ui,sans-serif;background:#f5f4f2;color:#0c0a09}
+a{color:#1d6fa8}a:hover{color:#155a8a}
+header a:hover{color:#fafaf9}
+button,input,select,textarea{font-family:inherit}
+:focus-visible{outline:2px solid #3ba6f1;outline-offset:2px}
+.ep-primary:hover{background:#155a8a !important}
+.ep-q{transition:background-color .12s ease}
+.ep-q:hover{background:#fafaf9}
+</style>
+</helmet>
+<div onPointerMove="{{memoMove}}" onPointerUp="{{memoUp}}" style="width: 1440px; height: 900px; display: flex; flex-direction: column; background: #f5f4f2; overflow: hidden; position: relative;">
+
+  <header style="height: 52px; flex-shrink: 0; background: #1c1917; color: #fafaf9; display: flex; align-items: center; gap: 18px; padding: 0 16px; box-sizing: border-box;">
+    <a href="Main.dc.html" style="display: flex; align-items: center; gap: 10px; text-decoration: none; color: #fafaf9;">
+      <img src="/_blob/8b72413df6cbff803f5c0794f04a2a3f" alt="" style="width: 28px; height: 28px; background: #fafaf9; border-radius: 7px; padding: 2px; box-sizing: border-box;">
+      <span style="font-weight: 700; letter-spacing: 0.08em; font-size: 14px;">EMPATHO</span>
+    </a>
+    <span style="width: 1px; height: 18px; background: #44403c;"></span>
+    <nav aria-label="과" style="display: flex; height: 52px;">
+      <a href="ReceptionHome.dc.html" style="display: flex; align-items: center; gap: 7px; padding: 0 14px; height: 52px; box-sizing: border-box; text-decoration: none; font-size: 13px; font-weight: 500; color: #a8a29e; border-bottom: 2px solid transparent;">원무 <span style="font-size: 11px; min-width: 18px; height: 18px; border-radius: 9px; background: #44403c; color: #fafaf9; display: inline-flex; align-items: center; justify-content: center; padding: 0 5px; box-sizing: border-box;">4</span></a>
+      <a href="NursingHome.dc.html" style="display: flex; align-items: center; gap: 7px; padding: 0 14px; height: 52px; box-sizing: border-box; text-decoration: none; font-size: 13px; font-weight: 500; color: #a8a29e; border-bottom: 2px solid transparent;">간호 <span style="font-size: 11px; min-width: 18px; height: 18px; border-radius: 9px; background: #44403c; color: #fafaf9; display: inline-flex; align-items: center; justify-content: center; padding: 0 5px; box-sizing: border-box;">5</span></a>
+      <a href="RadiologyHome.dc.html" style="display: flex; align-items: center; gap: 7px; padding: 0 14px; height: 52px; box-sizing: border-box; text-decoration: none; font-size: 13px; font-weight: 500; color: #a8a29e; border-bottom: 2px solid transparent;">영상의학 <span style="font-size: 11px; min-width: 18px; height: 18px; border-radius: 9px; background: #44403c; color: #fafaf9; display: inline-flex; align-items: center; justify-content: center; padding: 0 5px; box-sizing: border-box;">7</span></a>
+      <a href="PathologyHome.dc.html" aria-current="page" style="display: flex; align-items: center; gap: 7px; padding: 0 14px; height: 52px; box-sizing: border-box; text-decoration: none; font-size: 13px; font-weight: 600; color: #fafaf9; border-bottom: 2px solid #3ba6f1;">병리 <span style="font-size: 11px; min-width: 18px; height: 18px; border-radius: 9px; background: #1d7fc2; display: inline-flex; align-items: center; justify-content: center; padding: 0 5px; box-sizing: border-box;">5</span></a>
+      <a href="SurgeryHome.dc.html" style="display: flex; align-items: center; gap: 7px; padding: 0 14px; height: 52px; box-sizing: border-box; text-decoration: none; font-size: 13px; font-weight: 500; color: #a8a29e; border-bottom: 2px solid transparent;">유방외과 <span style="font-size: 11px; min-width: 18px; height: 18px; border-radius: 9px; background: #44403c; color: #fafaf9; display: inline-flex; align-items: center; justify-content: center; padding: 0 5px; box-sizing: border-box;">6</span></a>
+    </nav>
+    <div style="flex-grow: 1;"></div>
+    <label style="display: flex; align-items: center; gap: 8px; width: 340px; height: 34px; padding: 0 12px; border-radius: 8px; background: #292524; border: 1px solid #44403c; box-sizing: border-box; color: #a8a29e;">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+      <span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);">환자 검색</span>
+      <input type="search" placeholder="환자 이름 · 환자번호" style="flex-grow: 1; min-width: 0; background: transparent; border: none; color: #fafaf9; font-size: 13px; outline: none;">
+      <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #78716c; border: 1px solid #44403c; border-radius: 4px; padding: 1px 5px;">/</span>
+    </label>
+    <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #a8a29e;">09-21 (월) 14:32</span>
+    <button type="button" aria-label="알림 3건" style="position: relative; width: 34px; height: 34px; border-radius: 8px; border: none; background: transparent; color: #d6d3d1; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 1112 0c0 7 3 8 3 8H3s3-1 3-8"></path><path d="M10 20a2 2 0 004 0"></path></svg>
+      <span style="position: absolute; top: 6px; right: 7px; width: 7px; height: 7px; border-radius: 50%; background: #f87171;"></span>
+    </button>
+    <a href="Me.dc.html" style="display: flex; align-items: center; gap: 8px; text-decoration: none; color: #fafaf9;">
+      <span style="width: 28px; height: 28px; border-radius: 50%; background: #44403c; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700;">병</span>
+      <span style="display: flex; flex-direction: column; line-height: 1.2;"><span style="font-size: 12px; font-weight: 600;">시연병리</span><span style="font-size: 11px; color: #a8a29e;">병리과 · 교수</span></span>
+    </a>
+  </header>
+
+  <div style="flex-grow: 1; min-height: 0; padding: 16px; box-sizing: border-box; display: flex; flex-direction: column; gap: 14px;">
+
+    <div style="display: flex; align-items: flex-end; gap: 16px;">
+      <div style="display: flex; align-items: baseline; gap: 10px;">
+        <h1 style="margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.01em;">{{deptName}}</h1>
+        <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #57534e;">2026-09-21 (월)</span>
+      </div>
+      <div style="flex-grow: 1;"></div>
+      <a href="{{workHref}}" style="height: 38px; padding: 0 14px; border-radius: 8px; border: 1px solid #d6d3d1; background: #ffffff; color: #292524; font-size: 13px; display: flex; align-items: center; gap: 7px; text-decoration: none;">{{workLabel}}
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></a>
+      <a href="{{primaryHref}}" class="ep-primary" style="height: 38px; padding: 0 16px; border-radius: 8px; background: #1d7fc2; color: #ffffff; font-size: 13px; font-weight: 600; display: flex; align-items: center; text-decoration: none;">{{primaryLabel}}</a>
+    </div>
+
+    <nav aria-label="화면 이동" style="display: flex; flex-wrap: wrap; gap: 7px;">
+      <sc-for list="{{pages}}" as="pg" hint-placeholder-count="4">
+        <a href="{{pg.href}}" class="ep-chip" style="height: 30px; padding: 0 12px; border-radius: 999px; border: 1px solid #e7e5e4; background: #ffffff; color: #44403c; font-size: 12.5px; display: inline-flex; align-items: center; text-decoration: none;">{{pg.label}}</a>
+      </sc-for>
+    </nav>
+
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <span style="font-size: 11.5px; color: #78716c; flex-shrink: 0;">최근 본 환자</span>
+      <sc-for list="{{recent}}" as="rp" hint-placeholder-count="5">
+        <a href="Patient.dc.html" class="ep-chip" style="height: 28px; padding: 0 10px; border-radius: 999px; border: 1px solid #e7e5e4; background: #ffffff; display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #292524; text-decoration: none;">{{rp.name}}
+          <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #78716c;">{{rp.no}}</span>
+          <span style="font-size: 11px; color: #a8a29e;">{{rp.why}}</span></a>
+      </sc-for>
+      <div style="flex-grow: 1;"></div>
+      <span style="font-size: 11.5px; color: #a8a29e;">내 계정으로 연 환자만 보입니다</span>
+    </div>
+
+
+    <div style="flex-grow: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) 330px; gap: 12px;">
+
+      <div style="display: flex; flex-direction: column; gap: 12px; min-height: 0;">
+        <sc-if value="{{showIntake}}" hint-placeholder-val="{{ false }}">
+          <section style="background: #ffffff; border: 1px solid #e7e5e4; border-radius: 10px; flex-shrink: 0; overflow: hidden;">
+            <div style="padding: 12px 14px 10px; display: flex; align-items: center; gap: 8px;">
+              <span style="width: 8px; height: 8px; border-radius: 2px; background: #1d7fc2;"></span>
+              <h2 style="margin: 0; font-size: 14px; font-weight: 700;">접수</h2>
+              <div style="flex-grow: 1;"></div>
+              <span style="font-size: 12px; color: #57534e;">찾아서 확인한 뒤 누릅니다</span>
+            </div>
+            <div style="padding: 0 14px 10px; display: flex; gap: 8px;">
+              <label style="flex-grow: 1; display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 12px; border: 1px solid #d6d3d1; border-radius: 8px; box-sizing: border-box; color: #78716c;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+                <span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);">환자 검색</span>
+                <input type="text" value="{{searchText}}" onChange="{{searchInput}}" placeholder="이름 · 전화 · 생년월일" style="flex-grow: 1; min-width: 0; border: none; outline: none; font-size: 14px; color: #0c0a09;">
+              </label>
+              <button type="button" style="height: 40px; padding: 0 16px; border-radius: 8px; border: none; background: #292524; color: #fafaf9; font-size: 13px; font-weight: 600; cursor: pointer;">검색</button>
+              <button type="button" style="height: 40px; padding: 0 14px; border-radius: 8px; border: 1px solid #d6d3d1; background: #ffffff; color: #292524; font-size: 13px; cursor: pointer;">+ 신환 등록</button>
+            </div>
+            <sc-for list="{{found}}" as="p" hint-placeholder-count="2">
+              <div style="display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-top: 1px solid #f5f5f4;">
+                <span style="width: 32px; height: 32px; border-radius: 50%; background: #f3e8ef; color: #9d3b56; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; flex-shrink: 0;">{{p.initial}}</span>
+                <span style="flex-grow: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0;">
+                  <span style="display: flex; align-items: baseline; gap: 8px;"><b style="font-size: 14px;">{{p.name}}</b><span style="font-size: 12px; color: #57534e;">{{p.meta}}</span></span>
+                  <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #78716c;">{{p.pno}} · {{p.birth}} · {{p.phone}}</span>
+                </span>
+                <button type="button" style="height: 32px; padding: 0 14px; border-radius: 7px; border: none; background: #1d7fc2; color: #ffffff; font-size: 13px; font-weight: 600; cursor: pointer;">접수</button>
+                <a href="Patient.dc.html" style="height: 32px; padding: 0 12px; border-radius: 7px; border: 1px solid #d6d3d1; background: #ffffff; color: #292524; font-size: 13px; display: flex; align-items: center; text-decoration: none;">환자 보기</a>
+              </div>
+            </sc-for>
+          </section>
+        </sc-if>
+        <section style="background: #ffffff; border: 1px solid #e7e5e4; border-radius: 10px; display: flex; flex-direction: column; min-height: 0; flex: 1 1 0; overflow: hidden;">
+          <div style="padding: 12px 14px; border-bottom: 1px solid #f0efee; display: flex; align-items: center; gap: 8px;">
+            <span style="width: 8px; height: 8px; border-radius: 2px; background: #1d7fc2;"></span>
+            <h2 style="margin: 0; font-size: 14px; font-weight: 700;">{{queueTitle}}</h2>
+            <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600; color: #57534e;">{{queueCount}}</span>
+            <div style="flex-grow: 1;"></div>
+            <span style="font-size: 12px; color: #57534e;">{{queueHint}}</span>
+          </div>
+          <div style="flex-grow: 1; overflow: auto;">
+            <sc-for list="{{queue}}" as="q" hint-placeholder-count="5">
+              <a href="Patient.dc.html" class="ep-q" style="display: flex; align-items: center; gap: 10px; padding: 9px 14px; border-bottom: 1px solid #f5f5f4; text-decoration: none; color: #0c0a09;">
+                <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #a8a29e; width: 16px;">{{q.no}}</span>
+                <b style="font-size: 13.5px; font-weight: 600;">{{q.name}}</b>
+                <span style="font-size: 12px; color: #57534e;">{{q.meta}}</span>
+                <span style="font-size: 11px; padding: 1px 6px; border-radius: 4px; {{q.chipStyle}}">{{q.chip}}</span>
+                <span style="font-size: 12px; color: #78716c; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; flex: 1 1 0; min-width: 0;">{{q.sub}}</span>
+                <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #78716c;">{{q.time}}</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a8a29e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>
+              </a>
+            </sc-for>
+          </div>
+        </section>
+
+        <section style="background: #ffffff; border: 1px solid #e7e5e4; border-radius: 10px; overflow: hidden; flex-shrink: 0;">
+          <div style="padding: 12px 14px; border-bottom: 1px solid #f0efee; display: flex; align-items: center; gap: 8px;">
+            <span style="width: 8px; height: 8px; border-radius: 2px; background: #d97706;"></span>
+            <h2 style="margin: 0; font-size: 14px; font-weight: 700;">확인이 필요한 것</h2>
+            <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600; color: #a16207;">{{stuckCount}}</span>
+          </div>
+          <sc-for list="{{stuck}}" as="s" hint-placeholder-count="2">
+            <a href="{{s.href}}" class="ep-q" style="display: flex; align-items: center; gap: 10px; padding: 9px 14px; border-bottom: 1px solid #f5f5f4; text-decoration: none; color: #0c0a09;">
+              <span style="font-size: 11px; padding: 1px 6px; border-radius: 4px; background: #fef3c7; color: #78350f; white-space: nowrap;">{{s.tag}}</span>
+              <span style="font-size: 13px; flex-grow: 1;">{{s.text}}</span>
+              <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #78716c;">{{s.count}}</span>
+            </a>
+          </sc-for>
+        </section>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 12px; min-height: 0;">
+
+        <section style="background: #ffffff; border: 1px solid #e7e5e4; border-radius: 10px; display: flex; flex-direction: column; min-height: 0; flex: 1 1 0; overflow: hidden;">
+          <div style="padding: 12px 14px; border-bottom: 1px solid #f0efee; display: flex; align-items: center; gap: 8px;">
+            <span style="width: 8px; height: 8px; border-radius: 2px; background: #15803d;"></span>
+            <h2 style="margin: 0; font-size: 14px; font-weight: 700;">오늘 한 일</h2>
+            <div style="flex-grow: 1;"></div>
+            <span style="font-size: 12px; color: #57534e;">{{doneSummary}}</span>
+          </div>
+          <div style="flex-grow: 1; overflow: auto; padding: 6px 14px 10px;">
+            <sc-for list="{{done}}" as="d" hint-placeholder-count="5">
+              <div style="display: flex; gap: 10px; padding: 6px 0;">
+                <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #78716c; width: 40px; flex-shrink: 0;">{{d.time}}</span>
+                <span style="width: 7px; height: 7px; border-radius: 50%; background: #15803d; margin-top: 6px; flex-shrink: 0;"></span>
+                <span style="font-size: 13px; line-height: 1.5;">{{d.text}}</span>
+              </div>
+            </sc-for>
+          </div>
+        </section>
+
+        <section style="background: #ffffff; border: 1px solid #e7e5e4; border-radius: 10px; overflow: hidden; flex-shrink: 0;">
+          <div style="padding: 12px 14px; border-bottom: 1px solid #f0efee; display: flex; align-items: center; gap: 8px;">
+            <span style="width: 8px; height: 8px; border-radius: 2px; background: #7c3aed;"></span>
+            <h2 style="margin: 0; font-size: 14px; font-weight: 700;">인계 사항</h2>
+            <div style="flex-grow: 1;"></div>
+            <button type="button" style="height: 26px; padding: 0 10px; border-radius: 7px; border: 1px solid #d6d3d1; background: #ffffff; font-size: 12px; color: #292524; cursor: pointer;">인계 남기기</button>
+          </div>
+          <sc-for list="{{handover}}" as="h" hint-placeholder-count="3">
+            <div style="padding: 9px 14px; border-bottom: 1px solid #f5f5f4; display: flex; flex-direction: column; gap: 3px;">
+              <div style="display: flex; align-items: baseline; gap: 7px;">
+                <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: #78716c;">{{h.time}}</span>
+                <b style="font-size: 12px;">{{h.who}}</b>
+              </div>
+              <span style="font-size: 12.5px; color: #292524; line-height: 1.55;">{{h.text}}</span>
+            </div>
+          </sc-for>
+          <div style="padding: 8px 14px; font-size: 11.5px; color: #78716c;">교대할 때 넘기는 메모입니다. 환자 기록에는 남지 않습니다.</div>
+        </section>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 12px; min-height: 0;">
+        <section style="background: #ffffff; border: 1px solid #e7e5e4; border-radius: 10px; padding: 12px 14px; flex-shrink: 0;">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+            <h2 style="margin: 0; font-size: 14px; font-weight: 700;">2026년 9월</h2>
+            <div style="flex-grow: 1;"></div>
+            <button type="button" aria-label="이전 달" style="width: 26px; height: 26px; border-radius: 6px; border: 1px solid #e7e5e4; background: #ffffff; color: #57534e; cursor: pointer;">‹</button>
+            <button type="button" aria-label="다음 달" style="width: 26px; height: 26px; border-radius: 6px; border: 1px solid #e7e5e4; background: #ffffff; color: #57534e; cursor: pointer;">›</button>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; text-align: center;">
+            <sc-for list="{{weekdays}}" as="w" hint-placeholder-count="7">
+              <span style="font-size: 11px; padding: 3px 0; {{w.style}}">{{w.label}}</span>
+            </sc-for>
+            <sc-for list="{{cal}}" as="c" hint-placeholder-count="35">
+              <span style="height: 30px; border-radius: 6px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; {{c.style}}">{{c.day}}<span style="width: 4px; height: 4px; border-radius: 50%; {{c.dot}}"></span></span>
+            </sc-for>
+          </div>
+          <div style="display: flex; gap: 12px; margin-top: 8px; font-size: 11px; color: #57534e;">
+            <span style="display: flex; align-items: center; gap: 5px;"><span style="width: 6px; height: 6px; border-radius: 50%; background: #1d7fc2;"></span>{{calLegendA}}</span>
+            <span style="display: flex; align-items: center; gap: 5px;"><span style="width: 6px; height: 6px; border-radius: 50%; background: #de939b;"></span>{{calLegendB}}</span>
+          </div>
+        </section>
+
+        <section style="background: #ffffff; border: 1px solid #e7e5e4; border-radius: 10px; display: flex; flex-direction: column; min-height: 0; flex: 1 1 0; overflow: hidden;">
+          <div style="padding: 12px 14px; border-bottom: 1px solid #f0efee; display: flex; align-items: center; gap: 8px;">
+            <h2 style="margin: 0; font-size: 14px; font-weight: 700;">할 일</h2>
+            <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #57534e;">{{todoLeft}}</span>
+            <div style="flex-grow: 1;"></div>
+            <span style="font-size: 11px; color: #78716c;">나만 보임</span>
+          </div>
+          <div style="flex-grow: 1; overflow: auto; padding: 4px 14px;">
+            <sc-for list="{{todos}}" as="t" hint-placeholder-count="4">
+              <label style="display: flex; gap: 9px; align-items: flex-start; padding: 7px 0; font-size: 13px; line-height: 1.45; cursor: pointer; border-bottom: 1px solid #f5f5f4;">
+                <input type="checkbox" checked="{{t.done}}" onChange="{{t.toggle}}" style="width: 16px; height: 16px; margin-top: 2px; accent-color: #1d7fc2; flex-shrink: 0;">
+                <span style="{{t.style}}">{{t.text}}</span>
+              </label>
+            </sc-for>
+          </div>
+          <div style="display: flex; gap: 6px; padding: 10px 14px; border-top: 1px solid #f0efee;">
+            <label style="flex-grow: 1; display: flex;"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);">할 일 추가</span>
+              <input type="text" value="{{todoText}}" onChange="{{todoInput}}" placeholder="할 일 추가" style="width: 100%; height: 32px; padding: 0 10px; border: 1px solid #d6d3d1; border-radius: 7px; font-size: 13px; box-sizing: border-box;"></label>
+            <button type="button" onClick="{{todoAdd}}" style="height: 32px; padding: 0 12px; border-radius: 7px; border: none; background: #292524; color: #fafaf9; font-size: 13px; cursor: pointer;">추가</button>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <sc-if value="{{memoOpen}}" hint-placeholder-val="{{ true }}">
+    <div role="note" aria-label="메모" style="position: absolute; left: {{memoX}}px; top: {{memoY}}px; width: 260px; height: 200px; min-width: 200px; min-height: 120px; resize: both; overflow: hidden; background: #fef9c3; border: 1px solid #eab308; border-radius: 10px; box-shadow: 0 16px 40px rgba(17,12,46,0.18); display: flex; flex-direction: column; z-index: 50;">
+      <div onPointerDown="{{memoDown}}" style="height: 30px; flex-shrink: 0; display: flex; align-items: center; gap: 6px; padding: 0 8px 0 10px; cursor: move; border-bottom: 1px solid #fde047; user-select: none; touch-action: none;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#854d0e" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="9" cy="6" r="1"></circle><circle cx="15" cy="6" r="1"></circle><circle cx="9" cy="12" r="1"></circle><circle cx="15" cy="12" r="1"></circle><circle cx="9" cy="18" r="1"></circle><circle cx="15" cy="18" r="1"></circle></svg>
+        <span style="font-size: 12px; font-weight: 600; color: #713f12; flex-grow: 1;">메모 · 이 기기에만 저장</span>
+        <button type="button" onClick="{{memoClose}}" aria-label="메모 닫기" style="width: 22px; height: 22px; border: none; border-radius: 5px; background: transparent; color: #854d0e; cursor: pointer; font-size: 15px; line-height: 1;">×</button>
+      </div>
+      <label style="flex-grow: 1; display: flex;"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);">메모 내용</span>
+        <textarea placeholder="환자 이름은 적지 마세요. 공용 PC 에 남습니다." style="flex-grow: 1; resize: none; border: none; background: transparent; padding: 10px 12px; font-size: 13px; line-height: 1.55; color: #422006; outline: none;">{{memoText}}</textarea></label>
+    </div>
+  </sc-if>
+  <sc-if value="{{memoClosed}}" hint-placeholder-val="{{ false }}">
+    <button type="button" onClick="{{memoReopen}}" style="position: absolute; right: 20px; bottom: 20px; height: 38px; padding: 0 14px; border-radius: 19px; border: 1px solid #eab308; background: #fef9c3; color: #713f12; font-size: 13px; font-weight: 600; cursor: pointer; box-shadow: 0 8px 24px rgba(17,12,46,0.15); z-index: 50;">메모 열기</button>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    const D = {"deptName": "병리과", "recent": [["김서연", "P-2024-0417", "판독 확정"], ["정미경", "P-2024-0392", "재검토"], ["시연환자20", "P-0020", "검체 접수"], ["한소영", "P-2024-0361", "슬라이드 추가"], ["시연환자16", "P-0016", "면역염색"]], "handover": [["08:15", "야간 기사 조민", "어제 들어온 검체 4건 포매까지 끝냈습니다. 절편은 오전에 나옵니다."], ["07:50", "어제 이수진", "한소영 B3 — 면역염색 추가 지시했습니다. 결과 나오면 바로 알려주세요."], ["21:30", "어제 이수진", "라벨 없이 온 검체 1건 있었습니다. 간호과에 확인 요청했고 해결됐습니다."]], "pages": [["검체 판독", "Pathology.dc.html"], ["전체 목록", "PathologyList.dc.html"], ["검체 접수", "PathologyUpload.dc.html"], ["판독 화면", "PathologyRead.dc.html"], ["판독 확정", "PathologyFinalizeModal.dc.html"]], "workHref": "Pathology.dc.html", "workLabel": "검체 목록", "primaryHref": "Pathology.dc.html", "primaryLabel": "다음 검체 받기", "queueTitle": "검체 대기", "queueHint": "바인딩 순서대로", "queue": [["시연환자05", "58 · 여", "CNB", "S-2026-0038 · 영상 4C · 마스크 완료", "13:40"], ["시연환자16", "49 · 여", "CNB", "S-2026-0039 · 영상 4B · 마스크 완료", "14:05"], ["시연환자21", "60 · 여", "VAB", "S-2026-0040 · 분석 중", "14:18"], ["시연환자26", "45 · 여", "CNB", "S-2026-0041 · 업로드 대기", "14:26"], ["시연환자28", "53 · 여", "CNB", "S-2026-0042 · 업로드 대기", "14:34"]], "stuck": [["초안", "진단을 안 넣고 저장만 한 검체", "1건"], ["마스크 확인", "AI 마스크를 안 본 검체", "1건"], ["영상 대조", "영상 판정과 아직 맞춰보지 않은 검체", "2건"]], "doneSummary": "확정 3", "done": [["12:40", "시연환자13 · 관상피내암(DCIS) 확정"], ["12:05", "시연환자08 · 섬유선종 확정"], ["11:20", "시연환자01 · 침윤성 유관암 확정"]], "calA": [22, 24, 28, 30], "calB": [25], "calLegend": ["판독 당번", "다학제 회의"], "todos": [["다학제 회의 슬라이드 준비", false], ["S-2026-0035 면역염색 결과 확인", false]], "memo": "25일 다학제 — 시연환자01 · 13 케이스 발표"};
+    this.D = D;
+    this.state = { memoOpen: true, mx: 1140, my: 610, searchText: D.searchText || '', todos: D.todos.map((t) => ({ text: t[0], done: t[1] })), todoText: '' };
+    this.drag = null;
+  }
+  renderVals() {
+    const D = this.D;
+    const chips = {
+      '신환': 'background:#e0f0fc;color:#155a8a;', '재진': 'background:#f5f5f4;color:#57534e;',
+      '추적': 'background:#f3e8ef;color:#9d3b56;', '예약': 'background:#ecfdf5;color:#166534;',
+      'MG': 'background:#1c1917;color:#fafaf9;', 'US': 'background:#1c1917;color:#fafaf9;', 'MRI': 'background:#1c1917;color:#fafaf9;',
+      'CNB': 'background:#1c1917;color:#fafaf9;', 'VAB': 'background:#1c1917;color:#fafaf9;', '불일치': 'background:#fee2e2;color:#991b1b;'
+    };
+    const days = [];
+    for (let i = 0; i < 2; i++) days.push({ day: '', style: '', dot: '' });
+    for (let d = 1; d <= 30; d++) {
+      const dow = (d + 1) % 7;
+      const a = D.calA.indexOf(d) >= 0, b = D.calB.indexOf(d) >= 0;
+      let style = dow === 0 ? 'color:#b91c1c;' : (dow === 6 ? 'color:#1d6fa8;' : 'color:#292524;');
+      if (d === 21) style = 'background:#1c1917;color:#fafaf9;font-weight:600;';
+      else if (d < 21) style += 'opacity:.55;';
+      days.push({ day: String(d), style: style, dot: a ? 'background:#1d7fc2;' : (b ? 'background:#de939b;' : 'background:transparent;') });
+    }
+    while (days.length % 7) days.push({ day: '', style: '', dot: '' });
+    const todos = this.state.todos;
+    return {
+      deptName: D.deptName,
+      workHref: D.workHref, workLabel: D.workLabel, primaryHref: D.primaryHref, primaryLabel: D.primaryLabel,
+      pages: D.pages.map((x) => ({ label: x[0], href: x[1] })),
+      recent: D.recent.map((x) => ({ name: x[0], no: x[1], why: x[2] })),
+      handover: D.handover.map((x) => ({ time: x[0], who: x[1], text: x[2] })),
+      queueTitle: D.queueTitle, queueHint: D.queueHint, queueCount: D.queue.length,
+      queue: D.queue.map((q, i) => ({ no: i + 1, name: q[0], meta: q[1], chip: q[2], chipStyle: chips[q[2]] || chips['재진'], sub: q[3], time: q[4] })),
+      stuck: D.stuck.map((s) => ({ tag: s[0], text: s[1], count: s[2], href: s[3] || D.workHref })), stuckCount: D.stuck.length,
+      showIntake: !!D.intake, found: (D.intake || []).map((p) => ({ initial: p[0].slice(0, 1), name: p[0], meta: p[1], pno: p[2], birth: p[3], phone: p[4] })),
+      searchText: this.state.searchText, searchInput: (e) => this.setState({ searchText: e.target.value }),
+      done: D.done.map((d) => ({ time: d[0], text: d[1] })), doneSummary: D.doneSummary,
+      weekdays: ['일', '월', '화', '수', '목', '금', '토'].map((w, i) => ({ label: w, style: i === 0 ? 'color:#b91c1c;' : (i === 6 ? 'color:#1d6fa8;' : 'color:#78716c;') })),
+      cal: days, calLegendA: D.calLegend[0], calLegendB: D.calLegend[1],
+      todos: todos.map((t, i) => ({
+        text: t.text, done: t.done,
+        style: t.done ? 'text-decoration:line-through;color:#a8a29e;' : 'color:#0c0a09;',
+        toggle: () => this.setState({ todos: todos.map((x, j) => j === i ? { text: x.text, done: !x.done } : x) })
+      })),
+      todoLeft: todos.filter((t) => !t.done).length + '개 남음',
+      todoText: this.state.todoText,
+      todoInput: (e) => this.setState({ todoText: e.target.value }),
+      todoAdd: () => { const v = (this.state.todoText || '').trim(); if (v) this.setState({ todos: todos.concat([{ text: v, done: false }]), todoText: '' }); },
+      memoOpen: this.state.memoOpen, memoClosed: !this.state.memoOpen,
+      memoX: this.state.mx, memoY: this.state.my, memoText: D.memo,
+      memoClose: () => this.setState({ memoOpen: false }),
+      memoReopen: () => this.setState({ memoOpen: true }),
+      memoDown: (e) => { this.drag = { sx: e.clientX, sy: e.clientY, ox: this.state.mx, oy: this.state.my }; },
+      memoMove: (e) => {
+        if (!this.drag) return;
+        const nx = Math.min(1440 - 200, Math.max(0, this.drag.ox + e.clientX - this.drag.sx));
+        const ny = Math.min(900 - 60, Math.max(52, this.drag.oy + e.clientY - this.drag.sy));
+        this.setState({ mx: nx, my: ny });
+      },
+      memoUp: () => { this.drag = null; }
+    };
+  }
+}
+</script>
+</body>
+</html>
