@@ -80,7 +80,6 @@ a {
   margin: 0 auto;
   background: var(--bg);
   border-inline: var(--line-w) solid var(--line);
-  overflow-x: hidden;
 }
 
 /* 화면은 Fragment 로 온다 — 감싸는 요소가 없다. 그래서 여기가 곧
@@ -165,6 +164,7 @@ a {
 .pane {
   padding: var(--screen-pad);
   overflow-y: auto;
+  overflow-x: hidden;
   flex: 1;
   display: flex;
   flex-direction: column;
