@@ -605,3 +605,22 @@ class PatientReservationCancelView(APIView):
         order.updated_by = request.user
         order.save(update_fields=["order_status", "cancelled_by", "updated_at"])
         return Response({"detail": "예약을 취소했습니다."})
+    
+# ── 09-21 여기 있던 임시 두 뷰를 뺐다 ─────────────────────────────────
+#
+# PatientPrescriptionsView · HospitalListView(+HOSPITALS_TEMP). 둘 다 「표가
+# 아직 없어서」 둔 임시본이었고, 그 표가 생겨 진짜 구현으로 넘어갔다.
+#
+#   처방  → core/views/prescription.py 의 MyPrescriptionView
+#           임시본은 복약 기록 표가 없어 log_id 가 늘 null 이었다 —
+#           환자가 「먹었다」를 눌러도 새로고침하면 사라졌다. 이제
+#           medication_log 에 실제로 남는다.
+#           약도 content(jsonb) 안의 **차례**로 가리키고 있었다(enumerate
+#           의 i). 의사가 약을 하나 지우면 그 뒤로 지난 기록이 전부 다른
+#           약을 가리킨다 — PrescriptionDrug 행을 판 이유가 그것이다.
+#
+#   병원  → core/api/hospitals.py 의 HospitalSearchView
+#           임시본은 하드코딩 네 건이었다(「미래 대학병원」…). 이제
+#           국립중앙의료원 공공데이터에서 전국 79,013 건을 부른다.
+#
+# 두 임시본의 주석이 「모델이 생기면 바꾼다」고 적어 둔 그대로 한 것이다.

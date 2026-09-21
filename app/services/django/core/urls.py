@@ -213,5 +213,15 @@ urlpatterns = [
     path("questionnaire", views.PatientQuestionnaireView.as_view(), name="questionnaire-me"),
     path("me/reservations", views.PatientReservationsView.as_view(), name="me-reservations"),
     path("me/reservations/<int:pk>/cancel", views.PatientReservationCancelView.as_view(), name="me-reservation-cancel"),
+    # 09-21 수용님이 임시로 올린 me/prescriptions · hospitals 두 줄을 뺐다.
+    # 같은 경로가 두 번 등록되면 Django 는 먼저 걸린 것만 쓰고 뒤엣것은
+    # 영영 안 불린다 — 어느 쪽이 도는지 코드만 봐서는 모른다.
+    #
+    #   me/prescriptions  → 위 「환자 앱 복약 관리」 구역의 MyPrescriptionView.
+    #     임시본은 복약 기록 표가 없어 log_id 가 늘 null 이었다(「체크는
+    #     화면에만 남는다」). 이제 표가 있어 실제로 기록된다.
+    #   hospitals         → core/api/urls.py 의 HospitalSearchView.
+    #     임시본은 하드코딩 목록이었다(「모델이 생기면 이 상수를 지운다」).
+    #     이제 국립중앙의료원 공공데이터를 부른다.
 ]
 
