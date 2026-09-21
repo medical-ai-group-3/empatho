@@ -637,9 +637,16 @@ function radUpload(raw = {}, order = {}) {
   /* 서버가 storage_objects: []와 files: [...]를 함께 보낼 수 있다.
      빈 storage_objects를 우선하면 업로드 완료 파일이 판독 화면으로
      전달되지 않는다. 실제 항목이 있는 목록을 선택한다. */
-  const storageObjects = Array.isArray(raw.storage_objects) ? raw.storage_objects : [];
-  const listedFiles = Array.isArray(raw.files) ? raw.files : [];
-  const files = (storageObjects.length > 0 ? storageObjects : listedFiles).map(radFile);
+  const candidates = [
+    raw.storage_objects,
+    raw.files,
+    raw.images,
+    study.storage_objects,
+    study.files,
+    study.images,
+  ];
+  const listedFiles = candidates.find((value) => Array.isArray(value) && value.length > 0) ?? [];
+  const files = listedFiles.map(radFile);
   const row = radStudyRow(study, order);
   return {
     ...raw,
@@ -647,7 +654,7 @@ function radUpload(raw = {}, order = {}) {
     study,
     files,
     series: raw.series ?? radSeries(files),
-    ai: raw.ai ?? null,
+    ai: raw.ai ?? raw.latest_ai_result ?? study.ai ?? null,
     exam_order_id: row.exam_order_id ?? order.exam_order_id,
     order,
   };

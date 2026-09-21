@@ -124,13 +124,25 @@ function Inner({ cfg, embedded }) {
   );
 }
 
+function isForwarded(it) {
+  if (it?.primary_staff_id ?? it?.primary_staff ?? it?.assigned_staff_id ?? it?.surgeon_id) {
+    return true;
+  }
+  const dept = String(it?.destination_department ?? it?.queue_department ?? "").toLowerCase();
+  return Boolean(dept && !dept.includes("nursing") && !dept.includes("간호"));
+}
+
 /* 대기 목록은 이 카드만 다시 불러온다. 부모 화면에 목록 데이터를 두면
    폴링할 때 상세·예약·내 업무까지 함께 다시 그려져 사용자가 화면 전체가
    갱신된다고 느낄 수 있다. quiet reload는 기존 행을 남겨 둔 채 새 목록만
    교체하므로, 새 접수나 다른 부서 전송이 있어도 선택한 환자 상세는 유지된다. */
 function WaitingQueue({ cfg, selectedId, onPick, refreshVersion }) {
   const arrived = useApi(() => cfg.api.waitingArrived(), []);
-  const rows = arrived.data?.results ?? [];
+  /* 간호과가 유방외과로 전송한 환자는 서버의 requested 목록에 잠시
+     남아 있을 수 있다. 배정 정보가 응답에 포함되면 이 카드에서 즉시
+     제외해 다른 과로 넘어간 환자를 다시 접수하지 않게 한다. */
+  const rows = (arrived.data?.results ?? arrived.data?.items ?? arrived.data ?? [])
+    .filter((it) => !isForwarded(it));
 
   useEffect(() => {
     const refresh = () => {
