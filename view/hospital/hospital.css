@@ -467,6 +467,68 @@ a.srow:hover{background:var(--canvas)}
 .btn.dark:hover{filter:brightness(1.35)}
 .btn.sm{padding:var(--gap-xs) var(--chip-pad-x); font-size:var(--chip-fs)}
 
+
+/* ── 환자 상세 (screens/Patient.jsx) ──────────────────────────
+   왼쪽 이번 방문·병변·문진 / 가운데 전체 히스토리 / 오른쪽 소견·리포트·
+   추적·동의. 가운데가 이 화면의 본체라 제일 넓다(6.5). */
+.pcols{display:grid; gap:var(--desk-gap); align-items:start;
+  grid-template-columns:var(--pd-side) minmax(0, 1fr) var(--pd-side)}
+.pcol{display:flex; flex-direction:column; gap:var(--desk-gap); min-width:0}
+
+/* 이번 방문 — 모달리티·날짜 한 줄, 그 아래 진행 점 */
+.pvisit-h{margin:0; display:flex; align-items:center; gap:var(--chip-gap);
+  font-size:var(--qrow-meta-fs); color:var(--ink-2);
+  font-variant-numeric:tabular-nums}
+/* 검사 진행 점 — **색을 쓰지 않는다.** 채움 정도로만 가른다.
+   ⚠ 모르는 칸(unsure)은 점을 비운다. ○ 는 「아직 안 했다」는 주장이라
+     확인한 사람만 할 수 있는 말이다. 점자리는 1em 으로 잡아 두어 비어도
+     이름이 안 밀린다 */
+.psteps{margin:0; display:flex; gap:var(--gap-sm);
+  font-size:var(--prow-3-fs); color:var(--faint)}
+.pstep{display:inline-flex; align-items:center; gap:var(--gap-xs)}
+.pstep i{font-style:normal; width:1em; text-align:center}
+.pstep.done{color:var(--ink)}
+.pstep.going{color:var(--ink-2)}
+
+/* 추적 일정 — 회차 한 줄씩 */
+.pfollow{list-style:none; margin:0; padding:0; display:flex;
+  flex-direction:column; gap:var(--gap-5); font-size:var(--srow-fs)}
+.pfollow li{font-variant-numeric:tabular-nums; color:var(--ink-2)}
+
+/* 병변 크기 변화 — 8mm → 12mm 가 눈에 보여야 한다 */
+.plesion{display:flex; flex-direction:column; gap:var(--gap-xxs)}
+.plesion + .plesion{padding-top:var(--gap-sm);
+  border-top:var(--hair) solid var(--line-2)}
+.plesion > b{font-size:var(--qrow-nm-fs)}
+.plesion-run{display:flex; flex-wrap:wrap; align-items:baseline;
+  gap:var(--gap-xs); font-size:var(--qrow-meta-fs); color:var(--warm)}
+.plesion-run > span{display:inline-flex; align-items:baseline; gap:var(--gap-xs)}
+.plesion-run i{font-style:normal; color:var(--faint);
+  padding:0 var(--gap-xxs)}
+.plesion-run time{font-variant-numeric:tabular-nums}
+.plesion-run em{font-style:normal; font-weight:600; color:var(--ink)}
+
+/* 전체 히스토리 — 날짜로 묶고, 기호는 글자 한 자다. 색을 안 쓴다 */
+.phistory .card-b{gap:var(--gap-sm)}
+.pday{display:flex; flex-direction:column; gap:var(--gap-5)}
+.pday + .pday{padding-top:var(--gap-sm);
+  border-top:var(--hair) solid var(--line-2)}
+.pday h3{font-size:var(--qrow-meta-fs); color:var(--warm);
+  font-variant-numeric:tabular-nums; font-weight:600}
+.pevent{margin:0; display:flex; align-items:baseline; gap:var(--qrow-gap);
+  font-size:var(--srow-fs)}
+.pevent-m{flex:none; width:var(--pd-mark); height:var(--pd-mark);
+  border-radius:var(--radius-xs); background:var(--canvas);
+  box-shadow:inset 0 0 0 var(--hair) var(--border);
+  display:inline-flex; align-items:center; justify-content:center;
+  font-style:normal; font-size:var(--stag-fs); font-weight:700;
+  color:var(--ink-2); align-self:center}
+.pevent time{flex:none; font-size:var(--qrow-meta-fs); color:var(--warm);
+  font-variant-numeric:tabular-nums}
+.pevent > b{flex:none; font-weight:600}
+.pevent > span{min-width:0; color:var(--warm); overflow:hidden;
+  text-overflow:ellipsis; white-space:nowrap}
+
 /* ── 쪽 ─────────────────────────────────────────────────────── */
 /* ⚠ width:100% 과 max-width 를 따로 쓰면 안 된다 — .shell(column flex)
    아래서 stretch가 항상 «줄의 가로 크기까지 채운다»는 보장이 없다

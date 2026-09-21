@@ -52,7 +52,7 @@ export const breast = {
 
     queue: ({ all }) => ({
       title: "내 환자",
-      hint: "누르면 검사 종합",
+      hint: "누르면 환자 상세",
       empty: "배정된 환자가 없습니다",
       /* ⚠ **시각도, 초진/재진도, 한 줄 요약도 없다.** 환자 목록 응답
          (PatientListSerializer)이 번호·이름·생년월일·성별·알레르기
@@ -67,7 +67,7 @@ export const breast = {
         no: H.noOf(r),
         meta: H.who(r),
         chip: H.allergy(r) ? "알레르기" : null,
-        to: go.breast.review(r.patient_id),
+        to: go.patient(r.patient_id),
         why: "검사 종합",
       })),
     }),

@@ -227,7 +227,7 @@ export const radiology = {
            요청이 나간다 — 8장 1번이 붙을 때까지 검사 이름만 적는다 */
         sub: [r.exam_name, r.purpose].filter(Boolean).join(" · "),
         at: H.at(r.performed_at),
-        to: go.radiology.read(r.id),
+        to: r.patient != null ? go.patient(r.patient) : null,
         why: "판독",
       })),
     }),

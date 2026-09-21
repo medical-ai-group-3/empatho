@@ -462,6 +462,11 @@
 
   /* 접수 카드 (원무만) */
   --intake-in-h:  calc(40px * var(--sp));
+
+  /* 환자 상세 — 가운데(히스토리)가 본체라 양옆을 고정폭으로 둔다.
+     넓은 모니터에서 남는 폭은 히스토리가 가져간다 */
+  --pd-side:      340px;
+  --pd-mark:      calc(20px * var(--sp));   /* 「촬」 「판」 한 자 기호 */
   --fit-read:     calc(120px * var(--sp));  /* 판독 전체화면 — 쪽 패딩 + 저장 줄 */
   --fit-grid:     calc(216px * var(--sp));  /* 두 단(간호) — 쪽 머리 + 패딩 */
   --fit-review:   calc(186px * var(--sp));  /* 세 단(유방외과) */

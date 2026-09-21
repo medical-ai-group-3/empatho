@@ -47,7 +47,7 @@ export const reception = {
 
     queue: ({ today }) => ({
       title: "오늘 접수한 환자",
-      hint: "접수 순",
+      hint: "누르면 환자 상세",
       empty: "오늘 온 환자가 없습니다",
       /* stage 는 서버가 쓰는 말 그대로 둔다 — 옮겨 부르면 서버가 단계를
          하나 늘렸을 때 그 줄만 빈칸이 된다 */
@@ -55,6 +55,7 @@ export const reception = {
         id: r.exam_order_id ?? r.patient_id,
         name: H.nameOf(r),
         sub: r.stage,
+        to: r.patient_id != null ? go.patient(r.patient_id) : null,
       })),
     }),
 

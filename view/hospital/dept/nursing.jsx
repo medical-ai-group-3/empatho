@@ -51,7 +51,7 @@ export const nursing = {
         /* 문진은 오더에 실려 온다(questionnaire). 있으면 배정 차례다 */
         sub: r.questionnaire ? "문진 완료 · 배정 대기" : "문진 대기",
         at: H.at(r.visited_at),
-        to: go.nursing.waiting(),
+        to: r.patient != null ? go.patient(r.patient) : null,
         why: "문진 · 배정",
       })),
     }),

@@ -25,6 +25,7 @@ import Signup from "./screens/auth/Signup";
 import Boom from "./lib/Boom";
 
 import HomeScreen from "./lib/Home";
+import PatientScreen from "./screens/Patient";
 import QueueScreen from "./screens/Queue";
 import UploadScreen from "./screens/Upload";
 import ReadScreen from "./screens/Read";
@@ -303,6 +304,9 @@ function App() {
                 주고, 상단 메뉴가 자동으로 빈다 — Top 이 dept 없을 때를
                 이미 다룬다 */}
             <Route path="me" element={<MeScreen />} />
+            {/* 환자 상세도 과 바깥이다 — 어디서 와도 같은 화면이라
+                과 하나에 매달면 다른 과에서 그 주소로 못 온다 (6.5) */}
+            <Route path="patients/:id" element={<PatientScreen />} />
             {DEPTS.map((d) => deptRoutes(d.key))}
           </Route>
           <Route path={`${ROOT}/*`} element={<HomeRedirect />} />

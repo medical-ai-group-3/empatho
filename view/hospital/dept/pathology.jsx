@@ -148,7 +148,7 @@ export const pathology = {
            마스크 상태도 검체 목록에 없다 — 검체번호만 적는다 */
         sub: r.specimen_no ?? "",
         at: H.at(r.collected_at),
-        to: go.pathology.read(r.id),
+        to: r.patient != null ? go.patient(r.patient) : null,
         why: "검체 접수",
       })),
     }),
