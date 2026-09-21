@@ -515,20 +515,24 @@
   --resv-state-w: calc(30px * var(--sp));   /* 지난 예약의 상태 칸 */
   --resv-label-w: calc(36px * var(--sp));   /* 「날짜」 「시간」 */
 
+  /* 4.4 히스토리 레일 — 판독 화면 왼쪽. 날짜만 크게 */
+  --prail-w:      200px;
+  --prail-d-fs:   calc(13px * var(--ft));
+
   /* ══ 유방외과 — 내 환자 (Surgery) ═════════════════════════
      네 단이다. 가운데가 본체라 남는 폭을 가운데가 먹는다 */
-  --sgy-q:        300px;                    /* 왼쪽 — 내 환자 */
-  --sgy-hist:     330px;                    /* 진료 이력 */
-  --sgy-say:      248px;                    /* 결정 사유 상용구 */
-  --sgy-ava:      calc(46px * var(--sp));
-  --sgy-nm-fs:    calc(21px * var(--ft));
-  --sgy-row-pad-y: calc(10px * var(--sp));
-  --sgy-dot:      6px;
-  --sgy-tab-h:    calc(30px * var(--sp));
-  --sgy-opt-h:    calc(38px * var(--sp));
-  --sgy-read-fs:  calc(13px * var(--ft));
-  --sgy-read-lh:  1.6;
-  --sgy-ev-gap:   calc(7px * var(--sp));
+  --work-q:        300px;                    /* 왼쪽 — 내 환자 */
+  --work-hist:     330px;                    /* 진료 이력 */
+  --work-say:      248px;                    /* 결정 사유 상용구 */
+  --work-ava:      calc(46px * var(--sp));
+  --work-nm-fs:    calc(21px * var(--ft));
+  --work-row-pad-y: calc(10px * var(--sp));
+  --work-dot:      6px;
+  --work-tab-h:    calc(30px * var(--sp));
+  --work-opt-h:    calc(38px * var(--sp));
+  --work-read-fs:  calc(13px * var(--ft));
+  --work-read-lh:  1.6;
+  --work-ev-gap:   calc(7px * var(--sp));
 
   /* 환자 상세 — 가운데(히스토리)가 본체라 양옆을 고정폭으로 둔다.
      넓은 모니터에서 남는 폭은 히스토리가 가져간다 */

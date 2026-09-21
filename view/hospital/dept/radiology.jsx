@@ -274,12 +274,25 @@ export const radiology = {
   queue: {
     title: "촬영 대기",
     listTitle: "촬영 대기 오더",
+    /* 네 단 껍데기가 읽는 제목들(screens/Queue.jsx) */
+    detailTitle: "이번 검사",
+    pastTitle: "지난 검사",
+    /* ⚠ **서버가 주는 값이 아니다.** 상용구를 저장하는 경로가 없어 여기
+       박아 뒀다. 사람마다 다르게 쓰려면 서버에 자리가 있어야 한다(8장) */
+    phrases: [
+      ["종괴", ["경계 불규칙, 침상 변연", "타원형 저에코 결절, 경계 명확"]],
+      ["석회화", ["분절형 미세석회화", "양성 추정 거대석회화"]],
+      ["림프절", ["액와 림프절 종대 없음", "액와 림프절 피질 비후"]],
+      ["결론", ["추가 조직검사 권고", "6개월 추적 초음파 권고"]],
+    ],
     searchHint: "환자 · 환자번호",
     emptyText: "촬영 대기 중인 오더가 없습니다",
     need: { view: "radiology.queue.view", assign: "radiology.queue.assign" },
 
     row: (it) => ({
       id: it.id,
+      /* 지난 검사 칸이 이 번호로 환자 이력을 부른다 */
+      patientId: it.patient_id ?? it.patient ?? null,
       title: `${it.patient_name} (${it.age}/${label(SEX, it.sex)})`,
       sub: `${it.patient_no} · ${label(MODALITY, asModality(it.modality))}`,
       chip: it.contrast_allergy ? "조영제 알레르기" : it.device,

@@ -839,7 +839,8 @@
     "specimen_no": "S-2026-0142",
     "kind": "Core Needle Biopsy",
     "site": "좌측 상외측",
-    "method": "총생검"
+    "method": "총생검",
+    "patient": "P-1001"
    },
    {
     "id": "sp-102",
@@ -849,7 +850,8 @@
     "specimen_no": "S-2026-0143",
     "kind": "Vacuum Assisted Biopsy",
     "site": "우측 하내측",
-    "method": "진공보조생검"
+    "method": "진공보조생검",
+    "patient": "P-1002"
    },
    {
     "id": "sp-103",
@@ -859,7 +861,8 @@
     "specimen_no": "S-2026-0144",
     "kind": "Core Needle Biopsy",
     "site": "좌측 하외측",
-    "method": "총생검"
+    "method": "총생검",
+    "patient": "P-1003"
    },
    {
     "id": "sp-104",
@@ -869,7 +872,8 @@
     "specimen_no": "S-2026-0145",
     "kind": "Excisional Biopsy",
     "site": "우측 상외측",
-    "method": "절제생검"
+    "method": "절제생검",
+    "patient": "P-1001"
    }
   ]
  },
@@ -968,7 +972,8 @@
    "finding_note": "침윤성 관암종. 종양세포가 간질을 침윤하며 불규칙한 관상 구조를 형성함.",
    "diagnosis_label": "악성 (malignant)",
    "category_label": "B5 — 악성"
-  }
+  },
+  "patient": "P-1001"
  },
  "GET /api/v1/hospital/specimens/{id}/upload": {
   "patient_name": "이정민",

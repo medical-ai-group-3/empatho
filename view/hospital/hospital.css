@@ -712,8 +712,48 @@ a.frow:hover .frow-k{color:var(--ink)}
 .nside-row b{font-size:var(--srow-fs); font-weight:600; color:var(--ink);
   white-space:nowrap}
 
-/* ── 유방외과 · 내 환자 (dept/breast/screens/Waiting.jsx) ───────
-   배치는 docs/mockup/Surgery.html. 이 과의 본진이다.
+/* ── 4.4 히스토리 레일 (screens/Read.jsx) ────────────────────
+   **판독은 이전과 견주는 일이다.** 왼쪽에 지난 기록, 가운데 뷰어,
+   오른쪽에 쓰는 칸. 색을 안 쓴다 — 날짜만 진하고 나머지는 흐리다 */
+.read-cols{flex:1; min-height:0; display:grid; gap:var(--desk-gap);
+  grid-template-columns:var(--prail-w) minmax(0, 1fr)}
+/* 전체화면이면 레일이 없다 — 그때는 영상만 본다 */
+.read-cols.readfull{grid-template-columns:minmax(0, 1fr)}
+.read-cols > .read-workspace{min-width:0}
+
+.prail{display:flex; flex-direction:column; min-height:0;
+  background:var(--card); border:var(--hair) solid var(--border);
+  border-radius:var(--hcard-radius); overflow:hidden}
+.prail-h{flex:none; display:flex; align-items:center; gap:var(--chip-gap);
+  padding:var(--hcard-pad-y) var(--bcol-pad);
+  border-bottom:var(--hair) solid var(--line-2)}
+.prail-h b{font-size:var(--hcard-h-fs); font-weight:700}
+.prail-h em{font-style:normal; font-size:var(--hcard-n-fs); font-weight:600;
+  color:var(--ink-2); font-variant-numeric:tabular-nums}
+.prail-b{flex:1; min-height:0; overflow-y:auto}
+/* 맨 위 「지금」 — 돌아올 곳 */
+.prail-now{padding:var(--nside-pad-y) var(--bcol-pad); background:var(--soot);
+  color:var(--soot-ink); font-size:var(--qrow-meta-fs); font-weight:600}
+.prail-day{display:flex; flex-direction:column; gap:var(--gap-xxs);
+  padding:var(--nside-pad-y) var(--bcol-pad);
+  border-bottom:var(--hair) solid var(--line-2)}
+.prail-day time{font-size:var(--prail-d-fs); font-weight:600;
+  font-variant-numeric:tabular-nums}
+.prail-k{font-size:var(--stag-fs); color:var(--warm)}
+.prail-day b{font-size:var(--qrow-meta-fs); font-weight:600; color:var(--ink-2)}
+
+/* ── 업무 화면 네 단 — 유방외과 · 영상 · 병리가 같이 쓴다 ───────
+   Surgery.html · Radiology.html · Pathology.html 세 목업이 **같은 껍데기**다.
+
+       300px 큐 │ 1fr 지금 보는 것 │ 330px 곁자료 │ 248px 상용구
+
+   가운데만 과마다 다르고 나머지 셋은 제목만 바뀐다 —
+   지난 검사 / 진료 이력 / 이 환자의 이력, 그리고 상용구.
+   그래서 이름을 work- 로 두고 셋이 나눠 쓴다.
+
+   ⚠ 이 쪽은 .breast 를 안 쓴다. breast.css 가 --ink · --line-2 · --gap 을
+     제 팔레트로 덮어써서, 쪽을 그 안에 넣으면 여기 규칙이 hospital 토큰
+     대신 저쪽 값을 조용히 집어 간다(유방외과 화면 파일 참고).
 
    ⚠ **이 쪽은 .breast 를 안 쓴다.** breast.css 는 --ink · --line-2 ·
      --gap 을 제 팔레트로 덮어쓴다(그 파일 머리에 적혀 있다). 쪽을
@@ -722,150 +762,173 @@ a.frow:hover .frow-k{color:var(--ink)}
    ⚠ **칸을 카드로 띄우지 않는다.** 네 단을 1px 선으로 가른다(4.5).
    ⚠ **색으로 뜻을 나르지 않는다.** 목업은 BI-RADS 를 빨강·노랑·초록으로
      칠한다. 우리는 글자로 적는다. */
-.page.surgery-page{flex:none; min-height:0; overflow:hidden;
+/* ⚠ **`.work` 를 과 쪽에 가두지 않는다.** 처음엔 `.surgery-page .work`
+   로 적었는데, 그러면 영상·병리 큐에서 격자가 통째로 안 잡혀 네 단이
+   세로로 쌓인다. 이름은 멀쩡해서 이름 대조도 못 잡는다 — 눈으로 찾았다.
+   쪽 높이만 과별로 가둔다 */
+.page.surgery-page,.page.wq-page{flex:none; min-height:0; overflow:hidden;
   height:calc(100vh - var(--top-total) - var(--foot-h))}
-.surgery-page .sgy{flex:1; min-height:0; display:grid;
-  grid-template-columns:var(--sgy-q) minmax(0, 1fr) var(--sgy-hist) var(--sgy-say);
+.work{flex:1; min-height:0; display:grid;
+  grid-template-columns:var(--work-q) minmax(0, 1fr) var(--work-hist) var(--work-say);
   grid-template-rows:minmax(0, 1fr);
   background:var(--card); border:var(--hair) solid var(--border);
   border-radius:var(--hcard-radius); overflow:hidden}
-.sgy > * + *{border-left:var(--hair) solid var(--border)}
+.work > * + *{border-left:var(--hair) solid var(--border)}
 
 /* 왼쪽 — 내 환자. 큐는 어둡게 둔다(뷰어와 같은 규칙): 하루 종일 같은
    자리에 있는 목록이라 본문과 갈려 보여야 손이 안 헤맨다 */
-.sgy-q{display:flex; flex-direction:column; min-height:0; min-width:0;
+.work-q{display:flex; flex-direction:column; min-height:0; min-width:0;
   background:var(--v-card); color:var(--v-ink)}
-.sgy-q-h{flex:none; display:flex; flex-direction:column; gap:var(--gap-sm);
+.work-q-h{flex:none; display:flex; flex-direction:column; gap:var(--gap-sm);
   padding:var(--hcard-pad-y) var(--bcol-pad);
   border-bottom:var(--hair) solid var(--v-line)}
-.sgy-q-h h2{font-size:var(--hcard-h-fs); font-weight:700}
-.sgy-tabs{display:grid; gap:var(--gap-xs); padding:var(--gap-xxs);
+.work-q-h h2{font-size:var(--hcard-h-fs); font-weight:700}
+.work-tabs{display:grid; gap:var(--gap-xs); padding:var(--gap-xxs);
   grid-template-columns:repeat(2, minmax(0, 1fr));
   background:var(--v-bg); border-radius:var(--in-radius)}
-.sgy-tab{height:var(--sgy-tab-h); border-radius:var(--radius-sm);
+.work-tab{height:var(--work-tab-h); border-radius:var(--radius-sm);
   color:var(--v-warm); font-size:var(--qtab-fs);
   transition:background var(--m-hover) var(--ease-tab)}
-.sgy-tab:hover{color:var(--v-ink)}
-.sgy-tab.on{background:var(--v-line); color:var(--v-ink); font-weight:600}
-.sgy-tab i{font-style:normal; font-variant-numeric:tabular-nums}
+.work-tab:hover{color:var(--v-ink)}
+.work-tab.on{background:var(--v-line); color:var(--v-ink); font-weight:600}
+.work-tab i{font-style:normal; font-variant-numeric:tabular-nums}
 
-.sgy-q-b{flex:1; min-height:0; overflow-y:auto}
-.sgy-row{width:100%; text-align:left; display:flex; flex-direction:column;
-  gap:var(--brow-gap); padding:var(--sgy-row-pad-y) var(--bcol-pad);
+.work-q-b{flex:1; min-height:0; overflow-y:auto}
+.work-row{width:100%; text-align:left; display:flex; flex-direction:column;
+  gap:var(--brow-gap); padding:var(--work-row-pad-y) var(--bcol-pad);
   color:var(--v-ink); border-bottom:var(--hair) solid var(--v-line);
   transition:background var(--m-hover) var(--ease-tab)}
-.sgy-row:hover{background:var(--v-bg)}
-.sgy-row.on{background:var(--v-bg);
+.work-row:hover{background:var(--v-bg)}
+.work-row.on{background:var(--v-bg);
   box-shadow:inset var(--row-mark) 0 0 var(--cyan)}
-.sgy-row-1{display:flex; align-items:center; gap:var(--chip-gap); min-width:0}
-.sgy-row-1 b{font-size:var(--qrow-nm-fs); font-weight:600; white-space:nowrap}
-.sgy-row-1 > span{font-size:var(--qrow-meta-fs); color:var(--v-warm)}
+.work-row-1{display:flex; align-items:center; gap:var(--chip-gap); min-width:0}
+.work-row-1 b{font-size:var(--qrow-nm-fs); font-weight:600; white-space:nowrap}
+.work-row-1 > span{font-size:var(--qrow-meta-fs); color:var(--v-warm)}
 /* 점 하나로만 가른다 — 채움이 있으면 엇갈린 건이다 */
-.sgy-dot{flex:none; width:var(--sgy-dot); height:var(--sgy-dot);
+.work-dot{flex:none; width:var(--work-dot); height:var(--work-dot);
   border-radius:50%; box-shadow:inset 0 0 0 var(--hair) var(--v-warm)}
-.sgy-dot.k1{background:var(--v-ink); box-shadow:none}
-.sgy-row-2{display:flex; align-items:baseline; gap:var(--prow-no-gap);
-  min-width:0; padding-left:calc(var(--sgy-dot) + var(--chip-gap));
+.work-dot.k1{background:var(--v-ink); box-shadow:none}
+.work-row-2{display:flex; align-items:baseline; gap:var(--prow-no-gap);
+  min-width:0; padding-left:calc(var(--work-dot) + var(--chip-gap));
   font-size:var(--qrow-meta-fs); color:var(--v-warm)}
-.sgy-row-2 i{flex:none; font-style:normal;
+.work-row-2 i{flex:none; font-style:normal;
   font-variant-numeric:tabular-nums}
-.sgy-row-2 > span{min-width:0; overflow:hidden; text-overflow:ellipsis;
+.work-row-2 > span{min-width:0; overflow:hidden; text-overflow:ellipsis;
   white-space:nowrap}
 
 /* 가운데 — 고른 환자. 여기만 굴린다(스크롤은 한 칸에 하나) */
-.sgy-mid{min-height:0; min-width:0; overflow-y:auto;
+.work-mid{min-height:0; min-width:0; overflow-y:auto;
   padding:var(--ndet-pad); display:flex; flex-direction:column;
   gap:var(--desk-gap); background:var(--canvas)}
-.sgy-head{flex:none; display:flex; align-items:center; gap:var(--gap-sm);
+.work-head{flex:none; display:flex; align-items:center; gap:var(--gap-sm);
   padding:var(--hcard-pad-y) var(--bcol-pad); background:var(--card);
   border:var(--hair) solid var(--border); border-radius:var(--hcard-radius)}
-.sgy-ava{flex:none; width:var(--sgy-ava); height:var(--sgy-ava);
+.work-ava{flex:none; width:var(--work-ava); height:var(--work-ava);
   border-radius:50%; background:var(--canvas); color:var(--ink-2);
   display:flex; align-items:center; justify-content:center;
   font-weight:700; font-size:var(--hcard-h-fs)}
-.sgy-who{display:flex; flex-direction:column; gap:var(--gap-xxs); min-width:0}
-.sgy-1{display:flex; align-items:baseline; gap:var(--gap-sm)}
-.sgy-1 b{font-size:var(--sgy-nm-fs); font-weight:700}
-.sgy-1 span{font-size:var(--in-fs); color:var(--ink-2)}
-.sgy-2{font-size:var(--qrow-meta-fs); color:var(--warm);
+.work-who{display:flex; flex-direction:column; gap:var(--gap-xxs); min-width:0}
+.work-1{display:flex; align-items:baseline; gap:var(--gap-sm)}
+.work-1 b{font-size:var(--work-nm-fs); font-weight:700}
+.work-1 span{font-size:var(--in-fs); color:var(--ink-2)}
+.work-2{font-size:var(--qrow-meta-fs); color:var(--warm);
   font-variant-numeric:tabular-nums}
 
 /* 불일치 띠 — 되돌릴 수 없는 갈림길이라 맨 위에 둔다.
    색이 아니라 soot 채움으로 세운다(토큰 머리의 색 규칙) */
-.sgy-odd{flex:none; display:flex; align-items:center; gap:var(--gap-sm);
+.work-odd{flex:none; display:flex; align-items:center; gap:var(--gap-sm);
   padding:var(--hcard-pad-y) var(--bcol-pad); border-radius:var(--hcard-radius);
   background:var(--soot); color:var(--soot-ink); font-size:var(--srow-fs)}
-.sgy-odd i{font-style:normal}
-.sgy-odd b{font-weight:700}
+.work-odd i{font-style:normal}
+.work-odd b{font-weight:700}
 
 /* 영상·병리 두 칸 — 폭을 반씩 */
-.sgy-reads{flex:none; display:grid; gap:var(--desk-gap);
+.work-reads{flex:none; display:grid; gap:var(--desk-gap);
   grid-template-columns:repeat(2, minmax(0, 1fr))}
-.sgy-read{display:flex; flex-direction:column; gap:var(--gap-sm);
+.work-read{display:flex; flex-direction:column; gap:var(--gap-sm);
   padding:var(--hcard-pad-y) var(--bcol-pad); background:var(--card);
   border:var(--hair) solid var(--border); border-radius:var(--hcard-radius)}
-.sgy-read header,.sgy-read footer{display:flex; align-items:center;
+.work-read header,.work-read footer{display:flex; align-items:center;
   gap:var(--chip-gap)}
-.sgy-read h3{font-size:var(--hcard-h-fs); font-weight:700}
-.sgy-read time{font-size:var(--qrow-meta-fs); color:var(--warm);
+.work-read h3{font-size:var(--hcard-h-fs); font-weight:700}
+.work-read time{font-size:var(--qrow-meta-fs); color:var(--warm);
   font-variant-numeric:tabular-nums}
-.sgy-read-b{font-size:var(--sgy-read-fs); line-height:var(--sgy-read-lh);
+.work-read-b{font-size:var(--work-read-fs); line-height:var(--work-read-lh);
   color:var(--ink-2)}
 
 /* 치료 방침 결정 */
-.sgy-dec{flex:none; display:flex; flex-direction:column; gap:var(--gap-sm);
+.work-dec{flex:none; display:flex; flex-direction:column; gap:var(--gap-sm);
   padding:var(--hcard-pad-y) var(--bcol-pad); background:var(--card);
   border:var(--hair) solid var(--border); border-radius:var(--hcard-radius)}
-.sgy-dec header{display:flex; align-items:center; gap:var(--chip-gap)}
-.sgy-dec h3{font-size:var(--hcard-h-fs); font-weight:700}
-.sgy-seg{display:grid; gap:var(--gap-xs);
+.work-dec header{display:flex; align-items:center; gap:var(--chip-gap)}
+.work-dec h3{font-size:var(--hcard-h-fs); font-weight:700}
+.work-seg{display:grid; gap:var(--gap-xs);
   grid-template-columns:repeat(4, minmax(0, 1fr))}
 /* 칸 수가 화면마다 다르다(가부 둘 · 결정 셋) — 개수를 못 박지 않는다 */
-.sgy-seg.narrow{flex:none; grid-auto-flow:column; grid-template-columns:none;
+.work-seg.narrow{flex:none; grid-auto-flow:column; grid-template-columns:none;
   justify-content:start}
-.sgy-opt{height:var(--sgy-opt-h); padding:0 var(--in-pad-x);
+.work-opt{height:var(--work-opt-h); padding:0 var(--in-pad-x);
   border-radius:var(--in-radius); font-size:var(--in-fs);
   box-shadow:inset 0 0 0 var(--hair) var(--border)}
-.sgy-opt:hover{background:var(--canvas)}
-.sgy-opt.on{box-shadow:inset 0 0 0 var(--focus-w) var(--cyan);
+.work-opt:hover{background:var(--canvas)}
+.work-opt.on{box-shadow:inset 0 0 0 var(--focus-w) var(--cyan);
   background:var(--wash); font-weight:600}
-.sgy-dec-b{display:flex; align-items:flex-start; gap:var(--gap-sm)}
-.sgy-dec-b textarea{flex:1; min-width:0;
+.work-dec-b{display:flex; align-items:flex-start; gap:var(--gap-sm)}
+.work-dec-b textarea{flex:1; min-width:0;
   border:var(--hair) solid var(--faint); border-radius:var(--in-radius);
   padding:var(--gap-sm) var(--in-pad-x); font-size:var(--in-fs);
   resize:vertical}
 
 /* 단추 다섯이다. 1440 에서 가운데 단이 좁아지면 한 줄에 못 든다 —
    줄여서 글자를 자르지 말고 **접어서** 둘째 줄로 넘긴다(검사가 잡았다) */
-.sgy-foot{flex:none; display:flex; align-items:center; flex-wrap:wrap;
+.work-foot{flex:none; display:flex; align-items:center; flex-wrap:wrap;
   gap:var(--btn-gap)}
 
-/* 오른쪽 330px — 진료 이력 */
-.sgy-hist{display:flex; flex-direction:column; min-height:0; min-width:0;
-  background:var(--canvas)}
-.sgy-hist-b{flex:1; min-height:0; overflow-y:auto;
-  padding:var(--desk-gap); display:flex; flex-direction:column;
-  gap:var(--gap-sm)}
-.sgy-ev{display:flex; flex-direction:column; gap:var(--sgy-ev-gap);
+/* 영상·병리 큐가 더 쓰는 것 — 순번 · 집기 줄 · 가운데 칸 ────────
+   유방외과에는 순번도 집기도 없다(배정된 환자가 곧 큐라서) */
+.work-n{flex:none; width:var(--wrow-n-w); font-style:normal;
+  font-size:var(--qrow-meta-fs); color:var(--v-warm);
+  font-variant-numeric:tabular-nums}
+.work-q-f{flex:none; display:flex; flex-direction:column; align-items:flex-start;
+  gap:var(--gap-xs); padding:var(--hcard-pad-y) var(--bcol-pad);
+  background:var(--v-bg); border-top:var(--hair) solid var(--v-line)}
+.work-q-f .hcard-k{color:var(--v-warm)}
+/* 한 번 더 묻는 줄 — 집기는 되돌릴 수 없다 */
+.work-ask{display:flex; align-items:center; flex-wrap:wrap; gap:var(--gap-xs)}
+
+/* 가운데의 일반 칸 — 이번 검사 · AI 참고 소견 */
+.work-box{flex:none; display:flex; flex-direction:column; gap:var(--gap-sm);
   padding:var(--hcard-pad-y) var(--bcol-pad); background:var(--card);
   border:var(--hair) solid var(--border); border-radius:var(--hcard-radius)}
-.sgy-ev-h{display:flex; align-items:center; gap:var(--chip-gap)}
-.sgy-ev time{font-size:var(--srow-fs); font-weight:600;
+.work-box-h{display:flex; align-items:center; gap:var(--chip-gap)}
+.work-box h3{font-size:var(--hcard-h-fs); font-weight:700}
+
+/* 오른쪽 330px — 진료 이력 */
+.work-hist{display:flex; flex-direction:column; min-height:0; min-width:0;
+  background:var(--canvas)}
+.work-hist-b{flex:1; min-height:0; overflow-y:auto;
+  padding:var(--desk-gap); display:flex; flex-direction:column;
+  gap:var(--gap-sm)}
+.work-ev{display:flex; flex-direction:column; gap:var(--work-ev-gap);
+  padding:var(--hcard-pad-y) var(--bcol-pad); background:var(--card);
+  border:var(--hair) solid var(--border); border-radius:var(--hcard-radius)}
+.work-ev-h{display:flex; align-items:center; gap:var(--chip-gap)}
+.work-ev time{font-size:var(--srow-fs); font-weight:600;
   font-variant-numeric:tabular-nums}
-.sgy-ev p{font-size:var(--sgy-read-fs); line-height:var(--sgy-read-lh);
+.work-ev p{font-size:var(--work-read-fs); line-height:var(--work-read-lh);
   color:var(--ink-2)}
 
 /* 오른쪽 248px — 결정 사유 상용구 */
-.sgy-say{display:flex; flex-direction:column; min-height:0; min-width:0}
-.sgy-say-b{flex:1; min-height:0; overflow-y:auto;
+.work-say{display:flex; flex-direction:column; min-height:0; min-width:0}
+.work-say-b{flex:1; min-height:0; overflow-y:auto;
   padding:var(--desk-gap); display:flex; flex-direction:column;
   gap:var(--desk-gap)}
-.sgy-grp{display:flex; flex-direction:column; gap:var(--gap-xs)}
-.sgy-grp-k{font-size:var(--stag-fs); font-weight:600; color:var(--warm);
+.work-grp{display:flex; flex-direction:column; gap:var(--gap-xs)}
+.work-grp-k{font-size:var(--stag-fs); font-weight:600; color:var(--warm);
   letter-spacing:.04em}
-.sgy-p{padding:var(--gap-tight) var(--gap-sm); border-radius:var(--radius-sm);
+.work-p{padding:var(--gap-tight) var(--gap-sm); border-radius:var(--radius-sm);
   box-shadow:inset 0 0 0 var(--hair) var(--border);
-  font-size:var(--qtab-fs); line-height:var(--sgy-read-lh); color:var(--ink-2)}
+  font-size:var(--qtab-fs); line-height:var(--work-read-lh); color:var(--ink-2)}
 
 /* ── 유방외과 · 검사 종합 (dept/breast/screens/Review.jsx) ───────
    배치는 docs/mockup/SurgeryReview.html. 영상과 병리를 맞대어 보는 자리.
@@ -888,7 +951,7 @@ a.frow:hover .frow-k{color:var(--ink)}
 .rev-box + .rev-box{border-top:var(--hair) solid var(--line-2)}
 .rev-box h3{font-size:var(--hcard-h-fs); font-weight:700}
 .rev-box-h{display:flex; align-items:center; gap:var(--chip-gap)}
-.rev-find{font-size:var(--sgy-read-fs); line-height:var(--sgy-read-lh);
+.rev-find{font-size:var(--work-read-fs); line-height:var(--work-read-lh);
   color:var(--ink-2)}
 
 /* 일치 여부 — soot 채움으로만 가른다. 엇갈렸을 때가 k1 */
@@ -936,7 +999,7 @@ a.frow:hover .frow-k{color:var(--ink)}
 .disc-rule{flex:none; padding:var(--hcard-pad-y) var(--bcol-pad);
   border-radius:var(--hcard-radius); background:var(--soot);
   color:var(--soot-ink); font-size:var(--srow-fs);
-  line-height:var(--sgy-read-lh)}
+  line-height:var(--work-read-lh)}
 
 /* 두 판독을 나란히 — 가운데 1px 선이 곧 「맞대어 본다」는 뜻이다 */
 .disc-vs{flex:none; display:grid;
@@ -950,8 +1013,8 @@ a.frow:hover .frow-k{color:var(--ink)}
 .disc-side h3{font-size:var(--hcard-h-fs); font-weight:700}
 .disc-side time{font-size:var(--qrow-meta-fs); color:var(--warm);
   font-variant-numeric:tabular-nums}
-.disc-big{font-size:var(--sgy-nm-fs); font-weight:700; line-height:1.3}
-.disc-find{font-size:var(--sgy-read-fs); line-height:var(--sgy-read-lh);
+.disc-big{font-size:var(--work-nm-fs); font-weight:700; line-height:1.3}
+.disc-find{font-size:var(--work-read-fs); line-height:var(--work-read-lh);
   color:var(--ink-2)}
 
 .disc-r{display:flex; flex-direction:column; min-height:0; min-width:0;

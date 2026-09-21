@@ -58,11 +58,11 @@ export default function Waiting() {
     <Page className="surgery-page" crumb={["유방외과", "내 환자"]}
           title="내 환자"
           right={<Btn to={go.breast.patients()}>환자 목록</Btn>}>
-      <div className="sgy">
+      <div className="work">
         <Queue state={list} rows={shown} all={rows} odd={odd}
                tab={tab} onTab={setTab} pick={picked} onPick={setPick} />
 
-        <div className="sgy-mid">
+        <div className="work-mid">
           {!picked
             ? <Empty title="배정된 환자가 없습니다" />
             : (
@@ -131,14 +131,14 @@ const TABS = [
 function Queue({ state, rows, all, odd, tab, onTab, pick, onPick }) {
   const count = { all: all.total ?? all.length, odd: odd.length };
   return (
-    <aside className="sgy-q">
-      <header className="sgy-q-h">
+    <aside className="work-q">
+      <header className="work-q-h">
         <h2>내 환자</h2>
-        <div className="sgy-tabs" role="tablist">
+        <div className="work-tabs" role="tablist">
           {TABS.map((t) => (
             <button key={t.key} type="button" role="tab"
                     aria-selected={t.key === tab}
-                    className={`sgy-tab${t.key === tab ? " on" : ""}`}
+                    className={`work-tab${t.key === tab ? " on" : ""}`}
                     onClick={() => onTab(t.key)}>
               {t.label} <i>{count[t.key]}</i>
             </button>
@@ -149,18 +149,18 @@ function Queue({ state, rows, all, odd, tab, onTab, pick, onPick }) {
             onRetry={state.reload}
             empty={rows.length === 0
               && <Empty title={tab === "odd" ? "엇갈린 건이 없습니다" : "배정된 환자가 없습니다"} />}>
-        <div className="sgy-q-b">
+        <div className="work-q-b">
           {rows.map((r) => (
             <button type="button" key={r.patient_id}
-                    className={`sgy-row${r.patient_id === pick ? " on" : ""}`}
+                    className={`work-row${r.patient_id === pick ? " on" : ""}`}
                     onClick={() => onPick(r.patient_id)}>
-              <span className="sgy-row-1">
-                <i className={`sgy-dot${r.has_open_discordance ? " k1" : ""}`}
+              <span className="work-row-1">
+                <i className={`work-dot${r.has_open_discordance ? " k1" : ""}`}
                    aria-hidden="true" />
                 <b>{H.nameOf(r)}</b>
                 {H.who(r) && <span>{H.who(r)}</span>}
               </span>
-              <span className="sgy-row-2">
+              <span className="work-row-2">
                 {H.noOf(r) && <i>{H.noOf(r)}</i>}
                 <span>{r.has_open_discordance ? "판정 불일치" : (r.status ?? "")}</span>
               </span>
@@ -180,14 +180,14 @@ function Mid({ p, onNext, onOpen, onDone }) {
 
   return (
     <>
-      <header className="sgy-head">
-        <span className="sgy-ava" aria-hidden="true">{H.nameOf(p)[0]}</span>
-        <span className="sgy-who">
-          <span className="sgy-1">
+      <header className="work-head">
+        <span className="work-ava" aria-hidden="true">{H.nameOf(p)[0]}</span>
+        <span className="work-who">
+          <span className="work-1">
             <b>{H.nameOf(p)}</b>
             {H.who(p) && <span>{H.who(p)}</span>}
           </span>
-          <span className="sgy-2">
+          <span className="work-2">
             {[H.noOf(p), p.visit_type].filter(Boolean).join(" · ")}
           </span>
         </span>
@@ -199,7 +199,7 @@ function Mid({ p, onNext, onOpen, onDone }) {
       {/* ⚠ 되돌릴 수 없는 갈림길이라 맨 위에 둔다 — 영상과 병리가 엇갈린
           채로 치료 방침을 정하면 안 된다 */}
       {d && (
-        <Link to={go.breast.discordance(d.discordance_id)} className="sgy-odd">
+        <Link to={go.breast.discordance(d.discordance_id)} className="work-odd">
           <i aria-hidden="true">⚠</i>
           <span><b>판정 불일치</b> · {d.violated_rule}</span>
           <span className="home-fill" />
@@ -207,14 +207,14 @@ function Mid({ p, onNext, onOpen, onDone }) {
         </Link>
       )}
 
-      <div className="sgy-reads">
+      <div className="work-reads">
         <Read title="영상 판독" r={pick("영상")} to={go.breast.review(p.patient_id)} />
         <Read title="병리 판독" r={pick("병리")} to={go.breast.review(p.patient_id)} />
       </div>
 
       <Decide p={p} onDone={onDone} />
 
-      <div className="sgy-foot">
+      <div className="work-foot">
         <Btn onClick={() => onOpen("exam")}>촬영 요청</Btn>
         <Btn onClick={() => onOpen("specimen")}>검체 등록</Btn>
         <Btn onClick={() => onOpen("close")}>이상 없음 · 종결</Btn>
@@ -232,7 +232,7 @@ function Mid({ p, onNext, onOpen, onDone }) {
      읽힌다 */
 function Read({ title, r, to }) {
   return (
-    <section className="sgy-read">
+    <section className="work-read">
       <header>
         <h3>{title}</h3>
         <span className="home-fill" />
@@ -242,7 +242,7 @@ function Read({ title, r, to }) {
         ? <p className="hcard-k">아직 없습니다</p>
         : (
           <>
-            <p className="sgy-read-b">{r.summary}</p>
+            <p className="work-read-b">{r.summary}</p>
             <footer>
               <span className="hcard-k">{r.author}</span>
               <span className="home-fill" />
@@ -288,26 +288,26 @@ function Decide({ p, onDone }) {
   }
 
   return (
-    <section className="sgy-dec">
+    <section className="work-dec">
       <header>
         <h3>치료 방침 결정</h3>
         <span className="home-fill" />
         {msg && <span className="hcard-k">{msg}</span>}
       </header>
 
-      <div className="sgy-seg" role="radiogroup" aria-label="결정 종류">
+      <div className="work-seg" role="radiogroup" aria-label="결정 종류">
         {KINDS.map((k) => (
           <button type="button" key={k} role="radio" aria-checked={k === kind}
-                  className={`sgy-opt${k === kind ? " on" : ""}`}
+                  className={`work-opt${k === kind ? " on" : ""}`}
                   onClick={() => setKind(k)}>{k}</button>
         ))}
       </div>
 
-      <div className="sgy-dec-b">
-        <div className="sgy-seg narrow" role="radiogroup" aria-label="결정">
+      <div className="work-dec-b">
+        <div className="work-seg narrow" role="radiogroup" aria-label="결정">
           {VALUES.map((v) => (
             <button type="button" key={v} role="radio" aria-checked={v === value}
-                    className={`sgy-opt${v === value ? " on" : ""}`}
+                    className={`work-opt${v === value ? " on" : ""}`}
                     onClick={() => setValue(v)}>{v}</button>
           ))}
         </div>
@@ -336,18 +336,18 @@ function History({ id }) {
   const rows = [...H.rows(line.data)].reverse();
 
   return (
-    <section className="sgy-hist">
+    <section className="work-hist">
       <header className="bcol-h">
         <i className="hdot ring" aria-hidden="true" />
         <b>진료 이력</b>
         <em>{rows.length}</em>
       </header>
-      <div className="sgy-hist-b">
+      <div className="work-hist-b">
         {rows.length === 0
           ? <p className="hcard-k hpad">아직 없습니다</p>
           : rows.map((r, i) => (
-            <article className="sgy-ev" key={`${r.at}-${i}`}>
-              <div className="sgy-ev-h">
+            <article className="work-ev" key={`${r.at}-${i}`}>
+              <div className="work-ev-h">
                 <time>{H.day(r.at)}</time>
                 <Chip>{r.type}</Chip>
               </div>
@@ -373,17 +373,17 @@ const PHRASES = [
 
 function Phrases() {
   return (
-    <section className="sgy-say">
+    <section className="work-say">
       <header className="bcol-h">
         <i className="hdot ring" aria-hidden="true" />
         <b>결정 사유 상용구</b>
       </header>
-      <div className="sgy-say-b">
+      <div className="work-say-b">
         {PHRASES.map(([group, items]) => (
-          <div className="sgy-grp" key={group}>
-            <span className="sgy-grp-k">{group}</span>
+          <div className="work-grp" key={group}>
+            <span className="work-grp-k">{group}</span>
             {items.map((it) => (
-              <p className="sgy-p" key={it}>{it}</p>
+              <p className="work-p" key={it}>{it}</p>
             ))}
           </div>
         ))}

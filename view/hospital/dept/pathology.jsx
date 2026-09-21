@@ -188,12 +188,25 @@ export const pathology = {
   queue: {
     title: "검체 접수",
     listTitle: "접수 대기 검체",
+    /* 네 단 껍데기가 읽는 제목들(screens/Queue.jsx) */
+    detailTitle: "이 검체",
+    pastTitle: "이 환자의 이력",
+    /* ⚠ **서버가 주는 값이 아니다.** 상용구를 저장하는 경로가 없어 여기
+       박아 뒀다. 사람마다 다르게 쓰려면 서버에 자리가 있어야 한다(8장) */
+    phrases: [
+      ["조직", ["침윤성 유관암 (IDC)", "관상피내암 (DCIS), 저등급"]],
+      ["양성", ["섬유선종", "섬유낭종성 변화"]],
+      ["검체", ["표적 병변 미포함 가능성", "검체량 부족 — 재채취 권고"]],
+      ["결론", ["악성 소견 없음", "추가 면역조직화학 검사 시행"]],
+    ],
     searchHint: "환자 · 검체번호",
     emptyText: "접수 대기 중인 검체가 없습니다",
     need: { view: "pathology.queue.view", assign: "pathology.queue.assign" },
 
     row: (it) => ({
       id: it.id,
+      /* 이 환자의 이력 칸이 이 번호로 부른다 */
+      patientId: it.patient_id ?? it.patient ?? null,
       title: `${it.patient_name} (${it.age}/${label(SEX, it.sex)})`,
       sub: `${it.specimen_no} · ${it.site}`,
       chip: it.method,

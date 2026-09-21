@@ -191,10 +191,10 @@ function Decide({ p, onSaved }) {
       <div className="rev-dec-b">
         <label className="rev-f">
           <span>결정 종류</span>
-          <div className="sgy-seg" role="radiogroup" aria-label="결정 종류">
+          <div className="work-seg" role="radiogroup" aria-label="결정 종류">
             {KINDS.map((k) => (
               <button type="button" key={k} role="radio" aria-checked={k === kind}
-                      className={`sgy-opt${k === kind ? " on" : ""}`}
+                      className={`work-opt${k === kind ? " on" : ""}`}
                       disabled={!may.ok} onClick={() => setKind(k)}>{k}</button>
             ))}
           </div>
@@ -202,10 +202,10 @@ function Decide({ p, onSaved }) {
 
         <label className="rev-f narrow">
           <span>가부</span>
-          <div className="sgy-seg narrow" role="radiogroup" aria-label="가부">
+          <div className="work-seg narrow" role="radiogroup" aria-label="가부">
             {GOES.map((g) => (
               <button type="button" key={g} role="radio" aria-checked={g === goNo}
-                      className={`sgy-opt${g === goNo ? " on" : ""}`}
+                      className={`work-opt${g === goNo ? " on" : ""}`}
                       disabled={!may.ok} onClick={() => setGoNo(g)}>{g}</button>
             ))}
           </div>

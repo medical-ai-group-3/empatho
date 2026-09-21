@@ -34,7 +34,15 @@ const LOOSE = ["nursing/intake", "nursing/patients", "nursing/reservations",
   /* 유방외과 업무 화면 넷 — 과 홈이 아니라 주소로만 닿는다.
      목업대로 다시 짠 자리라 여기서도 재 둔다 */
   "breast/waiting", "breast/patients/P-1001/review",
-  "breast/patients/P-1001/decision", "breast/discordances/D-2001"];
+  "breast/patients/P-1001/decision", "breast/discordances/D-2001",
+  /* 영상·병리 업무 화면 — 같은 파일 다섯 장을 두 과가 나눠 쓴다 */
+  "radiology/queue", "radiology/patients",
+  "pathology/queue", "pathology/patients"];
+/* ⚠ **판독 화면(`radiology/read/{id}`)은 여기 못 넣는다.** 3D 뷰어가
+   `/models/duke/*.stl` 을 부르는데 `public/models/` 가 저장소에 아예
+   없다(.stl 파일이 한 개도 없다). 그래서 콘솔이 늘 빨갛고 검사가 그걸
+   화면 문제로 잡는다 — 내 변경과 무관한 자료 구멍이라 목록에서 뺐다.
+   모델 파일이 들어오면 이 줄을 살려라. */
 const WIDTHS = [1440, 1920];
 const PORT = 9321;
 

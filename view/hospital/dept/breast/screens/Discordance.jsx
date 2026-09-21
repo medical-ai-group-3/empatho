@@ -66,7 +66,7 @@ function Compare({ d }) {
   return (
     <div className="disc-l">
       <header className="disc-h">
-        <span className="sgy-1">
+        <span className="work-1">
           <b>{H.nameOf(p)}</b>
           {H.who(p) && <span>{H.who(p)}</span>}
         </span>
