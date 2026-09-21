@@ -59,10 +59,22 @@ export function allergy(r) {
 }
 
 /* 목록 응답이 세 모양으로 온다 — 배열 · {items} · {results}.
-   과마다 풀어 쓰면 한 곳만 빠뜨린다 */
+   과마다 풀어 쓰면 한 곳만 빠뜨린다.
+
+   ⚠ **총 개수를 같이 들고 온다.** api.js 의 unwrapList 를 안 거치는 목록이
+     있어서(nursing.scheduledToday · rad.queue 처럼) 여기서도 얹는다.
+     한 쪽 20건이라 배열 길이를 세면 스물에서 멈춘다 — 세는 자리는 `.total`
+     을 읽는다. 배열이 이미 들고 있으면 그대로 둔다 */
 export function rows(raw) {
-  if (Array.isArray(raw)) return raw;
-  return raw?.items ?? raw?.results ?? [];
+  const arr = Array.isArray(raw) ? raw : (raw?.items ?? raw?.results ?? []);
+  /* ⚠ 배열로 들어온 것에도 채운다. soft() 가 실패하면 맨 배열 `[]` 을 주는데
+     거기엔 total 이 없어서, 세는 자리가 `undefined` 를 그대로 찍었다 */
+  if (arr.total === undefined) {
+    Object.defineProperty(arr, "total",
+      { value: Array.isArray(raw) ? arr.length
+        : (raw?.count ?? raw?.total ?? arr.length) });
+  }
+  return arr;
 }
 
 /* ── 검사 진행 점 ──────────────────────────────────────────────
@@ -117,25 +129,6 @@ export function iso(d) {
 export function isToday(value) {
   if (!value) return false;
   return String(value).slice(0, 10) === iso(new Date());
-}
-
-/* ── 쪽이 잘린 목록을 정직하게 세는 법 ────────────────────────
- *
- * 서버 목록은 한 쪽 20건이다(DefaultPagination). `api.js` 의 목록 함수들은
- * `results` 만 벗겨 주고 `count` 를 버린다 — **그래서 스무 건이 오면 그게
- * 전부인지 더 있는지 알 수가 없다.**
- *
- * 스무 건이 꽉 차 오면 「20+」로 적는다. 19 를 20 이라 적는 것보다,
- * 스물이 넘는데 스물이라 적는 것이 나쁘다.
- *
- * ⚠ 고치려면 `api.js` 가 `page_size` 를 실어 보내면 된다(서버가 받는다,
- *   최대 200). 새 경로가 아니라 인자 하나다 — 8장에 적어 둘 것.
- */
-const PAGE = 20;
-
-export function capped(list) {
-  const n = list.length;
-  return { n, text: n >= PAGE ? `${PAGE}+` : String(n), more: n >= PAGE };
 }
 
 /* 오늘 며칠인지 · 지금 몇 시인지 — 예약 시각이 지났는지 볼 때 쓴다.

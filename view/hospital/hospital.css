@@ -504,6 +504,7 @@ a.frow:hover .frow-k{color:var(--ink)}
   padding:var(--gap-sm) var(--hcard-pad-x) var(--hcard-pad-y);
   font-size:var(--hcal-legend-fs); color:var(--ink-2)}
 .hcal-legend span{display:inline-flex; align-items:center; gap:var(--gap-5)}
+.hcal-note{font-variant-numeric:tabular-nums; white-space:nowrap}
 
 /* ── 할 일 ───────────────────────────────────────────────────── */
 .todos{flex:1; min-height:0; overflow-y:auto; padding:0 var(--hcard-pad-x)}
@@ -540,19 +541,18 @@ a.frow:hover .frow-k{color:var(--ink)}
      서버가 주지 않는다. 요청 시각만 적는다.
    ⚠ **칸을 카드로 띄우지 않는다.** 목업은 칸마다 테두리를 두르지만 그러면
      칸마다 안쪽 여백이 또 생긴다 — 상자 하나를 1px 선으로 가른다(5.1). */
-/* ⚠ 예약 판과 같은 이유로 **높이를 여기서 한 번만 못 박는다**(flex:none).
-   .shell 이 min-height:100% 라 확정값이 아니어서, 안 박으면 안쪽 두 덩이가
-   못 줄어들고 목업 띠 밑으로 마지막 줄이 깔린다 */
-.page.intake-page{flex:none; min-height:0; overflow:hidden;
-  height:calc(100vh - var(--top-total) - var(--foot-h))}
+/* ⚠ **이 쪽만 뷰포트에 안 가둔다.** 아래에 내원 대기 화면이 통째로 들어
+   있고 그 화면은 제 최소 높이(.n-grid 의 560px)를 요구한다 — 가두면 그
+   안이 짜부라진다. 위 현황판만 높이를 정하고 쪽은 굴린다 */
+.page.intake-page{padding-bottom:var(--home-pad)}
 
 /* 찾아서 접수 — 화면 맨 위 한 줄 */
 .intake-find-box{flex:none; background:var(--card);
   border:var(--hair) solid var(--border); border-radius:var(--hcard-radius);
   overflow:hidden}
 
-/* 오늘 현황판 — 칸 다섯을 가로로. 화면 세로의 반을 쓴다 */
-.board{flex:1 1 var(--board-h); min-height:0; display:grid;
+/* 오늘 현황판 — 칸 다섯을 가로로. 높이를 못 박고 칸 안에서 굴린다 */
+.board{flex:none; height:var(--board-h); display:grid;
   grid-template-columns:repeat(var(--board-cols), minmax(0, 1fr));
   background:var(--card); border:var(--hair) solid var(--border);
   border-radius:var(--hcard-radius); overflow:hidden}
@@ -586,30 +586,9 @@ a.frow:hover .frow-k{color:var(--ink)}
 .brow-3{margin:0; display:flex; gap:var(--gap-sm);
   font-size:var(--prow-3-fs); color:var(--faint)}
 
-/* 내원 대기 줄 — Nursing-내원대기 의 줄 모양 */
-.wq{flex:1 1 var(--wq-h); min-height:0; display:flex; flex-direction:column;
-  background:var(--card); border:var(--hair) solid var(--border);
-  border-radius:var(--hcard-radius); overflow:hidden}
-.wq-b{flex:1; min-height:0; overflow-y:auto}
-.wrow{display:flex; align-items:flex-start; gap:var(--qrow-gap);
-  padding:var(--wrow-pad-y) var(--bcol-pad);
-  border-bottom:var(--hair) solid var(--line-2)}
-.wrow-n{flex:none; width:var(--wrow-n-w); font-style:normal;
-  font-size:var(--qrow-meta-fs); color:var(--faint);
-  font-variant-numeric:tabular-nums}
-.wrow-tx{flex:1; min-width:0; display:flex; flex-direction:column;
-  gap:var(--gap-xxs)}
-.wrow-1{display:flex; align-items:baseline; gap:var(--chip-gap); min-width:0}
-.wrow-1 b{font-size:var(--qrow-nm-fs); font-weight:600; white-space:nowrap}
-.wrow-1 > span{font-size:var(--qrow-meta-fs); color:var(--ink-2)}
-.wrow-1 time{flex:none; font-size:var(--qrow-meta-fs); color:var(--warm);
-  font-variant-numeric:tabular-nums}
-.wrow-2{display:flex; align-items:center; gap:var(--chip-gap); min-width:0;
-  font-size:var(--qrow-meta-fs); color:var(--warm)}
-.wrow-2 i{font-style:normal; font-variant-numeric:tabular-nums}
-.wrow-2 > span:last-child{min-width:0; overflow:hidden;
-  text-overflow:ellipsis; white-space:nowrap}
-.wrow .btn{flex:none}
+/* 끼워 넣은 내원 대기 화면 — 제 높이를 그대로 쓴다.
+   ⚠ 그 화면은 bare 모드로 들어와 제 쪽 머리를 안 그린다(lib/Page 의 bare) */
+.intake-wq{flex:none; min-width:0}
 
 /* ── 예약 판 (screens/reception/Reservations.jsx) ──────────────
    왼쪽에 무엇을 볼지 · 가운데에 이미 있는 것 · 오른쪽에 지금 쓰는 것.

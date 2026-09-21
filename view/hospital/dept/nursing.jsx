@@ -1,4 +1,4 @@
-import { ALL_PATIENTS, nursing as nur, path, reception as rec } from "../api";
+import { nursing as nur, path, reception as rec } from "../api";
 import { go } from "../nav";
 import * as H from "./home";
 
@@ -55,19 +55,17 @@ export const nursing = {
          ⚠ path.queue() 는 줄마다 환자를 한 번씩 더 부른다(api.js 의
            pathSpecimenRow). 큐가 짧아 지금은 견딜 만하지만 늘면 아프다 */
       H.soft(path.queue()),
-      /* 연락처 없는 환자 — 원무 환자 목록과 같은 목록이다 */
-      H.soft(rec.list(ALL_PATIENTS)),
       week(),
       day(1),
     ]).then(([arrived, today, booked, asks, follow, schedule,
-              bound, roster, thisWeek, tomorrow]) => ({
+              bound, thisWeek, tomorrow]) => ({
       arrived: H.rows(arrived), today: H.rows(today), booked: H.rows(booked),
       asks: H.rows(asks), follow: H.rows(follow), schedule: H.rows(schedule),
-      bound: H.rows(bound), roster: H.rows(roster),
+      bound: H.rows(bound),
       thisWeek: H.rows(thisWeek), tomorrow: H.rows(tomorrow),
     })),
 
-    primary: { label: "문진 · 배정", to: go.nursing.waiting(),
+    primary: { label: "문진 · 배정", to: go.nursing.intake(),
                need: "nursing.waiting.view" },
 
     queue: ({ arrived, today, booked, asks }) => ({
@@ -160,25 +158,24 @@ export const nursing = {
       }
       return {
         title: "오늘 흐름",
-        summary: `오늘 온 사람 ${today.length}`,
+        summary: `오늘 온 사람 ${today.total}`,
         items: [...by].map(([name, count]) => ({ name, count })),
       };
     },
 
     /* **기한이 지난 것이 제일 위다.** 오늘 해야 하는 순서 그대로 내려간다 */
-    stuck: ({ arrived, follow, asks, booked, bound, roster }) => {
+    stuck: ({ arrived, follow, asks, booked, bound }) => {
       const due = (k) => follow.filter((r) => H.dueBucket(r.due_at) === k).length;
-      const noPhone = H.capped(roster.filter((r) => !r.phone));
       return [
         { tag: "추적 기한", text: "기한이 지난 추적 콜",
           count: due("over"), to: go.nursing.followups() },
         { tag: "안 오심", text: "예약 시각이 지났는데 아직 안 오신 분",
           count: booked.filter((r) => H.isPast(r.scheduled_at)).length,
-          to: go.nursing.waiting() },
+          to: go.nursing.intake() },
         { tag: "검체", text: "병리가 아직 집지 않은 검체 — 라벨 확인이 남았습니다",
-          count: bound.length, to: go.nursing.waiting() },
+          count: bound.total, to: go.nursing.intake() },
         { tag: "예약 확인", text: "앱으로 들어온 신청 — 날짜·시간을 정해야 합니다",
-          count: asks.length, to: go.nursing.reservations() },
+          count: asks.total, to: go.nursing.reservations() },
         { tag: "추적 오늘", text: "오늘 걸어야 하는 추적 콜",
           count: due("today"), to: go.nursing.followups() },
         { tag: "추적 이번 주", text: "이번 주 안에 걸어야 하는 추적 콜",
@@ -188,11 +185,12 @@ export const nursing = {
           to: go.nursing.followups() },
         { tag: "문진", text: "접수 뒤 문진이 비어 있는 환자",
           count: arrived.filter((r) => !r.questionnaire).length,
-          to: go.nursing.waiting() },
-        /* ⚠ 명부가 한 쪽(20명)만 와서 「20+」가 될 수 있다. 세는 조건은
-           맞지만 본 범위가 좁다 — api.js 가 page_size 를 실으면 정확해진다 */
-        { tag: "연락처", text: `전화번호가 비어 있는 환자${noPhone.more ? " (첫 20명 중)" : ""}`,
-          count: noPhone.n, to: go.nursing.patients() },
+          to: go.nursing.intake() },
+        /* ⚠ **「연락처 없는 환자」는 못 센다.** 그건 서버가 거르는 조건이
+           아니라 **화면이 받아 놓고 거르는** 것이라, 한 쪽(20명)만 보고
+           세게 된다. 봉투의 count 는 명부 총원이지 전화번호 빈 사람 수가
+           아니다 — 틀린 수를 적느니 줄을 안 세운다.
+           서버에 `?has_phone=none` 같은 거르개가 생기면 그때 넣는다 */
         /* ⚠ **선생님별 오늘 배정 수는 못 낸다.** 환자 목록 응답
            (PatientListSerializer)에 `primary_staff` 가 없어서 누가 누구
            환자인지 모른다 — 「미배정 n」조차 못 센다. 배정이 이 과의 주
@@ -203,10 +201,10 @@ export const nursing = {
     /* ⚠ 접수·배정·문진·콜을 오늘 몇 건 했는지 세어 주는 자리가 없다(8장 1번) */
     done: () => ({ empty: "아직 없습니다" }),
 
-    /* 달력 옆 숫자 둘 — 이번 주 · 내일.
-       ⚠ 한 쪽 20건이라 꽉 차면 「20+」다(dept/home.js 의 capped) */
+    /* 달력 옆 숫자 둘 — 이번 주 · 내일. 봉투의 count 를 읽어서 스무 건이
+       넘어도 정확하다(api.js 의 unwrapList) */
     calNote: ({ thisWeek, tomorrow }) =>
-      `이번 주 ${H.capped(thisWeek).text} · 내일 ${H.capped(tomorrow).text}`,
+      `이번 주 ${thisWeek.total} · 내일 ${tomorrow.total}`,
 
     /* 합치고 나서 달력에 점이 둘이 된다 — 예약과 추적 콜.
        두 과가 따로일 때는 과마다 하나씩이었다 */

@@ -477,8 +477,6 @@ function Calendar({ marks, note }) {
     <Card dot="none" title={grid.label} className="hcal"
           right={(
             <>
-              {/* 달력 옆 숫자 — 이번 주 · 내일. 과가 세어서 준다 */}
-              {note && <span className="hcard-k">{note}</span>}
               <button type="button" className="hcal-nav" aria-label="이전 달"
                       onClick={() => move(-1)}>‹</button>
               <button type="button" className="hcal-nav" aria-label="다음 달"
@@ -500,11 +498,15 @@ function Calendar({ marks, note }) {
             </i>
           ))}
       </div>
-      {kinds.length > 0 && (
+      {/* ⚠ 숫자는 **머리가 아니라 아래**다. 328px 머리에 달 이름과 단추 둘이
+          이미 있어서 거기 더 넣으면 칸 밖으로 37px 나간다 */}
+      {(kinds.length > 0 || note) && (
         <p className="hcal-legend">
           {kinds.map((k, i) => (
             <span key={k}><s className={`hcal-dot k${i % 2}`} />{k}</span>
           ))}
+          {note && <span className="home-fill" />}
+          {note && <span className="hcal-note">{note}</span>}
         </p>
       )}
     </Card>
