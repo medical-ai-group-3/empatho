@@ -23,6 +23,7 @@ from .reception import (
     MeSerializer,
     PushTokenSerializer,
     NotificationSerializer,
+    MePatientSerializer,
 )
 from .nursing import (
     FollowupSerializer,

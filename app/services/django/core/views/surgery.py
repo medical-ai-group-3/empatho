@@ -44,7 +44,11 @@ class PatientTimelineView(AuditMixin, viewsets.ViewSet):
     permission_classes = [MatrixPermission]
 
     def retrieve(self, request, pk=None):
-        patient = models.Patient.objects.get(pk=pk)
+        patient = models.Patient.objects.filter(pk=pk).first()
+        if patient is None :
+            raise ApiError("NOT FOUND", "환자를 찾을 수 없습니다")
+        if request.user.role == "patient" and patient.account_id != request.user.account_id:
+            raise ApiError("ROLE_FORBIDDEN", "본인 기록만 볼 수 있습니다.")
 
         events = []
         for study in models.Study.objects.filter(patient=patient):
@@ -78,6 +82,7 @@ class SurgeryReportViewSet(AuditMixin, OwnedOnlyMixin, viewsets.ModelViewSet):
     permission_classes = [MatrixPermission]
     queryset = models.Report.objects.all()
     serializer_class = serializers.ReportSerializer
+    http_method_names = ["get", "put", "patch", "head", "options"]
     
     def owned_queryset(self, queryset, account):
         # 환자에게는 환자용만. 의사용에는 BI-RADS · px · sTIL 이 그대로 들어 있다 —

@@ -780,7 +780,11 @@ def deliver_external(notification_id) :
     같은 알림을 여러 번 보내는 쪽이 못 보내는 쪽보다 나쁘다.
     """
     from . import delivery 
-    note = Notification.objects.get(pk=notification_id)
+    note = Notification.objects.filter(pk=notification_id).first()
+    if note is None :
+        # 행이 사라졌다. 되돌려진 요청이거나 지워진 알림이다 — 보낼 것이 없다.
+        logger.info("[delivery] 알림 %s 가 없다. 건너뛴다", notification_id)
+        return "gone"
     channel = delivery.deliver(note)
     if channel :
         note.channel = channel 

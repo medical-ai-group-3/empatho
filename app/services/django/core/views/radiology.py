@@ -397,6 +397,7 @@ class LesionViewSet(AuditMixin, viewsets.ModelViewSet):
     permission_classes = [MatrixPermission]
     queryset = models.Lesion.objects.all()
     serializer_class = serializers.LesionSerializer
+    http_method_names = ["get", "post", "patch", "head", "options"]
 
     def create(self, request, *args, **kwargs):
         serializer = serializers.LesionCreateSerializer(data=request.data)

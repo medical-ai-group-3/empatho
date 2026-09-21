@@ -47,13 +47,14 @@ class FollowupViewSet(AuditMixin, OwnedOnlyMixin, viewsets.ModelViewSet):
     permission_classes = [MatrixPermission]
     queryset = models.Followup.objects.select_related("patient").order_by("due_at")
     serializer_class = serializers.FollowupSerializer
+    http_method_names = ["get", "post", "patch", "head", "options"]
 
     def list(self, request, *args, **kwargs):
         existing = self.get_queryset()
         existing_data = serializers.FollowupSerializer(existing, many=True).data
         result = list(existing_data)
 
-        if request.query_params.get("include_candidates") == "1":
+        if request.query_params.get("include_candidates") == "1" and getattr(request.user, "staff", None) is not None:
             tracked_patient_ids = set(existing.values_list("patient_id", flat=True))
             candidates = models.Assessment.objects.filter(
                 category="3", read_stage="final"

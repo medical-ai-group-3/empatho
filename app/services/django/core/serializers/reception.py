@@ -26,6 +26,7 @@ class PatientSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Patient
         exclude = AUDIT_FIELDS
+        read_only_fields = ("account", "patient_number")
 
 
 class PatientDetailSerializer(PatientSerializer):
@@ -291,6 +292,67 @@ class MeSerializer(serializers.Serializer):
 
     def get_perms(self, account):
         return perms_for_role(account.role)
+    
+class MePatientSerializer(serializers.Serializer):
+    """GET /me — 환자용. 같은 경로에서 역할로 갈린다.
+
+    의료진용(MeSerializer)은 권한 배열을 내는데, 환자에게는 쓸 데가 없다.
+    환자 화면이 필요한 것은 「나는 누구이고 언제 왔고 문진은 어디까지 했나」다.
+
+    경로를 /me/patient 로 따로 내지 않는 이유 — 화면이 이미 /me 를 부르고
+    있고, 한 사람은 환자이거나 의료진이지 둘 다인 경우가 없다.
+    """
+
+    patient_id = serializers.IntegerField(source="patient.patient_id", default=None)
+    patient_number = serializers.CharField(source="patient.patient_number", default=None)
+    display_name = serializers.CharField(source="patient.pii.name", default=None)
+    birth_date = serializers.DateField(source="patient.pii.birth_date", default=None)
+    phone = serializers.CharField(source="patient.pii.phone", default=None)
+    login_id = serializers.CharField(default=None)
+
+    primary_staff_name = serializers.CharField(
+        source="patient.primary_staff.full_name", default=None)
+    primary_staff_dept = serializers.CharField(
+        source="patient.primary_staff.account.role", default=None)
+
+    last_visit_at = serializers.SerializerMethodField()
+    last_visit_dept = serializers.SerializerMethodField()
+    questionnaire_status = serializers.SerializerMethodField()
+    questionnaire_progress = serializers.SerializerMethodField()
+
+    def _last_order(self, account):
+        """가장 최근 방문. 검사 오더의 visited_at 이 방문 시각이다."""
+        patient = getattr(account, "patient", None)
+        if patient is None:
+            return None
+        return (models.ExamOrder.objects
+                .filter(patient=patient, visited_at__isnull=False)
+                .order_by("-visited_at").first())
+
+    def get_last_visit_at(self, account):
+        o = self._last_order(account)
+        return o.visited_at if o else None
+
+    def get_last_visit_dept(self, account):
+        o = self._last_order(account)
+        # 모달리티가 곧 어느 과에 갔는지다. 없으면 접수만 하고 간 것이다.
+        return "영상의학과" if (o and o.modality) else None
+
+    def get_questionnaire_status(self, account):
+        q = self._answers(account)
+        if q is None:
+            return "not_started"
+        return "done" if q.get("_done") else "in_progress"
+
+    def get_questionnaire_progress(self, account):
+        q = self._answers(account) or {}
+        answered = len([k for k in q if not k.startswith("_")])
+        # 문항 수는 정의 파일이 안다. 아직 안 읽으므로 답한 수만 낸다.
+        return {"answered": answered, "total": answered}
+
+    def _answers(self, account):
+        patient = getattr(account, "patient", None)
+        return getattr(patient, "questionnaire", None) if patient else None
 
 class PushTokenSerializer(serializers.Serializer):
     """FCM 기기 토큰. 앱이 켜질 때마다 보낸다 — 토큰은 조용히 바뀐다."""

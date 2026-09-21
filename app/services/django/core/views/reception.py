@@ -25,6 +25,9 @@ class PatientViewSet(AuditMixin, OwnedOnlyMixin, viewsets.ModelViewSet):
     resource = "patient"
     permission_classes = [MatrixPermission]
     queryset = models.Patient.objects.select_related("pii", "primary_staff").all()
+    
+    def create(self, request, *args, **kwargs) :
+        raise ApiError("ROLE_FORBIDDEN", "환자 등록은 /patients/register 로 합니다.")
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -98,6 +101,8 @@ class ReservationViewSet(AuditMixin, OwnedOnlyMixin, viewsets.ViewSet):
         return obj.patient.account_id == account.account_id
 
     def create(self, request):
+        if getattr(request.user, "patient", None) is not None :
+            raise ApiError("ROLE_FORBIDDEN", "예약 신청은 /me/reservation-request로 하세요")
         patient = getattr(request.user, "patient", None)
         payload = request.data
         if patient is not None:
@@ -256,6 +261,8 @@ class StaffListView(generics.ListAPIView):
     serializer_class = serializers.StaffSerializer
 
     def get_queryset(self):
+        if getattr(self.request.user, "staff", None) is None:
+            raise ApiError("ROLE_FORBIDDEN", "의료진만 조회할 수 있습니다.")
         qs = models.Staff.objects.select_related("account").all()
         role = self.request.query_params.get("role")
         if role:
@@ -270,6 +277,8 @@ class PatientTodayStatusView(viewsets.ViewSet):
     permission_classes = [MatrixPermission]
 
     def list(self, request):
+        if getattr(request.user, "staff", None) is None:
+            raise ApiError("ROLE_FORBIDDEN", "의료진만 조회할 수 있습니다.")
         today = timezone.localdate()
         orders = models.ExamOrder.objects.filter(
             visited_at__date=today
@@ -367,7 +376,12 @@ class MeView(viewsets.ViewSet):
     permission_classes = [IsAuthenticatedAccount]  # core.api.permissions 에서 import
 
     def list(self, request):
-        out = serializers.MeSerializer(request.user)
+        # 환자와 의료진이 같은 문으로 들어오고 role 로만 갈린다.
+        # 내보낼 것이 서로 겹치지 않아서 여기서 가른다.
+        if request.user.role == "patient":
+            out = serializers.MePatientSerializer(request.user)
+        else:
+            out = serializers.MeSerializer(request.user)
         return Response(out.data)
     
 class PushTokenView(viewsets.ViewSet):
