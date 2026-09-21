@@ -57,6 +57,8 @@ export default function PathologyAi({ d }) {
                 <dd>
                   {r.stroma_status === "absent" ? (
                     <span className="ai-na inline">평가 불가 — 간질 없음</span>
+                  ) : r.stil_calibrated == null ? (
+                    <span className="ai-na inline">보정 전 — 표시하지 않음</span>
                   ) : (
                     <>{r.stil_calibrated}<i>%</i> <em>({label(STIL_LEVEL, r.stil_level)})</em></>
                   )}
