@@ -77,12 +77,12 @@ class PatientViewSet(AuditMixin, OwnedOnlyMixin, viewsets.ModelViewSet):
             return serializers.PatientListSerializer
         return serializers.PatientSerializer
 
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-        out = serializers.PatientDetailSerializer(serializer.instance)
-        return Response(out.data, status=status.HTTP_201_CREATED)
+    # def create(self, request, *args, **kwargs):
+    #     serializer = self.get_serializer(data=request.data)
+    #     serializer.is_valid(raise_exception=True)
+    #     self.perform_create(serializer)
+    #     out = serializers.PatientDetailSerializer(serializer.instance)
+    #     return Response(out.data, status=status.HTTP_201_CREATED)
 
 
 class ReservationViewSet(AuditMixin, OwnedOnlyMixin, viewsets.ViewSet):
