@@ -17,7 +17,6 @@ export default function SideDashboard({ stats = [] }) {
     <Card title="내 업무" className="b-dash" pad={false}>
       <div className="b-dash-body">
         {stats.length > 0 && <TodaySummary stats={stats} />}
-        <MiniCalendar />
         <TodoList />
       </div>
     </Card>
@@ -33,45 +32,6 @@ function TodaySummary({ stats }) {
           <span className="b-dash-label">{s.label}</span>
         </div>
       ))}
-    </div>
-  );
-}
-
-const WEEK = ["일", "월", "화", "수", "목", "금", "토"];
-
-function MiniCalendar() {
-  const today = new Date();
-  const [y, setY] = useState(today.getFullYear());
-  const [m, setM] = useState(today.getMonth()); // 0-based
-
-  const first = new Date(y, m, 1);
-  const startDay = first.getDay();
-  const days = new Date(y, m + 1, 0).getDate();
-  const cells = [...Array(startDay).fill(null), ...Array(days).keys()].map((d) => (d == null ? null : d + 1));
-
-  function move(delta) {
-    const next = new Date(y, m + delta, 1);
-    setY(next.getFullYear());
-    setM(next.getMonth());
-  }
-
-  const isToday = (d) => d === today.getDate() && m === today.getMonth() && y === today.getFullYear();
-
-  return (
-    <div className="b-cal">
-      <div className="b-cal-head">
-        <button type="button" className="b-cal-nav" onClick={() => move(-1)} aria-label="이전 달">‹</button>
-        <b>{y}년 {m + 1}월</b>
-        <button type="button" className="b-cal-nav" onClick={() => move(1)} aria-label="다음 달">›</button>
-      </div>
-      <div className="b-cal-grid b-cal-week">
-        {WEEK.map((w) => <span key={w}>{w}</span>)}
-      </div>
-      <div className="b-cal-grid">
-        {cells.map((d, i) => (
-          <span key={i} className={d && isToday(d) ? "b-cal-today" : ""}>{d ?? ""}</span>
-        ))}
-      </div>
     </div>
   );
 }

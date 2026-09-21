@@ -10,7 +10,6 @@ import { useApi } from "../../lib/useApi";
 import { can } from "../../perm";
 import Calendar from "./Calendar";
 import Register from "./Register";
-import { SEX, label } from "../../codes";
 
 /* 원무 1장 — 접수 · 방문 환자 모니터링
  * ════════════════════════════════════════════════════════════════
@@ -38,8 +37,11 @@ import { SEX, label } from "../../codes";
 
 const EMPTY = { name: "", phone: "", birth_date: "" };
 
-export default function Intake() {
+/* integrated=true 는 원무 기능을 간호과 업무 흐름 안에서 여는 경우다.
+   같은 접수 API를 쓰되, 화면의 목적과 다음 단계는 간호과 기준으로 보인다. */
+export default function Intake({ integrated = false, embedded = false }) {
   const navigate = useNavigate();
+  const allowed = (key) => can(integrated ? [key, "nursing.waiting.view"] : key);
   const [form, setForm] = useState(EMPTY);
   /* 고른 환자. 칸을 손으로 고치면 비운다 — 칸과 번호가 어긋난 채로
      접수되면 엉뚱한 사람이 큐에 오른다 */
@@ -56,7 +58,7 @@ export default function Intake() {
 
   const today = useApi(() => api.todayStatus(), []);
   useEffect(() => {
-    const t = setInterval(today.reload, 10_000);
+    const t = setInterval(() => today.reload(true), 30_000);
     return () => clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -144,16 +146,19 @@ export default function Intake() {
 
   return (
     <Page
-      crumb={["원무과", "접수"]}
-      title="접수 · 방문 환자 모니터링"
-      sub="환자를 찾아 접수하면 간호 큐로 넘어갑니다. 검사 종류는 정하지 않습니다."
+      bare={embedded}
+      crumb={integrated ? ["간호과", "접수 · 간호"] : ["원무과", "접수"]}
+      title={integrated ? "접수 · 간호" : "접수 · 방문 환자 모니터링"}
+      sub={integrated
+        ? "환자를 확인해 접수하고, 내원 환자에서 간호 확인 후 유방외과로 전달합니다."
+        : "환자를 찾아 접수합니다. 검사 종류는 정하지 않습니다."}
     >
       <div className="split">
         <div className="split-l">
           <Card
             title="접수"
             className="reception-intake-card"
-            right={can("reception.patient.create")
+            right={allowed("reception.patient.create")
               ? <Btn onClick={() => setRegOpen(true)}>+ 등록</Btn>
               : null}
           >
@@ -162,6 +167,7 @@ export default function Intake() {
                 <label className="field">
                   <span>이름</span>
                   <input value={form.name} disabled={busy}
+                         placeholder="셋 중 하나만 입력해도 됩니다"
                          onChange={(e) => edit("name", e.target.value)} />
                 </label>
                 <label className="field">
@@ -174,25 +180,27 @@ export default function Intake() {
                   <input type="date" value={form.birth_date} disabled={busy}
                          onChange={(e) => edit("birth_date", e.target.value)} />
                 </label>
+                <div className="find-submit">
+                  <Btn kind="fill" type="submit" disabled={!term() || busy}>
+                    {busy ? "찾는 중…" : "검색"}
+                  </Btn>
+                </div>
               </div>
-              <p className="hint">셋 중 하나만 넣어도 됩니다. 엔터로도 찾습니다.</p>
-              <Btn kind="fill" type="submit" disabled={!term() || busy}>
-                {busy ? "찾는 중…" : "검색"}
-              </Btn>
             </form>
 
             {error && <Failed error={error} />}
             {done && <Done done={done} />}
-            {empty && <NotFound onAdd={can("reception.patient.create")
+            {empty && <NotFound onAdd={allowed("reception.patient.create")
               ? () => setRegOpen(true) : null} />}
             {regDone && <Registered how={regDone} />}
 
-            {picked && <Picked patient={picked} busy={busy} onCheckIn={checkIn} />}
+            {picked && <Picked patient={picked} busy={busy} onCheckIn={checkIn}
+              canCheckIn={allowed("reception.checkin")} />}
           </Card>
         </div>
 
         <div className="split-r">
-          <Card className="reception-monitor-card" title="방문 환자 모니터링" right={<Chip>10초마다</Chip>}>
+          <Card className="reception-monitor-card" title="방문 환자 모니터링" right={<Chip>30초마다</Chip>}>
             <Body loading={today.loading} error={today.error} onRetry={today.reload}>
               {today.data && <Monitor rows={today.data} />}
             </Body>
@@ -200,11 +208,13 @@ export default function Intake() {
         </div>
       </div>
 
+      {!integrated && !embedded && <>
       {/* 날짜를 더블클릭하면 3장으로 가면서 그 날짜가 채워진다.
           **주소에 담는다** — 화면 상태로 넘기면 붙여 넣은 주소로 같은 자리가
           다시 안 열린다 */}
       <Calendar onOpenDate={(date) =>
         navigate(`${go.reception.patients()}?date=${date}`)} />
+      </>}
 
       {choices && (
         <Choose rows={choices} onPick={fill} onClose={() => setChoices(null)} />
@@ -259,16 +269,15 @@ function Choose({ rows, onPick, onClose }) {
 /* 고른 사람 + [접수하기].
    접수 전에 한 번 더 보여주는 자리다 — 오타를 잡는 마지막 지점이다.
    환자번호는 검색 칸에 없으니 여기서 보여줘야 한다 */
-function Picked({ patient, busy, onCheckIn }) {
+function Picked({ patient, busy, onCheckIn, canCheckIn }) {
   return (
     <div className="picked">
       <dl className="kv">
         <dt>환자번호</dt><dd>{patient.patient_number}</dd>
         <dt>생년월일</dt><dd className="num">{patient.birth_date ?? patient.birth_year ?? "—"}</dd>
-        <dt>성별</dt><dd>{label(SEX, patient.sex) || "—"}</dd>
       </dl>
       <Btn kind="fill" onClick={onCheckIn}
-           disabled={busy || !can("reception.checkin")}>
+           disabled={busy || !canCheckIn}>
         {busy ? "접수하는 중…" : "접수하기"}
       </Btn>
     </div>
@@ -308,7 +317,7 @@ function Done({ done }) {
   return (
     <div className="slot ok" role="status">
       <b>{done.patient.name ?? done.patient.patient_number} 접수했습니다</b>
-      <span>간호 큐로 넘어갔습니다 · 오더 {done.order.exam_order_id}</span>
+      <span>접수를 완료했습니다 · 오더 {done.order.exam_order_id}</span>
     </div>
   );
 }

@@ -10,7 +10,10 @@ import { Link } from "react-router-dom";
  * **배지는 상태를 글자로 말한다.** 색을 따로 만들지 않는 것이 이 판의
  * 규칙이라(tokens.css), 배지도 soot 채움이나 외곽선으로만 가른다.
  */
-export function Page({ crumb, title, badge, sub, right, back, className = "", children }) {
+export function Page({ crumb, title, badge, sub, right, back, className = "", bare = false, children }) {
+  /* 한 업무 화면 안에 여러 작업 패널을 묶을 때 쓰는 모드다. 바깥 화면이
+     제목·여백을 이미 맡고 있으므로 중첩된 main/제목을 만들지 않는다. */
+  if (bare) return children;
   return (
     /* className 은 과별 스타일을 가두는 자리다 — 유방외과가 "breast" 로
        열고, dept/breast/breast.css 의 규칙이 그 안에서만 산다.

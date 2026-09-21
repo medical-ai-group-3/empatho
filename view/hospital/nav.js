@@ -127,25 +127,6 @@ const DEPTS = [
     ],
   },
 
-  {
-    key: "reception",
-    name: "원무과",
-    who: { name: "한지우", role: "주임" },
-    screens: [
-      { key: "", use: "reception.intake", menu: "접수", title: "접수 · 방문 환자 모니터링",
-        sub: "환자를 찾아 접수하면 간호 큐로 넘어갑니다. 검사 종류는 정하지 않습니다 — 의학적 판단이라 유방외과 몫입니다.",
-        need: "reception.intake.view" },
-
-      { key: "patients", use: "reception.patients", menu: "환자 목록", title: "환자 목록 · 예약",
-        sub: "환자를 찾아 정보를 고치거나 예약을 잡습니다.",
-        need: "reception.patients.view" },
-
-      { key: "requests", use: "reception.requests", menu: "예약 확인", title: "예약 확인",
-        sub: "앱으로 들어온 예약 신청을 확정합니다. 날짜와 시간만 정합니다.",
-        need: "reception.requests.view" },
-    ],
-  },
-
   /* 관리자 — 화면이 하나뿐이고 그 하나도 Django admin 으로 넘기는 자리다.
      우리가 관리자 화면을 짓지 않기로 했기 때문이다. 그래도 과 하나로 두는
      이유는, 그래야 메뉴 · 권한 · 첫 화면(homeDept)이 전부 지금 틀대로
@@ -160,18 +141,29 @@ const DEPTS = [
     ],
   },
 
-  /* ⚠ 간호과도 유방외과처럼 모양이 다르다. 집는 절차도, 판독도 없다 —
-     원무가 접수한 환자를 유방외과 의사에게 넘기고, 추적을 관리한다.
-     검체 바인딩(3장)은 화면이 따로 없다 — 유방외과와 같은 팝업을
-     1장 안에서 연다(간호과 명세 §3). */
+  /* 간호과가 환자의 병원 내 첫 창구다. 원무의 검색·접수·예약 기능을
+     이 과에 묶어, 접수 뒤 다시 다른 부서 화면으로 옮길 필요가 없게 한다. */
   {
     key: "nursing",
     name: "간호과",
     who: { name: "정다은", role: "간호사" },
     screens: [
-      { key: "", use: "nursing.waiting", menu: "내원 대기", title: "내원 대기 · 유방외과 배정",
-        sub: "지금 와 있는 환자를 접수 순서대로 보고 유방외과 의사에게 넘깁니다.",
-        need: "nursing.waiting.view" },
+      { key: "", use: "nursing.intake", menu: "접수 · 간호", title: "접수 · 간호",
+        sub: "환자를 확인하고 접수와 간호 확인을 진행합니다.",
+        need: ["nursing.waiting.view", "reception.intake.view"] },
+
+      /* 접수·간호 첫 화면에 함께 보인다. 기존 주소는 북마크 호환용으로만 둔다. */
+      { key: "waiting", use: "nursing.waiting", menu: "내원 환자", title: "내원 환자 · 유방외과 배정",
+        sub: "접수된 환자의 문진과 전달 메모를 확인한 뒤 유방외과로 전달합니다.",
+        need: "nursing.waiting.view", deep: true },
+
+      { key: "patients", use: "nursing.patients", menu: "환자 목록 · 예약", title: "환자 목록 · 예약",
+        sub: "환자 정보를 확인하고 예약을 관리합니다.",
+        need: ["nursing.waiting.view", "reception.patients.view"] },
+
+      { key: "requests", use: "nursing.requests", menu: "예약 확인", title: "예약 확인",
+        sub: "앱으로 들어온 예약 신청을 확인합니다.",
+        need: ["nursing.waiting.view", "reception.requests.view"] },
 
       { key: "followups", use: "nursing.followups", menu: "추적 관리", title: "추적 대상 관리",
         sub: "BI-RADS 3 확정 환자의 6·12·24개월 추적을 관리합니다.",
@@ -256,7 +248,7 @@ function deptKey(value) {
     pathology: "pathology", "병리": "pathology", "병리과": "pathology",
     radiology: "radiology", "영상의학": "radiology", "영상의학과": "radiology",
     breast: "breast", surgery: "breast", "유방외과": "breast",
-    reception: "reception", "원무": "reception", "원무과": "reception",
+    reception: "nursing", "원무": "nursing", "원무과": "nursing",
     nursing: "nursing", "간호": "nursing", "간호과": "nursing",
     admin: "admin", "관리자": "admin",
   };
@@ -326,7 +318,10 @@ export const go = {
   },
 
   nursing: {
-    waiting:   () => N,
+    intake:    () => N,
+    waiting:   () => `${N}/waiting`,
+    patients:  () => `${N}/patients`,
+    requests:  () => `${N}/requests`,
     followups: () => `${N}/followups`,
   },
 };

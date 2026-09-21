@@ -85,14 +85,15 @@ export default function Waiting() {
                   <table className="list">
                     <thead>
                       <tr>
-                        <th>환자번호</th><th>이름</th><th>나이/성별</th><th>진행상황</th>
+                        <th>순서</th><th>환자번호</th><th>이름</th><th>나이/성별</th><th>진행상황</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {list.map((p) => (
+                      {list.map((p, index) => (
                         <tr key={p.patient_id}
                             className={p.patient_id === selectedId ? "on" : ""}
                             onClick={() => setSelectedId(p.patient_id)}>
+                          <td className="num">{index + 1}</td>
                           <td>{p.patient_number}</td>
                           <td>{p.name}</td>
                           <td>{p.age}세 · {label(SEX, p.sex)}</td>

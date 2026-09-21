@@ -16,26 +16,23 @@ import SideDashboard from "../../../lib/SideDashboard";
  *   고른 의사로 채워지고, 그때부터 그 의사의 "내 환자" 화면에만 뜬다
  *   (유방외과는 영상·병리처럼 선착순으로 집지 않는다 — 간호과 명세 §1).
  *
- * **왼쪽·오른쪽 아래가 다르다**
- *   왼쪽(내원한 대기 환자)  = 이미 와서 접수한 사람. requested·visited_at 있음
- *   오른쪽 아래(금일 내원 예정) = 오늘 올 예정인데 아직 안 온 사람. 보기만
+ * **세 단이 맡는 일이 다르다**
+ *   왼쪽 = 금일 예약·내 업무, 가운데 = 이미 내원해 간호 확인을 기다리는 사람,
+ *   오른쪽 = 고른 환자의 상세·문진·전달 처리다.
  *
  * **순번은 표시 전용이다.** 원무가 접수한 순서 그대로다 — 드래그로
  * 못 바꾼다(간호과 명세가 명시적으로 확인해 준 부분).
  *
- * **왼쪽과 오른쪽 세로 길이를 맞춘다** — 오른쪽 두 카드(환자 상세정보 ·
- * 금일 내원 예정)를 합친 높이가 왼쪽 목록 높이와 같아야 한다는 지시가
- * 있었다. `.n-grid`/`.n-side-stack`(hospital.css)로 뷰포트 기준 높이를
- * 고정하고 넘치는 내용은 카드 안에서만 스크롤한다. */
-export default function NursingWaiting({ cfg }) {
+ * 모든 열은 같은 화면 높이를 쓰고, 넘치는 내용은 카드 안에서만 스크롤한다. */
+export default function NursingWaiting({ cfg, embedded = false }) {
   if (!can("nursing.waiting.view")) {
     return (
-      <Page crumb={[cfg.name, "내원 대기 · 유방외과 배정"]} title="내원 대기 · 유방외과 배정">
+      <Page bare={embedded} crumb={[cfg.name, "내원 대기 · 유방외과 배정"]} title="내원 대기 · 유방외과 배정">
         <Locked what="내원 대기" />
       </Page>
     );
   }
-  return <Inner cfg={cfg} />;
+  return <Inner cfg={cfg} embedded={embedded} />;
 }
 
 const POLL_MS = 7000;
@@ -73,59 +70,22 @@ function queueItem(it, no) {
   };
 }
 
-function Inner({ cfg }) {
-  const arrived = useApi(() => cfg.api.waitingArrived(), []);
+function Inner({ cfg, embedded }) {
   const today = useApi(() => cfg.api.scheduledToday(), []);
   const [selectedId, setSelectedId] = useState(null);
+  const [queueVersion, setQueueVersion] = useState(0);
   const detail = useApi(
     () => (selectedId ? cfg.api.examOrder(selectedId) : Promise.resolve(null)),
     [selectedId],
   );
 
-  /* 여럿이 보는 목록이라 주기적으로 다시 부른다 — 간호과 명세: 5~10초 폴링 */
-  useEffect(() => {
-    const t = setInterval(() => arrived.reload(true), POLL_MS);
-    return () => clearInterval(t);
-  }, [arrived.reload]);
-
-  /* 처음 들어왔을 때 맨 위(가장 먼저 접수한 사람)를 자동으로 골라 둔다 */
-  useEffect(() => {
-    if (selectedId == null && arrived.data?.results?.length) {
-      setSelectedId(arrived.data.results[0].exam_order_id);
-    }
-  }, [arrived.data, selectedId]);
-
-  const items = (arrived.data?.results ?? []).map(examOrder);
-
   return (
     <Page crumb={[cfg.name, "내원 대기 · 유방외과 배정"]}
           title="내원 대기 · 유방외과 배정"
-          badge={`${items.length}명`}
+          bare={embedded}
           sub="접수 순번대로 정렬됩니다. 문진을 마치면 유방외과 큐로 보냅니다.">
-      <div className="n-grid">
-        <Card title="내원한 대기 환자" pad={false}>
-          <Body loading={arrived.loading} error={arrived.error} onRetry={arrived.reload}>
-            <Queue
-              items={(arrived.data?.results ?? []).map((it, i) => queueItem(it, i + 1))}
-              value={selectedId}
-              onPick={setSelectedId}
-              emptyText="내원한 대기 환자가 없습니다"
-            />
-          </Body>
-        </Card>
-
-        <div className="n-side-stack">
-          <Card title="환자 상세 정보" right={<Chip tone="line">문진 포함</Chip>}>
-            {!selectedId
-              ? <div className="slot"><b>왼쪽 목록에서 한 사람을 고르세요</b></div>
-              : (
-                <Body loading={detail.loading} error={detail.error} onRetry={detail.reload}>
-                  {detail.data && <PatientDetail cfg={cfg} d={examOrder(detail.data)}
-                    onAssigned={() => { setSelectedId(null); arrived.reload(); }} />}
-                </Body>
-              )}
-          </Card>
-
+      <div className={`n-grid${embedded ? " n-grid-embedded" : ""}`}>
+        <div className="n-left-stack">
           <Card title="금일 내원 예정" right={<span className="hint">예약 {today.data?.results?.length ?? 0}건</span>} pad={false}>
             <Body loading={today.loading} error={today.error} onRetry={today.reload}>
               <Table
@@ -143,17 +103,72 @@ function Inner({ cfg }) {
               />
             </Body>
           </Card>
-
-          {/* n-side-stack 은 이미 .card 를 flex:1 로 쌓는 틀이라(hospital.css:1207)
-              SideDashboard(자기도 .card)를 셋째로 얹기만 하면 된다 —
-              새 CSS 없이 그대로 맞는다. */}
-          <SideDashboard stats={[
-            { label: "내원 대기", value: items.length },
-            { label: "금일 예약", value: today.data?.results?.length ?? 0 },
-          ]} />
+          <SideDashboard />
         </div>
+
+        <WaitingQueue cfg={cfg} selectedId={selectedId} onPick={setSelectedId}
+          refreshVersion={queueVersion} />
+
+        <Card className="n-detail-card" title="환자 상세 정보" right={<Chip tone="line">문진 포함</Chip>}>
+          {!selectedId
+            ? <div className="slot"><b>가운데 목록에서 한 사람을 고르세요</b></div>
+            : (
+              <Body loading={detail.loading} error={detail.error} onRetry={detail.reload}>
+                {detail.data && <PatientDetail cfg={cfg} d={examOrder(detail.data)}
+                  onAssigned={() => { setSelectedId(null); setQueueVersion((v) => v + 1); }} />}
+              </Body>
+            )}
+        </Card>
       </div>
     </Page>
+  );
+}
+
+/* 대기 목록은 이 카드만 다시 불러온다. 부모 화면에 목록 데이터를 두면
+   폴링할 때 상세·예약·내 업무까지 함께 다시 그려져 사용자가 화면 전체가
+   갱신된다고 느낄 수 있다. quiet reload는 기존 행을 남겨 둔 채 새 목록만
+   교체하므로, 새 접수나 다른 부서 전송이 있어도 선택한 환자 상세는 유지된다. */
+function WaitingQueue({ cfg, selectedId, onPick, refreshVersion }) {
+  const arrived = useApi(() => cfg.api.waitingArrived(), []);
+  const rows = arrived.data?.results ?? [];
+
+  useEffect(() => {
+    const refresh = () => {
+      if (document.visibilityState === "visible") arrived.reload(true);
+    };
+    const timer = setInterval(refresh, POLL_MS);
+    return () => clearInterval(timer);
+  }, [arrived.reload]);
+
+  /* 전송·처리 직후에는 다음 폴링을 기다리지 않고 이 카드만 갱신한다. */
+  useEffect(() => {
+    if (refreshVersion > 0) arrived.reload(true);
+  }, [refreshVersion, arrived.reload]);
+
+  /* 처음에는 가장 먼저 접수한 사람을 선택한다. 이미 선택한 사람이 목록에
+     남아 있으면 그대로 둔다. 다른 부서로 전송되어 사라진 경우에만 다음
+     사람으로 자연스럽게 옮긴다. */
+  useEffect(() => {
+    if (rows.length === 0) {
+      if (selectedId != null) onPick(null);
+      return;
+    }
+    const exists = rows.some((it) => it.exam_order_id === selectedId);
+    if (selectedId == null || !exists) onPick(rows[0].exam_order_id);
+  }, [rows, selectedId, onPick]);
+
+  return (
+    <Card title="내원한 대기 환자" right={<span className="hint">자동 갱신</span>}
+      className="n-queue-card" pad={false}>
+      <Body loading={arrived.loading} error={arrived.error} onRetry={arrived.reload}>
+        <Queue
+          items={rows.map((it, i) => queueItem(it, i + 1))}
+          value={selectedId}
+          onPick={onPick}
+          emptyText="내원한 대기 환자가 없습니다"
+        />
+      </Body>
+    </Card>
   );
 }
 

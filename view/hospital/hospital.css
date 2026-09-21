@@ -38,9 +38,19 @@ input,select,textarea{font:inherit; color:inherit}
   position:sticky; top:0; z-index:20}
 .top-l{display:flex; align-items:center; gap:var(--gap-sm); flex:none}
 .top-l b{font-family:var(--font-head); font-size:var(--brand-fs); font-weight:600}
-.top-l .mark{color:var(--cyan)}
+.brand-mark{width:var(--bell); height:var(--bell); overflow:hidden; border-radius:var(--radius-sm);
+  display:grid; place-items:center; flex:none}
+.brand-mark img{width:100%; height:100%; object-fit:cover; transform:scale(1.72)}
 .top-l .sep{color:var(--border)}
 .top-l .dept{font-size:var(--top-fs); color:var(--warm)}
+.top-l button.nav-dept{display:inline-flex; align-items:center; gap:var(--gap-xs); border-radius:var(--btn-radius);
+  transition:background var(--motion),color var(--motion)}
+.top-l button.nav-dept:hover{background:var(--canvas); color:var(--ink)}
+.top-l button.nav-dept i{font-style:normal; font-size:var(--hint-fs); transition:transform var(--motion)}
+.top.nav-open .nav-dept i{transform:rotate(180deg)}
+.nav-wrap{display:flex; flex:1; min-width:0; max-width:900px; overflow:hidden;
+  transition:flex-basis var(--motion),max-width var(--motion),opacity var(--motion),transform var(--motion)}
+.top.nav-closed .nav-wrap{flex:0 1 0; max-width:0; opacity:0; transform:translateX(-8px); pointer-events:none}
 
 .menu{display:flex; align-items:center; gap:var(--gap-xxs); flex:1; min-width:0}
 .menu a{font-size:var(--menu-fs); color:var(--warm);
@@ -722,6 +732,10 @@ td.none,tr.none td{text-align:center; padding:var(--card-pad) 0}
 .tbl-top{display:flex; align-items:center; justify-content:space-between;
   gap:var(--gap-sm); padding:var(--gap-sm) var(--card-pad-sm);
   border-bottom:var(--hair) solid var(--border); flex-wrap:wrap}
+/* 긴 검색 안내가 잘리지 않도록 목록 상단에서 검색칸이 우선 넓이를 쓴다.
+   필터는 남는 폭만 쓰고, 좁아지면 다음 줄로 자연스럽게 내려간다. */
+.tbl-top form{flex:1 1 380px; min-width:280px; display:flex}
+.tbl-top form .search{width:100%}
 
 /* ── 5장 · 정정 ────────────────────────────────────────────── */
 .amend{display:flex; flex-direction:column; gap:var(--gap)}
@@ -990,12 +1004,23 @@ td.none,tr.none td{text-align:center; padding:var(--card-pad) 0}
 .slot.bad{border-style:solid}
 .slot.bad span{font-variant-numeric:tabular-nums; word-break:break-all}
 
-/* 검색 칸 셋 — 이름 · 전화번호 · 생년월일.
-   환자번호는 없다. 환자가 모르고 온다 */
+/* 접수 입력 한 줄 — 이름 · 전화번호 · 생년월일 · 검색.
+   버튼을 다음 줄에 두면 접수 카드가 불필요하게 커지고 시선도 끊긴다. */
 .find{display:grid; gap:var(--gap-sm);
-  grid-template-columns:1fr 1fr 1fr}
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) auto;
+  align-items:end}
 .find .field input{width:100%}
-@media (max-width:900px){ .find{grid-template-columns:1fr} }
+.find-submit{display:flex; align-items:flex-end}
+.find-submit .btn{min-width:76px}
+@media (max-width:900px){
+  .find{grid-template-columns:1fr 1fr}
+  .find-submit{grid-column:1 / -1}
+}
+@media (max-width:560px){.find{grid-template-columns:1fr}}
+
+/* 예약 확정은 날짜와 시간을 한 번에 비교·입력하는 동작이다. 화면 폭이
+   좁아져도 두 칸을 다음 줄로 보내지 않아 같은 기준선에서 보이게 한다. */
+.appointment-fields{grid-template-columns:minmax(0,1fr) minmax(0,1fr); align-items:end}
 
 .login-note, .hint{margin:0}
 .hint{margin:var(--gap-xs) 0 var(--gap-sm);
@@ -1220,6 +1245,7 @@ td.none,tr.none td{text-align:center; padding:var(--card-pad) 0}
 
 /* 오른쪽 단은 카드 둘(상세 + 예약)이 세로로 쌓인다 */
 .split-r > .card + .card{margin-top:var(--gap)}
+.patient-facts{margin:0 0 var(--card-gap)}
 
 /* ── 관리자 (screens/admin/Console.jsx) ──────────────────────────
    글머리 목록. 「여기서 무엇을 하는가」를 늘어놓는 자리라 표가 아니다 */
@@ -1247,17 +1273,23 @@ code{padding:0 var(--gap-xs); border-radius:var(--radius-xs);
    못 쓴다. 행 높이를 뷰포트 기준으로 못박고 stretch로 좌우를 맞춘 뒤,
    넘치는 내용은 카드 안에서만 스크롤한다(유방외과 .review-grid와 같은
    생각 — hospital/dept/breast/breast.css 참고) */
-.n-grid{display:grid; grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);
-  grid-template-rows:clamp(480px, calc(100vh - 260px), 760px);
+.n-grid{display:grid; grid-template-columns:minmax(220px,.82fr) minmax(260px,1fr) minmax(300px,1.18fr);
+  /* 데이터가 한 줄이거나 비어 있어도 업무 영역은 화면 끝까지 같은 높이를
+     유지한다. 높이 상한을 두면 큰 모니터에서 카드가 내용만큼 작아 보인다. */
+  grid-template-rows:max(560px, calc(100dvh - 230px));
   gap:var(--gap); align-items:stretch}
 .n-grid > .card{min-height:0; display:flex; flex-direction:column}
 .n-grid > .card > .card-b{flex:1; min-height:0; overflow-y:auto}
-.n-side-stack{display:flex; flex-direction:column; gap:var(--gap); min-height:0}
-.n-side-stack > .card{flex:1; min-height:0; display:flex; flex-direction:column}
-.n-side-stack > .card > .card-b{flex:1; min-height:0; overflow-y:auto}
+.n-grid > .n-queue-card .card-b{overscroll-behavior:contain}
+.n-grid-embedded{grid-template-rows:560px}
+.n-left-stack{display:flex; flex-direction:column; gap:var(--gap); min-height:0}
+.n-left-stack > .card{flex:1; min-height:0; display:flex; flex-direction:column}
+.n-left-stack > .card > .card-b{flex:1; min-height:0; overflow-y:auto}
+.n-detail-card{min-height:0; display:flex; flex-direction:column}
+.n-detail-card > .card-b{flex:1; min-height:0; overflow-y:auto}
 @media (max-width:960px){
   .n-grid{grid-template-columns:1fr; grid-template-rows:none}
-  .n-side-stack{min-height:480px}
+  .n-left-stack{min-height:480px}
 }
 
 /* ── 팝업(모달) — 과 스코프 밖에서도 쓴다 ─────────────────────────

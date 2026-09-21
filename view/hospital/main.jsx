@@ -18,6 +18,7 @@ import { apiInfo } from "./api";
 import { DEPTS, ROOT, deptPath, findDept, homeDept } from "./nav";
 import Top from "./lib/Top";
 import StickyMemo from "./lib/StickyMemo";
+import { Page } from "./lib/Page";
 import { useLoadMe } from "./lib/useMe";
 import { useSignedIn } from "./lib/session";
 import Login from "./screens/auth/Login";
@@ -215,8 +216,24 @@ const SCREENS = {
   "admin.console":      AdminConsole,
 
   "nursing.waiting":   NursingWaiting,
+  "nursing.intake":    NursingHub,
+  "nursing.patients":  NursingPatients,
+  "nursing.requests":  NursingRequests,
   "nursing.followups": NursingFollowups,
 };
+
+/* 원무 기능은 별도 과가 아니라 간호과 첫 단계로 들어간다. 기존 화면의
+   검증·등록·예약 로직은 그대로 재사용하고, 간호과 흐름으로 보이게만 한다. */
+function NursingHub({ cfg }) {
+  return (
+    <Page title="접수 · 간호">
+      <ReceptionIntake integrated embedded />
+      <NursingWaiting cfg={cfg} embedded />
+    </Page>
+  );
+}
+function NursingPatients() { return <ReceptionPatients integrated />; }
+function NursingRequests() { return <ReceptionRequests integrated />; }
 
 /* 과 하나의 화면들 — 몇 장이든 nav.js 의 표대로 만들어진다 */
 function deptRoutes(key) {
@@ -256,6 +273,8 @@ function App() {
                 주고, 상단 메뉴가 자동으로 빈다 — Top 이 dept 없을 때를
                 이미 다룬다 */}
             <Route path="me" element={<MeScreen />} />
+            {/* 예전 원무과 주소를 저장해 둔 직원도 새 첫 화면으로 이어 준다. */}
+            <Route path="reception/*" element={<Navigate to={`${ROOT}/nursing`} replace />} />
             {DEPTS.map((d) => deptRoutes(d.key))}
           </Route>
           <Route path={`${ROOT}/*`} element={<HomeRedirect />} />

@@ -26,6 +26,13 @@ export default function Top({ dept, now }) {
      못 간다. 상단 메뉴는 «지금 과의 화면 다섯 장»만 만들기 때문이다. */
   const depts = myDepts();
   const [open, setOpen] = useState(false);
+  /* 과 안에서 화면을 옮겨도 내비게이터를 다시 접지 않는다. 새로 열어도
+     마지막 상태를 이어서 쓰게 해, 업무 화면을 오갈 때 매번 다시 열 필요가
+     없도록 한다. */
+  const [navOpen, setNavOpen] = useState(() => {
+    try { return localStorage.getItem("empatho:navigation-open") !== "false"; }
+    catch { return true; }
+  });
   const [bellOpen, setBellOpen] = useState(false);
   const [bellLoading, setBellLoading] = useState(false);
   const [bellError, setBellError] = useState(null);
@@ -51,6 +58,11 @@ export default function Top({ dept, now }) {
       document.removeEventListener("keydown", esc);
     };
   }, [open, bellOpen]);
+
+  useEffect(() => {
+    try { localStorage.setItem("empatho:navigation-open", String(navOpen)); }
+    catch { /* 저장소를 못 쓰는 환경에서는 현재 화면 상태만 유지한다. */ }
+  }, [navOpen]);
 
   async function toggleBell() {
     if (bellOpen) {
@@ -89,7 +101,7 @@ export default function Top({ dept, now }) {
   const unreadCount = todayItems.filter((n) => !n.acknowledged_at).length;
 
   return (
-    <header className="top">
+    <header className={`top ${navOpen ? "nav-open" : "nav-closed"}`}>
       <div className="top-l">
         {/* 로고는 첫 화면으로 돌아가는 자리다. 어디서든 빠져나올 구멍이
             하나는 있어야 한다.
@@ -97,7 +109,9 @@ export default function Top({ dept, now }) {
               누를 때마다 권한 없는 병리과로 끌려간다 — 빠져나오는 구멍이
               오히려 가두는 구멍이 된다 */}
         <Link className="brand" to={deptPath(homeDept())}>
-          <span className="mark" aria-hidden="true">◈</span>
+          <span className="brand-mark" aria-hidden="true">
+            <img src="/brand/empatho-mark.png" alt="" />
+          </span>
           <b>{HOSPITAL} {PRODUCT}</b>
         </Link>
 
@@ -127,14 +141,19 @@ export default function Top({ dept, now }) {
                 )}
               </span>
             ) : (
-              <span className="dept flat">{dept.name}</span>
+              <button className="dept flat nav-dept" type="button"
+                      onClick={() => setNavOpen((v) => !v)}
+                      aria-expanded={navOpen} aria-controls="department-navigation">
+                {dept.name}<i aria-hidden="true">▾</i>
+              </button>
             )}
           </>
         )}
       </div>
 
       {screens.length > 0 && (
-        <nav className="menu">
+        <div className="nav-wrap">
+        <nav className="menu" id="department-navigation" aria-label={`${dept.name} 메뉴`}>
           {screens.map((s) => (
             <NavLink key={s.key || "_"} to={`${deptPath(dept)}${s.key ? `/${s.key}` : ""}`}
                      end={!s.key}
@@ -144,6 +163,7 @@ export default function Top({ dept, now }) {
             </NavLink>
           ))}
         </nav>
+        </div>
       )}
 
       <div className="top-r">

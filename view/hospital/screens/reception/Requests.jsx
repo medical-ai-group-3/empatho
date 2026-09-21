@@ -7,6 +7,8 @@ import { useApi } from "../../lib/useApi";
 import { can } from "../../perm";
 import { SEX, label } from "../../codes";
 
+const permitted = (key, integrated) => can(integrated ? [key, "nursing.waiting.view"] : key);
+
 /* 원무 4장 — 예약 확인 (앱 신청분)
  * ════════════════════════════════════════════════════════════════
  *
@@ -37,7 +39,7 @@ import { SEX, label } from "../../codes";
  *   모양으로 지어 두었으니 서버가 오면 고칠 것이 없다.
  */
 
-export default function Requests() {
+export default function Requests({ integrated = false }) {
   const [pick, setPick] = useState(null);       // 고른 exam_order_id
 
   const list = useApi(() => api.requests(), []);
@@ -46,7 +48,7 @@ export default function Requests() {
 
   return (
     <Page
-      crumb={["원무과", "예약 확인"]}
+      crumb={[integrated ? "간호과" : "원무과", "예약 확인"]}
       title="예약 확인"
       sub="앱으로 들어온 예약 신청을 확정합니다. 날짜와 시간만 정합니다 — 검사 종류는 유방외과가 정합니다."
     >
@@ -71,7 +73,7 @@ export default function Requests() {
 
         <aside className="split-r">
           {chosen ? (
-            <Confirm key={chosen.exam_order_id} order={chosen}
+            <Confirm key={chosen.exam_order_id} order={chosen} integrated={integrated}
                      onDone={() => { setPick(null); list.reload(); }} />
           ) : (
             <div className="slot big">
@@ -137,7 +139,7 @@ function Missing({ rows }) {
  *
  * 알레르기는 **촬영 전에 반드시 보여야 하는 값**이라 눈에 띄게 세운다.
  */
-function Confirm({ order, onDone }) {
+function Confirm({ order, onDone, integrated }) {
   const [date, setDate] = useState(dayOf(order.scheduled_at));
   const [time, setTime] = useState(timeOf(order.scheduled_at) || "09:00");
   const [busy, setBusy] = useState(false);
@@ -219,7 +221,7 @@ function Confirm({ order, onDone }) {
           </dd>
         </dl>
 
-        <div className="fields">
+        <div className="fields appointment-fields">
           <label className="field">
             <span>확정 날짜</span>
             <input type="date" value={date} disabled={busy}
@@ -246,7 +248,7 @@ function Confirm({ order, onDone }) {
 
         <div className="save-b">
           <Btn kind="fill" type="submit"
-               disabled={!date || !time || busy || !can("reception.confirm")}>
+               disabled={!date || !time || busy || !permitted("reception.confirm", integrated)}>
             {busy ? "확정하는 중…" : "예약 확인"}
           </Btn>
         </div>
