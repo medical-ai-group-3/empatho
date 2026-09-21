@@ -80,9 +80,18 @@ const DEPTS = [
 
       /* 예약 판. 앱 신청 확인은 화면을 따로 안 두고 **이 판 안의 탭**이다 —
          둘 다 예약이고 신청은 「앱에서 들어온 것」일 뿐이다. 화면 줄이
-         일곱이 되면 내비게이터 둘째 줄이 꽉 찬다(6.1) */
+         일곱이 되면 내비게이터 둘째 줄이 꽉 찬다(6.1)
+
+         ⚠ **열쇠가 둘이다.** 간호 계정에는 `reception.*` 이 하나도 없어서
+           `reception.requests.view` 만 걸면 간호에게 이 화면이 안 보인다.
+           그런데 6.1 은 「추적 회차를 잡을 때 [예약] 을 누르면 예약 판이
+           6개월 뒤로 채워진 채 열린다」고 적었다 — 추적 관리는 간호 일이고
+           그 링크가 죽는다. 그래서 추적을 보는 사람에게도 연다.
+           ⚠ **여는 것과 만드는 것은 다르다.** 판 안의 [예약] 단추는 그대로
+             `reception.reserve` 로 잠겨 있다(Reservations.jsx). 권한은 한
+             줄도 안 바꿨다 */
       { key: "reservations", use: "reception.reservations", menu: "예약 판", title: "예약 판",
-        need: "reception.requests.view" },
+        need: ["reception.requests.view", "nursing.followup.view"] },
 
       { key: "followups", use: "nursing.followups", menu: "추적 관리", title: "추적 관리",
         need: "nursing.followup.view" },
