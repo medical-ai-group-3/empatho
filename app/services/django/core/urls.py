@@ -183,5 +183,17 @@ urlpatterns = [
     path("exam-orders/<int:pk>/assign", views.ExamOrderAssignView.as_view({"patch": "partial_update"}), name="exam-order-assign"),
     path("me", views.MeView.as_view({"get": "list"}), name="me"),
     path("me/push-token", views.PushTokenView.as_view({"patch": "partial_update"}), name="me-push-token"),
+    # 09-21 추가 — todo · 스티키 메모 공용(views/personal_note.py 참고).
+    # 본인 것만 본다. 매트릭스 밖이라 부서 표에 안 올린다.
+    path(
+        "me/notes",
+        views.PersonalNoteViewSet.as_view({"get": "list", "post": "create"}),
+        name="personal-note-list",
+    ),
+    path(
+        "me/notes/<int:pk>",
+        views.PersonalNoteViewSet.as_view({"patch": "partial_update", "delete": "destroy"}),
+        name="personal-note-detail",
+    ),
 ]
 

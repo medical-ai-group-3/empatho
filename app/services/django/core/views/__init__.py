@@ -69,3 +69,6 @@ from .pathology import(
 from .storage import (
     StorageObjectCancelView,
 )
+from .personal_note import (
+    PersonalNoteViewSet,
+)

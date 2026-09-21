@@ -68,3 +68,8 @@ from .pathology import(
 from .storage import (
     StorageObjectCancelSerializer,
 )
+from .personal_note import (
+    PersonalNoteSerializer,
+    PersonalNoteCreateSerializer,
+    PersonalNoteUpdateSerializer,
+)

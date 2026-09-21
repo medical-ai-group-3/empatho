@@ -99,6 +99,9 @@ SEVERITY = ["sev1", "normal"]
 # Channel: "sse"). 이미 보내고 있는데 목록에 없었다.
 NOTIFICATION_CHANNEL = ["app", "sms", "call_queue", "sse"]
 REF_TYPE = ["assessment", "discordance_flag", "report", "exam_order"]
+# PersonalNote 용. v10 에도 §15 문서에도 없다 — 화면 쪽 임시 상태(브라우저
+# 저장만 되던 할일·스티키 메모)를 서버로 옮기며 새로 판 값이다.
+NOTE_TYPE = ["todo", "sticky"]
 
 
 class AuditBase(models.Model):
@@ -986,4 +989,39 @@ class Notification(AuditBase):
                 condition=(Q(patient__isnull=False) & Q(staff__isnull=True))
                 | (Q(patient__isnull=True) & Q(staff__isnull=False)),
                 name='notification_recipient_ck'),
+        ]
+
+
+class PersonalNote(models.Model):
+    """Todo · 스티키 메모 공용 표 — 개인 전용, 본인만 본다.
+
+    ⚠ v10 에도 §15 문서에도 없다. 대시보드 "내 업무" 할일과 노란 스티키
+    메모가 지금까지 브라우저 저장만 됐던 것을 서버로 옮기며 09-21 새로
+    만들었다 — 팀 확인 대상.
+
+    todo 와 sticky 는 "사람이 자기 화면에 잠깐 적어 두는 것"이라는 성격이
+    같아 표 하나로 묶는다. 모양만 다르고 그 모양은 content 안에서 갈린다
+    (여기서 스키마로 강제하지 않는다 — 화면마다 칸이 늘 수 있어서 JSON
+    으로 열어 둔다):
+        todo    {"text": …, "done": false}
+        sticky  {"text": …, "color": "#fef08a"}
+
+    AuditBase 를 안 쓴다 — created_by/updated_by 는 이 표에서 owner 와
+    항상 같은 값이라(본인 것만 본인이 쓴다) 칸을 하나 더 둘 이유가 없다.
+    """
+
+    personal_note_id = models.BigAutoField(primary_key=True)
+    owner = models.ForeignKey('Account', models.CASCADE, related_name='personal_notes')
+    note_type = models.CharField(max_length=10, choices=as_choices(NOTE_TYPE))
+    content = models.JSONField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'personal_note'
+        verbose_name = "개인 메모"
+        verbose_name_plural = "개인 메모"
+        constraints = [
+            models.CheckConstraint(condition=Q(note_type__in=NOTE_TYPE),
+                                   name='personal_note_type_ck'),
         ]
