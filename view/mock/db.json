@@ -856,10 +856,10 @@
     ]
   },
   "GET /api/v1/me/prescriptions": {
-    "note": "약은 처방하신 곳에서만 더하거나 고칠 수 있습니다. 앱에서는 드신 것을 기록하실 수 있어요.",
+    "note": "처방 내용은 병원 기록을 그대로 옮긴 것입니다. 복용 중 궁금한 점은 담당 주치의나 접수처에 문의해 주세요.",
     "items": [
       {
-        "prescription_id": "RX-2026-0314",
+        "prescription_id": 4101,
         "issued_on": "2026-03-14",
         "prescriber": "박지훈",
         "dept": "외과",
@@ -868,7 +868,7 @@
         "status": "active",
         "drugs": [
           {
-            "drug_id": "MD-1001",
+            "drug_id": 9001,
             "name": "타목시펜정",
             "ingredient": "타목시펜시트르산염 20mg",
             "dose": "1정",
@@ -879,15 +879,12 @@
             "purpose": "호르몬 수용체가 있는 유방암이 다시 자라지 않도록 억제합니다.",
             "how": "매일 같은 시각에 물과 함께 드세요. 씹거나 쪼개지 마세요.",
             "watch": "다리가 붓거나 아프고, 숨이 차거나, 질 출혈이 있으면 바로 알려 주세요.",
-            "today": [
-              {
-                "time": "09:00",
-                "log_id": "LG-77001"
-              }
-            ]
+            "today": [],
+            "days": 90,
+            "ends_on": "2026-06-11"
           },
           {
-            "drug_id": "MD-1002",
+            "drug_id": 9002,
             "name": "칼디비타정",
             "ingredient": "탄산칼슘 500mg · 콜레칼시페롤 400IU",
             "dose": "1정",
@@ -899,21 +896,15 @@
             "purpose": "호르몬 치료 중에 뼈가 약해지는 것을 막아 줍니다.",
             "how": "식사 직후에 드시면 속이 덜 불편합니다.",
             "watch": "변비가 심하거나 속이 계속 불편하면 말씀해 주세요.",
-            "today": [
-              {
-                "time": "09:00",
-                "log_id": "LG-77002"
-              },
-              {
-                "time": "19:00",
-                "log_id": null
-              }
-            ]
+            "today": [],
+            "days": 30,
+            "ends_on": "2026-04-12"
           }
-        ]
+        ],
+        "note": null
       },
       {
-        "prescription_id": "RX-2026-0901",
+        "prescription_id": 4102,
         "issued_on": "2026-09-01",
         "prescriber": "김서연",
         "dept": "외과",
@@ -922,7 +913,7 @@
         "status": "active",
         "drugs": [
           {
-            "drug_id": "MD-1003",
+            "drug_id": 9003,
             "name": "페마라정",
             "ingredient": "레트로졸 2.5mg",
             "dose": "1정",
@@ -938,12 +929,15 @@
                 "time": "21:00",
                 "log_id": null
               }
-            ]
+            ],
+            "days": 365,
+            "ends_on": "2027-08-31"
           }
-        ]
+        ],
+        "note": null
       },
       {
-        "prescription_id": "RX-2025-1120",
+        "prescription_id": 4088,
         "issued_on": "2025-11-20",
         "prescriber": "박지훈",
         "dept": "외과",
@@ -952,7 +946,7 @@
         "status": "ended",
         "drugs": [
           {
-            "drug_id": "MD-0901",
+            "drug_id": 9004,
             "name": "세프라딘캡슐",
             "ingredient": "세프라딘 500mg",
             "dose": "1캡슐",
@@ -964,11 +958,15 @@
             "purpose": "조직검사 자리에 균이 들어가지 않도록 예방했습니다.",
             "how": "처방 기간을 다 채워 드셨습니다.",
             "watch": null,
-            "today": []
+            "today": [],
+            "days": 14,
+            "ends_on": "2025-12-03"
           }
-        ]
+        ],
+        "note": null
       }
-    ]
+    ],
+    "__why": "복약 관리(screens/Meds.jsx). 실제 서버는 core/views/prescription.py 의 MyPrescriptionView 가 이 모양으로 준다. 일수(days)와 종료일(ends_on)은 **약마다** 있고, 처방전의 days 는 그중 가장 긴 것이다. 기간이 지났거나 종료된 처방의 약에는 today(오늘 회차)를 싣지 않는다 — 화면이 그것으로 회차 단추를 그릴지 가른다."
   },
   "GET /api/v1/drugs": {
     "__why": "약 정보 찾기(screens/Drugs.jsx). 실제로는 Django 가 식약처 e약은요 공공데이터를 받아 이 모양으로 바꿔 준다 — 아래 두 건은 진짜 응답을 그대로 옮긴 것이다. 가짜 API 는 질의(q)를 보지 않으므로 무엇을 찾아도 같은 두 건이 나온다. 모양을 맞추는 것이 목적이지 검색을 흉내 내려는 것이 아니다.",

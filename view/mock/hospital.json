@@ -2466,5 +2466,36 @@
       }
     ]
   },
-  "PATCH /api/v1/hospital/notifications/{id}/": { "ok": true }
+  "PATCH /api/v1/hospital/notifications/{id}/": { "ok": true },
+
+  "__처방": [
+    "유방외과 결정 화면(dept/breast/screens/Decision.jsx)의 「환자 처방」.",
+    "종합 소견서를 내는 같은 화면에서 적고, 저장하는 즉시 환자 앱 복약",
+    "관리로 흐른다 — empatho-app 의 PrescriptionViewSet 이 받는다.",
+    "",
+    "⚠ 일수(days)는 **약마다** 있다. 한 장 안에 3일치 진통제와 30일치",
+    "  호르몬제가 같이 나온다.",
+    "⚠ 저장은 보낸 내용을 보지 않고 늘 같은 것을 돌려준다. 저장 뒤 화면이",
+    "  목록을 다시 읽는 흐름만 확인하는 자리다."
+  ],
+  "GET /api/v1/hospital/patients/{id}/prescriptions": [
+    {
+      "prescription_id": 4102,
+      "report": 7781,
+      "exam_order": null,
+      "prescribed_at": "2026-09-01T14:20:00+09:00",
+      "content": {
+        "drugs": [
+          { "name": "타목시펜정 20mg", "ingredient": "타목시펜시트르산염", "dose": "1정", "times": ["09:00"], "days": 365, "purpose": "재발 예방", "how": "매일 같은 시각에 드세요.", "watch": "다리가 붓거나 숨이 차면 알려 주세요." }
+        ]
+      }
+    }
+  ],
+  "POST /api/v1/hospital/patients/{id}/prescriptions": {
+    "prescription_id": 4103,
+    "report": 7781,
+    "exam_order": null,
+    "prescribed_at": "2026-09-21T10:05:00+09:00",
+    "content": { "drugs": [] }
+  }
 }

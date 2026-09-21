@@ -269,7 +269,17 @@ function DecisionForm({ assessmentId, assessmentIdLoading }) {
   );
 }
 
-const emptyDrug = () => ({ name: "", dose: "", times: "", days: "", purpose: "", how: "" });
+/* 처방 한 줄의 빈 칸.
+ *
+ * ⚠ ingredient · watch 는 **환자 앱이 이미 그리고 있는 자리**다
+ *   (src/screens/Meds.jsx 의 「어떤 약인가요」). 여기서 안 적으면 환자
+ *   화면의 그 줄이 그냥 빈다. 특히 watch(「이럴 땐 알려 주세요」)는
+ *   환자가 이상 증상을 알아차리는 유일한 안내라 비워 두지 않는 편이 좋다.
+ */
+const emptyDrug = () => ({
+  name: "", ingredient: "", dose: "", times: "", days: "",
+  purpose: "", how: "", watch: "",
+});
 
 function PrescriptionDraft({ patient, report }) {
   const [drugs, setDrugs] = useState([emptyDrug()]);
@@ -288,9 +298,14 @@ function PrescriptionDraft({ patient, report }) {
 
   async function save() {
     const cleaned = drugs.map((drug) => ({
-      name: drug.name.trim(), dose: drug.dose.trim(),
+      name: drug.name.trim(), ingredient: drug.ingredient.trim(),
+      dose: drug.dose.trim(),
+      /* 쉼표로 나눠 보낸다. 서버가 HH:MM 인지 보고 아니면 거절한다 —
+         복약 기록이 이 값을 회차 열쇠로 쓰기 때문에 「아침」 같은 말이
+         섞이면 같은 회차인지 판정할 길이 없다 */
       times: drug.times.split(",").map((time) => time.trim()).filter(Boolean),
-      days: Number(drug.days), purpose: drug.purpose.trim(), how: drug.how.trim(),
+      days: Number(drug.days), purpose: drug.purpose.trim(),
+      how: drug.how.trim(), watch: drug.watch.trim(),
     }));
     if (!reportId || saving || cleaned.some((drug) => !drug.name || !drug.dose || !drug.times.length || !drug.days)) return;
     setSaving(true); setMsg(null);
@@ -314,7 +329,7 @@ function PrescriptionDraft({ patient, report }) {
       <div className="card-head">
         <div>
           <h3>환자 처방</h3>
-          <p className="meta">저장된 처방은 환자 앱의 복약 관리에 표시됩니다.</p>
+          <p className="meta">저장 즉시 환자 앱의 복약 관리에 표시됩니다. 처방 일수는 약마다 따로 셉니다.</p>
         </div>
         <span className="pill ok">API 연결됨</span>
       </div>
@@ -334,6 +349,10 @@ function PrescriptionDraft({ patient, report }) {
               <input value={drug.name} onChange={(e) => change(index, "name", e.target.value)} placeholder="약 이름" />
             </div>
             <div className="field">
+              <label>성분명</label>
+              <input value={drug.ingredient} onChange={(e) => change(index, "ingredient", e.target.value)} placeholder="예: 타목시펜시트르산염" />
+            </div>
+            <div className="field">
               <label>1회 복용량 <span className="req">*</span></label>
               <input value={drug.dose} onChange={(e) => change(index, "dose", e.target.value)} placeholder="예: 1정" />
             </div>
@@ -350,9 +369,13 @@ function PrescriptionDraft({ patient, report }) {
             <label>처방 목적</label>
             <input value={drug.purpose} onChange={(e) => change(index, "purpose", e.target.value)} placeholder="환자 앱에 표시할 처방 목적" />
           </div>
-          <div className="field" style={{ marginBottom: 0 }}>
+          <div className="field">
             <label>복용 안내</label>
             <textarea value={drug.how} onChange={(e) => change(index, "how", e.target.value)} placeholder="환자 앱에 표시할 복용 방법과 안내" />
+          </div>
+          <div className="field" style={{ marginBottom: 0 }}>
+            <label>주의사항</label>
+            <textarea value={drug.watch} onChange={(e) => change(index, "watch", e.target.value)} placeholder="이런 증상이 생기면 병원에 알리도록 — 환자 앱에 강조해서 표시된다" />
           </div>
         </div>
       ))}

@@ -181,7 +181,10 @@ function Rx({ rx, taken, busy, open, setOpen, onToggle, ended }) {
           <b>{fmtDayKey(rx.issued_on)} 처방</b>
           <span>
             {rx.prescriber} · {rx.dept}
-            {rx.days ? ` · ${rx.days}일분` : ""}
+            {/* 서버가 이 장에서 **가장 긴 약**의 일수를 준다. 약마다
+                기간이 달라서 한 숫자로는 이것밖에 말할 수 없다 —
+                실제 기간은 약 줄에 각각 적는다 */}
+            {rx.days ? ` · 최대 ${rx.days}일분` : ""}
           </span>
         </span>
         {ended && <span className="pill read">종료</span>}
@@ -191,7 +194,7 @@ function Rx({ rx, taken, busy, open, setOpen, onToggle, ended }) {
         <div className="rx-period">
           <b>{period.overdue ? "처방 기간 확인이 필요해요" : "처방 기간이 곧 끝나요"}</b>
           <span>
-            {period.endLabel}까지 {rx.days}일분 처방으로 표시됩니다. {period.overdue
+            이 처방전의 마지막 약이 {period.endLabel}에 끝납니다. {period.overdue
               ? "아직 복용 중이라면 임의로 조절하지 말고 병원에 연락해 확인해 주세요."
               : "다음 처방이나 복용 계획은 병원에 확인해 주세요."}
           </span>
@@ -205,7 +208,15 @@ function Rx({ rx, taken, busy, open, setOpen, onToggle, ended }) {
             <div className="drug-h">
               <span className="tx">
                 <b>{g.name}</b>
-                <span>{g.ingredient} · 1회 {g.dose} · 하루 {g.per_day}회</span>
+                <span>
+                  {g.ingredient ? `${g.ingredient} · ` : ""}
+                  1회 {g.dose} · 하루 {g.per_day}회
+                  {/* 일수는 **약마다 다르다**(2026-09-21 팀 결정). 3일치
+                      진통제와 30일치 호르몬제가 한 장에 같이 나온다 —
+                      처방전 머리말의 「며칠분」만 보면 짧은 약을 계속
+                      먹게 된다 */}
+                  {g.days ? ` · ${g.days}일분` : ""}
+                </span>
               </span>
             </div>
 
@@ -253,7 +264,13 @@ function Rx({ rx, taken, busy, open, setOpen, onToggle, ended }) {
 }
 
 /* 날짜만 있는 처방일은 기기 시간대 영향을 받지 않게 직접 만든다. 수량을
-   모르는 앱이 「약이 떨어진다」고 말하는 대신, 처방 기간만 확인한다. */
+   모르는 앱이 「약이 떨어진다」고 말하는 대신, 처방 기간만 확인한다.
+
+   ⚠ rx.days 는 이 장에서 **가장 긴 약**의 일수다(서버가 그렇게 준다).
+     그래서 여기서 나오는 날은 「마지막 약이 끝나는 날」이고, 짧은 약은
+     그 전에 이미 끝나 있다. 약별 종료는 서버가 약마다 ends_on 으로 주고,
+     끝난 약에는 오늘 회차(today)를 아예 안 실어 보낸다 — 화면이 회차
+     단추를 안 그리는 것이 그 때문이다. 여기서 약별로 다시 계산하지 말 것. */
 function prescriptionPeriod(rx) {
   if (!rx.issued_on || !rx.days) return null;
   const [year, month, day] = rx.issued_on.split("-").map(Number);
