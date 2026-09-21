@@ -113,6 +113,7 @@ const api = {
   finalize:   (id, b) => rad.finalize(id, b),
   list:       (o)     => rad.list(o),
   amend:      (id, b) => rad.amend(id, b),
+  addLesion:  (b)     => rad.addLesion(b),
   /* 환자 목록(4장) 상세에 검사 이력을 붙이려고 추가했다(2026-09-18) */
   timeline:   (pid)   => rad.timeline(pid),
 };
@@ -228,6 +229,9 @@ export const radiology = {
         <Facts items={[
           ["환자", `${d.patient_name} (${d.age}/${label(SEX, d.sex)})`],
           ["환자번호", d.patient_no],
+          ["생년월일", d.birth_date],
+          ["연락처", d.phone],
+          ["알레르기", d.contrast_allergy || "없음"],
           ["모달리티", label(MODALITY, asModality(d.modality))],
           ["촬영 장비", d.device],
           ["검사명", d.exam_name],
@@ -271,6 +275,9 @@ export const radiology = {
         <Facts items={[
           ["환자", `${d.patient_name} (${d.age}/${label(SEX, d.sex)})`],
           ["환자번호", d.patient_no],
+          ["생년월일", d.birth_date],
+          ["연락처", d.phone],
+          ["알레르기", d.contrast_allergy || "없음"],
           ["검사명", d.exam_name],
           ["검사 목적", d.purpose],
           ["검사일", d.performed_at],
@@ -346,6 +353,9 @@ export const radiology = {
           <Facts items={[
             ["환자", `${d.patient.name} (${d.patient.age}/${label(SEX, d.patient.sex)})`],
             ["환자번호", d.patient.no],
+            ["생년월일", d.patient.birth_date],
+            ["연락처", d.patient.phone],
+            ["알레르기", d.patient.contrast_allergy || "없음"],
             ["검사명", d.unit.exam_name],
             ["모달리티", label(MODALITY, asModality(d.unit.modality))],
             ["검사 상태", text(d.unit, "read_status", READ_STATUS, "status_label")],
@@ -384,9 +394,26 @@ export const radiology = {
 
     Ai: RadiologyAi,
 
-    Doctor: ({ d, f, set }) => {
+    Doctor: ({ d, f, set, pendingMark, onLesionCreated }) => {
       const add = useCan("radiology.lesion.add");
       const isMri = d.unit?.modality === "mri";
+      const [lesionBusy, setLesionBusy] = useState(false);
+      const [lesionMsg, setLesionMsg] = useState(null);
+
+      async function addLesion() {
+        if (!pendingMark) return;
+        setLesionBusy(true); setLesionMsg(null);
+        try {
+          const out = await api.addLesion({
+            study_id: Number(d.id),
+            detail: { ...pendingMark },
+          });
+          setLesionMsg(`병변 #${out.lesion_id ?? out.id}을 등록했습니다.`);
+          onLesionCreated?.();
+        } catch (e) {
+          setLesionMsg(e.detail || "병변 등록에 실패했습니다.");
+        } finally { setLesionBusy(false); }
+      }
 
       return (
         <>
@@ -405,23 +432,20 @@ export const radiology = {
                 </select>
               </label>
 
-              {/* ⚠ 서버 쪽(POST /lesions/)은 이미 있는데 **영상에 박스를 그리는
-                  도구가 없다.** 좌표를 만들 방법이 없으니 부를 것도 없다.
-                  onClick 없이 켜 두면 권한 있는 사람이 눌렀을 때 아무 일도
-                  안 나서 고장으로 읽힌다 — 꺼 두고 이유를 적는다.
-                  Stage 에 «박스 그리기» 모드가 생기면 그때 켠다 */}
-              <div className="stack">
-                <button className="btn line" disabled
-                        title={add.ok ? "영상에 박스를 그리는 도구가 아직 없습니다"
-                                      : add.attrs.title}>
-                  병변 추가
-                </button>
-                <span className="muted small">
-                  영상에 박스를 그려 병변을 직접 만듭니다 — 그리는 도구는 아직 없습니다
-                </span>
-              </div>
             </>
           )}
+
+          <div className="stack">
+            <button className="btn line" onClick={addLesion}
+                    disabled={!add.ok || !pendingMark || lesionBusy}
+                    title={!add.ok ? add.attrs.title : pendingMark ? "방금 그린 표시를 병변으로 등록합니다" : "뷰어에서 박스를 먼저 그려 주세요"}>
+              {lesionBusy ? "등록 중…" : "병변 등록"}
+            </button>
+            <span className="muted small">
+              {pendingMark ? "뷰어에 그린 표시를 병변으로 등록할 수 있습니다." : "뷰어에서 박스 그리기 후 병변 등록을 누르세요."}
+            </span>
+            {lesionMsg && <span className="hint">{lesionMsg}</span>}
+          </div>
 
           <label className="field">
             <span>판독 소견</span>
@@ -520,6 +544,9 @@ export const radiology = {
               <Facts items={[
                 ["환자", `${d.patient_name} (${d.age}/${label(SEX, d.sex)})`],
                 ["환자번호", d.patient_no],
+                ["생년월일", d.birth_date],
+                ["연락처", d.phone],
+                ["알레르기", d.contrast_allergy || "없음"],
                 ["모달리티", label(MODALITY, asModality(d.modality))],
                 ["촬영 장비", d.device],
                 ["검사일", d.performed_at],
@@ -566,6 +593,9 @@ export const radiology = {
       <Facts items={[
         ["환자", `${d.patient.name} (${d.patient.age}/${label(SEX, d.patient.sex)})`],
         ["환자번호", d.patient.no],
+        ["생년월일", d.patient.birth_date],
+        ["연락처", d.patient.phone],
+        ["알레르기", d.patient.contrast_allergy || "없음"],
         ["검사명", d.unit.exam_name],
         ["검사일시", d.unit.performed_at],
         ["담당 판독의", d.unit.assigned_to],

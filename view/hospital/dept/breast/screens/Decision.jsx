@@ -51,6 +51,7 @@ export default function Decision() {
 function Inner({ patient, onReload }) {
   const report = patient.report;
   const reportId = report?.report_id ?? null;
+  const reports = useApi(() => api.reports(patient.patient_id), [patient.patient_id]);
   const unlock = useApi(
     () => reportId ? api.unlockStatus(reportId) : Promise.resolve(null),
     [reportId],
@@ -68,7 +69,7 @@ function Inner({ patient, onReload }) {
   return (
     <div className="decision-grid">
       {/* 1행 — 왼쪽 AI 종합 · 중앙 수술 여부 · 오른쪽 환자 정보 */}
-      {report ? <AiSummaryCard report={report} /> : <PendingReportCard title="AI 종합 리포트" />}
+      {report ? <AiSummaryCard report={report} /> : <FinalReportCard patient={patient} reports={reports} onCreated={onReload} />}
       <DecisionForm assessmentId={assessmentId} assessmentIdLoading={timeline.loading} />
       <PatientInfoCard patient={patient} />
 
@@ -87,6 +88,53 @@ function PendingReportCard({ title }) {
     <div className="card">
       <div className="card-head"><h3>{title}</h3></div>
       <p className="card-text">아직 생성된 종합 리포트가 없습니다. 판독 확정 후 작성할 수 있습니다.</p>
+    </div>
+  );
+}
+
+function FinalReportCard({ patient, reports, onCreated }) {
+  const [selected, setSelected] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState(null);
+  const sources = (reports.data ?? []).filter((row) => row.report_type === "stage" && row.report_id != null);
+  const effectiveSelected = selected ?? sources.map((row) => row.report_id);
+
+  function toggle(id) {
+    setSelected((current) => {
+      const values = current ?? sources.map((row) => row.report_id);
+      return values.includes(id) ? values.filter((value) => value !== id) : [...values, id];
+    });
+  }
+
+  async function create() {
+    if (!effectiveSelected.length) return;
+    setBusy(true); setMsg(null);
+    try {
+      await api.finalReport({ patient_id: patient.patient_id, source_report_ids: effectiveSelected });
+      onCreated?.();
+    } catch (e) {
+      setMsg(e.detail || "최종 리포트 생성에 실패했습니다.");
+    } finally { setBusy(false); }
+  }
+
+  return (
+    <div className="card">
+      <div className="card-head"><h3>AI 종합 리포트</h3></div>
+      <p className="card-text">확정된 검사 판독문을 선택해 최종 종합 리포트를 생성합니다.</p>
+      {reports.loading ? <p className="note">판독문을 불러오는 중입니다.</p>
+        : sources.length === 0 ? <p className="note">생성할 확정 검사 판독문이 없습니다.</p>
+        : <div className="stack">
+            {sources.map((source) => (
+              <label key={source.report_id} className="check-row">
+                <input type="checkbox" checked={effectiveSelected.includes(source.report_id)} onChange={() => toggle(source.report_id)} />
+                <span>{source.title ?? source.modality ?? `검사 판독문 #${source.report_id}`}</span>
+              </label>
+            ))}
+          </div>}
+      {msg && <p className="warnline">{msg}</p>}
+      <div className="card-foot"><button className="btn fill" onClick={create} disabled={busy || !effectiveSelected.length}>
+        {busy ? "생성 중…" : "최종 리포트 생성"}
+      </button></div>
     </div>
   );
 }
@@ -385,59 +433,32 @@ function ExplainForm({ report, onSaved, unlock }) {
 }
 
 function PatientInfoCard({ patient }) {
-  const [editing, setEditing] = useState(false);
-  const [phone, setPhone] = useState(patient.phone ?? "");
-  const [address, setAddress] = useState(patient.address ?? "");
-  const [msg, setMsg] = useState(null);
-
   const rows = [
     { k: "이름", v: patient.name },
     { k: "성별 / 나이", v: `${label(SEX, patient.sex)} / ${patient.age}세 (${patient.birth_date})` },
     { k: "등록번호", v: patient.patient_number },
-    { k: "Accession No.", v: patient.accession_no },
-    { k: "연락처", v: phone, editable: true, onChange: setPhone },
-    { k: "주소", v: address, editable: true, onChange: setAddress },
-    { k: "주치의", v: `${patient.primary_staff_name} 선생님` },
-    { k: "의뢰일", v: patient.referral_date },
-    { k: "임상 정보", v: patient.clinical_note },
+    { k: "연락처", v: patient.phone },
+    { k: "알레르기", v: patient.allergy },
+    { k: "주치의", v: patient.primary_staff_name ? `${patient.primary_staff_name} 선생님` : null },
+    { k: "내원 구분", v: patient.visit_type },
+    { k: "검사 목적", v: patient.visit_purpose },
+    { k: "간호 메모", v: patient.intake_note },
   ];
 
   return (
     <div className="card">
       <div className="card-head">
         <h3>환자 정보</h3>
-        <button className="edit-btn" onClick={() => { setEditing((v) => !v); setMsg(null); }}>
-          {editing ? "취소" : "수정"}
-        </button>
       </div>
       <div className="pt-info">
         {rows.map((r) => (
           <div className="row" key={r.k}>
             <span className="k">{r.k}</span>
-            {editing && r.editable ? (
-              <input value={r.v} onChange={(e) => r.onChange(e.target.value)}
-                style={{ flex: 1, border: "1px solid var(--line)", borderRadius: 6, padding: "4px 8px", fontSize: 13.5 }} />
-            ) : (
-              <span className="v">{r.v || "—"}</span>
-            )}
+            <span className="v">{r.v || "—"}</span>
           </div>
         ))}
       </div>
-      <div className="card-foot split" style={{ marginTop: 14 }}>
-        <span className="note">{msg ?? (editing ? "연락처·주소만 수정할 수 있습니다" : "읽기 전용")}</span>
-        {editing && (
-          /* ⚠ 저장할 서버 경로가 없다. 이름·생년월일·전화는 patient_pii 라
-             PATCH /patients/{id}/ (api.js 의 reception.update, 위 주석)로
-             못 고친다 — 주소 칸도 서버 모델에 없다. 그래서 버튼이 실제로는
-             아무 데도 보내지 않는다. 전용 엔드포인트가 생기기 전에는
-             지우지 않고 이 사실만 적어 둔다(거짓 "저장되었습니다" 를
-             지금 당장 없애면 화면이 아예 편집 불가로 보이므로, 팀 확인
-             전까지는 동작을 그대로 두고 경고만 남긴다). */
-          <button className="btn ghost sm" onClick={() => { setEditing(false); setMsg("저장되었습니다"); }}>
-            저장
-          </button>
-        )}
-      </div>
+      <div className="card-foot" style={{ marginTop: 14 }}><span className="note">접수·간호 기록을 기준으로 표시합니다.</span></div>
     </div>
   );
 }

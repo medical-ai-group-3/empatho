@@ -35,7 +35,7 @@ const TOOLS = [
   { key: "brush", label: "마스크", toolName: "Brush" },
 ];
 
-export default function DicomStackViewer({ manifestUrl, baseUrl, mode = "diagnostic" }) {
+export default function DicomStackViewer({ manifestUrl, baseUrl, mode = "diagnostic", onAnnotation }) {
   const isReview = mode === "review";
   const elRef = useRef(null);
   const [status, setStatus] = useState("loading"); // loading | ready | error | empty
@@ -43,6 +43,18 @@ export default function DicomStackViewer({ manifestUrl, baseUrl, mode = "diagnos
   const [activeTool, setActiveTool] = useState("wl");
   const [viewIndex, setViewIndex] = useState(0);
   const [viewCount, setViewCount] = useState(0);
+
+  useEffect(() => {
+    if (!onAnnotation || mode === "review") return;
+    const done = (event) => {
+      const annotation = event.detail?.annotation;
+      const tool = annotation?.metadata?.toolName;
+      if (tool !== "Length" && tool !== "RectangleROI") return;
+      onAnnotation({ kind: tool === "Length" ? "length" : "rect", handles: annotation.data?.handles?.points ?? [] });
+    };
+    cornerstone.eventTarget.addEventListener(cornerstoneTools.Enums.Events.ANNOTATION_COMPLETED, done);
+    return () => cornerstone.eventTarget.removeEventListener(cornerstoneTools.Enums.Events.ANNOTATION_COMPLETED, done);
+  }, [mode, onAnnotation]);
 
   useEffect(() => {
     if (!manifestUrl || !baseUrl) {

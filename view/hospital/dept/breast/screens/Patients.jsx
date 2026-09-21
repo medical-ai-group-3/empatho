@@ -122,10 +122,13 @@ function PatientDetailBody({ patient }) {
         <Facts items={[
           ["환자", `${patient.name || "—"} (${patient.age ?? "—"}/${patient.sex ? label(SEX, patient.sex) : "—"})`],
           ["등록번호", patient.patient_number || "—"],
+          ["생년월일", patient.birth_date || "—"],
           ["연락처", patient.phone || "—"],
+          ["알레르기", patient.allergy || "없음"],
           ["주치의", patient.primary_staff_name ? `${patient.primary_staff_name} 선생님` : "—"],
-          ["내원 목적", patient.visit_purpose || "—"],
-          ["검사 이력", patient.exam_summary || "—"],
+          ["내원 구분", patient.visit_type || "—"],
+          ["검사 목적", patient.visit_purpose || "—"],
+          ["간호 메모", patient.intake_note || "—"],
         ]} />
         <p className="section-label">검사 이력</p>
         <Body loading={timeline.loading} error={timeline.error} onRetry={timeline.reload}>

@@ -40,6 +40,7 @@ export default function Stage({
   bright = 100, contrast = 100,   /* 화면 보정 — 창값이 아니다 */
   onFull, full,
   annotationTools = false,
+  onAnnotation,
   mode = "diagnostic",  /* "diagnostic" | "review" — 공통 Viewer 설계
     (2026-09-17). review는 조회만 한다 — 도형을 눌러 고르는 것도
     "판독 보조 조작"이라 막는다. 탐색(맞춤·확대·축소·전체화면)과 마스크
@@ -150,7 +151,11 @@ export default function Stage({
     if (draftMark) {
       const dx = draftMark.end.x - draftMark.start.x;
       const dy = draftMark.end.y - draftMark.start.y;
-      if (Math.hypot(dx, dy) > 2) setMarks((items) => [...items, { ...draftMark, id: crypto.randomUUID?.() ?? String(Date.now()) }]);
+      if (Math.hypot(dx, dy) > 2) {
+        const mark = { ...draftMark, id: crypto.randomUUID?.() ?? String(Date.now()) };
+        setMarks((items) => [...items, mark]);
+        onAnnotation?.(mark);
+      }
       setDraftMark(null);
     }
   };

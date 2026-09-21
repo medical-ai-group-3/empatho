@@ -181,6 +181,11 @@ function PatientDetail({ cfg, d, onAssigned }) {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState(null);
   const [modal, setModal] = useState(null); // "specimen" | "assign"
+  const patientInfo = useApi(
+    () => (d.patient_id ? cfg.api.patient(d.patient_id) : Promise.resolve(null)),
+    [cfg.api, d.patient_id],
+  );
+  const fullPatient = patientInfo.data;
 
   async function saveNote() {
     setSaving(true);
@@ -206,9 +211,11 @@ function PatientDetail({ cfg, d, onAssigned }) {
       <Facts items={[
         ["환자", person(d)],
         ["환자번호", d.patient_number],
+        ["생년월일", fullPatient?.pii?.birth_date],
+        ["연락처", fullPatient?.pii?.phone],
         ["내원 구분", d.visit_type],
-        ["알레르기", d.allergy || "없음"],
-        ["주 증상", d.chief_complaint || "-"],
+        ["알레르기", fullPatient?.has_allergy ? (fullPatient.allergy_note || "있음") : "없음"],
+        ["접수 메모", d.order_note || "-"],
       ]} />
 
       <div>

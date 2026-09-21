@@ -20,6 +20,7 @@ export default function MRIReviewGrid({
   onLesionChange,
   study,
   mode = "diagnostic",
+  onAnnotation,
 }) {
   const [localSelectedLesion, setLocalSelectedLesion] =
     useState(
@@ -150,6 +151,7 @@ export default function MRIReviewGrid({
           manifestUrl={study?.volume_manifest}
           baseUrl={study?.volume_base}
           mode={mode}
+          onAnnotation={onAnnotation}
         />
       </div>
 

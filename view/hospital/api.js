@@ -392,6 +392,8 @@ async function pathSpecimenRow(raw = {}) {
     sex: patient?.sex ?? "",
     patient_no: patient?.patient_number ?? "",
     birth: patient?.birth_date ?? null,
+    phone: patient?.phone ?? null,
+    allergy: patient?.has_allergy ? (patient.allergy_note || "있음") : "없음",
     specimen_no: raw.specimen_label ?? raw.specimen_no,
     kind: raw.specimen_type ?? raw.kind,
     method: raw.guidance_route ?? raw.method,
@@ -477,6 +479,7 @@ const RAD = "/radiology";
 function radPatient(source = {}, order = {}) {
   const patientId = source.patient_id ?? source.patient ?? order.patient_id ?? order.patient;
   return {
+    id: patientId ?? null,
     name: source.patient_name ?? order.patient_name ?? source.patient?.name
       ?? order.patient?.name ?? (patientId == null ? "" : `환자 #${patientId}`),
     age: source.age ?? order.age ?? source.patient?.age ?? order.patient?.age ?? null,
@@ -495,6 +498,7 @@ function radOrderRow(raw = {}) {
   return {
     ...raw,
     id: raw.exam_order_id ?? raw.id,
+    patient_id: patient.id,
     patient_name: patient.name,
     patient_no: patient.no,
     age: patient.age,
@@ -611,6 +615,7 @@ function radStudyRow(raw = {}, order = {}, assessment = null) {
     ...raw,
     id: studyId,
     study_id: studyId,
+    patient_id: patient.id,
     patient_name: patient.name,
     patient_no: patient.no,
     age: patient.age,
@@ -700,7 +705,7 @@ export const rad = {
       const rows = raw?.results ?? raw?.items ?? (Array.isArray(raw) ? raw : []);
       return { ...raw, items: rows.map(radOrderRow), total: raw?.count ?? raw?.total ?? rows.length };
     }),
-  order:      (id)     => get(`/exam-orders/${id}`).then(radOrderRow),
+  order:      async (id) => radWithPatient(radOrderRow(await get(`/exam-orders/${id}`))),
   assign:     (id)     => patch(`/exam-orders/${id}/assign`),
 
   /* ⚠ **Study 를 만드는 유일한 경로다** (2026-09-16 확인).
@@ -733,7 +738,24 @@ export const rad = {
   read:       async (id) => {
     const raw = await get(`${RAD}/studies/${id}/read`);
     const upload = await rad.uploadInfo(id);
-    return radRead(raw, upload, upload.order ?? {});
+    const result = radRead(raw, upload, upload.order ?? {});
+    const patientId = result.patient?.id;
+    const patient = patientId == null ? null
+      : await get(`/patients/${patientId}/`).then(normalizePatient).catch(() => null);
+    return patient == null ? result : {
+      ...result,
+      patient: {
+        ...result.patient,
+        id: patientId,
+        name: patient.name || result.patient.name,
+        age: patient.age ?? result.patient.age,
+        sex: patient.sex || result.patient.sex,
+        no: patient.patient_number || result.patient.no,
+        birth_date: patient.birth_date ?? null,
+        phone: patient.phone ?? null,
+        contrast_allergy: patient.has_allergy ? (patient.allergy_note || "있음") : null,
+      },
+    };
   },
   draft:      (id, b)  => put(`/studies/${id}/assessment/draft`, b),
   finalize:   (id, b)  => patch(`/studies/${id}/finalize`, b),
@@ -761,7 +783,7 @@ export const rad = {
       raw?.exam_order ? rad.order(raw.exam_order).catch(() => ({})) : Promise.resolve({}),
       radCurrentAssessment(id),
     ]);
-    return radStudyRow(raw, order, current);
+    return radWithPatient(radStudyRow(raw, order, current));
   },
   /* ⚠ 서버가 페이지네이션 봉투({count,results,…})로 준다. List.jsx 는
      {items,total}을 기대한다(data.items.filter · data.total) — 병리·영상
@@ -831,13 +853,49 @@ export const specimens = {
 function normalizePatient(p) {
   if (!p) return p;
   const { pii, ...rest } = p;
+  const birthDate = pii?.birth_date ?? rest.birth_date ?? null;
   return {
     ...rest,
     name:       pii?.name ?? rest.name ?? null,
-    birth_date: pii?.birth_date ?? rest.birth_date ?? null,
+    birth_date: birthDate,
     phone:      pii?.phone ?? rest.phone ?? null,
-    age:        rest.age ?? (rest.birth_year ? new Date().getFullYear() - rest.birth_year : null),
+    age:        rest.age ?? ageFromBirthDate(birthDate)
+      ?? (rest.birth_year ? new Date().getFullYear() - rest.birth_year : null),
   };
+}
+
+/* 대기·목록은 가볍게 유지하되, 상세를 열었을 때만 환자 원본을 보완한다.
+   ExamOrder/Study 응답에는 생년월일·연락처가 없기 때문이다. */
+async function radWithPatient(row) {
+  const patientId = row?.patient_id ?? row?.patient;
+  if (patientId == null) return row;
+  const patient = await get(`/patients/${patientId}/`).then(normalizePatient).catch(() => null);
+  if (!patient) return row;
+  return {
+    ...row,
+    patient_id: patientId,
+    patient_name: patient.name || row.patient_name,
+    patient_no: patient.patient_number || row.patient_no,
+    age: patient.age ?? row.age,
+    sex: patient.sex || row.sex,
+    birth_date: patient.birth_date ?? null,
+    phone: patient.phone ?? null,
+    contrast_allergy: patient.has_allergy ? (patient.allergy_note || "있음") : null,
+  };
+}
+
+/* 서버는 생년월일을 pii.birth_date 로 준다. 연도만 빼면 생일 전인 환자가
+   한 살 크게 보이므로, 오늘 날짜와 월·일까지 비교한다. */
+function ageFromBirthDate(value) {
+  if (!value) return null;
+  const birth = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(birth.getTime())) return null;
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  const beforeBirthday = today.getMonth() < birth.getMonth()
+    || (today.getMonth() === birth.getMonth() && today.getDate() < birth.getDate());
+  if (beforeBirthday) age -= 1;
+  return age >= 0 ? age : null;
 }
 
 export const breast = {
@@ -863,16 +921,33 @@ export const breast = {
      리포트를 함께 쓰므로 목록을 별도로 받아 최신 종합 리포트를 붙인다.
      아직 리포트가 없는 환자는 null로 두고 화면이 안내 상태를 보여 준다. */
   patient:      async (id) => {
-    const patient = normalizePatient(await get(`/patients/${id}/`));
-    const reports = await get(`/reports${qs({ patient: id })}`)
-      .then(unwrapList)
-      .catch(() => []);
+    const [rawPatient, reports, orders] = await Promise.all([
+      get(`/patients/${id}/`),
+      get(`/reports${qs({ patient: id })}`).then(unwrapList).catch(() => []),
+      breast.ordersOf(id).catch(() => []),
+    ]);
+    const patient = normalizePatient(rawPatient);
+    const currentOrder = orders.find((row) => row.visited_at && !["completed", "cancelled"].includes(row.order_status))
+      ?? orders.find((row) => row.visited_at)
+      ?? orders.at(-1)
+      ?? null;
     const report = patient?.report
       ?? reports.find((row) => row.report_type === "final")
       ?? reports.at(-1)
       ?? null;
-    return { ...patient, report };
+    return {
+      ...patient,
+      report,
+      current_order: currentOrder,
+      visit_type: currentOrder?.visit_type ?? null,
+      visit_purpose: currentOrder?.exam_purpose ?? null,
+      intake_note: currentOrder?.order_note ?? null,
+      questionnaire: currentOrder?.questionnaire ?? patient?.questionnaire ?? null,
+      allergy: patient?.has_allergy ? (patient.allergy_note || "있음") : "없음",
+    };
   },
+  reports:      (patientId) => get(`/reports${qs({ patient: patientId })}`).then(unwrapList),
+  finalReport:  (body) => post("/reports/final", body),
   examOrder:    (b)  => post("/exam-orders", b),
 
   /* "이상 없음 · 종결" — 촬영 없이 방문을 닫는다. exam_order 를 새로 만들지

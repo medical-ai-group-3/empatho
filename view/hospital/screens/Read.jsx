@@ -79,6 +79,7 @@ function Inner({ cfg, id, d }) {
   const [contrast, setContrast] = useState(100);
   const [full, setFull] = useState(false);
   const [pick, setPick] = useState(null);          // 고른 병변
+  const [pendingMark, setPendingMark] = useState(null);
   const [slide, setSlide] = useState(0);           // 고른 크롭 · 시리즈
   const [f, setF] = useState(d.doctor ?? {});
   const [busy, setBusy] = useState(false);
@@ -149,7 +150,8 @@ function Inner({ cfg, id, d }) {
             : null}
           aiOpen={false}
 
-          doctor={<c.Doctor d={d} f={f} set={set} />}
+          doctor={<c.Doctor d={d} f={f} set={set} pendingMark={pendingMark}
+                             onLesionCreated={() => setPendingMark(null)} />}
           doctorOpen
 
           below={
@@ -181,6 +183,7 @@ function Inner({ cfg, id, d }) {
                   lesions={d.lesions}
                   study={{ volume_manifest: view.volumeManifest, volume_base: view.volumeBase }}
                   mode="diagnostic"
+                  onAnnotation={setPendingMark}
                 />
               </Suspense>
             </div>
@@ -191,6 +194,7 @@ function Inner({ cfg, id, d }) {
                   manifestUrl={view.stackManifest}
                   baseUrl={view.stackBase}
                   mode="diagnostic"
+                  onAnnotation={setPendingMark}
                 />
               </Suspense>
             </div>
@@ -203,6 +207,7 @@ function Inner({ cfg, id, d }) {
               opacity={mask}
               pick={pick} onPick={setPick}
               annotationTools={cfg.scopeKind === "study"}
+              onAnnotation={setPendingMark}
               full={full} onFull={() => setFull((v) => !v)}
             />
           )}

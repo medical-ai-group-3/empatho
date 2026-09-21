@@ -248,12 +248,13 @@ function PatientPanel({ patient, onNext, onExamOrder, onSpecimen, onClose, onRev
   const d = patient.open_discordance;
   const rows = [
     { k: "성별·나이", v: `${label(SEX, patient.sex)} · ${patient.age}세` },
-    { k: "내원 목적", v: patient.visit_purpose },
+    { k: "생년월일", v: patient.birth_date },
+    { k: "연락처", v: patient.phone },
+    { k: "내원 구분", v: patient.visit_type },
+    { k: "검사 목적", v: patient.visit_purpose },
     { k: "알레르기", v: patient.allergy },
-    { k: "주 증상", v: patient.chief_complaint },
-    { k: "활력 징후", v: patient.vitals },
-    { k: "가족력", v: patient.family_history },
-    { k: "검사 이력", v: patient.exam_summary },
+    { k: "간호 메모", v: patient.intake_note },
+    { k: "문진", v: patient.questionnaire ? "제출됨" : "미제출" },
   ];
   return (
     <>
@@ -274,7 +275,7 @@ function PatientPanel({ patient, onNext, onExamOrder, onSpecimen, onClose, onRev
         <div className="pt-info">
           {rows.map((r) => (
             <div className="row" key={r.k}>
-              <span className="k">{r.k}</span><span className="v">{r.v}</span>
+              <span className="k">{r.k}</span><span className="v">{r.v || "—"}</span>
             </div>
           ))}
         </div>
