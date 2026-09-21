@@ -347,12 +347,35 @@ function Monitor({ rows }) {
           pid: r.patient_name
             ? <b>{r.patient_name}</b>
             : <span className="dim">#{r.patient_id}</span>,
-          stage: <Chip tone={r.stage === "접수 대기" ? "fill" : "line"}>{r.stage}</Chip>,
+          stage: (() => {
+            const stage = visitStage(r);
+            return <Chip tone={stage === "접수 대기" ? "fill" : "line"}>{stage}</Chip>;
+          })(),
         }))}
       />
       {nameless && <Warn>이름이 없는 환자는 번호로 표시합니다.</Warn>}
     </>
   );
+}
+
+/* 오늘 내원 모니터는 서버가 아직 한글 stage를 내려주지 않는 버전도
+ * 함께 지원한다. 큐 이동 정보가 있으면 접수 대기보다 실제 진행 부서를
+ * 우선 표시하고, 서버가 stage를 내려주면 그 값을 그대로 존중한다. */
+function visitStage(row = {}) {
+  if (row.stage && !["requested", "accepted", "in_progress"].includes(row.stage)) {
+    return row.stage;
+  }
+  const dept = String(
+    row.current_department ?? row.assigned_department ?? row.destination_department
+      ?? row.queue_department ?? row.department ?? "",
+  ).toLowerCase();
+  const modality = String(row.modality ?? row.exam_modality ?? "").toLowerCase();
+  if (dept.includes("radiology") || dept.includes("영상") || dept.includes("radi")) return "촬영 중";
+  if (dept.includes("breast") || dept.includes("surgery") || dept.includes("유방") || dept.includes("외과")) return "진료 중";
+  if (dept.includes("pathology") || dept.includes("병리")) return "검체 처리 중";
+  if (modality && (row.study_id || row.exam_started_at)) return "촬영 중";
+  if (row.primary_staff_id || row.primary_staff || row.assigned_staff_id || row.surgeon_id) return "진료 중";
+  return row.stage === "in_progress" ? "진행 중" : "접수 대기";
 }
 
 function Failed({ error }) {

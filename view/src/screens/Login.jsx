@@ -55,7 +55,7 @@ export default function Login() {
               onChange={(e) => setId(e.target.value)}
               autoComplete="username"
               autoCapitalize="off"
-              placeholder="가입할 때 정하신 아이디"
+              placeholder="아이디"
               disabled={busy}
             />
           </label>
@@ -68,6 +68,7 @@ export default function Login() {
               onChange={(e) => setPw(e.target.value)}
               autoComplete="current-password"
               disabled={busy}
+              placeholder="비밀번호"
             />
           </label>
 
@@ -84,7 +85,10 @@ export default function Login() {
         </form>
 
         <p className="note c">
-          처음이신가요? <Link className="lnk" to="/signup">가입하기</Link>
+          처음이신가요?{" "}
+          <Link className="lnk" to="/signup">
+            가입하기
+          </Link>
         </p>
       </div>
 

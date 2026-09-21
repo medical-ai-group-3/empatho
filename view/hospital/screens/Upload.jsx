@@ -32,6 +32,16 @@ import { RUN_STATUS, label, tone } from "../codes";
 
 const POLL_MS = 5000;
 
+function isAccepted(file, accept) {
+  const rules = String(accept || "").split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
+  const name = String(file.name || "").toLowerCase();
+  const type = String(file.type || "").toLowerCase();
+  return rules.some((rule) => rule === "*/*"
+    || (rule.startsWith(".") && name.endsWith(rule))
+    || (rule.endsWith("/*") && type.startsWith(rule.slice(0, -1)))
+    || rule === type);
+}
+
 export default function UploadScreen({ cfg }) {
   const c = cfg.upload;
   const { id } = useParams();
@@ -71,6 +81,7 @@ function Work({ cfg, id, d, reload }) {
   const fromQueue = loc.state?.orderId ?? null;
   const send = useCan(c.need.send);
   const run = useCan(c.need.run);
+  const accept = c.acceptFor ? c.acceptFor(d) : c.accept;
 
   /* 이미 올라간 것(서버가 알려준 것)과 전송 중인 것을 가른다. 완료한
      파일은 반드시 uploadInfo를 다시 받아 표시한다 — 선택 목록만 보고
@@ -101,6 +112,11 @@ function Work({ cfg, id, d, reload }) {
 
   async function queueFiles(fs) {
     if (fs.length === 0) return;
+    const invalid = fs.find((file) => !isAccepted(file, accept));
+    if (invalid) {
+      setMsg(`이 검사에서 허용되지 않는 파일 형식입니다: ${invalid.name}`);
+      return;
+    }
     const uploads = fs.map((f, index) => ({
         /* 같은 파일을 두 번 골라도 각각의 전송 결과를 따로 보여 준다. */
         id: `${f.name}-${f.size}-${f.lastModified}-${index}-${Date.now()}`,
@@ -188,7 +204,7 @@ function Work({ cfg, id, d, reload }) {
                queueFiles([...e.dataTransfer.files]);
              }}>
           <p className="drop-t">{c.dropText}</p>
-          <input ref={fileRef} type="file" multiple accept={c.accept}
+          <input ref={fileRef} type="file" multiple accept={accept}
                  onChange={choose} hidden />
           <Btn onClick={() => fileRef.current?.click()}
                disabled={!send.ok} title={send.attrs.title}>파일 선택</Btn>

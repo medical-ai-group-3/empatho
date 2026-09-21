@@ -47,8 +47,16 @@ const api = {
        GET /specimens/{id}/upload   올린 파일 목록 (여기에만 있다)
      /specimens/{id}/read 가 생기면 이 함수가 한 줄로 줄어든다 */
   read: async (id) => {
-    const [s, up] = await Promise.all([path.specimen(id), path.uploadInfo(id)]);
-    return toRead(s, up);
+    const [s, up, progress] = await Promise.all([
+      path.specimen(id),
+      path.uploadInfo(id),
+      path.progress(id).catch(() => null),
+    ]);
+    const result = toRead(s, up);
+    const ai = progress?.results ?? progress?.items ?? progress?.data?.results
+      ?? (Array.isArray(progress?.data) ? progress.data : null)
+      ?? result.ai;
+    return { ...result, ai: Array.isArray(ai) ? ai : result.ai };
   },
   draft:      (id, b) => path.draft(id, b),
   finalize:   (id, b) => path.finalize(id, b),

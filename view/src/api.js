@@ -34,6 +34,32 @@ export function setAccessToken(token) {
   accessToken = token || null;
 }
 
+/* refresh 를 앱에서 직접 들고 있는다.
+ *
+ * 웹(https)은 서버가 주는 httponly 쿠키로 충분하다 — 스크립트가 못 읽는 쪽이
+ * 안전하다. 그런데 **앱(Capacitor·에뮬레이터)은 http·다른 출처라 브라우저가
+ * Secure 쿠키를 통째로 버린다.** 그러면 액세스(30분)가 끝나는 순간 쓰던 중에
+ * 로그아웃된다. 그래서 로그인 응답의 refresh 를 여기 저장했다가 재발급 때
+ * 본문으로 보낸다. 쿠키가 살아 있는 웹에서는 이 값이 비어 있어도 그대로 돈다.
+ *
+ * localStorage 를 쓰는 이유 — 앱을 껐다 켜도 14일은 다시 로그인하지 않게. */
+const REFRESH_KEY = "empatho.refresh";
+let refreshToken = null;
+
+export function setRefreshToken(token) {
+  refreshToken = token || null;
+  try {
+    if (token) localStorage.setItem(REFRESH_KEY, token);
+    else localStorage.removeItem(REFRESH_KEY);
+  } catch { /* 저장이 막힌 브라우저(프라이빗 모드 등)면 메모리로만 쓴다 */ }
+}
+
+function getRefreshToken() {
+  if (refreshToken) return refreshToken;
+  try { refreshToken = localStorage.getItem(REFRESH_KEY); } catch { /* 위와 같다 */ }
+  return refreshToken;
+}
+
 function unwrap(data) {
   return data && typeof data === "object" && "success" in data ? data.data : data;
 }
@@ -52,14 +78,23 @@ async function refreshAccess() {
   if (refreshing) return refreshing;
   refreshing = (async () => {
     try {
+      // 쿠키가 있으면 서버가 그걸 먼저 본다(웹). 앱은 저장해 둔 refresh 를 싣는다.
+      const saved = getRefreshToken();
       const res = await fetch("/api/v1/token/refresh", {
         method: "POST",
-        headers: { Accept: "application/json" },
+        headers: {
+          Accept: "application/json",
+          ...(saved ? { "Content-Type": "application/json" } : {}),
+        },
         credentials: "include",
+        body: saved ? JSON.stringify({ refresh: saved }) : undefined,
       });
       const payload = await res.json().catch(() => null);
       const next = res.ok ? unwrap(payload)?.access : null;
       if (next) setAccessToken(next);
+      // 재발급까지 막혔으면 들고 있던 refresh 도 버린다 — 만료·폐기된 것이라
+      // 계속 들고 있어 봐야 매 요청마다 헛되이 한 번씩 더 두드리게 된다.
+      if (!next) setRefreshToken(null);
       return next || null;
     } catch {
       return null;
@@ -260,11 +295,13 @@ export const api = {
   login:        async (id, pw) => {
     const session = await post("/api/v1/login", { login_id: id, password: pw });
     setAccessToken(session?.access);
+    // 앱은 이걸 들고 있어야 30분 뒤에 안 끊긴다(웹은 쿠키가 있어 없어도 된다).
+    setRefreshToken(session?.refresh);
     return session;
   },
   logout:       async () => {
     try { return await post("/api/v1/logout"); }
-    finally { setAccessToken(null); }
+    finally { setAccessToken(null); setRefreshToken(null); }
   },
   me:           ()         => get("/api/v1/me"),
 
@@ -320,15 +357,15 @@ export const api = {
   //       { date, time,
   //         questionnaire: { answers: { pregnancy: "no", … } } }
   reservations:  ()        => get("/api/v1/me/reservations"),
-  requestVisit:  (body)    => post("/api/v1/me/reservation-requests", body),
+  requestVisit:  (body)    => post("/api/v1/me/reservation-requests/", body),
   cancelVisit:   (id)      => post(`/api/v1/me/reservations/${id}/cancel`),
 
   // 06 · 07  결과 · 안내문
   //     내원 한 번에 리포트 하나다. 서버가 report_type='final' ·
   //     audience='patient' 만 준다 — **앱은 묶는 일을 하지 않는다.**
   //     lock_status 가 'locked' 면 본문이 오지 않는다(대면 설명 전).
-  results:      ()         => get("/api/v1/reports"),
-  report:       (id)       => get(`/api/v1/reports/${id}`),
+  results:      ()         => get("/api/v1/reports/"),
+  report:       (id)       => get(`/api/v1/reports/${id}/`),
 
   // 08  챗봇 — 개인 결과를 인용하지 않는 안내용이다
   chat:         (q)        => post("/api/v1/chat", { question: q }),

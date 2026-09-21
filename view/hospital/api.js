@@ -401,6 +401,19 @@ async function pathSpecimenRow(raw = {}) {
   };
 }
 
+function pathUploadFile(raw = {}) {
+  const bytes = raw.byte_size;
+  return {
+    ...raw,
+    id: raw.storage_object_id ?? raw.id,
+    name: raw.name ?? raw.object_key ?? `파일 ${raw.storage_object_id ?? ""}`,
+    size: typeof bytes === "number" ? `${(bytes / 1048576).toFixed(1)} MB` : "",
+    w: raw.w ?? raw.width_px,
+    h: raw.h ?? raw.height_px,
+    image: raw.image ?? (raw.object_key ? { key: raw.object_key } : null),
+  };
+}
+
 export const path = {
   /* ⚠ 서버는 큐를 **기본 필터 없이** 준다 (2026-09-16 다희님 확인).
      이 두 조건을 안 담으면 이미 남이 집어간 검체까지 대기 큐에 뜬다.
@@ -432,7 +445,25 @@ export const path = {
   specimen:   (id)     => get(`/specimens/${id}/`).then(pathSpecimenRow),
   assign:     (id)     => patch(`/specimens/${id}/assign`),
 
-  uploadInfo: (id)     => get(`/specimens/${id}/upload`),
+  /* 업로드 화면은 파일 목록 응답만으로는 환자·검체 정보를 채울 수
+     없다. 영상 업로드 화면처럼 상세 응답과 업로드 응답을 합쳐서
+     공통 Upload.jsx 가 기대하는 {files, patient_name, ...} 모양으로
+     정규화한다. 기존에는 upload 응답의 specimen_id/uploads 만 그대로
+     넘겨 환자 정보가 undefined 로 보이고, 파일 목록도 화면 계약과
+     어긋났다. */
+  uploadInfo: async (id) => {
+    const [specimen, raw] = await Promise.all([
+      get(`/specimens/${id}/`).then(pathSpecimenRow),
+      get(`/specimens/${id}/upload`),
+    ]);
+    const uploads = raw?.uploads ?? raw?.files ?? [];
+    return {
+      ...raw,
+      ...specimen,
+      files: uploads.map(pathUploadFile),
+      specimen_id: specimen.id,
+    };
+  },
   ticket:     (b)      => post("/tickets", b),   /* lib/files.js 가 쓴다 */
   analyze:    (id)     => post(`/specimens/${id}/ai-results`),
   progress:   (id)     => get(`/ai-results${qs({ specimen: id })}`),
@@ -634,7 +665,19 @@ function radStudyRow(raw = {}, order = {}, assessment = null) {
 
 function radUpload(raw = {}, order = {}) {
   const study = raw.study ?? {};
-  const files = (raw.storage_objects ?? raw.files ?? []).map(radFile);
+  /* 서버가 storage_objects: []와 files: [...]를 함께 보낼 수 있다.
+     빈 storage_objects를 우선하면 업로드 완료 파일이 판독 화면으로
+     전달되지 않는다. 실제 항목이 있는 목록을 선택한다. */
+  const candidates = [
+    raw.storage_objects,
+    raw.files,
+    raw.images,
+    study.storage_objects,
+    study.files,
+    study.images,
+  ];
+  const listedFiles = candidates.find((value) => Array.isArray(value) && value.length > 0) ?? [];
+  const files = listedFiles.map(radFile);
   const row = radStudyRow(study, order);
   return {
     ...raw,
@@ -642,7 +685,7 @@ function radUpload(raw = {}, order = {}) {
     study,
     files,
     series: raw.series ?? radSeries(files),
-    ai: raw.ai ?? null,
+    ai: raw.ai ?? raw.latest_ai_result ?? study.ai ?? null,
     exam_order_id: row.exam_order_id ?? order.exam_order_id,
     order,
   };
@@ -663,7 +706,21 @@ function radUpload(raw = {}, order = {}) {
 function radRead(raw = {}, upload = {}, order = {}) {
   const study = raw.study ?? upload.study ?? {};
   const row = radStudyRow(study, order);
-  const files = (raw.images ?? upload.files ?? []).map(radFile);
+  /* read 응답이 images: []를 포함해도 실제 업로드 파일은 upload
+     응답(storage_objects/files)에 있을 수 있다. 빈 배열을 우선하면
+     업로드가 성공한 검사도 판독 화면에서 원본 없음으로 표시된다. */
+  const rawImages = Array.isArray(raw.images) ? raw.images.map(radFile) : [];
+  const uploadFiles = Array.isArray(upload.files) ? upload.files.map(radFile) : [];
+  /* 업로드 응답에는 저장소 object_key가, read 응답에는 DICOM 메타데이터가
+     각각 따로 올 수 있다. 같은 순번의 정보를 합쳐 실제로 내려받을 수
+     있는 key/sop를 모두 보존한다. */
+  const files = uploadFiles.length
+    ? uploadFiles.map((file, i) => ({
+        ...(rawImages[i] ?? {}),
+        ...file,
+        image: file.image ?? rawImages[i]?.image ?? null,
+      }))
+    : rawImages;
   const current = raw.current_assessment ?? null;
   return {
     ...raw,
@@ -818,13 +875,14 @@ export const rad = {
  * 쓴다 — 그 컴포넌트가 부르는 자리를 한 곳에 모아 둔다. 영상의학과는
  * 이 화면을 쓰지 않기로 확정됐다(간호과 명세 §3). */
 export const specimens = {
-  /* 목록 경로에는 끝 슬래시를 붙이지 않는다. 실제 API와 목업 모두
-     /lesions?patient=… 형식이며, /lesions/?…는 별도 경로로 처리돼
-     검체 바인딩 팝업의 병변 목록이 404가 났다. */
-  lesionsByPatient: (pid) => get(`/lesions${qs({ patient: pid })}`),
+  /* 목록 경로에 끝 슬래시를 붙인다. 라우터(ViewSet)로 등록된 목록이라
+     슬래시가 없으면 404다 — 2026-09-21 두 웹(example.com·ts.net) 모두에서
+     /lesions=404 · /lesions/=200 으로 확인했다. 전에 반대로 적혀 있던
+     주석은 그 사이 서버 라우팅이 바뀌기 전 이야기다. */
+  lesionsByPatient: (pid) => get(`/lesions/${qs({ patient: pid })}`),
   /* 현재 서버의 specimens 목록은 patient 필터를 아직 받지 않는다. 유방외과
      워크플로 안내에서는 응답을 받은 뒤 해당 환자 것만 골라 쓴다. */
-  list: () => get("/specimens").then(unwrapList),
+  list: () => get("/specimens/").then(unwrapList),
   bind: (b) => post("/specimens/", b),
 };
 
@@ -923,7 +981,7 @@ export const breast = {
   patient:      async (id) => {
     const [rawPatient, reports, orders] = await Promise.all([
       get(`/patients/${id}/`),
-      get(`/reports${qs({ patient: id })}`).then(unwrapList).catch(() => []),
+      get(`/reports/${qs({ patient: id })}`).then(unwrapList).catch(() => []),
       breast.ordersOf(id).catch(() => []),
     ]);
     const patient = normalizePatient(rawPatient);
@@ -946,7 +1004,7 @@ export const breast = {
       allergy: patient?.has_allergy ? (patient.allergy_note || "있음") : "없음",
     };
   },
-  reports:      (patientId) => get(`/reports${qs({ patient: patientId })}`).then(unwrapList),
+  reports:      (patientId) => get(`/reports/${qs({ patient: patientId })}`).then(unwrapList),
   finalReport:  (body) => post("/reports/final", body),
   examOrder:    (b)  => post("/exam-orders", b),
 
@@ -968,7 +1026,11 @@ export const breast = {
 
   /* 2장 · 검사 종합 확인 */
   timeline:     (pid) => get(`/patients/${pid}/timeline`),
-  studies:      (pid) => get(`/patients/${pid}/studies`),
+  /* 환자 검사 목록도 다른 목록 API와 같은 {count, results} 봉투로
+     내려온다. 화면은 배열을 기준으로 모달리티 탭과 뷰어를 계산하므로
+     봉투를 그대로 넘기면 실검사와 타임라인이 있어도
+     "촬영한 검사가 없습니다"가 표시된다. */
+  studies:      (pid) => get(`/patients/${pid}/studies`).then(unwrapList),
 
   /* 유방외과 진료를 열기 전 다음 단계를 판단할 최소 이력. 서버에 별도
      workflow API가 없어서, 이미 있는 검사·오더·검체 조회를 한 번에 묶는다. */

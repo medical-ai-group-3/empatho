@@ -25,20 +25,30 @@ import { MODALITY, modality as asModality, text } from "../lib/codes";
 /* 처음 한 번만 뜨는 안내. 셋을 넘기지 않는다 — 열 개를 이어 붙이면
    결국 슬라이드와 같은 것이 되고, 같은 이유로 넘겨진다. */
 const COACH = [
-  { sel: '[data-coach="chatbot"]',
+  {
+    sel: '[data-coach="chatbot"]',
     title: "안녕하세요, 틸리예요",
-    body: "저는 안내 챗봇이자 앱 사용을 돕는 건강 파트너예요. "
-        + "검사 안내문에 나온 낱말이나 다음에 할 일을 함께 살펴볼 수 있어요." },
-  { sel: '[data-coach="quest"]',
+    body:
+      "저는 안내 챗봇이자 앱 사용을 돕는 건강 파트너예요. " +
+      "검사 안내문에 나온 낱말이나 다음에 할 일을 함께 살펴볼 수 있어요.",
+  },
+  {
+    sel: '[data-coach="quest"]',
     title: "검사 전에 여기부터",
-    body: "촬영 방법이 달라지는 것들을 미리 여쭙습니다. "
-        + "다 채우지 않아도 답한 만큼 저장됩니다." },
-  { sel: '[data-coach="bell"]',
+    body:
+      "촬영 방법이 달라지는 것들을 미리 여쭙습니다. " +
+      "다 채우지 않아도 답한 만큼 저장됩니다.",
+  },
+  {
+    sel: '[data-coach="bell"]',
     title: "새 안내문은 여기에",
-    body: "검사 결과가 나오면 종에 표시가 붙습니다." },
-  { sel: '[data-coach="tab-book"]',
+    body: "검사 결과가 나오면 종에 표시가 붙습니다.",
+  },
+  {
+    sel: '[data-coach="tab-book"]',
     title: "방문 신청은 예약에서",
-    body: "날짜와 시간만 고르시면 됩니다. 검사 종류는 병원이 정합니다." },
+    body: "날짜와 시간만 고르시면 됩니다. 검사 종류는 병원이 정합니다.",
+  },
 ];
 
 /* 날씨처럼 외부 정보에 기대지 않고, 이미 병원이 가진 일정만 쓴다.
@@ -55,9 +65,9 @@ function visitGreeting(home) {
   const visits = Number(home.visit_count);
 
   if (Number.isFinite(visits) && visits > 0) {
-    return `${name} 님, ${visitOrdinal(visits)} 방문이에요.`;
+    return `${name} 님,\n ${visitOrdinal(visits)} 방문예정이에요.`;
   }
-  return `${name} 님, 방문 일정을 확인해요.`;
+  return `${name} 님,\n 방문 일정을 확인해봐요.`;
 }
 
 function todayLabel() {
@@ -67,7 +77,7 @@ function todayLabel() {
 
 /* 문진 카드에 뭐라고 쓸지. status 는 not_started · in_progress · done 이다. */
 function questLine(q) {
-  if (q.status === "done") return "작성을 마쳤습니다";
+  if (q.status === "done") return "자가검진 작성 완료!";
   if (q.status === "in_progress") return `${q.answered} / ${q.total} 문항 작성`;
   return "아직 작성하지 않았습니다";
 }
@@ -102,19 +112,28 @@ function Inner({ d, prescriptions }) {
   const todayTasks = [
     nextMedication,
     !done && {
-      to: "/quest", icon: "help", image: "exam_results_icon.png", title: questLine(q),
+      to: "/quest",
+      icon: "help",
+      image: "exam_results_icon.png",
+      title: questLine(q),
       detail: q.hint || "검사 전에 문진을 마쳐 주세요",
     },
     next && {
-      to: "/book", icon: "calendar", image: "exam_schedule_icon.png", title: `다음 예약 ${fmtWhen(next.scheduled_at)}`,
+      to: "/book",
+      icon: "calendar",
+      image: "exam_schedule_icon.png",
+      title: `다음 예약 ${fmtWhen(next.scheduled_at)}`,
       detail: next.place || "예약 장소를 확인해 주세요",
     },
     newReport && {
       to: `/reports/${newReport.report_id}`,
-      icon: "results", title: "새 안내문을 확인해 주세요",
+      icon: "results",
+      title: "새 안내문을 확인해 주세요",
       detail: newReport.title,
     },
-  ].filter(Boolean).slice(0, 3);
+  ]
+    .filter(Boolean)
+    .slice(0, 3);
 
   return (
     <>
@@ -127,7 +146,9 @@ function Inner({ d, prescriptions }) {
           {/* 몇 개인지보다 «있다»가 중요하다. 숫자를 안 쓴다 */}
           {d.new_reports?.length > 0 && <i className="new" />}
         </Link>
-        <Link className="icon" to="/settings" aria-label="설정"><Gear /></Link>
+        <Link className="icon" to="/settings" aria-label="설정">
+          <Gear />
+        </Link>
       </div>
 
       {/* 큰 인사 + 틸리.
@@ -146,10 +167,17 @@ function Inner({ d, prescriptions }) {
             <span className="hello-date">{todayLabel()}</span>
             <span className="hello-visit">{visit}</span>
             <span className="hello-health-label">오늘의 건강 한마디</span>
-            <span className="hello-health-tip">식후 약은 꼭 식후에 드세요.</span>
+            <span className="hello-health-tip">
+              식후 약은 꼭 식후에 드세요.
+            </span>
           </span>
         </p>
-        <img className="hello-bg" src="/tilly/tily_background.png" alt="" aria-hidden="true" />
+        <img
+          className="hello-bg"
+          src="/tilly/tily_background.png"
+          alt=""
+          aria-hidden="true"
+        />
         <span className="hello-tri" aria-hidden="true">
           <Tilly mood="hi" size="lg" alt="" />
         </span>
@@ -189,17 +217,29 @@ function Inner({ d, prescriptions }) {
       )}
 
       {/* ── 문진 — 맨 위. 다 쓰기 전에는 강조 바탕이다 ── */}
-      <Link className={done ? "card go quest-card" : "card go accent quest-card"} to="/quest"
-            data-coach="quest">
+      <Link
+        className={done ? "card go quest-card" : "card go accent quest-card"}
+        to="/quest"
+        data-coach="quest"
+      >
         <span className="tx">
           <span className="k">자가검진 문진{q.required ? " · 필수" : ""}</span>
           <span className="v">{questLine(q)}</span>
           {!done && q.hint && <span className="s">{q.hint}</span>}
           {!done && q.total > 0 && (
-            <span className="prog"><i style={{ width: `${pct}%` }} /></span>
+            <span className="prog">
+              <i style={{ width: `${pct}%` }} />
+            </span>
           )}
         </span>
-        {!done && <img className="quest-pop" src="/tilly/tily_pop.png" alt="" aria-hidden="true" />}
+        {!done && (
+          <img
+            className="quest-pop"
+            src="/tilly/tily_pop.png"
+            alt=""
+            aria-hidden="true"
+          />
+        )}
         {done && <span className="pill ok">완료</span>}
       </Link>
 
@@ -224,10 +264,17 @@ function Inner({ d, prescriptions }) {
           </>
         );
         return locked ? (
-          <div key={r.report_id} className="card go">{inner}</div>
+          <div key={r.report_id} className="card go">
+            {inner}
+          </div>
         ) : (
-          <Link key={r.report_id} className="card go"
-                to={`/reports/${r.report_id}`}>{inner}</Link>
+          <Link
+            key={r.report_id}
+            className="card go"
+            to={`/reports/${r.report_id}`}
+          >
+            {inner}
+          </Link>
         );
       })}
 
@@ -244,9 +291,12 @@ function Inner({ d, prescriptions }) {
                     <b>다음 {fmtWhen(next.scheduled_at)}</b>
                     <span>
                       {/* 신청 단계에서는 검사 종류가 아직 없다. 병원이 정한다 */}
-                      {text({ ...next, modality: asModality(next.modality) },
-                            "modality", MODALITY, "modality_label")
-                        || "검사 종류는 병원에서 정합니다"}
+                      {text(
+                        { ...next, modality: asModality(next.modality) },
+                        "modality",
+                        MODALITY,
+                        "modality_label",
+                      ) || "검사 종류는 병원에서 정합니다"}
                       {next.place ? ` · ${next.place}` : ""}
                     </span>
                   </>
@@ -257,7 +307,9 @@ function Inner({ d, prescriptions }) {
                   </>
                 )}
               </span>
-              <Link className="more" to="/book">예약 <Icon name="arrowRight" /></Link>
+              <Link className="more" to="/book">
+                예약 <Icon name="arrowRight" />
+              </Link>
             </>
           }
         />
@@ -286,14 +338,26 @@ function Inner({ d, prescriptions }) {
 
 /* 메뉴 이름이 아이콘의 뜻을 이미 말해 주므로 장식 이미지로 처리한다. */
 function MenuIcon({ file }) {
-  return <img className="menu-icon" src={`/tilly/${file}`} alt="" aria-hidden="true" />;
+  return (
+    <img
+      className="menu-icon"
+      src={`/tilly/${file}`}
+      alt=""
+      aria-hidden="true"
+    />
+  );
 }
 
 function TodayTasks({ tasks }) {
   return (
     <section className="today-tasks" aria-labelledby="today-tasks-title">
       <div className="today-tasks-head">
-        <img className="today-tasks-tilly" src="/tilly/alram.png" alt="" aria-hidden="true" />
+        <img
+          className="today-tasks-tilly"
+          src="/tilly/alram.png"
+          alt=""
+          aria-hidden="true"
+        />
         <b id="today-tasks-title">오늘의 할 일</b>
         <span>{tasks.length}개</span>
       </div>
@@ -301,9 +365,16 @@ function TodayTasks({ tasks }) {
         {tasks.map((task) => (
           <Link key={task.to} to={task.to}>
             <span className="today-task-icon">
-              {task.image
-                ? <img className="today-task-image" src={`/tilly/${task.image}`} alt="" aria-hidden="true" />
-                : <Icon name={task.icon} />}
+              {task.image ? (
+                <img
+                  className="today-task-image"
+                  src={`/tilly/${task.image}`}
+                  alt=""
+                  aria-hidden="true"
+                />
+              ) : (
+                <Icon name={task.icon} />
+              )}
             </span>
             <span className="today-task-text">
               <b>{task.title}</b>
@@ -323,10 +394,17 @@ function TodayVisit({ visit }) {
   return (
     <section className="today-visit" aria-labelledby="today-visit-title">
       <span className="today-visit-icon">
-        <img className="today-visit-tilly" src="/tilly/hospital_finder_icon.png" alt="" aria-hidden="true" />
+        <img
+          className="today-visit-tilly"
+          src="/tilly/hospital_finder_icon.png"
+          alt=""
+          aria-hidden="true"
+        />
       </span>
       <span className="today-visit-text">
-        <span className="k" id="today-visit-title">오늘 병원 안내</span>
+        <span className="k" id="today-visit-title">
+          오늘 병원 안내
+        </span>
         <b>다음 진료: {visit.next_location}</b>
         {visit.note && <span>{visit.note}</span>}
       </span>
@@ -339,9 +417,11 @@ function TodayVisit({ visit }) {
 function findNextMedication(prescriptions) {
   const pending = (prescriptions?.items ?? [])
     .filter((rx) => rx.status !== "ended")
-    .flatMap((rx) => (rx.drugs ?? []).flatMap((g) =>
-      (g.today ?? []).filter((t) => !t.log_id).map((t) => ({ g, t }))
-    ))
+    .flatMap((rx) =>
+      (rx.drugs ?? []).flatMap((g) =>
+        (g.today ?? []).filter((t) => !t.log_id).map((t) => ({ g, t })),
+      ),
+    )
     .sort((a, b) => a.t.time.localeCompare(b.t.time));
   if (!pending.length) return null;
 
@@ -351,11 +431,14 @@ function findNextMedication(prescriptions) {
     const [hour, minute] = time.split(":").map(Number);
     return hour * 60 + minute;
   };
-  const item = pending.find(({ t }) => asMinutes(t.time) >= minutes) ?? pending[0];
+  const item =
+    pending.find(({ t }) => asMinutes(t.time) >= minutes) ?? pending[0];
   const upcoming = asMinutes(item.t.time) >= minutes;
 
   return {
-    to: "/meds", icon: "pill", image: "medication_icon.png",
+    to: "/meds",
+    icon: "pill",
+    image: "medication_icon.png",
     title: upcoming ? `다음 복용 ${item.t.time}` : `${item.t.time} 복용 확인`,
     detail: `${item.g.name} · ${item.g.dose}`,
   };
@@ -364,9 +447,15 @@ function findNextMedication(prescriptions) {
 /* 톱니 — 설정. 종과 같은 굵기·같은 모서리로 그려야 둘이 한 벌로 보인다. */
 function Gear() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-         strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
-         aria-hidden="true">
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
       <circle cx="12" cy="12" r="3" />
       <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1A1.7 1.7 0 0 0 8.9 19a1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 5 8.9a1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9.5a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9v.1a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
     </svg>
@@ -377,9 +466,15 @@ function Gear() {
    판마다 색이 달라서 무채색 아이콘 사이에서 혼자 튄다. */
 function Bell() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-         strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
-         aria-hidden="true">
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
       <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
       <path d="M13.7 21a2 2 0 0 1-3.4 0" />
     </svg>
