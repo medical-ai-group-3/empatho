@@ -57,7 +57,6 @@ const NursingFollowups = lazy(() => import("./dept/nursing/screens/Followups"));
 import { pathology } from "./dept/pathology";
 import { breast } from "./dept/breast";
 import { radiology } from "./dept/radiology";
-import { reception } from "./dept/reception";
 import { nursing } from "./dept/nursing";
 
 /* 병원 웹 — 라우트
@@ -89,7 +88,9 @@ import { nursing } from "./dept/nursing";
  * ⚠ **뿌리 주소를 가로채지 않는다.** 그 자리는 환자 앱이다.
  */
 
-const CFG = { pathology, radiology, breast, reception, nursing };
+/* 원무과는 없다 — 접수·간호로 합쳤다(6.1). 원무 화면들은 nursing 설정이
+   합쳐 준 api 를 받는다 (dept/nursing.jsx) */
+const CFG = { pathology, radiology, breast, nursing };
 
 /* 주소에서 과를 읽는다 — /hospital/reception/patients → "reception"
  *
@@ -253,8 +254,9 @@ const SCREENS = {
   "breast.decision":    BreastDecision,
   "breast.discordance": BreastDiscordance,
 
-  /* 원무과. 다섯 장 틀을 안 쓴다 — 집는 절차도 판독도 없고
-     환자를 시스템에 들여보내는 입구다 */
+  /* 접수·간호. 다섯 장 틀을 안 쓴다 — 집는 절차도 판독도 없고
+     환자를 시스템에 들여보내는 입구다. 이름의 reception 은 **화면이
+     어디서 왔는지**를 말하는 것뿐이고, 과는 nursing 하나다 */
   "reception.intake":   ReceptionIntake,
   "reception.patients": ReceptionPatients,
   "reception.requests": ReceptionRequests,

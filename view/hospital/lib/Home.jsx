@@ -235,13 +235,33 @@ function Intake({ api, go, onDone }) {
  * 한 줄짜리다. 번호 · 이름 · 나이 성별 · 칩 · 한 줄 요약 · 시각 · ›
  */
 function Queue({ queue }) {
-  const rows = queue?.rows ?? [];
+  /* 탭이 없으면 칸 하나가 곧 탭 하나다 — 부르는 쪽이 둘 다 쓸 수 있게 */
+  const tabs = queue?.tabs?.length
+    ? queue.tabs
+    : [{ key: "all", name: queue?.title, rows: queue?.rows, empty: queue?.empty }];
+  const [pick, setPick] = useState(tabs[0].key);
+  const tab = tabs.find((t) => t.key === pick) ?? tabs[0];
+  const rows = tab.rows ?? [];
+
   return (
     <Card title={queue?.title ?? "목록"} count={rows.length} grow
           right={queue?.hint && <span className="hcard-k">{queue.hint}</span>}>
+      {/* 탭은 둘 이상일 때만. 하나뿐이면 칸 머리가 이미 그 말을 했다 */}
+      {tabs.length > 1 && (
+        <nav className="qtabs">
+          {tabs.map((t) => (
+            <button key={t.key} type="button"
+                    className={`qtab${t.key === tab.key ? " on" : ""}`}
+                    aria-pressed={t.key === tab.key}
+                    onClick={() => setPick(t.key)}>
+              {t.name}<i>{(t.rows ?? []).length}</i>
+            </button>
+          ))}
+        </nav>
+      )}
       <div className="qrows">
         {rows.length === 0
-          ? <p className="hcard-k hpad">{queue?.empty ?? "없습니다"}</p>
+          ? <p className="hcard-k hpad">{tab.empty ?? "없습니다"}</p>
           : rows.map((r, i) => <QRow key={r.id} row={r} n={i + 1} />)}
       </div>
     </Card>

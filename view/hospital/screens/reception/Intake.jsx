@@ -201,7 +201,7 @@ export default function Intake() {
           **주소에 담는다** — 화면 상태로 넘기면 붙여 넣은 주소로 같은 자리가
           다시 안 열린다 */}
       <Calendar onOpenDate={(date) =>
-        navigate(`${go.reception.patients()}?date=${date}`)} />
+        navigate(`${go.nursing.patients()}?date=${date}`)} />
 
       {choices && (
         <Choose rows={choices} onPick={fill} onClose={() => setChoices(null)} />

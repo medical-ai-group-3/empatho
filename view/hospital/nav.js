@@ -47,31 +47,46 @@ export const ROOT = "/hospital";
  *   deep   주소에 :id 가 들어가는 화면이라 메뉴에 안 띄운다
  */
 const DEPTS = [
+  /* ⚠ **원무과와 간호과를 한 과로 합쳤다**(6.1). 접수 → 내원 대기 → 호출 →
+     문진 → 유방외과 배정은 실제로는 환자 한 명을 이어서 다루는 한 줄인데,
+     따로 두면 중간에 과 탭을 건너뛰어야 했다. 작은 검진 기관에서는 같은
+     사람이 둘 다 하기도 한다.
+
+     **권한은 한 줄도 안 바꿨다.** 화면은 직책이 아니라 perms 배열만 본다 —
+     `reception.*` 과 `nursing.*` 을 그대로 두고 화면마다 제 열쇠를 건다.
+     원무 일만 하는 사람에게는 `reception.*` 만 주면 그 사람 메뉴에서
+     간호 화면이 알아서 빠진다.
+
+     ⚠ 과 key 는 `nursing` 이다. 주소가 바뀐 것은 원무 쪽 세 화면뿐이다
+     (`/hospital/reception/*` → `/hospital/nursing/*`).
+     ⚠ 홈의 열쇠가 **둘**이다. 한쪽만 걸면 다른 쪽 사람이 홈을 못 본다 —
+     can() 이 배열을 받아 하나만 있어도 통과시킨다(perm.js). */
   {
-    key: "pathology",
-    name: "병리과",
-    who: { name: "박민재", role: "교수" },
+    key: "nursing",
+    name: "접수·간호",
+    who: { name: "정다은", role: "간호사" },
     screens: [
       { key: "", use: "home", menu: "홈", title: "홈",
-        need: "pathology.queue.view" },
+        need: ["reception.intake.view", "nursing.waiting.view"] },
 
-      { key: "queue", use: "queue", menu: "검체 접수", title: "검체 접수",
-        need: "pathology.queue.view" },
+      { key: "intake", use: "reception.intake", menu: "접수", title: "접수",
+        need: "reception.intake.view" },
 
-      { key: "specimens", use: "list", menu: "환자 목록", title: "환자 목록",
-        need: "pathology.list.view" },
+      { key: "waiting", use: "nursing.waiting", menu: "내원 대기", title: "내원 대기",
+        need: "nursing.waiting.view" },
 
-      { key: "specimens/:id/upload", use: "upload", menu: "업로드", title: "업로드",
-        need: "pathology.upload.view", deep: true },
+      { key: "patients", use: "reception.patients", menu: "환자 목록", title: "환자 목록",
+        need: "reception.patients.view" },
 
-      { key: "read/:id", use: "read", menu: "판독", title: "판독",
-        need: "pathology.read.view", deep: true },
+      /* 예약 판(6.1)이 들어올 자리다. 지금은 앱 신청 확인만 있고, 예약 판이
+         생기면 그 안의 탭으로 들어간다 — 화면 줄이 일곱이 되면 안 된다 */
+      { key: "requests", use: "reception.requests", menu: "예약 확인", title: "예약 확인",
+        need: "reception.requests.view" },
 
-      /* 판독 정정(5장) 없음 — 확정 사양서 §8-2, 병리는 정정 경로를
-         두지 않는다. 서버에 route 자체가 없다 */
+      { key: "followups", use: "nursing.followups", menu: "추적 관리", title: "추적 관리",
+        need: "nursing.followup.view" },
     ],
   },
-
   {
     key: "radiology",
     name: "영상의학과",
@@ -94,6 +109,31 @@ const DEPTS = [
 
       { key: "read/:id/amend", use: "amend", menu: "판독 정정", title: "판독 정정",
         need: "radiology.amend.view", deep: true },
+    ],
+  },
+
+  {
+    key: "pathology",
+    name: "병리과",
+    who: { name: "박민재", role: "교수" },
+    screens: [
+      { key: "", use: "home", menu: "홈", title: "홈",
+        need: "pathology.queue.view" },
+
+      { key: "queue", use: "queue", menu: "검체 접수", title: "검체 접수",
+        need: "pathology.queue.view" },
+
+      { key: "specimens", use: "list", menu: "환자 목록", title: "환자 목록",
+        need: "pathology.list.view" },
+
+      { key: "specimens/:id/upload", use: "upload", menu: "업로드", title: "업로드",
+        need: "pathology.upload.view", deep: true },
+
+      { key: "read/:id", use: "read", menu: "판독", title: "판독",
+        need: "pathology.read.view", deep: true },
+
+      /* 판독 정정(5장) 없음 — 확정 사양서 §8-2, 병리는 정정 경로를
+         두지 않는다. 서버에 route 자체가 없다 */
     ],
   },
 
@@ -122,25 +162,6 @@ const DEPTS = [
     ],
   },
 
-  {
-    key: "reception",
-    name: "원무과",
-    who: { name: "한지우", role: "주임" },
-    screens: [
-      { key: "", use: "home", menu: "홈", title: "홈",
-        need: "reception.intake.view" },
-
-      { key: "intake", use: "reception.intake", menu: "접수", title: "접수",
-        need: "reception.intake.view" },
-
-      { key: "patients", use: "reception.patients", menu: "환자 목록", title: "환자 목록",
-        need: "reception.patients.view" },
-
-      { key: "requests", use: "reception.requests", menu: "예약 확인", title: "예약 확인",
-        need: "reception.requests.view" },
-    ],
-  },
-
   /* 관리자 — 화면이 하나뿐이고 그 하나도 Django admin 으로 넘기는 자리다.
      우리가 관리자 화면을 짓지 않기로 했기 때문이다. 그래도 과 하나로 두는
      이유는, 그래야 메뉴 · 권한 · 첫 화면(homeDept)이 전부 지금 틀대로
@@ -154,25 +175,6 @@ const DEPTS = [
     ],
   },
 
-  /* ⚠ 간호과도 유방외과처럼 모양이 다르다. 집는 절차도, 판독도 없다 —
-     원무가 접수한 환자를 유방외과 의사에게 넘기고, 추적을 관리한다.
-     검체 바인딩(3장)은 화면이 따로 없다 — 유방외과와 같은 팝업을
-     1장 안에서 연다(간호과 명세 §3). */
-  {
-    key: "nursing",
-    name: "간호과",
-    who: { name: "정다은", role: "간호사" },
-    screens: [
-      { key: "", use: "home", menu: "홈", title: "홈",
-        need: "nursing.waiting.view" },
-
-      { key: "waiting", use: "nursing.waiting", menu: "내원 대기", title: "내원 대기",
-        need: "nursing.waiting.view" },
-
-      { key: "followups", use: "nursing.followups", menu: "추적 관리", title: "추적 관리",
-        need: "nursing.followup.view" },
-    ],
-  },
 ];
 
 export { DEPTS };
@@ -251,7 +253,9 @@ function deptKey(value) {
     pathology: "pathology", "병리": "pathology", "병리과": "pathology",
     radiology: "radiology", "영상의학": "radiology", "영상의학과": "radiology",
     breast: "breast", surgery: "breast", "유방외과": "breast",
-    reception: "reception", "원무": "reception", "원무과": "reception",
+    /* 원무는 이제 접수·간호다(6.1). 계정 소속이 「원무과」로 와도
+       합친 과로 보낸다 — 안 그러면 첫 화면을 못 찾는다 */
+    reception: "nursing", "원무": "nursing", "원무과": "nursing",
     nursing: "nursing", "간호": "nursing", "간호과": "nursing",
     admin: "admin", "관리자": "admin",
   };
@@ -323,16 +327,15 @@ export const go = {
     discordance: (id) => `${B}/discordances/${id}`,
   },
 
-  reception: {
-    home:     () => `${ROOT}/reception`,
-    intake:   () => `${ROOT}/reception/intake`,
-    patients: () => `${ROOT}/reception/patients`,
-    requests: () => `${ROOT}/reception/requests`,
-  },
-
+  /* 접수·간호 — 한 과다(6.1). 원무 쪽 화면도 여기 주소를 쓴다.
+     ⚠ go.reception 은 없앴다. 두 이름을 남겨 두면 어느 쪽이 진짜인지
+       매번 헷갈리고, 한쪽만 고치는 일이 생긴다 */
   nursing: {
     home:      () => N,
+    intake:    () => `${N}/intake`,
     waiting:   () => `${N}/waiting`,
+    patients:  () => `${N}/patients`,
+    requests:  () => `${N}/requests`,
     followups: () => `${N}/followups`,
   },
 };

@@ -418,6 +418,12 @@
   --hdot:         8px;                      /* 칸 머리의 점 */
   --hdot-radius:  2px;
 
+  /* 칸 안의 탭 — 합친 과가 「내원 대기 / 오늘 접수」를 가른다 */
+  --qtab-h:       calc(34px * var(--sp));
+  --qtab-fs:      calc(12.5px * var(--ft));
+  --qtab-pad-x:   calc(10px * var(--sp));
+  --qtab-mark:    2px;
+
   /* 주 큐 줄 — 한 줄짜리다 */
   --qrow-pad-y:   calc(9px * var(--sp));
   --qrow-gap:     calc(10px * var(--sp));

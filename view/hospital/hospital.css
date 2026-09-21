@@ -331,6 +331,20 @@ input,select,textarea{font:inherit; color:inherit}
 .ifound-2{font-size:var(--qrow-meta-fs); color:var(--warm);
   font-variant-numeric:tabular-nums}
 
+/* 칸 안의 탭 — 「내원 대기 5 / 오늘 접수 9」. 상단바 탭과 다른 부품이다.
+   한 칸 안이라 더 작고 밑줄도 얇다. 미끄러지는 표시는 안 쓴다 —
+   칸마다 따로 움직이면 화면에 여럿이 동시에 미끄러진다 */
+.qtabs{flex:none; display:flex; align-items:stretch; height:var(--qtab-h);
+  padding:0 var(--hcard-pad-x); border-bottom:var(--hair) solid var(--line-2)}
+.qtab{display:inline-flex; align-items:center; gap:var(--gap-xs);
+  padding:0 var(--qtab-pad-x); font-size:var(--qtab-fs); font-weight:600;
+  color:var(--faint); transition:color var(--m-tab) var(--ease-tab);
+  box-shadow:inset 0 calc(-1 * var(--qtab-mark)) 0 transparent}
+.qtab:hover{color:var(--ink-2)}
+.qtab i{font-style:normal; font-variant-numeric:tabular-nums}
+.qtab.on{color:var(--ink);
+  box-shadow:inset 0 calc(-1 * var(--qtab-mark)) 0 var(--ink)}
+
 /* ── 주 큐 — 한 줄짜리 ───────────────────────────────────────── */
 .qrows{flex:1; min-height:0; overflow-y:auto}
 .qrow{display:flex; align-items:center; gap:var(--qrow-gap);
