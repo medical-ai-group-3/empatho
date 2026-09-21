@@ -222,6 +222,17 @@ input,select,textarea{font:inherit; color:inherit}
 .split-l,.split-r{min-width:0; display:flex; flex-direction:column;
   gap:var(--gap)}
 
+/* 간호과 환자·예약 — 목록은 좁게, 환자 상세·예약은 각각 독립된 단으로 둔다.
+   목록의 행을 누르면 가운데만 바뀌고, 오른쪽은 그 환자의 예약 이력·입력만
+   유지하므로 세 가지 일을 한 화면에서 헷갈리지 않는다. */
+.nursing-patient-grid{display:grid;
+  grid-template-columns:minmax(300px,.74fr) minmax(360px,1.08fr) minmax(340px,1fr);
+  gap:var(--pane-gap); align-items:start}
+.nursing-patient-list,.nursing-patient-detail,.nursing-patient-reservation{
+  min-width:0; display:flex; flex-direction:column; gap:var(--gap)}
+.nursing-patient-grid .card{height:auto}
+.nursing-patient-grid .slot.big{min-height:320px}
+
 /* ── 대기열 ─────────────────────────────────────────────────── */
 .queue ul{list-style:none; margin:0; padding:0}
 .queue li{border-bottom:var(--hair) solid var(--line-2)}
@@ -412,7 +423,7 @@ input,select,textarea{font:inherit; color:inherit}
      미디어 쿼리가 CSS 변수보다 먼저 평가되기 때문이다.
      1180px 에서 두 단이 한 단이 되고, 860px 에서 격자가 한 줄이 된다. */
 @media (max-width: 1180px){
-  .split,.split.wide{grid-template-columns:1fr}
+  .split,.split.wide,.nursing-patient-grid,.reception-top-grid{grid-template-columns:1fr}
   .grid3{grid-template-columns:1fr 1fr}
 }
 @media (max-width: 860px){
@@ -1023,6 +1034,14 @@ td.none,tr.none td{text-align:center; padding:var(--card-pad) 0}
 .reception-monitor-card .card-b{height:calc(420px - var(--card-h, 58px))}
 .reception-monitor-card .slot{height:100%; min-height:0}
 
+/* 간호과 첫 화면의 첫 줄은 접수·내원 현황·예약 달력을 나란히 둔다.
+   각 카드는 같은 최소 높이를 가져 접수 환자가 없더라도 화면이 흔들리지 않는다. */
+.reception-top-grid{display:grid; grid-template-columns:minmax(440px,1.35fr) minmax(280px,.8fr) minmax(330px,1fr);
+  gap:var(--pane-gap); align-items:stretch}
+.reception-top-intake,.reception-top-monitor{min-width:0}
+.reception-top-grid > .card{min-width:0; min-height:420px}
+.reception-top-grid .reservation-calendar .card-b{min-height:calc(420px - var(--card-h, 58px))}
+
 /* 결과 알림 — 성공은 파랑, 실패는 외곽선만. 색을 새로 만들지 않고
    이미 있는 토큰으로 가른다(tokens.css 규칙) */
 .slot.ok{border-style:solid; border-color:var(--cyan); color:var(--ink)}
@@ -1123,6 +1142,10 @@ td.none,tr.none td{text-align:center; padding:var(--card-pad) 0}
    왼쪽 격자 + 오른쪽 계층 목록. 좁아지면 목록이 격자 아래로 내려간다 */
 .cal{display:grid; grid-template-columns:1fr var(--cal-tree-w);
   gap:var(--pane-gap); align-items:start}
+.cal-compact{display:block}
+.cal-compact .cal-c{min-height:52px; padding:var(--gap-xs)}
+.cal-compact .cal-in,.cal-compact .cal-more{display:none}
+.cal-compact .cal-c.has{background:var(--wash); box-shadow:inset 0 -3px 0 var(--cyan)}
 @media (max-width:1100px){ .cal{grid-template-columns:1fr} }
 
 /* 달 넘김 — 카드 머리 오른쪽 */

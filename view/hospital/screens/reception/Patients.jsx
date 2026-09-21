@@ -60,10 +60,10 @@ export default function Patients({ integrated = false }) {
       title="환자 목록 · 예약"
       sub="환자를 찾아 정보를 고치거나 예약을 잡습니다. 검사 종류는 정하지 않습니다."
     >
-      <div className="split wide">
-        <div className="split-l">
+      <div className="nursing-patient-grid">
+        <section className="nursing-patient-list">
           <Card
-            title="환자"
+            title="환자 목록"
             right={<Chip>{rows.length}명</Chip>}
             pad={false}
           >
@@ -80,10 +80,7 @@ export default function Patients({ integrated = false }) {
                 <>
                   <Table
                     cols={COLS}
-                    rows={rows.map((r) => row(r, {
-                      onReserve: () => { setPick(r.patient_id); setReserveFor(r.patient_id); },
-                      onOpen: () => setPick(r.patient_id),
-                    }, integrated))}
+                    rows={rows.map(row)}
                     value={pick}
                     onPick={setPick}
                   />
@@ -92,25 +89,37 @@ export default function Patients({ integrated = false }) {
               )}
             </Body>
           </Card>
-        </div>
+        </section>
 
-        <aside className="split-r">
+        <section className="nursing-patient-detail">
           {chosen ? (
-            <>
-              {/* key 를 주면 환자가 바뀔 때 상세가 새로 선다 — 앞사람의
-                  고치던 값이 다음 사람 칸에 남지 않는다 */}
-              <Detail key={chosen.patient_id} patient={chosen} onSaved={list.reload}
-                      onReserve={() => setReserveFor(chosen.patient_id)} integrated={integrated} />
-              <ReservationHistory key={`history-${chosen.patient_id}`} patient={chosen} />
-              {reserveFor === chosen.patient_id && (
-                <Reserve key={chosen.patient_id} patient={chosen} firstDate={fromCalendar}
-                         onClose={() => setReserveFor(null)} integrated={integrated} />
-              )}
-            </>
+            /* key 를 주면 환자가 바뀔 때 상세가 새로 선다 — 앞사람의
+               고치던 값이 다음 사람 칸에 남지 않는다 */
+            <Detail key={chosen.patient_id} patient={chosen} onSaved={list.reload}
+                    onReserve={() => setReserveFor(chosen.patient_id)} integrated={integrated} />
           ) : (
             <div className="slot big">
               <b>왼쪽에서 환자를 고르세요</b>
-              <span>고르면 정보를 보고 고치거나 예약을 잡을 수 있습니다.</span>
+              <span>고르면 환자 상세정보를 확인할 수 있습니다.</span>
+            </div>
+          )}
+        </section>
+
+        <aside className="nursing-patient-reservation">
+          {chosen ? <>
+            <ReservationHistory key={`history-${chosen.patient_id}`} patient={chosen} />
+            {reserveFor === chosen.patient_id ? (
+              <Reserve key={chosen.patient_id} patient={chosen} firstDate={fromCalendar}
+                       onClose={() => setReserveFor(null)} integrated={integrated} />
+            ) : (
+              <Card title="예약 정보">
+                <p className="hint">환자 상세정보에서 예약 버튼을 누르면 날짜와 시간을 정할 수 있습니다.</p>
+              </Card>
+            )}
+          </> : (
+            <div className="slot big">
+              <b>환자를 고르면 예약 기록을 봅니다</b>
+              <span>새 예약도 이 영역에서 진행합니다.</span>
             </div>
           )}
         </aside>
@@ -122,13 +131,11 @@ export default function Patients({ integrated = false }) {
 /* ── 목록 ────────────────────────────────────────────────────── */
 
 const COLS = [
-  { key: "no",      label: "환자번호", w: "18%" },
+  { key: "no",      label: "환자번호", w: "26%" },
   { key: "name",    label: "이름" },
-  { key: "sex",     label: "성별", w: "10%" },
-  { key: "age",     label: "나이", w: "10%" },
-  { key: "allergy", label: "알레르기", w: "14%" },
-  { key: "state",   label: "상태", w: "14%" },
-  { key: "act",     label: "", w: "16%" },
+  { key: "sex",     label: "성별", w: "12%" },
+  { key: "age",     label: "나이", w: "12%" },
+  { key: "allergy", label: "알레르기", w: "18%" },
 ];
 
 /* 필터는 **화면이 건다.** 서버 목록에 거를 칸이 없어서다 — 아래 Missing 참고.
@@ -166,7 +173,7 @@ function ageOf(r) {
   return new Date().getFullYear() - r.birth_year;
 }
 
-function row(r, { onReserve, onOpen }, integrated) {
+function row(r) {
   const age = ageOf(r);
   return {
     id: r.patient_id,
@@ -176,15 +183,7 @@ function row(r, { onReserve, onOpen }, integrated) {
     age: age == null ? "—" : <span className="num">{age}</span>,
     allergy: r.has_allergy == null
       ? "—"
-      : (r.has_allergy ? <Chip tone="fill">있음</Chip> : "없음"),
-    state: r.status ?? (r.first_visited_at ? "재진" : "—"),
-    act: (
-      <span className="rowacts">
-        <Btn onClick={(e) => { e.stopPropagation(); onOpen(); }}>상세보기</Btn>
-        <Btn kind="fill" onClick={(e) => { e.stopPropagation(); onReserve(); }}
-             disabled={!permitted("reception.reserve", integrated)}>예약</Btn>
-      </span>
-    ),
+      : (r.has_allergy ? "있음" : "없음"),
   };
 }
 
@@ -192,12 +191,10 @@ function row(r, { onReserve, onOpen }, integrated) {
    없는 것인지 서버가 안 주는 것인지 구분이 안 된다 */
 function Missing({ rows }) {
   const noAllergy = rows.some((r) => r.has_allergy == null);
-  const noState   = rows.some((r) => r.status == null && r.first_visited_at == null);
-  if (!noAllergy && !noState) return null;
+  if (!noAllergy) return null;
   return (
     <Warn>
-      서버 목록에 {[noAllergy && "알레르기", noState && "상태"].filter(Boolean).join(" · ")}
-      {" "}칸이 없어 「—」로 둡니다. 필터도 같은 이유로 화면에서 겁니다.
+      서버 목록에 알레르기 칸이 없는 환자는 「—」로 표시합니다.
     </Warn>
   );
 }
