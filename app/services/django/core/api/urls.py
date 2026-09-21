@@ -42,6 +42,7 @@ urlpatterns = [
 from .admin_session import AdminSessionView  # noqa: E402 — 위 참고
 from .chat import ChatView  # noqa: E402
 from .drugs import DrugDetailView, DrugSearchView  # noqa: E402
+from .hospitals import HospitalSearchView  # noqa: E402
 
 # 우리 로그인 → Django admin 세션. 관리자가 로그인을 두 번 하지 않게 한다
 urlpatterns.append(
@@ -55,6 +56,10 @@ urlpatterns.append(path("chat", ChatView.as_view(), name="chat"))
 urlpatterns.append(path("drugs", DrugSearchView.as_view(), name="drug-search"))
 urlpatterns.append(
     path("drugs/<str:item_seq>", DrugDetailView.as_view(), name="drug-detail"))
+# 병원 찾기. 심평원 공공데이터를 옮겨 주는 자리이고 **협력 병원 목록이
+# 아니다** — core/api/hospitals.py 의 머리말 참고.
+urlpatterns.append(
+    path("hospitals", HospitalSearchView.as_view(), name="hospital-search"))
 
 # 업무 엔드포인트는 다른 브랜치에서 오는 중이다. 들어오면 자동으로 물린다.
 if find_spec("core.urls") is not None:

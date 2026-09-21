@@ -260,6 +260,25 @@ DRUG_API_TIMEOUT_SEC = float(os.environ.get("DRUG_API_TIMEOUT_SEC", "8"))
 # 일일 호출 한도가 있고 약 정보는 연 단위로 바뀐다. 넉넉히 캐시한다.
 DRUG_API_CACHE_SEC = int(os.environ.get("DRUG_API_CACHE_SEC", str(60 * 60 * 24)))
 
+# ── 병원 찾기(심평원 병원정보서비스 · data.go.kr) ───────────────────────
+#
+# 환자 앱의 「병원 찾기」가 부른다 (core/api/hospitals.py).
+#
+# ⚠ **약 정보와 같은 일반 인증키를 쓰지만 서비스 등록이 따로다.** data.go.kr
+#   은 서비스마다 활용신청을 받는다 — 2026-09-21 현재 우리 키는 약 정보
+#   (1471000)만 등록돼 있고 이것(B551182)은 403 이다. 포털에서
+#   「건강보험심사평가원_병원정보서비스」 활용신청을 하면 같은 키가 통한다.
+#
+#   그래서 칸을 따로 둔다. 하나로 합쳐 두면 한쪽만 등록된 지금 상태를
+#   설정으로 표현할 수가 없다.
+HOSPITAL_API_BASE = os.environ.get(
+    "HOSPITAL_API_BASE", "https://apis.data.go.kr/B551182/hospInfoServicev2")
+HOSPITAL_API_KEY = os.environ.get("HOSPITAL_API_KEY", "")
+HOSPITAL_API_TIMEOUT_SEC = float(os.environ.get("HOSPITAL_API_TIMEOUT_SEC", "8"))
+# 병원 목록은 약 정보만큼 자주 안 바뀌지만 그만큼 오래 캐시할 것도 아니다
+# (개원·폐업·이전이 있다). 하루에 한 번 새로 받는다.
+HOSPITAL_API_CACHE_SEC = int(os.environ.get("HOSPITAL_API_CACHE_SEC", str(60 * 60 * 12)))
+
 # Go 가 nonce 를 안 보내서 시간 창이 재전송을 막는 유일한 수단이다.
 CALLBACK_TIMESTAMP_TOLERANCE_SEC = int(
     os.environ.get("CALLBACK_TIMESTAMP_TOLERANCE_SEC", "300"))
