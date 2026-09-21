@@ -339,6 +339,18 @@ class CanCompleteExamOrder(MatrixPermission):
 #: 리포트 열람 잠금 해제 — 유방외과 단독 (§11.5)
 CanUnlockReport = IsRole.of(SURGERY, code="UNLOCK_ROLE_ONLY_SURGERY")
 CanIssueFinalReport = IsRole.of(SURGERY, code="FINAL_REPORT_ROLE_ONLY_SURGERY")
+
+# 09-21 추가 — 간소 접수 등록(POST /patients/register). patient 매트릭스는
+# 그대로 둔다(정식 등록 POST /patients/ 는 여전히 원무 단독 CRUD) — 간호에는
+# 이 endpoint 하나에서만 C 권한을 추가한다. CanCompleteExamOrder 와 같은
+# 패턴이다.
+class CanRegisterPatient(MatrixPermission):
+    def has_permission(self, request, view):
+        IsAuthenticatedAccount.has_permission(self, request, view)
+        if request.user.role == NURSING:
+            return True
+        return super().has_permission(request, view)
+
 # ── 판독 확정 — 부서 자체를 잠근다 ──────────────────────────────────────
 # MATRIX 는 study:U · assessment:U · specimen_pathology:U 칸으로 "이 역할이
 # 이 리소스를 건드릴 수 있는가"만 표현한다. 관리자 화면에서 그 칸을 다른

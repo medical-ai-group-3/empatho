@@ -8,7 +8,9 @@ from django.utils import timezone
 
 from .. import models, serializers
 from ..mixins import AuditMixin
-from core.api.permissions import MatrixPermission, OwnedOnlyMixin, IsAuthenticatedAccount
+from core.api.permissions import (
+    MatrixPermission, OwnedOnlyMixin, IsAuthenticatedAccount, CanRegisterPatient,
+)
 from core.api.errors import ApiError
 
 def _is_date(value):
@@ -305,9 +307,13 @@ class PatientTodayStatusView(viewsets.ViewSet):
         return Response(result)
     
 class PatientRegisterView(AuditMixin, viewsets.ViewSet):
-    """§1 [+] 등록 — POST /patients. (기존 PatientCreateSerializer 와 별개 — 간소화된 접수용)"""
+    """§1 [+] 등록 — POST /patients/register. (기존 PatientCreateSerializer 와 별개 — 간소화된 접수용)
+
+    CanRegisterPatient — patient 매트릭스(원무만 CRUD)는 그대로 두고
+    간호에게 이 endpoint 하나만 연다. 정식 등록(POST /patients/,
+    PatientViewSet)은 여전히 원무 단독이다."""
     resource = "patient"
-    permission_classes = [MatrixPermission]
+    permission_classes = [CanRegisterPatient]
     
     def create(self, request):
         serializer = serializers.PatientRegisterSerializer(data = request.data)
