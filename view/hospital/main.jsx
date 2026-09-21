@@ -24,6 +24,7 @@ import Login from "./screens/auth/Login";
 import Signup from "./screens/auth/Signup";
 import Boom from "./lib/Boom";
 
+import HomeScreen from "./lib/Home";
 import QueueScreen from "./screens/Queue";
 import UploadScreen from "./screens/Upload";
 import ReadScreen from "./screens/Read";
@@ -233,6 +234,10 @@ function Boot({ children }) {
  *   과를 더할 때 이 파일에서 고칠 것은 아래 표에 한 줄 더하는 것뿐이다.
  */
 const SCREENS = {
+  /* 과 홈 — 다섯 과가 같은 화면을 쓴다. 칸이 무엇인지는 dept/*.jsx 의
+     home 이 정한다(5.3 칸은 과마다 다르다) */
+  home:   HomeScreen,
+
   queue:  QueueScreen,
   list:   ListScreen,
   upload: UploadScreen,

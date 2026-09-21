@@ -1,5 +1,6 @@
 import { path } from "../api";
 import { go } from "../nav";
+import * as H from "./home";
 import { Chip, Facts, Fold } from "../lib/Parts";
 import { Body } from "../lib/Body";
 import { useApi } from "../lib/useApi";
@@ -121,6 +122,63 @@ export const pathology = {
   api,
   go: go.pathology,
 
+  /* ── 홈 (docs/mockup/PathologyHome.html) ────────────
+   *
+   * 영상과 같은 틀이다. 다른 것은 판독 단위가 검체라는 것뿐이다.
+   */
+  home: {
+    load: () => Promise.all([api.queue(), H.soft(api.list({}))])
+      .then(([queue, list]) => ({ queue: H.rows(queue), specimens: H.rows(list) })),
+
+    primary: { label: "다음 검체 받기", to: go.pathology.queue(),
+               need: "pathology.queue.view" },
+
+    queue: ({ queue }) => ({
+      title: "검체 대기",
+      hint: "바인딩 순서대로",
+      empty: "접수 대기 검체가 없습니다",
+      rows: queue.map((r) => ({
+        id: r.id,
+        name: H.nameOf(r),
+        no: H.noOf(r),
+        meta: H.who(r),
+        chip: r.kind,
+        chipTone: "fill",
+        /* ⚠ 목업은 「· 영상 4C · 마스크 완료」까지 적는다. 영상 판정도 AI
+           마스크 상태도 검체 목록에 없다 — 검체번호만 적는다 */
+        sub: r.specimen_no ?? "",
+        at: H.at(r.collected_at),
+        to: go.pathology.read(r.id),
+        why: "검체 접수",
+      })),
+    }),
+
+    stuck: ({ specimens }) => [
+      { tag: "초안", text: "집었는데 아직 확정 안 한 검체",
+        count: specimens.filter(
+          (r) => r.assigned_to && !(r.finalized_at || r.finalized)).length,
+        to: go.pathology.list() },
+      /* ⚠ 목업의 「마스크 확인」·「영상 대조」는 못 센다. AI 마스크를 봤는지,
+         영상 판정과 맞춰 봤는지를 남기는 칸이 서버에 없다 */
+    ],
+
+    done: ({ specimens }) => {
+      const it = specimens.filter((r) => H.isToday(r.finalized_at));
+      return {
+        summary: `확정 ${it.length}`,
+        items: it.map((r) => ({
+          id: r.id,
+          at: H.at(r.finalized_at),
+          text: `${H.nameOf(r)} · ${r.diagnosis ?? "진단"} 확정`,
+          to: go.pathology.read(r.id),
+        })),
+      };
+    },
+
+    /* ⚠ 목업의 「판독 당번 · 다학제 회의」는 서버에 표가 없다 */
+    marks: () => [],
+  },
+
   /* 티켓이 여는 범위의 단위. 서버가 `scope_kind` 로 받는 넷
      (study · specimen · report · account) 중 하나여야 한다 —
      병리는 검체다. lib/files.js 참고 */
@@ -128,8 +186,7 @@ export const pathology = {
 
   /* ── 1장 · 검체 접수 대기 ─────────────────────────────── */
   queue: {
-    title: "검체 접수 대기",
-    sub: "간호·유방외과가 바인딩을 끝낸 검체가 채취 순서대로 뜹니다. 집으면 다른 선생님 화면에서 사라집니다.",
+    title: "검체 접수",
     listTitle: "접수 대기 검체",
     searchHint: "환자 · 검체번호",
     emptyText: "접수 대기 중인 검체가 없습니다",
@@ -188,8 +245,7 @@ export const pathology = {
 
   /* ── 2장 · 조직 이미지 업로드 ─────────────────────────── */
   upload: {
-    title: "조직 이미지 업로드",
-    sub: "크롭 조직 이미지를 올리고 AI 분석을 겁니다. 분석이 끝나야 판독으로 넘어갑니다.",
+    title: "업로드",
     infoTitle: "검체 정보",
     dropText: "조직 이미지를 드래그하세요 (여러 장 가능)",
     accept: "image/png,image/jpeg,image/tiff",
@@ -225,8 +281,7 @@ export const pathology = {
 
   /* ── 3장 · 판독 ───────────────────────────────────────── */
   read: {
-    title: "병리 판독",
-    sub: "원본 조직 이미지에 AI 분할 마스크를 얹어 보고 소견을 씁니다.",
+    title: "판독",
     infoName: "검체 정보",
     saveHint: "저장하면 확진이 확정되고 유방외과로 소견이 전송됩니다. 되돌릴 수 없습니다.",
     need: {
@@ -308,7 +363,7 @@ export const pathology = {
         <label className="field">
           <span>판독 소견</span>
           <textarea className="lg" rows={10} value={f.finding_note ?? ""}
-                    placeholder="면역염색 결과처럼 별도 입력칸이 없는 값은 여기에 문장으로 적습니다"
+                    placeholder="소견"
                     onChange={(e) => set("finding_note", e.target.value)} />
         </label>
       </>
@@ -317,8 +372,7 @@ export const pathology = {
 
   /* ── 4장 · 전체 환자 목록 ─────────────────────────────── */
   list: {
-    title: "전체 환자 목록",
-    sub: "지난 검체까지 전부 찾아보는 자리입니다.",
+    title: "환자 목록",
     /* 영상의학과 목록과 같은 목록 1 : 상세 2 구조다. 병리는 한 검체의
        조직 사진만 보므로 모달리티 탭 없이 첫 조직 사진을 고정으로 둔다. */
     splitSide: "third",

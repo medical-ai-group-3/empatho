@@ -1,5 +1,6 @@
 import { breast as api } from "../api";
 import { go } from "../nav";
+import * as H from "./home";
 
 /* 유방외과 설정 — 병리·영상과 **모양이 다른 과**다
  * ════════════════════════════════════════════════════════════════
@@ -28,6 +29,64 @@ export const breast = {
   name: "유방외과",
   api,
   go: go.breast,
+
+  /* ── 홈 (docs/mockup/SurgeryHome.html) ──────────────
+   *
+   * ⚠ **그 과에서 가장 빈 홈이다.** 서버가 주는 것이 환자 목록
+   *   하나뿐이다. 칸은 목업 그대로 두고 무엇이 없어 비었는지만 적는다.
+   *
+   * ⚠ waiting() 과 patients() 가 **같은 줄을 돌려준다.** 서버가
+   *   `?primary_staff=me` 면 status 를 안 보고 바로 돌아간다 —
+   *
+   *     PatientViewSet.get_queryset()
+   *         if primary_staff_param == "me":
+   *             return qs.filter(primary_staff=staff)     ← 여기서 끝난다
+   *
+   *   그래서 목록을 한 번만 부른다(8장 10번).
+   */
+  home: {
+    load: () => api.patients().then((all) => ({ all: H.rows(all) })),
+
+    primary: { label: "다음 환자 진료", to: go.breast.waiting(),
+               need: "breast.waiting.view" },
+
+    queue: ({ all }) => ({
+      title: "내 환자",
+      hint: "누르면 검사 종합",
+      empty: "배정된 환자가 없습니다",
+      /* ⚠ **시각도, 초진/재진도, 한 줄 요약도 없다.** 환자 목록 응답
+         (PatientListSerializer)이 번호·이름·생년월일·성별·알레르기
+         다섯 칸뿐이다. 칩 자리에는 아는 것 하나만 — 알레르기 표시.
+         ⚠ 오더 쪽(/exam-orders)으로 바꿔 시각·검사 진행을 채우려 했는데
+           **주치의로 거르는 조건이 없다** — status·visited·scheduled_*·
+           patient·ordering 뿐이고 응답에 primary_staff 도 없다. 전부 받아
+           화면에서 가르면 한 쪽 20건이라 조용히 빠진다(8장 10번) */
+      rows: all.map((r) => ({
+        id: r.patient_id,
+        name: H.nameOf(r),
+        no: H.noOf(r),
+        meta: H.who(r),
+        chip: H.allergy(r) ? "알레르기" : null,
+        to: go.breast.review(r.patient_id),
+        why: "검사 종합",
+      })),
+    }),
+
+    stuck: ({ all }) => [
+      { tag: "알레르기", text: "조영제 알레르기 표시가 있는 환자",
+        count: all.filter((r) => H.allergy(r)).length,
+        to: go.breast.patients() },
+      /* ⚠ 목업의 「불일치」·「설명」·「동의」는 못 센다. 불일치는 서버에
+         GET /discordances 가 있지만 api.js 에 없고 새 경로는 8장에 적는
+         것이 규칙이다(8장 4번). 결과 설명 기록과 검사 동의는 표가 없다 */
+    ],
+
+    /* ⚠ 오늘 결정·오더를 몇 건 냈는지 세어 주는 자리가 없다(8장 1번) */
+    done: () => ({ empty: "아직 없습니다" }),
+
+    /* ⚠ 목업의 「외래 · 수술」 일정은 서버에 표가 없다 */
+    marks: () => [],
+  },
 };
 
 export default breast;
