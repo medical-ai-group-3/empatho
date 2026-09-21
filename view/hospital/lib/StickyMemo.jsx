@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { notes as notesApi } from "../api";
+import { useApi } from "./useApi";
 
 /* 화면 전체에 뜨는 메모지 — 컴퓨터 바탕화면 스티커 메모처럼, 과를
  * 옮기거나 화면을 이동해도(라우트가 바뀌어도) 계속 떠 있어야 한다는
@@ -15,6 +17,20 @@ import { useEffect, useRef, useState } from "react";
  * 상태·글 내용을 전부 localStorage에 따로 저장해 다음에 열 때 그대로
  * 돌아온다. */
 const KEY = "hospital.stickyMemo.v1";
+const EDGE = 12;
+
+/* 저장된 좌표와 드래그 좌표 모두 이 함수만 통과시킨다. 화면 크기가
+   달라져도 메모 전체가 브라우저 안에 남아, 화면 밖으로 보내 버리는 일이
+   없다. */
+function keepInView(v) {
+  const width = Math.min(v.w ?? DEFAULT.w, Math.max(200, window.innerWidth - EDGE * 2));
+  const height = Math.min(v.h ?? DEFAULT.h, Math.max(160, window.innerHeight - EDGE * 2));
+  const maxX = Math.max(EDGE, window.innerWidth - width - EDGE);
+  const maxY = Math.max(EDGE, window.innerHeight - height - EDGE);
+  const x = v.x == null ? maxX : Math.min(maxX, Math.max(EDGE, v.x));
+  const y = v.y == null ? maxY : Math.min(maxY, Math.max(EDGE, v.y));
+  return { ...v, x, y, w: width, h: height };
+}
 
 function loadState() {
   try {
@@ -36,17 +52,48 @@ const DEFAULT = { text: "", open: true, x: null, y: null, w: 260, h: 220 };
 
 export default function StickyMemo() {
   const [s, setS] = useState(() => ({ ...DEFAULT, ...loadState() }));
+  const [noteId, setNoteId] = useState(null);
   const boxRef = useRef(null);
   const dragRef = useRef(null);
+  const remote = useApi(() => notesApi.list("sticky"), []);
 
   useEffect(() => { saveState(s); }, [s]);
+
+  /* 서버 메모는 다른 기기에서도 이어 보는 내용만 맡고, 창 위치·크기는
+     각 기기의 화면 크기에 맞게 로컬에 둔다. */
+  useEffect(() => {
+    const note = remote.data?.[0];
+    if (!note || noteId) return;
+    setNoteId(note.note_id ?? note.id);
+    const text = note.content?.text;
+    if (typeof text === "string") setS((v) => ({ ...v, text }));
+  }, [remote.data, noteId]);
+
+  async function saveRemote() {
+    const content = { text: s.text, color: "yellow" };
+    try {
+      if (noteId) await notesApi.update(noteId, content);
+      else {
+        const out = await notesApi.create("sticky", content);
+        setNoteId(out.note_id ?? out.id);
+      }
+    } catch {
+      /* 입력을 지우지 않는다. 다음 수정 때 다시 저장을 시도한다. */
+    }
+  }
 
   /* 첫 렌더엔 위치가 없다(x·y null) — 오른쪽 아래 기본 자리를
      뷰포트 기준으로 한 번 잡아 둔다. */
   useEffect(() => {
-    if (s.x != null) return;
-    setS((v) => ({ ...v, x: window.innerWidth - v.w - 28, y: window.innerHeight - v.h - 28 }));
+    setS((v) => keepInView(v));
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /* 창을 줄였을 때 이전의 오른쪽 좌표가 화면 밖에 남지 않게 보정한다. */
+  useEffect(() => {
+    const fit = () => setS((v) => keepInView(v));
+    window.addEventListener("resize", fit);
+    return () => window.removeEventListener("resize", fit);
   }, []);
 
   /* onTap — 접힌 탭은 버튼이라 «눌렀다 뗐다»가 "펼치기"도 되고
@@ -65,7 +112,7 @@ export default function StickyMemo() {
     const dx = e.clientX - d.startX;
     const dy = e.clientY - d.startY;
     if (Math.abs(dx) > 3 || Math.abs(dy) > 3) d.moved = true;
-    setS((v) => ({ ...v, x: d.origX + dx, y: d.origY + dy }));
+    setS((v) => keepInView({ ...v, x: d.origX + dx, y: d.origY + dy }));
   }
   function stopDrag() {
     const d = dragRef.current;
@@ -80,7 +127,7 @@ export default function StickyMemo() {
   function onResizeEnd() {
     const el = boxRef.current;
     if (!el) return;
-    setS((v) => ({ ...v, w: el.offsetWidth, h: el.offsetHeight }));
+    setS((v) => keepInView({ ...v, w: el.offsetWidth, h: el.offsetHeight }));
   }
 
   if (s.x == null) return null; // 첫 위치 계산 전 프레임엔 안 그린다(깜빡임 방지)
@@ -108,7 +155,8 @@ export default function StickyMemo() {
       <textarea
         value={s.text}
         onChange={(e) => setS((v) => ({ ...v, text: e.target.value }))}
-        placeholder="메모"
+        onBlur={saveRemote}
+        placeholder="여기에 적어 두면 다른 화면으로 옮겨도 그대로 있습니다"
       />
     </div>
   );

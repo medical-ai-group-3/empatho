@@ -48,7 +48,7 @@ export default function ReadScreen({ cfg }) {
 
   if (!can(c.need.view)) {
     return (
-      <Page crumb={[cfg.name, c.title]} title={c.title}>
+      <Page crumb={[cfg.name, c.title]} title={c.title} sub={c.sub}>
         <Locked what={c.title} />
       </Page>
     );
@@ -61,7 +61,7 @@ function Load({ cfg, id }) {
   const { loading, data, error, reload } = useApi(() => cfg.api.read(id), [id]);
 
   return (
-    <Page crumb={[cfg.name, c.title]} title={c.title}
+    <Page className="read-page" crumb={[cfg.name, c.title]} title={c.title} sub={c.sub}
           right={data && <Chip>{data.patient.name} · {data.unit.no}</Chip>}>
       <Body loading={loading} error={error} onRetry={reload}>
         {data && <Inner cfg={cfg} id={id} d={data} />}
@@ -79,6 +79,7 @@ function Inner({ cfg, id, d }) {
   const [contrast, setContrast] = useState(100);
   const [full, setFull] = useState(false);
   const [pick, setPick] = useState(null);          // 고른 병변
+  const [pendingMark, setPendingMark] = useState(null);
   const [slide, setSlide] = useState(0);           // 고른 크롭 · 시리즈
   const [f, setF] = useState(d.doctor ?? {});
   const [busy, setBusy] = useState(false);
@@ -131,7 +132,7 @@ function Inner({ cfg, id, d }) {
   }
 
   return (
-    <div className={full ? "readfull" : undefined}>
+    <div className={`read-workspace${full ? " readfull" : ""}`}>
       <Card pad={false}>
         <Viewer
           infoName={c.infoName}
@@ -149,7 +150,8 @@ function Inner({ cfg, id, d }) {
             : null}
           aiOpen={false}
 
-          doctor={<c.Doctor d={d} f={f} set={set} />}
+          doctor={<c.Doctor d={d} f={f} set={set} pendingMark={pendingMark}
+                             onLesionCreated={() => setPendingMark(null)} />}
           doctorOpen
 
           below={
@@ -181,6 +183,7 @@ function Inner({ cfg, id, d }) {
                   lesions={d.lesions}
                   study={{ volume_manifest: view.volumeManifest, volume_base: view.volumeBase }}
                   mode="diagnostic"
+                  onAnnotation={setPendingMark}
                 />
               </Suspense>
             </div>
@@ -191,6 +194,7 @@ function Inner({ cfg, id, d }) {
                   manifestUrl={view.stackManifest}
                   baseUrl={view.stackBase}
                   mode="diagnostic"
+                  onAnnotation={setPendingMark}
                 />
               </Suspense>
             </div>
@@ -202,6 +206,8 @@ function Inner({ cfg, id, d }) {
               mask={msk.src} shapes={view.shapes ?? []}
               opacity={mask}
               pick={pick} onPick={setPick}
+              annotationTools={cfg.scopeKind === "study"}
+              onAnnotation={setPendingMark}
               full={full} onFull={() => setFull((v) => !v)}
             />
           )}

@@ -102,6 +102,7 @@
   --bell:        18px;
   --bell-dot:    14px;                     /* 안 읽은 수 뱃지 */
   --bell-dot-fs: calc(9px * var(--ft));
+  --notice-pop-w: 360px;
 
   /* ══ 쪽 머리 ══════════════════════════════════════════════ */
   --crumb-fs:  calc(11.5px * var(--ft));

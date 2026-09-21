@@ -4,6 +4,7 @@ import { Body } from "../lib/Body";
 import { Btn, Card, Page } from "../lib/Page";
 import { Bar, Chip, Fold, Locked, useCan } from "../lib/Parts";
 import { useApi } from "../lib/useApi";
+import { uploadFile } from "../lib/files";
 import { can } from "../perm";
 import { RUN_STATUS, label, tone } from "../codes";
 
@@ -52,13 +53,13 @@ function Inner({ cfg, id }) {
   return (
     <Page crumb={[cfg.name, c.title]} title={c.title}>
       <Body loading={loading} error={error} onRetry={reload}>
-        {data && <Work cfg={cfg} id={id} d={data} />}
+        {data && <Work cfg={cfg} id={id} d={data} reload={reload} />}
       </Body>
     </Page>
   );
 }
 
-function Work({ cfg, id, d }) {
+function Work({ cfg, id, d, reload }) {
   const c = cfg.upload;
   const nav = useNavigate();
   const loc = useLocation();
@@ -71,10 +72,11 @@ function Work({ cfg, id, d }) {
   const send = useCan(c.need.send);
   const run = useCan(c.need.run);
 
-  /* 이미 올라간 것(서버가 알려준 것)과 방금 고른 것(아직 안 올라간 것)을
-     **가른다.** 고른 것을 올라간 것처럼 그리면, 실패했을 때 올라간 줄
-     알고 넘어간다 */
+  /* 이미 올라간 것(서버가 알려준 것)과 전송 중인 것을 가른다. 완료한
+     파일은 반드시 uploadInfo를 다시 받아 표시한다 — 선택 목록만 보고
+     "올라갔다"고 판단하면 실제 저장 실패를 놓친다. */
   const [picked, setPicked] = useState([]);
+  const [dragging, setDragging] = useState(false);
   const [prog, setProg] = useState(d.ai ?? null);   // { status, pct }
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState(null);
@@ -91,17 +93,46 @@ function Work({ cfg, id, d }) {
     return () => clearInterval(t);
   }, [running, id, cfg]);
 
-  function choose(e) {
+  async function choose(e) {
     const fs = [...(e.target.files ?? [])];
-    setPicked((p) => [
-      ...p,
-      ...fs.map((f) => ({
-        id: `${f.name}-${f.size}`,
+    e.target.value = "";     // 같은 파일을 다시 고를 수 있게
+    await queueFiles(fs);
+  }
+
+  async function queueFiles(fs) {
+    if (fs.length === 0) return;
+    const uploads = fs.map((f, index) => ({
+        /* 같은 파일을 두 번 골라도 각각의 전송 결과를 따로 보여 준다. */
+        id: `${f.name}-${f.size}-${f.lastModified}-${index}-${Date.now()}`,
+        file: f,
         name: f.name,
         size: `${(f.size / 1048576).toFixed(1)} MB`,
-      })),
-    ]);
-    e.target.value = "";     // 같은 파일을 다시 고를 수 있게
+        state: "uploading",
+        error: null,
+    }));
+    setPicked((p) => [...p, ...uploads]);
+
+    for (const item of uploads) await sendFile(item);
+  }
+
+  async function sendFile(item) {
+    setPicked((files) => files.map((file) => file.id === item.id
+      ? { ...file, state: "uploading", error: null }
+      : file));
+    try {
+      await uploadFile(
+        cfg.api.ticket,
+        { kind: cfg.scopeKind, id },
+        item.file,
+        cfg.scopeKind === "study" ? "dicom_upload" : "wsi_upload",
+      );
+      setPicked((files) => files.filter((file) => file.id !== item.id));
+      reload(true);
+    } catch (e) {
+      setPicked((files) => files.map((file) => file.id === item.id
+        ? { ...file, state: "failed", error: e.message || "파일을 올리지 못했습니다." }
+        : file));
+    }
   }
 
   /* 아직 전송 전인 파일은 즉시 목록에서 뺀다. 잘못 고른 촬영본을
@@ -111,6 +142,9 @@ function Work({ cfg, id, d }) {
   function removePicked(fileId) {
     setPicked((files) => files.filter((file) => file.id !== fileId));
   }
+
+  const uploadedCount = (d.files ?? []).length;
+  const uploadBusy = picked.some((file) => file.state === "uploading");
 
   async function analyze() {
     setBusy(true);
@@ -144,7 +178,15 @@ function Work({ cfg, id, d }) {
 
       {/* ── 가운데 · 올리는 곳 ──────────────────────────────── */}
       <Card title="파일 올리기">
-        <div className="drop">
+        <div className={`drop ${dragging ? "dragging" : ""}`}
+             onDragEnter={(e) => { e.preventDefault(); setDragging(true); }}
+             onDragOver={(e) => e.preventDefault()}
+             onDragLeave={(e) => { if (e.currentTarget === e.target) setDragging(false); }}
+             onDrop={(e) => {
+               e.preventDefault();
+               setDragging(false);
+               queueFiles([...e.dataTransfer.files]);
+             }}>
           <p className="drop-t">{c.dropText}</p>
           <input ref={fileRef} type="file" multiple accept={c.accept}
                  onChange={choose} hidden />
@@ -162,11 +204,19 @@ function Work({ cfg, id, d }) {
           {picked.map((f) => (
             <li key={f.id}>
               <b>{f.name}</b><span>{f.size}</span>
-              <Chip tone="dot">전송 준비 중</Chip>
+              <Chip tone={f.state === "failed" ? "fill" : "dot"}>
+                {f.state === "failed" ? "전송 실패" : "전송 중"}
+              </Chip>
               <button className="btn ghost file-remove" type="button"
                       onClick={() => removePicked(f.id)}>
                 제외
               </button>
+              {f.state === "failed" && (
+                <button className="btn line file-retry" type="button" onClick={() => sendFile(f)}>
+                  재시도
+                </button>
+              )}
+              {f.error && <small className="warnline">{f.error}</small>}
             </li>
           ))}
           {(d.files ?? []).length === 0 && picked.length === 0 && (
@@ -174,10 +224,9 @@ function Work({ cfg, id, d }) {
           )}
         </ul>
 
-        {picked.length > 0 && (
+        {uploadBusy && (
           <p className="hint">
-            방금 고른 {picked.length}장은 아직 전송되지 않았습니다 —
-            티켓 발급 규격이 정해지면 이 자리에서 Go 로 올라갑니다.
+            선택한 파일을 서버에 올리는 중입니다. 성공한 파일은 완료 목록에 표시됩니다.
           </p>
         )}
 
@@ -215,13 +264,16 @@ function Work({ cfg, id, d }) {
 
         <div className="stack">
           <Btn kind="fill" onClick={analyze}
-               disabled={busy || running || !run.ok} title={run.attrs.title}>
+               disabled={busy || running || uploadedCount === 0 || !run.ok}
+               title={run.attrs.title}>
             AI 분석 시작
           </Btn>
           <Btn kind="line" onClick={() => nav(cfg.go.read(id))} disabled={!done}>
             판독으로
           </Btn>
-          {!done && <span className="muted small">분석이 끝나야 판독으로 넘어갈 수 있습니다</span>}
+          {!done && <span className="muted small">
+            {uploadedCount === 0 ? "파일 업로드가 완료되어야 분석을 시작할 수 있습니다" : "분석이 끝나야 판독으로 넘어갈 수 있습니다"}
+          </span>}
         </div>
 
         <div className="stack top">

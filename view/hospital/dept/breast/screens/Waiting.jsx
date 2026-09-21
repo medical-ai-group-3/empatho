@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { breast as api } from "../../../api";
-import { SEX, label } from "../../../codes";
+import { SEX, label, modality as asModality } from "../../../codes";
 import { useApi } from "../../../lib/useApi";
 import { Page } from "../../../lib/Page";
 import { Body } from "../../../lib/Body";
@@ -9,6 +9,7 @@ import { go } from "../../../nav";
 import "../breast.css";   /* 유방외과 전용 — .breast 안에 갇혀 있다. 네 화면이 각자
                              끌고 온다: 주소로 곧장 들어와도 스타일이 빠지면 안 된다 */
 import ExamOrderModal from "../components/ExamOrderModal";
+import CareGuideModal from "../components/CareGuideModal";
 import CloseVisitModal from "../components/CloseVisitModal";
 import SpecimenBindingModal from "../../../lib/SpecimenBindingModal";
 import SideDashboard from "../../../lib/SideDashboard";
@@ -29,6 +30,8 @@ export default function Waiting() {
   const { loading, data: list, error, reload } = useApi(() => api.waiting());
   const [selectedId, setSelectedId] = useState(null);
   const [modal, setModal] = useState(null); // "exam" | "specimen" | "close" | null
+  const [guide, setGuide] = useState(null);
+  const [requestedModality, setRequestedModality] = useState(null);
 
   useEffect(() => {
     if (!list || list.length === 0) return;
@@ -54,6 +57,16 @@ export default function Waiting() {
   }
 
   const detail = usePatient(selectedId);
+  const workflow = useWorkflow(selectedId);
+
+  function openReview(patient) {
+    const next = nextCareStep(workflow.data);
+    if (next.kind === "ready") {
+      nav(go.breast.review(patient.patient_id));
+      return;
+    }
+    setGuide(next);
+  }
 
   return (
     <Page className="breast" crumb={["유방외과", "대기 환자"]}
@@ -72,14 +85,15 @@ export default function Waiting() {
                   <table className="list">
                     <thead>
                       <tr>
-                        <th>환자번호</th><th>이름</th><th>나이/성별</th><th>진행상황</th>
+                        <th>순서</th><th>환자번호</th><th>이름</th><th>나이/성별</th><th>진행상황</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {list.map((p) => (
+                      {list.map((p, index) => (
                         <tr key={p.patient_id}
                             className={p.patient_id === selectedId ? "on" : ""}
                             onClick={() => setSelectedId(p.patient_id)}>
+                          <td className="num">{index + 1}</td>
                           <td>{p.patient_number}</td>
                           <td>{p.name}</td>
                           <td>{p.age}세 · {label(SEX, p.sex)}</td>
@@ -109,7 +123,7 @@ export default function Waiting() {
                       onExamOrder={() => setModal("exam")}
                       onSpecimen={() => setModal("specimen")}
                       onClose={() => setModal("close")}
-                      onReview={() => nav(go.breast.review(detail.data.patient_id))}
+                      onReview={() => openReview(detail.data)}
                       onDiscordance={() =>
                         nav(go.breast.discordance(detail.data.open_discordance.discordance_id))}
                     />
@@ -122,13 +136,16 @@ export default function Waiting() {
       </div>
 
       {modal === "exam" && detail.data && (
-        <ExamOrderModal patient={detail.data} onClose={() => setModal(null)}
-          onDone={() => { setModal(null); }} />
+        <ExamOrderModal key={requestedModality ?? "default"} patient={detail.data}
+          initialModality={requestedModality} onClose={() => { setModal(null); setRequestedModality(null); }}
+          onDone={() => { setModal(null); setRequestedModality(null); workflow.reload(); }} />
       )}
       {modal === "specimen" && detail.data && (
         <SpecimenBindingModal patient={detail.data} onClose={() => setModal(null)}
           onDone={() => {
             setModal(null);
+            setGuide(null);
+            workflow.reload();
             setSelectedId((cur) => nextAfter(list, cur));
           }} />
       )}
@@ -140,12 +157,85 @@ export default function Waiting() {
             reload(true);
           }} />
       )}
+      {guide && detail.data && (
+        <CareGuideModal patient={detail.data} step={guide}
+          progress={workflowProgress(workflow.data)} onClose={() => setGuide(null)}
+          onAction={() => {
+            if (guide.kind === "request") {
+              setRequestedModality(guide.modality);
+              setGuide(null);
+              setModal("exam");
+            }
+            if (guide.kind === "specimen") {
+              setGuide(null);
+              setModal("specimen");
+            }
+          }} />
+      )}
     </Page>
   );
 }
 
 function usePatient(id) {
   return useApi(() => (id ? api.patient(id) : Promise.resolve(null)), [id]);
+}
+
+function useWorkflow(id) {
+  return useApi(() => (id ? api.workflow(id) : Promise.resolve(null)), [id]);
+}
+
+/* 고정된 진료 순서. 이미 요청된 검사는 다시 만들지 않고, 촬영·판독이
+   끝날 때까지 현재 단계만 안내한다. 병리 검체는 MRI 판독 확정 뒤에만
+   등록 안내를 낸다. */
+function nextCareStep(data) {
+  if (!data) return {
+    kind: "pending",
+    message: "환자 기록을 불러오는 중입니다. 잠시 후 다시 진료 보기를 눌러 주세요.",
+  };
+
+  const studies = data.studies ?? [];
+  const orders = data.orders ?? [];
+  const final = (modality) => studies.some((study) =>
+    asModality(study.modality) === modality && study.read_status === "finalized");
+  const ordered = (modality) => orders.some((order) =>
+    asModality(order.modality) === modality && order.order_status !== "cancelled");
+
+  for (const modality of ["mammo", "us", "mri"]) {
+    if (final(modality)) continue;
+    if (!ordered(modality)) {
+      return {
+        kind: "request", modality,
+        message: `진료를 보기 전에 ${label({ mammo: "맘모그래피", us: "초음파", mri: "MRI" }, modality)} 촬영 요청을 먼저 진행해 주세요.`,
+      };
+    }
+    return {
+      kind: "waiting", modality,
+      message: `${label({ mammo: "맘모그래피", us: "초음파", mri: "MRI" }, modality)} 촬영·판독이 완료되기를 기다려 주세요.`,
+    };
+  }
+
+  const specimens = data.specimens ?? [];
+  if (specimens.length === 0) {
+    return { kind: "specimen", message: "MRI 판독이 완료되었습니다. 다음 단계로 검체 등록을 진행해 주세요." };
+  }
+  if (!specimens.some((row) => row.finalized_at)) {
+    return { kind: "pathology-wait", message: "검체가 등록되었습니다. 병리과 판독 결과를 기다려 주세요." };
+  }
+  return { kind: "ready" };
+}
+
+function workflowProgress(data) {
+  const studies = data?.studies ?? [];
+  const orders = data?.orders ?? [];
+  const state = {};
+  for (const modality of ["mammo", "us", "mri"]) {
+    const isFinal = studies.some((study) => asModality(study.modality) === modality && study.read_status === "finalized");
+    const isOrdered = orders.some((order) => asModality(order.modality) === modality && order.order_status !== "cancelled");
+    state[modality] = isFinal ? "done" : isOrdered ? "waiting" : "todo";
+  }
+  const specimens = data?.specimens ?? [];
+  state.specimen = specimens.some((row) => row.finalized_at) ? "done" : specimens.length ? "waiting" : "todo";
+  return state;
 }
 
 /* 현재 환자 카드 하나 — 머리(아바타·이름) · 정보 · 알림 박스 · 버튼을
@@ -158,12 +248,13 @@ function PatientPanel({ patient, onNext, onExamOrder, onSpecimen, onClose, onRev
   const d = patient.open_discordance;
   const rows = [
     { k: "성별·나이", v: `${label(SEX, patient.sex)} · ${patient.age}세` },
-    { k: "내원 목적", v: patient.visit_purpose },
+    { k: "생년월일", v: patient.birth_date },
+    { k: "연락처", v: patient.phone },
+    { k: "내원 구분", v: patient.visit_type },
+    { k: "검사 목적", v: patient.visit_purpose },
     { k: "알레르기", v: patient.allergy },
-    { k: "주 증상", v: patient.chief_complaint },
-    { k: "활력 징후", v: patient.vitals },
-    { k: "가족력", v: patient.family_history },
-    { k: "검사 이력", v: patient.exam_summary },
+    { k: "간호 메모", v: patient.intake_note },
+    { k: "문진", v: patient.questionnaire ? "제출됨" : "미제출" },
   ];
   return (
     <>
@@ -184,7 +275,7 @@ function PatientPanel({ patient, onNext, onExamOrder, onSpecimen, onClose, onRev
         <div className="pt-info">
           {rows.map((r) => (
             <div className="row" key={r.k}>
-              <span className="k">{r.k}</span><span className="v">{r.v}</span>
+              <span className="k">{r.k}</span><span className="v">{r.v || "—"}</span>
             </div>
           ))}
         </div>

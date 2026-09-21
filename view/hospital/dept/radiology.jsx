@@ -114,6 +114,7 @@ const api = {
   finalize:   (id, b) => rad.finalize(id, b),
   list:       (o)     => rad.list(o),
   amend:      (id, b) => rad.amend(id, b),
+  addLesion:  (b)     => rad.addLesion(b),
   /* 환자 목록(4장) 상세에 검사 이력을 붙이려고 추가했다(2026-09-18) */
   timeline:   (pid)   => rad.timeline(pid),
 };
@@ -293,6 +294,9 @@ export const radiology = {
         <Facts items={[
           ["환자", `${d.patient_name} (${d.age}/${label(SEX, d.sex)})`],
           ["환자번호", d.patient_no],
+          ["생년월일", d.birth_date],
+          ["연락처", d.phone],
+          ["알레르기", d.contrast_allergy || "없음"],
           ["모달리티", label(MODALITY, asModality(d.modality))],
           ["촬영 장비", d.device],
           ["검사명", d.exam_name],
@@ -335,6 +339,9 @@ export const radiology = {
         <Facts items={[
           ["환자", `${d.patient_name} (${d.age}/${label(SEX, d.sex)})`],
           ["환자번호", d.patient_no],
+          ["생년월일", d.birth_date],
+          ["연락처", d.phone],
+          ["알레르기", d.contrast_allergy || "없음"],
           ["검사명", d.exam_name],
           ["검사 목적", d.purpose],
           ["검사일", d.performed_at],
@@ -358,29 +365,9 @@ export const radiology = {
       </>
     ),
 
-    /* 병리에는 없는 버튼.
-     *
-     * ⚠ **아직 눌러도 되는 것이 없다.** 재촬영은 새 오더를 만드는 일이라
-     *   (POST /exam-orders, parent_order_id) 사유·모달리티·장비를 받는
-     *   창이 있어야 하는데 그 요청 본문 규격이 아직 안 정해졌다.
-     *   api.js 의 rad.retake 는 경로만 적어 둔 상태다.
-     *
-     *   전에는 없는 함수(cfg.api.retakeDialog)를 ?. 로 불러서, 권한이
-     *   있는 사람이 누르면 **아무 일도 안 일어났다.** 오류도 안 나고
-     *   창도 안 뜬다 — 눌린 건지 고장 난 건지 알 길이 없다. 그럴 바에는
-     *   꺼 두고 왜 꺼졌는지 적는 편이 낫다. 규격이 오면 onClick 을
-     *   되살리고 disabled 를 권한만 보게 되돌린다 */
-    Extra: () => {
-      const retake = useCan("radiology.retake");
-      const why = retake.ok
-        ? "재촬영 요청 창은 아직 연결되지 않았습니다"
-        : retake.attrs.title;
-      return (
-        <button className="btn ghost" disabled title={why}>
-          재촬영 요청
-        </button>
-      );
-    },
+    /* 품질 반려된 원본 오더에서만 서버가 재촬영을 만든다. 새 오더는
+       곧바로 영상의학과 대기 큐로 들어가므로 원무 재접수는 필요 없다. */
+    Extra: ({ d, cfg }) => <RetakeButton examOrderId={d.exam_order_id} api={cfg.api} />,
   },
 
   /* ── 3장 · 판독 ───────────────────────────────────────── */
@@ -429,6 +416,9 @@ export const radiology = {
           <Facts items={[
             ["환자", `${d.patient.name} (${d.patient.age}/${label(SEX, d.patient.sex)})`],
             ["환자번호", d.patient.no],
+            ["생년월일", d.patient.birth_date],
+            ["연락처", d.patient.phone],
+            ["알레르기", d.patient.contrast_allergy || "없음"],
             ["검사명", d.unit.exam_name],
             ["모달리티", label(MODALITY, asModality(d.unit.modality))],
             ["검사 상태", text(d.unit, "read_status", READ_STATUS, "status_label")],
@@ -467,9 +457,26 @@ export const radiology = {
 
     Ai: RadiologyAi,
 
-    Doctor: ({ d, f, set }) => {
+    Doctor: ({ d, f, set, pendingMark, onLesionCreated }) => {
       const add = useCan("radiology.lesion.add");
       const isMri = d.unit?.modality === "mri";
+      const [lesionBusy, setLesionBusy] = useState(false);
+      const [lesionMsg, setLesionMsg] = useState(null);
+
+      async function addLesion() {
+        if (!pendingMark) return;
+        setLesionBusy(true); setLesionMsg(null);
+        try {
+          const out = await api.addLesion({
+            study_id: Number(d.id),
+            detail: { ...pendingMark },
+          });
+          setLesionMsg(`병변 #${out.lesion_id ?? out.id}을 등록했습니다.`);
+          onLesionCreated?.();
+        } catch (e) {
+          setLesionMsg(e.detail || "병변 등록에 실패했습니다.");
+        } finally { setLesionBusy(false); }
+      }
 
       return (
         <>
@@ -488,23 +495,20 @@ export const radiology = {
                 </select>
               </label>
 
-              {/* ⚠ 서버 쪽(POST /lesions/)은 이미 있는데 **영상에 박스를 그리는
-                  도구가 없다.** 좌표를 만들 방법이 없으니 부를 것도 없다.
-                  onClick 없이 켜 두면 권한 있는 사람이 눌렀을 때 아무 일도
-                  안 나서 고장으로 읽힌다 — 꺼 두고 이유를 적는다.
-                  Stage 에 «박스 그리기» 모드가 생기면 그때 켠다 */}
-              <div className="stack">
-                <button className="btn line" disabled
-                        title={add.ok ? "영상에 박스를 그리는 도구가 아직 없습니다"
-                                      : add.attrs.title}>
-                  병변 추가
-                </button>
-                <span className="muted small">
-                  영상에 박스를 그려 병변을 직접 만듭니다 — 그리는 도구는 아직 없습니다
-                </span>
-              </div>
             </>
           )}
+
+          <div className="stack">
+            <button className="btn line" onClick={addLesion}
+                    disabled={!add.ok || !pendingMark || lesionBusy}
+                    title={!add.ok ? add.attrs.title : pendingMark ? "방금 그린 표시를 병변으로 등록합니다" : "뷰어에서 박스를 먼저 그려 주세요"}>
+              {lesionBusy ? "등록 중…" : "병변 등록"}
+            </button>
+            <span className="muted small">
+              {pendingMark ? "뷰어에 그린 표시를 병변으로 등록할 수 있습니다." : "뷰어에서 박스 그리기 후 병변 등록을 누르세요."}
+            </span>
+            {lesionMsg && <span className="hint">{lesionMsg}</span>}
+          </div>
 
           <label className="field">
             <span>판독 소견</span>
@@ -602,6 +606,9 @@ export const radiology = {
               <Facts items={[
                 ["환자", `${d.patient_name} (${d.age}/${label(SEX, d.sex)})`],
                 ["환자번호", d.patient_no],
+                ["생년월일", d.birth_date],
+                ["연락처", d.phone],
+                ["알레르기", d.contrast_allergy || "없음"],
                 ["모달리티", label(MODALITY, asModality(d.modality))],
                 ["촬영 장비", d.device],
                 ["검사일", d.performed_at],
@@ -647,6 +654,9 @@ export const radiology = {
       <Facts items={[
         ["환자", `${d.patient.name} (${d.patient.age}/${label(SEX, d.patient.sex)})`],
         ["환자번호", d.patient.no],
+        ["생년월일", d.patient.birth_date],
+        ["연락처", d.patient.phone],
+        ["알레르기", d.patient.contrast_allergy || "없음"],
         ["검사명", d.unit.exam_name],
         ["검사일시", d.unit.performed_at],
         ["담당 판독의", d.unit.assigned_to],
@@ -654,4 +664,35 @@ export const radiology = {
     ),
   },
 };
+
+function RetakeButton({ examOrderId, api }) {
+  const retake = useCan("radiology.retake");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState(null);
+
+  async function requestRetake() {
+    if (!examOrderId || busy) return;
+    setBusy(true); setMsg(null);
+    try {
+      const out = await api.retake(examOrderId);
+      const nextId = out.exam_order_id ?? out.new_exam_order_id;
+      setMsg(nextId ? `재촬영 오더 ${nextId}번을 대기 큐에 등록했습니다.` : "재촬영 오더를 대기 큐에 등록했습니다.");
+    } catch (e) {
+      setMsg(e.detail || e.message || "재촬영 요청을 만들지 못했습니다.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <span className="rowacts">
+      <button className="btn ghost" onClick={requestRetake}
+              disabled={!retake.ok || !examOrderId || busy}
+              title={!retake.ok ? retake.attrs.title : "품질 반려된 검사만 재촬영을 요청할 수 있습니다"}>
+        {busy ? "요청 중…" : "재촬영 요청"}
+      </button>
+      {msg && <small className="hint">{msg}</small>}
+    </span>
+  );
+}
 

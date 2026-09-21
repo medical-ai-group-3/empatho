@@ -87,7 +87,7 @@ function toRead(s, up) {
   return {
     patient: {
       name: s.patient_name, age: s.age, sex: s.sex,
-      no: s.patient_no, birth: s.birth,
+      no: s.patient_no, birth: s.birth, phone: s.phone, allergy: s.allergy,
     },
     unit: {
       id: s.id, no: s.specimen_no, kind: s.kind, method: s.method,
@@ -204,6 +204,9 @@ export const pathology = {
       <>
         <Facts items={[
           ["환자", `${d.patient_name} (${d.age}/${label(SEX, d.sex)})`],
+          ["생년월일", d.birth],
+          ["연락처", d.phone],
+          ["알레르기", d.allergy || "없음"],
           ["검체번호", d.specimen_no],
           ["종류", d.kind],
           ["채취 방식", d.method],
@@ -266,6 +269,9 @@ export const pathology = {
       <>
         <Facts items={[
           ["환자", `${d.patient_name} (${d.age}/${label(SEX, d.sex)})`],
+          ["생년월일", d.birth],
+          ["연락처", d.phone],
+          ["알레르기", d.allergy || "없음"],
           ["검체번호", d.specimen_no],
           ["종류", d.kind],
           ["병변 위치", d.site],
@@ -311,6 +317,9 @@ export const pathology = {
       <>
         <Facts items={[
           ["환자", `${d.patient.name} (${d.patient.age}/${label(SEX, d.patient.sex)})`],
+          ["생년월일", d.patient.birth],
+          ["연락처", d.patient.phone],
+          ["알레르기", d.patient.allergy || "없음"],
           ["검체번호", d.unit.no],
           ["종류", d.unit.kind],
           ["채취 방식", d.unit.method],
@@ -441,6 +450,9 @@ function PathologyListDetail({ d, cfg }) {
       <div className="list-detail-info">
         <Facts items={[
           ["환자", `${d.patient_name} (${d.age}/${label(SEX, d.sex)})`],
+          ["생년월일", d.birth],
+          ["연락처", d.phone],
+          ["알레르기", d.allergy || "없음"],
           ["검체번호", d.specimen_no],
           ["종류", d.kind],
           ["채취일시", d.collected_at],

@@ -619,7 +619,7 @@
     "disclaimer": "이 답변은 진단이 아닙니다. 최종 판단은 진료 때 의료진이 합니다.",
     "stored": false
   },
-  "GET /api/v1/notifications": {
+  "GET /api/v1/notifications/": {
     "items": [
       {
         "notification_id": 90311,
@@ -663,19 +663,19 @@
       }
     ]
   },
-  "POST /api/v1/notifications/90311/read": {
+  "PATCH /api/v1/notifications/90311/": {
     "notification_id": 90311,
     "acknowledged_at": "2026-09-10T14:05:00+09:00"
   },
-  "POST /api/v1/notifications/90288/read": {
+  "PATCH /api/v1/notifications/90288/": {
     "notification_id": 90288,
     "acknowledged_at": "2026-09-10T14:05:00+09:00"
   },
-  "POST /api/v1/notifications/90240/read": {
+  "PATCH /api/v1/notifications/90240/": {
     "notification_id": 90240,
     "acknowledged_at": "2026-09-10T14:05:00+09:00"
   },
-  "POST /api/v1/notifications/90101/read": {
+  "PATCH /api/v1/notifications/90101/": {
     "notification_id": 90101,
     "acknowledged_at": "2026-09-10T14:05:00+09:00"
   },

@@ -19,15 +19,25 @@ export default function CloseVisitModal({ patient, onClose, onDone }) {
     setError(null);
     try {
       const orders = await api.ordersOf(patient.patient_id);
+      /* 종결은 지금 접수된 방문(requested + visited_at)만 할 수 있다.
+         미래 예약이나 이전 미종결 오더까지 후보에 넣으면 엉뚱한 검사가
+         종결될 수 있다. */
       const open = (orders ?? [])
-        .filter((o) => o.order_status !== "completed" && o.order_status !== "cancelled")
-        .sort((a, b) => new Date(b.scheduled_at ?? b.ordered_at ?? 0) - new Date(a.scheduled_at ?? a.ordered_at ?? 0));
+        .filter((o) => o.order_status === "requested" && o.visited_at)
+        .sort((a, b) => new Date(b.visited_at ?? b.scheduled_at ?? b.ordered_at ?? 0)
+          - new Date(a.visited_at ?? a.scheduled_at ?? a.ordered_at ?? 0));
       const target = open[0];
       if (!target) {
         setError("종결할 오더를 찾지 못했습니다 — 원무 접수 기록을 확인해 주세요");
         return;
       }
-      await api.completeExamOrder(target.exam_order_id);
+      /* 백엔드는 상황에 따라 exam_order_id 또는 기본 id를 돌려준다. */
+      const orderId = target.exam_order_id ?? target.id;
+      if (orderId == null) {
+        setError("종결할 방문 번호를 확인하지 못했습니다. 새로고침 후 다시 시도해 주세요.");
+        return;
+      }
+      await api.completeExamOrder(orderId);
       onDone?.();
     } catch (e) {
       setError(e.detail || e.message);

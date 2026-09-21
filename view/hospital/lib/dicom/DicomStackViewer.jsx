@@ -30,12 +30,12 @@ const TOOLS = [
   { key: "wl", label: "창값", toolName: "WindowLevel" },
   { key: "pan", label: "이동", toolName: "Pan" },
   { key: "zoom", label: "확대", toolName: "Zoom" },
-  { key: "length", label: "측정", toolName: "Length" },
-  { key: "rect", label: "사각형 ROI", toolName: "RectangleROI" },
+  { key: "length", label: "길이 측정", toolName: "Length" },
+  { key: "rect", label: "박스 그리기", toolName: "RectangleROI" },
   { key: "brush", label: "마스크", toolName: "Brush" },
 ];
 
-export default function DicomStackViewer({ manifestUrl, baseUrl, mode = "diagnostic" }) {
+export default function DicomStackViewer({ manifestUrl, baseUrl, mode = "diagnostic", onAnnotation }) {
   const isReview = mode === "review";
   const elRef = useRef(null);
   const [status, setStatus] = useState("loading"); // loading | ready | error | empty
@@ -43,6 +43,18 @@ export default function DicomStackViewer({ manifestUrl, baseUrl, mode = "diagnos
   const [activeTool, setActiveTool] = useState("wl");
   const [viewIndex, setViewIndex] = useState(0);
   const [viewCount, setViewCount] = useState(0);
+
+  useEffect(() => {
+    if (!onAnnotation || mode === "review") return;
+    const done = (event) => {
+      const annotation = event.detail?.annotation;
+      const tool = annotation?.metadata?.toolName;
+      if (tool !== "Length" && tool !== "RectangleROI") return;
+      onAnnotation({ kind: tool === "Length" ? "length" : "rect", handles: annotation.data?.handles?.points ?? [] });
+    };
+    cornerstone.eventTarget.addEventListener(cornerstoneTools.Enums.Events.ANNOTATION_COMPLETED, done);
+    return () => cornerstone.eventTarget.removeEventListener(cornerstoneTools.Enums.Events.ANNOTATION_COMPLETED, done);
+  }, [mode, onAnnotation]);
 
   useEffect(() => {
     if (!manifestUrl || !baseUrl) {

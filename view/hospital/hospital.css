@@ -140,6 +140,34 @@ input,select,textarea{font:inherit; color:inherit}
   color:var(--soot-ink); background:var(--tab-bg-on);
   border-radius:var(--round); padding:0 var(--chip-pad-x);
   font-variant-numeric:tabular-nums}
+
+/* ⚠ 알림 팝업 — 정은님이 만든 것(origin/main). 지금 우리 Top.jsx 에는
+   벨만 있고 이 팝업을 열지 않는다. 규칙을 남겨 두는 이유는 나중에
+   그 부품만 옮겨 붙이면 바로 서기 때문이다 */
+.bell-wrap{position:relative; display:flex}
+.notice-pop{position:absolute; z-index:30; top:calc(100% + var(--gap-sm)); right:0;
+  width:min(var(--notice-pop-w), calc(100vw - var(--top-pad-x) * 2));
+  background:var(--card); border:var(--hair) solid var(--border); border-radius:var(--card-radius);
+  box-shadow:var(--card-shadow); overflow:hidden}
+.notice-pop header{display:flex; align-items:center; justify-content:space-between;
+  padding:var(--card-pad-sm) var(--card-pad); border-bottom:var(--hair) solid var(--border)}
+.notice-pop header b{font-size:var(--card-h-fs)}
+.notice-pop header button{font-size:var(--card-h-fs); color:var(--warm); line-height:1}
+.notice-pop ul{margin:0; padding:0; list-style:none; max-height:calc(var(--top-h) * 7); overflow:auto}
+.notice-pop li + li{border-top:var(--hair) solid var(--line-2)}
+.notice-pop li button{width:100%; display:grid; grid-template-columns:1fr auto; gap:var(--gap-xs);
+  padding:var(--row-pad-y) var(--row-pad-x)}
+.notice-pop li button:hover{background:var(--canvas)}
+.notice-pop li button b{font-size:var(--row-fs); font-weight:500; min-width:0; overflow:hidden;
+  text-overflow:ellipsis; white-space:nowrap}
+.notice-pop li button span{grid-row:2; font-size:var(--crumb-fs); color:var(--warm)}
+.notice-pop li button em{grid-column:2; grid-row:1 / span 2; align-self:center; font-size:var(--crumb-fs);
+  color:var(--cyan); font-style:normal}
+.notice-pop li button:not(.new) b{font-weight:400; color:var(--ink-2)}
+.notice-state{margin:0; padding:var(--card-pad); color:var(--warm); font-size:var(--sub-fs)}
+.notice-state.bad{color:var(--ink)}
+/* ⚠ 여기 있던 .when 은 뺐다 — 저쪽 옛 흰 상단바용이라 --warm 이고,
+   그대로 두면 우리 어두운 띠의 .when(--v-warm)을 덮어 글자가 안 읽힌다 */
 /* 고른 탭의 배지는 **반전** — 흰 바탕에 검은 글자 */
 .tabs .tab.on .tab-n{color:var(--soot); background:var(--soot-ink)}
 
@@ -948,6 +976,32 @@ a.srow:hover{background:var(--canvas)}
 .vside .save{border-top-color:var(--v-line)}
 .vside .btn.line{background:transparent; color:var(--v-ink);
   box-shadow:inset 0 0 0 var(--hair) var(--v-line)}
+/* 다크 판독 패널 안에서는 카드·입력·글자 모두 다크 규칙을 따른다.
+   일반 폼의 흰 입력칸과 어두운 보조 글자가 섞이면 글자가 안 보인다. */
+.vside .muted,.vside .note,.vside .field > span,.vside .count{color:var(--v-warm)}
+.vside .grade,.vside .ai-card .ai-h b,.vside .ai-m dd,.vside .ai-na b{color:var(--v-ink)}
+.vside .field input,.vside .field select,.vside .field textarea{
+  background:var(--v-bg); color:var(--v-ink); box-shadow:inset 0 0 0 var(--hair) var(--v-line)}
+.vside .field input:focus,.vside .field select:focus,.vside .field textarea:focus{
+  box-shadow:inset 0 0 0 var(--focus-w) var(--cyan)}
+.vside .field ::placeholder{color:var(--v-warm)}
+.vside .ai-card{background:var(--v-bg); border-color:var(--v-line)}
+.vside .ai-card .ai-m dt,.vside .ai-card .ai-m dd i,.vside .ai-card .ai-m dd em{color:var(--v-warm)}
+.vtool.on{background:var(--v-accent);color:var(--v-ink);border-color:var(--v-accent)}
+.stage-annotations{pointer-events:none}
+.stage-annotation{fill:rgba(116,212,255,.12);stroke:#74d4ff;stroke-width:2}
+.stage-annotation line{stroke:#74d4ff;stroke-width:2}
+.stage-annotation circle{fill:#74d4ff;stroke:none}
+.stage-annotation text{fill:#ffffff;stroke:#171514;stroke-width:3;paint-order:stroke;font-size:15px;font-weight:700}
+
+/* 판독은 한 화면에서 오래 비교하는 작업이므로, 제목과 저장줄을 뺀 세로
+   공간을 뷰어·AI 소견·의사 소견 카드가 전부 사용한다. */
+.read-page{min-height:calc(100dvh - var(--top-h))}
+.read-page .read-workspace{display:flex; flex:1; min-height:0; flex-direction:column; gap:var(--gap)}
+.read-page .read-workspace > .card{display:flex; flex:1; min-height:0}
+.read-page .read-workspace > .card > .card-b{display:flex; flex:1; min-height:0}
+.read-page .vwrap{flex:1; min-height:0}
+.read-page .viewer,.read-page .vside{min-height:0}
 
 /* ── AI 소견 패널 ───────────────────────────────────────────── */
 .ai{display:flex; flex-direction:column; gap:var(--ai-gap); font-size:var(--v-fs)}
@@ -1246,6 +1300,7 @@ td.none,tr.none td{text-align:center; padding:var(--card-pad) 0}
 
 /* ── 2장 · 업로드 ──────────────────────────────────────────── */
 .drop-t{margin:0 0 var(--gap-sm) 0; font-size:var(--kv-fs); color:var(--warm)}
+.drop.dragging{border-color:var(--cyan); background:var(--canvas); box-shadow:inset 0 0 0 1px var(--cyan)}
 
 .files{list-style:none; margin:var(--gap-sm) 0 0 0; padding:0;
   display:flex; flex-direction:column; gap:var(--gap-xs)}
@@ -1321,6 +1376,10 @@ td.none,tr.none td{text-align:center; padding:var(--card-pad) 0}
 .tbl-top{display:flex; align-items:center; justify-content:space-between;
   gap:var(--gap-sm); padding:var(--gap-sm) var(--card-pad-sm);
   border-bottom:var(--hair) solid var(--border); flex-wrap:wrap}
+/* 긴 검색 안내가 잘리지 않도록 목록 상단에서 검색칸이 우선 넓이를 쓴다.
+   필터는 남는 폭만 쓰고, 좁아지면 다음 줄로 자연스럽게 내려간다. */
+.tbl-top form{flex:1 1 380px; min-width:280px; display:flex}
+.tbl-top form .search{width:100%}
 
 /* ── 5장 · 정정 ────────────────────────────────────────────── */
 .amend{display:flex; flex-direction:column; gap:var(--gap)}
@@ -1576,6 +1635,12 @@ td.none,tr.none td{text-align:center; padding:var(--card-pad) 0}
 .picked .btn{width:100%}
 .picked .btn:disabled{opacity:.5; cursor:not-allowed}
 
+/* 원무 첫 화면은 검색 결과나 오늘 방문자가 없어도 양쪽 카드의 틀이
+   흔들리지 않는다. 빈 상태도 같은 높이 안에서 가운데에 놓인다. */
+.reception-intake-card,.reception-monitor-card{min-height:420px}
+.reception-monitor-card .card-b{height:calc(420px - var(--card-h, 58px))}
+.reception-monitor-card .slot{height:100%; min-height:0}
+
 /* 결과 알림 — 성공은 파랑, 실패는 외곽선만. 색을 새로 만들지 않고
    이미 있는 토큰으로 가른다(tokens.css 규칙) */
 .slot.ok{border-style:solid; border-color:var(--cyan); color:var(--ink)}
@@ -1583,12 +1648,23 @@ td.none,tr.none td{text-align:center; padding:var(--card-pad) 0}
 .slot.bad{border-style:solid}
 .slot.bad span{font-variant-numeric:tabular-nums; word-break:break-all}
 
-/* 검색 칸 셋 — 이름 · 전화번호 · 생년월일.
-   환자번호는 없다. 환자가 모르고 온다 */
+/* 접수 입력 한 줄 — 이름 · 전화번호 · 생년월일 · 검색.
+   버튼을 다음 줄에 두면 접수 카드가 불필요하게 커지고 시선도 끊긴다. */
 .find{display:grid; gap:var(--gap-sm);
-  grid-template-columns:1fr 1fr 1fr}
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) auto;
+  align-items:end}
 .find .field input{width:100%}
-@media (max-width:900px){ .find{grid-template-columns:1fr} }
+.find-submit{display:flex; align-items:flex-end}
+.find-submit .btn{min-width:76px}
+@media (max-width:900px){
+  .find{grid-template-columns:1fr 1fr}
+  .find-submit{grid-column:1 / -1}
+}
+@media (max-width:560px){.find{grid-template-columns:1fr}}
+
+/* 예약 확정은 날짜와 시간을 한 번에 비교·입력하는 동작이다. 화면 폭이
+   좁아져도 두 칸을 다음 줄로 보내지 않아 같은 기준선에서 보이게 한다. */
+.appointment-fields{grid-template-columns:minmax(0,1fr) minmax(0,1fr); align-items:end}
 
 .login-note, .hint{margin:0}
 .hint{margin:var(--gap-xs) 0 var(--gap-sm);
@@ -1785,6 +1861,7 @@ td.none,tr.none td{text-align:center; padding:var(--card-pad) 0}
    칸 둘을 나란히 — 성별·출생연도처럼 짧은 것끼리 */
 .fields{display:grid; grid-template-columns:1fr 1fr; gap:var(--gap-sm);
   margin-bottom:var(--card-gap)}
+.fields.one{grid-template-columns:1fr}
 .card .field + .field,.card .fields + .field{margin-top:var(--card-gap)}
 
 /* 한 줄짜리 체크. .checks 는 여러 줄 목록용이라 따로 둔다 */
@@ -1812,6 +1889,7 @@ td.none,tr.none td{text-align:center; padding:var(--card-pad) 0}
 
 /* 오른쪽 단은 카드 둘(상세 + 예약)이 세로로 쌓인다 */
 .split-r > .card + .card{margin-top:var(--gap)}
+.patient-facts{margin:0 0 var(--card-gap)}
 
 /* ── 관리자 (screens/admin/Console.jsx) ──────────────────────────
    글머리 목록. 「여기서 무엇을 하는가」를 늘어놓는 자리라 표가 아니다 */
@@ -1839,18 +1917,23 @@ code{padding:0 var(--gap-xs); border-radius:var(--radius-xs);
    못 쓴다. 행 높이를 뷰포트 기준으로 못박고 stretch로 좌우를 맞춘 뒤,
    넘치는 내용은 카드 안에서만 스크롤한다(유방외과 .review-grid와 같은
    생각 — hospital/dept/breast/breast.css 참고) */
-.n-grid{display:grid; grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);
-  grid-template-rows:clamp(var(--fit-grid-min),
-    calc(100vh - var(--top-total) - var(--fit-bar) - var(--fit-grid)), var(--fit-grid-max));
+.n-grid{display:grid; grid-template-columns:minmax(220px,.82fr) minmax(260px,1fr) minmax(300px,1.18fr);
+  /* 데이터가 한 줄이거나 비어 있어도 업무 영역은 화면 끝까지 같은 높이를
+     유지한다. 높이 상한을 두면 큰 모니터에서 카드가 내용만큼 작아 보인다. */
+  grid-template-rows:max(560px, calc(100dvh - 230px));
   gap:var(--gap); align-items:stretch}
 .n-grid > .card{min-height:0; display:flex; flex-direction:column}
 .n-grid > .card > .card-b{flex:1; min-height:0; overflow-y:auto}
-.n-side-stack{display:flex; flex-direction:column; gap:var(--gap); min-height:0}
-.n-side-stack > .card{flex:1; min-height:0; display:flex; flex-direction:column}
-.n-side-stack > .card > .card-b{flex:1; min-height:0; overflow-y:auto}
+.n-grid > .n-queue-card .card-b{overscroll-behavior:contain}
+.n-grid-embedded{grid-template-rows:560px}
+.n-left-stack{display:flex; flex-direction:column; gap:var(--gap); min-height:0}
+.n-left-stack > .card{flex:1; min-height:0; display:flex; flex-direction:column}
+.n-left-stack > .card > .card-b{flex:1; min-height:0; overflow-y:auto}
+.n-detail-card{min-height:0; display:flex; flex-direction:column}
+.n-detail-card > .card-b{flex:1; min-height:0; overflow-y:auto}
 @media (max-width:960px){
   .n-grid{grid-template-columns:1fr; grid-template-rows:none}
-  .n-side-stack{min-height:480px}
+  .n-left-stack{min-height:480px}
 }
 
 /* ── 팝업(모달) — 과 스코프 밖에서도 쓴다 ─────────────────────────

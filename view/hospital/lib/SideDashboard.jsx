@@ -1,5 +1,7 @@
 import { useState } from "react";
+import { notes as notesApi } from "../api";
 import { Card } from "./Page";
+import { useApi } from "./useApi";
 
 /* 과 공용 "내 업무" 패널 — 목록 옆(또는 아래)에 두는 캘린더·TODO·오늘
  * 현황 위젯 묶음이다. 원래 유방외과 대기 화면 하나에만 있었는데(2026-09-18),
@@ -17,7 +19,6 @@ export default function SideDashboard({ stats = [] }) {
     <Card title="내 업무" className="b-dash" pad={false}>
       <div className="b-dash-body">
         {stats.length > 0 && <TodaySummary stats={stats} />}
-        <MiniCalendar />
         <TodoList />
       </div>
     </Card>
@@ -37,45 +38,6 @@ function TodaySummary({ stats }) {
   );
 }
 
-const WEEK = ["일", "월", "화", "수", "목", "금", "토"];
-
-function MiniCalendar() {
-  const today = new Date();
-  const [y, setY] = useState(today.getFullYear());
-  const [m, setM] = useState(today.getMonth()); // 0-based
-
-  const first = new Date(y, m, 1);
-  const startDay = first.getDay();
-  const days = new Date(y, m + 1, 0).getDate();
-  const cells = [...Array(startDay).fill(null), ...Array(days).keys()].map((d) => (d == null ? null : d + 1));
-
-  function move(delta) {
-    const next = new Date(y, m + delta, 1);
-    setY(next.getFullYear());
-    setM(next.getMonth());
-  }
-
-  const isToday = (d) => d === today.getDate() && m === today.getMonth() && y === today.getFullYear();
-
-  return (
-    <div className="b-cal">
-      <div className="b-cal-head">
-        <button type="button" className="b-cal-nav" onClick={() => move(-1)} aria-label="이전 달">‹</button>
-        <b>{y}년 {m + 1}월</b>
-        <button type="button" className="b-cal-nav" onClick={() => move(1)} aria-label="다음 달">›</button>
-      </div>
-      <div className="b-cal-grid b-cal-week">
-        {WEEK.map((w) => <span key={w}>{w}</span>)}
-      </div>
-      <div className="b-cal-grid">
-        {cells.map((d, i) => (
-          <span key={i} className={d && isToday(d) ? "b-cal-today" : ""}>{d ?? ""}</span>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 /* 상태 세 갈래 — 뱃지 색으로 바로 구분되게 한다(2026-09-18 참고 디자인:
    표 형태 · # · 이름 · 상태 뱃지 · 수정 · 삭제). 클릭 한 번으로 다음
    상태로 넘기는 게 아니라 ✎(수정)을 눌러야 바꾸게 했다 — 실수로
@@ -87,20 +49,27 @@ const STATUS = [
 ];
 
 function TodoList() {
-  const [items, setItems] = useState([]);
   const [text, setText] = useState("");
   const [editing, setEditing] = useState(null); // 수정 중인 id
   const [draft, setDraft] = useState({ text: "", status: "todo" });
+  const [busy, setBusy] = useState(null);
+  const remote = useApi(() => notesApi.list("todo"), []);
+  const items = (remote.data ?? []).map(asTodo);
 
-  function add() {
+  async function add() {
     const v = text.trim();
     if (!v) return;
-    setItems((s) => [...s, { id: Date.now(), text: v, status: "todo" }]);
-    setText("");
+    setBusy("new");
+    try {
+      await notesApi.create("todo", { text: v, done: false, status: "todo" });
+      setText(""); remote.reload();
+    } finally { setBusy(null); }
   }
 
-  function remove(id) {
-    setItems((s) => s.filter((it) => it.id !== id));
+  async function remove(id) {
+    setBusy(id);
+    try { await notesApi.remove(id); remote.reload(); }
+    finally { setBusy(null); }
     if (editing === id) setEditing(null);
   }
 
@@ -109,11 +78,14 @@ function TodoList() {
     setDraft({ text: it.text, status: it.status });
   }
 
-  function saveEdit(id) {
+  async function saveEdit(id) {
     const v = draft.text.trim();
     if (!v) { remove(id); return; }
-    setItems((s) => s.map((it) => (it.id === id ? { ...it, text: v, status: draft.status } : it)));
-    setEditing(null);
+    setBusy(id);
+    try {
+      await notesApi.update(id, { text: v, status: draft.status, done: draft.status === "done" });
+      setEditing(null); remote.reload();
+    } finally { setBusy(null); }
   }
 
   return (
@@ -124,10 +96,10 @@ function TodoList() {
           <input value={text} onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && add()}
             placeholder="할 일 추가" />
-          <button type="button" className="btn ghost sm" onClick={add}>+ 추가</button>
+          <button type="button" className="btn ghost sm" onClick={add} disabled={busy === "new"}>+ 추가</button>
         </div>
       </div>
-      {items.length === 0 ? (
+      {remote.loading ? <p className="b-todo-empty">불러오는 중…</p> : items.length === 0 ? (
         <p className="b-todo-empty">할 일이 없습니다</p>
       ) : (
         <table className="b-todo-table">
@@ -153,7 +125,7 @@ function TodoList() {
                       </select>
                     </td>
                     <td colSpan={2} className="b-todo-actions">
-                      <button type="button" aria-label="저장" onClick={() => saveEdit(it.id)}>✓</button>
+                      <button type="button" aria-label="저장" disabled={busy === it.id} onClick={() => saveEdit(it.id)}>✓</button>
                       <button type="button" aria-label="취소" onClick={() => setEditing(null)}>✕</button>
                     </td>
                   </>
@@ -167,10 +139,10 @@ function TodoList() {
                       </span>
                     </td>
                     <td className="b-todo-actions">
-                      <button type="button" aria-label="수정" onClick={() => startEdit(it)}>✎</button>
+                      <button type="button" aria-label="수정" disabled={busy === it.id} onClick={() => startEdit(it)}>✎</button>
                     </td>
                     <td className="b-todo-actions">
-                      <button type="button" aria-label="삭제" onClick={() => remove(it.id)}>🗑</button>
+                      <button type="button" aria-label="삭제" disabled={busy === it.id} onClick={() => remove(it.id)}>🗑</button>
                     </td>
                   </>
                 )}
@@ -181,4 +153,13 @@ function TodoList() {
       )}
     </div>
   );
+}
+
+function asTodo(note) {
+  const content = note.content ?? {};
+  return {
+    id: note.note_id ?? note.id,
+    text: content.text ?? "",
+    status: content.status ?? (content.done ? "done" : "todo"),
+  };
 }

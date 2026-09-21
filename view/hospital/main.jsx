@@ -271,6 +271,10 @@ const SCREENS = {
   "nursing.followups": NursingFollowups,
 };
 
+/* ⚠ 정은님의 NursingHub(접수와 내원 대기를 한 화면에 쌓는 래퍼)는
+   안 쓴다. 우리는 6.1 대로 화면 줄을 여섯으로 나눠 둔다 — 같은 합치기를
+   다르게 푸는 두 방법이라 하나만 남아야 한다. 열쇠는 nav.js 의 DESK 가 맡는다 */
+
 /* 과 하나의 화면들 — 몇 장이든 nav.js 의 표대로 만들어진다 */
 function deptRoutes(key) {
   const cfg = CFG[key];
@@ -312,6 +316,8 @@ function App() {
             {/* 환자 상세도 과 바깥이다 — 어디서 와도 같은 화면이라
                 과 하나에 매달면 다른 과에서 그 주소로 못 온다 (6.5) */}
             <Route path="patients/:id" element={<PatientScreen />} />
+            {/* 예전 원무과 주소를 저장해 둔 직원도 새 첫 화면으로 이어 준다 */}
+            <Route path="reception/*" element={<Navigate to={`${ROOT}/nursing`} replace />} />
             {DEPTS.map((d) => deptRoutes(d.key))}
           </Route>
           <Route path={`${ROOT}/*`} element={<HomeRedirect />} />

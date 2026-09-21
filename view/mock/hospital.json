@@ -2442,5 +2442,29 @@
     ]
   },
   "POST /api/v1/hospital/followups/new": { "ok": true },
-  "PATCH /api/v1/hospital/followups/{id}/call": { "ok": true }
+  "PATCH /api/v1/hospital/followups/{id}/call": { "ok": true },
+
+  "GET /api/v1/hospital/notifications/": {
+    "items": [
+      {
+        "notification_id": 7103,
+        "message": "김민지 환자의 검사 결과가 확정되었습니다.",
+        "sent_at": "2026-09-21T10:25:00+09:00",
+        "acknowledged_at": null
+      },
+      {
+        "notification_id": 7102,
+        "message": "오늘 예약 환자 2명이 접수 대기 중입니다.",
+        "sent_at": "2026-09-21T09:10:00+09:00",
+        "acknowledged_at": null
+      },
+      {
+        "notification_id": 7101,
+        "message": "어제 처리한 검체의 병리 결과가 등록되었습니다.",
+        "sent_at": "2026-09-20T16:40:00+09:00",
+        "acknowledged_at": "2026-09-20T17:03:00+09:00"
+      }
+    ]
+  },
+  "PATCH /api/v1/hospital/notifications/{id}/": { "ok": true }
 }

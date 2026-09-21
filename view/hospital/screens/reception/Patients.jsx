@@ -8,6 +8,8 @@ import { useApi } from "../../lib/useApi";
 import { can } from "../../perm";
 import { MODALITY, SEX, label, modality as asModality } from "../../codes";
 
+const permitted = (key, integrated) => can(integrated ? [key, "nursing.waiting.view"] : key);
+
 /* 원무 3장 — 환자 목록 · 예약
  * ════════════════════════════════════════════════════════════════
  *
@@ -29,7 +31,7 @@ import { MODALITY, SEX, label, modality as asModality } from "../../codes";
  * 읽으면 고친 값이 되돌아간다. 첫 값으로만 쓴다.
  */
 
-export default function Patients() {
+export default function Patients({ integrated = false }) {
   const [sp] = useSearchParams();
   const fromCalendar = sp.get("date") ?? "";
 
@@ -54,7 +56,7 @@ export default function Patients() {
 
   return (
     <Page
-      crumb={["원무과", "환자 목록"]}
+      crumb={[integrated ? "간호과" : "원무과", "환자 목록"]}
       title="환자 목록 · 예약"
     >
       <div className="split wide">
@@ -80,7 +82,7 @@ export default function Patients() {
                     rows={rows.map((r) => row(r, {
                       onReserve: () => { setPick(r.patient_id); setReserveFor(r.patient_id); },
                       onOpen: () => setPick(r.patient_id),
-                    }))}
+                    }, integrated))}
                     value={pick}
                     onPick={setPick}
                   />
@@ -96,10 +98,11 @@ export default function Patients() {
               {/* key 를 주면 환자가 바뀔 때 상세가 새로 선다 — 앞사람의
                   고치던 값이 다음 사람 칸에 남지 않는다 */}
               <Detail key={chosen.patient_id} patient={chosen} onSaved={list.reload}
-                      onReserve={() => setReserveFor(chosen.patient_id)} />
+                      onReserve={() => setReserveFor(chosen.patient_id)} integrated={integrated} />
+              <ReservationHistory key={`history-${chosen.patient_id}`} patient={chosen} />
               {reserveFor === chosen.patient_id && (
                 <Reserve key={chosen.patient_id} patient={chosen} firstDate={fromCalendar}
-                         onClose={() => setReserveFor(null)} />
+                         onClose={() => setReserveFor(null)} integrated={integrated} />
               )}
             </>
           ) : (
@@ -141,15 +144,27 @@ function filter(rows, only) {
 }
 
 
-/* 나이는 출생연도로 센다. 서버 목록이 birth_year 만 주기 때문이다 —
-   생일이 지났는지는 모르므로 «만 나이»가 아니라 연 나이다 */
+/* 생년월일이 있으면 기준일에 맞춘 만 나이를, 없으면 기존 출생연도
+   정보로 계산한 연 나이를 쓴다. 예약 목록과 상세의 나이가 어긋나지
+   않도록 한 곳에서 계산한다. */
 function ageOf(r) {
   if (r.age != null) return r.age;
+  const birthDate = r.pii?.birth_date ?? r.birth_date ?? null;
+  if (birthDate) {
+    const birth = new Date(`${String(birthDate).slice(0, 10)}T00:00:00`);
+    if (!Number.isNaN(birth.getTime())) {
+      const today = new Date();
+      let age = today.getFullYear() - birth.getFullYear();
+      const beforeBirthday = today.getMonth() < birth.getMonth()
+        || (today.getMonth() === birth.getMonth() && today.getDate() < birth.getDate());
+      return age - Number(beforeBirthday);
+    }
+  }
   if (!r.birth_year) return null;
   return new Date().getFullYear() - r.birth_year;
 }
 
-function row(r, { onReserve, onOpen }) {
+function row(r, { onReserve, onOpen }, integrated) {
   const age = ageOf(r);
   return {
     id: r.patient_id,
@@ -165,7 +180,7 @@ function row(r, { onReserve, onOpen }) {
       <span className="rowacts">
         <Btn onClick={(e) => { e.stopPropagation(); onOpen(); }}>상세보기</Btn>
         <Btn kind="fill" onClick={(e) => { e.stopPropagation(); onReserve(); }}
-             disabled={!can("reception.reserve")}>예약</Btn>
+             disabled={!permitted("reception.reserve", integrated)}>예약</Btn>
       </span>
     ),
   };
@@ -178,7 +193,7 @@ function row(r, { onReserve, onOpen }) {
      PATCH /patients/{id} 가 쓰는 PatientSerializer 는 patient 표만 다룬다
      (상세의 pii 는 읽기 전용). 칸을 만들어 두면 저장해도 조용히 안 바뀐다 —
      그래서 아예 «읽기»로 보여준다. */
-function Detail({ patient, onSaved, onReserve }) {
+function Detail({ patient, onSaved, onReserve, integrated }) {
   /* **고친 칸만 들고 있는다.** 서버 값을 통째로 state 에 복사해 두면 그것을
      언제 다시 세울지(효과·의존성)를 계속 맞춰야 하고, 저장 후 새로 받은
      값과 어긋나기 쉽다. 그리는 순간에 «서버 값 + 내가 고친 것»을 겹친다 */
@@ -193,7 +208,6 @@ function Detail({ patient, onSaved, onReserve }) {
      목록 값으로 세우면 저장할 때 메모를 빈 값으로 덮어쓴다 */
   const form = full.data && {
     sex: full.data.sex ?? "",
-    birth_year: full.data.birth_year ?? "",
     has_allergy: full.data.has_allergy === true,
     allergy_note: full.data.allergy_note ?? "",
     ...edited,
@@ -207,7 +221,6 @@ function Detail({ patient, onSaved, onReserve }) {
     try {
       await api.update(patient.patient_id, {
         sex: form.sex || null,
-        birth_year: form.birth_year === "" ? null : Number(form.birth_year),
         has_allergy: form.has_allergy,
         allergy_note: form.has_allergy ? form.allergy_note : "",
       });
@@ -228,20 +241,19 @@ function Detail({ patient, onSaved, onReserve }) {
     <Card
       title="환자 정보"
       right={<Btn kind="fill" onClick={onReserve}
-                  disabled={!can("reception.reserve")}>예약</Btn>}
+                  disabled={!permitted("reception.reserve", integrated)}>예약</Btn>}
     >
       <Body loading={full.loading} error={full.error} onRetry={full.reload}>
         {full.data && form && (
           <>
-            <dl className="kv">
-              <dt>환자번호</dt><dd className="num">{full.data.patient_number}</dd>
-              <dt>이름</dt><dd>{full.data.pii?.name ?? "—"}</dd>
-              <dt>생년월일</dt><dd className="num">{full.data.pii?.birth_date ?? "—"}</dd>
-              <dt>전화번호</dt><dd className="num">{full.data.pii?.phone ?? "—"}</dd>
+            <dl className="kv patient-facts">
+              <dt>환자번호</dt><dd className="num">{full.data.patient_number ?? patient.patient_number ?? "—"}</dd>
+              <dt>이름</dt><dd>{full.data.pii?.name ?? full.data.name ?? patient.name ?? "—"}</dd>
+              <dt>생년월일</dt><dd className="num">{full.data.pii?.birth_date ?? full.data.birth_date ?? "—"}</dd>
+              <dt>전화번호</dt><dd className="num">{full.data.pii?.phone ?? full.data.phone ?? "—"}</dd>
+              <dt>내원 구분</dt><dd>{full.data.first_visited_at ? "재진" : "초진"}</dd>
             </dl>
-            <Warn>이름 · 생년월일 · 전화는 이 화면에서 고칠 수 없습니다.</Warn>
-
-            <div className="fields">
+            <div className="fields one">
               <label className="field">
                 <span>성별</span>
                 <select value={form.sex} onChange={(e) => set("sex", e.target.value)}
@@ -250,11 +262,6 @@ function Detail({ patient, onSaved, onReserve }) {
                   <option value="female">여</option>
                   <option value="male">남</option>
                 </select>
-              </label>
-              <label className="field">
-                <span>출생연도</span>
-                <input inputMode="numeric" value={form.birth_year} disabled={busy}
-                       onChange={(e) => set("birth_year", e.target.value.replace(/\D/g, ""))} />
               </label>
             </div>
 
@@ -273,7 +280,7 @@ function Detail({ patient, onSaved, onReserve }) {
 
             <div className="save-b">
               <Btn kind="fill" onClick={save}
-                   disabled={busy || !can("reception.patient.edit")}>
+                   disabled={busy || !permitted("reception.patient.edit", integrated)}>
                 {busy ? "저장하는 중…" : "저장"}
               </Btn>
             </div>
@@ -282,6 +289,36 @@ function Detail({ patient, onSaved, onReserve }) {
             {error && <Failed error={error} />}
           </>
         )}
+      </Body>
+    </Card>
+  );
+}
+
+/* 예약을 새로 잡기 전에도 이 환자에게 이미 확정된 약속을 한눈에 본다.
+   예약 입력 카드와 분리해야 담당자가 기존 일정을 확인한 뒤 새 예약을
+   판단할 수 있다. */
+function ReservationHistory({ patient }) {
+  const orders = useApi(() => api.ordersOf(patient.patient_id), [patient.patient_id]);
+  const rows = (orders.data ?? []).filter((order) => order.order_status !== "cancelled");
+
+  return (
+    <Card title="환자 예약 기록">
+      <Body loading={orders.loading} error={orders.error} onRetry={orders.reload}>
+        {orders.data && (rows.length ? (
+          <Table
+            cols={[
+              { key: "when", label: "예약 일시" },
+              { key: "status", label: "상태", w: "28%" },
+            ]}
+            rows={rows.map((order) => ({
+              id: order.exam_order_id,
+              when: order.scheduled_at
+                ? <span className="num">{dayOf(order.scheduled_at)} {timeOf(order.scheduled_at)}</span>
+                : "일시 미정",
+              status: order.order_status ?? "—",
+            }))}
+          />
+        ) : <p className="hint">확정된 예약 기록이 없습니다.</p>)}
       </Body>
     </Card>
   );
@@ -301,7 +338,7 @@ const timeOf = (s) => (s ? s.slice(11, 16) : "");
  * ⚠ **시간대 정원은 보지 않는다.** 검사마다 걸리는 시간이 달라서 «몇 건»으로
  *   자리를 세면 틀린 답이 나온다.
  */
-function Reserve({ patient, firstDate, onClose }) {
+function Reserve({ patient, firstDate, onClose, integrated }) {
   const [date, setDate] = useState(firstDate || "");
   const [time, setTime] = useState("09:00");
   const [busy, setBusy] = useState(false);
@@ -356,7 +393,7 @@ function Reserve({ patient, firstDate, onClose }) {
           <dd>{patient.name ?? "—"} · <span className="num">{patient.patient_number}</span></dd>
         </dl>
 
-        <div className="fields">
+        <div className="fields appointment-fields">
           <label className="field">
             <span>날짜</span>
             <input type="date" value={date} disabled={busy}
@@ -390,7 +427,7 @@ function Reserve({ patient, firstDate, onClose }) {
 
         <div className="save-b">
           <Btn kind="fill" type="submit"
-               disabled={!date || !time || busy || !can("reception.reserve")}>
+               disabled={!date || !time || busy || !permitted("reception.reserve", integrated)}>
             {busy ? "예약하는 중…" : "예약 완료"}
           </Btn>
         </div>

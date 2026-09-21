@@ -51,11 +51,11 @@ const SEGMENTATION_ID = "dicomMprSegmentation";
 const TOOLS = [
   { key: "crosshairs", label: "탐색", toolName: "Crosshairs" },
   { key: "length", label: "길이 측정", toolName: "Length" },
-  { key: "rect", label: "사각형 ROI", toolName: "RectangleROI" },
+  { key: "rect", label: "박스 그리기", toolName: "RectangleROI" },
   { key: "brush", label: "마스크", toolName: "Brush" },
 ];
 
-export default function DicomMprPanel({ manifestUrl, baseUrl, mode = "diagnostic" }) {
+export default function DicomMprPanel({ manifestUrl, baseUrl, mode = "diagnostic", onAnnotation }) {
   const isReview = mode === "review";
   const axialRef = useRef(null);
   const coronalRef = useRef(null);
@@ -64,6 +64,18 @@ export default function DicomMprPanel({ manifestUrl, baseUrl, mode = "diagnostic
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState(null);
   const [activeTool, setActiveTool] = useState("crosshairs");
+
+  useEffect(() => {
+    if (!onAnnotation || mode === "review") return;
+    const done = (event) => {
+      const annotation = event.detail?.annotation;
+      const tool = annotation?.metadata?.toolName;
+      if (tool !== "Length" && tool !== "RectangleROI") return;
+      onAnnotation({ kind: tool === "Length" ? "length" : "rect", handles: annotation.data?.handles?.points ?? [] });
+    };
+    cornerstone.eventTarget.addEventListener(cornerstoneTools.Enums.Events.ANNOTATION_COMPLETED, done);
+    return () => cornerstone.eventTarget.removeEventListener(cornerstoneTools.Enums.Events.ANNOTATION_COMPLETED, done);
+  }, [mode, onAnnotation]);
 
   useEffect(() => {
     if (!manifestUrl || !baseUrl) {

@@ -253,6 +253,7 @@ const get   = (p)    => call("GET", p);
 const post  = (p, b) => call("POST", p, b);
 const put   = (p, b) => call("PUT", p, b);
 const patch = (p, b) => call("PATCH", p, b);
+const del   = (p)    => call("DELETE", p);
 
 function qs(o = {}) {
   const e = Object.entries(o).filter(([, v]) => v !== undefined && v !== null && v !== "");
@@ -289,6 +290,21 @@ export const login = (loginId, password) =>
  */
 export const me = () => get("/me");
 export const updateMe = (b) => put("/me", b);
+
+/* 직원·환자 공용 알림. router 목록은 서버 설정에 따라 배열 또는
+   {count, results}로 올 수 있어 화면에는 항상 배열만 넘긴다. */
+export const notifications = () => get("/notifications/").then(unwrapList);
+export const acknowledgeNotification = (id) =>
+  patch(`/notifications/${id}/`, { acknowledged: true });
+
+/* 로그인한 사람만 보는 개인 메모. 할 일과 스티키 메모는 저장 방식만
+   다를 뿐 같은 API를 쓰므로 여기 하나로 모은다. */
+export const notes = {
+  list:   (type) => get(`/me/notes${qs({ type })}`).then(unwrapList),
+  create: (type, content) => post(`/me/notes${qs({ type })}`, { content }),
+  update: (id, content) => patch(`/me/notes/${id}`, { content }),
+  remove: (id) => del(`/me/notes/${id}`),
+};
 
 /* ── 관리자 화면 열기 ─────────────────────────────────────────
  *
@@ -376,6 +392,8 @@ async function pathSpecimenRow(raw = {}) {
     sex: patient?.sex ?? "",
     patient_no: patient?.patient_number ?? "",
     birth: patient?.birth_date ?? null,
+    phone: patient?.phone ?? null,
+    allergy: patient?.has_allergy ? (patient.allergy_note || "있음") : "없음",
     specimen_no: raw.specimen_label ?? raw.specimen_no,
     kind: raw.specimen_type ?? raw.kind,
     method: raw.guidance_route ?? raw.method,
@@ -461,6 +479,7 @@ const RAD = "/radiology";
 function radPatient(source = {}, order = {}) {
   const patientId = source.patient_id ?? source.patient ?? order.patient_id ?? order.patient;
   return {
+    id: patientId ?? null,
     name: source.patient_name ?? order.patient_name ?? source.patient?.name
       ?? order.patient?.name ?? (patientId == null ? "" : `환자 #${patientId}`),
     age: source.age ?? order.age ?? source.patient?.age ?? order.patient?.age ?? null,
@@ -479,6 +498,7 @@ function radOrderRow(raw = {}) {
   return {
     ...raw,
     id: raw.exam_order_id ?? raw.id,
+    patient_id: patient.id,
     patient_name: patient.name,
     patient_no: patient.no,
     age: patient.age,
@@ -538,14 +558,49 @@ function radSeries(files = []) {
 
 function radAi(raw, modality) {
   if (!raw) return null;
-  const result = raw.result && typeof raw.result === "object" ? raw.result : raw;
+  /* AiResult.result 는 추론 서버의 응답 봉투다.
+     { result: { ...실제 판독값 } } 형태를 한 겹만 벗기면 봉투를 AI
+     소견 컴포넌트에 넘기게 되고, summary·lesions·lesion_found가 전부
+     undefined라 분석이 끝나도 화면이 비어 보인다. 실데이터와 목업 모두
+     받도록 안쪽 판독값까지 안전하게 꺼낸다. */
+  const envelope = raw.result && typeof raw.result === "object" ? raw.result : raw;
+  const result = envelope.result && typeof envelope.result === "object"
+    ? envelope.result
+    : envelope;
+  const shape = result.shape ?? {};
+  const grade = result.grade ?? {};
+  const reliability = result.mask_reliability ?? {};
   return {
     ...result,
-    modality: result.modality ?? modality,
-    abstained: result.abstained ?? raw.abstained,
-    abstain_reason: result.abstain_reason ?? raw.abstain_reason,
-    run_status: raw.run_status ?? result.run_status,
-    ai_result_id: raw.ai_result_id ?? result.ai_result_id,
+    modality: result.modality ?? envelope.modality ?? modality,
+    abstained: result.abstained ?? envelope.abstained ?? raw.abstained,
+    abstain_reason: result.abstain_reason ?? envelope.reason ?? envelope.abstain_reason ?? raw.abstain_reason,
+    run_status: raw.run_status ?? envelope.run_status ?? result.run_status,
+    ai_result_id: raw.ai_result_id ?? envelope.ai_result_id ?? result.ai_result_id,
+
+    /* 초음파 서빙 값은 화면 표기명과 조금 다르다. 원본 키도 보존하면서
+       화면에서 쓰는 별칭을 붙여 두면 AI 소견과 영상 위 윤곽이 함께 나온다. */
+    category: result.category ?? grade.display,
+    category_confidence: result.category_confidence ?? grade.confidence,
+    mask_confidence: result.mask_confidence ?? reliability.level,
+    orientation: result.orientation ?? result.orientation_label,
+    polygon: result.polygon ?? result.polygons,
+    /* MRI는 병변 배열을 tumor 안에 넣어 보낸다. 공통 AI 패널이 같은
+       lesions 칸을 보도록 펼쳐 두되, 좌표가 없는 결과를 2D 오버레이로
+       꾸며 내지는 않는다. */
+    lesions: result.lesions ?? result.tumor?.lesions ?? [],
+    density: result.density && {
+      ...result.density,
+      percent: result.density.percent ?? result.density.dense_density_pct,
+    },
+    shape: {
+      ...shape,
+      area: shape.area ?? shape.area_px,
+      max_diameter: shape.max_diameter ?? shape.max_diameter_px,
+      aspect_ratio: shape.aspect_ratio ?? shape.height_width_ratio,
+      convexity: shape.convexity ?? shape.solidity,
+      roughness: shape.roughness ?? shape.boundary_irregularity,
+    },
   };
 }
 
@@ -560,6 +615,7 @@ function radStudyRow(raw = {}, order = {}, assessment = null) {
     ...raw,
     id: studyId,
     study_id: studyId,
+    patient_id: patient.id,
     patient_name: patient.name,
     patient_no: patient.no,
     age: patient.age,
@@ -638,22 +694,18 @@ export const rad = {
      병리와 같은 사정인데 값이 다르다 — 영상은 status=ordered 다.
      안 담으면 이미 촬영·배정이 끝난 건까지 대기 큐에 섞인다.
 
-     경로는 **서버 코드로 확정했다** — /exam-orders/queue 도 /radiology/queue
-     도 아니고, 걸러 낸 목록이다.
-
-       core/urls.py   path("exam-orders", ExamOrderQueueView)
-       그 뷰 독스트링  GET /exam-orders?status=ordered&assigned=none
-
-     큐는 결국 「거른 목록」이라 따로 경로를 두지 않는다. /ai-results?study=
-     · /assessments?study= 도 같은 모양이다. */
+     일반 `/exam-orders` 목록은 `assigned=none` 필터를 처리하지 않는다.
+     그러면 이미 다른 영상의학과 선생님이 맡은 오더까지 섞이고, 선두를
+     받을 때마다 409 ALREADY_ASSIGNED가 난다. 배정되지 않은 촬영 오더만
+     거르는 전용 경로 `/radiology/queue`를 써야 한다. */
   /* ⚠ 봉투 언랩 — Queue.jsx 가 {items,total}을 기대한다. 행마다
      radOrderRow 로 patient_name·age·sex 등을 만들어 얹는다. */
-  queue:      ()       => get(`/exam-orders${qs({ status: "ordered", assigned: "none" })}`)
+  queue:      ()       => get(`${RAD}/queue${qs({ status: "ordered", assigned: "none" })}`)
     .then((raw) => {
       const rows = raw?.results ?? raw?.items ?? (Array.isArray(raw) ? raw : []);
       return { ...raw, items: rows.map(radOrderRow), total: raw?.count ?? raw?.total ?? rows.length };
     }),
-  order:      (id)     => get(`/exam-orders/${id}`).then(radOrderRow),
+  order:      async (id) => radWithPatient(radOrderRow(await get(`/exam-orders/${id}`))),
   assign:     (id)     => patch(`/exam-orders/${id}/assign`),
 
   /* ⚠ **Study 를 만드는 유일한 경로다** (2026-09-16 확인).
@@ -677,7 +729,7 @@ export const rad = {
   complete:   (id)     => patch(`/exam-orders/${id}/complete`),
   analyze:    (id)     => post(`/studies/${id}/ai-results`),
   progress:   (id)     => get(`/ai-results${qs({ study: id })}`),
-  retake:     (b)      => post("/exam-orders", b),
+  retake:     (id)     => post(`/exam-orders/${id}/retake`),
 
   /* ⚠ withFiles(dept/radiology.jsx)가 series에 파일 주소를 얹는 것과
      별개로, 여기서 patient/unit/ai 자체를 못 만들면 화면이 첫 줄에서
@@ -686,7 +738,24 @@ export const rad = {
   read:       async (id) => {
     const raw = await get(`${RAD}/studies/${id}/read`);
     const upload = await rad.uploadInfo(id);
-    return radRead(raw, upload, upload.order ?? {});
+    const result = radRead(raw, upload, upload.order ?? {});
+    const patientId = result.patient?.id;
+    const patient = patientId == null ? null
+      : await get(`/patients/${patientId}/`).then(normalizePatient).catch(() => null);
+    return patient == null ? result : {
+      ...result,
+      patient: {
+        ...result.patient,
+        id: patientId,
+        name: patient.name || result.patient.name,
+        age: patient.age ?? result.patient.age,
+        sex: patient.sex || result.patient.sex,
+        no: patient.patient_number || result.patient.no,
+        birth_date: patient.birth_date ?? null,
+        phone: patient.phone ?? null,
+        contrast_allergy: patient.has_allergy ? (patient.allergy_note || "있음") : null,
+      },
+    };
   },
   draft:      (id, b)  => put(`/studies/${id}/assessment/draft`, b),
   finalize:   (id, b)  => patch(`/studies/${id}/finalize`, b),
@@ -714,7 +783,7 @@ export const rad = {
       raw?.exam_order ? rad.order(raw.exam_order).catch(() => ({})) : Promise.resolve({}),
       radCurrentAssessment(id),
     ]);
-    return radStudyRow(raw, order, current);
+    return radWithPatient(radStudyRow(raw, order, current));
   },
   /* ⚠ 서버가 페이지네이션 봉투({count,results,…})로 준다. List.jsx 는
      {items,total}을 기대한다(data.items.filter · data.total) — 병리·영상
@@ -753,6 +822,9 @@ export const specimens = {
      /lesions?patient=… 형식이며, /lesions/?…는 별도 경로로 처리돼
      검체 바인딩 팝업의 병변 목록이 404가 났다. */
   lesionsByPatient: (pid) => get(`/lesions${qs({ patient: pid })}`),
+  /* 현재 서버의 specimens 목록은 patient 필터를 아직 받지 않는다. 유방외과
+     워크플로 안내에서는 응답을 받은 뒤 해당 환자 것만 골라 쓴다. */
+  list: () => get("/specimens").then(unwrapList),
   bind: (b) => post("/specimens/", b),
 };
 
@@ -781,13 +853,49 @@ export const specimens = {
 function normalizePatient(p) {
   if (!p) return p;
   const { pii, ...rest } = p;
+  const birthDate = pii?.birth_date ?? rest.birth_date ?? null;
   return {
     ...rest,
     name:       pii?.name ?? rest.name ?? null,
-    birth_date: pii?.birth_date ?? rest.birth_date ?? null,
+    birth_date: birthDate,
     phone:      pii?.phone ?? rest.phone ?? null,
-    age:        rest.age ?? (rest.birth_year ? new Date().getFullYear() - rest.birth_year : null),
+    age:        rest.age ?? ageFromBirthDate(birthDate)
+      ?? (rest.birth_year ? new Date().getFullYear() - rest.birth_year : null),
   };
+}
+
+/* 대기·목록은 가볍게 유지하되, 상세를 열었을 때만 환자 원본을 보완한다.
+   ExamOrder/Study 응답에는 생년월일·연락처가 없기 때문이다. */
+async function radWithPatient(row) {
+  const patientId = row?.patient_id ?? row?.patient;
+  if (patientId == null) return row;
+  const patient = await get(`/patients/${patientId}/`).then(normalizePatient).catch(() => null);
+  if (!patient) return row;
+  return {
+    ...row,
+    patient_id: patientId,
+    patient_name: patient.name || row.patient_name,
+    patient_no: patient.patient_number || row.patient_no,
+    age: patient.age ?? row.age,
+    sex: patient.sex || row.sex,
+    birth_date: patient.birth_date ?? null,
+    phone: patient.phone ?? null,
+    contrast_allergy: patient.has_allergy ? (patient.allergy_note || "있음") : null,
+  };
+}
+
+/* 서버는 생년월일을 pii.birth_date 로 준다. 연도만 빼면 생일 전인 환자가
+   한 살 크게 보이므로, 오늘 날짜와 월·일까지 비교한다. */
+function ageFromBirthDate(value) {
+  if (!value) return null;
+  const birth = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(birth.getTime())) return null;
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  const beforeBirthday = today.getMonth() < birth.getMonth()
+    || (today.getMonth() === birth.getMonth() && today.getDate() < birth.getDate());
+  if (beforeBirthday) age -= 1;
+  return age >= 0 ? age : null;
 }
 
 export const breast = {
@@ -809,7 +917,37 @@ export const breast = {
       const rows = raw?.results ?? raw?.items ?? (Array.isArray(raw) ? raw : []);
       return rows.map(normalizePatient);
     }),
-  patient:      (id) => get(`/patients/${id}/`).then(normalizePatient),
+  /* 환자 상세 응답에는 report가 포함되지 않는다. 유방외과 검토·결정 화면은
+     리포트를 함께 쓰므로 목록을 별도로 받아 최신 종합 리포트를 붙인다.
+     아직 리포트가 없는 환자는 null로 두고 화면이 안내 상태를 보여 준다. */
+  patient:      async (id) => {
+    const [rawPatient, reports, orders] = await Promise.all([
+      get(`/patients/${id}/`),
+      get(`/reports${qs({ patient: id })}`).then(unwrapList).catch(() => []),
+      breast.ordersOf(id).catch(() => []),
+    ]);
+    const patient = normalizePatient(rawPatient);
+    const currentOrder = orders.find((row) => row.visited_at && !["completed", "cancelled"].includes(row.order_status))
+      ?? orders.find((row) => row.visited_at)
+      ?? orders.at(-1)
+      ?? null;
+    const report = patient?.report
+      ?? reports.find((row) => row.report_type === "final")
+      ?? reports.at(-1)
+      ?? null;
+    return {
+      ...patient,
+      report,
+      current_order: currentOrder,
+      visit_type: currentOrder?.visit_type ?? null,
+      visit_purpose: currentOrder?.exam_purpose ?? null,
+      intake_note: currentOrder?.order_note ?? null,
+      questionnaire: currentOrder?.questionnaire ?? patient?.questionnaire ?? null,
+      allergy: patient?.has_allergy ? (patient.allergy_note || "있음") : "없음",
+    };
+  },
+  reports:      (patientId) => get(`/reports${qs({ patient: patientId })}`).then(unwrapList),
+  finalReport:  (body) => post("/reports/final", body),
   examOrder:    (b)  => post("/exam-orders", b),
 
   /* "이상 없음 · 종결" — 촬영 없이 방문을 닫는다. exam_order 를 새로 만들지
@@ -823,12 +961,29 @@ export const breast = {
    * completed 로 바뀐다. exam_purpose 는 그대로 NULL로 남고(집계 안
    * 잡힘), "촬영 후 종결"과 "안 찍고 종결"도 completed 하나로 안 갈린다.
    * 둘 다 팀이 합의한 알려진 한계다 — 나중 과제로 미뤘다. */
-  ordersOf:        (patientId) => get(`/exam-orders${qs({ patient: patientId, ordering: "scheduled_at" })}`),
+  /* 실서버는 목록을 { count, results } 봉투로 감싼다. 목업의 배열과
+     모양이 달라 종결 팝업에서 .filter 오류가 나던 자리다. */
+  ordersOf:        (patientId) => get(`/exam-orders${qs({ patient: patientId, ordering: "scheduled_at" })}`).then(unwrapList),
   completeExamOrder: (examOrderId) => patch(`/exam-orders/${examOrderId}/complete`, {}),
 
   /* 2장 · 검사 종합 확인 */
   timeline:     (pid) => get(`/patients/${pid}/timeline`),
   studies:      (pid) => get(`/patients/${pid}/studies`),
+
+  /* 유방외과 진료를 열기 전 다음 단계를 판단할 최소 이력. 서버에 별도
+     workflow API가 없어서, 이미 있는 검사·오더·검체 조회를 한 번에 묶는다. */
+  workflow: async (pid) => {
+    const [studiesRaw, orders, specimenRows] = await Promise.all([
+      get(`/patients/${pid}/studies`),
+      breast.ordersOf(pid),
+      specimens.list(),
+    ]);
+    return {
+      studies: unwrapList(studiesRaw),
+      orders,
+      specimens: specimenRows.filter((row) => Number(row.patient_id ?? row.patient) === Number(pid)),
+    };
+  },
 
   /* 3장 · 수술 결정
    *
@@ -844,6 +999,8 @@ export const breast = {
   explain:      (rid, b) => patch(`/reports/${rid}/explain`, b),
   unlockStatus: (rid) => get(`/reports/${rid}/unlock-status`),
   unlock:       (rid) => patch(`/reports/${rid}/unlock`, {}),
+  prescriptions: (patientId) => get(`/patients/${patientId}/prescriptions`).then(unwrapList),
+  prescribe:     (patientId, body) => post(`/patients/${patientId}/prescriptions`, body),
 
   /* 4장 · 판정 불일치 처분 */
   discordance:  (id) => get(`/discordances/${id}`),

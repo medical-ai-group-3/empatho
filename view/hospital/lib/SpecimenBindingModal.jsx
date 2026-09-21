@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { specimens } from "../api";
 import { useApi } from "./useApi";
-import { Body } from "./Body";
-import { Facts, Table } from "./Parts";
+import { Facts } from "./Parts";
 import { SEX, label } from "../codes";
 
 /* 검체 바인딩 팝업 — 간호과·유방외과 공용 컴포넌트(간호과 명세 §2-4:
@@ -16,8 +15,9 @@ import { SEX, label } from "../codes";
  *   hospital.css 공용 .modal-* 클래스로 다시 짰다.
  *
  * 필드명은 간호과 명세 §3 DB 컬럼 그대로 — specimen_label(UK) ·
- * specimen_type · guidance_route · collected_at. 표적 병변 선택은
- * lesion_id NOT NULL(Hard Stop)이라 필수다. */
+ * specimen_type · guidance_route · collected_at. 표적 병변은 DB의
+ * lesion_id NOT NULL(Hard Stop)이라 필수다. 실서버에 병변 목록 조회가
+ * 아직 없으므로, 목록 선택 대신 병변 번호를 직접 적을 수 있게 둔다. */
 /* 서버 enum: ["core_needle", "surgical"] — specimen.specimen_type 에 CHECK 이
    걸려 있어 이 둘 말고는 저장이 거부된다.
 
@@ -46,7 +46,7 @@ export default function SpecimenBindingModal({ patient, onClose, onDone }) {
     useApi(() => specimens.lesionsByPatient(patient.patient_id), [patient.patient_id]);
   const lesions = (data?.items ?? []).filter((l) => l.patient_id === patient.patient_id);
 
-  const [lesionId, setLesionId] = useState(null);
+  const [lesionId, setLesionId] = useState("");
   /* codes.js의 label()을 가리지 않게 검체 라벨 상태는 별도 이름을 쓴다.
      같은 이름이면 첫 렌더에서 성별 표기를 만들 때 문자열을 함수처럼
      호출하게 되어 팝업 자체가 열리지 않는다. */
@@ -58,13 +58,17 @@ export default function SpecimenBindingModal({ patient, onClose, onDone }) {
   const [saveError, setSaveError] = useState(null);
 
   async function save() {
-    if (!lesionId) { setSaveError("표적 병변을 선택해 주세요"); return; }
+    const numericLesionId = Number(lesionId);
+    if (!Number.isInteger(numericLesionId) || numericLesionId <= 0) {
+      setSaveError("표적 병변 번호를 입력해 주세요");
+      return;
+    }
     setSaving(true);
     setSaveError(null);
     try {
       await specimens.bind({
         patient_id: patient.patient_id,
-        lesion_id: lesionId,
+        lesion_id: numericLesionId,
         specimen_label: specimenLabel,
         specimen_type: type,
         guidance_route: guide,
@@ -91,26 +95,28 @@ export default function SpecimenBindingModal({ patient, onClose, onDone }) {
             ["환자번호", patient.patient_number],
           ]} />
 
-          <div>
-            <p className="muted small" style={{ marginBottom: 8 }}>표적 병변 선택 (필수)</p>
-            <Body loading={loading} error={error} onRetry={reload}>
-              <Table
-                cols={[
-                  { key: "site", label: "위치" },
-                  { key: "size", label: "크기" },
-                  { key: "birads", label: "BI-RADS" },
-                ]}
-                rows={lesions.map((l) => ({
-                  id: l.lesion_id,
-                  site: l.site,
-                  size: `${l.size_mm}mm`,
-                  birads: l.birads ?? "—",
-                }))}
-                value={lesionId}
-                onPick={setLesionId}
-              />
-            </Body>
-          </div>
+          <label className="field">
+            <span>표적 병변 번호 (필수)</span>
+            <input type="number" min="1" inputMode="numeric" list="known-lesions"
+              value={lesionId} onChange={(e) => setLesionId(e.target.value)}
+              placeholder="병변 번호를 직접 입력" />
+            {lesions.length > 0 && (
+              <datalist id="known-lesions">
+                {lesions.map((l) => (
+                  <option key={l.lesion_id} value={l.lesion_id}>
+                    {`${l.site ?? "위치 미상"} · ${l.size_mm ?? "—"}mm`}
+                  </option>
+                ))}
+              </datalist>
+            )}
+            <small className="hint">
+              {loading
+                ? "등록된 병변을 불러오는 중입니다. 번호를 직접 입력해도 됩니다."
+                : error
+                  ? "병변 목록을 불러오지 못했습니다. 표적 병변 번호를 직접 입력해 등록하세요."
+                  : "병변 번호를 입력하면 해당 병변에 검체가 연결됩니다."}
+            </small>
+          </label>
 
           <div className="fields">
             <label className="field">
