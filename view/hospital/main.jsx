@@ -34,7 +34,7 @@ import AmendScreen from "./screens/Amend";
 import MeScreen from "./screens/Me";
 import ReceptionIntake from "./screens/reception/Intake";
 import ReceptionPatients from "./screens/reception/Patients";
-import ReceptionRequests from "./screens/reception/Requests";
+import ReceptionReservations from "./screens/reception/Reservations";
 import AdminConsole from "./screens/admin/Console";
 
 /* 유방외과 — 병리·영상과 화면 구성이 달라 자기 화면을 직접 들고 온다.
@@ -120,7 +120,10 @@ function Shell() {
   }, []);
 
   return (
-    <div className="shell">
+    /* 목업 띠가 깔리면 화면 바닥을 그만큼 덜 쓴다. 뷰포트에 딱 맞춰
+       높이를 재는 화면(홈 · 예약 판)이 그 띠 밑으로 깔리면 마지막 줄을
+       못 누른다 — 띠는 sticky 라 그 위에 뜬다 */
+    <div className={`shell${apiInfo.mock ? " has-mockbar" : ""}`}>
       <Top dept={d} now={now} />
       <Boom>
         {/* lazy 로 미룬 화면(유방외과)이 오는 동안 자리를 지킨다.
@@ -259,7 +262,7 @@ const SCREENS = {
      어디서 왔는지**를 말하는 것뿐이고, 과는 nursing 하나다 */
   "reception.intake":   ReceptionIntake,
   "reception.patients": ReceptionPatients,
-  "reception.requests": ReceptionRequests,
+  "reception.reservations": ReceptionReservations,
 
   /* 관리자. 화면은 하나고 Django admin 으로 넘기는 자리다 */
   "admin.console":      AdminConsole,

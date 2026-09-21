@@ -243,7 +243,7 @@ input,select,textarea{font:inherit; color:inherit}
 
    ⚠ **경과 시간을 안 쓴다.** 목업에 「평균 대기 23분」 「(38′)」 이 있지만
      서버가 그 값을 주지 않는다. 요청 시각만 적는다. */
-.page.home{height:calc(100vh - var(--top-total)); overflow:hidden;
+.page.home{height:calc(100vh - var(--top-total) - var(--foot-h)); overflow:hidden;
   padding:var(--home-pad); gap:var(--home-gap)}
 
 /* 남는 자리를 먹어 오른쪽 것을 끝으로 민다. 머리 줄 · 최근 줄 · 칸 머리가
@@ -481,6 +481,152 @@ a.srow:hover{background:var(--canvas)}
 .btn.dark:hover{filter:brightness(1.35)}
 .btn.sm{padding:var(--gap-xs) var(--chip-pad-x); font-size:var(--chip-fs)}
 
+
+
+/* ── 예약 판 (screens/reception/Reservations.jsx) ──────────────
+   왼쪽에 무엇을 볼지 · 가운데에 이미 있는 것 · 오른쪽에 지금 쓰는 것.
+   히스토리 레일(4.4)과 같은 규칙이다. */
+/* ⚠ **쪽 높이를 손으로 세지 않는다.** .page 는 .shell(세로 flex)의
+   flex:1 항목이라 남는 높이를 알아서 받는다 — 거기에 height 를 또 적어도
+   flex-basis 가 이기므로 안 먹는다. 대신 **줄어들 수 있게** min-height:0 만
+   풀어 주면 된다. 안 풀면 안쪽 내용의 min-content 높이만큼 쪽이 늘어나
+   목업 띠 밑으로 마지막 줄이 깔린다.
+   ⚠ 그런데 **높이가 확정돼야** 안쪽이 줄어들 수 있다. .shell 은
+     min-height:100% 라 «최소»만 말하고 확정값이 아니고, .page 가 flex:1
+     이면 제 높이도 확정이 아니다 — 그러면 세 단 중 제일 긴 것이 쪽을
+     밀어 올려 목업 띠 밑으로 마지막 줄이 깔린다.
+     그래서 flex:none + 뷰포트 계산으로 **한 번만** 못 박는다.
+   ⚠ 격자 행도 같다. `minmax(0, 1fr)` 을 안 주면 세 단 중 제일 긴 것이
+     행 높이를 정해 버린다 */
+.page.resv-page{flex:none; min-height:0; overflow:hidden;
+  height:calc(100vh - var(--top-total) - var(--foot-h))}
+.resv{flex:1; min-height:0; display:grid; gap:var(--desk-gap);
+  grid-template-columns:var(--resv-side) minmax(0, 1fr) var(--resv-aside);
+  grid-template-rows:minmax(0, 1fr)}
+.resv-side, .resv-aside{display:flex; flex-direction:column;
+  gap:var(--desk-gap); min-width:0; min-height:0; overflow-y:auto}
+.resv-mid{display:flex; flex-direction:column; gap:var(--gap-sm);
+  min-width:0; min-height:0}
+
+/* 왼쪽 — 달 달력 둘과 보는 사람 */
+.resv-mini, .resv-people{background:var(--card); flex:none;
+  border:var(--hair) solid var(--border); border-radius:var(--hcard-radius);
+  padding:var(--hcard-pad-y) var(--hcard-pad-x)}
+.resv-mini h3, .resv-people h3{font-size:var(--hcard-h-fs); font-weight:700;
+  margin-bottom:var(--gap-sm)}
+.resv-mini-grid{display:grid; grid-template-columns:repeat(7, minmax(0, 1fr));
+  gap:var(--hcal-gap); text-align:center}
+.resv-mini-grid .hcal-d{cursor:pointer}
+.resv-mini-grid .hcal-d:hover{background:var(--canvas)}
+.resv-people p{margin:0; font-size:var(--srow-fs); color:var(--ink-2)}
+.resv-people p + p{margin-top:var(--gap-5)}
+
+/* 가운데 머리 — 일/주/월 · 오늘 · 범위 · 건수 */
+.resv-bar{flex:none; display:flex; align-items:center; gap:var(--gap-sm)}
+.resv-range{font-size:var(--qrow-meta-fs); color:var(--ink-2);
+  font-variant-numeric:tabular-nums}
+
+/* 일·주 격자 — 세로 08:00–18:00, 가로 날짜.
+   ⚠ 스크롤은 한 칸에 하나다(4.5). 격자 전체를 한 번에 굴린다 */
+.resv-grid{flex:1; min-height:0; overflow:auto;
+  background:var(--card); border:var(--hair) solid var(--border);
+  border-radius:var(--hcard-radius);
+  display:grid; grid-template-columns:var(--resv-slot-w) repeat(var(--resv-cols), minmax(0, 1fr))}
+.resv-corner{position:sticky; top:0; left:0; z-index:2; background:var(--card);
+  border-bottom:var(--hair) solid var(--border)}
+.resv-head{position:sticky; top:0; z-index:1; background:var(--card);
+  padding:var(--gap-5) 0; text-align:center; font-size:var(--qrow-meta-fs);
+  font-weight:600; border-bottom:var(--hair) solid var(--border);
+  border-left:var(--hair) solid var(--line-2)}
+.resv-head.now{background:var(--canvas)}
+.resv-head em{display:block; font-style:normal; font-weight:400;
+  color:var(--warm); font-size:var(--stag-fs)}
+.resv-slot{position:sticky; left:0; z-index:1; background:var(--card);
+  font-style:normal; font-size:var(--stag-fs); color:var(--faint);
+  text-align:right; padding:0 var(--gap-5);
+  border-top:var(--hair) solid var(--line-2);
+  font-variant-numeric:tabular-nums}
+.resv-cell{min-height:var(--resv-row-h); padding:1px;
+  border-top:var(--hair) solid var(--line-2);
+  border-left:var(--hair) solid var(--line-2)}
+.resv-cell.now{background:var(--canvas)}
+/* 빈 자리 — 누르면 오른쪽 새 예약에 그 날짜·시각이 들어간다 */
+.resv-free{display:block; width:100%; height:100%;
+  min-height:calc(var(--resv-row-h) - 2px); border-radius:var(--radius-xs)}
+.resv-free:hover{background:var(--wash)}
+/* 30분 한 칸에 딱 맞춘다. 본문 줄높이(1.64)를 그대로 두면 덩어리가 칸보다
+   1.4px 높아져 다음 칸을 침범한다 — 칸이 스무 줄이라 그만큼 쌓인다 */
+.resv-ev{display:flex; align-items:center; gap:var(--gap-xs); width:100%;
+  height:calc(var(--resv-row-h) - 2px); line-height:1;
+  padding:0 var(--gap-5); border-radius:var(--radius-xs);
+  background:var(--soot); color:var(--soot-ink);
+  font-size:var(--stag-fs); white-space:nowrap; overflow:hidden}
+.resv-ev:hover{filter:brightness(1.4)}
+.resv-ev time{font-variant-numeric:tabular-nums; opacity:.75}
+.resv-ev b{overflow:hidden; text-overflow:ellipsis}
+
+/* 월 — 날짜 칸마다 건수와 앞 세 줄 */
+.resv-month{flex:1; min-height:0; overflow:auto;
+  background:var(--card); border:var(--hair) solid var(--border);
+  border-radius:var(--hcard-radius);
+  display:grid; grid-template-columns:repeat(7, minmax(0, 1fr));
+  align-content:start; text-align:center}
+.resv-month > .hcal-dow{padding:var(--gap-5) 0;
+  border-bottom:var(--hair) solid var(--border)}
+.resv-mcell{min-height:var(--resv-mcell-h); text-align:left; overflow:hidden;
+  padding:var(--gap-5); display:flex; flex-direction:column; gap:var(--gap-xxs);
+  border-top:var(--hair) solid var(--line-2);
+  border-left:var(--hair) solid var(--line-2)}
+.resv-mcell.now{background:var(--canvas)}
+.resv-mcell > b{font-size:var(--qrow-meta-fs); font-variant-numeric:tabular-nums}
+.resv-mcell > em{font-style:normal; font-size:var(--stag-fs); color:var(--warm)}
+.resv-mev{display:block; width:100%; text-align:left; overflow:hidden;
+  white-space:nowrap; text-overflow:ellipsis; font-size:var(--stag-fs);
+  color:var(--ink-2); padding:1px var(--gap-xxs);
+  border-radius:var(--radius-xs); background:var(--canvas)}
+.resv-mev:hover{background:var(--wash)}
+
+/* 예약 신청 탭 */
+.resv-asks{flex:1; min-height:0; overflow-y:auto;
+  background:var(--card); border:var(--hair) solid var(--border);
+  border-radius:var(--hcard-radius)}
+
+/* 오른쪽 — 지금 쓰는 것 */
+.resv-who{margin:0; display:flex; align-items:baseline; gap:var(--gap-sm)}
+.resv-who b{font-size:var(--qrow-nm-fs)}
+.resv-who span{font-size:var(--qrow-meta-fs); color:var(--warm);
+  font-variant-numeric:tabular-nums}
+/* 안 오신 적 — **「부도」라고 쓰지 않는다.** 창구에서 내원을 안 찍었을
+   수도 있어 단정할 수 없다. 횟수와 날짜만 보이고 판단은 사람이 한다 */
+.resv-miss{margin:0; font-size:var(--srow-fs); color:var(--ink)}
+.resv-miss span{display:block; font-size:var(--stag-fs); color:var(--warm);
+  font-variant-numeric:tabular-nums}
+.resv-past{display:flex; flex-direction:column; gap:var(--gap-5)}
+.resv-past p{margin:0; display:flex; align-items:baseline; gap:var(--gap-sm);
+  font-size:var(--qrow-meta-fs); color:var(--warm)}
+.resv-past i{flex:none; font-style:normal; font-weight:600; color:var(--ink-2);
+  width:var(--resv-state-w)}
+.resv-past time{flex:none; font-variant-numeric:tabular-nums}
+.resv-past span{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis;
+  white-space:nowrap}
+.resv-past em{flex:none; font-style:normal}
+.resv-hit{display:flex; flex-direction:column; gap:var(--gap-xxs);
+  width:100%; text-align:left; padding:var(--gap-5) var(--in-pad-x);
+  border-radius:var(--in-radius); background:var(--canvas)}
+.resv-hit:hover{background:var(--line-2)}
+.resv-hit b{font-size:var(--qrow-nm-fs)}
+.resv-hit span{font-size:var(--qrow-meta-fs); color:var(--warm);
+  font-variant-numeric:tabular-nums}
+.resv-field{display:flex; align-items:center; gap:var(--gap-sm)}
+.resv-field > span{flex:none; width:var(--resv-label-w);
+  font-size:var(--qrow-meta-fs); color:var(--warm)}
+.resv-field input, .resv-field select{flex:1; min-width:0;
+  height:var(--todo-in-h); padding:0 var(--in-pad-x);
+  border:var(--hair) solid var(--faint); border-radius:var(--in-radius);
+  font-size:var(--in-fs)}
+.resv-quick{display:flex; flex-wrap:wrap; gap:var(--gap-5)}
+.pill-n{font-style:normal; margin-left:var(--gap-xs);
+  font-variant-numeric:tabular-nums}
 
 /* ── 환자 상세 (screens/Patient.jsx) ──────────────────────────
    왼쪽 이번 방문·병변·문진 / 가운데 전체 히스토리 / 오른쪽 소견·리포트·
@@ -1041,6 +1187,10 @@ a.srow:hover{background:var(--canvas)}
 
 /* 화면 전체 뼈대 — 상단바 · 본문 · 목업 띠 */
 .shell{min-height:100%; display:flex; flex-direction:column}
+/* 뷰포트에 딱 맞춰 높이를 재는 화면들이 쓰는 값. 목업 띠가 깔린 판에서는
+   그 높이만큼 덜 쓴다 — 안 그러면 마지막 줄이 띠 밑에 깔려 안 눌린다 */
+.shell{--foot-h:0px}
+.shell.has-mockbar{--foot-h:var(--mock-h)}
 
 /* 앱이 켜지는 동안, 그리고 그리다 멈췄을 때 */
 .boot{min-height:60vh; display:flex; flex-direction:column;

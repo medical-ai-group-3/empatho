@@ -29,7 +29,8 @@ const BASE = process.argv[2] ?? "http://localhost:5199";
 const DEPTS = ["nursing", "radiology", "pathology", "breast"];
 /* 과 바깥 화면도 같이 본다. 환자는 목업에 타임라인이 있는 사람으로 고른다 —
    빈 화면만 보면 줄이 넘치는지 알 수 없다 */
-const LOOSE = ["nursing/intake", "nursing/patients", "patients/P-1001", "me"];
+const LOOSE = ["nursing/intake", "nursing/patients", "nursing/reservations",
+  "patients/P-1001", "me"];
 const WIDTHS = [1440, 1920];
 const PORT = 9321;
 

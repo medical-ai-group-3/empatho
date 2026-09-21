@@ -469,6 +469,15 @@
   /* 접수 카드 (원무만) */
   --intake-in-h:  calc(40px * var(--sp));
 
+  /* ══ 예약 판 — 달력이 본체다(6.1) ═════════════════════════ */
+  --resv-side:    220px;                    /* 왼쪽 — 무엇을 볼지 */
+  --resv-aside:   340px;                    /* 오른쪽 — 지금 쓰는 것 */
+  --resv-slot-w:  calc(46px * var(--sp));   /* 08:00 시각 칸 */
+  --resv-row-h:   calc(22px * var(--sp));   /* 30분 한 칸 */
+  --resv-mcell-h: calc(96px * var(--sp));   /* 월 보기 날짜 칸 */
+  --resv-state-w: calc(30px * var(--sp));   /* 지난 예약의 상태 칸 */
+  --resv-label-w: calc(36px * var(--sp));   /* 「날짜」 「시간」 */
+
   /* 환자 상세 — 가운데(히스토리)가 본체라 양옆을 고정폭으로 둔다.
      넓은 모니터에서 남는 폭은 히스토리가 가져간다 */
   --pd-side:      340px;
