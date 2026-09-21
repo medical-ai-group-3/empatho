@@ -818,13 +818,14 @@ export const rad = {
  * 쓴다 — 그 컴포넌트가 부르는 자리를 한 곳에 모아 둔다. 영상의학과는
  * 이 화면을 쓰지 않기로 확정됐다(간호과 명세 §3). */
 export const specimens = {
-  /* 목록 경로에는 끝 슬래시를 붙이지 않는다. 실제 API와 목업 모두
-     /lesions?patient=… 형식이며, /lesions/?…는 별도 경로로 처리돼
-     검체 바인딩 팝업의 병변 목록이 404가 났다. */
-  lesionsByPatient: (pid) => get(`/lesions${qs({ patient: pid })}`),
+  /* 목록 경로에 끝 슬래시를 붙인다. 라우터(ViewSet)로 등록된 목록이라
+     슬래시가 없으면 404다 — 2026-09-21 두 웹(example.com·ts.net) 모두에서
+     /lesions=404 · /lesions/=200 으로 확인했다. 전에 반대로 적혀 있던
+     주석은 그 사이 서버 라우팅이 바뀌기 전 이야기다. */
+  lesionsByPatient: (pid) => get(`/lesions/${qs({ patient: pid })}`),
   /* 현재 서버의 specimens 목록은 patient 필터를 아직 받지 않는다. 유방외과
      워크플로 안내에서는 응답을 받은 뒤 해당 환자 것만 골라 쓴다. */
-  list: () => get("/specimens").then(unwrapList),
+  list: () => get("/specimens/").then(unwrapList),
   bind: (b) => post("/specimens/", b),
 };
 
@@ -923,7 +924,7 @@ export const breast = {
   patient:      async (id) => {
     const [rawPatient, reports, orders] = await Promise.all([
       get(`/patients/${id}/`),
-      get(`/reports${qs({ patient: id })}`).then(unwrapList).catch(() => []),
+      get(`/reports/${qs({ patient: id })}`).then(unwrapList).catch(() => []),
       breast.ordersOf(id).catch(() => []),
     ]);
     const patient = normalizePatient(rawPatient);
@@ -946,7 +947,7 @@ export const breast = {
       allergy: patient?.has_allergy ? (patient.allergy_note || "있음") : "없음",
     };
   },
-  reports:      (patientId) => get(`/reports${qs({ patient: patientId })}`).then(unwrapList),
+  reports:      (patientId) => get(`/reports/${qs({ patient: patientId })}`).then(unwrapList),
   finalReport:  (body) => post("/reports/final", body),
   examOrder:    (b)  => post("/exam-orders", b),
 

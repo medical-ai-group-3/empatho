@@ -32,10 +32,11 @@ export default function Results() {
     <>
       <Head title="검사 결과" />
       <Body loading={loading} error={error} onRetry={reload}>
+        {data?.items?.length ? (
         <div className="list">
           {/* ?. 를 items 에도 붙인다. data 가 없을 때만 막으면, 자료는
               왔는데 items 가 안 온 경우에 여기서 터진다 */}
-          {data?.items?.map((r) => {
+          {data.items.map((r) => {
             const locked = r.lock_status === "locked";
             const inner = (
               <>
@@ -67,6 +68,9 @@ export default function Results() {
             );
           })}
         </div>
+        ) : (
+          <p className="note">검사 결과가 없습니다.</p>
+        )}
         <p className="note">{data?.note}</p>
       </Body>
     </>

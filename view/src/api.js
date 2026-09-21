@@ -320,15 +320,15 @@ export const api = {
   //       { date, time,
   //         questionnaire: { answers: { pregnancy: "no", … } } }
   reservations:  ()        => get("/api/v1/me/reservations"),
-  requestVisit:  (body)    => post("/api/v1/me/reservation-requests", body),
+  requestVisit:  (body)    => post("/api/v1/me/reservation-requests/", body),
   cancelVisit:   (id)      => post(`/api/v1/me/reservations/${id}/cancel`),
 
   // 06 · 07  결과 · 안내문
   //     내원 한 번에 리포트 하나다. 서버가 report_type='final' ·
   //     audience='patient' 만 준다 — **앱은 묶는 일을 하지 않는다.**
   //     lock_status 가 'locked' 면 본문이 오지 않는다(대면 설명 전).
-  results:      ()         => get("/api/v1/reports"),
-  report:       (id)       => get(`/api/v1/reports/${id}`),
+  results:      ()         => get("/api/v1/reports/"),
+  report:       (id)       => get(`/api/v1/reports/${id}/`),
 
   // 08  챗봇 — 개인 결과를 인용하지 않는 안내용이다
   chat:         (q)        => post("/api/v1/chat", { question: q }),
