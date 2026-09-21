@@ -143,6 +143,7 @@
   --row-fs:     calc(13px * var(--ft));
   --th-fs:      calc(11.5px * var(--ft));
   --row-mark:   3px;                        /* 고른 행 왼쪽 굵은 선 */
+  --off:        .45;                        /* 못 누르는 것 — 숨기지 말고 흐리게 */
 
   /* ══ 두 단 — 목록 + 오른쪽 상세 ═══════════════════════════ */
   --pane-gap:   calc(18px * var(--sp));
@@ -487,6 +488,23 @@
   --brow-gap:     calc(4px * var(--sp));
   --wrow-pad-y:   calc(10px * var(--sp));
   --wrow-n-w:     calc(18px * var(--sp));
+  --prow-no-gap:  calc(6px * var(--sp));    /* 환자번호와 그 뒤 문장 사이 */
+  --prow-3-fs:    calc(11px * var(--ft));   /* 셋째 줄 — 진행 점 */
+
+  /* 내원 대기 — 접수 화면의 아래 절반(Nursing-내원대기).
+     ⚠ 세 단을 고정폭으로 둔다. 가운데가 본체라 남는 폭을 가운데가 먹는다 */
+  --nwait-l:      330px;                    /* 왼쪽 — 대기 줄 */
+  --nwait-r:      380px;                    /* 오른쪽 — 곁에 두고 보는 것 */
+  /* 세 단이 같이 살 수 있는 최소 높이. 위 현황판이 제 높이를 이미 먹어서
+     여기는 뷰포트가 아니라 내용 기준이다 — 문진과 배정이 한 눈에 들어와야 */
+  --nwait-h:      calc(560px * var(--sp));
+  --nrow-pad-y:   calc(10px * var(--sp));
+  --ndet-pad:     calc(16px * var(--sp));   /* 가운데 안쪽 여백 */
+  --ndet-ava:     calc(44px * var(--sp));   /* 이름 첫 자 동그라미 */
+  --ndet-nm-fs:   calc(20px * var(--ft));
+  --ndoc-radio:   calc(16px * var(--sp));
+  --nside-pad-y:  calc(9px * var(--sp));
+  --nside-t-w:    calc(42px * var(--sp));   /* 예정 시각 칸 */
 
   /* ══ 예약 판 — 달력이 본체다(6.1) ═════════════════════════ */
   --resv-side:    220px;                    /* 왼쪽 — 무엇을 볼지 */
