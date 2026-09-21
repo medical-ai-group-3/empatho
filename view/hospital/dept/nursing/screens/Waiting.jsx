@@ -4,6 +4,7 @@ import { Body } from "../../../lib/Body";
 import { Chip, Facts, Queue, Locked, Table } from "../../../lib/Parts";
 import { useApi } from "../../../lib/useApi";
 import { can } from "../../../perm";
+import { DESK } from "../../../nav";
 import SpecimenBindingModal from "../../../lib/SpecimenBindingModal";
 import { SEX, label } from "../../../codes";
 import SideDashboard from "../../../lib/SideDashboard";
@@ -28,7 +29,10 @@ import SideDashboard from "../../../lib/SideDashboard";
  * 있었다. `.n-grid`/`.n-side-stack`(hospital.css)로 뷰포트 기준 높이를
  * 고정하고 넘치는 내용은 카드 안에서만 스크롤한다. */
 export default function NursingWaiting({ cfg }) {
-  if (!can("nursing.waiting.view")) {
+  /* 간호과는 원무 일까지 하는 한 과다(6.1). **보는 것**은 과 열쇠
+     하나면 된다 — 메뉴에 줄이 서 있는데 들어가면 막히는 것이
+     제일 나쁘다. 쓰는 동작은 아래에서 제 열쇠로 그대로 잠근다 */
+  if (!can(DESK)) {
     return (
       <Page crumb={[cfg.name, "내원 대기 · 유방외과 배정"]} title="내원 대기 · 유방외과 배정">
         <Locked what="내원 대기" />

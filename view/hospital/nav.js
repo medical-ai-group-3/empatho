@@ -46,55 +46,57 @@ export const ROOT = "/hospital";
  *   need   이 화면을 열 수 있는 권한. 없으면 메뉴에서 감춘다
  *   deep   주소에 :id 가 들어가는 화면이라 메뉴에 안 띄운다
  */
-const DEPTS = [
-  /* ⚠ **원무과와 간호과를 한 과로 합쳤다**(6.1). 접수 → 내원 대기 → 호출 →
-     문진 → 유방외과 배정은 실제로는 환자 한 명을 이어서 다루는 한 줄인데,
-     따로 두면 중간에 과 탭을 건너뛰어야 했다. 작은 검진 기관에서는 같은
-     사람이 둘 다 하기도 한다.
+/* 간호과 사람의 열쇠. 원무 열쇠든 간호 열쇠든 **하나만 있어도 이 과
+   사람**이다 — 원무는 과가 아니라 간호과가 하는 일 중 하나다.
+   can() 이 배열을 받아 하나만 있으면 통과시킨다(perm.js) */
+export const DESK = ["reception.intake.view", "nursing.waiting.view"];
 
-     **권한은 한 줄도 안 바꿨다.** 화면은 직책이 아니라 perms 배열만 본다 —
-     `reception.*` 과 `nursing.*` 을 그대로 두고 화면마다 제 열쇠를 건다.
-     원무 일만 하는 사람에게는 `reception.*` 만 주면 그 사람 메뉴에서
-     간호 화면이 알아서 빠진다.
+const DEPTS = [
+  /* ⚠ **원무과를 없애고 그 일을 간호과에 넣었다**(6.1). 접수 → 내원 대기 →
+     호출 → 문진 → 유방외과 배정은 실제로는 환자 한 명을 이어서 다루는 한
+     줄인데, 따로 두면 중간에 과 탭을 건너뛰어야 했다. 작은 검진 기관에서는
+     같은 사람이 둘 다 한다.
+
+     이름은 **간호과** 하나다. 「접수·간호」처럼 둘을 병기하면 아직 두 과인
+     것처럼 읽힌다 — 원무는 과가 아니라 간호과가 하는 일 중 하나다.
+
+     **한 과면 화면도 한 벌이다.** 여섯 줄 전부 DESK 열쇠로 연다 — 접수만
+     하는 사람도 내원 대기를 보고, 간호만 하는 사람도 예약 판을 본다.
+     서버 권한이 아직 `reception.*` 과 `nursing.*` 로 완전히 갈려 있어
+     (RECEPTION_PERMS · NURSING_PERMS 가 안 겹친다) 한쪽 열쇠만 걸면 합친
+     과가 사람마다 반쪽으로 보인다.
+
+     ⚠ **보는 것과 하는 것은 다르다.** 화면 안의 단추는 제 열쇠로 그대로
+       잠긴다(useCan). 서버도 MATRIX 로 또 막는다 — 간호는 patient_pii 가
+       NONE 이라 이름·전화를 못 고치고, 원무는 followup 이 R 이라 추적 콜을
+       못 남긴다. 화면이 보이는 것과 쓸 수 있는 것은 여기서 갈린다.
 
      ⚠ 과 key 는 `nursing` 이다. 주소가 바뀐 것은 원무 쪽 세 화면뿐이다
-     (`/hospital/reception/*` → `/hospital/nursing/*`).
-     ⚠ 홈의 열쇠가 **둘**이다. 한쪽만 걸면 다른 쪽 사람이 홈을 못 본다 —
-     can() 이 배열을 받아 하나만 있어도 통과시킨다(perm.js). */
+     (`/hospital/reception/*` → `/hospital/nursing/*`). */
   {
     key: "nursing",
-    name: "접수·간호",
+    name: "간호과",
     who: { name: "정다은", role: "간호사" },
     screens: [
-      { key: "", use: "home", menu: "홈", title: "홈",
-        need: ["reception.intake.view", "nursing.waiting.view"] },
+      { key: "", use: "home", menu: "홈", title: "홈", need: DESK },
 
       { key: "intake", use: "reception.intake", menu: "접수", title: "접수",
-        need: "reception.intake.view" },
+        need: DESK },
 
       { key: "waiting", use: "nursing.waiting", menu: "내원 대기", title: "내원 대기",
-        need: "nursing.waiting.view" },
+        need: DESK },
 
       { key: "patients", use: "reception.patients", menu: "환자 목록", title: "환자 목록",
-        need: "reception.patients.view" },
+        need: DESK },
 
       /* 예약 판. 앱 신청 확인은 화면을 따로 안 두고 **이 판 안의 탭**이다 —
          둘 다 예약이고 신청은 「앱에서 들어온 것」일 뿐이다. 화면 줄이
-         일곱이 되면 내비게이터 둘째 줄이 꽉 찬다(6.1)
-
-         ⚠ **열쇠가 둘이다.** 간호 계정에는 `reception.*` 이 하나도 없어서
-           `reception.requests.view` 만 걸면 간호에게 이 화면이 안 보인다.
-           그런데 6.1 은 「추적 회차를 잡을 때 [예약] 을 누르면 예약 판이
-           6개월 뒤로 채워진 채 열린다」고 적었다 — 추적 관리는 간호 일이고
-           그 링크가 죽는다. 그래서 추적을 보는 사람에게도 연다.
-           ⚠ **여는 것과 만드는 것은 다르다.** 판 안의 [예약] 단추는 그대로
-             `reception.reserve` 로 잠겨 있다(Reservations.jsx). 권한은 한
-             줄도 안 바꿨다 */
+         일곱이 되면 내비게이터 둘째 줄이 꽉 찬다(6.1) */
       { key: "reservations", use: "reception.reservations", menu: "예약 판", title: "예약 판",
-        need: ["reception.requests.view", "nursing.followup.view"] },
+        need: DESK },
 
       { key: "followups", use: "nursing.followups", menu: "추적 관리", title: "추적 관리",
-        need: "nursing.followup.view" },
+        need: DESK },
     ],
   },
   {
@@ -197,6 +199,11 @@ export const HOME = DEPTS[0];
    ⚠ key 는 화면 라우팅 키(breast)가 아니라 signup_staff 의 role
    값이다 (2026-09-16 백엔드 확인) — 유방외과가 "surgery" 다. */
 export const STAFF_DEPTS = [
+  /* ⚠ **원무과는 화면에선 없어졌지만 여기엔 남는다.** 이 목록은 가입
+     폼의 선택지이고 key 는 서버의 `account.role` 값이다 — 서버가 아직
+     `reception` 역할을 쓰고 `RECEPTION_PERMS` 를 그 역할에 준다.
+     여기서 빼면 원무 직원이 가입을 못 한다. 서버가 역할을 합치면
+     그때 같이 뺀다 */
   { key: "reception", name: "원무과" },
   { key: "nursing",   name: "간호과" },
   { key: "radiology", name: "영상의학과" },
@@ -263,8 +270,8 @@ function deptKey(value) {
     pathology: "pathology", "병리": "pathology", "병리과": "pathology",
     radiology: "radiology", "영상의학": "radiology", "영상의학과": "radiology",
     breast: "breast", surgery: "breast", "유방외과": "breast",
-    /* 원무는 이제 접수·간호다(6.1). 계정 소속이 「원무과」로 와도
-       합친 과로 보낸다 — 안 그러면 첫 화면을 못 찾는다 */
+    /* 원무과는 없어지고 그 일이 간호과로 갔다(6.1). 계정 소속이
+       「원무과」로 와도 간호과로 보낸다 — 안 그러면 첫 화면을 못 찾는다 */
     reception: "nursing", "원무": "nursing", "원무과": "nursing",
     nursing: "nursing", "간호": "nursing", "간호과": "nursing",
     admin: "admin", "관리자": "admin",
@@ -337,7 +344,7 @@ export const go = {
     discordance: (id) => `${B}/discordances/${id}`,
   },
 
-  /* 접수·간호 — 한 과다(6.1). 원무 쪽 화면도 여기 주소를 쓴다.
+  /* 간호과 — 원무 일도 여기 있다(6.1). 원무 쪽 화면도 이 주소를 쓴다.
      ⚠ go.reception 은 없앴다. 두 이름을 남겨 두면 어느 쪽이 진짜인지
        매번 헷갈리고, 한쪽만 고치는 일이 생긴다 */
   nursing: {
