@@ -65,6 +65,30 @@ export function rows(raw) {
   return raw?.items ?? raw?.results ?? [];
 }
 
+/* ── 검사 진행 점 ──────────────────────────────────────────────
+ *
+ *   ●  끝남      ◐  하는 중      ○  아직
+ *   점 없음      **모른다** — 이 목록으로는 알 수 없다
+ *
+ * ⚠ **모르는 것을 ○ 로 찍지 않는다.** ○ 는 「아직 안 했다」는 말이고,
+ *   그건 확인한 사람만 할 수 있는 말이다.
+ *
+ * `/patients/today-status` 의 stage 하나가 흐름 전체를 말한다 — 단계가
+ * 줄지어 있어서 앞 단계는 끝난 것이 확실하다.
+ */
+const EXAM = ["촬영", "AI", "판독"];
+const STAGE = {
+  "접수 대기":         ["none", "none", "none"],
+  "영상의학과 대기":   ["none", "none", "none"],
+  "영상의학과 촬영중": ["going", "none", "none"],
+  "AI 분석중":         ["done", "going", "none"],
+};
+
+export function stageSteps(stage) {
+  const states = STAGE[stage];
+  return states ? EXAM.map((name, i) => [name, states[i]]) : null;
+}
+
 /* ── 곁가지 자료 ───────────────────────────────────────────────
  *
  * 홈은 서너 곳을 한꺼번에 부른다. 그걸 Promise.all 로 묶으면 **하나만

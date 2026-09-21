@@ -46,17 +46,19 @@ export const nursing = {
     load: () => Promise.all([
       api.waitingArrived(),
       H.soft(api.todayStatus()),
+      H.soft(api.scheduledToday()),
+      H.soft(api.requests()),
       H.soft(api.followups()),
       month(),
-    ]).then(([arrived, today, follow, schedule]) => ({
-      arrived: H.rows(arrived), today: H.rows(today),
-      follow: H.rows(follow), schedule: H.rows(schedule),
+    ]).then(([arrived, today, booked, asks, follow, schedule]) => ({
+      arrived: H.rows(arrived), today: H.rows(today), booked: H.rows(booked),
+      asks: H.rows(asks), follow: H.rows(follow), schedule: H.rows(schedule),
     })),
 
     primary: { label: "문진 · 배정", to: go.nursing.waiting(),
                need: "nursing.waiting.view" },
 
-    queue: ({ arrived, today }) => ({
+    queue: ({ arrived, today, booked, asks }) => ({
       title: "지금 와 있는 환자",
       hint: "접수 순 · 순서 고정",
       tabs: [
@@ -85,10 +87,59 @@ export const nursing = {
             sub: r.stage,
             to: r.patient_id != null ? go.patient(r.patient_id) : null,
           })) },
+
+        /* 오늘 오기로 했는데 **아직 안 온** 사람. 창구가 제일 자주 찾는다 */
+        { key: "booked", name: "오늘 예약",
+          empty: "오늘 남은 예약이 없습니다",
+          rows: booked.map((r) => ({
+            id: r.exam_order_id ?? r.id,
+            name: H.nameOf(r),
+            no: H.noOf(r),
+            meta: H.who(r),
+            chip: r.visit_type,
+            sub: "아직 안 오셨습니다",
+            at: H.at(r.scheduled_at),
+            to: r.patient != null ? go.patient(r.patient) : null,
+          })) },
+
+        /* 앱으로 들어온 신청 — 날짜·시간을 정해 줘야 한다 */
+        { key: "asks", name: "예약 신청",
+          empty: "확인할 신청이 없습니다",
+          rows: asks.map((r) => ({
+            id: r.exam_order_id ?? r.id,
+            name: H.nameOf(r),
+            no: H.noOf(r),
+            meta: H.who(r),
+            chip: r.visit_type,
+            sub: "앱 신청 · 날짜를 정해야 합니다",
+            at: H.at(r.scheduled_at),
+            to: go.nursing.reservations(),
+          })) },
       ],
     }),
 
-    stuck: ({ arrived, follow }) => [
+    /* ── 가운데 위 — 오늘 흐름 ────────────────────────────────
+     * 지금 병원 어디에 사람이 몰려 있는지. today-status 의 stage 를 세기만
+     * 하면 나오는 값이라 **지어낸 것이 하나도 없다.**
+     *
+     * ⚠ 단계 이름은 서버가 쓰는 말 그대로다. 옮겨 부르면 서버가 단계를
+     *   하나 늘렸을 때 그 사람들이 어느 줄에도 안 잡힌다 */
+    flow: ({ today }) => {
+      const by = new Map();
+      for (const r of today) {
+        const k = r.stage || "그 밖";
+        by.set(k, (by.get(k) ?? 0) + 1);
+      }
+      return {
+        title: "오늘 흐름",
+        summary: `오늘 온 사람 ${today.length}`,
+        items: [...by].map(([name, count]) => ({ name, count })),
+      };
+    },
+
+    stuck: ({ arrived, follow, asks }) => [
+      { tag: "예약 확인", text: "앱으로 들어온 신청 — 날짜·시간을 정해야 합니다",
+        count: asks.length, to: go.nursing.reservations() },
       { tag: "콜", text: "부재로 다시 걸어야 하는 추적 콜",
         count: follow.filter((r) => r.call_result === "부재").length,
         to: go.nursing.followups() },
@@ -97,8 +148,7 @@ export const nursing = {
         to: go.nursing.waiting() },
       /* ⚠ 목업의 「바인딩」(채취는 끝났는데 병변에 연결 안 된 검체)은 못 센다.
          검체를 그 조건으로 거르는 경로가 없다 — 병리 큐는 이미 바인딩된
-         것만 준다(status=bound).
-         ⚠ 원무 목업의 「예약 확인」 줄은 예약 판(6.1)이 들어올 때 붙인다 */
+         것만 준다(status=bound) */
     ],
 
     /* ⚠ 접수·배정·문진·콜을 오늘 몇 건 했는지 세어 주는 자리가 없다(8장 1번) */

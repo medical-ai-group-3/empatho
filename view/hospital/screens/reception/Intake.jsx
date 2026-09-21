@@ -1,360 +1,272 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { reception as api } from "../../api";
-import { go } from "../../nav";
-import { Page, Card, Btn } from "../../lib/Page";
-import { Body } from "../../lib/Body";
-import Dialog from "../../lib/Dialog";
-import { Chip, Table, Warn } from "../../lib/Parts";
+import { useState } from "react";
+import { Page, Btn } from "../../lib/Page";
+import { Body, Empty } from "../../lib/Body";
+import { Chip, useCan } from "../../lib/Parts";
 import { useApi } from "../../lib/useApi";
 import { can } from "../../perm";
-import Calendar from "./Calendar";
-import Register from "./Register";
+import { go, DESK } from "../../nav";
+import * as H from "../../dept/home";
 
-/* 원무 1장 — 접수 · 방문 환자 모니터링
+/* 접수 — 오늘 현황판 위, 내원 대기 줄 아래
  * ════════════════════════════════════════════════════════════════
  *
- * **접수는 검색으로 시작한다.** 대부분은 앱으로 이미 가입하고 오기
- * 때문이다. 등록([+])은 앱을 못 쓰는 환자를 위한 예외 경로다.
+ * 배치는 `docs/mockup/Reception-오늘현황판.html` 과
+ * `docs/mockup/Nursing-내원대기.html` 이 정한다. 원무과와 간호과가 한 과가
+ * 되면서 두 목업이 한 화면에 쌓인다 — **위는 오늘 현황판, 아래는 내원 대기.**
  *
- *   칸 셋 중 하나 → [검색] → (여럿이면 팝업에서 고름) → 칸이 채워짐
- *                → [접수하기]
+ *   ┌ 접수 ─────────────────────────────────────────────┐
+ *   │ 이름 · 전화 · 생년월일  [검색] [+ 신환 등록]         │
+ *   ├───────────────────────────────────────────────────┤
+ *   │ 접수 대기 │ 간호·문진 │ 검사 진행 │ 외래 진료 │ 종결 │  ← 칸 다섯
+ *   ├───────────────────────────────────────────────────┤
+ *   │ 내원 대기 줄 — 번호 · 이름 · 나이 성별 ···· 접수 시각 │
+ *   └───────────────────────────────────────────────────┘
  *
- * ⚠ **한 명이 나와도 자동으로 접수하지 않는다.** 칸만 채워 주고 사람이
- *   확인한 뒤 누른다 — 오타로 엉뚱한 사람이 접수되는 것을 막는다.
+ * ⚠ **경과 시간을 안 쓴다.** 목업 줄 끝의 `(38′)` `1h12m` 과 칸 머리의
+ *   「평균 14분 · 최장 38분」은 서버가 주지 않는 값이다. 요청 시각만 적는다.
  *
- * ⚠ **환자번호는 검색 칸에 없다.** 환자가 모르고 온다. 대신 결과와
- *   고른 사람 정보에는 보여준다.
+ * ⚠ **칸을 카드로 띄우지 않는다.** 목업은 칸마다 테두리를 두르지만 그러면
+ *   칸마다 안쪽 여백이 또 생긴다. 상자 하나를 1px 선으로 가른다(5.1).
  *
- * 서버는 q 하나만 받는다 (views/reception.py 의 PatientViewSet). 이름 ·
- * 전화 · 생년월일을 OR 로 한꺼번에 보므로, 채운 칸 중 하나를 골라 보낸다.
- * 동명이인은 팝업에서 사람이 고르니 필드별 검색이 필요 없다.
- *
- * 접수가 하는 일은 exam_order 를 requested 로 만들고 visited_at 을 찍는
- * 것뿐이다. 검사 종류(modality)는 정하지 않는다 — 의학적 판단이라
- * 유방외과 몫이고, DB CHECK 도 그렇게 열려 있다.
+ * ⚠ **stage 는 서버가 쓰는 말 그대로** 둔다. 옮겨 부르면 서버가 단계를
+ *   하나 늘렸을 때 그 줄이 어느 칸에도 안 들어간다.
  */
 
-const EMPTY = { name: "", phone: "", birth_date: "" };
+/* `/patients/today-status` 의 stage 가 곧 칸이다. 뷰가 다섯 값을 낸다 —
+   앞 넷은 이름을 지어 주고, 그 밖(order_status 가 그대로 온 것)은 종결 칸 */
+const BOARD = [
+  { key: "checkin", title: "접수 대기", stage: "접수 대기" },
+  { key: "nurse", title: "간호 · 문진", stage: null },
+  { key: "exam", title: "검사 진행",
+    stage: ["영상의학과 대기", "영상의학과 촬영중", "AI 분석중"] },
+  { key: "clinic", title: "외래 진료", stage: null },
+  { key: "closed", title: "오늘 종결", stage: ["completed", "cancelled"] },
+];
 
-/* integrated=true 는 원무 기능을 간호과 업무 흐름 안에서 여는 경우다.
-   같은 접수 API를 쓰되, 화면의 목적과 다음 단계는 간호과 기준으로 보인다. */
-export default function Intake({ integrated = false, embedded = false }) {
-  const navigate = useNavigate();
-  const allowed = (key) => can(integrated ? [key, "nursing.waiting.view"] : key);
-  const [form, setForm] = useState(EMPTY);
-  /* 고른 환자. 칸을 손으로 고치면 비운다 — 칸과 번호가 어긋난 채로
-     접수되면 엉뚱한 사람이 큐에 오른다 */
-  const [picked, setPicked] = useState(null);
-  const [choices, setChoices] = useState(null);   // 팝업. null = 안 뜸
-  const [empty, setEmpty] = useState(false);      // "없습니다" 를 띄울 때
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState(null);
-  const [done, setDone] = useState(null);
-  const [regOpen, setRegOpen] = useState(false);
-  /* 등록 팝업이 무엇을 하고 닫혔나 — "created" 면 새로 만든 것,
-     "exists" 면 이미 있던 사람을 찾아 온 것. 안내 문구가 갈린다 */
-  const [regDone, setRegDone] = useState(null);
+export default function Intake({ cfg }) {
+  const api = cfg.api;
 
   const today = useApi(() => api.todayStatus(), []);
-  useEffect(() => {
-    const t = setInterval(() => today.reload(true), 30_000);
-    return () => clearInterval(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const waiting = useApi(() => api.waitingArrived(), []);
 
-  function edit(key, value) {
-    setForm((f) => ({ ...f, [key]: value }));
-    setPicked(null);          // 손으로 고치면 고른 사람과 어긋난다
-    setEmpty(false);
-    setDone(null);
-    setRegDone(null);
-  }
+  const rows = H.rows(today.data);
+  const queue = H.rows(waiting.data);
 
-  /* 고른 사람으로 칸을 채운다 — 생년월일까지.
-     검색 결과에 birth_date 가 온다 (PatientListSerializer). 개인정보가 없는
-     환자는 null 이라 그때만 비워 둔다 */
-  function fill(patient) {
-    setForm({
-      name: patient.name ?? "",
-      phone: patient.phone ?? "",
-      birth_date: patient.birth_date ?? "",
-    });
-    setPicked(patient);
-    setChoices(null);
-    setEmpty(false);
-  }
-
-  /* 등록 팝업이 끝났다. 어느 갈래든 **그 환자를 고른 상태로** 두고 닫는다 —
-     등록이 끝이 아니라 [접수하기] 로 이어지는 흐름이다 */
-  function registered(patient, how) {
-    fill(patient);
-    setRegOpen(false);
-    setRegDone(how);
-    setDone(null);
-    setError(null);
-  }
-
-  /* 채운 칸 중 하나를 q 로 보낸다. 서버가 q 하나만 받아서 여러 칸을
-     AND 로 걸 수가 없다 — 좁히는 일은 팝업이 한다.
-     전화 · 생년월일이 이름보다 사람을 잘 가르므로 그 순서로 고른다 */
-  function term() {
-    return form.phone.trim() || form.birth_date.trim() || form.name.trim();
-  }
-
-  async function search(e) {
-    e?.preventDefault();
-    const q = term();
-    if (!q || busy) return;
-    setBusy(true);
-    setError(null);
-    setDone(null);
-    setEmpty(false);
-    try {
-      const rows = (await api.search(q)) ?? [];
-      if (rows.length === 0) {
-        setPicked(null);
-        setEmpty(true);
-      } else if (rows.length === 1) {
-        fill(rows[0]);
-      } else {
-        setChoices(rows);
-      }
-    } catch (e2) {
-      setError(e2);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function checkIn() {
-    if (!picked || busy) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const order = await api.checkIn({ patient_id: picked.patient_id });
-      setDone({ patient: picked, order });
-      setForm(EMPTY);
-      setPicked(null);
-      today.reload();
-    } catch (e2) {
-      setError(e2);
-    } finally {
-      setBusy(false);
-    }
-  }
+  const again = () => { today.reload(true); waiting.reload(true); };
 
   return (
-    <Page
-      bare={embedded}
-      crumb={integrated ? ["간호과", "접수 · 간호"] : ["원무과", "접수"]}
-      title={integrated ? "접수 · 간호" : "접수 · 방문 환자 모니터링"}
-      sub={integrated
-        ? "환자를 확인해 접수하고, 내원 환자에서 간호 확인 후 유방외과로 전달합니다."
-        : "환자를 찾아 접수합니다. 검사 종류는 정하지 않습니다."}
-    >
-      <div className="split">
-        <div className="split-l">
-          <Card
-            title="접수"
-            className="reception-intake-card"
-            right={allowed("reception.patient.create")
-              ? <Btn onClick={() => setRegOpen(true)}>+ 등록</Btn>
-              : null}
-          >
-            <form onSubmit={search}>
-              <div className="find">
-                <label className="field">
-                  <span>이름</span>
-                  <input value={form.name} disabled={busy}
-                         placeholder="셋 중 하나만 입력해도 됩니다"
-                         onChange={(e) => edit("name", e.target.value)} />
-                </label>
-                <label className="field">
-                  <span>전화번호</span>
-                  <input value={form.phone} disabled={busy} inputMode="tel"
-                         onChange={(e) => edit("phone", e.target.value)} />
-                </label>
-                <label className="field">
-                  <span>생년월일</span>
-                  <input type="date" value={form.birth_date} disabled={busy}
-                         onChange={(e) => edit("birth_date", e.target.value)} />
-                </label>
-                <div className="find-submit">
-                  <Btn kind="fill" type="submit" disabled={!term() || busy}>
-                    {busy ? "찾는 중…" : "검색"}
-                  </Btn>
-                </div>
-              </div>
-            </form>
+    <Page crumb={[cfg.name, "접수"]} title="접수" className="intake-page"
+          right={(
+            <Btn to={go.nursing.patients()}>환자 목록 · 예약</Btn>
+          )}>
+      <Find api={api} go={cfg.go} onDone={again} />
 
-            {error && <Failed error={error} />}
-            {done && <Done done={done} />}
-            {empty && <NotFound onAdd={allowed("reception.patient.create")
-              ? () => setRegOpen(true) : null} />}
-            {regDone && <Registered how={regDone} />}
+      <Body loading={today.loading && !today.data} error={today.error}
+            onRetry={today.reload}>
+        <Board rows={rows} />
+      </Body>
 
-            {picked && <Picked patient={picked} busy={busy} onCheckIn={checkIn}
-              canCheckIn={allowed("reception.checkin")} />}
-          </Card>
-        </div>
-
-        <div className="split-r">
-          <Card className="reception-monitor-card" title="방문 환자 모니터링" right={<Chip>30초마다</Chip>}>
-            <Body loading={today.loading} error={today.error} onRetry={today.reload}>
-              {today.data && <Monitor rows={today.data} />}
-            </Body>
-          </Card>
-        </div>
-      </div>
-
-      {!integrated && !embedded && <>
-      {/* 날짜를 더블클릭하면 3장으로 가면서 그 날짜가 채워진다.
-          **주소에 담는다** — 화면 상태로 넘기면 붙여 넣은 주소로 같은 자리가
-          다시 안 열린다 */}
-      <Calendar onOpenDate={(date) =>
-        navigate(`${go.reception.patients()}?date=${date}`)} />
-      </>}
-
-      {choices && (
-        <Choose rows={choices} onPick={fill} onClose={() => setChoices(null)} />
-      )}
-
-      {regOpen && (
-        <Register onClose={() => setRegOpen(false)} onDone={registered} />
-      )}
+      <Waiting state={waiting} rows={queue} />
     </Page>
   );
 }
 
+/* ── 찾아서 접수 ───────────────────────────────────────────────
+ * 찾아서 확인한 뒤 누른다. **자동으로 접수하지 않는다** — 동명이인이
+ * 있어서 한 명이어도 사람이 골라야 한다.
+ */
+function Find({ api, go: goTo, onDone }) {
+  const [q, setQ] = useState("");
+  const [found, setFound] = useState(null);
+  const [busy, setBusy] = useState(null);
+  const [err, setErr] = useState(null);
+  const may = useCan("reception.checkin");
 
-/* 여럿일 때 고르는 팝업. **더블클릭으로 고른다** — 한 번 눌러 바로
-   정해지면 스치듯 누른 사람이 그대로 들어간다.
-   키보드로는 Enter 다. 마우스만 되게 두면 손을 떼야 한다 */
-function Choose({ rows, onPick, onClose }) {
-  return (
-    <Dialog
-      title={`${rows.length}명이 찾아졌습니다`}
-      sub="더블클릭하거나 Enter 로 고르세요"
-      onClose={onClose}
-      foot={<Btn onClick={onClose}>닫기</Btn>}
-    >
-      <div className="tbl-wrap">
-        <table className="tbl">
-          <thead>
-            <tr>
-              <th>이름</th><th>생년월일</th><th>전화번호</th><th>환자번호</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.patient_id} tabIndex={0}
-                  onDoubleClick={() => onPick(r)}
-                  onKeyDown={(e) => { if (e.key === "Enter") onPick(r); }}>
-                <td><b>{r.name ?? "—"}</b></td>
-                {/* 같은 해 태어난 동명이인을 가리는 자리다 — 연도만으로는
-                    둘이 같아 보인다. birth_date 가 없으면 연도로 떨어진다 */}
-                <td className="num">{r.birth_date ?? r.birth_year ?? "—"}</td>
-                <td className="num">{r.phone ?? "—"}</td>
-                <td className="num dim">{r.patient_number}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </Dialog>
-  );
-}
-
-/* 고른 사람 + [접수하기].
-   접수 전에 한 번 더 보여주는 자리다 — 오타를 잡는 마지막 지점이다.
-   환자번호는 검색 칸에 없으니 여기서 보여줘야 한다 */
-function Picked({ patient, busy, onCheckIn, canCheckIn }) {
-  return (
-    <div className="picked">
-      <dl className="kv">
-        <dt>환자번호</dt><dd>{patient.patient_number}</dd>
-        <dt>생년월일</dt><dd className="num">{patient.birth_date ?? patient.birth_year ?? "—"}</dd>
-      </dl>
-      <Btn kind="fill" onClick={onCheckIn}
-           disabled={busy || !canCheckIn}>
-        {busy ? "접수하는 중…" : "접수하기"}
-      </Btn>
-    </div>
-  );
-}
-
-
-/* 못 찾았을 때. **여기서 바로 등록으로 갈 수 있게 한다** — 「위 [+ 등록]
-   을 누르세요」로 안내만 하면 눈이 다시 위로 올라갔다 와야 한다 */
-function NotFound({ onAdd }) {
-  return (
-    <div className="slot">
-      <b>등록된 환자가 없습니다</b>
-      <span>앱을 안 쓰는 분이면 새로 등록할 수 있습니다.</span>
-      {onAdd && <Btn onClick={onAdd}>+ 등록</Btn>}
-    </div>
-  );
-}
-
-/* 등록 팝업이 끝난 뒤의 안내. **두 갈래를 다르게 적는다** — 이미 있던
-   사람인데 「등록했습니다」라고 하면 같은 사람을 두 번 만든 줄 안다 */
-function Registered({ how }) {
-  return how === "exists" ? (
-    <div className="slot" role="status">
-      <b>이미 등록된 환자입니다</b>
-      <span>새로 만들지 않고 그 환자를 골랐습니다. 확인 후 접수하세요.</span>
-    </div>
-  ) : (
-    <div className="slot ok" role="status">
-      <b>환자를 등록했습니다</b>
-      <span>검색 칸에 채웠습니다. 확인 후 접수하세요.</span>
-    </div>
-  );
-}
-
-function Done({ done }) {
-  return (
-    <div className="slot ok" role="status">
-      <b>{done.patient.name ?? done.patient.patient_number} 접수했습니다</b>
-      <span>접수를 완료했습니다 · 오더 {done.order.exam_order_id}</span>
-    </div>
-  );
-}
-
-/* 오늘 온 사람이 지금 어디에 있나.
-   이름은 patient_name 으로 온다 (PatientTodayStatusView). 개인정보가 없는
-   환자는 null 이라 그때만 #41 로 떨어진다 */
-function Monitor({ rows }) {
-  if (!rows.length) {
-    return <div className="slot"><b>오늘 접수한 환자가 없습니다</b></div>;
+  async function find(e) {
+    e.preventDefault();
+    if (!q.trim()) return;
+    setErr(null);
+    try { setFound(await api.search(q.trim()) ?? []); }
+    catch (e2) { setErr(e2); setFound([]); }
   }
-  const nameless = rows.some((r) => !r.patient_name);
+
+  async function take(p) {
+    setBusy(p.patient_id);
+    setErr(null);
+    try {
+      await api.checkIn({ patient_id: p.patient_id });
+      setFound((list) => list.filter((r) => r.patient_id !== p.patient_id));
+      onDone();
+    } catch (e2) { setErr(e2); }
+    finally { setBusy(null); }
+  }
+
   return (
-    <>
-      <Table
-        cols={[
-          { key: "pid", label: "환자", w: "50%" },
-          { key: "stage", label: "상태" },
-        ]}
-        rows={rows.map((r) => ({
-          id: r.exam_order_id,
-          pid: r.patient_name
-            ? <b>{r.patient_name}</b>
-            : <span className="dim">#{r.patient_id}</span>,
-          stage: <Chip tone={r.stage === "접수 대기" ? "fill" : "line"}>{r.stage}</Chip>,
-        }))}
-      />
-      {nameless && <Warn>이름이 없는 환자는 번호로 표시합니다.</Warn>}
-    </>
+    <section className="intake-find-box">
+      <form className="intake-find" onSubmit={find}>
+        <input value={q} onChange={(e) => setQ(e.target.value)}
+               placeholder="이름 · 전화 · 생년월일" aria-label="환자 검색" />
+        <button className="btn dark" type="submit">검색</button>
+        {can("reception.patient.create")
+          && <Btn to={goTo.patients()}>+ 신환 등록</Btn>}
+      </form>
+
+      {err && <p className="note err">{err.detail || err.message}</p>}
+      {found?.length === 0 && !err && (
+        <p className="hcard-k hpad">찾는 환자가 없습니다</p>
+      )}
+
+      {(found ?? []).map((p) => (
+        <div className="ifound" key={p.patient_id}>
+          <span className="ifound-tx">
+            <span className="ifound-1"><b>{p.name}</b></span>
+            <span className="ifound-2">
+              {[p.patient_number, p.birth_date, p.phone].filter(Boolean).join(" · ")}
+            </span>
+          </span>
+          <Btn kind="fill" onClick={() => take(p)} {...may.attrs}
+               disabled={busy === p.patient_id || !may.ok}>접수</Btn>
+        </div>
+      ))}
+    </section>
   );
 }
 
-function Failed({ error }) {
+/* ── 위 — 오늘 현황판 ─────────────────────────────────────────
+ * 칸을 가로로 나열하고 단계마다 하나씩. 환자가 왼쪽에서 오른쪽으로 흐른다.
+ *
+ * ⚠ **값이 없어 못 채우는 칸이 둘이다.** 「간호 · 문진」과 「외래 진료」는
+ *   `today-status` 의 stage 에 그 단계가 없다(뷰가 접수·영상 쪽만 가른다).
+ *   **칸을 없애지 않는다** — 없애면 흐름이 끊겨 보이고, 나중에 stage 가
+ *   늘었을 때 자리를 다시 찾아야 한다.
+ */
+function Board({ rows }) {
+  const bucket = (col) => {
+    if (!col.stage) return [];
+    const want = Array.isArray(col.stage) ? col.stage : [col.stage];
+    return rows.filter((r) => want.includes(r.stage));
+  };
+
   return (
-    <div className="slot bad" role="alert">
-      <b>{error.detail || error.message}</b>
-      <span>{error.code}{error.traceId && <> · {error.traceId}</>}</span>
+    <div className="board">
+      {BOARD.map((col) => {
+        const here = bucket(col);
+        return (
+          <section className="bcol" key={col.key}>
+            <header className="bcol-h">
+              <i className="hdot" aria-hidden="true" />
+              <b>{col.title}</b>
+              <em>{here.length}</em>
+            </header>
+            <div className="bcol-b">
+              {here.length === 0
+                ? (
+                  <p className="hcard-k hpad">
+                    {col.stage ? "없습니다" : "서버가 이 단계를 아직 안 나눕니다"}
+                  </p>
+                )
+                : here.map((r) => <BRow key={r.exam_order_id ?? r.patient_id} row={r} />)}
+            </div>
+          </section>
+        );
+      })}
     </div>
   );
 }
+
+/* 환자 줄 — 세 줄(5.2)
+ *
+ *   시연환자03  62 · 여  [재진] ········ 13:54
+ *   P-0003   앱 접수 · 확인 필요
+ *   ● 촬영  ◐ AI  ○ 판독
+ *
+ * ⚠ 줄 끝의 경과 시간 `(38′)` 은 안 쓴다.
+ * ⚠ 둘째 줄이 비는 과가 있다 — `today-status` 응답이 네 칸뿐이라
+ *   환자번호·나이·성별이 안 온다(8장 9번).
+ */
+function BRow({ row }) {
+  const steps = H.stageSteps(row.stage);
+  return (
+    <article className="brow">
+      <div className="brow-1">
+        <b>{H.nameOf(row)}</b>
+        {H.who(row) && <span className="brow-who">{H.who(row)}</span>}
+        {row.visit_type && <Chip>{row.visit_type}</Chip>}
+        <span className="home-fill" />
+        {H.at(row.visited_at) && <time>{H.at(row.visited_at)}</time>}
+      </div>
+      {(H.noOf(row) || row.stage) && (
+        <p className="brow-2">
+          {H.noOf(row) && <i>{H.noOf(row)}</i>}
+          <span>{row.stage}</span>
+        </p>
+      )}
+      {steps && <Steps steps={steps} />}
+    </article>
+  );
+}
+
+const DOT = { done: "●", going: "◐", none: "○" };
+
+function Steps({ steps }) {
+  return (
+    <p className="brow-3">
+      {steps.map(([name, state]) => (
+        <span key={name} className={`pstep ${state}`}
+              title={state === "unsure" ? "이 목록으로는 알 수 없습니다" : undefined}>
+          <i aria-hidden="true">{DOT[state] ?? ""}</i>{name}
+        </span>
+      ))}
+    </p>
+  );
+}
+
+/* ── 아래 — 내원 대기 줄 ──────────────────────────────────────
+ * `docs/mockup/Nursing-내원대기.html` 의 줄 모양이다. 번호 · 이름 ·
+ * 나이 성별 ···· 접수 시각 / 둘째 줄에 구분 칩과 문진 상태.
+ *
+ * 접수 화면에서 [접수] 를 누른 환자가 **화면을 옮기지 않아도** 여기 줄에
+ * 붙는다 — 한 과가 됐으니 탭을 건너뛸 이유가 없다(6.1).
+ */
+function Waiting({ state, rows }) {
+  return (
+    <section className="wq">
+      <header className="bcol-h">
+        <i className="hdot" aria-hidden="true" />
+        <b>내원한 대기 환자</b>
+        <em>{rows.length}</em>
+        <span className="home-fill" />
+        <span className="hcard-k">접수 순 · 순서 고정</span>
+      </header>
+      <Body loading={state.loading && !state.data} error={state.error}
+            onRetry={state.reload}
+            empty={rows.length === 0 && <Empty title="내원한 대기 환자가 없습니다" />}>
+        <div className="wq-b">
+          {rows.map((r, i) => (
+            <article className="wrow" key={r.exam_order_id ?? i}>
+              <i className="wrow-n">{i + 1}</i>
+              <span className="wrow-tx">
+                <span className="wrow-1">
+                  <b>{H.nameOf(r)}</b>
+                  {H.who(r) && <span>{H.who(r)}</span>}
+                  <span className="home-fill" />
+                  {H.at(r.visited_at) && <time>{H.at(r.visited_at)} 접수</time>}
+                </span>
+                <span className="wrow-2">
+                  {H.noOf(r) && <i>{H.noOf(r)}</i>}
+                  {r.visit_type && <Chip>{r.visit_type}</Chip>}
+                  <span>{r.questionnaire ? "문진 완료 · 배정 대기" : "문진 대기"}</span>
+                </span>
+              </span>
+              <Btn to={go.nursing.waiting()}>문진 · 배정</Btn>
+            </article>
+          ))}
+        </div>
+      </Body>
+    </section>
+  );
+}
+
+/* 이 화면은 접수 열쇠든 간호 열쇠든 하나면 연다 — 한 과다(nav.js 의 DESK).
+   쓰는 동작(접수·등록)은 위에서 제 열쇠로 따로 잠근다 */
+Intake.need = DESK;

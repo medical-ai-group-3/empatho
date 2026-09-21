@@ -139,6 +139,7 @@ function Desk({ cfg, home, bag, again }) {
       </div>
 
       <div className="pane">
+        {home.flow && <Flow flow={home.flow(bag)} />}
         <Done done={done} />
         {/* ⚠ key 로 과를 건다. 과를 옮기면 **다시 마운트**되어 useState 의
             첫 읽기가 그 과 것으로 다시 돈다 — 효과 안에서 setList 하면
@@ -334,7 +335,38 @@ function Line({ to, className, children }) {
     : <div className={className}>{children}</div>;
 }
 
-/* ── 가운데 위 — 오늘 한 일 ────────────────────────────────────
+/* ── 가운데 위 — 오늘 흐름 ────────────────────────────────────
+ *
+ * 지금 병원 어디에 사람이 몰려 있는지. `/patients/today-status` 의 stage 를
+ * 세기만 하면 나오는 값이라 **지어낸 것이 하나도 없다.**
+ *
+ * 막대는 제일 많은 칸을 기준으로 한 비율이다 — 눈으로 견주라고 두는 것이지
+ * 수를 대신하지 않는다. 수는 오른쪽에 그대로 적는다.
+ */
+function Flow({ flow }) {
+  const items = flow?.items ?? [];
+  const top = Math.max(1, ...items.map((i) => i.count));
+  return (
+    <Card dot="ink" title={flow?.title ?? "오늘 흐름"}
+          right={flow?.summary && <span className="hcard-k">{flow.summary}</span>}>
+      <div className="flows">
+        {items.length === 0
+          ? <p className="hcard-k hpad">오늘 온 환자가 없습니다</p>
+          : items.map((it) => (
+            <Line key={it.name} to={it.to} className="frow">
+              <span className="frow-k">{it.name}</span>
+              <span className="frow-bar">
+                <i style={{ width: `${Math.round((it.count / top) * 100)}%` }} />
+              </span>
+              <b>{it.count}</b>
+            </Line>
+          ))}
+      </div>
+    </Card>
+  );
+}
+
+/* ── 가운데 — 오늘 한 일 ──────────────────────────────────────
  * ⚠ 과에 따라 셀 수 있는 곳과 없는 곳이 갈린다. 판독하는 과(영상·병리)는
  *   오늘 확정한 목록이 곧 「한 일」이다. 나머지는 **서버에 없다**(8장 1번).
  *   칸은 그대로 두고 무엇이 없어서 비었는지 적는다.

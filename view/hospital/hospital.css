@@ -422,6 +422,23 @@ a.srow:hover{background:var(--canvas)}
 .srow-n{flex:none; font-size:var(--qrow-meta-fs); color:var(--warm);
   font-variant-numeric:tabular-nums}
 
+/* ── 오늘 흐름 ────────────────────────────────────────────────
+   단계 이름 · 막대 · 수. **막대는 눈으로 견주라고 두는 것이지 수를
+   대신하지 않는다** — 수는 오른쪽에 그대로 적는다 */
+.flows{flex:1; min-height:0; overflow-y:auto;
+  padding:var(--drow-pad-y) var(--hcard-pad-x) var(--hcard-pad-y)}
+.frow{display:flex; align-items:center; gap:var(--qrow-gap);
+  padding:var(--frow-pad-y) 0}
+a.frow:hover .frow-k{color:var(--ink)}
+.frow-k{flex:none; width:var(--frow-k-w); font-size:var(--qrow-meta-fs);
+  color:var(--ink-2); overflow:hidden; text-overflow:ellipsis;
+  white-space:nowrap}
+.frow-bar{flex:1; min-width:0; height:var(--frow-bar-h);
+  border-radius:var(--round); background:var(--line-2); overflow:hidden}
+.frow-bar i{display:block; height:100%; background:var(--cyan)}
+.frow b{flex:none; font-size:var(--hcard-n-fs); font-weight:600;
+  font-variant-numeric:tabular-nums}
+
 /* ── 오늘 한 일 ──────────────────────────────────────────────── */
 .drows{flex:1; min-height:0; overflow-y:auto;
   padding:var(--drow-pad-y) var(--hcard-pad-x) var(--hcard-pad-y)}
@@ -510,6 +527,86 @@ a.srow:hover{background:var(--canvas)}
 .btn.sm{padding:var(--gap-xs) var(--chip-pad-x); font-size:var(--chip-fs)}
 
 
+
+
+/* ── 접수 (screens/reception/Intake.jsx) ──────────────────────
+   위는 오늘 현황판(칸 다섯 가로), 아래는 내원 대기 줄.
+   배치는 docs/mockup/Reception-오늘현황판.html · Nursing-내원대기.html.
+
+   ⚠ **경과 시간을 안 쓴다.** 목업 줄 끝의 (38′) 와 칸 머리의 「평균 14분」은
+     서버가 주지 않는다. 요청 시각만 적는다.
+   ⚠ **칸을 카드로 띄우지 않는다.** 목업은 칸마다 테두리를 두르지만 그러면
+     칸마다 안쪽 여백이 또 생긴다 — 상자 하나를 1px 선으로 가른다(5.1). */
+/* ⚠ 예약 판과 같은 이유로 **높이를 여기서 한 번만 못 박는다**(flex:none).
+   .shell 이 min-height:100% 라 확정값이 아니어서, 안 박으면 안쪽 두 덩이가
+   못 줄어들고 목업 띠 밑으로 마지막 줄이 깔린다 */
+.page.intake-page{flex:none; min-height:0; overflow:hidden;
+  height:calc(100vh - var(--top-total) - var(--foot-h))}
+
+/* 찾아서 접수 — 화면 맨 위 한 줄 */
+.intake-find-box{flex:none; background:var(--card);
+  border:var(--hair) solid var(--border); border-radius:var(--hcard-radius);
+  overflow:hidden}
+
+/* 오늘 현황판 — 칸 다섯을 가로로. 화면 세로의 반을 쓴다 */
+.board{flex:1 1 var(--board-h); min-height:0; display:grid;
+  grid-template-columns:repeat(var(--board-cols), minmax(0, 1fr));
+  background:var(--card); border:var(--hair) solid var(--border);
+  border-radius:var(--hcard-radius); overflow:hidden}
+.bcol{display:flex; flex-direction:column; min-height:0; min-width:0}
+.bcol + .bcol{border-left:var(--hair) solid var(--border)}
+.bcol-h{flex:none; display:flex; align-items:center; gap:var(--gap-sm);
+  padding:var(--hcard-pad-y) var(--bcol-pad);
+  border-bottom:var(--hair) solid var(--line-2)}
+.bcol-h b{font-size:var(--hcard-h-fs); font-weight:700}
+.bcol-h em{font-style:normal; font-size:var(--hcard-n-fs); font-weight:600;
+  color:var(--ink-2); font-variant-numeric:tabular-nums}
+/* 높이가 모자라면 **그 칸만** 굴린다 */
+.bcol-b{flex:1; min-height:0; overflow-y:auto}
+
+/* 환자 줄 — 세 줄(5.2) */
+.brow{display:flex; flex-direction:column; gap:var(--brow-gap);
+  padding:var(--brow-pad-y) var(--bcol-pad);
+  border-bottom:var(--hair) solid var(--line-2)}
+.brow-1{display:flex; align-items:baseline; gap:var(--chip-gap); min-width:0}
+.brow-1 b{font-size:var(--qrow-nm-fs); font-weight:600; white-space:nowrap}
+.brow-who{font-size:var(--qrow-meta-fs); color:var(--ink-2); white-space:nowrap}
+.brow-1 time{flex:none; font-size:var(--qrow-meta-fs); color:var(--warm);
+  font-variant-numeric:tabular-nums}
+.brow-2{margin:0; min-width:0; display:flex; align-items:baseline;
+  gap:var(--prow-no-gap); font-size:var(--qrow-meta-fs); color:var(--warm)}
+.brow-2 i{flex:none; font-style:normal; color:var(--ink-2);
+  font-variant-numeric:tabular-nums}
+.brow-2 span{min-width:0; overflow:hidden; text-overflow:ellipsis;
+  white-space:nowrap}
+/* 검사 진행 점 — 색을 안 쓴다. 채움 정도로만 가른다 */
+.brow-3{margin:0; display:flex; gap:var(--gap-sm);
+  font-size:var(--prow-3-fs); color:var(--faint)}
+
+/* 내원 대기 줄 — Nursing-내원대기 의 줄 모양 */
+.wq{flex:1 1 var(--wq-h); min-height:0; display:flex; flex-direction:column;
+  background:var(--card); border:var(--hair) solid var(--border);
+  border-radius:var(--hcard-radius); overflow:hidden}
+.wq-b{flex:1; min-height:0; overflow-y:auto}
+.wrow{display:flex; align-items:flex-start; gap:var(--qrow-gap);
+  padding:var(--wrow-pad-y) var(--bcol-pad);
+  border-bottom:var(--hair) solid var(--line-2)}
+.wrow-n{flex:none; width:var(--wrow-n-w); font-style:normal;
+  font-size:var(--qrow-meta-fs); color:var(--faint);
+  font-variant-numeric:tabular-nums}
+.wrow-tx{flex:1; min-width:0; display:flex; flex-direction:column;
+  gap:var(--gap-xxs)}
+.wrow-1{display:flex; align-items:baseline; gap:var(--chip-gap); min-width:0}
+.wrow-1 b{font-size:var(--qrow-nm-fs); font-weight:600; white-space:nowrap}
+.wrow-1 > span{font-size:var(--qrow-meta-fs); color:var(--ink-2)}
+.wrow-1 time{flex:none; font-size:var(--qrow-meta-fs); color:var(--warm);
+  font-variant-numeric:tabular-nums}
+.wrow-2{display:flex; align-items:center; gap:var(--chip-gap); min-width:0;
+  font-size:var(--qrow-meta-fs); color:var(--warm)}
+.wrow-2 i{font-style:normal; font-variant-numeric:tabular-nums}
+.wrow-2 > span:last-child{min-width:0; overflow:hidden;
+  text-overflow:ellipsis; white-space:nowrap}
+.wrow .btn{flex:none}
 
 /* ── 예약 판 (screens/reception/Reservations.jsx) ──────────────
    왼쪽에 무엇을 볼지 · 가운데에 이미 있는 것 · 오른쪽에 지금 쓰는 것.

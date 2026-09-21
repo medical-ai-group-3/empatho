@@ -439,6 +439,11 @@
   --stag-radius:  4px;
   --srow-fs:      calc(13px * var(--ft));
 
+  /* 오늘 흐름 — 단계마다 한 줄, 막대는 제일 많은 칸 기준 비율 */
+  --frow-pad-y:   calc(5px * var(--sp));
+  --frow-k-w:     calc(96px * var(--sp));   /* 단계 이름 칸 */
+  --frow-bar-h:   calc(6px * var(--sp));
+
   /* 오늘 한 일 */
   --drow-pad-y:   calc(6px * var(--sp));
   --drow-t-w:     calc(40px * var(--sp));   /* 시각 칸 */
@@ -469,6 +474,18 @@
 
   /* 접수 카드 (원무만) */
   --intake-in-h:  calc(40px * var(--sp));
+
+  /* ══ 접수 — 오늘 현황판 + 내원 대기 ══════════════════════
+     칸 다섯을 가로로(Reception-오늘현황판), 아래에 내원 대기 줄
+     (Nursing-내원대기). 두 덩이가 세로를 나눠 쓴다 */
+  --board-cols:   5;                        /* 칸 다섯 — 단계마다 하나 */
+  --board-h:      56%;                      /* 위가 조금 더 크다 */
+  --wq-h:         44%;
+  --bcol-pad:     calc(13px * var(--sp));
+  --brow-pad-y:   calc(9px * var(--sp));
+  --brow-gap:     calc(4px * var(--sp));
+  --wrow-pad-y:   calc(10px * var(--sp));
+  --wrow-n-w:     calc(18px * var(--sp));
 
   /* ══ 예약 판 — 달력이 본체다(6.1) ═════════════════════════ */
   --resv-side:    220px;                    /* 왼쪽 — 무엇을 볼지 */

@@ -163,6 +163,24 @@ const PROBE = `(() => {
      ⚠ 떠 있는 메모지(lib/StickyMemo)는 뺀다. 사람이 끌어다 놓는 것이고
        **위에 있는 것이 제 일**이다. 자리도 사람마다 다르다 */
   const float = (el) => el.closest('[role="note"], .sticky-memo') !== null;
+
+  /* ⚠ **굴러서 안 보이는 것은 가려진 것이 아니다.** 스크롤 칸 안의 아래쪽
+     줄은 상자 좌표가 칸 밖에 있어서 elementFromPoint 가 엉뚱한 것을
+     집는다 — 그걸 겹침으로 세면 목록이 긴 화면마다 걸린다.
+     조상 중에 굴리거나 자르는 것이 있으면 그 안에 들어 있는지 먼저 본다 */
+  function clipped(el) {
+    const r = el.getBoundingClientRect();
+    const cy = r.top + r.height / 2;
+    const cx = r.left + r.width / 2;
+    for (let p = el.parentElement; p; p = p.parentElement) {
+      const s = getComputedStyle(p);
+      if (s.overflowY === "visible" && s.overflowX === "visible") continue;
+      const pr = p.getBoundingClientRect();
+      if (cy < pr.top - 1 || cy > pr.bottom + 1
+        || cx < pr.left - 1 || cx > pr.right + 1) return true;
+    }
+    return false;
+  }
   const hit = [...document.querySelectorAll(
     ".page a, .page button, .page input, .page time, .page .hcard-n, .page h2")];
   for (const el of hit) {
@@ -170,6 +188,7 @@ const PROBE = `(() => {
     const x = r.left + r.width / 2;
     const y = r.top + r.height / 2;
     if (x < 0 || y < 0 || x > W || y > window.innerHeight) continue;
+    if (clipped(el)) continue;
     const top = document.elementFromPoint(x, y);
     if (!top) continue;
     if (top === el || el.contains(top) || top.contains(el)) continue;

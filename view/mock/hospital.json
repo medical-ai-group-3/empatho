@@ -2,7 +2,6 @@
   "POST /api/v1/hospital/login": {
     "access": "mock.staff"
   },
-
   "__원무": [
     "원무 1장 접수. 응답 모양은 다희님 serializer 그대로다 — 목업이 없는",
     "칸을 지어내면 붙이는 날 화면을 고치게 된다.",
@@ -15,7 +14,6 @@
     "기존을 응답만으로 구분할 수 없다(둘 다 같은 모양이다).",
     "patient_number 는 서버가 P + 16진수 10자리로 만든다."
   ],
-
   "__accounts": {
     "__README": [
       "GET /me 가 돌려줄 사람. **아이디 앞머리로 과가 갈린다**(mock/hospital.js).",
@@ -28,10 +26,11 @@
       "  dept_name · perms 다섯뿐이다 (serializers/reception.py 의 MeSerializer).",
       "  role 에는 '교수' 같은 직책이 아니라 'nursing' 같은 값이 온다."
     ],
-
     "reception": {
-      "name": "한지우", "role": "reception",
-      "dept": "reception", "dept_name": "원무과",
+      "name": "한지우",
+      "role": "reception",
+      "dept": "reception",
+      "dept_name": "원무과",
       "perms": [
         "reception.intake.view",
         "reception.patient.search",
@@ -44,84 +43,138 @@
         "reception.confirm"
       ]
     },
-
     "admin": {
-      "name": "정하늘", "role": "admin",
-      "dept": "admin", "dept_name": "관리자",
+      "name": "정하늘",
+      "role": "admin",
+      "dept": "admin",
+      "dept_name": "관리자",
       "perms": [
         "admin.console.open"
       ]
     },
-
     "pathology": {
-      "name": "박민재", "role": "pathology",
-      "dept": "pathology", "dept_name": "병리과",
+      "name": "박민재",
+      "role": "pathology",
+      "dept": "pathology",
+      "dept_name": "병리과",
       "perms": [
-        "pathology.queue.view", "pathology.queue.assign",
-        "pathology.upload.view", "pathology.upload.send",
-        "pathology.ai.run", "pathology.ai.view",
-        "pathology.read.view", "pathology.read.draft", "pathology.read.finalize",
+        "pathology.queue.view",
+        "pathology.queue.assign",
+        "pathology.upload.view",
+        "pathology.upload.send",
+        "pathology.ai.run",
+        "pathology.ai.view",
+        "pathology.read.view",
+        "pathology.read.draft",
+        "pathology.read.finalize",
         "pathology.list.view",
         "report.view.all"
       ]
     },
-
     "radiology": {
-      "name": "서지훈", "role": "radiology",
-      "dept": "radiology", "dept_name": "영상의학과",
+      "name": "서지훈",
+      "role": "radiology",
+      "dept": "radiology",
+      "dept_name": "영상의학과",
       "perms": [
-        "radiology.queue.view", "radiology.queue.assign",
-        "radiology.upload.view", "radiology.upload.send",
-        "radiology.ai.run", "radiology.ai.view",
-        "radiology.read.view", "radiology.read.draft", "radiology.read.finalize",
+        "radiology.queue.view",
+        "radiology.queue.assign",
+        "radiology.upload.view",
+        "radiology.upload.send",
+        "radiology.ai.run",
+        "radiology.ai.view",
+        "radiology.read.view",
+        "radiology.read.draft",
+        "radiology.read.finalize",
         "radiology.list.view",
-        "radiology.amend.view", "radiology.amend.save",
-        "radiology.retake", "radiology.lesion.add", "radiology.lesion.fp",
+        "radiology.amend.view",
+        "radiology.amend.save",
+        "radiology.retake",
+        "radiology.lesion.add",
+        "radiology.lesion.fp",
         "report.view.all"
       ]
     },
-
     "surgery": {
-      "name": "임도현", "role": "surgery",
-      "dept": "surgery", "dept_name": "유방외과",
+      "name": "임도현",
+      "role": "surgery",
+      "dept": "surgery",
+      "dept_name": "유방외과",
       "perms": [
-        "breast.waiting.view", "breast.exam.order",
+        "breast.waiting.view",
+        "breast.exam.order",
         "breast.review.view",
-        "breast.decision.view", "breast.decision.save", "breast.report.unlock",
-        "breast.discordance.view", "breast.discordance.dispose",
+        "breast.decision.view",
+        "breast.decision.save",
+        "breast.report.unlock",
+        "breast.discordance.view",
+        "breast.discordance.dispose",
         "specimen.bind",
         "report.view.all"
       ]
     },
-
     "nursing": {
-      "name": "오세라", "role": "nursing",
-      "dept": "nursing", "dept_name": "간호과",
+      "name": "오세라",
+      "role": "nursing",
+      "dept": "nursing",
+      "dept_name": "간호과",
       "perms": [
-        "nursing.waiting.view", "nursing.waiting.assign",
-        "nursing.followup.view", "nursing.followup.create", "nursing.followup.call",
+        "nursing.waiting.view",
+        "nursing.waiting.assign",
+        "nursing.followup.view",
+        "nursing.followup.create",
+        "nursing.followup.call",
         "specimen.bind"
       ]
     }
   },
-
   "GET /api/v1/hospital/patients/?q={q}": [
-    { "patient_id": 41, "patient_number": "E_1029304", "name": "김영희",
-      "phone": "010-1234-5678", "birth_date": "1985-07-02", "birth_year": 1985,
-      "sex": "female" },
-    { "patient_id": 42, "patient_number": "E_1029311", "name": "김영희",
-      "phone": "010-0000-0000", "birth_date": "1971-11-30", "birth_year": 1971,
-      "sex": "female" },
-    { "patient_id": 46, "patient_number": "E_1029388", "name": "김영희",
-      "phone": "010-8282-4545", "birth_date": "1985-02-19", "birth_year": 1985,
-      "sex": "female" },
-    { "patient_id": 43, "patient_number": "E_1029355", "name": "김영수",
-      "phone": "010-7777-1234", "birth_date": "1964-04-08", "birth_year": 1964,
-      "sex": "male" },
-    { "patient_id": 60, "patient_number": "E_1029401", "name": null,
-      "phone": null, "birth_date": null, "birth_year": null, "sex": null }
+    {
+      "patient_id": 41,
+      "patient_number": "E_1029304",
+      "name": "김영희",
+      "phone": "010-1234-5678",
+      "birth_date": "1985-07-02",
+      "birth_year": 1985,
+      "sex": "female"
+    },
+    {
+      "patient_id": 42,
+      "patient_number": "E_1029311",
+      "name": "김영희",
+      "phone": "010-0000-0000",
+      "birth_date": "1971-11-30",
+      "birth_year": 1971,
+      "sex": "female"
+    },
+    {
+      "patient_id": 46,
+      "patient_number": "E_1029388",
+      "name": "김영희",
+      "phone": "010-8282-4545",
+      "birth_date": "1985-02-19",
+      "birth_year": 1985,
+      "sex": "female"
+    },
+    {
+      "patient_id": 43,
+      "patient_number": "E_1029355",
+      "name": "김영수",
+      "phone": "010-7777-1234",
+      "birth_date": "1964-04-08",
+      "birth_year": 1964,
+      "sex": "male"
+    },
+    {
+      "patient_id": 60,
+      "patient_number": "E_1029401",
+      "name": null,
+      "phone": null,
+      "birth_date": null,
+      "birth_year": null,
+      "sex": null
+    }
   ],
-
   "POST /api/v1/hospital/patients/register": {
     "patient_id": 77,
     "patient_number": "P3F9A21C0D4",
@@ -134,10 +187,13 @@
     "account": null,
     "primary_staff": null,
     "primary_staff_name": null,
-    "pii": { "patient_id": 77, "name": "새환자",
-             "birth_date": "1990-03-14", "phone": "010-2222-3333" }
+    "pii": {
+      "patient_id": 77,
+      "name": "새환자",
+      "birth_date": "1990-03-14",
+      "phone": "010-2222-3333"
+    }
   },
-
   "POST /api/v1/hospital/exam-orders/checkin": {
     "exam_order_id": 512,
     "patient": 41,
@@ -156,20 +212,38 @@
     "cancel_reason": null,
     "cancelled_by": null
   },
-
   "GET /api/v1/hospital/patients/today-status": [
-    { "exam_order_id": 501, "patient_id": 41, "patient_name": "김영희",
-      "stage": "접수 대기" },
-    { "exam_order_id": 502, "patient_id": 42, "patient_name": "윤서현",
-      "stage": "영상의학과 대기" },
-    { "exam_order_id": 503, "patient_id": 43, "patient_name": "이정민",
-      "stage": "영상의학과 촬영중" },
-    { "exam_order_id": 504, "patient_id": 44, "patient_name": "한지우",
-      "stage": "AI 분석중" },
-    { "exam_order_id": 505, "patient_id": 60, "patient_name": null,
-      "stage": "접수 대기" }
+    {
+      "exam_order_id": 501,
+      "patient_id": 41,
+      "patient_name": "김영희",
+      "stage": "접수 대기"
+    },
+    {
+      "exam_order_id": 502,
+      "patient_id": 42,
+      "patient_name": "윤서현",
+      "stage": "영상의학과 대기"
+    },
+    {
+      "exam_order_id": 503,
+      "patient_id": 43,
+      "patient_name": "이정민",
+      "stage": "영상의학과 촬영중"
+    },
+    {
+      "exam_order_id": 504,
+      "patient_id": 44,
+      "patient_name": "한지우",
+      "stage": "AI 분석중"
+    },
+    {
+      "exam_order_id": 505,
+      "patient_id": 60,
+      "patient_name": null,
+      "stage": "접수 대기"
+    }
   ],
-
   "__예약확인": [
     "원무 4장. 앱으로 들어온 예약 신청.",
     "",
@@ -184,45 +258,92 @@
     "  돌려주고 order_status 를 **scheduled** 로 만든다. 같은 건을 두 번",
     "  확정하면 409 ALREADY_CONFIRMED 가 온다."
   ],
-
   "GET /api/v1/hospital/exam-orders?status={s}&visited={v}": [
-    { "exam_order_id": 801, "patient": 44, "patient_name": "한지우",
-      "patient_sex": "female", "patient_birth_year": 1990,
-      "exam_purpose": null, "modality": null, "order_status": "requested",
-      "ordered_by": null, "ordered_at": null,
-      "assigned_to": null, "order_note": null,
-      "scheduled_at": "2026-09-21T10:00:00+09:00", "visited_at": null,
-      "parent_order": null, "followup": null, "questionnaire": null,
-      "cancel_reason": null, "cancelled_by": null },
-
-    { "exam_order_id": 802, "patient": 45, "patient_name": "최유나",
-      "patient_sex": "female", "patient_birth_year": 1978,
-      "exam_purpose": null, "modality": null, "order_status": "requested",
-      "ordered_by": null, "ordered_at": null,
-      "assigned_to": null, "order_note": null,
-      "scheduled_at": "2026-09-22T14:30:00+09:00", "visited_at": null,
-      "parent_order": null, "followup": null, "questionnaire": null,
-      "cancel_reason": null, "cancelled_by": null },
-
-    { "exam_order_id": 803, "patient": 41, "patient_name": null,
-      "patient_sex": null, "patient_birth_year": null,
-      "exam_purpose": null, "modality": null, "order_status": "requested",
-      "ordered_by": null, "ordered_at": null,
-      "assigned_to": null, "order_note": null,
-      "scheduled_at": "2026-09-23T09:00:00+09:00", "visited_at": null,
-      "parent_order": null, "followup": null, "questionnaire": null,
-      "cancel_reason": null, "cancelled_by": null },
-
-    { "exam_order_id": 804, "patient": 43, "patient_name": "이정민",
-      "patient_sex": "male", "patient_birth_year": 1964,
-      "exam_purpose": null, "modality": null, "order_status": "requested",
-      "ordered_by": null, "ordered_at": null,
-      "assigned_to": null, "order_note": null,
-      "scheduled_at": null, "visited_at": null,
-      "parent_order": null, "followup": null, "questionnaire": null,
-      "cancel_reason": null, "cancelled_by": null }
+    {
+      "exam_order_id": 801,
+      "patient": 44,
+      "patient_name": "한지우",
+      "patient_sex": "female",
+      "patient_birth_year": 1990,
+      "exam_purpose": null,
+      "modality": null,
+      "order_status": "requested",
+      "ordered_by": null,
+      "ordered_at": null,
+      "assigned_to": null,
+      "order_note": null,
+      "scheduled_at": "2026-09-21T10:00:00+09:00",
+      "visited_at": null,
+      "parent_order": null,
+      "followup": null,
+      "questionnaire": null,
+      "cancel_reason": null,
+      "cancelled_by": null
+    },
+    {
+      "exam_order_id": 802,
+      "patient": 45,
+      "patient_name": "최유나",
+      "patient_sex": "female",
+      "patient_birth_year": 1978,
+      "exam_purpose": null,
+      "modality": null,
+      "order_status": "requested",
+      "ordered_by": null,
+      "ordered_at": null,
+      "assigned_to": null,
+      "order_note": null,
+      "scheduled_at": "2026-09-22T14:30:00+09:00",
+      "visited_at": null,
+      "parent_order": null,
+      "followup": null,
+      "questionnaire": null,
+      "cancel_reason": null,
+      "cancelled_by": null
+    },
+    {
+      "exam_order_id": 803,
+      "patient": 41,
+      "patient_name": null,
+      "patient_sex": null,
+      "patient_birth_year": null,
+      "exam_purpose": null,
+      "modality": null,
+      "order_status": "requested",
+      "ordered_by": null,
+      "ordered_at": null,
+      "assigned_to": null,
+      "order_note": null,
+      "scheduled_at": "2026-09-23T09:00:00+09:00",
+      "visited_at": null,
+      "parent_order": null,
+      "followup": null,
+      "questionnaire": null,
+      "cancel_reason": null,
+      "cancelled_by": null
+    },
+    {
+      "exam_order_id": 804,
+      "patient": 43,
+      "patient_name": "이정민",
+      "patient_sex": "male",
+      "patient_birth_year": 1964,
+      "exam_purpose": null,
+      "modality": null,
+      "order_status": "requested",
+      "ordered_by": null,
+      "ordered_at": null,
+      "assigned_to": null,
+      "order_note": null,
+      "scheduled_at": null,
+      "visited_at": null,
+      "parent_order": null,
+      "followup": null,
+      "questionnaire": null,
+      "cancel_reason": null,
+      "cancelled_by": null
+    }
   ],
-
   "__환자목록": [
     "원무 3장. 목록 · 상세 · 수정 · 환자별 예약 · 예약 생성.",
     "",
@@ -236,28 +357,68 @@
     "  걸러지지 않은 전체가 온다(읽기만 하고 필터에 안 쓴다). 화면이 그 길로",
     "  목록을 받는다 — api.js 의 ALL_PATIENTS."
   ],
-
   "GET /api/v1/hospital/patients/?status={s}": [
-    { "patient_id": 41,"birth_date": "1985-07-02", "patient_number": "E_1029304", "name": "김영희",
-      "phone": "010-1234-5678", "birth_year": 1985, "sex": "female",
-      "has_allergy": true, "first_visited_at": "2026-03-11T09:20:00+09:00",
-      "status": "재진" },
-    { "patient_id": 42,"birth_date": "1971-11-30", "patient_number": "E_1029311", "name": "윤서현",
-      "phone": "010-0000-0000", "birth_year": 1971, "sex": "female",
-      "has_allergy": false, "first_visited_at": "2026-01-08T10:00:00+09:00",
-      "status": "재진" },
-    { "patient_id": 43,"birth_date": "1964-04-08", "patient_number": "E_1029355", "name": "이정민",
-      "phone": "010-7777-1234", "birth_year": 1964, "sex": "male",
-      "has_allergy": false, "first_visited_at": null, "status": "초진" },
-    { "patient_id": 44,"birth_date": "1990-03-14", "patient_number": "E_1029362", "name": "한지우",
-      "phone": "010-3333-9090", "birth_year": 1990, "sex": "female",
-      "has_allergy": true, "first_visited_at": null, "status": "초진" },
-    { "patient_id": 45,"birth_date": "1978-09-27", "patient_number": "E_1029370", "name": "최유나",
-      "phone": "010-5151-2323", "birth_year": 1978, "sex": "female",
-      "has_allergy": false, "first_visited_at": "2026-05-22T14:30:00+09:00",
-      "status": "재진" }
+    {
+      "patient_id": 41,
+      "birth_date": "1985-07-02",
+      "patient_number": "E_1029304",
+      "name": "김영희",
+      "phone": "010-1234-5678",
+      "birth_year": 1985,
+      "sex": "female",
+      "has_allergy": true,
+      "first_visited_at": "2026-03-11T09:20:00+09:00",
+      "status": "재진"
+    },
+    {
+      "patient_id": 42,
+      "birth_date": "1971-11-30",
+      "patient_number": "E_1029311",
+      "name": "윤서현",
+      "phone": "010-0000-0000",
+      "birth_year": 1971,
+      "sex": "female",
+      "has_allergy": false,
+      "first_visited_at": "2026-01-08T10:00:00+09:00",
+      "status": "재진"
+    },
+    {
+      "patient_id": 43,
+      "birth_date": "1964-04-08",
+      "patient_number": "E_1029355",
+      "name": "이정민",
+      "phone": "010-7777-1234",
+      "birth_year": 1964,
+      "sex": "male",
+      "has_allergy": false,
+      "first_visited_at": null,
+      "status": "초진"
+    },
+    {
+      "patient_id": 44,
+      "birth_date": "1990-03-14",
+      "patient_number": "E_1029362",
+      "name": "한지우",
+      "phone": "010-3333-9090",
+      "birth_year": 1990,
+      "sex": "female",
+      "has_allergy": true,
+      "first_visited_at": null,
+      "status": "초진"
+    },
+    {
+      "patient_id": 45,
+      "birth_date": "1978-09-27",
+      "patient_number": "E_1029370",
+      "name": "최유나",
+      "phone": "010-5151-2323",
+      "birth_year": 1978,
+      "sex": "female",
+      "has_allergy": false,
+      "first_visited_at": "2026-05-22T14:30:00+09:00",
+      "status": "재진"
+    }
   ],
-
   "GET /api/v1/hospital/patients/{id}/": {
     "patient_id": 41,
     "patient_number": "E_1029304",
@@ -277,7 +438,6 @@
       "phone": "010-1234-5678"
     }
   },
-
   "PATCH /api/v1/hospital/patients/{id}/": {
     "patient_id": 41,
     "patient_number": "E_1029304",
@@ -291,34 +451,65 @@
     "primary_staff": null,
     "primary_staff_name": null
   },
-
   "GET /api/v1/hospital/exam-orders?patient={id}&ordering={o}": [
-    { "exam_order_id": 601, "patient": 41, "patient_name": "김영희",
-      "exam_purpose": "screening", "modality": "mammo", "order_status": "ordered",
-      "ordered_by": null, "ordered_at": "2026-09-02T10:20:00+09:00",
-      "assigned_to": null, "order_note": null,
-      "scheduled_at": "2026-09-13T09:30:00+09:00", "visited_at": null,
-      "parent_order": null, "followup": null, "questionnaire": null,
-      "cancel_reason": null, "cancelled_by": null },
-
-    { "exam_order_id": 612, "patient": 41, "patient_name": "김영희",
-      "exam_purpose": null, "modality": null, "order_status": "requested",
-      "ordered_by": null, "ordered_at": null,
-      "assigned_to": null, "order_note": null,
-      "scheduled_at": "2026-09-13T15:00:00+09:00", "visited_at": null,
-      "parent_order": null, "followup": null, "questionnaire": null,
-      "cancel_reason": null, "cancelled_by": null },
-
-    { "exam_order_id": 613, "patient": 41, "patient_name": "김영희",
-      "exam_purpose": "screening", "modality": "us", "order_status": "completed",
-      "ordered_by": null, "ordered_at": "2026-03-10T09:00:00+09:00",
-      "assigned_to": null, "order_note": null,
+    {
+      "exam_order_id": 601,
+      "patient": 41,
+      "patient_name": "김영희",
+      "exam_purpose": "screening",
+      "modality": "mammo",
+      "order_status": "ordered",
+      "ordered_by": null,
+      "ordered_at": "2026-09-02T10:20:00+09:00",
+      "assigned_to": null,
+      "order_note": null,
+      "scheduled_at": "2026-09-13T09:30:00+09:00",
+      "visited_at": null,
+      "parent_order": null,
+      "followup": null,
+      "questionnaire": null,
+      "cancel_reason": null,
+      "cancelled_by": null
+    },
+    {
+      "exam_order_id": 612,
+      "patient": 41,
+      "patient_name": "김영희",
+      "exam_purpose": null,
+      "modality": null,
+      "order_status": "requested",
+      "ordered_by": null,
+      "ordered_at": null,
+      "assigned_to": null,
+      "order_note": null,
+      "scheduled_at": "2026-09-13T15:00:00+09:00",
+      "visited_at": null,
+      "parent_order": null,
+      "followup": null,
+      "questionnaire": null,
+      "cancel_reason": null,
+      "cancelled_by": null
+    },
+    {
+      "exam_order_id": 613,
+      "patient": 41,
+      "patient_name": "김영희",
+      "exam_purpose": "screening",
+      "modality": "us",
+      "order_status": "completed",
+      "ordered_by": null,
+      "ordered_at": "2026-03-10T09:00:00+09:00",
+      "assigned_to": null,
+      "order_note": null,
       "scheduled_at": "2026-03-11T09:20:00+09:00",
       "visited_at": "2026-03-11T09:18:00+09:00",
-      "parent_order": null, "followup": null, "questionnaire": null,
-      "cancel_reason": null, "cancelled_by": null }
+      "parent_order": null,
+      "followup": null,
+      "questionnaire": null,
+      "cancel_reason": null,
+      "cancelled_by": null
+    }
   ],
-
   "POST /api/v1/hospital/exam-orders/schedule": {
     "exam_order_id": 720,
     "patient": 41,
@@ -337,7 +528,6 @@
     "cancel_reason": null,
     "cancelled_by": null
   },
-
   "__예약캘린더": [
     "원무 1장 아래 예약 캘린더. GET /exam-orders?scheduled_from=&scheduled_to=",
     "칸 이름은 ExamOrderSerializer(맨 ModelSerializer) 가 주는 그대로다.",
@@ -350,102 +540,220 @@
     "⚠ 달이 바뀌어도 **같은 자료가 온다.** 목업이 질의 값을 안 보기 때문이다.",
     "  오늘이 2026-09-16 이라 첫 화면은 9월이고, 아래 자료도 9월로 맞춰 뒀다."
   ],
-
   "GET /api/v1/hospital/exam-orders?scheduled_from={from}&scheduled_to={to}": [
-    { "exam_order_id": 601, "patient": 41, "patient_name": "김서연",
-      "exam_purpose": "screening", "modality": "mammo", "order_status": "ordered",
-      "ordered_by": null, "ordered_at": "2026-09-02T10:20:00+09:00",
-      "assigned_to": null, "order_note": null,
-      "scheduled_at": "2026-09-13T09:30:00+09:00", "visited_at": null,
-      "parent_order": null, "followup": null, "questionnaire": null,
-      "cancel_reason": null, "cancelled_by": null },
-
-    { "exam_order_id": 602, "patient": 42, "patient_name": "윤서현",
-      "exam_purpose": "diagnostic", "modality": "us", "order_status": "ordered",
-      "ordered_by": null, "ordered_at": "2026-09-02T11:05:00+09:00",
-      "assigned_to": null, "order_note": null,
-      "scheduled_at": "2026-09-13T14:00:00+09:00", "visited_at": null,
-      "parent_order": null, "followup": null, "questionnaire": null,
-      "cancel_reason": null, "cancelled_by": null },
-
-    { "exam_order_id": 603, "patient": 43, "patient_name": "이정민",
-      "exam_purpose": "screening", "modality": "mammo", "order_status": "ordered",
-      "ordered_by": null, "ordered_at": "2026-09-03T09:00:00+09:00",
-      "assigned_to": null, "order_note": null,
-      "scheduled_at": "2026-09-13T15:30:00+09:00", "visited_at": null,
-      "parent_order": null, "followup": null, "questionnaire": null,
-      "cancel_reason": null, "cancelled_by": null },
-
-    { "exam_order_id": 611, "patient": 51, "patient_name": "권나래",
-      "exam_purpose": "screening", "modality": null, "order_status": "requested",
-      "ordered_by": null, "ordered_at": null,
-      "assigned_to": null, "order_note": null,
-      "scheduled_at": "2026-09-13T16:40:00+09:00", "visited_at": null,
-      "parent_order": null, "followup": null, "questionnaire": null,
-      "cancel_reason": null, "cancelled_by": null },
-
-    { "exam_order_id": 604, "patient": 44, "patient_name": "한지우",
-      "exam_purpose": "diagnostic", "modality": "mri", "order_status": "ordered",
-      "ordered_by": null, "ordered_at": "2026-09-05T16:40:00+09:00",
-      "assigned_to": null, "order_note": null,
-      "scheduled_at": "2026-09-16T10:00:00+09:00", "visited_at": null,
-      "parent_order": null, "followup": null, "questionnaire": null,
-      "cancel_reason": null, "cancelled_by": null },
-
-    { "exam_order_id": 605, "patient": 45, "patient_name": "최유나",
-      "exam_purpose": "screening", "modality": "us", "order_status": "requested",
-      "ordered_by": null, "ordered_at": null,
-      "assigned_to": null, "order_note": null,
-      "scheduled_at": "2026-09-16T13:20:00+09:00", "visited_at": null,
-      "parent_order": null, "followup": null, "questionnaire": null,
-      "cancel_reason": null, "cancelled_by": null },
-
-    { "exam_order_id": 606, "patient": 46, "patient_name": "장하윤",
-      "exam_purpose": "screening", "modality": "mammo", "order_status": "ordered",
-      "ordered_by": null, "ordered_at": "2026-09-08T14:12:00+09:00",
-      "assigned_to": null, "order_note": null,
-      "scheduled_at": "2026-09-19T09:00:00+09:00", "visited_at": null,
-      "parent_order": null, "followup": null, "questionnaire": null,
-      "cancel_reason": null, "cancelled_by": null },
-
-    { "exam_order_id": 607, "patient": 47, "patient_name": "오세림",
-      "exam_purpose": "diagnostic", "modality": "mri", "order_status": "ordered",
-      "ordered_by": null, "ordered_at": "2026-09-09T09:30:00+09:00",
-      "assigned_to": null, "order_note": null,
-      "scheduled_at": "2026-09-19T11:40:00+09:00", "visited_at": null,
-      "parent_order": null, "followup": null, "questionnaire": null,
-      "cancel_reason": null, "cancelled_by": null },
-
-    { "exam_order_id": 608, "patient": 48, "patient_name": "배수진",
-      "exam_purpose": "screening", "modality": "mammo", "order_status": "ordered",
-      "ordered_by": null, "ordered_at": "2026-09-09T10:02:00+09:00",
-      "assigned_to": null, "order_note": null,
-      "scheduled_at": "2026-09-19T16:00:00+09:00", "visited_at": null,
-      "parent_order": null, "followup": null, "questionnaire": null,
-      "cancel_reason": null, "cancelled_by": null },
-
-    { "exam_order_id": 609, "patient": 49, "patient_name": "신다은",
-      "exam_purpose": "screening", "modality": "us", "order_status": "ordered",
-      "ordered_by": null, "ordered_at": "2026-09-10T13:00:00+09:00",
-      "assigned_to": null, "order_note": null,
-      "scheduled_at": "2026-09-24T10:30:00+09:00", "visited_at": null,
-      "parent_order": null, "followup": null, "questionnaire": null,
-      "cancel_reason": null, "cancelled_by": null },
-
-    { "exam_order_id": 610, "patient": 50, "patient_name": null,
-      "exam_purpose": "screening", "modality": "mammo", "order_status": "requested",
-      "ordered_by": null, "ordered_at": null,
-      "assigned_to": null, "order_note": null,
-      "scheduled_at": "2026-09-30T17:30:00+09:00", "visited_at": null,
-      "parent_order": null, "followup": null, "questionnaire": null,
-      "cancel_reason": null, "cancelled_by": null }
+    {
+      "exam_order_id": 601,
+      "patient": 41,
+      "patient_name": "김서연",
+      "exam_purpose": "screening",
+      "modality": "mammo",
+      "order_status": "ordered",
+      "ordered_by": null,
+      "ordered_at": "2026-09-02T10:20:00+09:00",
+      "assigned_to": null,
+      "order_note": null,
+      "scheduled_at": "2026-09-13T09:30:00+09:00",
+      "visited_at": null,
+      "parent_order": null,
+      "followup": null,
+      "questionnaire": null,
+      "cancel_reason": null,
+      "cancelled_by": null
+    },
+    {
+      "exam_order_id": 602,
+      "patient": 42,
+      "patient_name": "윤서현",
+      "exam_purpose": "diagnostic",
+      "modality": "us",
+      "order_status": "ordered",
+      "ordered_by": null,
+      "ordered_at": "2026-09-02T11:05:00+09:00",
+      "assigned_to": null,
+      "order_note": null,
+      "scheduled_at": "2026-09-13T14:00:00+09:00",
+      "visited_at": null,
+      "parent_order": null,
+      "followup": null,
+      "questionnaire": null,
+      "cancel_reason": null,
+      "cancelled_by": null
+    },
+    {
+      "exam_order_id": 603,
+      "patient": 43,
+      "patient_name": "이정민",
+      "exam_purpose": "screening",
+      "modality": "mammo",
+      "order_status": "ordered",
+      "ordered_by": null,
+      "ordered_at": "2026-09-03T09:00:00+09:00",
+      "assigned_to": null,
+      "order_note": null,
+      "scheduled_at": "2026-09-13T15:30:00+09:00",
+      "visited_at": null,
+      "parent_order": null,
+      "followup": null,
+      "questionnaire": null,
+      "cancel_reason": null,
+      "cancelled_by": null
+    },
+    {
+      "exam_order_id": 611,
+      "patient": 51,
+      "patient_name": "권나래",
+      "exam_purpose": "screening",
+      "modality": null,
+      "order_status": "requested",
+      "ordered_by": null,
+      "ordered_at": null,
+      "assigned_to": null,
+      "order_note": null,
+      "scheduled_at": "2026-09-13T16:40:00+09:00",
+      "visited_at": null,
+      "parent_order": null,
+      "followup": null,
+      "questionnaire": null,
+      "cancel_reason": null,
+      "cancelled_by": null
+    },
+    {
+      "exam_order_id": 604,
+      "patient": 44,
+      "patient_name": "한지우",
+      "exam_purpose": "diagnostic",
+      "modality": "mri",
+      "order_status": "ordered",
+      "ordered_by": null,
+      "ordered_at": "2026-09-05T16:40:00+09:00",
+      "assigned_to": null,
+      "order_note": null,
+      "scheduled_at": "2026-09-16T10:00:00+09:00",
+      "visited_at": null,
+      "parent_order": null,
+      "followup": null,
+      "questionnaire": null,
+      "cancel_reason": null,
+      "cancelled_by": null
+    },
+    {
+      "exam_order_id": 605,
+      "patient": 45,
+      "patient_name": "최유나",
+      "exam_purpose": "screening",
+      "modality": "us",
+      "order_status": "requested",
+      "ordered_by": null,
+      "ordered_at": null,
+      "assigned_to": null,
+      "order_note": null,
+      "scheduled_at": "2026-09-16T13:20:00+09:00",
+      "visited_at": null,
+      "parent_order": null,
+      "followup": null,
+      "questionnaire": null,
+      "cancel_reason": null,
+      "cancelled_by": null
+    },
+    {
+      "exam_order_id": 606,
+      "patient": 46,
+      "patient_name": "장하윤",
+      "exam_purpose": "screening",
+      "modality": "mammo",
+      "order_status": "ordered",
+      "ordered_by": null,
+      "ordered_at": "2026-09-08T14:12:00+09:00",
+      "assigned_to": null,
+      "order_note": null,
+      "scheduled_at": "2026-09-19T09:00:00+09:00",
+      "visited_at": null,
+      "parent_order": null,
+      "followup": null,
+      "questionnaire": null,
+      "cancel_reason": null,
+      "cancelled_by": null
+    },
+    {
+      "exam_order_id": 607,
+      "patient": 47,
+      "patient_name": "오세림",
+      "exam_purpose": "diagnostic",
+      "modality": "mri",
+      "order_status": "ordered",
+      "ordered_by": null,
+      "ordered_at": "2026-09-09T09:30:00+09:00",
+      "assigned_to": null,
+      "order_note": null,
+      "scheduled_at": "2026-09-19T11:40:00+09:00",
+      "visited_at": null,
+      "parent_order": null,
+      "followup": null,
+      "questionnaire": null,
+      "cancel_reason": null,
+      "cancelled_by": null
+    },
+    {
+      "exam_order_id": 608,
+      "patient": 48,
+      "patient_name": "배수진",
+      "exam_purpose": "screening",
+      "modality": "mammo",
+      "order_status": "ordered",
+      "ordered_by": null,
+      "ordered_at": "2026-09-09T10:02:00+09:00",
+      "assigned_to": null,
+      "order_note": null,
+      "scheduled_at": "2026-09-19T16:00:00+09:00",
+      "visited_at": null,
+      "parent_order": null,
+      "followup": null,
+      "questionnaire": null,
+      "cancel_reason": null,
+      "cancelled_by": null
+    },
+    {
+      "exam_order_id": 609,
+      "patient": 49,
+      "patient_name": "신다은",
+      "exam_purpose": "screening",
+      "modality": "us",
+      "order_status": "ordered",
+      "ordered_by": null,
+      "ordered_at": "2026-09-10T13:00:00+09:00",
+      "assigned_to": null,
+      "order_note": null,
+      "scheduled_at": "2026-09-24T10:30:00+09:00",
+      "visited_at": null,
+      "parent_order": null,
+      "followup": null,
+      "questionnaire": null,
+      "cancel_reason": null,
+      "cancelled_by": null
+    },
+    {
+      "exam_order_id": 610,
+      "patient": 50,
+      "patient_name": null,
+      "exam_purpose": "screening",
+      "modality": "mammo",
+      "order_status": "requested",
+      "ordered_by": null,
+      "ordered_at": null,
+      "assigned_to": null,
+      "order_note": null,
+      "scheduled_at": "2026-09-30T17:30:00+09:00",
+      "visited_at": null,
+      "parent_order": null,
+      "followup": null,
+      "questionnaire": null,
+      "cancel_reason": null,
+      "cancelled_by": null
+    }
   ],
-
-
   "POST /api/v1/hospital/token/refresh": {
     "access": "mock.staff.renewed"
   },
-
   "__관리자": [
     "관리자 화면은 우리가 짓지 않는다. Django admin 을 쓴다.",
     "이 응답이 하는 일은 「어디로 가라」 하나뿐이고, 진짜 일(세션 쿠키 심기)은",
@@ -457,11 +765,9 @@
     "⚠ 목업은 role 을 안 본다. 진짜 서버는 role != admin 이면 403 ROLE_FORBIDDEN",
     "  이다. 화면 쪽 권한(admin.console.open)과 **따로** 서버가 다시 본다."
   ],
-
   "POST /api/v1/hospital/admin-session": {
     "admin_url": "/admin/"
   },
-
   "GET /api/v1/hospital/me": {
     "staff_id": "S-20250117",
     "name": "박민재",
@@ -516,16 +822,13 @@
     "ok": true,
     "detail": "프로필이 저장되었습니다"
   },
-
   "POST /api/v1/hospital/logout": {
     "ok": true,
     "detail": "로그아웃되었습니다"
   },
-
   "POST /api/v1/hospital/signup/staff": {
     "detail": "가입 신청이 접수되었습니다. 관리자 승인 후 로그인할 수 있습니다."
   },
-
   "GET /api/v1/hospital/specimens/queue": {
     "items": [
       {
@@ -844,7 +1147,6 @@
     "modality": "mammo",
     "status_label": "촬영 중"
   },
-
   "GET /api/v1/hospital/radiology/studies/{id}/upload": {
     "patient_name": "김하늘",
     "age": 44,
@@ -1104,12 +1406,10 @@
     "source": "doctor",
     "is_false_positive": false
   },
-
   "PATCH /api/v1/hospital/lesions/{id}/": {
     "id": "les-2",
     "is_false_positive": true
   },
-
   "GET /api/v1/hospital/radiology/studies/st-302/read": {
     "patient": {
       "name": "정유진",
@@ -1137,15 +1437,31 @@
       }
     ],
     "series": [
-      { "id": "ph1", "name": "T1_pre" },
-      { "id": "ph2", "name": "T1_post1" },
-      { "id": "ph3", "name": "T1_post2" },
-      { "id": "ph4", "name": "T1_post3" }
+      {
+        "id": "ph1",
+        "name": "T1_pre"
+      },
+      {
+        "id": "ph2",
+        "name": "T1_post1"
+      },
+      {
+        "id": "ph3",
+        "name": "T1_post2"
+      },
+      {
+        "id": "ph4",
+        "name": "T1_post3"
+      }
     ],
     "ai": {
       "modality": "mri",
       "abstained": false,
-      "density": { "breast_voxels": 812400, "dense_voxels": 495564, "percent": 0.61 },
+      "density": {
+        "breast_voxels": 812400,
+        "dense_voxels": 495564,
+        "percent": 0.61
+      },
       "lesions": [
         {
           "id": "L-2051-A",
@@ -1153,15 +1469,19 @@
           "max_diameter_mm": 23.4,
           "nipple_distance_mm": 29,
           "quadrant": "UOQ",
-          "centroid": { "x": 134, "y": 88, "z": 212 }
+          "centroid": {
+            "x": 134,
+            "y": 88,
+            "z": 212
+          }
         }
       ]
     },
-    "doctor": { "finding_note": null }
+    "doctor": {
+      "finding_note": null
+    }
   },
-
   "_주의_전모달리티_환자": "김하늘(P-2026-0044)이 맘모(st-301)·초음파(st-305)·MRI(st-306) 세 검사를 전부 진행한 환자다. exam-orders/queue의 맨 앞(or-201)도 김하늘이라 '다음 환자 받기'를 누르면 바로 이 환자로 들어간다.",
-
   "GET /api/v1/hospital/radiology/studies/st-305/read": {
     "patient": {
       "name": "김하늘",
@@ -1179,7 +1499,15 @@
       "assigned_to": "김지현 교수"
     },
     "series": [
-      { "id": "u1", "name": "우측 유방", "image": { "url": "/samples/us/usus.png" }, "w": 485, "h": 537 }
+      {
+        "id": "u1",
+        "name": "우측 유방",
+        "image": {
+          "url": "/samples/us/usus.png"
+        },
+        "w": 485,
+        "h": 537
+      }
     ],
     "ai": {
       "modality": "ultrasound",
@@ -1189,19 +1517,53 @@
       "category_confidence": 0.78,
       "mask_confidence": 0.86,
       "shape": {
-        "area": 4820, "max_diameter": 96, "aspect_ratio": 1.4,
-        "convexity": 0.91, "roughness": 0.22, "circularity": 0.72
+        "area": 4820,
+        "max_diameter": 96,
+        "aspect_ratio": 1.4,
+        "convexity": 0.91,
+        "roughness": 0.22,
+        "circularity": 0.72
       },
       "orientation": "비평행(non-parallel)",
       "polygon": {
-        "outer": [[180, 210], [260, 195], [320, 230], [330, 300], [280, 350], [210, 340], [170, 280]],
+        "outer": [
+          [
+            180,
+            210
+          ],
+          [
+            260,
+            195
+          ],
+          [
+            320,
+            230
+          ],
+          [
+            330,
+            300
+          ],
+          [
+            280,
+            350
+          ],
+          [
+            210,
+            340
+          ],
+          [
+            170,
+            280
+          ]
+        ],
         "holes": [],
         "n_components": 1
       }
     },
-    "doctor": { "finding_note": null }
+    "doctor": {
+      "finding_note": null
+    }
   },
-
   "GET /api/v1/hospital/radiology/studies/st-306/read": {
     "patient": {
       "name": "김하늘",
@@ -1229,15 +1591,31 @@
       }
     ],
     "series": [
-      { "id": "ph1", "name": "T1_pre" },
-      { "id": "ph2", "name": "T1_post1" },
-      { "id": "ph3", "name": "T1_post2" },
-      { "id": "ph4", "name": "T1_post3" }
+      {
+        "id": "ph1",
+        "name": "T1_pre"
+      },
+      {
+        "id": "ph2",
+        "name": "T1_post1"
+      },
+      {
+        "id": "ph3",
+        "name": "T1_post2"
+      },
+      {
+        "id": "ph4",
+        "name": "T1_post3"
+      }
     ],
     "ai": {
       "modality": "mri",
       "abstained": false,
-      "density": { "breast_voxels": 745200, "dense_voxels": 402108, "percent": 0.54 },
+      "density": {
+        "breast_voxels": 745200,
+        "dense_voxels": 402108,
+        "percent": 0.54
+      },
       "lesions": [
         {
           "id": "L-0044-A",
@@ -1245,13 +1623,18 @@
           "max_diameter_mm": 18.7,
           "nipple_distance_mm": 34,
           "quadrant": "UOQ",
-          "centroid": { "x": 118, "y": 96, "z": 188 }
+          "centroid": {
+            "x": 118,
+            "y": 96,
+            "z": 188
+          }
         }
       ]
     },
-    "doctor": { "finding_note": null }
+    "doctor": {
+      "finding_note": null
+    }
   },
-
   "GET /api/v1/hospital/radiology/studies/{id}/read": {
     "patient": {
       "name": "김하늘",
@@ -1395,7 +1778,6 @@
       "category_label": "—"
     }
   },
-
   "GET /api/v1/hospital/patients/?primary_staff=me&status=all": [
     {
       "patient_id": "P-1001",
@@ -1428,7 +1810,6 @@
       "phone": "010-6333-0184"
     }
   ],
-
   "GET /api/v1/hospital/patients/?primary_staff=me&status=waiting": [
     {
       "patient_id": "P-1001",
@@ -1458,7 +1839,6 @@
       "has_open_discordance": false
     }
   ],
-
   "GET /api/v1/hospital/patients/P-1001/": {
     "patient_id": "P-1001",
     "sex": "female",
@@ -1582,7 +1962,10 @@
           "abstained": true
         }
       },
-      "content_json": { "doctor_summary": "", "by_modality": {} },
+      "content_json": {
+        "doctor_summary": "",
+        "by_modality": {}
+      },
       "doctor_summary_author": "서냐냥",
       "decision": null,
       "explain_method": null,
@@ -1591,7 +1974,6 @@
       "explained_at": null
     }
   },
-
   "GET /api/v1/hospital/patients/P-1002/": {
     "patient_id": "P-1002",
     "sex": "female",
@@ -1693,7 +2075,10 @@
           "abstained": false
         }
       },
-      "content_json": { "doctor_summary": "", "by_modality": {} },
+      "content_json": {
+        "doctor_summary": "",
+        "by_modality": {}
+      },
       "doctor_summary_author": "서냐냥",
       "decision": null,
       "explain_method": null,
@@ -1702,7 +2087,6 @@
       "explained_at": null
     }
   },
-
   "GET /api/v1/hospital/patients/P-1003/": {
     "patient_id": "P-1003",
     "sex": "female",
@@ -1813,7 +2197,10 @@
           "abstained": false
         }
       },
-      "content_json": { "doctor_summary": "영상·병리 모두 악성 소견 일치. 수술적 절제 권고.", "by_modality": {} },
+      "content_json": {
+        "doctor_summary": "영상·병리 모두 악성 소견 일치. 수술적 절제 권고.",
+        "by_modality": {}
+      },
       "doctor_summary_author": "서냐냥",
       "decision": {
         "decision_type": "surgery",
@@ -1825,14 +2212,12 @@
       "explained_at": "2026-09-14T15:30:00+09:00"
     }
   },
-
   "POST /api/v1/hospital/exam-orders": {
     "ok": true,
     "exam_order_id": "EO-5001",
     "order_status": "requested",
     "detail": "촬영 요청이 영상의학과 큐로 전달되었습니다"
   },
-
   "PATCH /api/v1/hospital/assessments/1001/decision": {
     "assessment_id": 1001,
     "decision_type": "surgery",
@@ -1851,13 +2236,11 @@
     "decision_value": "defer",
     "decision_reason": ""
   },
-
   "POST /api/v1/hospital/specimens/": {
     "ok": true,
     "specimen_id": "SP-3099",
     "detail": "검체가 등록되었습니다"
   },
-
   "GET /api/v1/hospital/discordances/D-2001": {
     "discordance_id": "D-2001",
     "patient": {
@@ -1891,7 +2274,6 @@
     "rule_table_version": "v3",
     "created_at": "2026-09-11T16:10:00+09:00"
   },
-
   "PATCH /api/v1/hospital/discordances/D-2001": {
     "ok": true,
     "discordance_id": "D-2001",
@@ -1900,31 +2282,26 @@
     "closed_at": "2026-09-15T10:00:00+09:00",
     "detail": "처분이 저장되고 대조가 종결되었습니다"
   },
-
   "POST /api/v1/hospital/assessments": {
     "ok": true,
     "assessment_id": "AS-7001",
     "detail": "수술 결정이 저장되었습니다"
   },
-
   "PATCH /api/v1/hospital/reports/R-9101/explain": {
     "ok": true,
     "explained_at": "2026-09-15T10:30:00+09:00",
     "detail": "환자 설명 기록이 저장되었습니다"
   },
-
   "PATCH /api/v1/hospital/reports/R-9001/explain": {
     "ok": true,
     "explained_at": "2026-09-15T10:30:00+09:00",
     "detail": "환자 설명 기록이 저장되었습니다"
   },
-
   "PATCH /api/v1/hospital/reports/R-9002/explain": {
     "ok": true,
     "explained_at": "2026-09-15T10:30:00+09:00",
     "detail": "환자 설명 기록이 저장되었습니다"
   },
-
   "GET /api/v1/hospital/reports/R-9101/unlock-status": {
     "report_id": "R-9101",
     "conditions": {
@@ -1934,7 +2311,6 @@
     },
     "can_unlock": true
   },
-
   "GET /api/v1/hospital/reports/R-9001/unlock-status": {
     "report_id": "R-9001",
     "conditions": {
@@ -1944,7 +2320,6 @@
     },
     "can_unlock": false
   },
-
   "GET /api/v1/hospital/reports/R-9002/unlock-status": {
     "report_id": "R-9002",
     "conditions": {
@@ -1954,14 +2329,12 @@
     },
     "can_unlock": false
   },
-
   "PATCH /api/v1/hospital/reports/R-9101/unlock": {
     "ok": true,
     "report_id": "R-9101",
     "lock_status": "unlocked",
     "detail": "리포트 잠금이 해제되었습니다"
   },
-
   "GET /api/v1/hospital/patients/P-1003/timeline": [
     {
       "at": "2026-09-10T09:20:00+09:00",
@@ -2000,7 +2373,6 @@
       "detail": "침윤성 유관암"
     }
   ],
-
   "GET /api/v1/hospital/patients/P-1002/timeline": [
     {
       "at": "2026-09-08T14:10:00+09:00",
@@ -2029,7 +2401,6 @@
       "detail": "양성 — 섬유낭포성 변화"
     }
   ],
-
   "GET /api/v1/hospital/patients/501/timeline": [
     {
       "at": "2026-09-15T10:05:00+09:00",
@@ -2063,7 +2434,6 @@
       "assessment_id": 501
     }
   ],
-
   "GET /api/v1/hospital/patients/502/timeline": [
     {
       "at": "2026-09-15T11:20:00+09:00",
@@ -2076,7 +2446,6 @@
       "detail": null
     }
   ],
-
   "GET /api/v1/hospital/patients/P-1001/timeline": [
     {
       "at": "2026-09-08T09:00:00+09:00",
@@ -2105,25 +2474,21 @@
       "detail": "양성 — 섬유선종"
     }
   ],
-
   "PUT /api/v1/hospital/reports/R-9101/": {
     "ok": true,
     "report_id": "R-9101",
     "detail": "유방외과 종합 리포트가 저장되었습니다"
   },
-
   "PUT /api/v1/hospital/reports/R-9001/": {
     "ok": true,
     "report_id": "R-9001",
     "detail": "유방외과 종합 리포트가 저장되었습니다"
   },
-
   "PUT /api/v1/hospital/reports/R-9002/": {
     "ok": true,
     "report_id": "R-9002",
     "detail": "유방외과 종합 리포트가 저장되었습니다"
   },
-
   "GET /api/v1/hospital/patients/P-1001/studies": [
     {
       "modality": "mammo",
@@ -2156,7 +2521,6 @@
       "annotations": []
     }
   ],
-
   "GET /api/v1/hospital/patients/P-1002/studies": [
     {
       "modality": "mammo",
@@ -2187,7 +2551,6 @@
       "annotations": []
     }
   ],
-
   "GET /api/v1/hospital/patients/P-1003/studies": [
     {
       "modality": "mammo",
@@ -2233,8 +2596,6 @@
           "h": 0.16
         }
       ],
-      "volume_base": "/dicom/breast-mri-018",
-      "volume_manifest": "/dicom/breast-mri-018/manifest.json",
       "mesh_url": "/mesh/DUKE_328_mesh.json",
       "mesh_site": "우측 유방 상외측(UOQ)"
     },
@@ -2246,7 +2607,6 @@
       "annotations": []
     }
   ],
-
   "GET /api/v1/hospital/discordances": {
     "items": [
       {
@@ -2258,7 +2618,6 @@
       }
     ]
   },
-
   "GET /api/v1/hospital/lesions": {
     "items": [
       {
@@ -2287,7 +2646,6 @@
       }
     ]
   },
-
   "GET /api/v1/hospital/reports": {
     "items": [
       {
@@ -2299,151 +2657,385 @@
       }
     ]
   },
-
   "GET /api/v1/hospital/exam-orders?status=requested&visited=yes&ordering=visited_at": {
     "items": [
-      { "id": "eo-w1", "patient_id": "P-2026-00418", "name": "박서연", "sex": "여", "age": 47,
-        "patient_number": "P-2026-00418", "visit_type": "예약 · 결과 상담",
-        "visited_at": "09:05", "followup_id": null, "status": "문진 중" },
-      { "id": "eo-w2", "patient_id": "P-2026-00415", "name": "김도윤", "sex": "남", "age": 61,
-        "patient_number": "P-2026-00415", "visit_type": "예약 · 초진",
-        "visited_at": "09:26", "followup_id": null, "status": "대기" },
-      { "id": "eo-w3", "patient_id": "P-2026-00413", "name": "한지우", "sex": "여", "age": 33,
-        "patient_number": "P-2026-00413", "visit_type": "당일 접수 · 초진",
-        "visited_at": "09:33", "followup_id": null, "status": "대기" },
-      { "id": "eo-w4", "patient_id": "P-2026-00416", "name": "최은영", "sex": "여", "age": 39,
-        "patient_number": "P-2026-00416", "visit_type": "추적 관찰 6개월",
-        "visited_at": "09:41", "followup_id": "F-3001", "status": "대기" },
-      { "id": "eo-w5", "patient_id": "P-2026-00412", "name": "오세라", "sex": "여", "age": 58,
-        "patient_number": "P-2026-00412", "visit_type": "예약 · 수술 상담",
-        "visited_at": "09:48", "followup_id": null, "status": "대기" },
-      { "id": "eo-w6", "patient_id": "P-2026-00411", "name": "윤채원", "sex": "여", "age": 29,
-        "patient_number": "P-2026-00411", "visit_type": "추적 관찰",
-        "visited_at": "09:55", "followup_id": "F-3002", "status": "대기" },
-      { "id": "eo-w7", "patient_id": "P-2026-00414", "name": "정수아", "sex": "여", "age": 44,
-        "patient_number": "P-2026-00414", "visit_type": "수술 후 경과",
-        "visited_at": "10:02", "followup_id": null, "status": "대기" }
+      {
+        "id": "eo-w1",
+        "patient_id": "P-2026-00418",
+        "name": "박서연",
+        "sex": "여",
+        "age": 47,
+        "patient_number": "P-2026-00418",
+        "visit_type": "예약 · 결과 상담",
+        "visited_at": "09:05",
+        "followup_id": null,
+        "status": "문진 중"
+      },
+      {
+        "id": "eo-w2",
+        "patient_id": "P-2026-00415",
+        "name": "김도윤",
+        "sex": "남",
+        "age": 61,
+        "patient_number": "P-2026-00415",
+        "visit_type": "예약 · 초진",
+        "visited_at": "09:26",
+        "followup_id": null,
+        "status": "대기"
+      },
+      {
+        "id": "eo-w3",
+        "patient_id": "P-2026-00413",
+        "name": "한지우",
+        "sex": "여",
+        "age": 33,
+        "patient_number": "P-2026-00413",
+        "visit_type": "당일 접수 · 초진",
+        "visited_at": "09:33",
+        "followup_id": null,
+        "status": "대기"
+      },
+      {
+        "id": "eo-w4",
+        "patient_id": "P-2026-00416",
+        "name": "최은영",
+        "sex": "여",
+        "age": 39,
+        "patient_number": "P-2026-00416",
+        "visit_type": "추적 관찰 6개월",
+        "visited_at": "09:41",
+        "followup_id": "F-3001",
+        "status": "대기"
+      },
+      {
+        "id": "eo-w5",
+        "patient_id": "P-2026-00412",
+        "name": "오세라",
+        "sex": "여",
+        "age": 58,
+        "patient_number": "P-2026-00412",
+        "visit_type": "예약 · 수술 상담",
+        "visited_at": "09:48",
+        "followup_id": null,
+        "status": "대기"
+      },
+      {
+        "id": "eo-w6",
+        "patient_id": "P-2026-00411",
+        "name": "윤채원",
+        "sex": "여",
+        "age": 29,
+        "patient_number": "P-2026-00411",
+        "visit_type": "추적 관찰",
+        "visited_at": "09:55",
+        "followup_id": "F-3002",
+        "status": "대기"
+      },
+      {
+        "id": "eo-w7",
+        "patient_id": "P-2026-00414",
+        "name": "정수아",
+        "sex": "여",
+        "age": 44,
+        "patient_number": "P-2026-00414",
+        "visit_type": "수술 후 경과",
+        "visited_at": "10:02",
+        "followup_id": null,
+        "status": "대기"
+      }
     ]
   },
-
   "GET /api/v1/hospital/exam-orders?scheduled_on=today&visited=none": {
     "items": [
-      { "id": "eo-t1", "patient_id": "P-2026-00417", "name": "이정민", "sex": "여", "age": 52,
-        "patient_number": "P-2026-00417", "time": "10:30", "followup_id": null },
-      { "id": "eo-t2", "patient_id": "P-2026-00416", "name": "최은영", "sex": "여", "age": 39,
-        "patient_number": "P-2026-00416", "time": "11:00", "followup_id": "F-3001" },
-      { "id": "eo-t3", "patient_id": "P-2026-00409", "name": "서지호", "sex": "남", "age": 45,
-        "patient_number": "P-2026-00409", "time": "11:30", "followup_id": null },
-      { "id": "eo-t4", "patient_id": "P-2026-00405", "name": "강민서", "sex": "여", "age": 36,
-        "patient_number": "P-2026-00405", "time": "14:00", "followup_id": "F-3004" },
-      { "id": "eo-t5", "patient_id": "P-2026-00398", "name": "문가은", "sex": "여", "age": 41,
-        "patient_number": "P-2026-00398", "time": "14:30", "followup_id": null }
+      {
+        "id": "eo-t1",
+        "patient_id": "P-2026-00417",
+        "name": "이정민",
+        "sex": "여",
+        "age": 52,
+        "patient_number": "P-2026-00417",
+        "time": "10:30",
+        "followup_id": null
+      },
+      {
+        "id": "eo-t2",
+        "patient_id": "P-2026-00416",
+        "name": "최은영",
+        "sex": "여",
+        "age": 39,
+        "patient_number": "P-2026-00416",
+        "time": "11:00",
+        "followup_id": "F-3001"
+      },
+      {
+        "id": "eo-t3",
+        "patient_id": "P-2026-00409",
+        "name": "서지호",
+        "sex": "남",
+        "age": 45,
+        "patient_number": "P-2026-00409",
+        "time": "11:30",
+        "followup_id": null
+      },
+      {
+        "id": "eo-t4",
+        "patient_id": "P-2026-00405",
+        "name": "강민서",
+        "sex": "여",
+        "age": 36,
+        "patient_number": "P-2026-00405",
+        "time": "14:00",
+        "followup_id": "F-3004"
+      },
+      {
+        "id": "eo-t5",
+        "patient_id": "P-2026-00398",
+        "name": "문가은",
+        "sex": "여",
+        "age": 41,
+        "patient_number": "P-2026-00398",
+        "time": "14:30",
+        "followup_id": null
+      }
     ]
   },
-
   "GET /api/v1/hospital/exam-orders/eo-w1": {
-    "id": "eo-w1", "patient_id": "P-2026-00418", "name": "박서연", "sex": "여", "age": 47,
-    "patient_number": "P-2026-00418", "visit_type": "예약 · 결과 상담",
+    "id": "eo-w1",
+    "patient_id": "P-2026-00418",
+    "name": "박서연",
+    "sex": "여",
+    "age": 47,
+    "patient_number": "P-2026-00418",
+    "visit_type": "예약 · 결과 상담",
     "allergy": "조영제 (경증 두드러기)",
     "chief_complaint": "좌측 유방 멍울 촉지, 2주 전부터 간헐적 통증.",
     "questionnaire": {
-      "혈압 / 맥박": "118/76 · 72", "체중 / 신장": "56kg · 161cm",
-      "가족력": "있음 (모 · 유방암)", "호르몬제 복용": "없음"
+      "혈압 / 맥박": "118/76 · 72",
+      "체중 / 신장": "56kg · 161cm",
+      "가족력": "있음 (모 · 유방암)",
+      "호르몬제 복용": "없음"
     },
     "note": "타원 초음파 CD 지참 확인. 조영제 알러지 이력 → 영상의학과 주의 표시."
   },
   "GET /api/v1/hospital/exam-orders/eo-w2": {
-    "id": "eo-w2", "patient_id": "P-2026-00415", "name": "김도윤", "sex": "남", "age": 61,
-    "patient_number": "P-2026-00415", "visit_type": "예약 · 초진",
-    "allergy": "없음", "chief_complaint": "좌측 유두 부위 분비물. 1차 의료기관 의뢰.",
-    "questionnaire": { "혈압 / 맥박": "132/84 · 78", "가족력": "없음", "호르몬제 복용": "없음" },
+    "id": "eo-w2",
+    "patient_id": "P-2026-00415",
+    "name": "김도윤",
+    "sex": "남",
+    "age": 61,
+    "patient_number": "P-2026-00415",
+    "visit_type": "예약 · 초진",
+    "allergy": "없음",
+    "chief_complaint": "좌측 유두 부위 분비물. 1차 의료기관 의뢰.",
+    "questionnaire": {
+      "혈압 / 맥박": "132/84 · 78",
+      "가족력": "없음",
+      "호르몬제 복용": "없음"
+    },
     "note": null
   },
   "GET /api/v1/hospital/exam-orders/eo-w3": {
-    "id": "eo-w3", "patient_id": "P-2026-00413", "name": "한지우", "sex": "여", "age": 33,
-    "patient_number": "P-2026-00413", "visit_type": "당일 접수 · 초진",
-    "allergy": "없음", "chief_complaint": "자가검진 중 우측 유방 멍울 발견.",
-    "questionnaire": { "혈압 / 맥박": "108/70 · 68", "가족력": "없음", "호르몬제 복용": "복용 중 (경구피임약)" },
+    "id": "eo-w3",
+    "patient_id": "P-2026-00413",
+    "name": "한지우",
+    "sex": "여",
+    "age": 33,
+    "patient_number": "P-2026-00413",
+    "visit_type": "당일 접수 · 초진",
+    "allergy": "없음",
+    "chief_complaint": "자가검진 중 우측 유방 멍울 발견.",
+    "questionnaire": {
+      "혈압 / 맥박": "108/70 · 68",
+      "가족력": "없음",
+      "호르몬제 복용": "복용 중 (경구피임약)"
+    },
     "note": null
   },
   "GET /api/v1/hospital/exam-orders/eo-w4": {
-    "id": "eo-w4", "patient_id": "P-2026-00416", "name": "최은영", "sex": "여", "age": 39,
-    "patient_number": "P-2026-00416", "visit_type": "추적 관찰 6개월",
-    "allergy": "페니실린", "chief_complaint": "우측 양성 결절 크기 비교.",
-    "questionnaire": { "혈압 / 맥박": "112/74 · 70" },
+    "id": "eo-w4",
+    "patient_id": "P-2026-00416",
+    "name": "최은영",
+    "sex": "여",
+    "age": 39,
+    "patient_number": "P-2026-00416",
+    "visit_type": "추적 관찰 6개월",
+    "allergy": "페니실린",
+    "chief_complaint": "우측 양성 결절 크기 비교.",
+    "questionnaire": {
+      "혈압 / 맥박": "112/74 · 70"
+    },
     "note": null
   },
   "GET /api/v1/hospital/exam-orders/eo-w5": {
-    "id": "eo-w5", "patient_id": "P-2026-00412", "name": "오세라", "sex": "여", "age": 58,
-    "patient_number": "P-2026-00412", "visit_type": "예약 · 수술 상담",
-    "allergy": "라텍스", "chief_complaint": "타원 조직검사 결과 지참. 수술 상담.",
-    "questionnaire": { "혈압 / 맥박": "126/80 · 74", "가족력": "있음 (자매 · 유방암)" },
+    "id": "eo-w5",
+    "patient_id": "P-2026-00412",
+    "name": "오세라",
+    "sex": "여",
+    "age": 58,
+    "patient_number": "P-2026-00412",
+    "visit_type": "예약 · 수술 상담",
+    "allergy": "라텍스",
+    "chief_complaint": "타원 조직검사 결과 지참. 수술 상담.",
+    "questionnaire": {
+      "혈압 / 맥박": "126/80 · 74",
+      "가족력": "있음 (자매 · 유방암)"
+    },
     "note": null
   },
   "GET /api/v1/hospital/exam-orders/eo-w6": {
-    "id": "eo-w6", "patient_id": "P-2026-00411", "name": "윤채원", "sex": "여", "age": 29,
-    "patient_number": "P-2026-00411", "visit_type": "추적 관찰",
-    "allergy": "없음", "chief_complaint": "섬유선종 추적관찰.",
+    "id": "eo-w6",
+    "patient_id": "P-2026-00411",
+    "name": "윤채원",
+    "sex": "여",
+    "age": 29,
+    "patient_number": "P-2026-00411",
+    "visit_type": "추적 관찰",
+    "allergy": "없음",
+    "chief_complaint": "섬유선종 추적관찰.",
     "questionnaire": {},
     "note": null
   },
   "GET /api/v1/hospital/exam-orders/eo-w7": {
-    "id": "eo-w7", "patient_id": "P-2026-00414", "name": "정수아", "sex": "여", "age": 44,
-    "patient_number": "P-2026-00414", "visit_type": "수술 후 경과",
-    "allergy": "조영제", "chief_complaint": "수술 후 3개월 경과 확인.",
+    "id": "eo-w7",
+    "patient_id": "P-2026-00414",
+    "name": "정수아",
+    "sex": "여",
+    "age": 44,
+    "patient_number": "P-2026-00414",
+    "visit_type": "수술 후 경과",
+    "allergy": "조영제",
+    "chief_complaint": "수술 후 3개월 경과 확인.",
     "questionnaire": {},
     "note": null
   },
-
   "GET /api/v1/hospital/staff?role=surgery": {
     "items": [
-      { "id": "S-2001", "name": "서나영", "role": "교수" },
-      { "id": "S-2002", "name": "최민수", "role": "교수" },
-      { "id": "S-2003", "name": "이수정", "role": "전문의" }
+      {
+        "id": "S-2001",
+        "name": "서나영",
+        "role": "교수"
+      },
+      {
+        "id": "S-2002",
+        "name": "최민수",
+        "role": "교수"
+      },
+      {
+        "id": "S-2003",
+        "name": "이수정",
+        "role": "전문의"
+      }
     ]
   },
-
-  "PATCH /api/v1/hospital/exam-orders/{id}/note": { "ok": true },
-
+  "PATCH /api/v1/hospital/exam-orders/{id}/note": {
+    "ok": true
+  },
   "GET /api/v1/hospital/followups/?include_candidates=1": {
     "items": [
-      { "id": "F-3001", "patient_id": "P-2026-00418", "name": "박서연",
-        "birth_date": "1979-03-11", "phone": "010-1234-5678",
-        "round_no": 1, "status": "overdue", "due_at": "2026-09-05",
-        "call_at": null, "call_result": null },
-      { "id": "F-3002", "patient_id": "P-2026-00417", "name": "이정민",
-        "birth_date": "1974-07-02", "phone": "010-2222-3333",
-        "round_no": 2, "status": "open", "due_at": "2026-09-15",
-        "call_at": "2026-09-10", "call_result": "부재" },
-      { "id": "F-3003", "patient_id": "P-2026-00416", "name": "최은영",
-        "birth_date": "1987-02-20", "phone": "010-3333-4444",
-        "round_no": 1, "status": "open", "due_at": "2026-09-19",
-        "call_at": "2026-09-08", "call_result": "연결" },
-      { "id": "F-3004", "patient_id": "P-2026-00411", "name": "윤채원",
-        "birth_date": "1997-05-30", "phone": "010-4444-5555",
-        "round_no": 3, "status": "open", "due_at": "2026-10-06",
-        "call_at": "2026-09-01", "call_result": "연결" },
-      { "id": "F-3005", "patient_id": "P-2026-00413", "name": "한지우",
-        "birth_date": "1993-11-08", "phone": "010-5555-6666",
-        "round_no": 1, "status": "open", "due_at": "2026-10-14",
-        "call_at": "2026-09-02", "call_result": "연결" },
-      { "id": "F-3006", "patient_id": "P-2026-00414", "name": "정수아",
-        "birth_date": "1982-01-15", "phone": "010-6666-7777",
-        "round_no": 4, "status": "resolved", "due_at": "2026-08-30",
-        "call_at": "2026-08-25", "call_result": "연결" },
-      { "id": "F-3007", "patient_id": "P-2026-00412", "name": "오세라",
-        "birth_date": "1968-04-02", "phone": "010-7777-8888",
-        "round_no": null, "status": "candidate", "due_at": null,
-        "call_at": null, "call_result": null },
-      { "id": "F-3008", "patient_id": "P-2026-00405", "name": "강민서",
-        "birth_date": "1990-09-12", "phone": "010-8888-9999",
-        "round_no": 2, "status": "declined", "due_at": "2026-09-20",
-        "call_at": "2026-09-05", "call_result": "거부" }
+      {
+        "id": "F-3001",
+        "patient_id": "P-2026-00418",
+        "name": "박서연",
+        "birth_date": "1979-03-11",
+        "phone": "010-1234-5678",
+        "round_no": 1,
+        "status": "overdue",
+        "due_at": "2026-09-05",
+        "call_at": null,
+        "call_result": null
+      },
+      {
+        "id": "F-3002",
+        "patient_id": "P-2026-00417",
+        "name": "이정민",
+        "birth_date": "1974-07-02",
+        "phone": "010-2222-3333",
+        "round_no": 2,
+        "status": "open",
+        "due_at": "2026-09-15",
+        "call_at": "2026-09-10",
+        "call_result": "부재"
+      },
+      {
+        "id": "F-3003",
+        "patient_id": "P-2026-00416",
+        "name": "최은영",
+        "birth_date": "1987-02-20",
+        "phone": "010-3333-4444",
+        "round_no": 1,
+        "status": "open",
+        "due_at": "2026-09-19",
+        "call_at": "2026-09-08",
+        "call_result": "연결"
+      },
+      {
+        "id": "F-3004",
+        "patient_id": "P-2026-00411",
+        "name": "윤채원",
+        "birth_date": "1997-05-30",
+        "phone": "010-4444-5555",
+        "round_no": 3,
+        "status": "open",
+        "due_at": "2026-10-06",
+        "call_at": "2026-09-01",
+        "call_result": "연결"
+      },
+      {
+        "id": "F-3005",
+        "patient_id": "P-2026-00413",
+        "name": "한지우",
+        "birth_date": "1993-11-08",
+        "phone": "010-5555-6666",
+        "round_no": 1,
+        "status": "open",
+        "due_at": "2026-10-14",
+        "call_at": "2026-09-02",
+        "call_result": "연결"
+      },
+      {
+        "id": "F-3006",
+        "patient_id": "P-2026-00414",
+        "name": "정수아",
+        "birth_date": "1982-01-15",
+        "phone": "010-6666-7777",
+        "round_no": 4,
+        "status": "resolved",
+        "due_at": "2026-08-30",
+        "call_at": "2026-08-25",
+        "call_result": "연결"
+      },
+      {
+        "id": "F-3007",
+        "patient_id": "P-2026-00412",
+        "name": "오세라",
+        "birth_date": "1968-04-02",
+        "phone": "010-7777-8888",
+        "round_no": null,
+        "status": "candidate",
+        "due_at": null,
+        "call_at": null,
+        "call_result": null
+      },
+      {
+        "id": "F-3008",
+        "patient_id": "P-2026-00405",
+        "name": "강민서",
+        "birth_date": "1990-09-12",
+        "phone": "010-8888-9999",
+        "round_no": 2,
+        "status": "declined",
+        "due_at": "2026-09-20",
+        "call_at": "2026-09-05",
+        "call_result": "거부"
+      }
     ]
   },
-  "POST /api/v1/hospital/followups/new": { "ok": true },
-  "PATCH /api/v1/hospital/followups/{id}/call": { "ok": true },
-
+  "POST /api/v1/hospital/followups/new": {
+    "ok": true
+  },
+  "PATCH /api/v1/hospital/followups/{id}/call": {
+    "ok": true
+  },
   "GET /api/v1/hospital/notifications/": {
     "items": [
       {
@@ -2466,5 +3058,54 @@
       }
     ]
   },
-  "PATCH /api/v1/hospital/notifications/{id}/": { "ok": true }
+  "PATCH /api/v1/hospital/notifications/{id}/": {
+    "ok": true
+  },
+  "GET /api/v1/hospital/me/notes?type={t}": {
+    "items": []
+  },
+  "POST /api/v1/hospital/me/notes?type={t}": {
+    "note_id": "N-9001",
+    "content": ""
+  },
+  "PATCH /api/v1/hospital/me/notes/{id}": {
+    "ok": true
+  },
+  "DELETE /api/v1/hospital/me/notes/{id}": {
+    "ok": true
+  },
+  "GET /api/v1/hospital/radiology/queue?status={s}&assigned={a}": {
+    "items": [
+      {
+        "id": "or-201",
+        "patient_name": "김하늘",
+        "age": 44,
+        "sex": "여",
+        "patient_no": "P-2026-0044",
+        "modality": "mammo",
+        "device": "Hologic Selenia",
+        "contrast_allergy": null
+      },
+      {
+        "id": "or-202",
+        "patient_name": "정유진",
+        "age": 56,
+        "sex": "여",
+        "patient_no": "P-2026-0051",
+        "modality": "mri",
+        "device": "Siemens Vida 3T",
+        "contrast_allergy": "가돌리늄 조영제 두드러기 병력"
+      },
+      {
+        "id": "or-203",
+        "patient_name": "박서연",
+        "age": 39,
+        "sex": "여",
+        "patient_no": "P-2026-0052",
+        "modality": "us",
+        "device": "GE LOGIQ E10",
+        "contrast_allergy": null
+      }
+    ]
+  }
 }
