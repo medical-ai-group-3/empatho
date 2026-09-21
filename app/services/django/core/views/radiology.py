@@ -244,7 +244,10 @@ class StudyReadView(viewsets.ViewSet):
 
     Study + 병변 목록 + 최신 AiResult + 진행중(1차) Assessment 를 한 번에
     묶어서 준다. 업로드된 원본이 하나도 없으면(StorageObject 없음) 아직
-    판독 화면을 열 수 없다 — 409.
+    판독 화면을 열 수 없다 — 409. 품질 반려된(quality_status=rejected)
+    Study 도 마찬가지로 409 — SYS-6, 재촬영 경로(POST .../retake)로
+    가야 한다. errors.py 에 STUDY_REJECTED 코드는 있었는데 여태 아무도
+    안 던지고 있었다.
     """
 
     resource = "study"
@@ -255,6 +258,9 @@ class StudyReadView(viewsets.ViewSet):
             study = models.Study.objects.get(pk=pk)
         except models.Study.DoesNotExist:
             raise ApiError("NOT_FOUND")
+
+        if study.quality_status == "rejected":
+            raise ApiError("STUDY_REJECTED")
 
         # 취소된(soft-delete) 파일은 「업로드된 것」으로 안 친다.
         images = study.storage_objects.filter(deleted_at__isnull=True)
