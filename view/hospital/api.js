@@ -253,6 +253,7 @@ const get   = (p)    => call("GET", p);
 const post  = (p, b) => call("POST", p, b);
 const put   = (p, b) => call("PUT", p, b);
 const patch = (p, b) => call("PATCH", p, b);
+const del   = (p)    => call("DELETE", p);
 
 function qs(o = {}) {
   const e = Object.entries(o).filter(([, v]) => v !== undefined && v !== null && v !== "");
@@ -295,6 +296,15 @@ export const updateMe = (b) => put("/me", b);
 export const notifications = () => get("/notifications/").then(unwrapList);
 export const acknowledgeNotification = (id) =>
   patch(`/notifications/${id}/`, { acknowledged: true });
+
+/* 로그인한 사람만 보는 개인 메모. 할 일과 스티키 메모는 저장 방식만
+   다를 뿐 같은 API를 쓰므로 여기 하나로 모은다. */
+export const notes = {
+  list:   (type) => get(`/me/notes${qs({ type })}`).then(unwrapList),
+  create: (type, content) => post(`/me/notes${qs({ type })}`, { content }),
+  update: (id, content) => patch(`/me/notes/${id}`, { content }),
+  remove: (id) => del(`/me/notes/${id}`),
+};
 
 /* ── 관리자 화면 열기 ─────────────────────────────────────────
  *
@@ -714,7 +724,7 @@ export const rad = {
   complete:   (id)     => patch(`/exam-orders/${id}/complete`),
   analyze:    (id)     => post(`/studies/${id}/ai-results`),
   progress:   (id)     => get(`/ai-results${qs({ study: id })}`),
-  retake:     (b)      => post("/exam-orders", b),
+  retake:     (id)     => post(`/exam-orders/${id}/retake`),
 
   /* ⚠ withFiles(dept/radiology.jsx)가 series에 파일 주소를 얹는 것과
      별개로, 여기서 patient/unit/ai 자체를 못 만들면 화면이 첫 줄에서
@@ -914,6 +924,8 @@ export const breast = {
   explain:      (rid, b) => patch(`/reports/${rid}/explain`, b),
   unlockStatus: (rid) => get(`/reports/${rid}/unlock-status`),
   unlock:       (rid) => patch(`/reports/${rid}/unlock`, {}),
+  prescriptions: (patientId) => get(`/patients/${patientId}/prescriptions`).then(unwrapList),
+  prescribe:     (patientId, body) => post(`/patients/${patientId}/prescriptions`, body),
 
   /* 4장 · 판정 불일치 처분 */
   discordance:  (id) => get(`/discordances/${id}`),

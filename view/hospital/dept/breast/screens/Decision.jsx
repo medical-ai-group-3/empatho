@@ -74,7 +74,7 @@ function Inner({ patient, onReload }) {
 
       {/* 2행 — 각 열의 두 번째 작업. 행 높이를 공유해 카드 끝이 맞는다. */}
       {report ? <DoctorSummaryCard report={report} /> : <PendingReportCard title="의사 종합 리포트" />}
-      <PrescriptionDraft />
+      <PrescriptionDraft patient={patient} report={report} />
       {report
         ? <ExplainForm report={report} onSaved={onReload} unlock={unlock} />
         : <PendingReportCard title="의사 최종 소견" />}
@@ -221,19 +221,14 @@ function DecisionForm({ assessmentId, assessmentIdLoading }) {
   );
 }
 
-/* 처방은 환자 앱의 GET /me/prescriptions 가 읽는 원천 데이터다.
- * 아직 병원 웹에서 새 처방을 만드는 서버 경로가 없으므로, 이 화면은 입력
- * 초안만 다룬다. 저장 버튼을 눌러도 사라지는 가짜 처방을 만들지 않도록 API
- * 계약이 붙을 때까지 비활성으로 둔다.
- *
- * 백엔드 요청안:
- * POST /patients/{patient_id}/prescriptions
- * { drugs:[{ name, dose, times:["09:00"], days, purpose, how }] }
- * → 환자 앱 GET /me/prescriptions 의 prescription/drugs 모양으로 저장 */
 const emptyDrug = () => ({ name: "", dose: "", times: "", days: "", purpose: "", how: "" });
 
-function PrescriptionDraft() {
+function PrescriptionDraft({ patient, report }) {
   const [drugs, setDrugs] = useState([emptyDrug()]);
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState(null);
+  const saved = useApi(() => api.prescriptions(patient.patient_id), [patient.patient_id]);
+  const reportId = report?.report_id ?? null;
 
   function change(index, key, value) {
     setDrugs((rows) => rows.map((drug, i) => i === index ? { ...drug, [key]: value } : drug));
@@ -243,6 +238,29 @@ function PrescriptionDraft() {
     setDrugs((rows) => rows.length === 1 ? rows : rows.filter((_, i) => i !== index));
   }
 
+  async function save() {
+    const cleaned = drugs.map((drug) => ({
+      name: drug.name.trim(), dose: drug.dose.trim(),
+      times: drug.times.split(",").map((time) => time.trim()).filter(Boolean),
+      days: Number(drug.days), purpose: drug.purpose.trim(), how: drug.how.trim(),
+    }));
+    if (!reportId || saving || cleaned.some((drug) => !drug.name || !drug.dose || !drug.times.length || !drug.days)) return;
+    setSaving(true); setMsg(null);
+    try {
+      await api.prescribe(patient.patient_id, { report_id: reportId, content: { drugs: cleaned } });
+      setDrugs([emptyDrug()]);
+      setMsg("처방을 저장했습니다. 환자 앱의 복약 관리에서 확인할 수 있습니다.");
+      saved.reload();
+    } catch (e) {
+      setMsg(e.detail || e.message || "처방을 저장하지 못했습니다.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const valid = reportId && drugs.every((drug) =>
+    drug.name.trim() && drug.dose.trim() && drug.times.trim() && Number(drug.days) > 0);
+
   return (
     <div className="card prescription-draft">
       <div className="card-head">
@@ -250,8 +268,11 @@ function PrescriptionDraft() {
           <h3>환자 처방</h3>
           <p className="meta">저장된 처방은 환자 앱의 복약 관리에 표시됩니다.</p>
         </div>
-        <span className="pill wait">API 연결 대기</span>
+        <span className="pill ok">API 연결됨</span>
       </div>
+
+      {saved.data?.length > 0 && <p className="meta">저장된 처방 {saved.data.length}건</p>}
+      {!reportId && <p className="note">종합 리포트가 생성된 뒤 처방을 저장할 수 있습니다.</p>}
 
       {drugs.map((drug, index) => (
         <div className="prescription-drug" key={index}>
@@ -290,8 +311,10 @@ function PrescriptionDraft() {
 
       <div className="card-foot split prescription-actions">
         <button className="btn ghost sm" onClick={() => setDrugs((rows) => [...rows, emptyDrug()])}>+ 약 추가</button>
-        <span className="note">처방 생성 API가 연결되면 저장할 수 있습니다.</span>
-        <button className="btn" disabled>처방 저장</button>
+        <span className="note">{msg}</span>
+        <button className="btn" onClick={save} disabled={!valid || saving}>
+          {saving ? "저장 중…" : "처방 저장"}
+        </button>
       </div>
     </div>
   );

@@ -294,29 +294,9 @@ export const radiology = {
       </>
     ),
 
-    /* 병리에는 없는 버튼.
-     *
-     * ⚠ **아직 눌러도 되는 것이 없다.** 재촬영은 새 오더를 만드는 일이라
-     *   (POST /exam-orders, parent_order_id) 사유·모달리티·장비를 받는
-     *   창이 있어야 하는데 그 요청 본문 규격이 아직 안 정해졌다.
-     *   api.js 의 rad.retake 는 경로만 적어 둔 상태다.
-     *
-     *   전에는 없는 함수(cfg.api.retakeDialog)를 ?. 로 불러서, 권한이
-     *   있는 사람이 누르면 **아무 일도 안 일어났다.** 오류도 안 나고
-     *   창도 안 뜬다 — 눌린 건지 고장 난 건지 알 길이 없다. 그럴 바에는
-     *   꺼 두고 왜 꺼졌는지 적는 편이 낫다. 규격이 오면 onClick 을
-     *   되살리고 disabled 를 권한만 보게 되돌린다 */
-    Extra: () => {
-      const retake = useCan("radiology.retake");
-      const why = retake.ok
-        ? "재촬영 요청 창은 아직 연결되지 않았습니다"
-        : retake.attrs.title;
-      return (
-        <button className="btn ghost" disabled title={why}>
-          재촬영 요청
-        </button>
-      );
-    },
+    /* 품질 반려된 원본 오더에서만 서버가 재촬영을 만든다. 새 오더는
+       곧바로 영상의학과 대기 큐로 들어가므로 원무 재접수는 필요 없다. */
+    Extra: ({ d, cfg }) => <RetakeButton examOrderId={d.exam_order_id} api={cfg.api} />,
   },
 
   /* ── 3장 · 판독 ───────────────────────────────────────── */
@@ -593,4 +573,35 @@ export const radiology = {
     ),
   },
 };
+
+function RetakeButton({ examOrderId, api }) {
+  const retake = useCan("radiology.retake");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState(null);
+
+  async function requestRetake() {
+    if (!examOrderId || busy) return;
+    setBusy(true); setMsg(null);
+    try {
+      const out = await api.retake(examOrderId);
+      const nextId = out.exam_order_id ?? out.new_exam_order_id;
+      setMsg(nextId ? `재촬영 오더 ${nextId}번을 대기 큐에 등록했습니다.` : "재촬영 오더를 대기 큐에 등록했습니다.");
+    } catch (e) {
+      setMsg(e.detail || e.message || "재촬영 요청을 만들지 못했습니다.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <span className="rowacts">
+      <button className="btn ghost" onClick={requestRetake}
+              disabled={!retake.ok || !examOrderId || busy}
+              title={!retake.ok ? retake.attrs.title : "품질 반려된 검사만 재촬영을 요청할 수 있습니다"}>
+        {busy ? "요청 중…" : "재촬영 요청"}
+      </button>
+      {msg && <small className="hint">{msg}</small>}
+    </span>
+  );
+}
 

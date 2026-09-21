@@ -362,6 +362,26 @@ input,select,textarea{font:inherit; color:inherit}
 .vside .save{border-top-color:var(--v-line)}
 .vside .btn.line{background:transparent; color:var(--v-ink);
   box-shadow:inset 0 0 0 var(--hair) var(--v-line)}
+/* 다크 판독 패널 안에서는 카드·입력·글자 모두 다크 규칙을 따른다.
+   일반 폼의 흰 입력칸과 어두운 보조 글자가 섞이면 글자가 안 보인다. */
+.vside .muted,.vside .note,.vside .field > span,.vside .count{color:var(--v-warm)}
+.vside .grade,.vside .ai-card .ai-h b,.vside .ai-m dd,.vside .ai-na b{color:var(--v-ink)}
+.vside .field input,.vside .field select,.vside .field textarea{
+  background:var(--v-bg); color:var(--v-ink); box-shadow:inset 0 0 0 var(--hair) var(--v-line)}
+.vside .field input:focus,.vside .field select:focus,.vside .field textarea:focus{
+  box-shadow:inset 0 0 0 var(--focus-w) var(--cyan)}
+.vside .field ::placeholder{color:var(--v-warm)}
+.vside .ai-card{background:var(--v-bg); border-color:var(--v-line)}
+.vside .ai-card .ai-m dt,.vside .ai-card .ai-m dd i,.vside .ai-card .ai-m dd em{color:var(--v-warm)}
+
+/* 판독은 한 화면에서 오래 비교하는 작업이므로, 제목과 저장줄을 뺀 세로
+   공간을 뷰어·AI 소견·의사 소견 카드가 전부 사용한다. */
+.read-page{min-height:calc(100dvh - var(--top-h))}
+.read-page .read-workspace{display:flex; flex:1; min-height:0; flex-direction:column; gap:var(--gap)}
+.read-page .read-workspace > .card{display:flex; flex:1; min-height:0}
+.read-page .read-workspace > .card > .card-b{display:flex; flex:1; min-height:0}
+.read-page .vwrap{flex:1; min-height:0}
+.read-page .viewer,.read-page .vside{min-height:0}
 
 /* ── AI 소견 패널 ───────────────────────────────────────────── */
 .ai{display:flex; flex-direction:column; gap:var(--ai-gap); font-size:var(--v-fs)}

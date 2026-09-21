@@ -61,7 +61,7 @@ function Load({ cfg, id }) {
   const { loading, data, error, reload } = useApi(() => cfg.api.read(id), [id]);
 
   return (
-    <Page crumb={[cfg.name, c.title]} title={c.title} sub={c.sub}
+    <Page className="read-page" crumb={[cfg.name, c.title]} title={c.title} sub={c.sub}
           right={data && <Chip>{data.patient.name} · {data.unit.no}</Chip>}>
       <Body loading={loading} error={error} onRetry={reload}>
         {data && <Inner cfg={cfg} id={id} d={data} />}
@@ -131,7 +131,7 @@ function Inner({ cfg, id, d }) {
   }
 
   return (
-    <div className={full ? "readfull" : undefined}>
+    <div className={`read-workspace${full ? " readfull" : ""}`}>
       <Card pad={false}>
         <Viewer
           infoName={c.infoName}

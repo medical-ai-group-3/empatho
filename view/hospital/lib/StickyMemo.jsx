@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { notes as notesApi } from "../api";
+import { useApi } from "./useApi";
 
 /* 화면 전체에 뜨는 메모지 — 컴퓨터 바탕화면 스티커 메모처럼, 과를
  * 옮기거나 화면을 이동해도(라우트가 바뀌어도) 계속 떠 있어야 한다는
@@ -50,10 +52,35 @@ const DEFAULT = { text: "", open: true, x: null, y: null, w: 260, h: 220 };
 
 export default function StickyMemo() {
   const [s, setS] = useState(() => ({ ...DEFAULT, ...loadState() }));
+  const [noteId, setNoteId] = useState(null);
   const boxRef = useRef(null);
   const dragRef = useRef(null);
+  const remote = useApi(() => notesApi.list("sticky"), []);
 
   useEffect(() => { saveState(s); }, [s]);
+
+  /* 서버 메모는 다른 기기에서도 이어 보는 내용만 맡고, 창 위치·크기는
+     각 기기의 화면 크기에 맞게 로컬에 둔다. */
+  useEffect(() => {
+    const note = remote.data?.[0];
+    if (!note || noteId) return;
+    setNoteId(note.note_id ?? note.id);
+    const text = note.content?.text;
+    if (typeof text === "string") setS((v) => ({ ...v, text }));
+  }, [remote.data, noteId]);
+
+  async function saveRemote() {
+    const content = { text: s.text, color: "yellow" };
+    try {
+      if (noteId) await notesApi.update(noteId, content);
+      else {
+        const out = await notesApi.create("sticky", content);
+        setNoteId(out.note_id ?? out.id);
+      }
+    } catch {
+      /* 입력을 지우지 않는다. 다음 수정 때 다시 저장을 시도한다. */
+    }
+  }
 
   /* 첫 렌더엔 위치가 없다(x·y null) — 오른쪽 아래 기본 자리를
      뷰포트 기준으로 한 번 잡아 둔다. */
@@ -128,6 +155,7 @@ export default function StickyMemo() {
       <textarea
         value={s.text}
         onChange={(e) => setS((v) => ({ ...v, text: e.target.value }))}
+        onBlur={saveRemote}
         placeholder="여기에 적어 두면 다른 화면으로 옮겨도 그대로 있습니다"
       />
     </div>
