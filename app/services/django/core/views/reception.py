@@ -559,6 +559,28 @@ class PatientQuestionnaireView(APIView):
         return Response({"detail": "저장했습니다."})
 
 
+#: 하루에 여는 시간대. 점심(12~14시)은 비운다.
+OPEN_TIMES = ["09:00", "09:30", "10:00", "10:30", "11:00", "11:30",
+              "14:00", "14:30", "15:00", "15:30", "16:00", "16:30"]
+
+
+def _open_slots(weekdays=10):
+    """예약 가능 자리 — 내일부터 평일 기준 2주치.
+
+    ponytail: 병원 일정표(슬롯) 모델이 없다. 화면이 달력·시간칸을 그리려면
+    [{date, times[]}] 가 있어야 해서 여기서 만들어 준다 — 일정표가 생기면
+    이 함수만 쿼리로 바꾸면 화면은 그대로 돈다.
+    """
+    from datetime import timedelta
+    out, day = [], timezone.localdate()
+    while len(out) < weekdays:
+        day += timedelta(days=1)
+        if day.weekday() >= 5:          # 토·일은 안 연다
+            continue
+        out.append({"date": day.isoformat(), "times": list(OPEN_TIMES)})
+    return out
+
+
 class PatientReservationsView(APIView):
     """GET /me/reservations — 내 예약 + 신청용 문항."""
     permission_classes = [IsAuthenticatedAccount]
@@ -579,7 +601,7 @@ class PatientReservationsView(APIView):
         ps = patient.primary_staff
         return Response({
             "items": items,
-            "open_slots": [],   # ponytail: 예약 가능 슬롯 모델 없음
+            "open_slots": _open_slots(),
             "required_questions": _sections(patient),
             "required_note": "검사 전 확인이 필요한 문항입니다.",
             "primary_staff_name": getattr(ps, "full_name", None),
