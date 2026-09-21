@@ -50,7 +50,11 @@ export default function Decision() {
 
 function Inner({ patient, onReload }) {
   const report = patient.report;
-  const unlock = useApi(() => api.unlockStatus(report.report_id), [report.report_id]);
+  const reportId = report?.report_id ?? null;
+  const unlock = useApi(
+    () => reportId ? api.unlockStatus(reportId) : Promise.resolve(null),
+    [reportId],
+  );
 
   /* 수술 결정은 assessment 한 건에 매달린다(models.py:675 — study 에 물려
    * 있지 patient 에 안 물려 있다). patient_id 로는 못 찾고, timeline 의
@@ -64,14 +68,25 @@ function Inner({ patient, onReload }) {
   return (
     <div className="decision-grid">
       {/* 1행 — 왼쪽 AI 종합 · 중앙 수술 여부 · 오른쪽 환자 정보 */}
-      <AiSummaryCard report={report} />
+      {report ? <AiSummaryCard report={report} /> : <PendingReportCard title="AI 종합 리포트" />}
       <DecisionForm assessmentId={assessmentId} assessmentIdLoading={timeline.loading} />
       <PatientInfoCard patient={patient} />
 
       {/* 2행 — 각 열의 두 번째 작업. 행 높이를 공유해 카드 끝이 맞는다. */}
-      <DoctorSummaryCard report={report} />
+      {report ? <DoctorSummaryCard report={report} /> : <PendingReportCard title="의사 종합 리포트" />}
       <PrescriptionDraft />
-      <ExplainForm report={report} onSaved={onReload} unlock={unlock} />
+      {report
+        ? <ExplainForm report={report} onSaved={onReload} unlock={unlock} />
+        : <PendingReportCard title="의사 최종 소견" />}
+    </div>
+  );
+}
+
+function PendingReportCard({ title }) {
+  return (
+    <div className="card">
+      <div className="card-head"><h3>{title}</h3></div>
+      <p className="card-text">아직 생성된 종합 리포트가 없습니다. 판독 확정 후 작성할 수 있습니다.</p>
     </div>
   );
 }

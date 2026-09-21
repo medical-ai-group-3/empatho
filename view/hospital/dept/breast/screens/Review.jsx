@@ -153,7 +153,19 @@ function ReportPanel({ patient, currentModality }) {
    * 남아 있어야 하니 modality별 텍스트를 따로 들고 있는다. 서버 저장분
    * (content_json.by_modality, 2026-09-18 다희님 확인)으로 초깃값을
    * 채운다 — 전엔 새로고침마다 빈 칸으로 시작해서 저장했던 게 안 보였다. */
-  const [surgeonReports, setSurgeonReports] = useState(() => report.content_json?.by_modality ?? {});
+  const [surgeonReports, setSurgeonReports] = useState(() => report?.content_json?.by_modality ?? {});
+
+  if (!report) {
+    return (
+      <div className="report-stack">
+        <ReportBlock title="리포트 확인" grow>
+          <p style={{ fontSize: 13, color: "var(--muted)" }}>
+            아직 생성된 검사 리포트가 없습니다. 영상 또는 병리 판독이 확정되면 표시됩니다.
+          </p>
+        </ReportBlock>
+      </div>
+    );
+  }
 
   return (
     <div className="report-stack">

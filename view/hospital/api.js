@@ -811,7 +811,20 @@ export const breast = {
       const rows = raw?.results ?? raw?.items ?? (Array.isArray(raw) ? raw : []);
       return rows.map(normalizePatient);
     }),
-  patient:      (id) => get(`/patients/${id}/`).then(normalizePatient),
+  /* 환자 상세 응답에는 report가 포함되지 않는다. 유방외과 검토·결정 화면은
+     리포트를 함께 쓰므로 목록을 별도로 받아 최신 종합 리포트를 붙인다.
+     아직 리포트가 없는 환자는 null로 두고 화면이 안내 상태를 보여 준다. */
+  patient:      async (id) => {
+    const patient = normalizePatient(await get(`/patients/${id}/`));
+    const reports = await get(`/reports${qs({ patient: id })}`)
+      .then(unwrapList)
+      .catch(() => []);
+    const report = patient?.report
+      ?? reports.find((row) => row.report_type === "final")
+      ?? reports.at(-1)
+      ?? null;
+    return { ...patient, report };
+  },
   examOrder:    (b)  => post("/exam-orders", b),
 
   /* "이상 없음 · 종결" — 촬영 없이 방문을 닫는다. exam_order 를 새로 만들지
