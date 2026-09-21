@@ -790,6 +790,9 @@ export const specimens = {
      /lesions?patient=… 형식이며, /lesions/?…는 별도 경로로 처리돼
      검체 바인딩 팝업의 병변 목록이 404가 났다. */
   lesionsByPatient: (pid) => get(`/lesions${qs({ patient: pid })}`),
+  /* 현재 서버의 specimens 목록은 patient 필터를 아직 받지 않는다. 유방외과
+     워크플로 안내에서는 응답을 받은 뒤 해당 환자 것만 골라 쓴다. */
+  list: () => get("/specimens").then(unwrapList),
   bind: (b) => post("/specimens/", b),
 };
 
@@ -881,6 +884,21 @@ export const breast = {
   /* 2장 · 검사 종합 확인 */
   timeline:     (pid) => get(`/patients/${pid}/timeline`),
   studies:      (pid) => get(`/patients/${pid}/studies`),
+
+  /* 유방외과 진료를 열기 전 다음 단계를 판단할 최소 이력. 서버에 별도
+     workflow API가 없어서, 이미 있는 검사·오더·검체 조회를 한 번에 묶는다. */
+  workflow: async (pid) => {
+    const [studiesRaw, orders, specimenRows] = await Promise.all([
+      get(`/patients/${pid}/studies`),
+      breast.ordersOf(pid),
+      specimens.list(),
+    ]);
+    return {
+      studies: unwrapList(studiesRaw),
+      orders,
+      specimens: specimenRows.filter((row) => Number(row.patient_id ?? row.patient) === Number(pid)),
+    };
+  },
 
   /* 3장 · 수술 결정
    *

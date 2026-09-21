@@ -28,8 +28,8 @@ const PURPOSES = [
   { id: "diagnostic", label: "이상 소견 확인" },
 ];
 
-export default function ExamOrderModal({ patient, onClose, onDone }) {
-  const [modality, setModality] = useState(MODALITIES[0].id);
+export default function ExamOrderModal({ patient, initialModality, onClose, onDone }) {
+  const [modality, setModality] = useState(initialModality ?? MODALITIES[0].id);
   const [purpose, setPurpose] = useState(PURPOSES[0].id);
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
