@@ -15,6 +15,10 @@ from .reception import (
     MeView,
     PushTokenView,
     NotificationViewSet,
+    PatientHomeView,
+    PatientQuestionnaireView,
+    PatientReservationsView,
+    PatientReservationCancelView,
 )
 from .nursing import (
     VisitTodayViewSet,

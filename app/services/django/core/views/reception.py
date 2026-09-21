@@ -2,6 +2,7 @@
 
 from rest_framework import viewsets, status, generics, mixins as drf_mixins
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from django.db.models import Q
 from django.utils import timezone 
@@ -12,6 +13,7 @@ from core.api.permissions import (
     MatrixPermission, OwnedOnlyMixin, IsAuthenticatedAccount, CanRegisterPatient,
 )
 from core.api.errors import ApiError
+
 
 def _is_date(value):
     from datetime import date
@@ -148,17 +150,31 @@ class ReservationRequestViewSet(AuditMixin, viewsets.ViewSet):
         patient = getattr(request.user, "patient", None)
         if patient is None:
             raise ApiError("VALIDATION_ERROR", "환자 계정이 아닙니다.")
-
-        serializer = serializers.ReservationRequestCreateSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        serializer.save(
-            patient=patient,
-            created_by=self._current_account(),
-            updated_by=self._current_account(),
+        from datetime import datetime
+        from core.api import questionnaire as qm
+        date = (request.data or {}).get("date")
+        time = (request.data or {}).get("time")
+        if not date or not time:
+            raise ApiError("VALIDATION_ERROR", "날짜와 시간이 필요합니다.",
+                            details={"required": ["date", "time"]})
+        try:
+            naive = datetime.fromisoformat("%sT%s" % (date, time))
+        except ValueError:
+            raise ApiError("VALIDATION_ERROR", "날짜/시간 형식이 올바르지 않습니다.")
+        scheduled = timezone.make_aware(naive, timezone.get_current_timezone())
+        order = models.ExamOrder.objects.create(
+            patient=patient, scheduled_at=scheduled, order_status="requested",
+            modality=None, exam_purpose=None, ordered_by=None,
+            created_by=request.user, updated_by=request.user,
         )
-        out = serializers.PatientExamOrderSerializer(serializer.instance)
+        q = (request.data or {}).get("questionnaire") or {}
+        answers = q.get("answers")
+        if isinstance(answers, dict) and answers:
+            patient.questionnaire = qm.validate(answers)  # ponytail: 환자 캐시에만 저장(방문별 exam_order.questionnaire 는 추후)
+            patient.updated_by = request.user
+            patient.save(update_fields=["questionnaire", "updated_at"])
+        out = serializers.PatientExamOrderSerializer(order)
         return Response(out.data, status=status.HTTP_201_CREATED)
-
 
 class ReservationRequestQueueView(generics.ListAPIView):
     """§7 원무 큐 — order_status='requested' 만 노출.
@@ -452,3 +468,140 @@ class NotificationViewSet(AuditMixin, OwnedOnlyMixin, viewsets.ModelViewSet):
             note.updated_by = self._current_account()
             note.save(update_fields=["acknowledged_at", "updated_by", "updated_at"])
         return Response(serializers.NotificationSerializer(note).data)
+    
+def _sections(patient):
+    from core.api import questionnaire as qm
+    wrapper = patient.questionnaire if isinstance(patient.questionnaire, dict) else {}
+    answers = wrapper.get("answers") if isinstance(wrapper.get("answers"), dict) else {}
+    answers = answers or {}
+    return [{
+        "id": q["code"], "question": q["text"],
+        "choices": [{"id": o["id"], "label": o["text"]} for o in q["options"]],
+        "answer": answers.get(q["code"]),
+        "critical": False, "hint": "",   # ponytail: v1.yaml 에 critical 없음 — 전부 False
+    } for q in qm.active_questions()]
+
+
+class PatientHomeView(APIView):
+    """GET /home — 환자 홈 집계."""
+    permission_classes = [IsAuthenticatedAccount]
+
+    def get(self, request):
+        patient = getattr(request.user, "patient", None)
+        if patient is None:
+            raise ApiError("VALIDATION_ERROR", "환자 계정이 아닙니다.")
+        from core.api import questionnaire as qm
+        now = timezone.now()
+        pii = getattr(patient, "pii", None)
+        orders = models.ExamOrder.objects.filter(patient=patient)
+        visited = orders.filter(visited_at__isnull=False).order_by("-visited_at")
+        last = visited.first()
+
+        wrapper = patient.questionnaire if isinstance(patient.questionnaire, dict) else {}
+        answers = wrapper.get("answers") if isinstance(wrapper.get("answers"), dict) else {}
+        answers = answers or {}
+        total = len(qm.active_questions())
+        answered = len([k for k in answers if not k.startswith("_")])
+        q_status = "not_started" if not answers else ("done" if total and answered >= total else "in_progress")
+
+        upcoming = (orders.filter(scheduled_at__gte=now)
+                    .exclude(order_status="cancelled").order_by("scheduled_at").first())
+        next_res = None
+        if upcoming:
+            next_res = {"scheduled_at": upcoming.scheduled_at, "place": None,
+                        "modality": upcoming.modality, "modality_label": None}
+
+        reports = models.Report.objects.filter(
+            patient=patient, report_type="final", audience="patient").order_by("-report_id")
+        new_reports = [{
+            "report_id": r.report_id, "lock_status": r.lock_status,
+            "title": "검사 결과 안내",
+            "issued_at": r.explained_at or r.created_at,
+            "issued_by_name": getattr(r.issued_by, "full_name", None),
+        } for r in reports]
+
+        return Response({
+            "display_name": pii.name if pii else None,
+            "visit_count": visited.count(),
+            "questionnaire": {"status": q_status, "answered": answered,
+                              "total": total, "required": False, "hint": ""},
+            "next_reservation": next_res,
+            "new_reports": new_reports,
+            "today_visit": {"active": False},  # ponytail: 당일 동선 소스 없음
+            "calendar": None,                   # ponytail: 달력 마커 소스 없음
+            "last_visit_at": last.visited_at if last else None,
+            "last_visit_dept": ("영상의학과" if (last and last.modality) else None),
+        })
+
+
+class PatientQuestionnaireView(APIView):
+    """GET/PUT /questionnaire — 환자 문진."""
+    permission_classes = [IsAuthenticatedAccount]
+
+    def get(self, request):
+        patient = getattr(request.user, "patient", None)
+        if patient is None:
+            raise ApiError("VALIDATION_ERROR", "환자 계정이 아닙니다.")
+        secs = _sections(patient)
+        return Response({"sections": secs, "total": len(secs)})
+
+    def put(self, request):
+        patient = getattr(request.user, "patient", None)
+        if patient is None:
+            raise ApiError("VALIDATION_ERROR", "환자 계정이 아닙니다.")
+        from core.api import questionnaire as qm
+        answers = (request.data or {}).get("answers")
+        if not isinstance(answers, dict):
+            raise ApiError("VALIDATION_ERROR", "answers 객체가 필요합니다.")
+        patient.questionnaire = qm.validate(answers)  # 미상 code/option 이면 400
+        patient.updated_by = request.user
+        patient.save(update_fields=["questionnaire", "updated_at"])
+        return Response({"detail": "저장했습니다."})
+
+
+class PatientReservationsView(APIView):
+    """GET /me/reservations — 내 예약 + 신청용 문항."""
+    permission_classes = [IsAuthenticatedAccount]
+    CANCELLABLE = {"requested", "scheduled", "ordered"}
+
+    def get(self, request):
+        patient = getattr(request.user, "patient", None)
+        if patient is None:
+            raise ApiError("VALIDATION_ERROR", "환자 계정이 아닙니다.")
+        orders = models.ExamOrder.objects.filter(patient=patient).order_by("-scheduled_at")
+        items = [{
+            "exam_order_id": o.exam_order_id, "scheduled_at": o.scheduled_at,
+            "modality": o.modality, "modality_label": None,
+            "hint": (None if o.modality else "병원에서 검사 종류를 정합니다"),
+            "place": None, "order_status": o.order_status, "status_label": None,
+            "can_cancel": o.order_status in self.CANCELLABLE,
+        } for o in orders]
+        ps = patient.primary_staff
+        return Response({
+            "items": items,
+            "open_slots": [],   # ponytail: 예약 가능 슬롯 모델 없음
+            "required_questions": _sections(patient),
+            "required_note": "검사 전 확인이 필요한 문항입니다.",
+            "primary_staff_name": getattr(ps, "full_name", None),
+            "primary_staff_dept": getattr(getattr(ps, "account", None), "role", None),
+            "hospital_phone": None,
+            "note": "예약은 병원 확인 후 확정됩니다.",
+        })
+
+
+class PatientReservationCancelView(APIView):
+    """POST /me/reservations/{id}/cancel — 본인 예약 취소."""
+    permission_classes = [IsAuthenticatedAccount]
+
+    def post(self, request, pk=None):
+        patient = getattr(request.user, "patient", None)
+        if patient is None:
+            raise ApiError("VALIDATION_ERROR", "환자 계정이 아닙니다.")
+        order = models.ExamOrder.objects.filter(pk=pk, patient=patient).first()
+        if order is None:
+            raise ApiError("NOT_FOUND", "예약을 찾을 수 없습니다.")
+        order.order_status = "cancelled"
+        order.cancelled_by = None
+        order.updated_by = request.user
+        order.save(update_fields=["order_status", "cancelled_by", "updated_at"])
+        return Response({"detail": "예약을 취소했습니다."})

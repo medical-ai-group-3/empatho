@@ -195,5 +195,9 @@ urlpatterns = [
         views.PersonalNoteViewSet.as_view({"patch": "partial_update", "delete": "destroy"}),
         name="personal-note-detail",
     ),
+    path("home", views.PatientHomeView.as_view(), name="patient-home"),
+    path("questionnaire", views.PatientQuestionnaireView.as_view(), name="questionnaire-me"),
+    path("me/reservations", views.PatientReservationsView.as_view(), name="me-reservations"),
+    path("me/reservations/<int:pk>/cancel", views.PatientReservationCancelView.as_view(), name="me-reservation-cancel"),
 ]
 
