@@ -1,18 +1,22 @@
 """원무과(reception) view."""
 
-from rest_framework import viewsets, status, generics, mixins as drf_mixins
+from django.db.models import Q
+from django.utils import timezone
+from rest_framework import generics, status, viewsets
+from rest_framework import mixins as drf_mixins
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from django.db.models import Q
-from django.utils import timezone 
+from core.api.errors import ApiError
+from core.api.permissions import (
+    CanRegisterPatient,
+    IsAuthenticatedAccount,
+    MatrixPermission,
+    OwnedOnlyMixin,
+)
 
 from .. import models, serializers
 from ..mixins import AuditMixin
-from core.api.permissions import (
-    MatrixPermission, OwnedOnlyMixin, IsAuthenticatedAccount, CanRegisterPatient,
-)
-from core.api.errors import ApiError
 
 
 def _is_date(value):
@@ -120,7 +124,7 @@ class ReservationViewSet(AuditMixin, OwnedOnlyMixin, viewsets.ViewSet):
             else serializers.ExamOrderSerializer
         )
         if rows :
-            from .. import notify 
+            from .. import notify
             when = timezone.localtime(rows[0].scheduled_at)
             notify.send(
                 patient=rows[0].patient, 
@@ -151,6 +155,7 @@ class ReservationRequestViewSet(AuditMixin, viewsets.ViewSet):
         if patient is None:
             raise ApiError("VALIDATION_ERROR", "환자 계정이 아닙니다.")
         from datetime import datetime
+
         from core.api import questionnaire as qm
         date = (request.data or {}).get("date")
         time = (request.data or {}).get("time")
@@ -590,7 +595,10 @@ class PatientReservationsView(APIView):
         patient = getattr(request.user, "patient", None)
         if patient is None:
             raise ApiError("VALIDATION_ERROR", "환자 계정이 아닙니다.")
-        orders = models.ExamOrder.objects.filter(patient=patient).order_by("-scheduled_at")
+        orders = (models.ExamOrder.objects
+                  .filter(patient=patient)
+                  .exclude(order_status__in=["cancelled", "completed"])
+                  .order_by("-scheduled_at"))
         items = [{
             "exam_order_id": o.exam_order_id, "scheduled_at": o.scheduled_at,
             "modality": o.modality, "modality_label": None,

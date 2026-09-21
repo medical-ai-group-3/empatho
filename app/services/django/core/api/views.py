@@ -116,7 +116,12 @@ def login(request):
         raise ApiError("UNAUTHENTICATED", "아이디 또는 비밀번호가 올바르지 않습니다.")
 
     tokens = issue_pair(account)
-    response = Response({"access": tokens["access"]})
+    # refresh 를 쿠키와 **본문 둘 다**로 준다.
+    #   웹(https)은 지금처럼 httponly 쿠키를 쓴다 — 스크립트가 못 읽는 쪽이 안전하다.
+    #   앱(Capacitor/에뮬레이터)은 http·다른 출처라 브라우저가 Secure 쿠키를 버린다.
+    #   그래서 앱은 본문으로 받아 저장했다가 재발급 때 실어 보낸다 — 이게 없으면
+    #   액세스(30분)가 끝나는 순간 쓰던 중에 로그아웃된다.
+    response = Response({"access": tokens["access"], "refresh": tokens["refresh"]})
     response.set_cookie(
         "refresh_token",
         tokens["refresh"],
@@ -206,7 +211,10 @@ def signup_patient(request):
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def refresh_token(request):
-    refresh = request.COOKIES.get("refresh_token")
+    # 쿠키가 먼저다(웹). 앱은 Secure 쿠키가 안 실려서 본문으로 보낸다 —
+    # 토큰 자체를 검증하므로 어느 길로 왔는지는 안전에 영향이 없다.
+    refresh = (request.COOKIES.get("refresh_token")
+               or (request.data or {}).get("refresh"))
     if not refresh:
         raise ApiError("UNAUTHENTICATED", "refresh 토큰이 없습니다.")
 
