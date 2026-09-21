@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { api } from "../api";
 import { useApi } from "../lib/useApi";
 import Tilly from "../lib/Tilly";
@@ -25,6 +26,11 @@ import Icon from "../lib/Icon";
  *   준 문장을 그대로 옮긴다. 같은 성분도 환자마다 쓰는 이유가 다르고,
  *   무엇을 주의해야 하는지는 처방한 사람이 안다. 앱이 약전을 긁어다
  *   붙이는 순간 그것은 **의학적 조언**이 된다.
+ *
+ * ⚠ 식약처 자료를 찾아보는 화면(screens/Drugs.jsx)이 따로 있다. 여기서
+ *   거기로 **약 이름을 넘기지 않는다.** 처방받은 약을 눌렀더니 일반
+ *   허가사항이 뜨면 환자는 그것을 자기 약 설명으로 읽는다 — 위 경고를
+ *   링크 한 줄로 우회하는 셈이다. 잇는 것은 「찾아볼 수 있다」는 안내뿐이다.
  *
  * ── 앱이 하지 않는 것 ────────────────────────────────────────
  *
@@ -107,6 +113,9 @@ function Inner({ d }) {
       <div className="empty">
         <Tilly mood="rest" size="md" alt="" />
         <p>받으신 처방이 없습니다.</p>
+        {/* 처방이 없는 분이야말로 약을 찾아볼 일이 있다 — 아래 목록 끝에만
+            두면 이 분들에게는 링크가 아예 없다(여기서 일찍 돌아간다) */}
+        <Link className="btn ghost" to="/drugs">약 정보 찾아보기</Link>
       </div>
     );
   }
@@ -154,6 +163,10 @@ function Inner({ d }) {
         약을 거르셨거나 몸이 불편하시면 <b>임의로 조절하지 마시고</b> 담당
         주치의나 접수처에 문의해 주세요.
       </p>
+
+      {/* 약의 일반 정보를 찾아보는 자리. 약 이름을 넘기지 않는 이유는
+          위 머리말에 적어 두었다 */}
+      <Link className="btn ghost" to="/drugs">약 정보 찾아보기</Link>
     </>
   );
 }

@@ -442,6 +442,10 @@
   --slot-tick:    20px;                    /* 채워지는 동그라미 */
   --slot-tick-r:  1.5px;
 
+  /* 약 정보의 알약 사진. 글자 크기 설정(--ft)이 아니라 여백 배율(--sp)을
+     따른다 — 사진은 글이 아니다. 크게 두면 약 이름이 밀려 두 줄이 된다 */
+  --drug-pic:     calc(56px * var(--sp));
+
   --med-note-fs:  calc(12px * var(--ft));
   --med-by-fs:    calc(11px * var(--ft));
   --hos-l-fs:     calc(12px * var(--ft));

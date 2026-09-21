@@ -1014,6 +1014,25 @@ a{color:inherit; text-decoration:none}
 .drug-info dd.watch{padding-left:var(--dot-gap);
   border-left:var(--flag-bar) solid var(--pink); font-weight:500}
 
+/* ── 약 정보 찾기(screens/Drugs.jsx) ────────────────────────────────
+   복약 관리의 약 조각(.drug-*)을 그대로 쓴다. 다른 화면이라고 새 이름을
+   만들면 같은 모양이 두 벌이 되고, 한쪽만 고쳐진다.
+
+   다른 점은 두 가지뿐이다 — 처방전 안이 아니라 카드 한 장이 약 한 건이고,
+   알약 사진이 붙을 수 있다. 그 둘만 여기 적는다. */
+.drug-card .drug-h{display:flex; align-items:center;
+  justify-content:space-between; gap:var(--opt-icon-gap)}
+/* 사진은 있는 약이 드물다. 자리를 고정해 두면 없는 약에서 빈 칸이 남으므로
+   있을 때만 그린다(화면 쪽에서 가른다) */
+.drug-pic{flex:none; width:var(--drug-pic); height:auto;
+  border-radius:var(--slot-radius); background:var(--blush)}
+
+/* 원천이 문단을 줄바꿈으로 나눠 준다 — 화면이 <p> 로 쪼개 넣는다.
+   브라우저 기본 여백을 그대로 두면 문단 사이가 다른 글과 어긋난다 */
+.drug-info dd p, .rx-period p{margin:0}
+.drug-info dd p + p, .rx-period p + p{margin-top:var(--card-tx-gap)}
+.rx-period p{font-size:var(--med-note-fs); line-height:1.65; color:var(--ink-2)}
+
 .med-slots{display:flex; flex-direction:column; gap:var(--slot-gap);
   margin-top:var(--opts-gap-card)}
 .slot{display:flex; align-items:center; gap:var(--opt-icon-gap);

@@ -10,6 +10,7 @@ import Icon from "./lib/Icon.jsx";
 import { applyScale, applyTheme, readScale, readTheme } from "./lib/theme.js";
 import Book from "./screens/Book.jsx";
 import Chat from "./screens/Chat.jsx";
+import Drugs from "./screens/Drugs.jsx";
 import Home from "./screens/Home.jsx";
 import Hospitals from "./screens/Hospitals.jsx";
 import Meds from "./screens/Meds.jsx";
@@ -86,6 +87,8 @@ createRoot(document.getElementById("root")).render(
           <Route path="/book"         element={<Book />} />
           <Route path="/quest"        element={<Quest />} />
           <Route path="/meds"         element={<Meds />} />
+          {/* 약 정보 찾기. 탭에는 안 둔다 — 복약 관리에서 들어간다 */}
+          <Route path="/drugs"        element={<Drugs />} />
           <Route path="/hospitals"    element={<Hospitals />} />
           <Route path="/chat"         element={<Chat />} />
           <Route path="/notis"        element={<Notis />} />

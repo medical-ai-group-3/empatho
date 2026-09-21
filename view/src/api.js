@@ -377,6 +377,31 @@ export const api = {
   takeMed:       (id, time)  => post(`/api/v1/me/medications/${id}/log`, { time }),
   undoMed:       (id, logId) => del(`/api/v1/me/medications/${id}/log/${logId}`),
 
+  // 11-2  약 정보 찾기 — **식약처 자료를 옮겨 주는 사전이다**
+  //
+  //     Django 가 식약처 「의약품개요정보(e약은요)」 공공데이터를 받아
+  //     칸 이름만 우리 것으로 바꿔 준다.
+  //
+  //       GET /api/v1/drugs?q=타이레놀&page=1&page_size=10
+  //         → { items, count, page, page_size, source, disclaimer }
+  //       GET /api/v1/drugs/{item_seq}
+  //         → { item, source, disclaimer }
+  //
+  //       약 = { item_seq, name, maker, image, efficacy, how_to_use,
+  //              warning, caution, interaction, side_effect, storage,
+  //              updated_at }
+  //
+  //     ⚠ **바로 위 11 의 처방 설명과 섞지 않는다.** purpose · how · watch
+  //       는 처방한 사람이 이 환자를 보고 쓴 문장이고, 여기 오는 것은 그
+  //       약의 일반 허가사항이다. 여기 것을 그 칸에 끼워 넣으면 그 순간
+  //       앱이 **의학적 조언**을 하게 된다 — 11 의 경고가 막으려던 그것이다.
+  //
+  //     ⚠ source · disclaimer 를 **화면에 반드시 적는다.** 서버가 매번
+  //       실어 보내는 이유가 그것이다(문구가 바뀌어도 앱 배포를 안 기다린다).
+  //       빼면 환자에게는 병원이 해 준 설명으로 읽힌다.
+  drugs:         (o = {})    => get(`/api/v1/drugs${qs(o)}`),
+  drug:          (seq)       => get(`/api/v1/drugs/${encodeURIComponent(seq)}`),
+
   // 12  병원 찾기
   //
   //     ⚠ **기기 위치를 받지 않는다.** 「가까운 순」은 편하지만 위치를
