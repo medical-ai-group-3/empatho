@@ -401,6 +401,19 @@ async function pathSpecimenRow(raw = {}) {
   };
 }
 
+function pathUploadFile(raw = {}) {
+  const bytes = raw.byte_size;
+  return {
+    ...raw,
+    id: raw.storage_object_id ?? raw.id,
+    name: raw.name ?? raw.object_key ?? `파일 ${raw.storage_object_id ?? ""}`,
+    size: typeof bytes === "number" ? `${(bytes / 1048576).toFixed(1)} MB` : "",
+    w: raw.w ?? raw.width_px,
+    h: raw.h ?? raw.height_px,
+    image: raw.image ?? (raw.object_key ? { key: raw.object_key } : null),
+  };
+}
+
 export const path = {
   /* ⚠ 서버는 큐를 **기본 필터 없이** 준다 (2026-09-16 다희님 확인).
      이 두 조건을 안 담으면 이미 남이 집어간 검체까지 대기 큐에 뜬다.
@@ -447,7 +460,7 @@ export const path = {
     return {
       ...raw,
       ...specimen,
-      files: uploads.map(pathFile),
+      files: uploads.map(pathUploadFile),
       specimen_id: specimen.id,
     };
   },
