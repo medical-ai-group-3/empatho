@@ -110,6 +110,12 @@ HANDOVER_ERRORS = [
     _spec("CANCEL_NOT_ALLOWED_AFTER_ANALYSIS", 409,
           "분석이 시작된 파일은 취소할 수 없습니다. 정정이 필요하면 관리자에게 문의하세요.",
           "해당 study/specimen 에 AiResult 가 이미 있다"),
+    # 09-21 — POST /exam-orders/{id}/retake (확정 사양서 §2-3). 품질 반려된
+    # Study 가 하나도 없는 오더에 재촬영을 걸면 막는다 — 재촬영은 반려의
+    # 결과여야지, 아무 오더에나 새 오더를 복제해 만드는 자리가 아니다.
+    _spec("RETAKE_REQUIRES_REJECTED_QUALITY", 409,
+          "품질 반려된 촬영이 없어 재촬영 오더를 만들 수 없습니다.",
+          "원본 오더에 quality_status=rejected 인 Study 가 하나도 없다"),
 ]
 
 SPEC_CODES = frozenset(e.code for e in SPEC_ERRORS)

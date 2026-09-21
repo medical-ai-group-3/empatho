@@ -129,6 +129,53 @@ class ExamOrderCompleteView(AuditMixin, viewsets.ViewSet):
         return Response(out.data)
 
 
+class ExamOrderRetakeView(AuditMixin, viewsets.ViewSet):
+    """POST /exam-orders/{id}/retake — 확정 사양서 §2-3, 재촬영 오더 발행.
+
+    자동 트리거(품질 반려 액션 안에 얹기)가 아니라 **명시적 호출**로 둔다.
+    반려 사유가 늘 「다시 찍어야 함」은 아니다 — 이미 확보한 다른 시리즈로
+    커버되거나, 유방외과가 판단해 그 소견으로 진행할 수도 있다. 자동으로
+    오더가 하나 더 생기면 그 경우 고아 오더를 사람이 매번 취소해야 한다.
+    프론트에 이미 있는 "재촬영" 버튼이 이 경로를 부른다.
+
+    원본 오더(pk)에 quality_status="rejected" 인 Study 가 하나도 없으면
+    409 — 재촬영은 반려의 결과여야 한다.
+
+    새 오더는 원본과 같은 환자 · modality · exam_purpose · ordered_by 를
+    물려받고, order_status="ordered" 로 바로 서서 ExamOrderQueueView 의
+    큐(?status=ordered&assigned=none)에 다시 뜬다 — 원무를 다시 거치지
+    않는다. parent_order 로 원본을 가리킨다(모델에 있던 자리인데 지금까지
+    아무도 채우지 않고 있었다).
+    """
+
+    resource = "exam_order"
+    permission_classes = [MatrixPermission]
+
+    def create(self, request, pk=None):
+        try:
+            original = models.ExamOrder.objects.select_related("patient").get(pk=pk)
+        except models.ExamOrder.DoesNotExist:
+            raise ApiError("NOT_FOUND")
+
+        if not original.studies.filter(quality_status="rejected").exists():
+            raise ApiError("RETAKE_REQUIRES_REJECTED_QUALITY")
+
+        account = self._current_account()
+        retake = models.ExamOrder.objects.create(
+            patient=original.patient,
+            modality=original.modality,
+            exam_purpose=original.exam_purpose,
+            order_status="ordered",
+            ordered_by=original.ordered_by,
+            ordered_at=timezone.now(),
+            parent_order=original,
+            created_by=account,
+            updated_by=account,
+        )
+        out = serializers.ExamOrderSerializer(retake)
+        return Response(out.data, status=status.HTTP_201_CREATED)
+
+
 class StudyStartView(AuditMixin, viewsets.ViewSet):
     """POST /radiology/queue/{exam_order_id}/start-study — ①→② 촬영 시작.
 

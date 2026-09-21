@@ -101,6 +101,14 @@ urlpatterns = [
         views.ExamOrderCompleteView.as_view({"patch": "partial_update"}),
         name="exam-order-complete",
     ),
+    # 09-21 추가 — 확정 사양서 §2-3 재촬영. 원본 오더(품질 반려된 Study가
+    # 있는 것)를 pk 로 받아 새 오더를 만든다 (views/radiology.py 의
+    # ExamOrderRetakeView 참고).
+    path(
+        "exam-orders/<int:pk>/retake",
+        views.ExamOrderRetakeView.as_view({"post": "create"}),
+        name="exam-order-retake",
+    ),
     path(
         "radiology/queue/<int:pk>/start-study",
         views.StudyStartView.as_view({"post": "create"}),

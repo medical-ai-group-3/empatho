@@ -30,6 +30,7 @@ from .radiology import (
     PatientStudiesView,
     ExamOrderQueueView,
     ExamOrderCompleteView,
+    ExamOrderRetakeView,
     StudyStartView,
     StudyUploadView,
     StudyReadView,
