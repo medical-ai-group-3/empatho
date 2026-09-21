@@ -222,7 +222,11 @@
 
 /* 수술 결정은 열마다 따로 쌓지 않는다. 한 행에 있는 세 카드를 같은
    그리드 행에 놓아, 내용 길이가 달라도 카드 아래 선이 나란히 끝난다. */
-.breast .decision-grid {display:grid; grid-template-columns:repeat(3, minmax(0, 1fr));
+/* 두 단 — 왼쪽이 «지금 하는 일», 오른쪽이 «보면서 하는 것».
+   배치는 docs/mockup/SurgeryDecision.html */
+.breast .dec-col {display:flex; flex-direction:column; gap:var(--gap); min-width:0}
+.breast .dec-col > .card {margin-top:0}
+.breast .decision-grid {display:grid; grid-template-columns:minmax(0, 1.55fr) minmax(0, 1fr);
   gap:var(--gap); align-items:stretch}
 /* 공통 카드의 세로 여백 규칙은 그리드 안에서는 적용하지 않는다.
    행 간격은 grid gap 하나로 관리해 세 열의 윗선과 아랫선이 정확히 맞는다. */

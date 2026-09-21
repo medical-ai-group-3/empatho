@@ -30,7 +30,11 @@ const DEPTS = ["nursing", "radiology", "pathology", "breast"];
 /* 과 바깥 화면도 같이 본다. 환자는 목업에 타임라인이 있는 사람으로 고른다 —
    빈 화면만 보면 줄이 넘치는지 알 수 없다 */
 const LOOSE = ["nursing/intake", "nursing/patients", "nursing/reservations",
-  "patients/P-1001", "me"];
+  "patients/P-1001", "me",
+  /* 유방외과 업무 화면 넷 — 과 홈이 아니라 주소로만 닿는다.
+     목업대로 다시 짠 자리라 여기서도 재 둔다 */
+  "breast/waiting", "breast/patients/P-1001/review",
+  "breast/patients/P-1001/decision", "breast/discordances/D-2001"];
 const WIDTHS = [1440, 1920];
 const PORT = 9321;
 

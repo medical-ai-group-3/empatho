@@ -66,19 +66,48 @@ function Inner({ patient, onReload }) {
   const reads = (timeline.data ?? []).filter((e) => e.type === "판독" && e.assessment_id != null);
   const assessmentId = reads.length ? reads[reads.length - 1].assessment_id : null;
 
+  /* 배치는 `docs/mockup/SurgeryDecision.html` — **두 단이다.**
+     왼쪽이 «지금 하는 일»(결정·리포트·처방·소견), 오른쪽이 «보면서 하는
+     것»(환자 정보·결정 기록). 전에는 세 단이었는데 저장 단추가 가운데 열
+     하나에만 몰려 있어서 눈이 좌우로 계속 튀었다.
+
+     ⚠ **목업의 「수술 계획」 칸(술식·측·수술 예정일·집도)은 못 만든다.**
+       그 값을 받는 경로가 서버에 없다 — assessment 의 decision 은
+       종류·가부·근거 셋뿐이고 수술 일정 자원이 따로 없다(8장).
+       지어내지 않고, 있는 저장 경로 일곱을 그대로 둔다. */
   return (
     <div className="decision-grid">
-      {/* 1행 — 왼쪽 AI 종합 · 중앙 수술 여부 · 오른쪽 환자 정보 */}
-      {report ? <AiSummaryCard report={report} /> : <FinalReportCard patient={patient} reports={reports} onCreated={onReload} />}
-      <DecisionForm assessmentId={assessmentId} assessmentIdLoading={timeline.loading} />
-      <PatientInfoCard patient={patient} />
+      <div className="dec-col">
+        <DecisionForm assessmentId={assessmentId} assessmentIdLoading={timeline.loading} />
+        {report ? <AiSummaryCard report={report} /> : <FinalReportCard patient={patient} reports={reports} onCreated={onReload} />}
+        {report ? <DoctorSummaryCard report={report} /> : <PendingReportCard title="의사 종합 리포트" />}
+        <PrescriptionDraft patient={patient} report={report} />
+        {report
+          ? <ExplainForm report={report} onSaved={onReload} unlock={unlock} />
+          : <PendingReportCard title="의사 최종 소견" />}
+      </div>
 
-      {/* 2행 — 각 열의 두 번째 작업. 행 높이를 공유해 카드 끝이 맞는다. */}
-      {report ? <DoctorSummaryCard report={report} /> : <PendingReportCard title="의사 종합 리포트" />}
-      <PrescriptionDraft patient={patient} report={report} />
-      {report
-        ? <ExplainForm report={report} onSaved={onReload} unlock={unlock} />
-        : <PendingReportCard title="의사 최종 소견" />}
+      <div className="dec-col">
+        <PatientInfoCard patient={patient} />
+        <DecisionLog />
+      </div>
+    </div>
+  );
+}
+
+/* 이 환자의 결정 기록 — 목업의 오른쪽 아래 표.
+   ⚠ **채울 수가 없다.** 목업이 적어 둔 `GET /assessments?patient=` 가
+     api.js 에 없다. 있는 것은 `?study={id}` 하나뿐이라 환자로 못 모은다.
+     진료 이력(timeline)에도 「결정」 줄은 안 온다 — 촬영·판독·검체·확진만
+     온다. **칸은 둔다.** 없애면 「결정이 한 번도 없었다」로 읽힌다. */
+function DecisionLog() {
+  return (
+    <div className="card">
+      <div className="card-head"><h3>이 환자의 결정 기록</h3></div>
+      <p className="card-text">
+        아직 못 불러옵니다 — 환자로 결정을 모으는 경로가 없습니다.
+      </p>
+      <p className="card-text">결정은 지워지지 않습니다. 바꾸려면 새 결정을 남기세요.</p>
     </div>
   );
 }

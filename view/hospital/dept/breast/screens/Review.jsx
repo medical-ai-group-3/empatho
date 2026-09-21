@@ -1,260 +1,237 @@
-import { useCallback, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useState } from "react";
+import { useParams } from "react-router-dom";
 import { breast as api } from "../../../api";
 import { useApi } from "../../../lib/useApi";
-import { Page } from "../../../lib/Page";
+import { Page, Btn } from "../../../lib/Page";
 import { Body } from "../../../lib/Body";
+import { Chip, useCan } from "../../../lib/Parts";
 import { go } from "../../../nav";
-import "../breast.css";   /* 유방외과 전용 — .breast 안에 갇혀 있다. 네 화면이 각자
-                             끌고 온다: 주소로 곧장 들어와도 스타일이 빠지면 안 된다 */
+import * as H from "../../home";
+import "../breast.css";
 import ReviewViewer from "../components/ReviewViewer";
-import { MODALITY, label } from "../../../codes";
-import AIModelResult from "../components/AIModelResult";
 
-/* 화면 2 · 검사 종합 확인 ("/patients/:id/review")
+/* 유방외과 · 검사 종합 — `docs/mockup/SurgeryReview.html`
+ * ════════════════════════════════════════════════════════════════
  *
- * 정리본 §2-2: 좌(진료 이력, 접기 가능) · 중(뷰어) · 우(리포트 확인, 접기
- * 가능·탭 3개). 가운데 뷰어는 ReviewViewer(components/ReviewViewer.jsx)가
- * GET /patients/{id}/studies 를 받아 그린다 — 실제 이미지가 없는 모달리티는
- * 자동으로 "샘플 이미지 없음"을 보여준다.
+ * **영상과 병리를 나란히 놓고 한 번에 읽는 자리다.** 두 과가 각자 확정한
+ * 것을 여기서 처음으로 맞대어 본다.
  *
- * "수술 결정(임시)" 다리는 대기 화면(§1)에 있었는데, 여기가 생겼으니
- * 이 화면 헤더로 옮긴다 — 검사 결과를 다 보고 나서 수술을 결정하는
- * 흐름이 맞다. */
+ *   ┌ 1fr ───────────────────┬ 1fr ──────────────────┐
+ *   │ 환자 정보               │ ✓ 영상과 병리가 일치   │
+ *   │ 영상 판독               │ 병리 결과              │
+ *   │  BI-RADS 4 · 소견       │  B2 · 진단 · 소견      │
+ *   │  [영상 보기]            │                        │
+ *   ├─────────────────────────┴────────────────────────┤
+ *   │ 결정 입력 — 종류 · 가부 · 근거 · 공개 동의        │
+ *   └──────────────────────────────────────────────────┘
+ *
+ * ⚠ **칸을 1px 선으로 가른다(4.5).** 목업은 카드를 띄우지만 그러면 칸마다
+ *   안쪽 여백이 또 생긴다.
+ * ⚠ **일치·불일치를 색으로 말하지 않는다.** 목업은 초록/빨강 배너다.
+ *   우리는 글자와 soot 채움으로 가른다 — 판독 영상 위에서 그 색들이
+ *   병변 표시와 싸운다(tokens.css 머리의 색 규칙).
+ * ⚠ **목업에 뷰어가 없다.** 「영상 보기」가 다른 쪽으로 보내는 모양인데
+ *   유방외과에는 판독 화면 권한이 없다. 그래서 그 단추로 **이 자리에서**
+ *   뷰어를 편다 — 유방외과가 영상을 보는 유일한 길이라 끊으면 안 된다.
+ */
 export default function Review() {
   const { id } = useParams();
-  const nav = useNavigate();
-  const { loading, data: patient, error, reload } = useApi(() => api.patient(id), [id]);
-  const timeline = useApi(() => api.timeline(id), [id]);
+  const p = useApi(() => api.patient(id), [id]);
 
   return (
-    <Page className="breast" crumb={["유방외과", "검사 종합"]}
-            title="검사 종합" patient={patient}
-            back={() => nav(go.breast.waiting(), { state: { advance: true, from: id } })}
-            right={<button className="btn line" onClick={() => nav(go.breast.decision(id))}>수술 결정으로</button>}>
-      <div className="pane">
-        <Body loading={loading} error={error} onRetry={reload}>
-          {patient && <Inner patient={patient} timeline={timeline} />}
-        </Body>
-      </div>
+    <Page className="rev-page" crumb={["유방외과", "검사 종합"]}
+          title="검사 종합" patient={p.data}
+          right={(
+            <>
+              <Btn to={go.patient(id)}>환자 상세</Btn>
+              <Btn to={go.breast.waiting()}>내 환자</Btn>
+            </>
+          )}>
+      <Body loading={p.loading && !p.data} error={p.error} onRetry={p.reload}>
+        {p.data && <Inner p={p.data} onSaved={() => p.reload(true)} />}
+      </Body>
     </Page>
   );
 }
 
-function Inner({ patient, timeline }) {
-  const [leftOpen, setLeftOpen] = useState(true);
-  const [rightOpen, setRightOpen] = useState(true);
-
-  /* 뷰어가 지금 어느 모달리티를 보여주고 있는지. **서버 코드**다
-     (mammo · us · mri) — saveReport 본문에 그대로 실려 나가므로 사람에게
-     보여줄 때만 label(MODALITY, …) 을 거친다. codes.js 참고 —
-   * 오른쪽 "유방외과 리포트" 작성란이 이 값을 그대로 따라간다(검사
-   * 종합 확인 화면의 핵심 요구사항). ReviewViewer가 매 렌더마다 새
-   * 함수를 받으면 그 안의 자동 탭 선택 useEffect가 다시 도는 걸 막기
-   * 위해 useCallback으로 감싼다. */
-  const [currentModality, setCurrentModality] = useState(null);
-  const handleModalityChange = useCallback((modality) => {
-    setCurrentModality(modality);
-  }, []);
+function Inner({ p, onSaved }) {
+  const [seeing, setSeeing] = useState(false);
+  const rep = p.other_reports ?? [];
+  const of = (want) => rep.find((r) => (r.dept ?? "").includes(want)) ?? null;
+  const rad = of("영상");
+  const pat = of("병리");
+  const odd = p.open_discordance;
 
   return (
-    <div
-      className="review-grid"
-      style={{
-        "--left-w": leftOpen ? "minmax(190px,0.6fr)" : "34px",
-        "--right-w": rightOpen ? "minmax(280px,1.1fr)" : "34px",
-      }}
-    >
-      <div className={`card side-panel ${leftOpen ? "" : "collapsed"}`}>
-        {leftOpen ? (
-          <>
-            <div className="panel-head"><h3>진료 이력</h3></div>
-            <div className="timeline-scroll">
-              <Body loading={timeline.loading} error={timeline.error} onRetry={timeline.reload}>
-                {timeline.data && <Timeline events={timeline.data} />}
-              </Body>
-            </div>
-          </>
-        ) : (
-          <span className="side-collapsed-label">진료 이력</span>
-        )}
-        <button
-          type="button"
-          className="side-toggle left"
-          onClick={() => setLeftOpen((v) => !v)}
-          aria-label={leftOpen ? "진료 이력 접기" : "진료 이력 펼치기"}
-        >
-          {leftOpen ? "‹" : "›"}
-        </button>
+    <div className="rev">
+      <div className="rev-l">
+        <section className="rev-box">
+          <h3>환자</h3>
+          <dl className="kv">
+            <div><dt>환자</dt><dd>{H.nameOf(p)}{H.who(p) && ` · ${H.who(p)}`}</dd></div>
+            <div><dt>환자번호</dt><dd>{H.noOf(p) ?? "—"}</dd></div>
+            <div><dt>내원</dt><dd>{p.visit_type ?? "—"}</dd></div>
+            <div><dt>의뢰</dt><dd>{p.visit_purpose ?? "—"}</dd></div>
+          </dl>
+        </section>
+
+        <Reading title="영상 판독" r={rad}
+                 lines={[["병변", p.lesions?.[0]
+                   && `${p.lesions[0].site} · ${p.lesions[0].size_mm}mm`]]}
+                 action={(
+                   <Btn onClick={() => setSeeing((v) => !v)}>
+                     {seeing ? "영상 접기" : "영상 보기"}
+                   </Btn>
+                 )} />
       </div>
 
-      <ReviewViewer
-        patientId={patient.patient_id}
-        lesions={patient.lesions ?? []}
-        onModalityChange={handleModalityChange}
-      />
+      <div className="rev-r">
+        {/* 일치 여부 — 서버가 불일치를 걸었는지로만 말한다.
+            ⚠ 우리가 BI-RADS 와 B 분류를 견주어 판단하지 않는다.
+              그 규칙은 서버(rule_table_version)에 있고 화면이 흉내 내면
+              규칙이 바뀔 때 두 곳이 어긋난다 */}
+        <section className={`rev-flag${odd ? " k1" : ""}`}>
+          <i aria-hidden="true">{odd ? "⚠" : "✓"}</i>
+          <span>
+            <b>{odd ? "영상과 병리가 엇갈립니다" : "엇갈린 것이 없습니다"}</b>
+            {odd && <span className="hcard-k">{odd.violated_rule}</span>}
+          </span>
+          <span className="home-fill" />
+          {odd && (
+            <Btn to={go.breast.discordance(odd.discordance_id)}>처분하기</Btn>
+          )}
+        </section>
 
-      <div className={`card side-panel ${rightOpen ? "" : "collapsed"}`}>
-        {rightOpen ? (
-          <>
-            <div className="panel-head"><h3>리포트 확인</h3></div>
-            <ReportPanel patient={patient} currentModality={currentModality} />
-          </>
-        ) : (
-          <span className="side-collapsed-label">리포트 확인</span>
-        )}
-        <button
-          type="button"
-          className="side-toggle right"
-          onClick={() => setRightOpen((v) => !v)}
-          aria-label={rightOpen ? "리포트 확인 접기" : "리포트 확인 펼치기"}
-        >
-          {rightOpen ? "›" : "‹"}
-        </button>
+        <Reading title="병리 결과" r={pat}
+                 lines={[["검체", p.lesions?.find((l) => l.specimen_id)?.specimen_id]]} />
       </div>
-    </div>
-  );
-}
 
-/* ⚠ 서버 PatientTimelineView(2026-09-18 확인)는 {at, type, detail,
- * assessment_id} 만 준다 — label 이 없다. type 자체가 이미 "촬영"·
- * "AI 분석 완료"·"판독"·"검체 채취"·"병리 확진" 같은 한글이라 그대로
- * 제목으로 쓴다. */
-function Timeline({ events }) {
-  if (events.length === 0) {
-    return <p style={{ fontSize: 13, color: "var(--muted)" }}>아직 기록이 없습니다</p>;
-  }
-  return (
-    <div className="timeline">
-      {events.map((e, i) => (
-        <div className="row" key={i}>
-          <span className="dot" aria-hidden="true" />
-          <p className="label">{e.type}</p>
-          <p className="at">{e.at?.replace("T", " ").slice(0, 16)}</p>
-          {e.detail && <p className="detail">{e.detail}</p>}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-/* 예전엔 이 세 리포트를 탭으로 갈아 끼웠는데, 그러면 "지금 보고 있는
- * 검사에 대한 AI/타부서 소견"과 "유방외과 리포트 작성"을 동시에 볼 수
- * 없었다 — 비교하려면 탭을 왔다 갔다 해야 했다. 세 구역을 세로로 고정
- * 배치하고 각자 내부 스크롤을 주면, AI·타부서 리포트(읽기 전용)는 위에
- * 계속 떠 있고 유방외과 리포트(현재 modality에 맞춰 쓰는 곳)만 아래서
- * 그때그때 바뀐다. */
-function ReportPanel({ patient, currentModality }) {
-  const report = patient.report;
-
-  /* 유방외과 소견은 지금 뷰어가 보여주는 모달리티별로 따로 쓴다 —
-   * MRI에서 쓰던 걸 초음파로 넘어갔다가 다시 MRI로 돌아와도 그대로
-   * 남아 있어야 하니 modality별 텍스트를 따로 들고 있는다. 서버 저장분
-   * (content_json.by_modality, 2026-09-18 다희님 확인)으로 초깃값을
-   * 채운다 — 전엔 새로고침마다 빈 칸으로 시작해서 저장했던 게 안 보였다. */
-  const [surgeonReports, setSurgeonReports] = useState(() => report?.content_json?.by_modality ?? {});
-
-  if (!report) {
-    return (
-      <div className="report-stack">
-        <ReportBlock title="리포트 확인" grow>
-          <p style={{ fontSize: 13, color: "var(--muted)" }}>
-            아직 생성된 검사 리포트가 없습니다. 영상 또는 병리 판독이 확정되면 표시됩니다.
-          </p>
-        </ReportBlock>
-      </div>
-    );
-  }
-
-  return (
-    <div className="report-stack">
-      <ReportBlock title="모달리티별 AI 리포트" fixed>
-        <AIModelResult aiModel={report.ai_model} />
-      </ReportBlock>
-
-      <ReportBlock title="타 부서 의사 리포트" fixed>
-        {patient.other_reports?.length > 0 ? patient.other_reports.map((r, i) => (
-          <div className="other-report" key={i}>
-            <span className="dept">{r.dept}</span>
-            <span className="author">{r.author}</span>
-            <p className="summary">{r.summary}</p>
-            <p className="at">{r.at?.replace("T", " ").slice(0, 16)}</p>
+      {seeing && (
+        <section className="rev-see">
+          <div className="breast">
+            <ReviewViewer patientId={p.patient_id} lesions={p.lesions ?? []} />
           </div>
-        )) : <p style={{ fontSize: 13, color: "var(--muted)" }}>아직 리포트가 없습니다</p>}
-      </ReportBlock>
+        </section>
+      )}
 
-      {/* ⚠ 카드 제목에도 라벨을 거친다. 여기만 빠뜨려서 「유방외과 리포트 · us」
-          처럼 서버 코드가 날것으로 보이고 있었다 — 탭과 안내문은 한글인데
-          제목만 영문이라 같은 화면에서 두 말이 섞였다 */}
-      <ReportBlock title={currentModality
-                     ? `유방외과 리포트 · ${label(MODALITY, currentModality)}`
-                     : "유방외과 리포트"} grow>
-        <FinalReportForm
-          report={report}
-          modality={currentModality}
-          text={currentModality ? (surgeonReports[currentModality] ?? "") : ""}
-          onTextChange={(value) =>
-            currentModality &&
-            setSurgeonReports((prev) => ({ ...prev, [currentModality]: value }))
-          }
-        />
-      </ReportBlock>
+      <Decide p={p} onSaved={onSaved} />
     </div>
   );
 }
 
-function ReportBlock({ title, fixed, grow, children }) {
+/* 판독 한 칸 — 영상과 병리가 같은 모양을 쓴다.
+   ⚠ **칸을 없애지 않는다.** 한쪽이 아직 없어도 자리를 둔다 */
+function Reading({ title, r, lines = [], action }) {
   return (
-    <section className={`report-block ${fixed ? "fixed" : ""} ${grow ? "grow" : ""}`}>
-      <h4>{title}</h4>
-      <div className="report-block-body">{children}</div>
+    <section className="rev-box">
+      <header className="rev-box-h">
+        <h3>{title}</h3>
+        <span className="home-fill" />
+        {r ? <Chip>확정</Chip> : <span className="hcard-k">아직 없습니다</span>}
+      </header>
+      {r && (
+        <>
+          <dl className="kv">
+            {lines.filter(([, v]) => v).map(([k, v]) => (
+              <div key={k}><dt>{k}</dt><dd>{v}</dd></div>
+            ))}
+            <div><dt>판독</dt><dd>{[r.author, H.day(r.at)].filter(Boolean).join(" · ")}</dd></div>
+          </dl>
+          <p className="rev-find">{r.summary}</p>
+        </>
+      )}
+      {action && <div className="rowb">{action}</div>}
     </section>
   );
 }
 
-function FinalReportForm({ report, modality, text, onTextChange }) {
-  const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState(null);
+/* ── 결정 입력 ────────────────────────────────────────────────
+ * ⚠ **두 가지를 저장한다.** 결정 자체는 `PATCH /assessments/{id}/decision`,
+ *   환자에게 여는 것은 `PATCH /reports/{id}/explain` 이다. 목업은 한
+ *   단추지만 서버는 두 곳이라, 동의 칸을 켰을 때만 둘째를 부른다.
+ * ⚠ **어느 판독에 붙일지는 진료 이력이 안다** — 환자 응답에 assessment
+ *   번호가 없다. timeline 의 「판독」 줄이 달고 온다.
+ */
+const KINDS = ["수술", "추적 관찰", "추가 검사", "재조직검사"];
+const GOES = ["진행", "보류"];
 
-  /* ⚠ 2026-09-18 다희님 확인 — PUT /reports/{id}/ 는 content_json 만 본다
-   * (surgery.py:97-103). { modality, doctor_summary } 를 최상위로 보내던
-   * 건 그동안 서버 값을 하나도 안 바꾸고 있었다. 모달리티별로 서로
-   * 덮어쓰지 않게 merge 하는 건 서버가 한다 — by_modality.{modality} 한
-   * 칸만 보내면 된다. */
+function Decide({ p, onSaved }) {
+  const line = useApi(() => H.soft(api.timeline(p.patient_id)), [p.patient_id]);
+  const aid = H.rows(line.data).filter((r) => r.assessment_id).at(-1)?.assessment_id ?? null;
+  const rid = p.report?.report_id ?? null;
+
+  const [kind, setKind] = useState(KINDS[0]);
+  const [goNo, setGoNo] = useState(GOES[0]);
+  const [why, setWhy] = useState("");
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState(null);
+  const may = useCan("breast.decision.save");
+
   async function save() {
-    setSaving(true);
+    setBusy(true);
     setMsg(null);
     try {
-      await api.saveReport(report.report_id, { content_json: { by_modality: { [modality]: text } } });
-      setMsg("저장되었습니다");
-    } finally {
-      setSaving(false);
-    }
+      await api.decide(aid, { decision_type: kind, decision: goNo, reason: why });
+      if (open && rid) await api.explain(rid, { patient_explanation: why });
+      setMsg("확정했습니다");
+      onSaved?.();
+    } catch (e) { setMsg(e.detail || e.message); }
+    finally { setBusy(false); }
   }
 
   return (
-    /* ⚠ 높이를 인라인으로 주지 않는다. 인라인은 CSS 를 이겨서, 스택이
-       굴러가는 구조로 바뀐 뒤에도 입력칸이 70px 로 주저앉고 저장 줄이
-       그 위에 겹쳐 그려졌다. 높이는 breast.css 의 --report-write-h 가 정한다 */
-    <div style={{ display: "flex", flexDirection: "column" }}>
-      <div className="field" style={{ marginBottom: 8 }}>
-        <textarea
-          value={text}
-          onChange={(e) => onTextChange(e.target.value)}
-          style={{ resize: "none" }}
-          placeholder={
-            modality
-              ? `${label(MODALITY, modality)} 검사에 대한 유방외과 소견을 작성해 주세요`
-              : "유방외과 종합 소견을 작성해 주세요"
-          }
-        />
+    <section className="rev-dec">
+      <header className="rev-box-h">
+        <h3>결정 입력</h3>
+        <span className="home-fill" />
+        {msg && <span className="hcard-k">{msg}</span>}
+      </header>
+
+      <div className="rev-dec-b">
+        <label className="rev-f">
+          <span>결정 종류</span>
+          <div className="sgy-seg" role="radiogroup" aria-label="결정 종류">
+            {KINDS.map((k) => (
+              <button type="button" key={k} role="radio" aria-checked={k === kind}
+                      className={`sgy-opt${k === kind ? " on" : ""}`}
+                      disabled={!may.ok} onClick={() => setKind(k)}>{k}</button>
+            ))}
+          </div>
+        </label>
+
+        <label className="rev-f narrow">
+          <span>가부</span>
+          <div className="sgy-seg narrow" role="radiogroup" aria-label="가부">
+            {GOES.map((g) => (
+              <button type="button" key={g} role="radio" aria-checked={g === goNo}
+                      className={`sgy-opt${g === goNo ? " on" : ""}`}
+                      disabled={!may.ok} onClick={() => setGoNo(g)}>{g}</button>
+            ))}
+          </div>
+        </label>
       </div>
-      <div className="card-foot split" style={{ flex: "0 0 auto" }}>
-        <span className="note">{msg}</span>
-        <button className="btn ghost" onClick={save} disabled={saving || !modality}>
-          {saving ? "저장 중…" : "리포트 저장"}
-        </button>
+
+      <label className="rev-f">
+        <span>근거 · 환자 설명</span>
+        <textarea value={why} onChange={(e) => setWhy(e.target.value)}
+                  rows={3} disabled={!may.ok} />
+      </label>
+
+      <div className="rev-f row">
+        <label className="rev-ck">
+          <input type="checkbox" checked={open} disabled={!may.ok || !rid}
+                 onChange={(e) => setOpen(e.target.checked)} />
+          <span>환자 앱에 결과를 엽니다</span>
+        </label>
+        <span className="home-fill" />
+        {!aid && <span className="hcard-k">확정된 판독이 있어야 결정을 답니다</span>}
+        {!rid && <span className="hcard-k">리포트가 없어 환자 앱은 못 엽니다</span>}
+        <Btn kind="fill" onClick={save} {...may.attrs}
+             disabled={busy || !aid || !may.ok}>
+          {busy ? "확정하는 중…" : "결정 확정"}
+        </Btn>
       </div>
-    </div>
+    </section>
   );
 }

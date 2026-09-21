@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>영상 판독</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:'IBM Plex Sans KR',system-ui,sans-serif;background:#0c0a09;color:#0c0a09}
+a{color:#1d6fa8}a:hover{color:#155a8a}
+header a:hover{color:#fafaf9}
+button,input,select,textarea{font-family:inherit}
+:focus-visible{outline:2px solid #3ba6f1;outline-offset:2px}
+.ep-tool:hover{background:#34302d !important;color:#fafaf9 !important}
+.ep-phrase:hover{border-color:#1d7fc2 !important;color:#155a8a !important}
+.ep-primary:hover{background:#155a8a !important}
+@keyframes ep-dash{to{stroke-dashoffset:-20}}
+.ep-dash{animation:ep-dash 1.2s linear infinite}
+@media (prefers-reduced-motion: reduce){.ep-dash{animation:none}}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; display: flex; flex-direction: column; background: #0c0a09; overflow: hidden;">
+
+  <header style="height: 52px; flex-shrink: 0; background: #1c1917; color: #fafaf9; display: flex; align-items: center; gap: 18px; padding: 0 16px; box-sizing: border-box;">
+    <a href="Main.dc.html" style="display: flex; align-items: center; gap: 10px; text-decoration: none; color: #fafaf9;">
+      <img src="/_blob/8b72413df6cbff803f5c0794f04a2a3f" alt="" style="width: 28px; height: 28px; background: #fafaf9; border-radius: 7px; padding: 2px; box-sizing: border-box;">
+      <span style="font-weight: 700; letter-spacing: 0.08em; font-size: 14px;">EMPATHO</span>
+    </a>
+    <span style="width: 1px; height: 18px; background: #44403c;"></span>
+    <nav aria-label="과" style="display: flex; height: 52px;">
+      <a href="ReceptionHome.dc.html" style="display: flex; align-items: center; gap: 7px; padding: 0 14px; height: 52px; box-sizing: border-box; text-decoration: none; font-size: 13px; font-weight: 500; color: #a8a29e; border-bottom: 2px solid transparent;">원무 <span style="font-size: 11px; min-width: 18px; height: 18px; border-radius: 9px; background: #44403c; color: #fafaf9; display: inline-flex; align-items: center; justify-content: center; padding: 0 5px; box-sizing: border-box;">4</span></a>
+      <a href="NursingHome.dc.html" style="display: flex; align-items: center; gap: 7px; padding: 0 14px; height: 52px; box-sizing: border-box; text-decoration: none; font-size: 13px; font-weight: 500; color: #a8a29e; border-bottom: 2px solid transparent;">간호 <span style="font-size: 11px; min-width: 18px; height: 18px; border-radius: 9px; background: #44403c; color: #fafaf9; display: inline-flex; align-items: center; justify-content: center; padding: 0 5px; box-sizing: border-box;">5</span></a>
+      <a href="RadiologyHome.dc.html" aria-current="page" style="display: flex; align-items: center; gap: 7px; padding: 0 14px; height: 52px; box-sizing: border-box; text-decoration: none; font-size: 13px; font-weight: 600; color: #fafaf9; border-bottom: 2px solid #3ba6f1;">영상의학 <span style="font-size: 11px; min-width: 18px; height: 18px; border-radius: 9px; background: #1d7fc2; display: inline-flex; align-items: center; justify-content: center; padding: 0 5px; box-sizing: border-box;">7</span></a>
+      <a href="PathologyHome.dc.html" style="display: flex; align-items: center; gap: 7px; padding: 0 14px; height: 52px; box-sizing: border-box; text-decoration: none; font-size: 13px; font-weight: 500; color: #a8a29e; border-bottom: 2px solid transparent;">병리 <span style="font-size: 11px; min-width: 18px; height: 18px; border-radius: 9px; background: #44403c; color: #fafaf9; display: inline-flex; align-items: center; justify-content: center; padding: 0 5px; box-sizing: border-box;">5</span></a>
+      <a href="SurgeryHome.dc.html" style="display: flex; align-items: center; gap: 7px; padding: 0 14px; height: 52px; box-sizing: border-box; text-decoration: none; font-size: 13px; font-weight: 500; color: #a8a29e; border-bottom: 2px solid transparent;">유방외과 <span style="font-size: 11px; min-width: 18px; height: 18px; border-radius: 9px; background: #44403c; color: #fafaf9; display: inline-flex; align-items: center; justify-content: center; padding: 0 5px; box-sizing: border-box;">6</span></a>
+    </nav>
+    <div style="flex-grow: 1;"></div>
+    <label style="display: flex; align-items: center; gap: 8px; width: 340px; height: 34px; padding: 0 12px; border-radius: 8px; background: #292524; border: 1px solid #44403c; box-sizing: border-box; color: #a8a29e;">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+      <span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);">환자 검색</span>
+      <input type="search" placeholder="환자 이름 · 환자번호" style="flex-grow: 1; min-width: 0; background: transparent; border: none; color: #fafaf9; font-size: 13px; outline: none;">
+      <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #78716c; border: 1px solid #44403c; border-radius: 4px; padding: 1px 5px;">/</span>
+    </label>
+    <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #a8a29e;">09-21 (월) 14:32</span>
+    <button type="button" aria-label="알림 3건" style="position: relative; width: 34px; height: 34px; border-radius: 8px; border: none; background: transparent; color: #d6d3d1; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 1112 0c0 7 3 8 3 8H3s3-1 3-8"></path><path d="M10 20a2 2 0 004 0"></path></svg>
+      <span style="position: absolute; top: 6px; right: 7px; width: 7px; height: 7px; border-radius: 50%; background: #f87171;"></span>
+    </button>
+    <a href="Main.dc.html" style="display: flex; align-items: center; gap: 8px; text-decoration: none; color: #fafaf9;">
+      <span style="width: 28px; height: 28px; border-radius: 50%; background: #44403c; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700;">영</span>
+      <span style="display: flex; flex-direction: column; line-height: 1.2;"><span style="font-size: 12px; font-weight: 600;">시연영상</span><span style="font-size: 11px; color: #a8a29e;">영상의학과 · 교수</span></span>
+    </a>
+  </header>
+
+  <div style="flex-shrink: 0; height: 46px; box-sizing: border-box; background: #fffdf8; border-bottom: 1px solid #e7e5e4; padding: 0 16px; display: flex; align-items: center; gap: 12px;">
+    <span style="width: 28px; height: 28px; border-radius: 50%; background: #f3e8ef; color: #9d3b56; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; flex-shrink: 0;">시</span>
+    <b style="font-size: 14px;">시연환자12</b>
+    <span style="font-size: 12.5px; color: #57534e;">54 · 여</span>
+    <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #78716c;">P-0012</span>
+    <span style="width: 1px; height: 16px; background: #e7e5e4;"></span>
+    <div style="display: flex; gap: 6px;"><span style="font-size: 11.5px; padding: 3px 8px; border-radius: 6px; background: #fef3c7; color: #78350f; font-weight: 600;">조영제 알레르기</span><span style="font-size: 11.5px; padding: 3px 8px; border-radius: 6px; background: #f3e8ef; color: #9d3b56;">가족력 · 모친</span><span style="font-size: 11.5px; padding: 3px 8px; border-radius: 6px; background: #e0f0fc; color: #155a8a;">추적 중 · 6개월</span></div>
+    <div style="flex-grow: 1;"></div>
+    <span style="font-size: 12px; color: #57534e;">직전 2026-03-12 US · BI-RADS 3</span>
+    <span style="width: 1px; height: 16px; background: #e7e5e4;"></span>
+    <span style="font-size: 12px; color: #57534e;">담당 서나영 교수</span>
+    
+    <a href="Patient.dc.html" style="font-size: 12px; font-weight: 600; text-decoration: none;">환자 상세</a>
+  </div>
+
+
+  <div style="height: 52px; flex-shrink: 0; background: #ffffff; border-bottom: 1px solid #e7e5e4; display: flex; align-items: center; gap: 16px; padding: 0 16px; box-sizing: border-box;">
+    <a href="Radiology.dc.html" style="display: flex; align-items: center; gap: 6px; font-size: 13px; text-decoration: none; font-weight: 600;">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M11 18l-6-6 6-6"></path></svg>목록
+    </a>
+    <span style="width: 1px; height: 18px; background: #e7e5e4;"></span>
+    <h1 style="margin: 0; font-size: 16px; font-weight: 700;">시연환자12</h1>
+    <span style="font-size: 13px; color: #57534e;">54세 · 여</span>
+    <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #78716c;">P-0012 · US · 09-21 12:58</span>
+    <span style="display: inline-flex; align-items: center; gap: 5px; font-size: 12px; padding: 3px 8px; border-radius: 6px; background: #fef3c7; color: #78350f; font-weight: 600;">조영제 알레르기</span>
+    <div style="flex-grow: 1;"></div>
+    <span style="font-size: 12px; color: #57534e;">초안 저장 <span style="font-family: 'IBM Plex Mono', monospace;">14:31</span></span>
+    <button type="button" style="height: 34px; padding: 0 14px; border-radius: 8px; border: 1px solid #d6d3d1; background: #ffffff; color: #292524; font-size: 13px; cursor: pointer;">임시 저장</button>
+    <button type="button" class="ep-primary" style="height: 34px; padding: 0 16px; border-radius: 8px; border: none; background: #1d7fc2; color: #ffffff; font-size: 13px; font-weight: 600; cursor: pointer;">판독 확정</button>
+  </div>
+
+  <div style="flex-grow: 1; min-height: 0; display: grid; grid-template-columns: 104px minmax(0, 1fr) 440px;">
+
+    <nav aria-label="영상 목록" style="background: #1c1917; border-right: 1px solid #292524; overflow: auto; padding: 10px 10px; display: flex; flex-direction: column; gap: 8px;">
+      <sc-for list="{{series}}" as="s" hint-placeholder-count="6">
+        <button type="button" onClick="{{s.pick}}" style="padding: 0; border-radius: 7px; overflow: hidden; cursor: pointer; background: #0c0a09; display: flex; flex-direction: column; {{s.ring}}">
+          <svg viewBox="0 0 160 120" width="100%" aria-hidden="true" style="display: block;">
+            <rect width="160" height="120" fill="#0c0a09"></rect>
+            <path d="M80 8 L16 102 A92 92 0 0 0 144 102 Z" fill="#3a3431"></path>
+            <path d="M80 8 L34 76 A70 70 0 0 0 126 76 Z" fill="#57534e" opacity="0.55"></path>
+            <ellipse cx="{{s.cx}}" cy="68" rx="11" ry="7" fill="#0c0a09" opacity="0.85"></ellipse>
+          </svg>
+          <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #a8a29e; padding: 3px 5px; text-align: left;">{{s.label}}</span>
+        </button>
+      </sc-for>
+    </nav>
+
+    <section aria-label="뷰어" style="position: relative; background: #0c0a09; display: flex; flex-direction: column; min-width: 0;">
+      <div role="toolbar" aria-label="뷰어 도구" style="display: flex; align-items: center; gap: 4px; padding: 8px 10px; border-bottom: 1px solid #1c1917;">
+        <sc-for list="{{tools}}" as="t" hint-placeholder-count="5">
+          <button type="button" class="ep-tool" aria-label="{{t.label}}" style="height: 32px; padding: 0 10px; border-radius: 6px; border: none; background: transparent; color: #a8a29e; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{t.icon}}"></path></svg>{{t.label}}
+          </button>
+        </sc-for>
+        <div style="flex-grow: 1;"></div>
+        <button type="button" onClick="{{toggleOverlay}}" aria-pressed="{{overlayOn}}" style="height: 32px; padding: 0 12px; border-radius: 6px; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 7px; {{overlayBtn}}">
+          <span style="width: 26px; height: 14px; border-radius: 7px; position: relative; {{overlayTrack}}"><span style="position: absolute; top: 2px; width: 10px; height: 10px; border-radius: 50%; background: #ffffff; {{overlayKnob}}"></span></span>
+          AI 윤곽
+        </button>
+        <button type="button" class="ep-tool" style="height: 32px; padding: 0 10px; border-radius: 6px; border: 1px solid #292524; background: transparent; color: #a8a29e; font-size: 12px; cursor: pointer;">지난 검사와 나란히</button>
+      </div>
+
+      <div style="flex-grow: 1; position: relative; display: flex; align-items: center; justify-content: center; min-height: 0;">
+        <svg viewBox="0 0 640 520" width="640" height="520" aria-label="초음파 영상 자리" role="img">
+          <rect width="640" height="520" fill="#0c0a09"></rect>
+          <path d="M320 20 L40 440 A400 400 0 0 0 600 440 Z" fill="#292524"></path>
+          <path d="M320 20 L90 360 A300 300 0 0 0 550 360 Z" fill="#3a3431"></path>
+          <path d="M320 20 L150 270 A200 200 0 0 0 490 270 Z" fill="#44403c" opacity="0.6"></path>
+          <ellipse cx="352" cy="286" rx="46" ry="30" fill="#0c0a09" opacity="0.9"></ellipse>
+          <ellipse cx="236" cy="210" rx="16" ry="11" fill="#1c1917" opacity="0.8"></ellipse>
+          <sc-if value="{{overlayOn}}" hint-placeholder-val="{{ true }}">
+            <path class="ep-dash" d="M300 280 C304 248 338 244 360 252 C392 258 408 276 402 300 C396 326 360 330 336 322 C312 316 298 304 300 280 Z" fill="rgba(59,166,241,0.10)" stroke="#3ba6f1" stroke-width="2" stroke-dasharray="6 4"></path>
+            <line x1="306" y1="286" x2="398" y2="286" stroke="#fcd34d" stroke-width="1.5"></line>
+            <rect x="410" y="238" width="118" height="44" rx="6" fill="#1c1917" stroke="#3ba6f1"></rect>
+            <text x="422" y="256" fill="#fafaf9" font-size="13" font-family="IBM Plex Mono, monospace">L1 · 12.4mm</text>
+            <text x="422" y="273" fill="#a8a29e" font-size="11" font-family="IBM Plex Sans KR, sans-serif">AI 윤곽 · 참고용</text>
+            <path d="M226 202 C232 196 246 198 250 206 C254 216 244 224 234 222 C224 220 220 210 226 202 Z" fill="none" stroke="#3ba6f1" stroke-width="1.5" stroke-dasharray="4 3" opacity="0.8"></path>
+            <text x="200" y="192" fill="#a8a29e" font-size="11" font-family="IBM Plex Mono, monospace">L2</text>
+          </sc-if>
+        </svg>
+        <div style="position: absolute; left: 14px; top: 12px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 1.6; color: #d6d3d1;">P-0012 · 시연환자12<br>US · 좌 2시 방향<br>2026-09-21 12:58</div>
+        <div style="position: absolute; right: 14px; top: 12px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 1.6; color: #a8a29e; text-align: right;">W 256 · L 128<br>배율 1.6×</div>
+        <div style="position: absolute; right: 14px; bottom: 12px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #d6d3d1;">{{curLabel}}</div>
+        <div style="position: absolute; left: 14px; bottom: 12px; font-size: 11px; color: #78716c;">실제 영상은 뷰어가 불러옵니다 · 이 자리는 배치 확인용</div>
+      </div>
+    </section>
+
+    <aside aria-label="판독 작성" style="background: #ffffff; min-height: 0; overflow: auto; display: flex; flex-direction: column;">
+      <section style="padding: 16px 18px; border-bottom: 1px solid #f0efee; display: flex; flex-direction: column; gap: 10px;">
+        <div style="display: flex; align-items: center; gap: 8px;"><h2 style="margin: 0; font-size: 14px; font-weight: 700;">AI 참고 소견</h2><span style="font-size: 11px; padding: 1px 6px; border-radius: 4px; background: #fef3c7; color: #78350f;">신뢰도 중</span><div style="flex-grow: 1;"></div><span style="font-size: 12px; color: #57534e;">범위 4B ~ 5</span></div>
+        <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px;">
+          <sc-for list="{{aiScale}}" as="a" hint-placeholder-count="7">
+            <div style="height: 24px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; {{a.style}}">{{a.label}}</div>
+          </sc-for>
+        </div>
+      </section>
+
+      <section style="padding: 16px 18px; border-bottom: 1px solid #f0efee; display: flex; flex-direction: column; gap: 10px;">
+        <h2 style="margin: 0; font-size: 14px; font-weight: 700;">판정 <span style="font-weight: 400; color: #57534e; font-size: 12px;">판독의가 고릅니다</span></h2>
+        <div role="radiogroup" aria-label="BI-RADS" style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px;">
+          <sc-for list="{{birads}}" as="b" hint-placeholder-count="7">
+            <button type="button" role="radio" onClick="{{b.pick}}" style="height: 40px; border-radius: 7px; font-family: 'IBM Plex Mono', monospace; font-size: 14px; font-weight: 600; cursor: pointer; {{b.style}}">{{b.label}}</button>
+          </sc-for>
+        </div>
+      </section>
+
+      <section style="padding: 16px 18px; border-bottom: 1px solid #f0efee; display: flex; flex-direction: column; gap: 8px;">
+        <div style="display: flex; align-items: center;"><h2 style="margin: 0; font-size: 14px; font-weight: 700;">병변</h2><div style="flex-grow: 1;"></div><button type="button" style="height: 28px; padding: 0 10px; border-radius: 6px; border: 1px solid #d6d3d1; background: #ffffff; color: #292524; font-size: 12px; cursor: pointer;">+ 병변 추가</button></div>
+        <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+          <thead><tr style="color: #78716c; font-size: 11px; text-align: left;"><th style="padding: 5px 0; font-weight: 600;">번호</th><th style="font-weight: 600;">위치</th><th style="font-weight: 600; text-align: right;">AI</th><th style="font-weight: 600; text-align: right;">측정</th><th style="font-weight: 600; text-align: right;">상태</th></tr></thead>
+          <tbody>
+            <tr style="border-top: 1px solid #f5f5f4;"><td style="padding: 7px 0; font-family: 'IBM Plex Mono', monospace; font-weight: 600;">L1</td><td>좌 2시 · 유두에서 3cm</td><td style="text-align: right; font-family: 'IBM Plex Mono', monospace;">12.4</td><td style="text-align: right; font-family: 'IBM Plex Mono', monospace;">12.0</td><td style="text-align: right;"><span style="font-size: 11px; padding: 1px 6px; border-radius: 4px; background: #dcfce7; color: #166534;">채택</span></td></tr>
+            <tr style="border-top: 1px solid #f5f5f4;"><td style="padding: 7px 0; font-family: 'IBM Plex Mono', monospace; font-weight: 600;">L2</td><td>좌 1시 · 유두에서 5cm</td><td style="text-align: right; font-family: 'IBM Plex Mono', monospace;">4.1</td><td style="text-align: right; font-family: 'IBM Plex Mono', monospace; color: #a8a29e;">—</td><td style="text-align: right;"><span style="font-size: 11px; padding: 1px 6px; border-radius: 4px; background: #f5f5f4; color: #57534e;">위양성 표시</span></td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section style="padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; flex-grow: 1;">
+        <label style="display: flex; flex-direction: column; gap: 7px; font-size: 14px; font-weight: 700;">소견
+          <textarea rows="5" style="resize: vertical; padding: 10px 12px; border: 1px solid #d6d3d1; border-radius: 8px; font-size: 13px; line-height: 1.6; font-weight: 400; color: #0c0a09;">좌측 2시 방향, 유두에서 3cm 거리에 12mm 크기의 경계가 불규칙한 저에코 종괴. 후방 음영 동반. 이전 검사(2026-03) 대비 크기 증가.</textarea>
+        </label>
+        <div style="display: flex; flex-wrap: wrap; gap: 5px;">
+          <sc-for list="{{quick}}" as="q" hint-placeholder-count="4">
+            <button type="button" class="ep-phrase" style="padding: 5px 9px; border-radius: 999px; border: 1px solid #e7e5e4; background: #fafaf9; color: #292524; font-size: 12px; cursor: pointer;">{{q}}</button>
+          </sc-for>
+        </div>
+        <label style="display: flex; flex-direction: column; gap: 7px; font-size: 14px; font-weight: 700;">권고
+          <select style="height: 38px; padding: 0 10px; border: 1px solid #d6d3d1; border-radius: 8px; font-size: 13px; font-weight: 400; background: #ffffff; color: #0c0a09;">
+            <option>초음파 유도 조직검사</option>
+            <option>6개월 추적 검사</option>
+            <option>정기 검진</option>
+          </select>
+        </label>
+      </section>
+    </aside>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { overlay: true, pick: 4, cur: 0 };
+  }
+  renderVals() {
+    const labels = ['1', '2', '3', '4A', '4B', '4C', '5'];
+    const on = this.state.overlay;
+    const pos = [84, 76, 90, 70, 82, 88];
+    const where = ['좌 2시', '좌 2시', '좌 3시', '우 10시', '좌 2시 · 도플러', '좌 2시 · 탄성'];
+    return {
+      overlayOn: on,
+      toggleOverlay: () => this.setState({ overlay: !on }),
+      overlayBtn: on ? 'border:1px solid #1d7fc2;background:rgba(59,166,241,0.14);color:#bfe3fb;' : 'border:1px solid #292524;background:transparent;color:#a8a29e;',
+      overlayTrack: on ? 'background:#1d7fc2;' : 'background:#44403c;',
+      overlayKnob: on ? 'left:14px;' : 'left:2px;',
+      curLabel: (this.state.cur + 1) + ' / 6',
+      series: pos.map((cx, i) => ({
+        cx: cx, label: (i + 1) + ' · ' + where[i],
+        ring: i === this.state.cur ? 'border:2px solid #3ba6f1;' : 'border:2px solid transparent;',
+        pick: () => this.setState({ cur: i })
+      })),
+      tools: [
+        { label: '창 조절', icon: 'M12 3a9 9 0 100 18 9 9 0 000-18zM12 3v18' },
+        { label: '확대', icon: 'M11 4a7 7 0 100 14 7 7 0 000-14zM21 21l-4.5-4.5M11 8v6M8 11h6' },
+        { label: '이동', icon: 'M12 3v18M3 12h18M7 7l-4 5 4 5M17 7l4 5-4 5' },
+        { label: '길이 측정', icon: 'M4 20L20 4M7 17l2 2M11 13l2 2M15 9l2 2' },
+        { label: '되돌리기', icon: 'M4 9h11a5 5 0 010 10H9M4 9l4-4M4 9l4 4' }
+      ],
+      aiScale: labels.map((l, i) => ({ label: l, style: (i >= 4 && i <= 6) ? 'background:#e0f0fc;color:#155a8a;' : 'background:#f5f5f4;color:#a8a29e;' })),
+      birads: labels.map((l, i) => ({
+        label: l,
+        style: i === this.state.pick ? 'border:1.5px solid #1d7fc2;background:#1d7fc2;color:#ffffff;' : 'border:1px solid #d6d3d1;background:#ffffff;color:#292524;',
+        pick: () => this.setState({ pick: i })
+      })),
+      quick: ['경계 불규칙', '후방 음영', '이전 대비 증가', '액와 림프절 이상 없음']
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -49,6 +49,23 @@ export function noOf(r) {
   return r.patient_no ?? r.patient_number ?? null;
 }
 
+/* 「없음」은 값이 아니다 — 서버가 알레르기·가족력을 «없음» «해당 없음»
+   같은 «글»로 준다. 그대로 칩에 넣으면 「가족력 없음」이 경고처럼 붙는다.
+   빈 것과 같이 다뤄서 칸을 안 띄운다 */
+const NONE = new Set(["", "-", "—", "없음", "해당 없음", "미상", "확인 안 됨"]);
+
+export function some(value) {
+  if (value == null) return null;
+  const t = String(value).trim();
+  return NONE.has(t) ? null : t;
+}
+
+/* 「2026-09-21T10:20:00+09:00」 → 「09-21」. 진료 이력·판독 줄이 쓴다.
+   ⚠ toISOString 을 쓰면 UTC 라 오전 9시 이전이 어제가 된다 — 글자를 자른다 */
+export function day(value) {
+  return value ? String(value).slice(5, 10) : null;
+}
+
 /* 알레르기 — **값이 있다고 말할 때만** 띄운다. 확인한 적 없는 것을
    「없음」으로 찍으면 확인한 것처럼 읽힌다 */
 export function allergy(r) {
