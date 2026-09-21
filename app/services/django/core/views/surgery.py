@@ -334,7 +334,7 @@ class SpecimenBindViewSet(AuditMixin, viewsets.ViewSet):
         qs = models.Specimen.objects.select_related("patient__pii").all()
         ordering = request.query_params.get("ordering")
         allowed = {
-            "patient__name": "patient__pii_name",
+            "patient__name": "patient__pii__name",
             "collected_at": "collected_at",
             "accessioned_at": "accessioned_at",
             "accession_status": "accession_status",
