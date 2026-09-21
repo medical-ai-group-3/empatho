@@ -26,6 +26,7 @@ from core.api.permissions import (
     MatrixPermission,
 )
 from core.api.errors import ApiError
+from core.api import tickets
 
 
 class StudyViewSet(viewsets.ReadOnlyModelViewSet):
