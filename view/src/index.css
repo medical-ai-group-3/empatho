@@ -21,6 +21,7 @@
 
 * {
   box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
 }
 html,
 body,
@@ -2751,3 +2752,27 @@ a {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+.search {
+  display: flex;
+  align-items: center;
+  gap: var(--opt-icon-gap);
+  padding: 0 var(--card-pad);
+  background: var(--surface);
+  border: var(--line-w) solid var(--card-line);
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
+}
+.search svg { flex: none; width: 17px; height: 17px; color: var(--muted); }
+.search input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: var(--field-fs);
+  padding: var(--field-pad-y) 0;
+  border: none;
+  background: none;
+  color: var(--ink);
+}
+.search input:focus { outline: none; }
+.search .btn { flex: none; width: auto; padding: 8px 14px; }
