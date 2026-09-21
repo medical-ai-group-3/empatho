@@ -46,7 +46,7 @@ class PatientTimelineView(AuditMixin, viewsets.ViewSet):
     def retrieve(self, request, pk=None):
         patient = models.Patient.objects.filter(pk=pk).first()
         if patient is None :
-            raise ApiError("NOT FOUND", "환자를 찾을 수 없습니다")
+            raise ApiError("NOT_FOUND", "환자를 찾을 수 없습니다")
         if request.user.role == "patient" and patient.account_id != request.user.account_id:
             raise ApiError("ROLE_FORBIDDEN", "본인 기록만 볼 수 있습니다.")
 

@@ -199,5 +199,7 @@ urlpatterns = [
     path("questionnaire", views.PatientQuestionnaireView.as_view(), name="questionnaire-me"),
     path("me/reservations", views.PatientReservationsView.as_view(), name="me-reservations"),
     path("me/reservations/<int:pk>/cancel", views.PatientReservationCancelView.as_view(), name="me-reservation-cancel"),
+    path("me/prescriptions", views.PatientPrescriptionsView.as_view(), name="me-prescriptions"),
+    path("hospitals", views.HospitalListView.as_view(), name="hospital-list"),
 ]
 

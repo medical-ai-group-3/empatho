@@ -605,3 +605,68 @@ class PatientReservationCancelView(APIView):
         order.updated_by = request.user
         order.save(update_fields=["order_status", "cancelled_by", "updated_at"])
         return Response({"detail": "예약을 취소했습니다."})
+    
+class PatientPrescriptionsView(APIView):
+    def get(self, request):
+        patient = getattr(request.user, "patient", None)
+        if patient is None:
+            raise ApiError("VALIDATION_ERROR", "환자 계정이 아닙니다.")
+        from datetime import timedelta
+        items = []
+        for rx in patient.prescriptions.order_by("-prescribed_at", "-created_at"):
+            c = rx.content if isinstance(rx.content, dict) else {}
+            issued = rx.prescribed_at or rx.created_at
+            day = timezone.localdate(issued) if issued else None
+            days = c.get("days") or 0
+            status = c.get("status")
+            if not status:
+                status = "active"
+                if day and days:
+                    status = "ended" if (day + timedelta(days=days - 1)) < timezone.localdate() else "active"
+            drugs = []
+            for i, d in enumerate(c.get("drugs") or [], start=1):
+                drugs.append({
+                    "drug_id": d.get("drug_id") or i,
+                    "name": d.get("name") or "", "ingredient": d.get("ingredient") or "",
+                    "dose": d.get("dose") or "", "per_day": d.get("per_day") or 0,
+                    # 복약 기록 표가 없어 log_id 는 늘 null — 체크는 화면에만 남는다
+                    "today": [{"time": t, "log_id": None} for t in (d.get("times") or [])],
+                })
+            items.append({"issued_on": day.isoformat() if day else None,
+                          "days": days, "status": status, "drugs": drugs})
+        return Response({"items": items, "note": "처방 내역은 진료 후 등록됩니다."})
+
+
+# ponytail: Hospital 모델이 아직 없다. 화면을 띄우기 위한 임시 목록 —
+# 모델이 생기면 이 상수를 지우고 쿼리로 바꾼다.
+HOSPITALS_TEMP = [
+    {"hospital_id": 1, "name": "미래 대학병원", "dept": "유방외과",
+     "address": "서울특별시 강남구 테헤란로 152",
+     "hours": "평일 09:00–17:30 · 토 09:00–13:00", "phone": "02-1234-5678",
+     "lat": 37.5006, "lng": 127.0366, "region": "서울", "note": "주치의가 계신 병원"},
+    {"hospital_id": 2, "name": "한빛여성병원", "dept": "유방외과",
+     "address": "서울특별시 송파구 올림픽로 300",
+     "hours": "평일 09:00–18:00", "phone": "02-2345-6789",
+     "lat": 37.5133, "lng": 127.1028, "region": "서울", "note": None},
+    {"hospital_id": 3, "name": "새봄병원", "dept": "영상의학과",
+     "address": "경기도 성남시 분당구 판교역로 100",
+     "hours": "평일 08:30–17:30", "phone": "031-123-4567",
+     "lat": 37.3947, "lng": 127.1112, "region": "경기", "note": None},
+    {"hospital_id": 4, "name": "바다건강검진센터", "dept": "건강검진",
+     "address": "부산광역시 해운대구 센텀중앙로 90",
+     "hours": "평일 08:00–17:00", "phone": "051-987-6543",
+     "lat": 35.1696, "lng": 129.1306, "region": "부산", "note": None},
+]
+
+
+class HospitalListView(APIView):
+    """GET /hospitals — 병원 찾기(임시 목록)."""
+    permission_classes = [IsAuthenticatedAccount]
+
+    def get(self, request):
+        regions = ["전체"] + sorted({h["region"] for h in HOSPITALS_TEMP if h.get("region")})
+        return Response({
+            "regions": regions,
+            "items": [dict(h) for h in HOSPITALS_TEMP],
+            "note": "임시 목록입니다. 방문 전 진료시간을 확인해 주세요.",
+        })

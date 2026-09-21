@@ -19,6 +19,8 @@ from .reception import (
     PatientQuestionnaireView,
     PatientReservationsView,
     PatientReservationCancelView,
+    PatientPrescriptionsView,
+    HospitalListView,
 )
 from .nursing import (
     VisitTodayViewSet,
