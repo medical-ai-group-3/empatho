@@ -83,8 +83,9 @@ const DEPTS = [
       { key: "intake", use: "reception.intake", menu: "접수", title: "접수",
         need: DESK },
 
-      { key: "waiting", use: "nursing.waiting", menu: "내원 대기", title: "내원 대기",
-        need: DESK },
+      /* ⚠ **「내원 대기」 줄은 없앴다.** 접수 화면 안에 그 화면이 통째로
+         들어 있다 — 같은 것을 여는 길이 둘이면 사람이 「이 둘이 뭐가
+         다르지」를 매번 생각한다. 옛 주소는 main.jsx 가 접수로 보낸다 */
 
       { key: "patients", use: "reception.patients", menu: "환자 목록", title: "환자 목록",
         need: DESK },
@@ -350,7 +351,6 @@ export const go = {
   nursing: {
     home:      () => N,
     intake:    () => `${N}/intake`,
-    waiting:   () => `${N}/waiting`,
     patients:  () => `${N}/patients`,
     reservations: () => `${N}/reservations`,
     followups: () => `${N}/followups`,

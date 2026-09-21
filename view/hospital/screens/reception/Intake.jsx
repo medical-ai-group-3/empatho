@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { Page, Btn } from "../../lib/Page";
-import { Body, Empty } from "../../lib/Body";
+import { Body } from "../../lib/Body";
 import { Chip, useCan } from "../../lib/Parts";
 import { useApi } from "../../lib/useApi";
 import { can } from "../../perm";
 import { go, DESK } from "../../nav";
 import * as H from "../../dept/home";
+import NursingWaiting from "../../dept/nursing/screens/Waiting";
 
 /* 접수 — 오늘 현황판 위, 내원 대기 줄 아래
  * ════════════════════════════════════════════════════════════════
@@ -19,7 +20,7 @@ import * as H from "../../dept/home";
  *   ├───────────────────────────────────────────────────┤
  *   │ 접수 대기 │ 간호·문진 │ 검사 진행 │ 외래 진료 │ 종결 │  ← 칸 다섯
  *   ├───────────────────────────────────────────────────┤
- *   │ 내원 대기 줄 — 번호 · 이름 · 나이 성별 ···· 접수 시각 │
+ *   │ 내원 대기 화면 통째로 — 문진 · 유방외과 배정          │
  *   └───────────────────────────────────────────────────┘
  *
  * ⚠ **경과 시간을 안 쓴다.** 목업 줄 끝의 `(38′)` `1h12m` 과 칸 머리의
@@ -47,12 +48,8 @@ export default function Intake({ cfg }) {
   const api = cfg.api;
 
   const today = useApi(() => api.todayStatus(), []);
-  const waiting = useApi(() => api.waitingArrived(), []);
-
   const rows = H.rows(today.data);
-  const queue = H.rows(waiting.data);
-
-  const again = () => { today.reload(true); waiting.reload(true); };
+  const again = () => today.reload(true);
 
   return (
     <Page crumb={[cfg.name, "접수"]} title="접수" className="intake-page"
@@ -66,7 +63,11 @@ export default function Intake({ cfg }) {
         <Board rows={rows} />
       </Body>
 
-      <Waiting state={waiting} rows={queue} />
+      {/* 아래는 **내원 대기 화면 통째로**다. 목록만 다시 그리면 문진·배정을
+          할 데가 없어진다 — 화면 줄에서 뺀 자리가 여기다(nav.js) */}
+      <div className="intake-wq">
+        <NursingWaiting cfg={cfg} embedded />
+      </div>
     </Page>
   );
 }
@@ -218,52 +219,6 @@ function Steps({ steps }) {
         </span>
       ))}
     </p>
-  );
-}
-
-/* ── 아래 — 내원 대기 줄 ──────────────────────────────────────
- * `docs/mockup/Nursing-내원대기.html` 의 줄 모양이다. 번호 · 이름 ·
- * 나이 성별 ···· 접수 시각 / 둘째 줄에 구분 칩과 문진 상태.
- *
- * 접수 화면에서 [접수] 를 누른 환자가 **화면을 옮기지 않아도** 여기 줄에
- * 붙는다 — 한 과가 됐으니 탭을 건너뛸 이유가 없다(6.1).
- */
-function Waiting({ state, rows }) {
-  return (
-    <section className="wq">
-      <header className="bcol-h">
-        <i className="hdot" aria-hidden="true" />
-        <b>내원한 대기 환자</b>
-        <em>{rows.length}</em>
-        <span className="home-fill" />
-        <span className="hcard-k">접수 순 · 순서 고정</span>
-      </header>
-      <Body loading={state.loading && !state.data} error={state.error}
-            onRetry={state.reload}
-            empty={rows.length === 0 && <Empty title="내원한 대기 환자가 없습니다" />}>
-        <div className="wq-b">
-          {rows.map((r, i) => (
-            <article className="wrow" key={r.exam_order_id ?? i}>
-              <i className="wrow-n">{i + 1}</i>
-              <span className="wrow-tx">
-                <span className="wrow-1">
-                  <b>{H.nameOf(r)}</b>
-                  {H.who(r) && <span>{H.who(r)}</span>}
-                  <span className="home-fill" />
-                  {H.at(r.visited_at) && <time>{H.at(r.visited_at)} 접수</time>}
-                </span>
-                <span className="wrow-2">
-                  {H.noOf(r) && <i>{H.noOf(r)}</i>}
-                  {r.visit_type && <Chip>{r.visit_type}</Chip>}
-                  <span>{r.questionnaire ? "문진 완료 · 배정 대기" : "문진 대기"}</span>
-                </span>
-              </span>
-              <Btn to={go.nursing.waiting()}>문진 · 배정</Btn>
-            </article>
-          ))}
-        </div>
-      </Body>
-    </section>
   );
 }
 

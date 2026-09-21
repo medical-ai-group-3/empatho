@@ -51,7 +51,6 @@ const BreastDiscordance = lazy(() => import("./dept/breast/screens/Discordance")
 
 /* 간호과도 breast처럼 자기 화면을 직접 들고 온다 — 다만 무거운 라이브러리를
    끌지는 않는다. lazy는 다른 과 화면들과 코드 스플리팅 일관성 때문에 유지 */
-const NursingWaiting = lazy(() => import("./dept/nursing/screens/Waiting"));
 const NursingFollowups = lazy(() => import("./dept/nursing/screens/Followups"));
 
 import { pathology } from "./dept/pathology";
@@ -267,7 +266,6 @@ const SCREENS = {
   /* 관리자. 화면은 하나고 Django admin 으로 넘기는 자리다 */
   "admin.console":      AdminConsole,
 
-  "nursing.waiting":   NursingWaiting,
   "nursing.followups": NursingFollowups,
 };
 
@@ -318,6 +316,10 @@ function App() {
             <Route path="patients/:id" element={<PatientScreen />} />
             {/* 예전 원무과 주소를 저장해 둔 직원도 새 첫 화면으로 이어 준다 */}
             <Route path="reception/*" element={<Navigate to={`${ROOT}/nursing`} replace />} />
+            {/* 「내원 대기」는 접수 화면 안으로 들어갔다. 북마크와 옛 문서에
+                이 주소가 남아 있어서 접수로 보낸다 */}
+            <Route path="nursing/waiting"
+                   element={<Navigate to={`${ROOT}/nursing/intake`} replace />} />
             {DEPTS.map((d) => deptRoutes(d.key))}
           </Route>
           <Route path={`${ROOT}/*`} element={<HomeRedirect />} />
