@@ -977,6 +977,12 @@ td.none,tr.none td{text-align:center; padding:var(--card-pad) 0}
 .picked .btn{width:100%}
 .picked .btn:disabled{opacity:.5; cursor:not-allowed}
 
+/* 원무 첫 화면은 검색 결과나 오늘 방문자가 없어도 양쪽 카드의 틀이
+   흔들리지 않는다. 빈 상태도 같은 높이 안에서 가운데에 놓인다. */
+.reception-intake-card,.reception-monitor-card{min-height:420px}
+.reception-monitor-card .card-b{height:calc(420px - var(--card-h, 58px))}
+.reception-monitor-card .slot{height:100%; min-height:0}
+
 /* 결과 알림 — 성공은 파랑, 실패는 외곽선만. 색을 새로 만들지 않고
    이미 있는 토큰으로 가른다(tokens.css 규칙) */
 .slot.ok{border-style:solid; border-color:var(--cyan); color:var(--ink)}

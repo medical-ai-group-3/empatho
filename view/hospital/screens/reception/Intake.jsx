@@ -152,6 +152,7 @@ export default function Intake() {
         <div className="split-l">
           <Card
             title="접수"
+            className="reception-intake-card"
             right={can("reception.patient.create")
               ? <Btn onClick={() => setRegOpen(true)}>+ 등록</Btn>
               : null}
@@ -191,7 +192,7 @@ export default function Intake() {
         </div>
 
         <div className="split-r">
-          <Card title="방문 환자 모니터링" right={<Chip>10초마다</Chip>}>
+          <Card className="reception-monitor-card" title="방문 환자 모니터링" right={<Chip>10초마다</Chip>}>
             <Body loading={today.loading} error={today.error} onRetry={today.reload}>
               {today.data && <Monitor rows={today.data} />}
             </Body>
@@ -324,9 +325,8 @@ function Monitor({ rows }) {
     <>
       <Table
         cols={[
-          { key: "pid", label: "환자", w: "38%" },
+          { key: "pid", label: "환자", w: "50%" },
           { key: "stage", label: "상태" },
-          { key: "oid", label: "오더", w: "20%" },
         ]}
         rows={rows.map((r) => ({
           id: r.exam_order_id,
@@ -334,7 +334,6 @@ function Monitor({ rows }) {
             ? <b>{r.patient_name}</b>
             : <span className="dim">#{r.patient_id}</span>,
           stage: <Chip tone={r.stage === "접수 대기" ? "fill" : "line"}>{r.stage}</Chip>,
-          oid: <span className="num dim">{r.exam_order_id}</span>,
         }))}
       />
       {nameless && <Warn>이름이 없는 환자는 번호로 표시합니다.</Warn>}

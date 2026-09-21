@@ -259,14 +259,6 @@ function Detail({ patient, onSaved, onReserve }) {
       <Body loading={full.loading} error={full.error} onRetry={full.reload}>
         {full.data && form && (
           <>
-            <dl className="kv">
-              <dt>환자번호</dt><dd className="num">{full.data.patient_number}</dd>
-              <dt>이름</dt><dd>{full.data.pii?.name ?? "—"}</dd>
-              <dt>생년월일</dt><dd className="num">{full.data.pii?.birth_date ?? "—"}</dd>
-              <dt>전화번호</dt><dd className="num">{full.data.pii?.phone ?? "—"}</dd>
-            </dl>
-            <Warn>이름 · 생년월일 · 전화는 이 화면에서 고칠 수 없습니다.</Warn>
-
             <div className="fields one">
               <label className="field">
                 <span>성별</span>
