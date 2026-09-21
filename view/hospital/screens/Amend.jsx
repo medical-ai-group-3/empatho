@@ -65,10 +65,12 @@ function Load({ cfg, id }) {
   const { loading, data, error, reload } = useApi(() => cfg.api.read(id), [id]);
 
   return (
-    <Page crumb={[cfg.name, cfg.list.title, c.title]} title={c.title}>
-      <p className="notice">
-        정정된 판독은 기존 판독의 수정 이력을 남기며, 이전 판독 내용은 모두 보존됩니다.
-      </p>
+    /* ⚠ **환자 띠를 단다.** 환자 하나를 다루는 화면이라 누구인지
+       안 보이면 안 된다 — 판정을 고치는 자리다.
+       ⚠ 위에 있던 설명 문구는 뺐다(9장). 같은 말을 저장 줄이 이미
+         한다 — 「옛 판독은 지워지지 않습니다」 */
+    <Page crumb={[cfg.name, cfg.list.title, c.title]} title={c.title}
+          patient={data?.patient}>
       <Body loading={loading} error={error} onRetry={reload}>
         {data && <Inner cfg={cfg} id={id} d={data} />}
       </Body>
