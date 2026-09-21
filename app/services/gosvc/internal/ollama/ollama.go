@@ -80,6 +80,9 @@ func (c *Client) Chat(ctx context.Context, msgs []Message,
 	if err != nil {
 		return "", err
 	}
+	// 연결은 c.Base(tunnel:11434)로 하되 Host 헤더는 localhost 로 보낸다.
+	// Ollama 0.32+ 는 loopback 이 아닌 Host 를 403 으로 막는다(DNS 리바인딩 방지).
+	req.Host = "localhost"
 	req.Header.Set("Content-Type", "application/json")
 
 	res, err := c.HTTP.Do(req)
@@ -138,6 +141,7 @@ func (c *Client) Models(ctx context.Context) ([]ModelInfo, error) {
 	if err != nil {
 		return nil, err
 	}
+	req.Host = "localhost" // Ollama 의 loopback-only Host 검사 통과용(위 Chat 과 동일)
 	res, err := c.HTTP.Do(req)
 	if err != nil {
 		return nil, err
