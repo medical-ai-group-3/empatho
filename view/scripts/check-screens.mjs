@@ -37,7 +37,8 @@ const LOOSE = ["nursing/intake", "nursing/patients", "nursing/reservations",
   "breast/patients/P-1001/decision", "breast/discordances/D-2001",
   /* 영상·병리 업무 화면 — 같은 파일 다섯 장을 두 과가 나눠 쓴다 */
   "radiology/queue", "radiology/patients",
-  "pathology/queue", "pathology/patients"];
+  "pathology/queue", "pathology/patients",
+  "nursing/followups"];
 /* ⚠ **판독 화면(`radiology/read/{id}`)은 여기 못 넣는다.** 3D 뷰어가
    `/models/duke/*.stl` 을 부르는데 `public/models/` 가 저장소에 아예
    없다(.stl 파일이 한 개도 없다). 그래서 콘솔이 늘 빨갛고 검사가 그걸
@@ -132,6 +133,51 @@ async function connect() {
 /* ── 브라우저 안에서 도는 자 ──────────────────────────────────
  * 문자열로 넣는다. 밖의 변수를 못 쓰니 필요한 것은 안에서 다 만든다.
  */
+/* ── 규칙은 있는데 맞는 요소가 없는 선택자 ───────────────────
+ * **이름 대조로는 원리상 안 잡히는 것이 있다.** `.work` 를
+ * `.surgery-page .work` 안에 가둬 놨을 때가 그랬다 — 이름은 양쪽에
+ * 멀쩡히 있고 «갇힌 자리»가 문제였다. 그런 규칙은 브라우저에서
+ * querySelector 가 하나도 못 찾는 것으로만 드러난다.
+ *
+ * ⚠ **실패시키지 않는다.** 조건부로만 뜨는 것(팝업 · 오류 상태 · 빈
+ *   목록)도 똑같이 걸린다. 그래서 목록만 찍고 사람이 읽는다.
+ * ⚠ 상태 가짜선택자(:hover · :disabled)와 가짜요소(::placeholder)는
+ *   떼고 본다 — querySelector 가 원래 못 맞춘다.
+ */
+const DEAD = `(() => {
+  const out = [];
+  const DYN = /:(hover|focus|focus-within|focus-visible|active|disabled|checked|placeholder-shown|target|visited|link|indeterminate|read-only|autofill)\b/g;
+  const clean = (sel) => sel.replace(/::[a-zA-Z-]+/g, "").replace(DYN, "").trim();
+  for (const sheet of document.styleSheets) {
+    let rules;
+    try { rules = sheet.cssRules; } catch { continue; }   /* 다른 출처 */
+    const walk = (list) => {
+      for (const r of list) {
+        /* ⚠ **selectorText 를 먼저 본다.** 요즘 크롬은 보통 규칙에도
+           빈 cssRules 가 달려 있어서(중첩 CSS), 컨테이너 검사를 먼저
+           하면 모든 규칙이 빈 상자로 취급돼 한 개도 안 세진다 */
+        if (!r.selectorText) { if (r.cssRules) walk(r.cssRules); continue; }
+        for (const one of r.selectorText.split(",")) {
+          const sel = clean(one);
+          if (!sel) continue;
+          try { if (document.querySelector(sel)) continue; } catch { continue; }
+          /* ⚠ **좁혀서 본다.** 안 맞는 선택자를 다 찍으면 이 검사가 안
+             여는 화면(판독 · 업로드 · 관리자 …) 것이 수백 개 쏟아져
+             아무도 안 읽는다. 뜻이 있는 것은 **이름은 화면에 있는데
+             그 선택자만 안 맞는 것**이다 — 갇혔거나 조상이 틀렸다는
+             뜻이고, .surgery-page .work 가 바로 그 모양이었다 */
+          const last = sel.match(/\.([A-Za-z_][\w-]*)(?![\w-])(?=[^.]*$)/);
+          if (!last) continue;
+          try { if (!document.querySelector("." + last[1])) continue; } catch { continue; }
+          out.push(sel);
+        }
+      }
+    };
+    walk(rules);
+  }
+  return JSON.stringify([...new Set(out)]);
+})()`;
+
 const PROBE = `(() => {
   const out = [];
   const W = window.innerWidth;
@@ -306,6 +352,8 @@ await cdp.send("Runtime.evaluate", {
 });
 
 let bad = 0;
+let seen = 0;
+const dead = new Map();   /* 선택자 → 안 맞은 화면들 */
 for (const width of WIDTHS) {
   await cdp.send("Emulation.setDeviceMetricsOverride",
     { width, height: 855, deviceScaleFactor: 1, mobile: false });
@@ -314,6 +362,23 @@ for (const width of WIDTHS) {
     cdp.events.length = 0;
     await cdp.send("Page.navigate", { url: `${BASE}/hospital/${dept}` });
     await sleep(2200);
+
+    /* 죽은 선택자는 «모든 화면에서 한 번도 안 맞은 것»만 뜻이 있다 —
+       화면마다 모아서 교집합을 취한다 */
+    const deadRes = await cdp.send("Runtime.evaluate",
+      { expression: DEAD, returnByValue: true });
+    if (!deadRes.result?.exceptionDetails) {
+      /* ⚠ **교집합이 아니라 합집합이다.** 처음엔 «모든 화면에서 안 맞은
+         것»만 셌는데 그러면 갇힌 선택자를 놓친다 — .surgery-page .work
+         는 유방외과 쪽에서는 멀쩡히 맞고 영상·병리 큐에서만 죽는다.
+         그 화면에서 죽었다는 것 자체가 신호다 */
+      for (const s of JSON.parse(deadRes.result.result.value)) {
+        const at = dead.get(s) ?? [];
+        at.push(dept);
+        dead.set(s, at);
+      }
+      seen += 1;
+    }
 
     const res = await cdp.send("Runtime.evaluate",
       { expression: PROBE, returnByValue: true });
@@ -361,6 +426,18 @@ for (const width of WIDTHS) {
       if (list.length > 3) console.log(`     ${kind}  … 그 밖 ${list.length - 3}개`);
     }
   }
+}
+
+if (dead.size > 0) {
+  console.log(`\n참고 — 이름은 화면에 있는데 그 선택자만 안 맞는 것 ${dead.size}개`);
+  console.log("     실패가 아니다. 팝업·오류 상태처럼 조건부로만 뜨는 것도 걸린다.");
+  console.log("     ⚠ 그런데 «갇혀서» 죽은 것이 여기 섞인다 —");
+  console.log("       .surgery-page .work 처럼 이름은 멀쩡하고 조상이 틀린 경우다.");
+  const rows = [...dead].sort((a, b) => a[0].localeCompare(b[0]));
+  for (const [s, at] of rows.slice(0, 80)) {
+    console.log(`     ${s}   (${[...new Set(at)].slice(0, 3).join(", ")})`);
+  }
+  if (rows.length > 80) console.log(`     … 그 밖 ${rows.length - 80}개`);
 }
 
 console.log(bad === 0

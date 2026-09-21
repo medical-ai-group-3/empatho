@@ -712,6 +712,39 @@ a.frow:hover .frow-k{color:var(--ink)}
 .nside-row b{font-size:var(--srow-fs); font-weight:600; color:var(--ink);
   white-space:nowrap}
 
+/* ── 추적 관리 (dept/nursing/screens/Followups.jsx) ───────────
+   배치는 docs/mockup/NursingFollowups.html.
+   BI-RADS 3 의 6·12·24개월 추적 — 이 시스템의 임상적 핵심이다.
+   ⚠ 기한을 색으로 말하지 않는다. 지난 것만 soot 채움으로 세운다 */
+.fup-top{flex:none; display:flex; align-items:center; flex-wrap:wrap;
+  gap:var(--chip-gap); padding-bottom:var(--desk-gap)}
+.fup-chip{display:inline-flex; align-items:center; gap:var(--gap-xs);
+  padding:var(--chip-pad-y) var(--chip-pad-x); border-radius:var(--round);
+  box-shadow:inset 0 0 0 var(--hair) var(--border);
+  font-size:var(--chip-fs); color:var(--ink-2)}
+.fup-chip:hover{background:var(--canvas)}
+.fup-chip.on{background:var(--soot); color:var(--soot-ink); box-shadow:none}
+.fup-chip i{font-style:normal; font-weight:700;
+  font-variant-numeric:tabular-nums}
+.fup-find{display:flex; align-items:center; gap:var(--chip-gap)}
+.fup-find span{font-size:var(--label-fs); color:var(--warm)}
+.fup-find input{height:var(--todo-in-h); padding:0 var(--in-pad-x);
+  border:var(--hair) solid var(--faint); border-radius:var(--in-radius);
+  font-size:var(--in-fs)}
+.fup-tbl{flex:1; min-height:0}
+/* 기한 — 지난 것만 채워서 세운다 */
+.fup-due{font-size:var(--chip-fs); color:var(--ink-2)}
+.fup-due.k1{padding:var(--stag-pad-y) var(--stag-pad-x);
+  border-radius:var(--stag-radius); background:var(--soot);
+  color:var(--soot-ink); font-weight:700}
+/* 종결된 줄은 흐리게 — 지우지 않는다 */
+.tbl tbody tr.off{opacity:var(--off)}
+/* 팝업 안 환자 줄 */
+.fup-who{display:flex; align-items:baseline; gap:var(--chip-gap);
+  padding-bottom:var(--gap-sm); margin-bottom:var(--gap-sm);
+  border-bottom:var(--hair) solid var(--line-2)}
+.fup-who b{font-size:var(--srow-fs); font-weight:700}
+
 /* ── 촬영 업로드 (screens/Upload.jsx) ────────────────────────
    배치는 docs/mockup/RadiologyUpload.html — 두 단.
    왼쪽이 「올리는 일」, 오른쪽이 「넘기는 일」 */

@@ -1,324 +1,356 @@
-import { useEffect, useMemo, useState } from "react";
-import { Page, Card, Btn } from "../../../lib/Page";
-import { Body } from "../../../lib/Body";
-import { Chip, Facts, Locked } from "../../../lib/Parts";
+import { useMemo, useState } from "react";
+import { Page, Btn } from "../../../lib/Page";
+import { Body, Empty } from "../../../lib/Body";
+import { Chip, Locked, useCan } from "../../../lib/Parts";
 import { useApi } from "../../../lib/useApi";
 import { can } from "../../../perm";
 import { DESK } from "../../../nav";
-import { FOLLOWUP_STATUS, label, tone } from "../../../codes";
+import * as H from "../../home";
 
-/* ═══ 2장 · 추적 대상 관리 ═══════════════════════════════════════
+/* 간호과 · 추적 관리 — `docs/mockup/NursingFollowups.html`
+ * ════════════════════════════════════════════════════════════════
  *
- * **추적이 시작되는 경로**
- *   유방외과가 assessment.category = 3으로 확정하면 이 화면 목록에
- *   "추적 대상"으로 뜬다(followup 행이 아직 없다). 시스템이 자동으로
- *   followup을 만들지 않는다 — 간호사가 보고 [추적 회차 생성]을 눌러야
- *   시작된다(간호과 명세 §2).
+ * **이 시스템의 임상적 핵심이다.** 판독이 BI-RADS 3(양성 추정)으로
+ * 확정되면 바로 조직검사를 하지 않고 **6 · 12 · 24개월 추적**으로 보낸다.
+ * 그 회차를 놓치지 않는 것이 이 화면이 하는 일 전부다.
  *
- * **한 목록에 두 종류가 섞인다** — 추적을 아직 시작하지 않은 환자(추적
- *   대상)와 진행 중인 환자를 한 목록에 두고 상태로 구분한다.
+ *   추적 관리                              [+ 추적 회차 만들기]
+ *   [오늘 2] [지난 기한 1] [이번 주 3] [전체 8]     검색 [      ]
+ *   ─────────────────────────────────────────────────────────────
+ *   이름  생년월일  환자번호  회차  예정일  기한  최근 콜  [콜 기록]
  *
- * **왼쪽·오른쪽 세로 길이를 맞춘다** — 1장과 같은 이유로 `.n-grid`/
- *   `.n-side-stack`(hospital.css)을 그대로 쓴다. */
-export default function NursingFollowups({ cfg }) {
-  /* 간호과는 원무 일까지 하는 한 과다(6.1). **보는 것**은 과 열쇠
-     하나면 된다 — 메뉴에 줄이 서 있는데 들어가면 막히는 것이
-     제일 나쁘다. 쓰는 동작은 아래에서 제 열쇠로 그대로 잠근다 */
+ * ⚠ **경과 시간을 안 쓴다.** 목업 기한 칸의 「하루 지남」은 경과다.
+ *   예정일을 적고 「지남 / 오늘 / 이번 주 / 예정」 넷으로만 가른다.
+ * ⚠ **색으로 기한을 말하지 않는다.** 지난 것은 soot 채움으로 세운다.
+ */
+export default function Followups({ cfg }) {
   if (!can(DESK)) {
     return (
-      <Page crumb={[cfg.name, "추적 대상 관리"]} title="추적 대상 관리">
-        <Locked what="추적 대상 관리" />
+      <Page crumb={[cfg.name, "추적 관리"]} title="추적 관리">
+        <Locked what="추적 관리" need="nursing.followup.view" />
       </Page>
     );
   }
   return <Inner cfg={cfg} />;
 }
 
-/* 기한 초과 판정은 명세에도 "배치로 바꿀지 조회 때 계산할지 미정"이라고
-   되어 있다 — 조회 때 계산하는 쪽으로 정하고 연다. status가 이미
-   overdue면 그대로 쓰고, open인데 due_at이 지났으면 화면에서 올려 보여준다. */
-function displayStatus(f) {
-  if (f.status === "open" && f.due_at && f.due_at < todayStr()) return "overdue";
-  return f.status;
-}
-function todayStr() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-const FILTERS = [
-  { key: "", label: "전체" },
-  { key: "candidate", label: "추적 대상" },
-  { key: "open", label: "추적 중" },
-  { key: "overdue", label: "기한 초과" },
-  { key: "resolved", label: "종결" },
+/* 기한 칸 — 「며칠 지났나」가 아니라 「어느 칸에 드나」다 */
+const BUCKET = { over: "지남", today: "오늘", week: "이번 주" };
+const CHIPS = [
+  { key: "today", label: "오늘" },
+  { key: "over", label: "지난 기한" },
+  { key: "week", label: "이번 주" },
+  { key: "all", label: "전체" },
 ];
 
 function Inner({ cfg }) {
-  const { loading, data, error, reload } = useApi(() => cfg.api.followups(), []);
-  const [filter, setFilter] = useState("");
-  const [selectedId, setSelectedId] = useState(null);
+  const list = useApi(() => cfg.api.followups(), []);
+  /* 기본 칸은 **일이 있는 곳**이다. 「오늘」로 고정해 두면 오늘 콜이
+     없는 날 화면이 빈 채로 열려 고장처럼 보인다 — 지난 기한이 있으면
+     거기가 먼저다(놓친 회차가 제일 급하다) */
+  const [tab, setTab] = useState(null);
+  const [q, setQ] = useState("");
+  const [call, setCall] = useState(null);
+  const [making, setMaking] = useState(false);
 
-  const items = useMemo(() => {
-    const raw = Array.isArray(data) ? data : [];
-    return raw.map((f) => ({
-      ...f,
-      id: f.followup_id,
-      patient_id: f.patient,
-      name: f.patient_name,
-      view_status: displayStatus(f),
-    }));
-  }, [data]);
+  const rows = H.rows(list.data);
+  const again = () => list.reload(true);
 
-  const shown = filter ? items.filter((f) => f.view_status === filter) : items;
-  const selected = items.find((f) => f.id === selectedId) ?? null;
+  /* 후보는 아직 회차가 없는 사람이다 — 표에 섞으면 「예정일 없음」이
+     줄줄이 뜬다. 회차 만들기 쪽에서만 쓴다 */
+  const live = useMemo(() => rows.filter((r) => r.status !== "candidate"), [rows]);
+  const cands = useMemo(() => rows.filter((r) => r.status === "candidate"), [rows]);
 
-  const counts = useMemo(() => {
-    const c = { "": items.length };
-    for (const f of items) c[f.view_status] = (c[f.view_status] ?? 0) + 1;
-    return c;
-  }, [items]);
+  const count = useMemo(() => ({
+    today: live.filter((r) => H.dueBucket(r.due_at) === "today").length,
+    over: live.filter((r) => H.dueBucket(r.due_at) === "over").length,
+    week: live.filter((r) => H.dueBucket(r.due_at) === "week").length,
+    all: live.length,
+  }), [live]);
+
+  /* 안 고른 상태면 일이 있는 첫 칸으로 — 지난 기한 → 오늘 → 이번 주 */
+  const here = tab ?? (count.over > 0 ? "over"
+    : count.today > 0 ? "today"
+      : count.week > 0 ? "week" : "all");
+
+  const shown = useMemo(() => {
+    const k = q.trim().toLowerCase();
+    return live
+      .filter((r) => here === "all" || H.dueBucket(r.due_at) === here)
+      .filter((r) => !k
+        || `${H.nameOf(r)} ${r.patient_id ?? ""}`.toLowerCase().includes(k));
+  }, [live, here, q]);
 
   return (
-    <Page crumb={[cfg.name, "추적 대상 관리"]} title="추적 대상 관리"
-          badge={items.some((f) => f.view_status === "overdue") ? `지연 ${counts.overdue}건` : undefined}>
-      <div className="n-grid">
-        <Card title="추적 환자 리스트" pad={false}>
-          <Body loading={loading} error={error} onRetry={reload}>
-            <div className="tbl-top">
-              <div className="sorts" role="group" aria-label="상태 필터">
-                <span className="sorts-k">상태</span>
-                {FILTERS.map((f) => (
-                  <button key={f.key} className={`pill ${filter === f.key ? "on" : ""}`}
-                          onClick={() => setFilter(f.key)}>
-                    {f.label} <span style={{ opacity: .7 }}>{counts[f.key] ?? 0}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="tbl-wrap">
-              <table className="tbl">
-                <thead>
-                  <tr>
-                    <th>환자</th><th>회차</th><th>예정일</th><th>상태</th><th>최근 연락</th><th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {shown.map((f) => (
-                    <tr key={f.id} className={selectedId === f.id ? "on" : undefined}
-                        onClick={() => setSelectedId(f.id)} tabIndex={0}>
-                      <td>{f.name}</td>
-                      <td>{f.round_no ? `${f.round_no}회` : "—"}</td>
-                      <td>{f.due_at ?? "—"}</td>
-                      <td><Chip tone={tone("followup", f.view_status)}>
-                        {label(FOLLOWUP_STATUS, f.view_status)}
-                      </Chip></td>
-                      <td>{f.call_result ?? "미연락"}</td>
-                      <td onClick={(e) => e.stopPropagation()}>
-                        <RowActions cfg={cfg} f={f} onPick={() => setSelectedId(f.id)} onDone={reload} />
-                      </td>
-                    </tr>
-                  ))}
-                  {shown.length === 0 && (
-                    <tr className="none"><td colSpan={6}>해당하는 환자가 없습니다</td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </Body>
-        </Card>
-
-        <div className="n-side-stack">
-          <CreateRoundCard cfg={cfg} selected={selected} onDone={reload} />
-          <CallLogCard cfg={cfg} selected={selected} onDone={reload} />
-        </div>
+    <Page crumb={[cfg.name, "추적 관리"]} title="추적 관리"
+          right={(
+            <Btn kind="fill" onClick={() => setMaking(true)} disabled={cands.length === 0}>
+              + 추적 회차 만들기
+            </Btn>
+          )}>
+      <div className="fup-top">
+        {CHIPS.map((c) => (
+          <button type="button" key={c.key}
+                  className={`fup-chip${c.key === here ? " on" : ""}`}
+                  aria-pressed={c.key === here} onClick={() => setTab(c.key)}>
+            {c.label} <i>{count[c.key]}</i>
+          </button>
+        ))}
+        <span className="home-fill" />
+        <label className="fup-find">
+          <span>검색</span>
+          <input type="search" value={q} onChange={(e) => setQ(e.target.value)}
+                 placeholder="이름 · 환자번호" />
+        </label>
       </div>
+
+      <Body loading={list.loading && !list.data} error={list.error}
+            onRetry={list.reload}
+            empty={shown.length === 0 && (
+              <Empty title={here === "all"
+                ? "추적 중인 환자가 없습니다"
+                : `${CHIPS.find((c) => c.key === here).label} 칸에 든 환자가 없습니다`} />
+            )}>
+        <div className="tbl-wrap fup-tbl">
+          <table className="tbl">
+            <thead>
+              <tr>
+                <th>이름</th><th>생년월일</th><th>환자번호</th><th>회차</th>
+                <th>예정일</th><th>기한</th><th>최근 콜</th><th />
+              </tr>
+            </thead>
+            <tbody>
+              {shown.map((r) => <Row key={r.id} r={r} onCall={() => setCall(r)} />)}
+            </tbody>
+          </table>
+        </div>
+      </Body>
+
+      {call && (
+        <CallModal cfg={cfg} f={call} onClose={() => setCall(null)}
+                   onDone={() => { setCall(null); again(); }} />
+      )}
+      {making && (
+        <MakeModal cfg={cfg} cands={cands} onClose={() => setMaking(false)}
+                   onDone={() => { setMaking(false); again(); }} />
+      )}
     </Page>
   );
 }
 
-function RowActions({ cfg, f, onPick, onDone }) {
+/* 한 줄.
+   ⚠ **나이·성별을 못 적는다.** 추적 응답에 생년월일과 전화번호는 있는데
+     성별이 없다. 목업의 「44 · 여」 자리에 **생년월일을 그대로** 둔다 —
+     나이만 계산해 넣으면 성별 칸이 빈 채로 남아 더 이상해 보인다(8장).
+   ⚠ **몇 개월 추적인지 못 적는다.** 목업은 「6개월 · 1회차」인데 응답에
+     간격이 없다(`round_no` 뿐이다). 간격은 `due_at` 으로만 표현된다 —
+     회차 만들 때 +6 · +12 · +24 단추가 그 날짜를 잡는다. */
+function Row({ r, onCall }) {
+  const bucket = H.dueBucket(r.due_at);
+  const done = r.status === "resolved";
+  return (
+    <tr className={done ? "off" : ""}>
+      <td><b>{H.nameOf(r)}</b></td>
+      <td className="num">{r.birth_date ?? "—"}</td>
+      <td className="num">{r.patient_id ?? "—"}</td>
+      <td>{r.round_no != null ? `${r.round_no}회차` : "—"}</td>
+      <td className="num">{r.due_at ?? "—"}</td>
+      <td>
+        {bucket
+          ? <span className={`fup-due${bucket === "over" ? " k1" : ""}`}>{BUCKET[bucket]}</span>
+          : <span className="hcard-k">예정</span>}
+      </td>
+      <td>
+        {r.call_result
+          ? <Chip>{r.call_result}</Chip>
+          : <span className="hcard-k">미연락</span>}
+        {r.call_at && <span className="hcard-k"> {r.call_at}</span>}
+      </td>
+      <td className="rowb">
+        {done
+          ? <span className="hcard-k">종결</span>
+          : <Btn onClick={onCall}>콜 기록</Btn>}
+      </td>
+    </tr>
+  );
+}
+
+/* ── 콜 기록 — `docs/mockup/NursingCallModal.html` ──────────────
+ * ⚠ **「연결」은 이 회차를 끝낸다.** 되돌릴 수 없어서 고르는 것과
+ *   남기는 것을 두 걸음으로 나눈다(9장).
+ */
+const RESULTS = ["연결", "부재", "거부"];
+
+function CallModal({ cfg, f, onClose, onDone }) {
+  const [pick, setPick] = useState(null);
+  const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
+  const may = useCan("nursing.followup.call");
 
-  /* 명세에 종결·재진입 전용 엔드포인트가 없다 — "정해지지 않은 것"에
-     안 걸린 진짜 빈틈이다. 상태만 바꾸는 것도 결국 그 회차에 손대는
-     일이라 PATCH /followups/{id}/call을 그대로 빌려 쓴다(백엔드가
-     전용 경로를 열어 주면 그쪽으로 바꾸면 된다).
-
-     ⚠ 2026-09-19 확인 — 실서버 FollowupCallSerializer는 status 라는
-     칸을 아예 안 받는다(call_result 만 받는다, core/serializers/
-     nursing.py). 즉 이 「빌려 쓰기」는 지금 실서버에서는 항상 400 이다.
-     예전엔 catch 가 없어서 버튼이 조용히 스피너만 멈추고 아무 것도
-     안 알려줬다 — 실패를 화면에 보이게 한다(진짜 고치려면 전용
-     엔드포인트가 서버에 생겨야 한다, 프론트만으로는 못 고친다). */
-  async function resolve() {
+  async function save() {
+    if (!pick) return;
     setBusy(true);
     setErr(null);
-    try { await cfg.api.logCall(f.id, { status: "resolved" }); onDone?.(); }
-    catch (e) { setErr(e.detail || "종결 처리에 실패했습니다."); }
+    try {
+      await cfg.api.logCall(f.id, {
+        call_result: pick, note,
+        status: pick === "연결" ? "resolved" : "open",
+      });
+      onDone?.();
+    } catch (e) { setErr(e.detail || e.message); }
     finally { setBusy(false); }
   }
-  async function reopen() {
-    setBusy(true);
-    setErr(null);
-    try { await cfg.api.logCall(f.id, { status: "open" }); onDone?.(); }
-    catch (e) { setErr(e.detail || "재진입 처리에 실패했습니다."); }
-    finally { setBusy(false); }
-  }
-
-  const isCandidate = f.view_status === "candidate";
-  const isTerminal = f.view_status === "resolved";
-  const isDeclined = f.view_status === "declined" || f.view_status === "escalated";
-  /* 종결·거절/상급전원은 명세가 "보기만"이라고 못박은 상태다 — 콜기록도
-     종결도 여기서는 막는다. 거절 쪽에서 다시 움직이려면 재진입부터다. */
-  const viewOnly = isTerminal || isDeclined;
 
   return (
-    <div className="stack" style={{ flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
-      <div className="stack">
-        <button className="btn line" onClick={onPick} disabled={isCandidate || viewOnly}>콜 기록</button>
-        <button className="btn line" onClick={reopen} disabled={busy || !isDeclined}>재진입</button>
-        <button className="btn line" onClick={resolve} disabled={busy || isCandidate || viewOnly}>종결</button>
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <header className="modal-head">
+          <b>안내 콜 기록</b>
+          <span className="home-fill" />
+          <button type="button" aria-label="닫기" onClick={onClose}>×</button>
+        </header>
+
+        <div className="modal-body">
+          <div className="fup-who">
+            <b>{H.nameOf(f)}</b>
+            <span className="hcard-k">
+              {[f.patient_id, f.round_no != null && `${f.round_no}회차`,
+                f.due_at && `예정일 ${f.due_at}`].filter(Boolean).join(" · ")}
+            </span>
+            <span className="home-fill" />
+            {f.phone && <Chip>{f.phone}</Chip>}
+          </div>
+
+          <div className="rev-f">
+            <span>콜 결과</span>
+            <div className="work-seg narrow" role="radiogroup" aria-label="콜 결과">
+              {RESULTS.map((v) => (
+                <button type="button" key={v} role="radio" aria-checked={v === pick}
+                        className={`work-opt${v === pick ? " on" : ""}`}
+                        disabled={!may.ok} onClick={() => setPick(v)}>{v}</button>
+              ))}
+            </div>
+          </div>
+
+          <label className="rev-f">
+            <span>메모</span>
+            <textarea value={note} onChange={(e) => setNote(e.target.value)}
+                      rows={3} disabled={!may.ok} />
+          </label>
+
+          {err && <p className="note err">{err}</p>}
+        </div>
+
+        <footer className="modal-foot">
+          {/* ⚠ 9장이 남기라고 한 말 — 되돌릴 수 없는 갈림길이다 */}
+          <span className="hcard-k">
+            「연결」로 남기면 이 회차가 끝납니다. 부재 · 거부는 다시 뜹니다.
+          </span>
+          <span className="home-fill" />
+          <Btn onClick={onClose} disabled={busy}>그만</Btn>
+          <Btn kind="fill" onClick={save} {...may.attrs}
+               disabled={!pick || busy || !may.ok}>
+            {busy ? "남기는 중…" : "남기기"}
+          </Btn>
+        </footer>
       </div>
-      {err && <span className="muted small" role="alert">{err}</span>}
     </div>
   );
 }
 
-/* 추적 회차 생성 — 첫 회차 또는 다음 회차. 추적 대상(회차 없음)이면
-   1회차, 이미 진행 중이면 마지막 회차+1을 기본값으로 미리 채운다
-   (간호과 명세: "첫 회차 또는 다음 회차를 만든다"). */
-function CreateRoundCard({ cfg, selected, onDone }) {
-  const nextRound = (selected?.round_no ?? 0) + 1;
-  const [round, setRound] = useState(nextRound);
-  const [dueAt, setDueAt] = useState("");
-  const [purpose, setPurpose] = useState("결과 안내 및 재방문 유도");
-  const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState(null);
+/* ── 추적 회차 만들기 ──────────────────────────────────────────
+ * **6 · 12 · 24개월이 여기서 정해진다.** 서버에 「간격」 칸이 없고
+ * `due_at` 하나만 받는다 — 그래서 단추가 날짜를 계산해 넣는다.
+ * 손으로 고칠 수 있게 날짜칸은 그대로 둔다.
+ */
+const MONTHS = [6, 12, 24];
 
-  /* 고른 환자가 바뀌면 회차 기본값을 그 환자의 "다음 회차"로 다시 맞춘다 */
-  useEffect(() => { setRound(nextRound); }, [selected?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+function plus(months) {
+  const d = new Date();
+  d.setMonth(d.getMonth() + months);
+  return H.iso(d);
+}
 
-  async function create() {
-    if (!selected) return;
-    setSaving(true);
-    setMsg(null);
+function MakeModal({ cfg, cands, onClose, onDone }) {
+  const [who, setWho] = useState(cands[0]?.patient_id ?? null);
+  const [round, setRound] = useState(1);
+  const [due, setDue] = useState(plus(6));
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+  const may = useCan("nursing.followup.create");
+
+  async function make() {
+    if (!who) return;
+    setBusy(true);
+    setErr(null);
     try {
-      await cfg.api.createFollowup({
-        patient_id: selected.patient_id, round_no: round,
-        due_at: dueAt, purpose,
-      });
-      setMsg(`${round}회차 추적이 생성되었습니다.`);
+      await cfg.api.createFollowup({ patient_id: who, round_no: round, due_at: due });
       onDone?.();
-    } catch (e) {
-      setMsg(e.detail || "생성에 실패했습니다.");
-    } finally {
-      setSaving(false);
-    }
+    } catch (e) { setErr(e.detail || e.message); }
+    finally { setBusy(false); }
   }
 
   return (
-    <Card title="추적 회차 생성">
-      {!selected ? (
-        <div className="slot"><b>왼쪽 목록에서 환자를 고르세요</b></div>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <Facts items={[["환자", `${selected.name} · ${selected.patient_id}`]]} />
-          <div className="fields">
-            <label className="field">
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <header className="modal-head">
+          <b>추적 회차 만들기</b>
+          <span className="home-fill" />
+          <button type="button" aria-label="닫기" onClick={onClose}>×</button>
+        </header>
+
+        <div className="modal-body">
+          <label className="rev-f">
+            <span>환자</span>
+            <select value={who ?? ""} onChange={(e) => setWho(e.target.value)}
+                    disabled={!may.ok}>
+              {cands.map((c) => (
+                <option key={c.patient_id} value={c.patient_id}>
+                  {H.nameOf(c)} · {c.patient_id}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <div className="rev-dec-b">
+            <label className="rev-f narrow">
               <span>회차</span>
               <input type="number" min={1} value={round}
-                onChange={(e) => setRound(Number(e.target.value))} />
+                     onChange={(e) => setRound(Number(e.target.value))}
+                     disabled={!may.ok} />
             </label>
-            <label className="field">
+            <label className="rev-f">
               <span>추적 예정일</span>
-              <input type="date" value={dueAt} onChange={(e) => setDueAt(e.target.value)} />
-            </label>
-            <label className="field" style={{ gridColumn: "1 / -1" }}>
-              <span>추적 목적</span>
-              <select value={purpose} onChange={(e) => setPurpose(e.target.value)}>
-                <option>결과 안내 및 재방문 유도</option>
-                <option>수술 후 경과 확인</option>
-                <option>영상 추적 (6개월)</option>
-              </select>
+              <input type="date" value={due} onChange={(e) => setDue(e.target.value)}
+                     disabled={!may.ok} />
             </label>
           </div>
-          {msg && <div className="notice">{msg}</div>}
-          <div className="stack" style={{ justifyContent: "flex-end" }}>
-            <Btn kind="fill" onClick={create} disabled={saving || !dueAt}>
-              {saving ? "생성 중…" : "생성"}
-            </Btn>
+
+          {/* 6 · 12 · 24개월 — 서버에 간격 칸이 없어서 날짜로 넣는다 */}
+          <div className="work-seg narrow" role="group" aria-label="추적 간격">
+            {MONTHS.map((m) => (
+              <button type="button" key={m} className="work-opt"
+                      disabled={!may.ok} onClick={() => setDue(plus(m))}>
+                +{m}개월
+              </button>
+            ))}
           </div>
+
+          {err && <p className="note err">{err}</p>}
         </div>
-      )}
-    </Card>
+
+        <footer className="modal-foot">
+          <span className="home-fill" />
+          <Btn onClick={onClose} disabled={busy}>그만</Btn>
+          <Btn kind="fill" onClick={make} {...may.attrs}
+               disabled={!who || !due || busy || !may.ok}>
+            {busy ? "만드는 중…" : "만들기"}
+          </Btn>
+        </footer>
+      </div>
+    </div>
   );
 }
 
-/* 안내 콜 기록 — 아직 회차가 없는 "추적 대상"은 걸 회차가 없어 폼을
-   막는다. 통화 결과는 연결 · 부재 · 거부 중 하나만 고른다(단일 선택). */
-function CallLogCard({ cfg, selected, onDone }) {
-  const [result, setResult] = useState("연결");
-  const [note, setNote] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState(null);
-
-  const viewOnlyStatus = ["candidate", "resolved", "declined", "escalated"];
-  const disabled = !selected || viewOnlyStatus.includes(selected.view_status);
-
-  async function save() {
-    if (!selected) return;
-    setSaving(true);
-    setMsg(null);
-    try {
-      await cfg.api.logCall(selected.id, {
-        call_at: new Date().toISOString(), call_result: result, call_note: note,
-      });
-      setMsg("통화 기록을 저장했습니다.");
-      onDone?.();
-    } catch (e) {
-      setMsg(e.detail || "저장에 실패했습니다.");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <Card title="안내 콜 기록" right={selected && <span className="hint">{selected.name} · {selected.round_no ? `${selected.round_no}회차` : "—"}</span>}>
-      {disabled ? (
-        <div className="slot">
-          <b>{
-            !selected ? "왼쪽 목록에서 환자를 고르세요"
-              : selected.view_status === "candidate" ? "먼저 추적 회차를 생성하세요"
-              : "종결·거절 상태는 보기만 합니다 — 다시 움직이려면 재진입부터 누르세요"
-          }</b>
-        </div>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <div>
-            <p className="muted small" style={{ marginBottom: 8 }}>통화 결과 (필수)</p>
-            <div className="stack">
-              {["연결", "부재", "거부"].map((r) => (
-                <button key={r} className={`pill ${result === r ? "on" : ""}`}
-                        onClick={() => setResult(r)}>{r}</button>
-              ))}
-            </div>
-          </div>
-          <label className="field">
-            <span>통화 메모</span>
-            <textarea value={note} onChange={(e) => setNote(e.target.value)}
-              placeholder="다음 주 재방문 안내" />
-          </label>
-          {msg && <div className="notice">{msg}</div>}
-          <div className="stack" style={{ justifyContent: "flex-end" }}>
-            <Btn kind="fill" onClick={save} disabled={saving}>
-              {saving ? "저장 중…" : "통화 기록 저장"}
-            </Btn>
-          </div>
-        </div>
-      )}
-    </Card>
-  );
-}
-
+Followups.need = DESK;

@@ -23,7 +23,7 @@
 #
 # 적는 법 — 이름 한 칸 띄고 어느 파일인지. # 로 시작하면 주석이다.
 #
-# 2026-09-21 기준 — 클래스 52개 · 토큰 0개
+# 2026-09-21 기준 — 클래스 51개 · 토큰 0개
 
 # hospital/dept/  (1개)
 pathology-fixed-viewer    hospital/dept/pathology.jsx:421
@@ -87,8 +87,7 @@ mri-panel-title           hospital/lib/dicom/MRIReviewGrid.jsx:358
 # hospital/screens/  (1개)
 file-remove               hospital/screens/Upload.jsx:136
 
-# 2026-09-21 머지로 들어온 것 (origin/main · 정은님)  (4개)
+# 2026-09-21 머지로 들어온 것 (origin/main · 정은님)  (3개)
 care-steps                hospital/dept/breast/components/CareGuideModal.jsx:24
 care-step                 hospital/dept/breast/components/CareGuideModal.jsx:28
-n-side-stack              hospital/dept/nursing/screens/Followups.jsx:115
 file-retry                hospital/screens/Upload.jsx:185
