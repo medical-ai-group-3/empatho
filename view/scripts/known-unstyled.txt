@@ -5,7 +5,7 @@
 # 목적은 «새로 생기는 이름»을 잡는 것뿐이다 — 이번에 달력이 두 번 깨진
 # 원인이 둘 다 이름이었다(.cal 충돌 · .cal-dot 하나만 안 갈림).
 #
-# 두 종류가 섞여 있다.
+# 두 종류가 들어온다.
 #   이름      CSS 에 규칙이 없는 클래스
 #   --이름    정의가 없는 토큰 (var(--…) 로 쓰는데 값이 어디에도 없다)
 #
@@ -14,16 +14,16 @@
 #   lib/dicom/** 과 dept/breast/components/** 는 손대지 않기로 한 자리다.
 #
 # ⚠ **정의 없는 «토큰»은 다르다 — 그건 거의 다 버그다.** 정의가 없으면
-#   브라우저가 그 선언을 통째로 버리는데 오류는 안 난다. 아래 셋은
-#   2026-09-21 에 검사를 늘리면서 «발견만» 해 둔 것이고, 고치는 것은
-#   따로 허락받고 한다. 새로 느는 것은 그 자리에서 실패시킨다.
+#   브라우저가 그 선언을 통째로 버리는데 오류는 안 난다. 그래서 여기에
+#   토큰을 적어 두는 일은 없어야 한다 — 2026-09-21 에 드러난 셋은
+#   그날 바로 고쳤다. 새로 생기면 그 자리에서 실패시킨다.
 #
 # ⚠ 이 목록에 있는데 더는 안 걸리는 줄이 생기면 검사가 경고를 낸다.
 #   그때 그 줄을 빼라. 안 그러면 목록이 썩어서 아무도 못 믿는다.
 #
 # 적는 법 — 이름 한 칸 띄고 어느 파일인지. # 로 시작하면 주석이다.
 #
-# 2026-09-21 기준 — 클래스 52개 · 토큰 3개
+# 2026-09-21 기준 — 클래스 52개 · 토큰 0개
 
 # hospital/dept/  (1개)
 pathology-fixed-viewer    hospital/dept/pathology.jsx:421
@@ -92,8 +92,3 @@ care-steps                hospital/dept/breast/components/CareGuideModal.jsx:24
 care-step                 hospital/dept/breast/components/CareGuideModal.jsx:28
 n-side-stack              hospital/dept/nursing/screens/Followups.jsx:115
 file-retry                hospital/screens/Upload.jsx:185
-
-# 정의 없는 토큰  (3개) — 2026-09-21 에 토큰 대조를 붙이면서 드러났다
---top-h        hospital/hospital.css:156,1194   상단바가 세 층이 되면서 없앤 값(tokens.css:89). 쓰는 곳 둘이 남았다
---v-accent     hospital/hospital.css:1185       판독 도구 켜진 표시. --v- 칸에 accent 가 없다
---primary      hospital/dept/breast/components/CareGuideModal.jsx:57   손대지 않기로 한 자리. 옆 줄은 --accent 를 쓴다

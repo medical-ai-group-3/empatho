@@ -55,7 +55,7 @@ export default function CareGuideModal({ patient, step, progress, onClose, onAct
         .care-step b { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:inherit; }
         .care-step small { font-size:11px; }
         .care-step.done { border-color:var(--accent); color:var(--accent); background:color-mix(in srgb, var(--accent) 8%, transparent); }
-        .care-step.waiting { border-color:var(--primary); color:var(--primary); }
+        .care-step.waiting { border-color:var(--accent); color:var(--accent); }
       `}</style>
     </div>
   );
