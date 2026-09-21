@@ -663,7 +663,12 @@ function radUpload(raw = {}, order = {}) {
 function radRead(raw = {}, upload = {}, order = {}) {
   const study = raw.study ?? upload.study ?? {};
   const row = radStudyRow(study, order);
-  const files = (raw.images ?? upload.files ?? []).map(radFile);
+  /* read 응답이 images: []를 포함해도 실제 업로드 파일은 upload
+     응답(storage_objects/files)에 있을 수 있다. 빈 배열을 우선하면
+     업로드가 성공한 검사도 판독 화면에서 원본 없음으로 표시된다. */
+  const rawImages = Array.isArray(raw.images) ? raw.images : [];
+  const uploadFiles = Array.isArray(upload.files) ? upload.files : [];
+  const files = (rawImages.length > 0 ? rawImages : uploadFiles).map(radFile);
   const current = raw.current_assessment ?? null;
   return {
     ...raw,
@@ -969,7 +974,11 @@ export const breast = {
 
   /* 2장 · 검사 종합 확인 */
   timeline:     (pid) => get(`/patients/${pid}/timeline`),
-  studies:      (pid) => get(`/patients/${pid}/studies`),
+  /* 환자 검사 목록도 다른 목록 API와 같은 {count, results} 봉투로
+     내려온다. 화면은 배열을 기준으로 모달리티 탭과 뷰어를 계산하므로
+     봉투를 그대로 넘기면 실검사와 타임라인이 있어도
+     "촬영한 검사가 없습니다"가 표시된다. */
+  studies:      (pid) => get(`/patients/${pid}/studies`).then(unwrapList),
 
   /* 유방외과 진료를 열기 전 다음 단계를 판단할 최소 이력. 서버에 별도
      workflow API가 없어서, 이미 있는 검사·오더·검체 조회를 한 번에 묶는다. */
