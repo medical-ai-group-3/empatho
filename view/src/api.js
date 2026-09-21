@@ -404,17 +404,33 @@ export const api = {
 
   // 12  병원 찾기
   //
-  //     ⚠ **기기 위치를 받지 않는다.** 「가까운 순」은 편하지만 위치를
-  //       서버로 보내야 하고, 그건 따로 동의를 받아야 하는 정보다.
-  //       지역으로 고르는 것으로 충분하다 — distance_km 가 오면 적고
-  //       안 오면 거리 줄이 아예 없다.
+  //     ⚠ **기기 위치를 받지 않는다.** 심평원 API 에는 좌표 주변을 찾는
+  //       기능(xPos·yPos·radius)이 있지만 서버가 쓰지 않는다 — 쓰면
+  //       환자의 좌표가 우리 로그에 남고, 그건 따로 동의를 받아야 하는
+  //       정보다. 병원 좌표(lat·lng)만 받아 거리는 브라우저에서 잰다.
+  //
+  //     ⚠ **협력 병원 목록이 아니다.** 심평원이 공개한 전국 요양기관이
+  //       그대로 온다. 응답의 note 가 그 말을 싣고 있으니 화면에서 빼지
+  //       말 것 — 빼면 병원이 보증한 목록으로 읽힌다.
+  //
+  //     ⚠ 거르는 것은 **서버가 한다.** 전국 자료라 한 장에 오는 것만
+  //       화면에서 걸러 봐야 그 장 안에서만 걸러진다.
   //
   //     ⚠ 주소를 `/hospitals` 로 둔다. 목업에서 직원용 접두사
   //       `/api/v1/hospital` 과 **글자가 겹쳐** 한동안 요청이 그쪽으로
   //       빨려 들어갔다 — mock/hospital.js 가 경계를 마디로 보게 고쳤다.
   //       실제 서버에는 그 접두사가 없어서 겹칠 일이 없다.
   //
-  //       GET /hospitals?q=&region=            { items, regions, note }
+  //       GET /hospitals?q=&region=&page=&page_size=
+  //         → { items, regions, count, page, page_size, source, note }
+  //
+  //       병원 = { hospital_id, name, dept, address, phone,
+  //                region, district, lat, lng, url }
+  //
+  //       ⚠ 진료시간(hours)은 안 온다 — 심평원이 세부정보 API 로 따로
+  //         주는데 병원마다 한 번씩 더 불러야 한다. 화면이 그 줄을 가린다.
+  //       ⚠ phone · lat · lng 는 **비어 있을 수 있다.** 화면이 전화 ·
+  //         길찾기 단추를 그때만 낸다.
   hospitals:     (o = {})    => get(`/api/v1/hospitals${qs(o)}`),
 
   // 10  내 정보
