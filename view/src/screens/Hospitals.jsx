@@ -164,11 +164,17 @@ function Inner({ d, near, region, q, setQ, onRegion, onSearch }) {
               </div>
 
               <p className="hos-l">{h.address}</p>
-              {/* 진료시간은 이 자료에 없다(심평원이 세부정보 API 로 따로
-                  준다 — 병원마다 한 번씩 더 불러야 해서 안 받는다).
-                  칸을 비워 두면 빈 줄이 남아 목록이 성글어 보인다 */}
+              {/* 진료시간. 자료에 없는 기관이 있어 있을 때만 그린다 —
+                  칸을 비워 두면 빈 줄이 남아 목록이 성글어 보인다.
+
+                  ⚠ 요일이 다 같을 때만 「평일 09:00~18:00」로 묶여 온다.
+                    하루라도 다르면 서버가 요일을 따로 적어 보낸다 —
+                    묶어 놓고 실제로는 수요일만 오후 휴진이면 그 한 줄을
+                    믿고 갔다가 헛걸음한다. 화면에서 다시 묶지 말 것 */}
               {h.hours && <p className="hos-l">{h.hours}</p>}
-              {h.district && <p className="hos-l">{h.region} {h.district}</p>}
+              {/* 「휴게시간 13:00~14:00」 같은 안내. 진료시간만 보고 갔다가
+                  점심시간에 닿는 일을 줄인다 */}
+              {h.etc && <p className="hos-l">{h.etc}</p>}
               {h.note && <p className="hos-l hos-mine">{h.note}</p>}
 
               {/* 둘뿐이다.
