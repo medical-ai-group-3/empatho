@@ -18,6 +18,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -227,4 +229,38 @@ func (c *Client) Healthy(ctx context.Context) error {
 		return fmt.Errorf("orthanc %d", res.StatusCode)
 	}
 	return nil
+}
+
+// SeriesInstanceSOPs — 시리즈의 SOPInstanceUID 를 InstanceNumber 순으로.
+// Orthanc /series/{id}/instances 가 MainDicomTags 를 함께 준다.
+func (c *Client) SeriesInstanceSOPs(ctx context.Context, id string) ([]string, error) {
+	var rows []struct {
+		MainDicomTags struct {
+			SOPInstanceUID string `json:"SOPInstanceUID"`
+			InstanceNumber string `json:"InstanceNumber"`
+		} `json:"MainDicomTags"`
+	}
+	res, err := c.Get(ctx, "/series/"+id+"/instances")
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close() 
+	// 시리즈 한 벌의 목록이라 크지 않다. 그래도 상한을 둔다 —
+	// 상대가 Orthanc 라도 무제한으로 읽지 않는 것이 이 파일의 방식이다.
+	if err := json.NewDecoder(io.LimitReader(res.Body, 1<<22)).Decode(&rows); err != nil {
+		return nil, err
+	}
+
+	sort.Slice(rows, func(i, j int) bool {
+		a, _ := strconv.Atoi(rows[i].MainDicomTags.InstanceNumber)
+		b, _ := strconv.Atoi(rows[j].MainDicomTags.InstanceNumber)
+		return a < b
+	})
+	out := make([]string, 0, len(rows))
+	for _, r := range rows {
+		if s := r.MainDicomTags.SOPInstanceUID; s != "" {
+			out = append(out, s)
+		}
+	}
+	return out, nil
 }

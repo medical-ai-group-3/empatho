@@ -28,6 +28,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -126,6 +127,7 @@ func (g *gw) routes() *http.ServeMux {
 	mux.HandleFunc("GET /svc/v1/derived/{key...}", g.getDerived)
 	mux.HandleFunc("GET /svc/v1/dicom/instances/{sop}", g.getDicomInstance)
 	mux.HandleFunc("GET /svc/v1/dicom/series/{id}", g.getDicomSeries)
+	mux.HandleFunc("GET /svc/v1/dicom/series/{id}/instances", g.getDicomSeriesInstances)
 	mux.HandleFunc("GET /svc/v1/health", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 200, map[string]any{"ok": true,
 			"bucket": g.st.Bucket(), "derived_bucket": bucketName(g.der)})
@@ -755,6 +757,38 @@ func (g *gw) getDicomSeries(w http.ResponseWriter, r *http.Request) {
 			return "series", id, nil
 		})
 }
+// 시리즈에 든 인스턴스를 InstanceNumber 순으로 준다. 뷰어가 이 목록으로
+// wadouri 주소를 만든다 — 아카이브(zip)로는 한 장씩 못 부른다.
+//
+// 항목에 티켓을 함께 담는 이유: 뷰어가 baseUrl 뒤에 항목을 그대로 이어
+// 붙이므로, baseUrl 에 쿼리를 두면 ".../instances?ticket=X/<sop>" 가 되어
+// 주소가 깨진다.
+func (g *gw) getDicomSeriesInstances(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if strings.Trim(id, "0123456789abcdef-") != "" {
+		fail(w, 400, "BAD_REQUEST", "Orthanc 시리즈 ID 형식이 아니다")
+		return
+	}
+	cl := g.auth(w, r, purposeDownload, purposeTile)
+	if cl == nil {
+		return
+	}
+	if !g.dicomAllowed(r.Context(), cl, "dicom/series/"+id, "series", id) {
+		fail(w, 403, "TICKET_SCOPE_MISMATCH", "이 티켓으로 열 수 없다")
+		return
+	}
+	sops, err := g.or.SeriesInstanceSOPs(r.Context(), id)
+	if err != nil {
+		fail(w, 502, "UPSTREAM_ERROR", err.Error())
+		return
+	}
+	tk := url.QueryEscape(bearer(r))
+	out := make([]string, 0, len(sops))
+	for _, s := range sops {
+		out = append(out, s+"?ticket="+tk)
+	}
+	writeJSON(w, 200, out)
+}
 
 // dicomAllowed — 이 티켓으로 이 자료를 열 수 있나.
 //
@@ -806,7 +840,7 @@ func (g *gw) dicomAllowed(ctx context.Context, cl *ticket.Claims,
 func (g *gw) fromOrthanc(w http.ResponseWriter, r *http.Request,
 	legacyScope, suffix string,
 	resolve func(context.Context) (level, id string, err error)) {
-	cl := g.auth(w, r, purposeDownload)
+	cl := g.auth(w, r, purposeDownload, purposeTile)
 	if cl == nil {
 		return
 	}
@@ -888,7 +922,12 @@ func bearer(r *http.Request) string {
 	if h := r.Header.Get("Authorization"); strings.HasPrefix(h, "Bearer ") {
 		return strings.TrimSpace(h[7:])
 	}
-	return r.Header.Get("X-Ticket")
+	if t := r.Header.Get("X-Ticket"); t != "" {
+		return t
+	}
+	// 뷰어(cornerstone wadouri)는 헤더를 못 붙인다. 
+	// 구독(SSE)이 같은 이유로 질의 문자열을 받는 것과 같은 자리다 — 티켓은 짧고 한 번만 쓴다.
+	return r.URL.Query().Get("ticket")
 }
 
 func writeJSON(w http.ResponseWriter, code int, v any) {

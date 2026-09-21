@@ -274,6 +274,24 @@ class StudyReadView(viewsets.ViewSet):
             .order_by("-created_at")
             .first()
         )
+        
+        
+        # 뷰어가 쓸 주소. DICOM 은 Orthanc 에만 있어 Garage 경로가 없다
+        # (internal.py 의 「Orthanc 저장이 확인되면 키를 비운다」와 짝).
+        # 모달리티마다 이름만 다르고 내용은 같다 — 시리즈 인스턴스 목록과
+        # 그 인스턴스를 하나씩 받을 기준 주소다.
+        extra = {}
+        series_id = next((o.orthanc_series_id for o in images if o.orthanc_series_id),None)
+        if series_id:
+            token, _claims, _exp = tickets.issue(
+                "tile", "study", study.pk, patient_id=str(study.patient_id)
+            )
+            manifest = f"/svc/v1/dicom/series/{series_id}/instances?ticket={token}"
+            base = "/svc/v1/dicom/instances"
+            if study.modality == "mri":
+                extra = {"volume_manifest": manifest, "volume_base": base}
+            elif study.modality == "mammo" :
+                extra = {"stack_manifest": manifest, "stack_base": base}
 
         return Response({
             "study": serializers.StudySerializer(study).data,
@@ -292,6 +310,7 @@ class StudyReadView(viewsets.ViewSet):
                             study.reports.filter(report_type="stage").order_by("socket_id"), 
                             many=True
                         ).data,
+            **extra, 
         })
 
 
