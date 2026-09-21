@@ -48,7 +48,6 @@ export default function Requests() {
     <Page
       crumb={["원무과", "예약 확인"]}
       title="예약 확인"
-      sub="앱으로 들어온 예약 신청을 확정합니다. 날짜와 시간만 정합니다 — 검사 종류는 유방외과가 정합니다."
     >
       <div className="split wide">
         <div className="split-l">

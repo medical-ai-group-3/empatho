@@ -37,7 +37,7 @@ export default function UploadScreen({ cfg }) {
 
   if (!can(c.need.view)) {
     return (
-      <Page crumb={[cfg.name, c.title]} title={c.title} sub={c.sub}>
+      <Page crumb={[cfg.name, c.title]} title={c.title}>
         <Locked what={c.title} />
       </Page>
     );
@@ -50,7 +50,7 @@ function Inner({ cfg, id }) {
   const { loading, data, error, reload } = useApi(() => cfg.api.uploadInfo(id), [id]);
 
   return (
-    <Page crumb={[cfg.name, c.title]} title={c.title} sub={c.sub}>
+    <Page crumb={[cfg.name, c.title]} title={c.title}>
       <Body loading={loading} error={error} onRetry={reload}>
         {data && <Work cfg={cfg} id={id} d={data} />}
       </Body>

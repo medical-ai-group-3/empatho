@@ -146,7 +146,6 @@ export default function Intake() {
     <Page
       crumb={["원무과", "접수"]}
       title="접수 · 방문 환자 모니터링"
-      sub="환자를 찾아 접수하면 간호 큐로 넘어갑니다. 검사 종류는 정하지 않습니다."
     >
       <div className="split">
         <div className="split-l">
@@ -174,7 +173,6 @@ export default function Intake() {
                          onChange={(e) => edit("birth_date", e.target.value)} />
                 </label>
               </div>
-              <p className="hint">셋 중 하나만 넣어도 됩니다. 엔터로도 찾습니다.</p>
               <Btn kind="fill" type="submit" disabled={!term() || busy}>
                 {busy ? "찾는 중…" : "검색"}
               </Btn>
@@ -224,7 +222,6 @@ function Choose({ rows, onPick, onClose }) {
   return (
     <Dialog
       title={`${rows.length}명이 찾아졌습니다`}
-      sub="더블클릭하거나 Enter 로 고르세요"
       onClose={onClose}
       foot={<Btn onClick={onClose}>닫기</Btn>}
     >

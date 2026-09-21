@@ -108,7 +108,7 @@ export default function StickyMemo() {
       <textarea
         value={s.text}
         onChange={(e) => setS((v) => ({ ...v, text: e.target.value }))}
-        placeholder="여기에 적어 두면 다른 화면으로 옮겨도 그대로 있습니다"
+        placeholder="메모"
       />
     </div>
   );

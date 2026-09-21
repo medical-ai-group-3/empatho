@@ -56,7 +56,6 @@ export default function Patients() {
     <Page
       crumb={["원무과", "환자 목록"]}
       title="환자 목록 · 예약"
-      sub="환자를 찾아 정보를 고치거나 예약을 잡습니다. 검사 종류는 정하지 않습니다."
     >
       <div className="split wide">
         <div className="split-l">
@@ -85,7 +84,6 @@ export default function Patients() {
                     value={pick}
                     onPick={setPick}
                   />
-                  <Missing rows={rows} />
                 </>
               )}
             </Body>
@@ -171,20 +169,6 @@ function row(r, { onReserve, onOpen }) {
       </span>
     ),
   };
-}
-
-/* 서버가 안 주는 칸을 **한 줄로 모아 적는다.** 칸마다 「—」만 두면 자료가
-   없는 것인지 서버가 안 주는 것인지 구분이 안 된다 */
-function Missing({ rows }) {
-  const noAllergy = rows.some((r) => r.has_allergy == null);
-  const noState   = rows.some((r) => r.status == null && r.first_visited_at == null);
-  if (!noAllergy && !noState) return null;
-  return (
-    <Warn>
-      서버 목록에 {[noAllergy && "알레르기", noState && "상태"].filter(Boolean).join(" · ")}
-      {" "}칸이 없어 「—」로 둡니다. 필터도 같은 이유로 화면에서 겁니다.
-    </Warn>
-  );
 }
 
 /* ── 상세 ────────────────────────────────────────────────────── */
@@ -384,9 +368,6 @@ function Reserve({ patient, firstDate, onClose }) {
                    onChange={(e) => setTime(e.target.value)} />
           </label>
         </div>
-        {firstDate && (
-          <p className="hint">캘린더에서 고른 날짜({firstDate})를 넣어 두었습니다.</p>
-        )}
 
         <Body loading={orders.loading} error={orders.error} onRetry={orders.reload}>
           {orders.data && date && (
@@ -402,13 +383,8 @@ function Reserve({ patient, firstDate, onClose }) {
                     </li>
                   ))}
                 </ul>
-                <Warn>
-                  하루에 둘을 잡는 경우도 있어 막지는 않습니다. 보시고 판단해 주세요.
-                </Warn>
               </div>
-            ) : (
-              <p className="hint">{date} 에 이 환자의 다른 예약은 없습니다.</p>
-            )
+            ) : null
           )}
         </Body>
 

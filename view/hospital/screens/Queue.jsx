@@ -32,7 +32,7 @@ export default function QueueScreen({ cfg }) {
 
   if (!can(c.need.view)) {
     return (
-      <Page crumb={[cfg.name, c.title]} title={c.title} sub={c.sub}>
+      <Page crumb={[cfg.name, c.title]} title={c.title}>
         <Locked what={c.title} />
       </Page>
     );
@@ -64,7 +64,7 @@ function Inner({ cfg }) {
   }, [reload]);
 
   return (
-    <Page crumb={[cfg.name, c.title]} title={c.title} sub={c.sub}
+    <Page crumb={[cfg.name, c.title]} title={c.title}
           badge={data ? `${data.items.length}건 대기` : null}>
       <Body loading={loading} error={error} onRetry={reload}>
         {data && (

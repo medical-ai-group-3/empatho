@@ -85,12 +85,15 @@
   --gap:        calc(18px * var(--sp));    /* 카드 사이 */
   --gap-sm:     calc(10px * var(--sp));
 
-  /* ══ 상단바 ═══════════════════════════════════════════════ */
-  --top-h:       calc(44px * var(--sp));
+  /* ══ 상단바 ═══════════════════════════════════════════════
+     ⚠ --top-h(한 줄짜리 44px)는 없앴다. 상단바가 세 층이 되면서
+       «상단바 높이»가 한 값이 아니게 됐다. 지금은 --top-total 하나로
+       모아 두었다(아래 개편 구역). 두 이름이 같이 있으면 어느 쪽을
+       빼야 하는지 매번 헷갈린다. */
   --top-pad-x:   calc(20px * var(--sp));
   --top-gap:     calc(18px * var(--sp));
   --top-fs:      calc(13px * var(--ft));
-  --brand-fs:    calc(13.5px * var(--ft));
+  /* --brand-fs 도 없앴다 — 띠의 로고 크기는 --band-fs 다 */
   --menu-fs:     calc(13px * var(--ft));
   --menu-pad-y:  calc(5px * var(--sp));
   --menu-pad-x:  calc(12px * var(--sp));
@@ -256,4 +259,214 @@
   --cal-wk-fs:   calc(11px * var(--ft));    /* 요일 머리 */
   --cal-mv:      24px;                      /* ‹ › 단추 */
   --cal-pad:     calc(6px * var(--sp));     /* 칸 안쪽 여백 */
+
+  /* ══ 상단바 — 세 층 (개편 2026-09-21) ═══════════════════════
+     하루에 수백 번 누르는 자리라 **위쪽을 아끼지 않는다.**
+       띠     60px  로고 · 검색 · 시각 · 나
+       과 줄  56px  과 전환. 검은 띠
+       화면 줄 44px  그 과의 화면 + 오른쪽 끝에 요약 숫자. 흰 줄
+
+     **내비게이터는 두 층이다** — 과를 고르는 줄과 그 과의 화면을 고르는 줄.
+     둘이 다른 모양이면 「내비게이터가 둘」로 보인다. 같은 언어를 쓰고
+     **크기만** 다르다. 요약 줄을 따로 만들지 않는다 — 줄을 하나 더 두면
+     내비게이터가 너무 두꺼워진다.
+
+     ⚠ 뷰포트를 꽉 채우는 화면(판독 전체화면 · 두 단 · 세 단)이 이 높이를
+       빼서 자기 높이를 정한다. **세 층 중 하나라도 높이가 바뀌면 그
+       화면들이 같이 어긋난다** — 그래서 --top-total 하나로 모아 두고
+       거기서만 뺀다. 숫자를 따로 박아 두면 띄워 보기 전까지 안 보인다. */
+  --band-h:     calc(60px * var(--sp));
+  --band-fs:    calc(15px * var(--ft));
+
+  /* 로그인한 사람 — **왼쪽 위에 크게.** 지금 누구로 들어와 있는지는
+     판독을 확정하고 결정을 남기는 사람이 매번 확인해야 하는 값이라
+     오른쪽 구석에 작게 둘 것이 아니다 */
+  --who-ava:    30px;
+  --who-ava-fs: calc(12.5px * var(--ft));
+  --who-nm-fs:  calc(15px * var(--ft));
+  --who-k-fs:   calc(12px * var(--ft));
+  --tabs-h:     calc(56px * var(--sp));
+  --tab-fs:     calc(16.5px * var(--ft));
+  --tab-pad-x:  calc(26px * var(--sp));
+  --tab-mark:   4px;                        /* 미끄러지는 강조선 굵기 */
+  --tab-badge-fs: calc(12px * var(--ft));
+
+  /* 화면 줄 — 과 줄과 같은 언어, 크기만 작다 */
+  --tabs2-h:     calc(44px * var(--sp));
+  --tab2-fs:     calc(14.5px * var(--ft));
+  --tab2-pad-x:  calc(18px * var(--sp));
+  --tab2-mark:   3px;
+
+  --sum-n-fs:   calc(17px * var(--ft));     /* 숫자 — 앞에 온다 */
+  --sum-k-fs:   calc(12px * var(--ft));     /* 라벨 */
+  --top-total:  calc(var(--band-h) + var(--tabs-h) + var(--tabs2-h));
+
+  /* 고른 탭 — 색을 늘리지 않고 **무게**로 낸다. 바탕은 띠보다 한 톤 밝은
+     회색이고, 건수 배지는 흰 바탕에 검은 글자로 뒤집는다 */
+  --tab-bg-on:     #292524;                 /* --v-card 와 같은 값 */
+  --tab-bg-hover:  #F0EEED;                 /* --line-2 와 같은 값 */
+  --tab-ink-off:   #78716C;                 /* --warm */
+
+  /* 검색은 이 시스템에서 제일 많이 하는 행동이다. 가운데에 크고 길게 두고,
+     누르면 넓어진다 — 눌렀다는 것이 화면에 보여야 한다 */
+  --search-w:    420px;
+  --search-w-on: 560px;
+  --search-h:    calc(36px * var(--sp));
+  --search-fs:   calc(13.5px * var(--ft));
+
+  /* 움직임 — 여기까지다. 자동으로 도는 것, 번쩍이는 것, 소리는 없다.
+     ⚠ prefers-reduced-motion 이면 hospital.css 가 이 셋을 0 으로 덮는다 */
+  --m-tab:    .18s;                         /* 강조선이 미끄러지는 시간 */
+  --m-hover:  .12s;
+  --m-find:   .2s;
+  --ease-tab: cubic-bezier(.2, .8, .2, 1);
+
+  /* ══ 환자 띠 ══════════════════════════════════════════════
+     환자를 다루는 화면 맨 위. **지금 누구를 보고 있는지** 한 번도
+     헷갈리면 안 된다.
+
+     ⚠ 이 띠가 세로를 먹는다. 판독 뷰어가 잘리지 않게 **접을 수 있게**
+       만들고, 접힌 높이를 따로 둔다. */
+  --pb-h:       calc(52px * var(--sp));
+  --pb-shut-h:  calc(24px * var(--sp));
+  --pb-ava:     32px;
+  --pb-ava-fs:  calc(12.5px * var(--ft));
+  --pb-nm-fs:   calc(16px * var(--ft));
+  --pb-fs:      calc(12.5px * var(--ft));
+  --pb-pad-x:   calc(20px * var(--sp));
+
+  /* ══ 네 가지 상태 ═════════════════════════════════════════
+     불러오는 중 · 비었음 · 오류 · 권한 없음.
+     불러오는 중에 화면이 통째로 사라지면 안 되므로 **자리를 지키는
+     뼈대**를 깐다. 움직이는 반짝임은 두지 않는다 — 판독실에서 하루
+     종일 보는 화면이라 계속 움직이면 피로하다. */
+  --sk-h:       calc(13px * var(--sp));     /* 뼈대 한 줄 */
+  --sk-radius:  4px;
+  --sk-gap:     calc(10px * var(--sp));
+  --sk-bg:      #F0EEED;                    /* --line-2 와 같은 값 */
+  --state-fs:   calc(13px * var(--ft));
+  --state-pad:  calc(28px * var(--sp));
+
+  /* ══ 뷰포트를 꽉 채우는 화면 ══════════════════════════════
+     판독 뷰어와 두 단·세 단 화면은 «화면 높이에서 위아래에 붙은 것을
+     뺀 만큼»을 자기 높이로 쓴다. 뺄 것이 둘이다 —
+       1) 상단바 세 층 (--top-total)
+       2) 그 화면에서 뷰어 말고 남는 것 (쪽 머리 · 패딩 · 저장 줄)
+
+     ⚠ 예전에는 둘을 더한 수(230 · 260)를 그냥 박아 두었다. 상단바
+       높이가 바뀌자 세 화면이 한꺼번에 어긋났는데 **띄워 보기 전까지
+       보이지 않았다.** 그래서 둘을 갈라 둔다 — 상단바가 바뀌면
+       --top-total 하나만 움직인다. */
+  /* 환자 띠가 붙은 화면은 그만큼 더 뺀다. 기본은 0 이고, 띠를 얹은 쪽에서
+     hospital.css 가 --pb-h 로 덮는다(.page.has-pbar).
+     ⚠ 화면마다 손으로 빼면 띠를 붙일 때마다 그 화면 높이를 같이 고쳐야
+       하고, 빠뜨리면 아래가 잘린 채로 남는다 — 띄워 보기 전엔 안 보인다. */
+  --fit-bar:      0px;
+
+  /* 검사 종합의 소견 입력칸. 스택 전체를 굴리게 되면서 이 칸의 height:100%
+     가 기준을 잃는다(부모 높이가 내용 따라 정해진다) — 최소 높이를 주지
+     않으면 세 줄짜리로 주저앉는다. 쓰는 자리라 읽는 자리보다 넉넉해야 한다 */
+  --report-write-h: calc(220px * var(--sp));
+
+  /* ══ 과 홈 ════════════════════════════════════════════════
+     값은 전부 `docs/mockup/*Home.html` 에서 왔다. 다섯 과의 본문이 같은
+     마크업이라 여기 한 벌이면 된다.
+
+     ⚠ **여기 숫자를 눈대중으로 고치지 말 것.** 고칠 일이 생기면 목업을
+       먼저 보고, 목업이 틀렸으면 목업을 고친다. */
+  /* 여백은 **한 값이다.** 목업은 바깥 16 · 줄 사이 14 · 칸 사이 12 로
+     셋이 달랐는데, 세 수가 섞이면 어느 자리가 왜 그만큼인지 아무도 못
+     외운다. 제일 빽빽한 12 로 맞춘다 — 여백은 최소한으로 */
+  --home-pad:     var(--desk-gap);          /* 본문 바깥 여백 */
+  --home-gap:     var(--desk-gap);          /* 머리 · 최근 줄 · 격자 사이 */
+  --home-h1-fs:   calc(22px * var(--ft));
+  --home-day-fs:  calc(13px * var(--ft));
+  --home-name-gap: calc(10px * var(--sp)); /* 과 이름과 날짜 사이 */
+  --home-act-gap: calc(16px * var(--sp));   /* 머리 줄 안의 간격 */
+  --home-btn-h:   calc(38px * var(--sp));
+
+  /* ⚠ 칩 줄 토큰은 없앴다. 목업에는 칩 줄이 있지만 그건 목업 상단바가
+     52px 한 줄이라 그 과 화면으로 가는 길이 칩뿐이었기 때문이다. 우리는
+     3층 화면 줄이 그 일을 한다 — 또 두면 내비게이터가 둘로 보인다(5.5) */
+
+  /* 최근 본 환자 줄 */
+  --rchip-h:      calc(28px * var(--sp));
+  --rchip-pad-x:  calc(10px * var(--sp));
+  --rchip-fs:     calc(12px * var(--ft));
+  --rchip-gap:    calc(6px * var(--sp));
+  --recent-gap:   calc(8px * var(--sp));
+  --recent-k-fs:  calc(11.5px * var(--ft));
+
+  /* 3단 격자 — 왼쪽 1.5 · 가운데 1 · 오른쪽은 고정 폭이다.
+     오른쪽(달력·할 일)은 넓어져 봐야 쓸모가 없어서 늘리지 않는다.
+     ⚠ --desk-gap 이 이 화면 여백의 **원본**이다. 위 --home-pad ·
+       --home-gap 이 이 값을 그대로 쓴다 — 여기만 고치면 셋이 같이 움직인다 */
+  --desk-gap:     calc(12px * var(--sp));
+  --desk-r:       330px;
+
+  /* 칸 — 목업은 카드다. 흰 바탕 · 1px 테두리 · 라운드 10 */
+  --hcard-radius: 10px;
+  /* 목록 칸의 최소 높이 — 머리(40) + 다섯 줄(29×5). 그보다 적으면 그만큼만
+     높다. 단을 꽉 채우려고 늘이지 않는다(5.5) */
+  --hcard-min-h:  calc(185px * var(--sp));
+  --hcard-pad-y:  calc(12px * var(--sp));
+  --hcard-pad-x:  calc(14px * var(--sp));
+  --hcard-h-fs:   calc(14px * var(--ft));
+  --hcard-n-fs:   calc(13px * var(--ft));   /* 제목 옆 건수 */
+  --hcard-k-fs:   calc(12px * var(--ft));   /* 머리 오른쪽 작은 글씨 */
+  --hcard-foot-fs: calc(11.5px * var(--ft));
+  --hdot:         8px;                      /* 칸 머리의 점 */
+  --hdot-radius:  2px;
+
+  /* 주 큐 줄 — 한 줄짜리다 */
+  --qrow-pad-y:   calc(9px * var(--sp));
+  --qrow-gap:     calc(10px * var(--sp));
+  --qrow-n-w:     calc(16px * var(--sp));   /* 번호 칸 */
+  --qrow-nm-fs:   calc(13.5px * var(--ft));
+  --qrow-meta-fs: calc(12px * var(--ft));
+
+  /* 확인이 필요한 것 — 종류 태그 + 문장 + 건수 */
+  --stag-fs:      calc(11px * var(--ft));
+  --stag-pad-y:   1px;
+  --stag-pad-x:   calc(6px * var(--sp));
+  --stag-radius:  4px;
+  --srow-fs:      calc(13px * var(--ft));
+
+  /* 오늘 한 일 */
+  --drow-pad-y:   calc(6px * var(--sp));
+  --drow-t-w:     calc(40px * var(--sp));   /* 시각 칸 */
+  --drow-dot:     7px;
+  --drow-fs:      calc(13px * var(--ft));
+
+  /* 인계 사항 */
+  --hrow-k-fs:    calc(11.5px * var(--ft));
+  --hrow-who-fs:  calc(12px * var(--ft));
+  --hrow-fs:      calc(12.5px * var(--ft));
+
+  /* 달력 */
+  --hcal-cell-h:   calc(30px * var(--sp));
+  --hcal-gap:      2px;
+  --hcal-radius:   6px;
+  --hcal-dow-fs:   calc(11px * var(--ft));
+  --hcal-d-fs:     calc(12px * var(--ft));
+  --hcal-dot:      4px;
+  --hcal-nav:      calc(26px * var(--sp));
+  --hcal-legend-fs: calc(11px * var(--ft));
+  --hcal-past:     .55;                      /* 지난 날은 흐리게 */
+
+  /* 할 일 */
+  --trow-pad-y:   calc(7px * var(--sp));
+  --trow-fs:      calc(13px * var(--ft));
+  --trow-box:     calc(16px * var(--sp));
+  --todo-in-h:    calc(32px * var(--sp));
+
+  /* 접수 카드 (원무만) */
+  --intake-in-h:  calc(40px * var(--sp));
+  --fit-read:     calc(120px * var(--sp));  /* 판독 전체화면 — 쪽 패딩 + 저장 줄 */
+  --fit-grid:     calc(216px * var(--sp));  /* 두 단(간호) — 쪽 머리 + 패딩 */
+  --fit-review:   calc(186px * var(--sp));  /* 세 단(유방외과) */
+  --fit-grid-min: 480px;
+  --fit-grid-max: 760px;
+  --fit-rev-min:  520px;
+  --fit-rev-max:  800px;
 }

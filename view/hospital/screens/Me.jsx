@@ -74,7 +74,6 @@ export default function MeScreen() {
     <Page
       crumb={["내 정보"]}
       title="내 정보"
-      sub="프로필과 알림을 고치고, 내 권한을 확인하는 자리입니다."
       right={scope && <Chip>{scope.label}</Chip>}
     >
       <ProfileCard me={me} />

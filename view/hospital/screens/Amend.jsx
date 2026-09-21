@@ -52,7 +52,7 @@ export default function AmendScreen({ cfg }) {
 
   if (!can(c.need.view)) {
     return (
-      <Page crumb={[cfg.name, c.title]} title={c.title} sub={c.sub}>
+      <Page crumb={[cfg.name, c.title]} title={c.title}>
         <Locked what={c.title} />
       </Page>
     );
@@ -65,7 +65,7 @@ function Load({ cfg, id }) {
   const { loading, data, error, reload } = useApi(() => cfg.api.read(id), [id]);
 
   return (
-    <Page crumb={[cfg.name, cfg.list.title, c.title]} title={c.title} sub={c.sub}>
+    <Page crumb={[cfg.name, cfg.list.title, c.title]} title={c.title}>
       <p className="notice">
         정정된 판독은 기존 판독의 수정 이력을 남기며, 이전 판독 내용은 모두 보존됩니다.
       </p>

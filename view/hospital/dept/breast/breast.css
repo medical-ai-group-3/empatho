@@ -245,9 +245,11 @@
   /* height만으로는 그리드 "행" 자체의 크기가 안 정해진다(행은 기본
      content-based) — grid-template-rows로 행 트랙을 컨테이너 높이에
      못박아야 자식들의 height:100%/stretch가 실제로 먹는다. */
-  grid-template-rows:clamp(520px, calc(100vh - 230px), 800px);
+  grid-template-rows:clamp(var(--fit-rev-min),
+    calc(100vh - var(--top-total) - var(--fit-bar) - var(--fit-review)), var(--fit-rev-max));
   gap:var(--gap); align-items:stretch;
-  height:clamp(520px, calc(100vh - 230px), 800px);
+  height:clamp(var(--fit-rev-min),
+    calc(100vh - var(--top-total) - var(--fit-bar) - var(--fit-review)), var(--fit-rev-max));
   transition:grid-template-columns .18s ease}
 @media (max-width:1200px) {.breast .review-grid {grid-template-columns:1fr; grid-template-rows:none; height:auto}}
 
@@ -298,29 +300,35 @@
 .breast .other-report .summary {font-size:13.5px; margin-top:4px}
 .breast .other-report .at {font-size:11px; color:var(--muted); margin-top:4px}
 
-/* 검사 종합 확인 · 오른쪽 리포트 3단 — 예전엔 탭으로 갈아 끼웠는데,
-   그러면 AI/타부서 소견을 보면서 동시에 유방외과 소견을 못 썼다. 세
-   구역을 세로로 고정하고 각자 내부 스크롤을 준다 — AI·타부서(읽기
-   전용)는 항상 떠 있고, 유방외과 리포트(현재 모달리티 따라감)만 아래서
-   내용이 바뀐다. */
-.breast .report-stack {display:flex; flex-direction:column; gap:12px; min-height:0}
-.breast .report-block {border:1px solid var(--line); border-radius:var(--radius-sm); overflow:hidden}
-.breast .report-block h4 {margin:0; padding:9px 12px; font-size:12.5px; font-weight:700;
-  background:var(--surface-2); border-bottom:1px solid var(--line); color:var(--ink-2)}
-.breast .report-block-body {padding:12px}
+/* 검사 종합 확인 · 오른쪽 리포트 — **스크롤은 한 칸에 하나다.**
+ *
+ * 전에는 블록마다 테두리를 두르고 각자 overflow-y:auto 를 걸었다. 그러면
+ * 한정된 높이를 블록들이 나눠 가져서 **하나당 두 줄**만 보인다. 상한만
+ * 풀어도 세 줄이 될 뿐이고, 둘이 겹치니 어느 것을 굴려야 할지도 모른다.
+ *
+ * 그래서 스택 하나만 굴린다. 블록은 이어 놓고 **1px 선으로만** 가른다 —
+ * 테두리·모서리·그림자를 겹쳐 쓰면 덩어리마다 안쪽 여백이 또 생기고,
+ * 그 여백을 합치면 읽을 자리가 없어진다. 두 줄 문제의 절반이 그 여백이었다.
+ *
+ * 블록 머리는 sticky 로 붙여 굴려도 **지금 무엇을 보는지**만 남긴다. */
+.breast .report-stack {display:flex; flex-direction:column; min-height:0}
+/* ⚠ **눌리지 않게 둔다.** min-height:0 을 주면 위 블록들이 자리를 먹을 때
+     이 블록이 0 까지 찌그러지고, 안에 든 입력칸과 저장 줄이 서로 겹친다.
+     높이가 모자라면 블록을 줄이는 게 아니라 **스택을 굴린다.** */
+.breast .report-block {display:flex; flex-direction:column}
+.breast .report-block + .report-block {border-top:1px solid var(--line)}
+.breast .report-block h4 {position:sticky; top:0; z-index:1;
+  margin:0; padding:9px 0; font-size:12.5px; font-weight:700;
+  background:var(--surface); color:var(--ink-2)}
+.breast .report-block-body {padding:0 0 14px}
 
-/* AI·타부서(읽기 전용)는 고정 높이로 눌러두고(fixed 폭만큼만 차지,
-   나머지는 자기 안에서 스크롤) — 그래야 아래 "유방외과 리포트"가
-   먹을 공간이 항상 남는다. 예전엔 셋 다 내용 크기대로 늘어나서 저장
-   버튼이 패널 아래로 밀려 안 보였다. */
-.breast .report-block.fixed {flex:0 0 150px; display:flex; flex-direction:column}
-.breast .report-block.fixed .report-block-body {flex:1; min-height:0; overflow-y:auto}
-
-/* 유방외과 리포트는 남는 공간을 다 가져가고, 그 안에서 textarea만
-   줄어들고(저장 버튼은 고정) — FinalReportForm이 height:100% flex
-   컬럼으로 그린다. */
-.breast .report-block.grow {flex:1 1 auto; min-height:180px; display:flex; flex-direction:column}
-.breast .report-block.grow .report-block-body {flex:1; min-height:0; display:flex; flex-direction:column; padding-bottom:12px}
+/* ⚠ 블록 안에 스크롤을 다시 만들지 않는다. fixed·grow 는 예전에 높이를
+   나눠 갖던 이름이라 지금은 뜻이 없다 — 셋 다 내용만큼 선다 */
+.breast .report-block.fixed,
+.breast .report-block.grow {flex:0 0 auto}
+.breast .report-block.grow .report-block-body {display:flex; flex-direction:column}
+/* 쓰는 자리라 읽는 자리보다 넉넉해야 한다 */
+.breast .report-block.grow textarea {min-height:var(--report-write-h)}
 
 /* AIModelResult — 실제 MRI 모델 서빙 결과. 케이스별 기권(abstain)과
    모델 구조상 미지원(not_supported)은 겉모습부터 다르게 둔다 — 기권은

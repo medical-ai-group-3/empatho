@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { reception as api } from "../../api";
 import { Card } from "../../lib/Page";
 import { Body } from "../../lib/Body";
-import { Chip, Warn } from "../../lib/Parts";
+import { Chip } from "../../lib/Parts";
 import { useApi } from "../../lib/useApi";
 import { MODALITY, label, modality as asModality } from "../../codes";
 
@@ -104,12 +104,6 @@ export default function Calendar({ onOpenDate }) {
               <Tree ym={ym} byDay={byDay} total={total}
                     pickDay={pickDay} onPickDay={setPickDay} onOpenDate={onOpenDate} />
             </div>
-            <p className="hint">
-              날짜를 <b>더블클릭</b>하면 예약 화면으로 넘어갑니다. 여기서는 예약을 만들거나 고치지 않습니다.
-            </p>
-            {list.data.some((r) => !r.patient_name) && (
-              <Warn>서버가 이름을 주지 않는 예약은 환자 번호로 표시합니다.</Warn>
-            )}
           </>
         )}
       </Body>

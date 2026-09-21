@@ -35,9 +35,9 @@ export default function Decision() {
   const { loading, data: patient, error, reload } = useApi(() => api.patient(id), [id]);
 
   return (
+    /* 되돌릴 수 없는 결정을 저장하는 화면이다. **누구인지 안 보이면 안 된다** */
     <Page className="breast" crumb={["유방외과", "수술 결정"]}
-            title="수술 결정 및 환자 설명"
-            sub={patient ? `${patient.name} · ${patient.patient_number}` : ""}
+            title="수술 결정" patient={patient}
             back={() => nav(go.breast.waiting(), { state: { advance: true, from: id } })}>
       <div className="pane">
         <Body loading={loading} error={error} onRetry={reload}>

@@ -48,7 +48,7 @@ export default function ReadScreen({ cfg }) {
 
   if (!can(c.need.view)) {
     return (
-      <Page crumb={[cfg.name, c.title]} title={c.title} sub={c.sub}>
+      <Page crumb={[cfg.name, c.title]} title={c.title}>
         <Locked what={c.title} />
       </Page>
     );
@@ -61,7 +61,7 @@ function Load({ cfg, id }) {
   const { loading, data, error, reload } = useApi(() => cfg.api.read(id), [id]);
 
   return (
-    <Page crumb={[cfg.name, c.title]} title={c.title} sub={c.sub}
+    <Page crumb={[cfg.name, c.title]} title={c.title}
           right={data && <Chip>{data.patient.name} · {data.unit.no}</Chip>}>
       <Body loading={loading} error={error} onRetry={reload}>
         {data && <Inner cfg={cfg} id={id} d={data} />}

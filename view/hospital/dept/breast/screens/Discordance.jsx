@@ -33,9 +33,8 @@ export default function Discordance() {
   const { loading, data, error, reload } = useApi(() => api.discordance(id), [id]);
 
   return (
-    <Page className="breast" crumb={["유방외과", "판정 불일치 처분"]}
-            title="영상-병리 불일치 처분"
-            sub={data ? `${data.patient.name} · ${data.lesion.site}` : ""}
+    <Page className="breast" crumb={["유방외과", "판정 불일치"]}
+            title="판정 불일치" patient={data?.patient}
             back={() => nav(go.breast.waiting())}>
       <div className="pane">
         <Body loading={loading} error={error} onRetry={reload}>
@@ -125,7 +124,7 @@ function Inner({ d, onDisposed }) {
         <div className="field" style={{ marginTop: 14 }}>
           <label>처분 사유 <span className="req">*</span></label>
           <textarea value={reason} onChange={(e) => setReason(e.target.value)}
-            placeholder="근거 없이 처분하면 추적이 안 됩니다 — 사유를 적어 주세요" />
+            placeholder="처분 사유" />
         </div>
         {err && <p className="field err">{err}</p>}
         <button className="btn" onClick={save} disabled={saving}>

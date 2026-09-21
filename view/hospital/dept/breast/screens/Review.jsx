@@ -28,9 +28,8 @@ export default function Review() {
   const timeline = useApi(() => api.timeline(id), [id]);
 
   return (
-    <Page className="breast" crumb={["유방외과", "검사 종합 확인"]}
-            title="검사 종합 확인"
-            sub={patient ? `${patient.name} · ${patient.patient_number}` : ""}
+    <Page className="breast" crumb={["유방외과", "검사 종합"]}
+            title="검사 종합" patient={patient}
             back={() => nav(go.breast.waiting(), { state: { advance: true, from: id } })}
             right={<button className="btn line" onClick={() => nav(go.breast.decision(id))}>수술 결정으로</button>}>
       <div className="pane">
@@ -222,12 +221,15 @@ function FinalReportForm({ report, modality, text, onTextChange }) {
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      <div className="field" style={{ flex: 1, minHeight: 0, marginBottom: 8 }}>
+    /* ⚠ 높이를 인라인으로 주지 않는다. 인라인은 CSS 를 이겨서, 스택이
+       굴러가는 구조로 바뀐 뒤에도 입력칸이 70px 로 주저앉고 저장 줄이
+       그 위에 겹쳐 그려졌다. 높이는 breast.css 의 --report-write-h 가 정한다 */
+    <div style={{ display: "flex", flexDirection: "column" }}>
+      <div className="field" style={{ marginBottom: 8 }}>
         <textarea
           value={text}
           onChange={(e) => onTextChange(e.target.value)}
-          style={{ height: "100%", minHeight: 70, resize: "none" }}
+          style={{ resize: "none" }}
           placeholder={
             modality
               ? `${label(MODALITY, modality)} 검사에 대한 유방외과 소견을 작성해 주세요`

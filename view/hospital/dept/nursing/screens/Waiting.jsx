@@ -100,8 +100,7 @@ function Inner({ cfg }) {
   return (
     <Page crumb={[cfg.name, "내원 대기 · 유방외과 배정"]}
           title="내원 대기 · 유방외과 배정"
-          badge={`${items.length}명`}
-          sub="접수 순번대로 정렬됩니다. 문진을 마치면 유방외과 큐로 보냅니다.">
+          badge={`${items.length}명`}>
       <div className="n-grid">
         <Card title="내원한 대기 환자" pad={false}>
           <Body loading={arrived.loading} error={arrived.error} onRetry={arrived.reload}>

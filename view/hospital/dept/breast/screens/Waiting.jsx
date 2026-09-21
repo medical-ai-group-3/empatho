@@ -57,7 +57,7 @@ export default function Waiting() {
 
   return (
     <Page className="breast" crumb={["유방외과", "대기 환자"]}
-            title="대기 환자" sub="내 환자 목록 · 진료 시작">
+            title="대기 환자">
       <div className="pane">
         <Body loading={loading} error={error} onRetry={reload}>
           {list && (
@@ -198,7 +198,7 @@ function PatientPanel({ patient, onNext, onExamOrder, onSpecimen, onClose, onRev
             {d ? (
               <>
                 {d.violated_rule}
-                <span className="hint">{d.lesion_id} · 클릭하면 불일치 처분 화면으로 이동합니다 →</span>
+                <span className="hint">{d.lesion_id}</span>
               </>
             ) : "영상/병리 불일치 없음"}
           </span>

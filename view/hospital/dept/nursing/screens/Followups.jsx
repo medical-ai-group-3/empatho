@@ -76,8 +76,7 @@ function Inner({ cfg }) {
 
   return (
     <Page crumb={[cfg.name, "추적 대상 관리"]} title="추적 대상 관리"
-          badge={items.some((f) => f.view_status === "overdue") ? `지연 ${counts.overdue}건` : undefined}
-          sub="추적 회차를 예정일 순으로 정렬합니다. 안내 콜 결과를 기록하고 회차를 새로 만듭니다.">
+          badge={items.some((f) => f.view_status === "overdue") ? `지연 ${counts.overdue}건` : undefined}>
       <div className="n-grid">
         <Card title="추적 환자 리스트" pad={false}>
           <Body loading={loading} error={error} onRetry={reload}>

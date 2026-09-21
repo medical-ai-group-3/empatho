@@ -29,7 +29,7 @@ export default function ListScreen({ cfg }) {
 
   if (!can(c.need.view)) {
     return (
-      <Page crumb={[cfg.name, c.title]} title={c.title} sub={c.sub}>
+      <Page crumb={[cfg.name, c.title]} title={c.title}>
         <Locked what={c.title} />
       </Page>
     );
@@ -61,7 +61,7 @@ function Inner({ cfg }) {
   const scope = reportScope();
 
   return (
-    <Page crumb={[cfg.name, c.title]} title={c.title} sub={c.sub}
+    <Page crumb={[cfg.name, c.title]} title={c.title}
           right={scope && <Chip>{scope.label}</Chip>}>
       <Body loading={loading} error={error} onRetry={reload}>
         {data && (
