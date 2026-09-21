@@ -244,6 +244,22 @@ LLM_BASE = os.environ.get("LLM_BASE", "http://llm-proxy:8090")
 # 모델이 답을 쓰는 동안 기다린다. gosvc 의 CHAT_TIMEOUT(기본 3분)보다
 # 넉넉해야 한다 — 짧으면 Go 는 답을 만들었는데 여기서 먼저 끊는다.
 LLM_TIMEOUT_SEC = int(os.environ.get("LLM_TIMEOUT_SEC", "240"))
+# ── 약 정보(식약처 e약은요 · data.go.kr) ────────────────────────────────
+#
+# 환자 앱의 「약 정보 찾기」가 부른다 (core/api/drugs.py).
+#
+# ⚠ 인증키를 코드에 박지 않는다. 계정에 묶인 값이고 저장소에 들어가면
+#   회수가 곧 기능 정지다. .env 에 DRUG_API_KEY 로 둔다.
+#   비어 있으면 약 정보만 503 이 되고 나머지는 영향이 없다.
+DRUG_API_BASE = os.environ.get(
+    "DRUG_API_BASE", "https://apis.data.go.kr/1471000/DrbEasyDrugInfoService")
+DRUG_API_KEY = os.environ.get("DRUG_API_KEY", "")
+# 공공데이터는 가끔 느리다. 환자가 검색 버튼을 누르고 기다리는 자리라
+# 길게 잡지 않는다 — 실패하면 다시 누르는 편이 낫다.
+DRUG_API_TIMEOUT_SEC = float(os.environ.get("DRUG_API_TIMEOUT_SEC", "8"))
+# 일일 호출 한도가 있고 약 정보는 연 단위로 바뀐다. 넉넉히 캐시한다.
+DRUG_API_CACHE_SEC = int(os.environ.get("DRUG_API_CACHE_SEC", str(60 * 60 * 24)))
+
 # Go 가 nonce 를 안 보내서 시간 창이 재전송을 막는 유일한 수단이다.
 CALLBACK_TIMESTAMP_TOLERANCE_SEC = int(
     os.environ.get("CALLBACK_TIMESTAMP_TOLERANCE_SEC", "300"))

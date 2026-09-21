@@ -41,12 +41,20 @@ urlpatterns = [
 #   import 도 같은 이유로 여기 둔다. 맨 위 묶음이 경합 중이다.
 from .admin_session import AdminSessionView  # noqa: E402 — 위 참고
 from .chat import ChatView  # noqa: E402
+from .drugs import DrugDetailView, DrugSearchView  # noqa: E402
 
 # 우리 로그인 → Django admin 세션. 관리자가 로그인을 두 번 하지 않게 한다
 urlpatterns.append(
     path("admin-session", AdminSessionView.as_view(), name="admin-session"))
 # 안내 챗봇. 화면(empatho-view)의 src/api.js 가 이 경로를 쓴다.
 urlpatterns.append(path("chat", ChatView.as_view(), name="chat"))
+# 약 정보 찾기. 식약처 공공데이터를 그대로 옮겨 주는 사전이고, 처방전의
+# 복약 설명과는 다른 자리다 — core/api/drugs.py 의 머리말 참고.
+# ⚠ 목록(`drugs`)을 상세(`drugs/<…>`)보다 **먼저** 둔다. 순서가 반대라도
+#   지금은 맞지만, 뒤에 `drugs/<str:…>` 같은 것이 늘면 목록을 가로챈다.
+urlpatterns.append(path("drugs", DrugSearchView.as_view(), name="drug-search"))
+urlpatterns.append(
+    path("drugs/<str:item_seq>", DrugDetailView.as_view(), name="drug-detail"))
 
 # 업무 엔드포인트는 다른 브랜치에서 오는 중이다. 들어오면 자동으로 물린다.
 if find_spec("core.urls") is not None:
