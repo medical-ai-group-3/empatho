@@ -9,7 +9,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("core", "0017_storage_object_cancel"),
+        ("core", "0018_storage_object_cancel"),
     ]
 
     operations = [
