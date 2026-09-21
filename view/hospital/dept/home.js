@@ -119,6 +119,44 @@ export function isToday(value) {
   return String(value).slice(0, 10) === iso(new Date());
 }
 
+/* ── 쪽이 잘린 목록을 정직하게 세는 법 ────────────────────────
+ *
+ * 서버 목록은 한 쪽 20건이다(DefaultPagination). `api.js` 의 목록 함수들은
+ * `results` 만 벗겨 주고 `count` 를 버린다 — **그래서 스무 건이 오면 그게
+ * 전부인지 더 있는지 알 수가 없다.**
+ *
+ * 스무 건이 꽉 차 오면 「20+」로 적는다. 19 를 20 이라 적는 것보다,
+ * 스물이 넘는데 스물이라 적는 것이 나쁘다.
+ *
+ * ⚠ 고치려면 `api.js` 가 `page_size` 를 실어 보내면 된다(서버가 받는다,
+ *   최대 200). 새 경로가 아니라 인자 하나다 — 8장에 적어 둘 것.
+ */
+const PAGE = 20;
+
+export function capped(list) {
+  const n = list.length;
+  return { n, text: n >= PAGE ? `${PAGE}+` : String(n), more: n >= PAGE };
+}
+
+/* 오늘 며칠인지 · 지금 몇 시인지 — 예약 시각이 지났는지 볼 때 쓴다.
+   ⚠ 서버가 주는 두 값(예약 시각 · 지금)을 견주는 것이지, 서버가 안 주는
+     「몇 분 기다렸는지」를 만드는 것이 아니다 */
+export function isPast(when) {
+  if (!when) return false;
+  return new Date(String(when)).getTime() < Date.now();
+}
+
+/* 오늘 · 이번 주(오늘부터 7일) 안에 드는가 — 추적 기한을 쪼갤 때 쓴다 */
+export function dueBucket(when) {
+  if (!when) return null;
+  const day = String(when).slice(0, 10);
+  const today = iso(new Date());
+  if (day < today) return "over";
+  if (day === today) return "today";
+  const week = iso(new Date(Date.now() + 7 * 86400000));
+  return day <= week ? "week" : null;
+}
+
 /* 제목 옆에 붙는 날짜 — 「2026-09-21 (월)」 */
 const DAY = ["일", "월", "화", "수", "목", "금", "토"];
 

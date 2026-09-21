@@ -148,7 +148,7 @@ function Desk({ cfg, home, bag, again }) {
       </div>
 
       <div className="pane">
-        <Calendar marks={marks} />
+        <Calendar marks={marks} note={bag && home.calNote ? home.calNote(bag) : null} />
         <Todo key={cfg.key} dept={cfg.key} />
       </div>
     </div>
@@ -455,7 +455,7 @@ function Handover({ dept }) {
  */
 const DOW = ["일", "월", "화", "수", "목", "금", "토"];
 
-function Calendar({ marks }) {
+function Calendar({ marks, note }) {
   const [at, setAt] = useState(() => {
     const n = new Date();
     return { y: n.getFullYear(), m: n.getMonth() };
@@ -477,6 +477,8 @@ function Calendar({ marks }) {
     <Card dot="none" title={grid.label} className="hcal"
           right={(
             <>
+              {/* 달력 옆 숫자 — 이번 주 · 내일. 과가 세어서 준다 */}
+              {note && <span className="hcard-k">{note}</span>}
               <button type="button" className="hcal-nav" aria-label="이전 달"
                       onClick={() => move(-1)}>‹</button>
               <button type="button" className="hcal-nav" aria-label="다음 달"

@@ -433,9 +433,12 @@ a.frow:hover .frow-k{color:var(--ink)}
 .frow-k{flex:none; width:var(--frow-k-w); font-size:var(--qrow-meta-fs);
   color:var(--ink-2); overflow:hidden; text-overflow:ellipsis;
   white-space:nowrap}
+/* ⚠ **막대에 색을 쓰지 않는다.** 9장의 「그래프 금지」는 색 때문에 둔
+   규칙이다 — 색이 없으면 판독 영상 위 병변 표시와 싸울 일이 없다.
+   바탕은 옅은 회색, 채움은 한 톤 진한 회색. 그게 전부다 */
 .frow-bar{flex:1; min-width:0; height:var(--frow-bar-h);
   border-radius:var(--round); background:var(--line-2); overflow:hidden}
-.frow-bar i{display:block; height:100%; background:var(--cyan)}
+.frow-bar i{display:block; height:100%; background:var(--faint)}
 .frow b{flex:none; font-size:var(--hcard-n-fs); font-weight:600;
   font-variant-numeric:tabular-nums}
 

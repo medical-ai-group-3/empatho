@@ -1,4 +1,4 @@
-import { nursing as nur, reception as rec } from "../api";
+import { ALL_PATIENTS, nursing as nur, path, reception as rec } from "../api";
 import { go } from "../nav";
 import * as H from "./home";
 
@@ -50,9 +50,21 @@ export const nursing = {
       H.soft(api.requests()),
       H.soft(api.followups()),
       month(),
-    ]).then(([arrived, today, booked, asks, follow, schedule]) => ({
+      /* 검체 확인 대기 — 간호가 라벨을 확인해야 병리로 넘어간다.
+         병리과 큐와 **같은 목록**이다(specimen_pathology 에 간호는 R).
+         ⚠ path.queue() 는 줄마다 환자를 한 번씩 더 부른다(api.js 의
+           pathSpecimenRow). 큐가 짧아 지금은 견딜 만하지만 늘면 아프다 */
+      H.soft(path.queue()),
+      /* 연락처 없는 환자 — 원무 환자 목록과 같은 목록이다 */
+      H.soft(rec.list(ALL_PATIENTS)),
+      week(),
+      day(1),
+    ]).then(([arrived, today, booked, asks, follow, schedule,
+              bound, roster, thisWeek, tomorrow]) => ({
       arrived: H.rows(arrived), today: H.rows(today), booked: H.rows(booked),
       asks: H.rows(asks), follow: H.rows(follow), schedule: H.rows(schedule),
+      bound: H.rows(bound), roster: H.rows(roster),
+      thisWeek: H.rows(thisWeek), tomorrow: H.rows(tomorrow),
     })),
 
     primary: { label: "문진 · 배정", to: go.nursing.waiting(),
@@ -77,6 +89,22 @@ export const nursing = {
             why: "문진 · 배정",
           })) },
 
+        /* ⚠ **지금 전화할 사람.** 오늘 예약인데 그 시각이 이미 지났고 아직
+           안 왔다. 예약 시각과 지금 시각을 견주는 것이라 「몇 분 기다렸나」
+           와는 다르다 — 둘 다 서버가 주는 값이다 */
+        { key: "late", name: "안 오심",
+          empty: "예약 시각이 지난 분이 없습니다",
+          rows: booked.filter((r) => H.isPast(r.scheduled_at)).map((r) => ({
+            id: r.exam_order_id ?? r.id,
+            name: H.nameOf(r),
+            no: H.noOf(r),
+            meta: H.who(r),
+            chip: r.visit_type,
+            sub: `예약 ${H.at(r.scheduled_at) ?? "시각 미정"} · 아직 안 오심`,
+            at: H.at(r.scheduled_at),
+            to: r.patient != null ? go.patient(r.patient) : null,
+          })) },
+
         /* ⚠ 이 탭의 줄에는 나이·성별·번호·시각이 없다.
            `/patients/today-status` 응답이 네 칸뿐이다(8장 9번) */
         { key: "today", name: "오늘 접수",
@@ -88,7 +116,7 @@ export const nursing = {
             to: r.patient_id != null ? go.patient(r.patient_id) : null,
           })) },
 
-        /* 오늘 오기로 했는데 **아직 안 온** 사람. 창구가 제일 자주 찾는다 */
+        /* 오늘 오기로 했는데 아직 안 온 사람 전부(시각이 안 지난 것도) */
         { key: "booked", name: "오늘 예약",
           empty: "오늘 남은 예약이 없습니다",
           rows: booked.map((r) => ({
@@ -137,22 +165,48 @@ export const nursing = {
       };
     },
 
-    stuck: ({ arrived, follow, asks }) => [
-      { tag: "예약 확인", text: "앱으로 들어온 신청 — 날짜·시간을 정해야 합니다",
-        count: asks.length, to: go.nursing.reservations() },
-      { tag: "콜", text: "부재로 다시 걸어야 하는 추적 콜",
-        count: follow.filter((r) => r.call_result === "부재").length,
-        to: go.nursing.followups() },
-      { tag: "문진", text: "접수 뒤 문진이 비어 있는 환자",
-        count: arrived.filter((r) => !r.questionnaire).length,
-        to: go.nursing.waiting() },
-      /* ⚠ 목업의 「바인딩」(채취는 끝났는데 병변에 연결 안 된 검체)은 못 센다.
-         검체를 그 조건으로 거르는 경로가 없다 — 병리 큐는 이미 바인딩된
-         것만 준다(status=bound) */
-    ],
+    /* **기한이 지난 것이 제일 위다.** 오늘 해야 하는 순서 그대로 내려간다 */
+    stuck: ({ arrived, follow, asks, booked, bound, roster }) => {
+      const due = (k) => follow.filter((r) => H.dueBucket(r.due_at) === k).length;
+      const noPhone = H.capped(roster.filter((r) => !r.phone));
+      return [
+        { tag: "추적 기한", text: "기한이 지난 추적 콜",
+          count: due("over"), to: go.nursing.followups() },
+        { tag: "안 오심", text: "예약 시각이 지났는데 아직 안 오신 분",
+          count: booked.filter((r) => H.isPast(r.scheduled_at)).length,
+          to: go.nursing.waiting() },
+        { tag: "검체", text: "병리가 아직 집지 않은 검체 — 라벨 확인이 남았습니다",
+          count: bound.length, to: go.nursing.waiting() },
+        { tag: "예약 확인", text: "앱으로 들어온 신청 — 날짜·시간을 정해야 합니다",
+          count: asks.length, to: go.nursing.reservations() },
+        { tag: "추적 오늘", text: "오늘 걸어야 하는 추적 콜",
+          count: due("today"), to: go.nursing.followups() },
+        { tag: "추적 이번 주", text: "이번 주 안에 걸어야 하는 추적 콜",
+          count: due("week"), to: go.nursing.followups() },
+        { tag: "콜", text: "부재로 다시 걸어야 하는 추적 콜",
+          count: follow.filter((r) => r.call_result === "부재").length,
+          to: go.nursing.followups() },
+        { tag: "문진", text: "접수 뒤 문진이 비어 있는 환자",
+          count: arrived.filter((r) => !r.questionnaire).length,
+          to: go.nursing.waiting() },
+        /* ⚠ 명부가 한 쪽(20명)만 와서 「20+」가 될 수 있다. 세는 조건은
+           맞지만 본 범위가 좁다 — api.js 가 page_size 를 실으면 정확해진다 */
+        { tag: "연락처", text: `전화번호가 비어 있는 환자${noPhone.more ? " (첫 20명 중)" : ""}`,
+          count: noPhone.n, to: go.nursing.patients() },
+        /* ⚠ **선생님별 오늘 배정 수는 못 낸다.** 환자 목록 응답
+           (PatientListSerializer)에 `primary_staff` 가 없어서 누가 누구
+           환자인지 모른다 — 「미배정 n」조차 못 센다. 배정이 이 과의 주
+           업무라 제일 아쉬운 자리다(8장 10번) */
+      ];
+    },
 
     /* ⚠ 접수·배정·문진·콜을 오늘 몇 건 했는지 세어 주는 자리가 없다(8장 1번) */
     done: () => ({ empty: "아직 없습니다" }),
+
+    /* 달력 옆 숫자 둘 — 이번 주 · 내일.
+       ⚠ 한 쪽 20건이라 꽉 차면 「20+」다(dept/home.js 의 capped) */
+    calNote: ({ thisWeek, tomorrow }) =>
+      `이번 주 ${H.capped(thisWeek).text} · 내일 ${H.capped(tomorrow).text}`,
 
     /* 합치고 나서 달력에 점이 둘이 된다 — 예약과 추적 콜.
        두 과가 따로일 때는 과마다 하나씩이었다 */
@@ -164,6 +218,18 @@ export const nursing = {
     ],
   },
 };
+
+/* 이번 주(오늘부터 7일) · 며칠 뒤 하루. 달력 옆 숫자가 쓴다.
+   ⚠ 좁게 끊어 부른다 — 한 쪽이 20건이라 범위가 넓으면 잘린다 */
+function week() {
+  const n = new Date();
+  return H.soft(api.schedule(H.iso(n), H.iso(new Date(Date.now() + 6 * 86400000))));
+}
+
+function day(after) {
+  const at = H.iso(new Date(Date.now() + after * 86400000));
+  return H.soft(api.schedule(at, at));
+}
 
 /* 달력이 쓸 한 달 치 예약. 이번 달 1일부터 말일까지 한 번에 받는다 —
    날짜마다 부르면 서른 번 나간다 */
