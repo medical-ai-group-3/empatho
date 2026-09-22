@@ -91,3 +91,8 @@ file-remove               hospital/screens/Upload.jsx:136
 care-steps                hospital/dept/breast/components/CareGuideModal.jsx:24
 care-step                 hospital/dept/breast/components/CareGuideModal.jsx:28
 file-retry                hospital/screens/Upload.jsx:185
+
+# 로그인 장면 (바탕화면 「로그인페이지」에서 들여온 것)  (1개)
+# ⚠ EmpathoLogin.css 는 원본의 styles.css 에서 자동 생성된 것이라 손대지
+#   않는다 — 고치면 다음 동기화 때 덮인다. 규칙 없는 손잡이는 여기 적는다.
+submit__label             hospital/screens/auth/EmpathoLogin.jsx:352
