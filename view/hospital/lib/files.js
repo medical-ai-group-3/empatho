@@ -88,6 +88,10 @@ function targetOf(spec, scope) {
   if (spec?.sop) return { ...common, path: `${SVC}/dicom/instances/${spec.sop}` };
   /* MRI 시리즈 — Orthanc 시리즈 ID. zip 으로 온다 */
   if (spec?.series) return { ...common, path: `${SVC}/dicom/series/${spec.series}` };
+  /* AI가 만든 세그멘테이션·메시·오버레이는 원본 버킷이 아니라
+     empatho-derived 에 저장된다. 원본 파일 경로로 요청하면 404가 나거나
+     빈 화면이 되므로 파생물 전용 다운로드 라우트를 사용한다. */
+  if (spec?.derived && spec?.key) return { ...common, path: `${SVC}/derived/${spec.key}` };
   if (spec?.key) return { ...common, path: `${SVC}/files/${spec.key}` };
   return null;
 }

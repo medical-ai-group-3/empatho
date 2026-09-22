@@ -74,9 +74,10 @@ const api = {
 function pathFile(raw = {}) {
   const bytes = raw.byte_size;
   const size = typeof bytes === "number" ? `${(bytes / 1048576).toFixed(1)} MB` : "";
-  const image = fileRef(raw.image ?? raw.file ?? raw.object ?? raw.object_key);
+  const kind = raw.kind ?? raw.file_kind ?? raw.type ?? "image";
+  const image = fileRef(raw.image ?? raw.file ?? raw.object ?? raw.object_key, kind === "mask");
   const mask = fileRef(raw.mask ?? raw.mask_image ?? raw.segmentation
-    ?? raw.labelmap ?? raw.mask_object ?? raw.mask_file);
+    ?? raw.labelmap ?? raw.mask_object ?? raw.mask_file, true);
   return {
     ...raw,
     id: raw.storage_object_id ?? raw.id,
@@ -86,24 +87,26 @@ function pathFile(raw = {}) {
     h: raw.h ?? raw.height_px,
     image,
     mask,
-    kind: raw.kind ?? raw.file_kind ?? raw.type ?? "image",
+    kind,
   };
 }
 
 /* 서버가 파일 참조를 {key}, {url}, 문자열 중 어느 모양으로 내려도
  * Stage/useFile 이 이해하는 형태로 맞춘다. 세그멘테이션은 원본 업로드와
  * 별도 storage object 로 내려올 수 있으므로 이 변환을 공용으로 쓴다. */
-function fileRef(value) {
+function fileRef(value, derived = false) {
   if (!value) return null;
   if (typeof value === "string") {
-    return /^(https?:|data:|blob:)/i.test(value) ? { url: value } : { key: value };
+    return /^(https?:|data:|blob:)/i.test(value)
+      ? { url: value }
+      : { key: value, ...(derived ? { derived: true } : {}) };
   }
   if (typeof value !== "object") return null;
   if (value.url || value.src || value.download_url) {
     return { url: value.url ?? value.src ?? value.download_url };
   }
   if (value.key || value.object_key) {
-    return { key: value.key ?? value.object_key };
+    return { key: value.key ?? value.object_key, ...(derived ? { derived: true } : {}) };
   }
   return null;
 }
