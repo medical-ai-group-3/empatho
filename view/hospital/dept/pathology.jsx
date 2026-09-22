@@ -52,10 +52,10 @@ const api = {
       path.uploadInfo(id),
       path.progress(id).catch(() => null),
     ]);
-    const result = toRead(s, up);
     const ai = progress?.results ?? progress?.items ?? progress?.data?.results
       ?? (Array.isArray(progress?.data) ? progress.data : null)
-      ?? result.ai;
+      ?? (Array.isArray(s.ai) ? s.ai : []);
+    const result = toRead(s, up, Array.isArray(ai) ? ai : []);
     return { ...result, ai: Array.isArray(ai) ? ai : result.ai };
   },
   draft:      (id, b) => path.draft(id, b),
@@ -74,7 +74,9 @@ const api = {
 function pathFile(raw = {}) {
   const bytes = raw.byte_size;
   const size = typeof bytes === "number" ? `${(bytes / 1048576).toFixed(1)} MB` : "";
-  const image = raw.image ?? (raw.object_key ? { key: raw.object_key } : null);
+  const image = fileRef(raw.image ?? raw.file ?? raw.object ?? raw.object_key);
+  const mask = fileRef(raw.mask ?? raw.mask_image ?? raw.segmentation
+    ?? raw.labelmap ?? raw.mask_object ?? raw.mask_file);
   return {
     ...raw,
     id: raw.storage_object_id ?? raw.id,
@@ -83,14 +85,65 @@ function pathFile(raw = {}) {
     w: raw.w ?? raw.width_px,
     h: raw.h ?? raw.height_px,
     image,
+    mask,
+    kind: raw.kind ?? raw.file_kind ?? raw.type ?? "image",
   };
+}
+
+/* 서버가 파일 참조를 {key}, {url}, 문자열 중 어느 모양으로 내려도
+ * Stage/useFile 이 이해하는 형태로 맞춘다. 세그멘테이션은 원본 업로드와
+ * 별도 storage object 로 내려올 수 있으므로 이 변환을 공용으로 쓴다. */
+function fileRef(value) {
+  if (!value) return null;
+  if (typeof value === "string") {
+    return /^(https?:|data:|blob:)/i.test(value) ? { url: value } : { key: value };
+  }
+  if (typeof value !== "object") return null;
+  if (value.url || value.src || value.download_url) {
+    return { url: value.url ?? value.src ?? value.download_url };
+  }
+  if (value.key || value.object_key) {
+    return { key: value.key ?? value.object_key };
+  }
+  return null;
+}
+
+function isMaskFile(file = {}) {
+  const kind = String(file.kind ?? "").toLowerCase();
+  return ["mask", "segmentation", "labelmap", "overlay"].includes(kind)
+    || /(^|[-_.])(mask|segmentation|labelmap)([-_.]|$)/i.test(file.name ?? "");
+}
+
+function attachMasks(crops, files, aiRows) {
+  const masks = files.filter(isMaskFile);
+  return crops.map((crop, index) => {
+    if (crop.mask) return crop;
+
+    const ai = aiRows[index] ?? {};
+    const aiMask = fileRef(ai.mask ?? ai.mask_image ?? ai.segmentation
+      ?? ai.labelmap ?? ai.overlay);
+    if (aiMask) return { ...crop, mask: aiMask };
+
+    /* 우선 원본 파일 id/이름으로 짝을 찾고, 식별자가 없는 응답은
+     * 원본과 마스크가 같은 순서로 내려오는 경우만 순서로 연결한다. */
+    const match = masks.find((mask) => {
+      const source = mask.source_id ?? mask.source_object_id ?? mask.source_storage_object_id
+        ?? mask.parent_id ?? mask.original_id;
+      return source != null && String(source) === String(crop.id);
+    }) ?? masks.find((mask) => {
+      const base = String(crop.name ?? "").replace(/\.[^.]+$/, "");
+      return base && String(mask.name ?? "").includes(base);
+    }) ?? masks[index];
+    return match?.image ? { ...crop, mask: match.image } : crop;
+  });
 }
 
 /* 서버 두 응답 → 판독 화면이 쓰는 한 덩어리.
  *
  * **서버 모양이 바뀌면 여기만 고친다.** 화면 다섯 장은 이 모양만 안다. */
-function toRead(s, up) {
+function toRead(s, up, aiRows = []) {
   const files = (up.uploads ?? []).map(pathFile);
+  const cropFiles = files.filter((file) => !isMaskFile(file));
   return {
     patient: {
       name: s.patient_name, age: s.age, sex: s.sex,
@@ -107,18 +160,18 @@ function toRead(s, up) {
       amend_history: s.amend_history ?? [],
     },
     radiology_summary: s.radiology_summary ?? null,
-    /* 크롭 한 장 = 원본 + (있으면) 마스크.
-       ⚠ 마스크는 아직 생산자가 없다. 판독 서버가 조직 마스크 생성을
-         꺼 두었다. 없으면 「마스크 없음」으로 뜨고 원본만 보인다.
-         StorageObject 에 mask 칸이 없어서 항상 null 이다 */
-    crops: files.map((f) => ({
+    /* 크롭 한 장 = 원본 + (있으면) 세그멘테이션 마스크.
+       마스크가 업로드 목록의 별도 파일로 오거나 AI 결과 안에 포함될 수
+       있어 attachMasks()가 두 응답을 병합한다. 두 응답 모두에 없으면
+       그때만 「마스크 없음」으로 표시한다. */
+    crops: attachMasks(cropFiles.map((f) => ({
       id: f.id, name: f.name,
       w: f.w ?? 512, h: f.h ?? 512,      /* 크롭은 512×512 */
       image: f.image,
       mask: f.mask ?? null,
-    })),
-    images: files.map((f) => ({ id: f.id, name: f.name })),
-    ai: s.ai ?? [],
+    })), files, aiRows),
+    images: cropFiles.map((f) => ({ id: f.id, name: f.name })),
+    ai: aiRows,
     doctor: s.doctor ?? {},
   };
 }
