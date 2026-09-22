@@ -354,6 +354,7 @@ def _specimen_ai(specimen):
                 "til": res.get("n_cells_til"),
                 "til_stromal": res.get("n_cells_til_stromal"),
             },
+            "mask": res.get("tissue_mask"),
         })
     return out
 
