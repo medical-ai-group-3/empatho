@@ -380,8 +380,36 @@ class SpecimenUploadListView(viewsets.ViewSet):
         # 취소된(soft-delete) 파일은 업로드 목록에서 뺀다.
         objects = models.StorageObject.objects.filter(
             specimen=specimen, deleted_at__isnull=True)
-        out = serializers.StorageObjectSerializer(objects, many=True)
-        return Response({"specimen_id": specimen.specimen_id, "uploads": out.data})
+        uploads = serializers.StorageObjectSerializer(objects, many=True).data
+
+        # AI가 만든 조직 세그멘테이션은 StorageObject가 아니라 Image
+        # (empatho-derived)에 저장된다. 원본 업로드만 반환하면 프론트는
+        # mask 주소를 알 수 없으므로, 원본과 연결된 mask 파생물을 같은
+        # 목록에 추가한다. 기존 uploads 항목의 모양은 변경하지 않는다.
+        masks = models.Image.objects.filter(
+            source_object__in=objects,
+            kind="mask",
+            deleted_at__isnull=True,
+        ).values(
+            "image_id", "source_object_id", "ai_result_id", "kind",
+            "bucket", "object_key", "width_px", "height_px", "content_type",
+            "byte_size",
+        )
+        uploads.extend({
+            "id": row["image_id"],
+            "storage_object_id": row["image_id"],
+            "source_object_id": row["source_object_id"],
+            "ai_result_id": row["ai_result_id"],
+            "kind": row["kind"],
+            "bucket": row["bucket"],
+            "object_key": row["object_key"],
+            "width_px": row["width_px"],
+            "height_px": row["height_px"],
+            "content_type": row["content_type"],
+            "byte_size": row["byte_size"],
+            "name": row["object_key"],
+        } for row in masks if row["object_key"])
+        return Response({"specimen_id": specimen.specimen_id, "uploads": uploads})
 
 class DiscordanceListView(generics.ListAPIView):
     """§1·§5 GET /discordances?patient={id}&status=open."""

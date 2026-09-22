@@ -411,7 +411,11 @@ class AiResultListView(viewsets.ViewSet):
 
         pct = int((done / total) * 100) if total else 0
 
-        return Response({"status": overall, "pct": pct})
+        # 상태만 폴링하던 기존 응답은 병리 조직 마스크의 실제 주소를
+        # 화면에 전달하지 못했다. 결과 JSON 안의 mask 스텁(object_key)을
+        # 함께 내려 주되, 기존 status/pct 계약은 그대로 유지한다.
+        out = serializers.AiResultSerializer(results, many=True).data
+        return Response({"status": overall, "pct": pct, "results": out})
 
 
 class AssessmentDraftView(AuditMixin, viewsets.ViewSet):
