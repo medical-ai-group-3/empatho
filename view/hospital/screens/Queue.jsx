@@ -84,7 +84,11 @@ function Inner({ cfg }) {
                   <SideDashboard stats={[{ label: "대기 중", value: data.items.length }]} />
                 </>
               }
-              right={pick ? <Detail cfg={cfg} id={pick} /> : null}
+              right={pick ? (
+                <Detail cfg={cfg} id={pick}
+                        onTake={() => onTake(data.items.find((it) => it.id === pick))}
+                        canTake={take} busy={busy} />
+              ) : null}
             />
           </>
         )}
@@ -184,9 +188,9 @@ function List({ cfg, data, q, setQ, pick, setPick, take, busy, onTake }) {
   );
 }
 
-/* 오른쪽 상세 — 아직 집은 것이 아니다. 보기만 한다.
+/* 오른쪽 상세 — 아직 집은 것이 아니다. 보고, 이 사람이라면 여기서 맡는다.
    ⚠ id 가 없으면 서버를 부르지 않는다. 부르면 /…/null 로 나가 404 다 */
-function Detail({ cfg, id }) {
+function Detail({ cfg, id, onTake, canTake, busy }) {
   const { loading, data, error, reload } =
     useApi(() => (id ? cfg.api.detail(id) : Promise.resolve(null)), [id]);
 
@@ -199,6 +203,19 @@ function Detail({ cfg, id }) {
             앞 환자에서 펴 둔 「유도 영상」이 다음 환자에도 펴져 있다 */}
         {data && <cfg.queue.Detail key={id} d={data} cfg={cfg} />}
       </Body>
+      {/* **고른 사람을 맡는다.** 큐 아래 「다음 환자 받기」는 언제나
+          선두를 집으므로, 검색으로 찾아 낸 사람이나 순서를 건너뛰어야 할
+          사람은 집을 길이 없었다. 순서를 바꾸는 것이 아니라 내가 보고
+          있는 이 사람을 집는 것이라, 남의 화면을 흔들지 않는다.
+          충돌·오류 처리는 선두를 집을 때와 같은 길을 탄다 */}
+      {onTake && (
+        <div className="q-foot">
+          <Btn kind="fill" onClick={onTake}
+               disabled={busy || !canTake?.ok} title={canTake?.attrs?.title}>
+            이 환자 맡기
+          </Btn>
+        </div>
+      )}
     </Card>
   );
 }
