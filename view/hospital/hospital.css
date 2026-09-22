@@ -387,7 +387,7 @@ input,select,textarea{font:inherit; color:inherit}
 
 /* ── 주 큐 — 한 줄짜리 ───────────────────────────────────────── */
 .qrows{flex:1; min-height:0; overflow-y:auto;
-  display:grid; grid-template-columns: var(--qrow-n-w) auto auto auto 1fr auto auto;
+  display:grid; grid-template-columns: var(--qrow-n-w) auto auto auto 1fr auto;
   column-gap:calc(14px * var(--ft));}
 .qrow{display:grid; grid-template-columns: subgrid; grid-column: 1/-1; align-items: center;
   padding:var(--qrow-pad-y) var(--hcard-pad-x);
