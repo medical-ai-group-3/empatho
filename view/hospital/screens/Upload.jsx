@@ -16,8 +16,12 @@ import { RUN_STATUS, label, tone } from "../codes";
  *   병리과  크롭 조직 이미지 (WSI 전체가 아니다. 여러 장 가능)
  *   영상의학과  촬영본. 맘모 4뷰 · 초음파 클립 · MRI 시퀀스(zip)
  *
+ * **파일은 [업로드] 를 눌러야 전송된다.** 고르기만 하면 「올리기 전」
+ *   으로 대기하고, 잘못 고른 것은 [제외] 로 뺀다. 서버 삭제 경로가 없어
+ *   올라간 뒤에는 못 되돌리기 때문이다.
+ *
  * **AI 분석은 여기서 시작하고 여기서 끝난다.**
- *   [AI 분석 시작]을 누르면 업로드가 확정되고 분석이 걸린다. 분석이
+ *   [AI 분석 시작]을 누르면 오더가 확정되고 분석이 걸린다. 분석이
  *   끝나야 3장(판독)으로 넘어갈 수 있다. 그래서 판독 화면에는
  *   「분석 중」이라는 상태가 아예 없다 — 들어갔으면 이미 결과가 있다.
  *
@@ -123,12 +127,17 @@ function Work({ cfg, id, d, reload }) {
         file: f,
         name: f.name,
         size: `${(f.size / 1048576).toFixed(1)} MB`,
-        state: "uploading",
+        state: "staged",     // 고르기만 하고 전송은 [업로드] 를 눌러야 한다
         error: null,
     }));
     setPicked((p) => [...p, ...uploads]);
+  }
 
-    for (const item of uploads) await sendFile(item);
+  /* [업로드] — 대기 중인 것만 실제로 보낸다. 고른 즉시 보내지 않는 이유:
+     잘못 고른 촬영본을 전송 전에 [제외] 로 뺄 수 있어야 한다(서버 삭제
+     경로가 없어, 올라간 뒤에는 못 되돌린다). */
+  async function uploadAll() {
+    for (const item of picked.filter((f) => f.state === "staged")) await sendFile(item);
   }
 
   async function sendFile(item) {
@@ -161,8 +170,13 @@ function Work({ cfg, id, d, reload }) {
 
   const uploadedCount = (d.files ?? []).length;
   const uploadBusy = picked.some((file) => file.state === "uploading");
+  const stagedCount = picked.filter((file) => file.state === "staged").length;
 
   async function analyze() {
+    if (stagedCount > 0) {
+      setMsg("올리기 전 파일이 있습니다 — 먼저 업로드하세요.");
+      return;
+    }
     setBusy(true);
     setMsg(null);
     try {
@@ -225,13 +239,15 @@ function Work({ cfg, id, d, reload }) {
           {picked.map((f) => (
             <li key={f.id}>
               <b>{f.name}</b><span>{f.size}</span>
-              <Chip tone={f.state === "failed" ? "fill" : "dot"}>
-                {f.state === "failed" ? "전송 실패" : "전송 중"}
+              <Chip tone={f.state === "failed" ? "fill" : f.state === "uploading" ? "dot" : "line"}>
+                {f.state === "failed" ? "전송 실패" : f.state === "uploading" ? "전송 중" : "올리기 전"}
               </Chip>
-              <button className="btn ghost file-remove" type="button"
-                      onClick={() => removePicked(f.id)}>
-                제외
-              </button>
+              {f.state !== "uploading" && (
+                <button className="btn ghost file-remove" type="button"
+                        onClick={() => removePicked(f.id)}>
+                  제외
+                </button>
+              )}
               {f.state === "failed" && (
                 <button className="btn line file-retry" type="button" onClick={() => sendFile(f)}>
                   재시도
@@ -244,6 +260,14 @@ function Work({ cfg, id, d, reload }) {
             <li className="none">아직 올린 파일이 없습니다</li>
           )}
         </ul>
+
+        {stagedCount > 0 && (
+          <div className="up-actions">
+            <Btn kind="fill" onClick={uploadAll} disabled={!send.ok || uploadBusy}>
+              {uploadBusy ? "올리는 중…" : `업로드 (${stagedCount})`}
+            </Btn>
+          </div>
+        )}
 
         {uploadBusy && (
           <p className="hint">

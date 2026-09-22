@@ -387,7 +387,7 @@ input,select,textarea{font:inherit; color:inherit}
 
 /* ── 주 큐 — 한 줄짜리 ───────────────────────────────────────── */
 .qrows{flex:1; min-height:0; overflow-y:auto;
-  display:grid; grid-template-columns: max-content auto auto auto 1fr auto;
+  display:grid; grid-template-columns: max-content auto auto auto auto 1fr auto;
   column-gap:calc(14px * var(--ft));}
 .qrow{display:grid; grid-template-columns: subgrid; grid-column: 1/-1; align-items: center;
   padding:var(--qrow-pad-y) var(--hcard-pad-x);
@@ -400,7 +400,10 @@ input,select,textarea{font:inherit; color:inherit}
   padding:calc(6px * var(--sp)) var(--hcard-pad-x);
   background:var(--card); border-bottom:var(--hair) solid var(--line-2);
   font-size:var(--qrow-meta-fs); font-weight:600; color:var(--warm)}
-.qrow-head .qrow-r{justify-self:end}
+/* 라벨은 각 열 가운데. 번호칸은 비었고, 환자번호는 P번호 위(왼쪽)로 */
+.qrow-head > *{justify-self:center}
+.qrow-head .qrow-n{justify-self:end}
+.qrow-head .qrow-r{justify-self:start}
 /* 누를 데가 있을 때만 손가락이 된다 — 못 누르는 줄에 커서만 바뀌면
    눌러 보고 나서야 안 된다는 걸 안다 */
 .qrow[role="button"]{cursor:pointer}
@@ -838,22 +841,26 @@ a.frow:hover .frow-k{color:var(--ink)}
 .work-q{display:flex; flex-direction:column; min-height:0; min-width:0;
   background:var(--v-card); color:var(--v-ink)}
 .work-q-h{flex:none; display:flex; flex-direction:column; gap:var(--gap-sm);
-  padding:var(--hcard-pad-y) var(--bcol-pad);
+  padding:var(--hcard-pad-y) var(--work-q-pad);
   border-bottom:var(--hair) solid var(--v-line)}
 .work-q-h h2{font-size:var(--hcard-h-fs); font-weight:700}
 .work-tabs{display:grid; gap:var(--gap-xs); padding:var(--gap-xxs);
   grid-template-columns:repeat(2, minmax(0, 1fr));
   background:var(--v-bg); border-radius:var(--in-radius)}
 .work-tab{height:var(--work-tab-h); border-radius:var(--radius-sm);
-  color:var(--v-warm); font-size:var(--qtab-fs);
+  color:var(--v-warm); font-size:var(--qtab-fs); text-align:center;
   transition:background var(--m-hover) var(--ease-tab)}
+/* 어두운 큐 안에서 line 버튼은 밝은표면용 색이라 글자가 묻힌다 —
+   판독 뷰어(.vside)와 같은 다크 규칙을 준다 */
+.work-q .btn.line{background:transparent; color:var(--v-ink);
+  box-shadow:inset 0 0 0 var(--hair) var(--v-line)}
 .work-tab:hover{color:var(--v-ink)}
 .work-tab.on{background:var(--v-line); color:var(--v-ink); font-weight:600}
 .work-tab i{font-style:normal; font-variant-numeric:tabular-nums}
 
 .work-q-b{flex:1; min-height:0; overflow-y:auto}
 .work-row{width:100%; text-align:left; display:flex; flex-direction:column;
-  gap:var(--brow-gap); padding:var(--work-row-pad-y) var(--bcol-pad);
+  gap:var(--brow-gap); padding:var(--work-row-pad-y) var(--work-q-pad);
   color:var(--v-ink); border-bottom:var(--hair) solid var(--v-line);
   transition:background var(--m-hover) var(--ease-tab)}
 .work-row:hover{background:var(--v-bg)}
@@ -1907,6 +1914,7 @@ td.none,tr.none td{text-align:center; padding:var(--card-pad) 0}
 .files li b{flex:1; min-width:0; font-weight:500; overflow:hidden;
   text-overflow:ellipsis; white-space:nowrap}
 .files li span{color:var(--warm); font-size:var(--hint-fs); flex:none}
+.up-actions{margin-top:var(--gap-sm); display:flex; justify-content:flex-end}
 
 /* 시리즈 고르는 체크박스 */
 .ck{display:flex; align-items:center; gap:var(--sub-gap); width:100%;

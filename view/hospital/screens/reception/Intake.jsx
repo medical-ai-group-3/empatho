@@ -109,7 +109,7 @@ function Find({ api, go: goTo, onDone }) {
                placeholder="이름 · 전화 · 생년월일" aria-label="환자 검색" />
         <button className="btn dark" type="submit">검색</button>
         {can("reception.patient.create")
-          && <Btn to={goTo.patients()}>+ 신환 등록</Btn>}
+          && <Btn to={goTo.patients()}>+ 환자 등록</Btn>}
       </form>
 
       {err && <p className="note err">{err.detail || err.message}</p>}
@@ -163,7 +163,7 @@ function Board({ rows }) {
               {here.length === 0
                 ? (
                   <p className="hcard-k hpad">
-                    {col.stage ? "없습니다" : "서버가 이 단계를 아직 안 나눕니다"}
+                    {col.stage ? "대기 중인 환자가 없습니다" : "이 단계는 아직 집계되지 않습니다"}
                   </p>
                 )
                 : here.map((r) => <BRow key={r.exam_order_id ?? r.patient_id} row={r} />)}

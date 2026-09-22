@@ -81,7 +81,7 @@ export default function Reservations({ cfg }) {
   const asks = requests.data ?? [];
 
   return (
-    <Page crumb={[cfg.name, "예약"]} title="예약 판" className="resv-page"
+    <Page crumb={[cfg.name, "예약"]} title="예약 관리" className="resv-page"
           right={(
             <span className="sorts">
               <button type="button" className={`pill${tab === "board" ? " on" : ""}`}

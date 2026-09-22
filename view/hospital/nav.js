@@ -93,7 +93,7 @@ const DEPTS = [
       /* 예약 판. 앱 신청 확인은 화면을 따로 안 두고 **이 판 안의 탭**이다 —
          둘 다 예약이고 신청은 「앱에서 들어온 것」일 뿐이다. 화면 줄이
          일곱이 되면 내비게이터 둘째 줄이 꽉 찬다(6.1) */
-      { key: "reservations", use: "reception.reservations", menu: "예약 판", title: "예약 판",
+      { key: "reservations", use: "reception.reservations", menu: "예약 관리", title: "예약 관리",
         need: DESK },
 
       { key: "followups", use: "nursing.followups", menu: "추적 관리", title: "추적 관리",

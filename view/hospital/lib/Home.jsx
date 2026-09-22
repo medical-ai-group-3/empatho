@@ -208,7 +208,7 @@ function Intake({ api, go, onDone }) {
         <input value={q} onChange={(e) => setQ(e.target.value)}
                placeholder="이름 · 전화 · 생년월일" aria-label="환자 검색" />
         <button className="btn dark" type="submit">검색</button>
-        <Link className="btn line" to={go.intake()}>+ 신환 등록</Link>
+        <Link className="btn line" to={go.intake()}>+ 환자 등록</Link>
       </form>
 
       {err && <p className="hcard-err">{err.detail || err.message}</p>}
@@ -270,6 +270,7 @@ function Queue({ queue }) {
                 <span className="qrow-meta">나이·성별</span>
                 <span className="qrow-chip">구분</span>
                 <span className="qrow-sub">상태</span>
+                <span aria-hidden="true" />
                 <span className="qrow-r">환자번호</span>
               </div>
               {rows.map((r, i) => <QRow key={r.id} row={r} n={i + 1} />)}
@@ -297,6 +298,7 @@ function QRow({ row, n }) {
         {row.chip ? <Chip tone={row.chipTone ?? "line"}>{row.chip}</Chip> : null}
       </span>
       <span className="qrow-sub">{row.sub}</span>
+      <span aria-hidden="true" />
       <span className="qrow-r">
         {row.no && <i className="qrow-no">{row.no}</i>}
         {row.at && <time>{row.at}</time>}

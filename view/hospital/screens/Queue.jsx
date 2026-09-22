@@ -249,7 +249,7 @@ function Mid({ cfg, row, onTook }) {
 
           <div className="work-foot">
             <Take cfg={cfg} id={r.id} onTook={onTook} kind="fill"
-                  label="집고 올리기" />
+                  label="환자 선택" />
           </div>
         </>
       )}

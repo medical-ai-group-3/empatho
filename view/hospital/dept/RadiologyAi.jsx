@@ -128,6 +128,11 @@ function Mammo({ a, pick, onPick }) {
            붙인다. 한쪽만 바꾸면 눌러도 아무 도형도 안 밝는다 */
         const sid = l.id ?? `b${i}`;
         const on = pick != null && pick === sid;
+        /* 서버는 descriptors 를 {축키: {value, confidence…}} 딕셔너리로 준다
+           (목업만 배열). ?? [] 는 null 만 막아 딕셔너리에 .map 이 없어 터진다 */
+        const dsc = Array.isArray(l.descriptors)
+          ? l.descriptors
+          : Object.entries(l.descriptors ?? {}).map(([axis, v]) => ({ axis, ...v }));
         return (
           <section className={on ? "ai-card on" : "ai-card"} key={l.id ?? i}>
             <div className="ai-h">
@@ -149,7 +154,7 @@ function Mammo({ a, pick, onPick }) {
               <table className="ai-tbl">
                 <thead><tr><th>축</th><th>값</th><th>확신도</th><th>검증</th></tr></thead>
                 <tbody>
-                  {(l.descriptors ?? []).map((x) => (
+                  {dsc.map((x) => (
                     <tr key={x.axis}>
                       <td>{label(DESCRIPTOR_AXIS, x.axis)}</td>
                       <td>{x.value}</td>
