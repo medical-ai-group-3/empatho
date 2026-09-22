@@ -279,9 +279,14 @@ function QRow({ row, n }) {
     <article className="qrow" {...open}>
       <i className="qrow-n">{n}</i>
       <b>{row.name}</b>
-      {row.meta && <span className="qrow-meta">{row.meta}</span>}
-      {row.chip && <Chip tone={row.chipTone ?? "line"}>{row.chip}</Chip>}
-      {row.sub && <span className="qrow-sub">{row.sub}</span>}
+      {/* 값이 없어도 셀은 항상 그린다 — 안 그리면 subgrid 에서 자식 수가
+          줄어 뒤 항목이 앞 컬럼으로 밀린다(환자 #108 처럼 나이·성별이
+          빈 행). 빈 <span> 이 그 열의 자리를 잡아 정렬이 유지된다. */}
+      <span className="qrow-meta">{row.meta}</span>
+      <span className="qrow-chip">
+        {row.chip ? <Chip tone={row.chipTone ?? "line"}>{row.chip}</Chip> : null}
+      </span>
+      <span className="qrow-sub">{row.sub}</span>
       <span className="qrow-r">
         {row.no && <i className="qrow-no">{row.no}</i>}
         {row.at && <time>{row.at}</time>}
