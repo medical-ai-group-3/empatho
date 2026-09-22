@@ -44,7 +44,7 @@ export default function Patients() {
 
   return (
     <Page className="breast" crumb={["유방외과", "전체 환자 목록"]}
-      title="전체 환자 목록" sub="진료 이력이 있는 환자를 찾아 검사 종합과 수술 결정을 이어서 확인합니다.">
+      title="전체 환자 목록">
       <div className="pane">
         <Body loading={loading} error={error} onRetry={reload}>
           {patients && (

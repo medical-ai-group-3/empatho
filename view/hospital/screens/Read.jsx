@@ -7,6 +7,7 @@ import Stage from "../lib/Stage";
 import { useFile } from "../lib/files";
 import { useApi } from "../lib/useApi";
 import { can } from "../perm";
+import * as H from "../dept/home";
 
 /* MRI 뷰어(유방외과 검사 종합 확인에서 쓰는 것과 같은 컴포넌트) — 병리에는
  * 안 쓰고, 영상의학과라도 맘모·초음파만 보면 필요 없다. 늦게 불러온다
@@ -132,7 +133,16 @@ function Inner({ cfg, id, d }) {
   }
 
   return (
-    <div className={`read-workspace${full ? " readfull" : ""}`}>
+    /* 4.4 히스토리 레일 — **판독은 이전과 견주는 일이다.**
+       왼쪽에 이 환자의 지난 기록, 가운데가 뷰어, 오른쪽이 쓰는 칸.
+       ⚠ 목업(Read.html)의 왼쪽 104px 은 **이번 검사의 섬네일 줄**인데
+         4.4 가 거기를 「이 환자의 지난 검사」로 못 박았다. 섬네일은 이미
+         뷰어 안에 있고(시리즈 전환), 화면을 나갔다 오지 않고 8mm → 12mm
+         를 보려면 지난 기록이 그 자리에 있어야 한다.
+       ⚠ 전체화면이면 레일을 접는다 — 그때는 영상만 본다 */
+    <div className={`read-cols${full ? " readfull" : ""}`}>
+      {!full && <PastRail cfg={cfg} patientId={d.patient?.id} />}
+      <div className={`read-workspace${full ? " readfull" : ""}`}>
       <Card pad={false}>
         <Viewer
           infoName={c.infoName}
@@ -223,6 +233,46 @@ function Inner({ cfg, id, d }) {
         canSave={c.ready ? c.ready(f, d) : true}
         saveLabel="저장"
       />
+      </div>
     </div>
+  );
+}
+
+/* ── 왼쪽 레일 — 이 환자의 지난 기록 (4.4) ──────────────────────
+ * 날짜를 크게, 그 아래 그날 무슨 일이 있었는지. **색을 쓰지 않는다.**
+ *
+ * ⚠ **지난 «검사»를 따로 부를 경로가 없다.** `/patients/{id}/studies` 는
+ *   api.js 에서 유방외과 것으로만 열려 있고 새 경로는 안 판다. 대신
+ *   `timeline(pid)` 이 촬영·판독·검체·확진을 날짜로 주고, 판독 줄은
+ *   BI-RADS 를 `detail` 에 달고 온다 — 견주는 데 필요한 것이 그 값이다.
+ * ⚠ **눌러도 화면을 안 옮긴다.** 쓰던 소견이 날아가면 안 된다. 그 날짜의
+ *   영상을 가운데에 띄우려면 study 를 날짜로 찾는 경로가 있어야 한다(8장).
+ */
+function PastRail({ cfg, patientId }) {
+  const line = useApi(
+    () => (patientId ? H.soft(cfg.api.timeline(patientId)) : Promise.resolve([])),
+    [patientId]);
+  const rows = [...H.rows(line.data)].reverse();
+
+  return (
+    <nav className="prail" aria-label="이 환자의 지난 기록">
+      <header className="prail-h">
+        <b>지난 기록</b>
+        <em>{rows.length}</em>
+      </header>
+      <div className="prail-b">
+        {/* 맨 위는 항상 「지금」이다 — 돌아올 곳이 분명해야 한다 */}
+        <p className="prail-now">지금 판독</p>
+        {rows.length === 0
+          ? <p className="hcard-k hpad">아직 없습니다</p>
+          : rows.map((r, i) => (
+            <article className="prail-day" key={`${r.at}-${i}`}>
+              <time>{H.day(r.at)}</time>
+              <span className="prail-k">{r.type}</span>
+              {r.detail && <b>{r.detail}</b>}
+            </article>
+          ))}
+      </div>
+    </nav>
   );
 }

@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>영상의학과 · 판독 정정</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:'IBM Plex Sans KR',system-ui,sans-serif;background:#f5f4f2;color:#0c0a09}
+a{color:#1d6fa8}a:hover{color:#155a8a}
+header a:hover{color:#fafaf9}
+button,input,select,textarea{font-family:inherit}
+:focus-visible{outline:2px solid #3ba6f1;outline-offset:2px}
+.ep-primary:hover{background:#155a8a !important}
+.ep-row:hover{background:#fafaf9}
+.ep-chip:hover{border-color:#a8a29e !important}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; display: flex; flex-direction: column; background: #f5f4f2; overflow: hidden; position: relative;">
+
+  <header style="height: 52px; flex-shrink: 0; background: #1c1917; color: #fafaf9; display: flex; align-items: center; gap: 18px; padding: 0 16px; box-sizing: border-box;">
+    <a href="Main.dc.html" style="display: flex; align-items: center; gap: 10px; text-decoration: none; color: #fafaf9;">
+      <img src="/_blob/8b72413df6cbff803f5c0794f04a2a3f" alt="" style="width: 28px; height: 28px; background: #fafaf9; border-radius: 7px; padding: 2px; box-sizing: border-box;">
+      <span style="font-weight: 700; letter-spacing: 0.08em; font-size: 14px;">EMPATHO</span>
+    </a>
+    <span style="width: 1px; height: 18px; background: #44403c;"></span>
+    <nav aria-label="과" style="display: flex; height: 52px;">
+      <a href="ReceptionHome.dc.html" style="display: flex; align-items: center; gap: 7px; padding: 0 14px; height: 52px; box-sizing: border-box; text-decoration: none; font-size: 13px; font-weight: 500; color: #a8a29e; border-bottom: 2px solid transparent;">원무 <span style="font-size: 11px; min-width: 18px; height: 18px; border-radius: 9px; background: #44403c; color: #fafaf9; display: inline-flex; align-items: center; justify-content: center; padding: 0 5px; box-sizing: border-box;">4</span></a>
+      <a href="NursingHome.dc.html" style="display: flex; align-items: center; gap: 7px; padding: 0 14px; height: 52px; box-sizing: border-box; text-decoration: none; font-size: 13px; font-weight: 500; color: #a8a29e; border-bottom: 2px solid transparent;">간호 <span style="font-size: 11px; min-width: 18px; height: 18px; border-radius: 9px; background: #44403c; color: #fafaf9; display: inline-flex; align-items: center; justify-content: center; padding: 0 5px; box-sizing: border-box;">5</span></a>
+      <a href="RadiologyHome.dc.html" aria-current="page" style="display: flex; align-items: center; gap: 7px; padding: 0 14px; height: 52px; box-sizing: border-box; text-decoration: none; font-size: 13px; font-weight: 600; color: #fafaf9; border-bottom: 2px solid #3ba6f1;">영상의학 <span style="font-size: 11px; min-width: 18px; height: 18px; border-radius: 9px; background: #1d7fc2; display: inline-flex; align-items: center; justify-content: center; padding: 0 5px; box-sizing: border-box;">7</span></a>
+      <a href="PathologyHome.dc.html" style="display: flex; align-items: center; gap: 7px; padding: 0 14px; height: 52px; box-sizing: border-box; text-decoration: none; font-size: 13px; font-weight: 500; color: #a8a29e; border-bottom: 2px solid transparent;">병리 <span style="font-size: 11px; min-width: 18px; height: 18px; border-radius: 9px; background: #44403c; color: #fafaf9; display: inline-flex; align-items: center; justify-content: center; padding: 0 5px; box-sizing: border-box;">5</span></a>
+      <a href="SurgeryHome.dc.html" style="display: flex; align-items: center; gap: 7px; padding: 0 14px; height: 52px; box-sizing: border-box; text-decoration: none; font-size: 13px; font-weight: 500; color: #a8a29e; border-bottom: 2px solid transparent;">유방외과 <span style="font-size: 11px; min-width: 18px; height: 18px; border-radius: 9px; background: #44403c; color: #fafaf9; display: inline-flex; align-items: center; justify-content: center; padding: 0 5px; box-sizing: border-box;">6</span></a>
+    </nav>
+    <div style="flex-grow: 1;"></div>
+    <label style="display: flex; align-items: center; gap: 8px; width: 340px; height: 34px; padding: 0 12px; border-radius: 8px; background: #292524; border: 1px solid #44403c; box-sizing: border-box; color: #a8a29e;">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+      <span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);">환자 검색</span>
+      <input type="search" placeholder="환자 이름 · 환자번호" style="flex-grow: 1; min-width: 0; background: transparent; border: none; color: #fafaf9; font-size: 13px; outline: none;">
+      <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #78716c; border: 1px solid #44403c; border-radius: 4px; padding: 1px 5px;">/</span>
+    </label>
+    <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #a8a29e;">09-21 (월) 14:32</span>
+    <button type="button" aria-label="알림 3건" style="position: relative; width: 34px; height: 34px; border-radius: 8px; border: none; background: transparent; color: #d6d3d1; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 1112 0c0 7 3 8 3 8H3s3-1 3-8"></path><path d="M10 20a2 2 0 004 0"></path></svg>
+      <span style="position: absolute; top: 6px; right: 7px; width: 7px; height: 7px; border-radius: 50%; background: #f87171;"></span>
+    </button>
+    <a href="Me.dc.html" style="display: flex; align-items: center; gap: 8px; text-decoration: none; color: #fafaf9;">
+      <span style="width: 28px; height: 28px; border-radius: 50%; background: #44403c; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700;">영</span>
+      <span style="display: flex; flex-direction: column; line-height: 1.2;"><span style="font-size: 12px; font-weight: 600;">시연영상</span><span style="font-size: 11px; color: #a8a29e;">영상의학과 · 교수</span></span>
+    </a>
+  </header>
+
+  <div style="flex-shrink: 0; height: 46px; box-sizing: border-box; background: #fffdf8; border-bottom: 1px solid #e7e5e4; padding: 0 16px; display: flex; align-items: center; gap: 12px;">
+    <span style="width: 28px; height: 28px; border-radius: 50%; background: #f3e8ef; color: #9d3b56; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; flex-shrink: 0;">김</span>
+    <b style="font-size: 14px;">김서연</b>
+    <span style="font-size: 12.5px; color: #57534e;">54 · 여</span>
+    <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #78716c;">P-2024-0417</span>
+    <span style="width: 1px; height: 16px; background: #e7e5e4;"></span>
+    <div style="display: flex; gap: 6px;"><span style="font-size: 11.5px; padding: 3px 8px; border-radius: 6px; background: #fef3c7; color: #78350f; font-weight: 600;">조영제 알레르기</span><span style="font-size: 11.5px; padding: 3px 8px; border-radius: 6px; background: #f5f5f4; color: #57534e;">유방 보형물 없음</span></div>
+    <div style="flex-grow: 1;"></div>
+    <span style="font-size: 12px; color: #57534e;">직전 2026-09-18 US · BI-RADS 4C</span>
+    <span style="width: 1px; height: 16px; background: #e7e5e4;"></span>
+    <span style="font-size: 12px; color: #57534e;">담당 최민호 교수</span>
+    
+    <a href="Patient.dc.html" style="font-size: 12px; font-weight: 600; text-decoration: none;">환자 상세</a>
+  </div>
+
+
+  <div style="flex-shrink: 0; background: #ffffff; border-bottom: 1px solid #e7e5e4; padding: 13px 18px; display: flex; align-items: center; gap: 14px;">
+    <div style="display: flex; flex-direction: column; gap: 3px;">
+      <span style="font-size: 12px; color: #78716c;">영상의학과 · 시연환자01 · US 2026-09-21</span>
+      <div style="display: flex; align-items: baseline; gap: 10px;">
+        <h1 style="margin: 0; font-size: 19px; font-weight: 700;">판독 정정</h1>
+        <span style="font-size: 13px; color: #57534e;">이미 확정한 판독을 고칩니다</span>
+      </div>
+    </div>
+    <div style="flex-grow: 1;"></div>
+      <a href="RadiologyList.dc.html" style="height: 36px; padding: 0 14px; border-radius: 8px; border: 1px solid #d6d3d1; background: #ffffff; color: #292524; font-size: 13px; cursor: pointer; display: flex; align-items: center; text-decoration: none;">취소</a>
+      <button type="button" class="ep-primary" style="height: 36px; padding: 0 16px; border-radius: 8px; border: none; background: #1d7fc2; color: #ffffff; font-size: 13px; font-weight: 600; cursor: pointer;">정정 저장</button>
+  </div>
+
+  <div style="flex-grow: 1; min-height: 0; padding: 14px 18px 18px; box-sizing: border-box; display: flex; flex-direction: column; gap: 12px;">
+    <div style="display: flex; align-items: center; gap: 10px; padding: 11px 14px; border-radius: 10px; background: #fef3c7; color: #78350f; font-size: 13px;">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l9 16H3z"></path><path d="M12 10v4M12 17v.5"></path></svg>
+      <span>원래 판독은 <b>지워지지 않습니다.</b> 새 판독이 만들어지고 옛 판독이 그것을 가리킵니다. 환자 앱에는 확정된 최신 판독만 나갑니다.</span>
+    </div>
+    <div style="flex-grow: 1; min-height: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;">
+      <section style="background: #ffffff; border: 1px solid #e7e5e4; border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 11px; min-height: 0; overflow: auto;">
+        <div style="display: flex; align-items: center; gap: 8px;"><h3 style="margin: 0; font-size: 14px; font-weight: 700;">원래 판독</h3><span style="font-size: 11px; padding: 2px 7px; border-radius: 4px; background:#f5f5f4;color:#57534e;">확정 · 09-21 13:40</span></div>
+        <dl style="margin: 0; display: grid; grid-template-columns: 76px minmax(0, 1fr); row-gap: 9px; font-size: 13px;">
+          <dt style="color: #78716c;">판정</dt><dd style="margin: 0;"><b>BI-RADS 4C</b></dd>
+          <dt style="color: #78716c;">판독의</dt><dd style="margin: 0;">김지현 교수</dd>
+          <dt style="color: #78716c;">권고</dt><dd style="margin: 0;">초음파 유도 조직검사</dd>
+        </dl>
+        <div style="padding: 11px 13px; border-radius: 9px; background: #fafaf9; font-size: 13px; line-height: 1.65; color: #292524;">좌측 2시 방향, 유두에서 3cm 거리에 12mm 크기의 경계가 불규칙한 저에코 종괴. 후방 음영 동반. 이전 검사(2026-03) 대비 크기 증가.</div>
+      </section>
+      <section style="background: #ffffff; border: 1px solid #e7e5e4; border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 11px; min-height: 0; overflow: auto;">
+        <div style="display: flex; align-items: center; gap: 8px;"><h3 style="margin: 0; font-size: 14px; font-weight: 700;">정정본</h3><span style="font-size: 11px; padding: 2px 7px; border-radius: 4px; background:#fef3c7;color:#78350f;">작성 중</span></div>
+        <div style="display: flex; flex-direction: column; gap: 7px;">
+          <span style="font-size: 12px; font-weight: 600; color: #57534e;">판정</span>
+          <div role="radiogroup" aria-label="BI-RADS" style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px;">
+            <button type="button" role="radio" style="height: 38px; border-radius: 7px; border: 1px solid #d6d3d1; background: #ffffff; font-family: 'IBM Plex Mono', monospace; font-size: 13px; cursor: pointer;">1</button>
+            <button type="button" role="radio" style="height: 38px; border-radius: 7px; border: 1px solid #d6d3d1; background: #ffffff; font-family: 'IBM Plex Mono', monospace; font-size: 13px; cursor: pointer;">2</button>
+            <button type="button" role="radio" style="height: 38px; border-radius: 7px; border: 1px solid #d6d3d1; background: #ffffff; font-family: 'IBM Plex Mono', monospace; font-size: 13px; cursor: pointer;">3</button>
+            <button type="button" role="radio" style="height: 38px; border-radius: 7px; border: 1px solid #d6d3d1; background: #ffffff; font-family: 'IBM Plex Mono', monospace; font-size: 13px; cursor: pointer;">4A</button>
+            <button type="button" role="radio" style="height: 38px; border-radius: 7px; border: 1px solid #d6d3d1; background: #ffffff; font-family: 'IBM Plex Mono', monospace; font-size: 13px; cursor: pointer;">4B</button>
+            <button type="button" role="radio" style="height: 38px; border-radius: 7px; border: 1.5px solid #1d7fc2; background: #1d7fc2; color: #ffffff; font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600; cursor: pointer;">4C</button>
+            <button type="button" role="radio" style="height: 38px; border-radius: 7px; border: 1px solid #d6d3d1; background: #ffffff; font-family: 'IBM Plex Mono', monospace; font-size: 13px; cursor: pointer;">5</button>
+          </div>
+        </div>
+        <label style="display: flex; flex-direction: column; gap: 6px; width: 100%; font-size: 12px; font-weight: 600; color: #57534e;">소견
+        <textarea rows="3" style="resize: vertical; padding: 9px 11px; border: 1px solid #d6d3d1; border-radius: 8px; font-size: 13px; line-height: 1.55; color: #0c0a09;">좌측 2시 방향 12mm 불규칙 저에코 종괴. 후방 음영 동반. 액와 림프절 단축 직경 9mm로 증가 소견 추가.</textarea></label>
+        <label style="display: flex; flex-direction: column; gap: 6px; width: 100%; font-size: 12px; font-weight: 600; color: #57534e;">정정 사유
+        <textarea rows="3" style="resize: vertical; padding: 9px 11px; border: 1px solid #d6d3d1; border-radius: 8px; font-size: 13px; line-height: 1.55; color: #0c0a09;">액와 림프절 소견 누락</textarea><span style="font-size: 11px; color: #78716c;">필수 · 왜 고치는지 남깁니다</span></label>
+      </section>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

@@ -1,6 +1,7 @@
 import { Suspense, lazy, useState } from "react";
 import { rad } from "../api";
 import { go } from "../nav";
+import * as H from "./home";
 import { Chip, Facts, Fold, Warn, useCan } from "../lib/Parts";
 import { Body } from "../lib/Body";
 import RadiologyAi from "./RadiologyAi";
@@ -198,6 +199,71 @@ export const radiology = {
   api,
   go: go.radiology,
 
+  /* ── 홈 (docs/mockup/RadiologyHome.html) ────────────
+   *
+   * ⚠ **목업이 줄마다 적는 AI 상태를 못 쓴다.** 목록 응답에
+   *   AI 결과가 안 실린다 — 줄마다 /ai-results?study= 를 부르면
+   *   줄 수만큼 요청이 나간다(8장 1번).
+   */
+  home: {
+    load: () => Promise.all([H.soft(api.queue()), api.list({})])
+      .then(([queue, list]) => ({ queue: H.rows(queue), studies: H.rows(list) })),
+
+    primary: { label: "다음 환자 받기", to: go.radiology.queue(),
+               need: "radiology.queue.view" },
+
+    queue: ({ studies }) => ({
+      title: "판독 대기",
+      hint: "큐 맨 앞부터 집습니다",
+      empty: "판독 대기가 없습니다",
+      rows: studies.filter((r) => r.read_status === "pending").map((r) => ({
+        id: r.id,
+        name: H.nameOf(r),
+        no: H.noOf(r),
+        meta: H.who(r),
+        chip: r.modality ? label(MODALITY, asModality(r.modality)) : null,
+        chipTone: "fill",
+        /* ⚠ 목업은 여기에 「AI 4B~5 · 신뢰도 중」을 적지만 **목록 응답에 AI
+           상태가 없다.** 줄마다 /ai-results?study= 를 부르면 줄 수만큼
+           요청이 나간다 — 8장 1번이 붙을 때까지 검사 이름만 적는다 */
+        sub: [r.exam_name, r.purpose].filter(Boolean).join(" · "),
+        at: H.at(r.performed_at),
+        to: r.patient != null ? go.patient(r.patient) : null,
+        why: "판독",
+      })),
+    }),
+
+    stuck: ({ queue, studies }) => [
+      { tag: "초안", text: "저장만 하고 확정 안 한 판독",
+        count: studies.filter((r) => r.read_status === "draft").length,
+        to: go.radiology.list() },
+      { tag: "촬영 대기", text: "아직 아무도 안 집은 오더",
+        count: queue.length, to: go.radiology.queue() },
+      /* ⚠ 목업의 「AI 확인 전」·「위양성」은 못 센다. AI 결과를 열어 봤는지,
+         병변을 위양성으로 표시하고 정리했는지는 목록에 안 실린다 */
+    ],
+
+    done: ({ studies }) => {
+      const it = studies
+        .filter((r) => r.read_status === "finalized" && H.isToday(r.updated_at));
+      return {
+        summary: `확정 ${it.length}`,
+        /* ⚠ 판정(BI-RADS)은 Assessment 표에 있고 목록에 안 실린다 —
+           목업처럼 「— BI-RADS 4C」 까지는 못 적는다 */
+        items: it.map((r) => ({
+          id: r.id,
+          at: H.at(r.updated_at),
+          text: `${H.nameOf(r)} · ${r.modality ? label(MODALITY, asModality(r.modality)) : "검사"} 판독 확정`,
+          to: go.radiology.read(r.id),
+        })),
+      };
+    },
+
+    /* ⚠ 달력에 찍을 점이 없다. 목업의 「판독 당번 · 학회」는 근무표인데
+       서버에 그 표가 없다 — 달만 그리고 점은 안 찍는다 */
+    marks: () => [],
+  },
+
   /* 티켓이 여는 범위의 단위 — 영상은 검사(study)다.
      ⚠ 이 화면들이 들고 다니는 id 가 study_id 라 그대로 맞는다.
      맘모 원본·MRI 시리즈(DICOM)는 이 범위로 못 받는다 — 서버가
@@ -206,15 +272,27 @@ export const radiology = {
 
   /* ── 1장 · 촬영 대기 큐 ───────────────────────────────── */
   queue: {
-    title: "촬영 대기 큐",
-    sub: "유방외과가 낸 오더 중 아직 아무도 집지 않은 것이 요청 순서대로 뜹니다. 집으면 다른 선생님 화면에서 사라집니다.",
+    title: "촬영 대기",
     listTitle: "촬영 대기 오더",
+    /* 네 단 껍데기가 읽는 제목들(screens/Queue.jsx) */
+    detailTitle: "이번 검사",
+    pastTitle: "지난 검사",
+    /* ⚠ **서버가 주는 값이 아니다.** 상용구를 저장하는 경로가 없어 여기
+       박아 뒀다. 사람마다 다르게 쓰려면 서버에 자리가 있어야 한다(8장) */
+    phrases: [
+      ["종괴", ["경계 불규칙, 침상 변연", "타원형 저에코 결절, 경계 명확"]],
+      ["석회화", ["분절형 미세석회화", "양성 추정 거대석회화"]],
+      ["림프절", ["액와 림프절 종대 없음", "액와 림프절 피질 비후"]],
+      ["결론", ["추가 조직검사 권고", "6개월 추적 초음파 권고"]],
+    ],
     searchHint: "환자 · 환자번호",
     emptyText: "촬영 대기 중인 오더가 없습니다",
     need: { view: "radiology.queue.view", assign: "radiology.queue.assign" },
 
     row: (it) => ({
       id: it.id,
+      /* 지난 검사 칸이 이 번호로 환자 이력을 부른다 */
+      patientId: it.patient_id ?? it.patient ?? null,
       title: `${it.patient_name} (${it.age}/${label(SEX, it.sex)})`,
       sub: `${it.patient_no} · ${label(MODALITY, asModality(it.modality))}`,
       chip: it.contrast_allergy ? "조영제 알레르기" : it.device,
@@ -250,8 +328,7 @@ export const radiology = {
 
   /* ── 2장 · 촬영 업로드 ────────────────────────────────── */
   upload: {
-    title: "촬영 업로드",
-    sub: "촬영본을 올리고 AI 분석을 겁니다. 분석이 끝나야 판독으로 넘어갑니다.",
+    title: "업로드",
     infoTitle: "환자 · 검사 정보",
     dropText: "촬영본을 드래그하세요",
     acceptFor: (d) => {
@@ -316,8 +393,7 @@ export const radiology = {
 
   /* ── 3장 · 판독 ───────────────────────────────────────── */
   read: {
-    title: "영상 판독",
-    sub: "원본 영상에 AI 오버레이를 얹어 보고 소견을 씁니다.",
+    title: "판독",
     infoName: "환자 정보",
     saveHint: "저장하면 판정이 확정되고 유방외과로 전달됩니다. 되돌릴 수 없습니다.",
     need: {
@@ -467,8 +543,7 @@ export const radiology = {
 
   /* ── 4장 · 전체 환자 목록 ─────────────────────────────── */
   list: {
-    title: "전체 환자 목록",
-    sub: "지난 검사까지 전부 찾아보는 자리입니다. 판독 정정도 여기서 들어갑니다.",
+    title: "환자 목록",
     /* 상세에 뷰어가 들어가서(ListViewer) 고정폭(.wide, 440px)으로는
        좁게 눌린다 — 목록:상세를 화면 비율로 1:2 잡는다(.split.third,
        hospital.css). "내 업무"는 여기 상세가 이미 넓은 자리를 차지해서
@@ -585,8 +660,7 @@ export const radiology = {
 
   /* ── 5장 · 판독 정정 ──────────────────────────────────── */
   amend: {
-    title: "영상 판독 정정",
-    sub: "이미 확정한 판독을 고칩니다. 새 판독이 만들어지고 옛 판독이 그것을 가리킵니다.",
+    title: "판독 정정",
     imageTitle: "주요 이미지",
     categoryLabel: "판정 등급 (BI-RADS)",
     categories: BIRADS,

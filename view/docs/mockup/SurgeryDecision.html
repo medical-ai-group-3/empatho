@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>유방외과 · 수술 결정</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:'IBM Plex Sans KR',system-ui,sans-serif;background:#f5f4f2;color:#0c0a09}
+a{color:#1d6fa8}a:hover{color:#155a8a}
+header a:hover{color:#fafaf9}
+button,input,select,textarea{font-family:inherit}
+:focus-visible{outline:2px solid #3ba6f1;outline-offset:2px}
+.ep-primary:hover{background:#155a8a !important}
+.ep-row:hover{background:#fafaf9}
+.ep-chip:hover{border-color:#a8a29e !important}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; display: flex; flex-direction: column; background: #f5f4f2; overflow: hidden; position: relative;">
+
+  <header style="height: 52px; flex-shrink: 0; background: #1c1917; color: #fafaf9; display: flex; align-items: center; gap: 18px; padding: 0 16px; box-sizing: border-box;">
+    <a href="Main.dc.html" style="display: flex; align-items: center; gap: 10px; text-decoration: none; color: #fafaf9;">
+      <img src="/_blob/8b72413df6cbff803f5c0794f04a2a3f" alt="" style="width: 28px; height: 28px; background: #fafaf9; border-radius: 7px; padding: 2px; box-sizing: border-box;">
+      <span style="font-weight: 700; letter-spacing: 0.08em; font-size: 14px;">EMPATHO</span>
+    </a>
+    <span style="width: 1px; height: 18px; background: #44403c;"></span>
+    <nav aria-label="과" style="display: flex; height: 52px;">
+      <a href="ReceptionHome.dc.html" style="display: flex; align-items: center; gap: 7px; padding: 0 14px; height: 52px; box-sizing: border-box; text-decoration: none; font-size: 13px; font-weight: 500; color: #a8a29e; border-bottom: 2px solid transparent;">원무 <span style="font-size: 11px; min-width: 18px; height: 18px; border-radius: 9px; background: #44403c; color: #fafaf9; display: inline-flex; align-items: center; justify-content: center; padding: 0 5px; box-sizing: border-box;">4</span></a>
+      <a href="NursingHome.dc.html" style="display: flex; align-items: center; gap: 7px; padding: 0 14px; height: 52px; box-sizing: border-box; text-decoration: none; font-size: 13px; font-weight: 500; color: #a8a29e; border-bottom: 2px solid transparent;">간호 <span style="font-size: 11px; min-width: 18px; height: 18px; border-radius: 9px; background: #44403c; color: #fafaf9; display: inline-flex; align-items: center; justify-content: center; padding: 0 5px; box-sizing: border-box;">5</span></a>
+      <a href="RadiologyHome.dc.html" style="display: flex; align-items: center; gap: 7px; padding: 0 14px; height: 52px; box-sizing: border-box; text-decoration: none; font-size: 13px; font-weight: 500; color: #a8a29e; border-bottom: 2px solid transparent;">영상의학 <span style="font-size: 11px; min-width: 18px; height: 18px; border-radius: 9px; background: #44403c; color: #fafaf9; display: inline-flex; align-items: center; justify-content: center; padding: 0 5px; box-sizing: border-box;">7</span></a>
+      <a href="PathologyHome.dc.html" style="display: flex; align-items: center; gap: 7px; padding: 0 14px; height: 52px; box-sizing: border-box; text-decoration: none; font-size: 13px; font-weight: 500; color: #a8a29e; border-bottom: 2px solid transparent;">병리 <span style="font-size: 11px; min-width: 18px; height: 18px; border-radius: 9px; background: #44403c; color: #fafaf9; display: inline-flex; align-items: center; justify-content: center; padding: 0 5px; box-sizing: border-box;">5</span></a>
+      <a href="SurgeryHome.dc.html" aria-current="page" style="display: flex; align-items: center; gap: 7px; padding: 0 14px; height: 52px; box-sizing: border-box; text-decoration: none; font-size: 13px; font-weight: 600; color: #fafaf9; border-bottom: 2px solid #3ba6f1;">유방외과 <span style="font-size: 11px; min-width: 18px; height: 18px; border-radius: 9px; background: #1d7fc2; display: inline-flex; align-items: center; justify-content: center; padding: 0 5px; box-sizing: border-box;">6</span></a>
+    </nav>
+    <div style="flex-grow: 1;"></div>
+    <label style="display: flex; align-items: center; gap: 8px; width: 340px; height: 34px; padding: 0 12px; border-radius: 8px; background: #292524; border: 1px solid #44403c; box-sizing: border-box; color: #a8a29e;">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+      <span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);">환자 검색</span>
+      <input type="search" placeholder="환자 이름 · 환자번호" style="flex-grow: 1; min-width: 0; background: transparent; border: none; color: #fafaf9; font-size: 13px; outline: none;">
+      <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #78716c; border: 1px solid #44403c; border-radius: 4px; padding: 1px 5px;">/</span>
+    </label>
+    <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #a8a29e;">09-21 (월) 14:32</span>
+    <button type="button" aria-label="알림 3건" style="position: relative; width: 34px; height: 34px; border-radius: 8px; border: none; background: transparent; color: #d6d3d1; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 1112 0c0 7 3 8 3 8H3s3-1 3-8"></path><path d="M10 20a2 2 0 004 0"></path></svg>
+      <span style="position: absolute; top: 6px; right: 7px; width: 7px; height: 7px; border-radius: 50%; background: #f87171;"></span>
+    </button>
+    <a href="Me.dc.html" style="display: flex; align-items: center; gap: 8px; text-decoration: none; color: #fafaf9;">
+      <span style="width: 28px; height: 28px; border-radius: 50%; background: #44403c; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700;">외</span>
+      <span style="display: flex; flex-direction: column; line-height: 1.2;"><span style="font-size: 12px; font-weight: 600;">시연외과</span><span style="font-size: 11px; color: #a8a29e;">유방외과 · 교수</span></span>
+    </a>
+  </header>
+
+  <div style="flex-shrink: 0; height: 46px; box-sizing: border-box; background: #fffdf8; border-bottom: 1px solid #e7e5e4; padding: 0 16px; display: flex; align-items: center; gap: 12px;">
+    <span style="width: 28px; height: 28px; border-radius: 50%; background: #f3e8ef; color: #9d3b56; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; flex-shrink: 0;">김</span>
+    <b style="font-size: 14px;">김서연</b>
+    <span style="font-size: 12.5px; color: #57534e;">54 · 여</span>
+    <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #78716c;">P-2024-0417</span>
+    <span style="width: 1px; height: 16px; background: #e7e5e4;"></span>
+    <div style="display: flex; gap: 6px;"><span style="font-size: 11.5px; padding: 3px 8px; border-radius: 6px; background: #fef3c7; color: #78350f; font-weight: 600;">조영제 알레르기</span><span style="font-size: 11.5px; padding: 3px 8px; border-radius: 6px; background: #fef3c7; color: #78350f; font-weight: 600;">항응고제 복용</span></div>
+    <div style="flex-grow: 1;"></div>
+    <span style="font-size: 12px; color: #57534e;">영상 4C · 병리 B5</span>
+    <span style="width: 1px; height: 16px; background: #e7e5e4;"></span>
+    <span style="font-size: 12px; color: #57534e;">담당 최민호 교수</span>
+    <a href="Patient.dc.html" style="font-size: 12px; font-weight: 600; text-decoration: none;">환자 상세</a>
+  </div>
+
+
+  <div style="flex-shrink: 0; background: #ffffff; border-bottom: 1px solid #e7e5e4; padding: 13px 18px; display: flex; align-items: center; gap: 14px;">
+    <div style="display: flex; flex-direction: column; gap: 3px;">
+      <span style="font-size: 12px; color: #78716c;"><a href="Surgery.dc.html" style="color: #78716c; text-decoration: none;">내 환자</a> · 수술 결정</span>
+      <div style="display: flex; align-items: baseline; gap: 10px;">
+        <h1 style="margin: 0; font-size: 19px; font-weight: 700;">수술 결정</h1>
+        <span style="font-size: 13px; color: #57534e;">김서연 · P-2024-0417</span>
+      </div>
+    </div>
+    <div style="flex-grow: 1;"></div>
+      <a href="SurgeryReview.dc.html" style="height: 36px; padding: 0 14px; border-radius: 8px; border: 1px solid #d6d3d1; background: #ffffff; color: #292524; font-size: 13px; cursor: pointer; display: flex; align-items: center; text-decoration: none;">검사 종합</a>
+      <a href="Patient.dc.html" style="height: 36px; padding: 0 14px; border-radius: 8px; border: 1px solid #d6d3d1; background: #ffffff; color: #292524; font-size: 13px; cursor: pointer; display: flex; align-items: center; text-decoration: none;">환자 상세</a>
+  </div>
+
+  <div style="flex-grow: 1; min-height: 0; padding: 14px 18px 18px; box-sizing: border-box; display: grid; grid-template-columns: 430px minmax(0, 1fr); gap: 12px;">
+    <section style="background: #ffffff; border: 1px solid #e7e5e4; border-radius: 10px; display: flex; flex-direction: column; min-height: 0;">
+      <div style="padding: 12px 15px; border-bottom: 1px solid #f0efee;">
+        <h2 style="margin: 0; font-size: 14px; font-weight: 700;">수술 계획</h2>
+        <p style="margin: 4px 0 0; font-size: 12px; color: #78716c;">확정한 결정에 딸린 계획입니다. 일정은 외래에서 조정합니다.</p>
+      </div>
+      <div style="padding: 14px 15px; display: flex; flex-direction: column; gap: 13px; overflow: auto;">
+        <label style="display: flex; flex-direction: column; gap: 6px; width: 100%; font-size: 12px; font-weight: 600; color: #57534e;">술식
+        <select style="height: 38px; padding: 0 10px; border: 1px solid #d6d3d1; border-radius: 8px; font-size: 13px; background: #ffffff; color: #0c0a09;"><option>유방 부분절제술 + 감시림프절 생검</option></select></label>
+        <label style="display: flex; flex-direction: column; gap: 6px; width: 100%; font-size: 12px; font-weight: 600; color: #57534e;">측
+        <select style="height: 38px; padding: 0 10px; border: 1px solid #d6d3d1; border-radius: 8px; font-size: 13px; background: #ffffff; color: #0c0a09;"><option>우측</option></select></label>
+        <label style="display: flex; flex-direction: column; gap: 6px; width: 100%; font-size: 12px; font-weight: 600; color: #57534e;">수술 예정일
+        <input type="text" value="2026-10-06 (화)" readonly style="height: 38px; padding: 0 11px; border: 1px solid #d6d3d1; border-radius: 8px; font-size: 13px; color: #0c0a09; box-sizing: border-box;"></label>
+        <label style="display: flex; flex-direction: column; gap: 6px; width: 100%; font-size: 12px; font-weight: 600; color: #57534e;">집도
+        <select style="height: 38px; padding: 0 10px; border: 1px solid #d6d3d1; border-radius: 8px; font-size: 13px; background: #ffffff; color: #0c0a09;"><option>최민호 교수</option></select></label>
+        <label style="display: flex; flex-direction: column; gap: 6px; width: 100%; font-size: 12px; font-weight: 600; color: #57534e;">설명 메모
+        <textarea rows="3" style="resize: vertical; padding: 9px 11px; border: 1px solid #d6d3d1; border-radius: 8px; font-size: 13px; line-height: 1.55; color: #0c0a09;">환자·보호자에게 술식과 합병증 설명. 10-02 마취과 협진 예약.</textarea></label>
+        <label style="display: flex; align-items: flex-start; gap: 8px; font-size: 12.5px; color: #292524; line-height: 1.5;">
+          <input type="checkbox" checked style="margin-top: 2px; accent-color: #1d7fc2;">
+          <span>수술 동의서를 받았습니다.</span>
+        </label>
+      </div>
+      <div style="padding: 12px 15px; border-top: 1px solid #f0efee; background: #fafaf9; display: flex; gap: 8px;">
+        <button type="button" class="ep-primary" style="height: 36px; padding: 0 16px; border-radius: 8px; border: none; background: #1d7fc2; color: #ffffff; font-size: 13px; font-weight: 600; cursor: pointer;">계획 저장</button><a href="CloseModal.dc.html" style="height: 36px; padding: 0 14px; border-radius: 8px; border: 1px solid #d6d3d1; background: #ffffff; color: #292524; font-size: 13px; cursor: pointer; display: flex; align-items: center; text-decoration: none;">종결</a>
+      </div>
+    </section>
+    <div style="display: flex; flex-direction: column; gap: 12px; min-height: 0;">
+      <section style="background: #ffffff; border: 1px solid #e7e5e4; border-radius: 10px; padding: 13px 15px; display: flex; align-items: center; gap: 14px;">
+        <div style="display: flex; gap: 10px; font-size: 12.5px; line-height: 1.6;"><span style="width: 74px; flex-shrink: 0; color: #78716c;">환자</span><span style="color: #1c1917;">김서연 · 54세 · 여</span></div><div style="display: flex; gap: 10px; font-size: 12.5px; line-height: 1.6;"><span style="width: 74px; flex-shrink: 0; color: #78716c;">환자번호</span><span style="color: #1c1917;"><span style="font-family: 'IBM Plex Mono', monospace;">P-2024-0417</span></span></div><div style="display: flex; gap: 10px; font-size: 12.5px; line-height: 1.6;"><span style="width: 74px; flex-shrink: 0; color: #78716c;">내원</span><span style="color: #1c1917;">2026-09-21 · 유방외과</span></div><div style="display: flex; gap: 10px; font-size: 12.5px; line-height: 1.6;"><span style="width: 74px; flex-shrink: 0; color: #78716c;">의뢰</span><span style="color: #1c1917;">검진 이상 소견 (외부 검진센터)</span></div>
+        <div style="flex-grow: 1;"></div>
+        <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 5px;">
+          <span style="font-size: 11px; padding: 2px 7px; border-radius: 4px; background:#fee2e2;color:#991b1b;">영상 BI-RADS 4C</span><span style="font-size: 11px; padding: 2px 7px; border-radius: 4px; background:#fee2e2;color:#991b1b;">병리 B5 악성</span>
+        </div>
+      </section>
+      <h2 style="margin: 2px 0 0; font-size: 13.5px; font-weight: 700;">이 환자의 결정 기록</h2>
+      
+    <section style="background: #ffffff; border: 1px solid #e7e5e4; border-radius: 10px;  display: flex; flex-direction: column; min-height: 0; overflow: hidden;">
+      <div style="flex-grow: 1; overflow: auto;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+          <thead><tr style="background: #fafaf9; color: #57534e; font-size: 11.5px; position: sticky; top: 0;"><th style="padding: 9px 12px; font-weight: 600; text-align: left; width: 150px;">일시</th><th style="padding: 9px 12px; font-weight: 600; text-align: left; width: 110px;">결정</th><th style="padding: 9px 12px; font-weight: 600; text-align: left; width: 70px;">가부</th><th style="padding: 9px 12px; font-weight: 600; text-align: left; width: auto;">근거</th><th style="padding: 9px 12px; font-weight: 600; text-align: left; width: 130px;">결정자</th></tr></thead>
+          <tbody><tr class="ep-row" style="border-top: 1px solid #f5f5f4;"><td style="padding: 10px 12px; text-align: left;font-family: 'IBM Plex Mono', monospace;">2026-09-21 14:05</td><td style="padding: 10px 12px; text-align: left;font-weight: 600;">수술</td><td style="padding: 10px 12px; text-align: left;"><span style="font-size: 11px; padding: 2px 7px; border-radius: 4px; background:#dcfce7;color:#166534;">진행</span></td><td style="padding: 10px 12px; text-align: left;">영상 4C · 병리 B5 침윤성 유관암</td><td style="padding: 10px 12px; text-align: left;">최민호 교수</td></tr><tr class="ep-row" style="border-top: 1px solid #f5f5f4;"><td style="padding: 10px 12px; text-align: left;font-family: 'IBM Plex Mono', monospace;">2026-09-19 16:40</td><td style="padding: 10px 12px; text-align: left;font-weight: 600;">재조직검사</td><td style="padding: 10px 12px; text-align: left;"><span style="font-size: 11px; padding: 2px 7px; border-radius: 4px; background:#dcfce7;color:#166534;">진행</span></td><td style="padding: 10px 12px; text-align: left;">1차 검체 부적합 (B1)</td><td style="padding: 10px 12px; text-align: left;">최민호 교수</td></tr><tr class="ep-row" style="border-top: 1px solid #f5f5f4;"><td style="padding: 10px 12px; text-align: left;font-family: 'IBM Plex Mono', monospace;">2026-09-18 10:12</td><td style="padding: 10px 12px; text-align: left;font-weight: 600;">추가 검사</td><td style="padding: 10px 12px; text-align: left;"><span style="font-size: 11px; padding: 2px 7px; border-radius: 4px; background:#dcfce7;color:#166534;">진행</span></td><td style="padding: 10px 12px; text-align: left;">검진 이상 소견 — 초음파 시행</td><td style="padding: 10px 12px; text-align: left;">최민호 교수</td></tr></tbody>
+        </table>
+      </div>
+      <div style="padding: 10px 14px; font-size: 12px; color: #78716c; border-top: 1px solid #f0efee;">결정은 지워지지 않습니다. 바꾸려면 새 결정을 남기세요.</div>
+    </section>
+
+      
+    <section aria-label="이 화면이 쓰는 API" style="flex-shrink: 0; background: #fafaf9; border: 1px dashed #d6d3d1; border-radius: 10px; padding: 9px 13px; display: flex; align-items: baseline; gap: 12px;">
+      <span style="font-size: 11px; font-weight: 700; color: #57534e; flex-shrink: 0;">쓰는 API</span>
+      <ul style="margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 4px 20px;"><li style="margin: 0;"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: #292524;">GET /api/v1/assessments?patient=</span><span style="font-size: 11.5px; color: #78716c;"> — 결정 기록</span></li><li style="margin: 0;"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: #292524;">PATCH /api/v1/assessments/{id}/decision</span><span style="font-size: 11.5px; color: #78716c;"> — 새 결정</span></li></ul>
+    </section>
+
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

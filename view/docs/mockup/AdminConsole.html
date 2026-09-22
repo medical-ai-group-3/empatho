@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>관리자 콘솔</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:'IBM Plex Sans KR',system-ui,sans-serif;background:#f5f4f2;color:#0c0a09}
+a{color:#1d6fa8}a:hover{color:#155a8a}
+header a:hover{color:#fafaf9}
+button,input,select,textarea{font-family:inherit}
+:focus-visible{outline:2px solid #3ba6f1;outline-offset:2px}
+.ep-primary:hover{background:#155a8a !important}
+.ep-row:hover{background:#fafaf9}
+.ep-chip:hover{border-color:#a8a29e !important}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; display: flex; flex-direction: column; background: #f5f4f2; overflow: hidden; position: relative;">
+
+  <header style="height: 52px; flex-shrink: 0; background: #1c1917; color: #fafaf9; display: flex; align-items: center; gap: 18px; padding: 0 16px; box-sizing: border-box;">
+    <a href="Main.dc.html" style="display: flex; align-items: center; gap: 10px; text-decoration: none; color: #fafaf9;">
+      <img src="/_blob/8b72413df6cbff803f5c0794f04a2a3f" alt="" style="width: 28px; height: 28px; background: #fafaf9; border-radius: 7px; padding: 2px; box-sizing: border-box;">
+      <span style="font-weight: 700; letter-spacing: 0.08em; font-size: 14px;">EMPATHO</span>
+    </a>
+    <span style="width: 1px; height: 18px; background: #44403c;"></span>
+    <nav aria-label="과" style="display: flex; height: 52px;">
+      <a href="ReceptionHome.dc.html" style="display: flex; align-items: center; gap: 7px; padding: 0 14px; height: 52px; box-sizing: border-box; text-decoration: none; font-size: 13px; font-weight: 500; color: #a8a29e; border-bottom: 2px solid transparent;">원무 <span style="font-size: 11px; min-width: 18px; height: 18px; border-radius: 9px; background: #44403c; color: #fafaf9; display: inline-flex; align-items: center; justify-content: center; padding: 0 5px; box-sizing: border-box;">4</span></a>
+      <a href="NursingHome.dc.html" style="display: flex; align-items: center; gap: 7px; padding: 0 14px; height: 52px; box-sizing: border-box; text-decoration: none; font-size: 13px; font-weight: 500; color: #a8a29e; border-bottom: 2px solid transparent;">간호 <span style="font-size: 11px; min-width: 18px; height: 18px; border-radius: 9px; background: #44403c; color: #fafaf9; display: inline-flex; align-items: center; justify-content: center; padding: 0 5px; box-sizing: border-box;">5</span></a>
+      <a href="RadiologyHome.dc.html" style="display: flex; align-items: center; gap: 7px; padding: 0 14px; height: 52px; box-sizing: border-box; text-decoration: none; font-size: 13px; font-weight: 500; color: #a8a29e; border-bottom: 2px solid transparent;">영상의학 <span style="font-size: 11px; min-width: 18px; height: 18px; border-radius: 9px; background: #44403c; color: #fafaf9; display: inline-flex; align-items: center; justify-content: center; padding: 0 5px; box-sizing: border-box;">7</span></a>
+      <a href="PathologyHome.dc.html" style="display: flex; align-items: center; gap: 7px; padding: 0 14px; height: 52px; box-sizing: border-box; text-decoration: none; font-size: 13px; font-weight: 500; color: #a8a29e; border-bottom: 2px solid transparent;">병리 <span style="font-size: 11px; min-width: 18px; height: 18px; border-radius: 9px; background: #44403c; color: #fafaf9; display: inline-flex; align-items: center; justify-content: center; padding: 0 5px; box-sizing: border-box;">5</span></a>
+      <a href="SurgeryHome.dc.html" style="display: flex; align-items: center; gap: 7px; padding: 0 14px; height: 52px; box-sizing: border-box; text-decoration: none; font-size: 13px; font-weight: 500; color: #a8a29e; border-bottom: 2px solid transparent;">유방외과 <span style="font-size: 11px; min-width: 18px; height: 18px; border-radius: 9px; background: #44403c; color: #fafaf9; display: inline-flex; align-items: center; justify-content: center; padding: 0 5px; box-sizing: border-box;">6</span></a>
+    </nav>
+    <div style="flex-grow: 1;"></div>
+    <label style="display: flex; align-items: center; gap: 8px; width: 340px; height: 34px; padding: 0 12px; border-radius: 8px; background: #292524; border: 1px solid #44403c; box-sizing: border-box; color: #a8a29e;">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+      <span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);">환자 검색</span>
+      <input type="search" placeholder="환자 이름 · 환자번호" style="flex-grow: 1; min-width: 0; background: transparent; border: none; color: #fafaf9; font-size: 13px; outline: none;">
+      <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #78716c; border: 1px solid #44403c; border-radius: 4px; padding: 1px 5px;">/</span>
+    </label>
+    <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #a8a29e;">09-21 (월) 14:32</span>
+    <button type="button" aria-label="알림 3건" style="position: relative; width: 34px; height: 34px; border-radius: 8px; border: none; background: transparent; color: #d6d3d1; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 1112 0c0 7 3 8 3 8H3s3-1 3-8"></path><path d="M10 20a2 2 0 004 0"></path></svg>
+      <span style="position: absolute; top: 6px; right: 7px; width: 7px; height: 7px; border-radius: 50%; background: #f87171;"></span>
+    </button>
+    <a href="Me.dc.html" style="display: flex; align-items: center; gap: 8px; text-decoration: none; color: #fafaf9;">
+      <span style="width: 28px; height: 28px; border-radius: 50%; background: #44403c; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700;">관</span>
+      <span style="display: flex; flex-direction: column; line-height: 1.2;"><span style="font-size: 12px; font-weight: 600;">시연관리</span><span style="font-size: 11px; color: #a8a29e;">관리자</span></span>
+    </a>
+  </header>
+
+  <div style="flex-shrink: 0; background: #ffffff; border-bottom: 1px solid #e7e5e4; padding: 13px 18px; display: flex; align-items: center; gap: 14px;">
+    <div style="display: flex; flex-direction: column; gap: 3px;">
+      
+      <div style="display: flex; align-items: baseline; gap: 10px;">
+        <h1 style="margin: 0; font-size: 19px; font-weight: 700;">관리자 콘솔</h1>
+        <span style="font-size: 13px; color: #57534e;">계정 8 · 승인 대기 2</span>
+      </div>
+    </div>
+    <div style="flex-grow: 1;"></div>
+      <button type="button" class="ep-primary" style="height: 36px; padding: 0 16px; border-radius: 8px; border: none; background: #1d7fc2; color: #ffffff; font-size: 13px; font-weight: 600; cursor: pointer;">승인 대기 2건</button>
+      <a href="Me.dc.html" style="height: 36px; padding: 0 14px; border-radius: 8px; border: 1px solid #d6d3d1; background: #ffffff; color: #292524; font-size: 13px; cursor: pointer; display: flex; align-items: center; text-decoration: none;">내 정보</a>
+  </div>
+
+  <div style="flex-shrink: 0; padding: 12px 18px 0; display: flex; align-items: center; gap: 8px;">
+    <button type="button" class="ep-chip" style="height: 30px; padding: 0 12px; border-radius: 999px; font-size: 12.5px; cursor: pointer; border: 1px solid #1c1917; background: #1c1917; color: #fafaf9; font-weight: 600;">계정</button><button type="button" class="ep-chip" style="height: 30px; padding: 0 12px; border-radius: 999px; font-size: 12.5px; cursor: pointer; border: 1px solid #e7e5e4; background: #ffffff; color: #57534e;">승인 대기</button><button type="button" class="ep-chip" style="height: 30px; padding: 0 12px; border-radius: 999px; font-size: 12.5px; cursor: pointer; border: 1px solid #e7e5e4; background: #ffffff; color: #57534e;">역할 권한</button><button type="button" class="ep-chip" style="height: 30px; padding: 0 12px; border-radius: 999px; font-size: 12.5px; cursor: pointer; border: 1px solid #e7e5e4; background: #ffffff; color: #57534e;">DB 점검</button><button type="button" class="ep-chip" style="height: 30px; padding: 0 12px; border-radius: 999px; font-size: 12.5px; cursor: pointer; border: 1px solid #e7e5e4; background: #ffffff; color: #57534e;">기록</button>
+    <div style="flex-grow: 1;"></div>
+    <label style="display: flex; align-items: center; gap: 8px; width: 260px; height: 34px; padding: 0 12px; border: 1px solid #d6d3d1; border-radius: 8px; background: #ffffff; box-sizing: border-box; color: #78716c;">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+      <span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);">계정 검색</span>
+      <input type="search" placeholder="이름 · 아이디" style="flex-grow: 1; min-width: 0; border: none; outline: none; font-size: 13px;">
+    </label>
+  </div>
+  <div style="flex-grow: 1; min-height: 0; padding: 12px 18px 18px; box-sizing: border-box; display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 12px;">
+    <div style="display: flex; flex-direction: column; gap: 12px; min-height: 0;">
+      
+    <section style="background: #ffffff; border: 1px solid #e7e5e4; border-radius: 10px; flex-grow: 1; display: flex; flex-direction: column; min-height: 0; overflow: hidden;">
+      <div style="flex-grow: 1; overflow: auto;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+          <thead><tr style="background: #fafaf9; color: #57534e; font-size: 11.5px; position: sticky; top: 0;"><th style="padding: 9px 12px; font-weight: 600; text-align: left; width: 100px;">이름</th><th style="padding: 9px 12px; font-weight: 600; text-align: left; width: 110px;">아이디</th><th style="padding: 9px 12px; font-weight: 600; text-align: left; width: 110px;">부서</th><th style="padding: 9px 12px; font-weight: 600; text-align: left; width: 120px;">역할</th><th style="padding: 9px 12px; font-weight: 600; text-align: left; width: 90px;">상태</th><th style="padding: 9px 12px; font-weight: 600; text-align: left; width: 140px;">마지막 로그인</th></tr></thead>
+          <tbody><tr class="ep-row" style="border-top: 1px solid #f5f5f4;"><td style="padding: 10px 12px; text-align: left;"><strong>박지훈</strong></td><td style="padding: 10px 12px; text-align: left;"><span style="font-family: 'IBM Plex Mono', monospace;">rad1</span></td><td style="padding: 10px 12px; text-align: left;">영상의학과</td><td style="padding: 10px 12px; text-align: left;">교수</td><td style="padding: 10px 12px; text-align: left;"><span style="font-size: 11px; padding: 2px 7px; border-radius: 4px; background:#dcfce7;color:#166534;">사용 중</span></td><td style="padding: 10px 12px; text-align: left;"><span style="font-family: 'IBM Plex Mono', monospace; color: #78716c;">09-21 08:41</span></td></tr><tr class="ep-row" style="border-top: 1px solid #f5f5f4;"><td style="padding: 10px 12px; text-align: left;"><strong>이수진</strong></td><td style="padding: 10px 12px; text-align: left;"><span style="font-family: 'IBM Plex Mono', monospace;">pat1</span></td><td style="padding: 10px 12px; text-align: left;">병리과</td><td style="padding: 10px 12px; text-align: left;">교수</td><td style="padding: 10px 12px; text-align: left;"><span style="font-size: 11px; padding: 2px 7px; border-radius: 4px; background:#dcfce7;color:#166534;">사용 중</span></td><td style="padding: 10px 12px; text-align: left;"><span style="font-family: 'IBM Plex Mono', monospace; color: #78716c;">09-21 08:12</span></td></tr><tr class="ep-row" style="border-top: 1px solid #f5f5f4;"><td style="padding: 10px 12px; text-align: left;"><strong>최민호</strong></td><td style="padding: 10px 12px; text-align: left;"><span style="font-family: 'IBM Plex Mono', monospace;">sur1</span></td><td style="padding: 10px 12px; text-align: left;">유방외과</td><td style="padding: 10px 12px; text-align: left;">교수</td><td style="padding: 10px 12px; text-align: left;"><span style="font-size: 11px; padding: 2px 7px; border-radius: 4px; background:#dcfce7;color:#166534;">사용 중</span></td><td style="padding: 10px 12px; text-align: left;"><span style="font-family: 'IBM Plex Mono', monospace; color: #78716c;">09-21 07:58</span></td></tr><tr class="ep-row" style="border-top: 1px solid #f5f5f4;"><td style="padding: 10px 12px; text-align: left;"><strong>한지원</strong></td><td style="padding: 10px 12px; text-align: left;"><span style="font-family: 'IBM Plex Mono', monospace;">nur1</span></td><td style="padding: 10px 12px; text-align: left;">간호과</td><td style="padding: 10px 12px; text-align: left;">간호</td><td style="padding: 10px 12px; text-align: left;"><span style="font-size: 11px; padding: 2px 7px; border-radius: 4px; background:#dcfce7;color:#166534;">사용 중</span></td><td style="padding: 10px 12px; text-align: left;"><span style="font-family: 'IBM Plex Mono', monospace; color: #78716c;">09-21 07:40</span></td></tr><tr class="ep-row" style="border-top: 1px solid #f5f5f4;"><td style="padding: 10px 12px; text-align: left;"><strong>서다희</strong></td><td style="padding: 10px 12px; text-align: left;"><span style="font-family: 'IBM Plex Mono', monospace;">rec1</span></td><td style="padding: 10px 12px; text-align: left;">원무과</td><td style="padding: 10px 12px; text-align: left;">행정</td><td style="padding: 10px 12px; text-align: left;"><span style="font-size: 11px; padding: 2px 7px; border-radius: 4px; background:#dcfce7;color:#166534;">사용 중</span></td><td style="padding: 10px 12px; text-align: left;"><span style="font-family: 'IBM Plex Mono', monospace; color: #78716c;">09-21 07:31</span></td></tr><tr class="ep-row" style="border-top: 1px solid #f5f5f4;"><td style="padding: 10px 12px; text-align: left;"><strong>정유나</strong></td><td style="padding: 10px 12px; text-align: left;"><span style="font-family: 'IBM Plex Mono', monospace;">rad2</span></td><td style="padding: 10px 12px; text-align: left;">영상의학과</td><td style="padding: 10px 12px; text-align: left;">전공의</td><td style="padding: 10px 12px; text-align: left;"><span style="font-size: 11px; padding: 2px 7px; border-radius: 4px; background:#fef3c7;color:#78350f;">승인 대기</span></td><td style="padding: 10px 12px; text-align: left;"><span style="font-family: 'IBM Plex Mono', monospace; color: #78716c;">—</span></td></tr><tr class="ep-row" style="border-top: 1px solid #f5f5f4;"><td style="padding: 10px 12px; text-align: left;"><strong>김태호</strong></td><td style="padding: 10px 12px; text-align: left;"><span style="font-family: 'IBM Plex Mono', monospace;">rad3</span></td><td style="padding: 10px 12px; text-align: left;">영상의학과</td><td style="padding: 10px 12px; text-align: left;">기사</td><td style="padding: 10px 12px; text-align: left;"><span style="font-size: 11px; padding: 2px 7px; border-radius: 4px; background:#fef3c7;color:#78350f;">승인 대기</span></td><td style="padding: 10px 12px; text-align: left;"><span style="font-family: 'IBM Plex Mono', monospace; color: #78716c;">—</span></td></tr><tr class="ep-row" style="border-top: 1px solid #f5f5f4;"><td style="padding: 10px 12px; text-align: left;"><strong>오세라</strong></td><td style="padding: 10px 12px; text-align: left;"><span style="font-family: 'IBM Plex Mono', monospace;">nur2</span></td><td style="padding: 10px 12px; text-align: left;">간호과</td><td style="padding: 10px 12px; text-align: left;">간호</td><td style="padding: 10px 12px; text-align: left;"><span style="font-size: 11px; padding: 2px 7px; border-radius: 4px; background:#f5f5f4;color:#57534e;">정지</span></td><td style="padding: 10px 12px; text-align: left;"><span style="font-family: 'IBM Plex Mono', monospace; color: #78716c;">08-29 16:02</span></td></tr></tbody>
+        </table>
+      </div>
+      <div style="padding: 10px 14px; font-size: 12px; color: #78716c; border-top: 1px solid #f0efee;">비밀번호는 어디에도 보이지 않습니다. 초기화하면 본인 메일로만 갑니다.</div>
+    </section>
+
+      
+    <section aria-label="이 화면이 쓰는 API" style="flex-shrink: 0; background: #fafaf9; border: 1px dashed #d6d3d1; border-radius: 10px; padding: 9px 13px; display: flex; align-items: baseline; gap: 12px;">
+      <span style="font-size: 11px; font-weight: 700; color: #57534e; flex-shrink: 0;">쓰는 API</span>
+      <ul style="margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 4px 20px;"><li style="margin: 0;"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: #292524;">GET /api/v1/admin/accounts</span><span style="font-size: 11.5px; color: #78716c;"> — 계정 목록</span></li><li style="margin: 0;"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: #292524;">PATCH /api/v1/admin/accounts/{id}</span><span style="font-size: 11.5px; color: #78716c;"> — 역할·상태</span></li><li style="margin: 0;"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: #292524;">GET /api/v1/admin/db</span><span style="font-size: 11.5px; color: #78716c;"> — 표 구조</span></li></ul>
+    </section>
+
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 12px; min-height: 0;">
+      <section style="background: #ffffff; border: 1px solid #e7e5e4; border-radius: 10px; display: flex; flex-direction: column;">
+        <div style="padding: 12px 15px; border-bottom: 1px solid #f0efee;">
+          <h2 style="margin: 0; font-size: 14px; font-weight: 700;">정유나 · 승인 대기</h2>
+          <p style="margin: 4px 0 0; font-size: 12px; color: #78716c;">09-20 17:22 신청 · 영상의학과 · 전공의</p>
+        </div>
+        <div style="padding: 13px 15px; display: flex; flex-direction: column; gap: 12px;">
+          <div style="display: flex; gap: 10px; font-size: 12.5px; line-height: 1.6;"><span style="width: 74px; flex-shrink: 0; color: #78716c;">사번</span><span style="color: #1c1917;"><span style="font-family: 'IBM Plex Mono', monospace;">R-20260301</span></span></div><div style="display: flex; gap: 10px; font-size: 12.5px; line-height: 1.6;"><span style="width: 74px; flex-shrink: 0; color: #78716c;">메일</span><span style="color: #1c1917;">yuna.jung@empatho.hospital</span></div><div style="display: flex; gap: 10px; font-size: 12.5px; line-height: 1.6;"><span style="width: 74px; flex-shrink: 0; color: #78716c;">사유</span><span style="color: #1c1917;">9월 배정 전공의</span></div>
+          <label style="display: flex; flex-direction: column; gap: 6px; width: 100%; font-size: 12px; font-weight: 600; color: #57534e;">역할
+        <select style="height: 38px; padding: 0 10px; border: 1px solid #d6d3d1; border-radius: 8px; font-size: 13px; background: #ffffff; color: #0c0a09;"><option>전공의</option></select><span style="font-size: 11px; color: #78716c;">전공의는 판독을 쓸 수 있지만 확정은 못 합니다</span></label>
+          <div style="display: flex; gap: 8px;"><button type="button" class="ep-primary" style="height: 32px; padding: 0 14px; border-radius: 8px; border: none; background: #1d7fc2; color: #ffffff; font-size: 13px; font-weight: 600; cursor: pointer;">승인</button><button type="button" style="height: 32px; padding: 0 12px; border-radius: 8px; border: 1px solid #d6d3d1; background: #ffffff; color: #292524; font-size: 13px; cursor: pointer;">반려</button></div>
+        </div>
+      </section>
+      <section style="background: #ffffff; border: 1px solid #e7e5e4; border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px;">
+        <h2 style="margin: 0; font-size: 13.5px; font-weight: 700;">역할별로 열리는 것</h2>
+        <div style="display: flex; flex-direction: column; gap: 7px; font-size: 12.5px;">
+          <div style="display: flex; gap: 9px;"><span style="width: 62px; color: #78716c;">교수</span><span style="color: #292524;">판독 확정 · 잠금 해제 · 결정</span></div>
+          <div style="display: flex; gap: 9px;"><span style="width: 62px; color: #78716c;">전공의</span><span style="color: #292524;">판독 작성까지 (확정 불가)</span></div>
+          <div style="display: flex; gap: 9px;"><span style="width: 62px; color: #78716c;">기사</span><span style="color: #292524;">영상 업로드 · 품질 확인</span></div>
+          <div style="display: flex; gap: 9px;"><span style="width: 62px; color: #78716c;">간호</span><span style="color: #292524;">호출 · 검체 연결 · 추적</span></div>
+          <div style="display: flex; gap: 9px;"><span style="width: 62px; color: #78716c;">행정</span><span style="color: #292524;">접수 · 예약 · 환자 등록</span></div>
+        </div>
+      </section>
+      <section style="background: #ffffff; border: 1px solid #e7e5e4; border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 9px;">
+        <h2 style="margin: 0; font-size: 13.5px; font-weight: 700;">DB 점검</h2>
+        <p style="margin: 0; font-size: 12px; color: #57534e; line-height: 1.65;">표 이름과 칸 구조만 봅니다. 환자·계정·동의·판독 표는 값이 열리지 않습니다.</p>
+        <div style="display: flex; flex-wrap: wrap; gap: 6px;"><span style="font-size: 11px; padding: 2px 7px; border-radius: 4px; background:#f3e8ef;color:#9d3b56;">patient_pii 구조만</span><span style="font-size: 11px; padding: 2px 7px; border-radius: 4px; background:#f3e8ef;color:#9d3b56;">account 구조만</span><span style="font-size: 11px; padding: 2px 7px; border-radius: 4px; background:#f3e8ef;color:#9d3b56;">consent 구조만</span><span style="font-size: 11px; padding: 2px 7px; border-radius: 4px; background:#f3e8ef;color:#9d3b56;">report 구조만</span></div>
+        <div><button type="button" style="height: 32px; padding: 0 12px; border-radius: 8px; border: 1px solid #d6d3d1; background: #ffffff; color: #292524; font-size: 13px; cursor: pointer;">표 구조 보기</button></div>
+      </section>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

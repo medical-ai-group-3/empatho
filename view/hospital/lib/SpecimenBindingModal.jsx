@@ -145,7 +145,6 @@ export default function SpecimenBindingModal({ patient, onClose, onDone }) {
           {saveError && <p className="warnline">⚠ {saveError}</p>}
         </div>
         <div className="modal-foot">
-          <span className="hint" style={{ marginRight: "auto" }}>등록하면 병리과로 전달됩니다.</span>
           <button className="btn line" onClick={onClose}>취소</button>
           <button className="btn fill" onClick={save} disabled={saving || !lesionId}>
             {saving ? "등록 중…" : "등록"}

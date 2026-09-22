@@ -65,7 +65,6 @@ export default function Console() {
     <Page
       crumb={["관리자"]}
       title="관리자"
-      sub="계정 승인과 자료 관리는 Django 관리자 화면에서 합니다."
     >
       <Card title="관리자 화면">
         <p className="note">

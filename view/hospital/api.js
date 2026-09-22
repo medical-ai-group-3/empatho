@@ -1120,9 +1120,21 @@ export const nursing = {
  * ("object is not iterable" — Calendar.jsx가 봉투 객체를 for…of 로
  * 돌리려다 난 에러). 화면들이 배열을 그대로 기대하므로(항목 하나
  * 씌우는 {items,total} 이 아니라) 배열만 뽑아 돌려준다. */
+/* ⚠ 2026-09-21 — **봉투의 count 를 버리고 있어서 스무 건이 넘으면 숫자가
+ * 틀렸다.** 서버 목록은 한 쪽 20건인데(DefaultPagination) 여기서 results 만
+ * 꺼내 주는 바람에, 화면이 그 길이를 세면 21건이든 300건이든 20 으로 읽혔다.
+ *
+ * **배열 모양은 그대로 두고 total 만 얹는다.** 기존 호출부는 한 줄도 안
+ * 바뀌고, 숫자가 필요한 곳만 `.total` 을 읽는다 — 200줄을 받아 셀 필요도
+ * 없고 200 을 넘어도 정확하다.
+ *
+ * ⚠ 안 보이게(enumerable:false) 얹는 이유 — 전개(...arr)나 JSON 으로 옮길 때
+ *   따라가지 않아야 한다. 총 개수는 **이 응답의 성질**이지 줄이 아니다. */
 function unwrapList(raw) {
   if (Array.isArray(raw)) return raw;
-  return raw?.results ?? raw?.items ?? [];
+  const arr = raw?.results ?? raw?.items ?? [];
+  Object.defineProperty(arr, "total", { value: raw?.count ?? arr.length });
+  return arr;
 }
 
 export const reception = {

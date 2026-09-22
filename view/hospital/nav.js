@@ -46,26 +46,103 @@ export const ROOT = "/hospital";
  *   need   이 화면을 열 수 있는 권한. 없으면 메뉴에서 감춘다
  *   deep   주소에 :id 가 들어가는 화면이라 메뉴에 안 띄운다
  */
+/* 간호과 사람의 열쇠. 원무 열쇠든 간호 열쇠든 **하나만 있어도 이 과
+   사람**이다 — 원무는 과가 아니라 간호과가 하는 일 중 하나다.
+   can() 이 배열을 받아 하나만 있으면 통과시킨다(perm.js) */
+export const DESK = ["reception.intake.view", "nursing.waiting.view"];
+
 const DEPTS = [
+  /* ⚠ **원무과를 없애고 그 일을 간호과에 넣었다**(6.1). 접수 → 내원 대기 →
+     호출 → 문진 → 유방외과 배정은 실제로는 환자 한 명을 이어서 다루는 한
+     줄인데, 따로 두면 중간에 과 탭을 건너뛰어야 했다. 작은 검진 기관에서는
+     같은 사람이 둘 다 한다.
+
+     이름은 **간호과** 하나다. 「접수·간호」처럼 둘을 병기하면 아직 두 과인
+     것처럼 읽힌다 — 원무는 과가 아니라 간호과가 하는 일 중 하나다.
+
+     **한 과면 화면도 한 벌이다.** 여섯 줄 전부 DESK 열쇠로 연다 — 접수만
+     하는 사람도 내원 대기를 보고, 간호만 하는 사람도 예약 판을 본다.
+     서버 권한이 아직 `reception.*` 과 `nursing.*` 로 완전히 갈려 있어
+     (RECEPTION_PERMS · NURSING_PERMS 가 안 겹친다) 한쪽 열쇠만 걸면 합친
+     과가 사람마다 반쪽으로 보인다.
+
+     ⚠ **보는 것과 하는 것은 다르다.** 화면 안의 단추는 제 열쇠로 그대로
+       잠긴다(useCan). 서버도 MATRIX 로 또 막는다 — 간호는 patient_pii 가
+       NONE 이라 이름·전화를 못 고치고, 원무는 followup 이 R 이라 추적 콜을
+       못 남긴다. 화면이 보이는 것과 쓸 수 있는 것은 여기서 갈린다.
+
+     ⚠ 과 key 는 `nursing` 이다. 주소가 바뀐 것은 원무 쪽 세 화면뿐이다
+     (`/hospital/reception/*` → `/hospital/nursing/*`). */
+  {
+    key: "nursing",
+    name: "간호과",
+    who: { name: "정다은", role: "간호사" },
+    screens: [
+      { key: "", use: "home", menu: "홈", title: "홈", need: DESK },
+
+      { key: "intake", use: "reception.intake", menu: "접수", title: "접수",
+        need: DESK },
+
+      /* ⚠ **「내원 대기」 줄은 없앴다.** 접수 화면 안에 그 화면이 통째로
+         들어 있다 — 같은 것을 여는 길이 둘이면 사람이 「이 둘이 뭐가
+         다르지」를 매번 생각한다. 옛 주소는 main.jsx 가 접수로 보낸다 */
+
+      { key: "patients", use: "reception.patients", menu: "환자 목록", title: "환자 목록",
+        need: DESK },
+
+      /* 예약 판. 앱 신청 확인은 화면을 따로 안 두고 **이 판 안의 탭**이다 —
+         둘 다 예약이고 신청은 「앱에서 들어온 것」일 뿐이다. 화면 줄이
+         일곱이 되면 내비게이터 둘째 줄이 꽉 찬다(6.1) */
+      { key: "reservations", use: "reception.reservations", menu: "예약 판", title: "예약 판",
+        need: DESK },
+
+      { key: "followups", use: "nursing.followups", menu: "추적 관리", title: "추적 관리",
+        need: DESK },
+    ],
+  },
+  {
+    key: "radiology",
+    name: "영상의학과",
+    who: { name: "김지현", role: "교수" },
+    screens: [
+      { key: "", use: "home", menu: "홈", title: "홈",
+        need: "radiology.queue.view" },
+
+      { key: "queue", use: "queue", menu: "촬영 대기", title: "촬영 대기",
+        need: "radiology.queue.view" },
+
+      { key: "patients", use: "list", menu: "환자 목록", title: "환자 목록",
+        need: "radiology.list.view" },
+
+      { key: "studies/:id/upload", use: "upload", menu: "업로드", title: "업로드",
+        need: "radiology.upload.view", deep: true },
+
+      { key: "read/:id", use: "read", menu: "판독", title: "판독",
+        need: "radiology.read.view", deep: true },
+
+      { key: "read/:id/amend", use: "amend", menu: "판독 정정", title: "판독 정정",
+        need: "radiology.amend.view", deep: true },
+    ],
+  },
+
   {
     key: "pathology",
     name: "병리과",
     who: { name: "박민재", role: "교수" },
     screens: [
-      { key: "", use: "queue", menu: "검체 접수", title: "검체 접수 대기",
-        sub: "간호·유방외과가 바인딩을 끝낸 검체가 순서대로 뜹니다. 집으면 다른 선생님 화면에서 사라집니다.",
+      { key: "", use: "home", menu: "홈", title: "홈",
         need: "pathology.queue.view" },
 
-      { key: "specimens", use: "list", menu: "환자 목록", title: "전체 환자 목록",
-        sub: "지난 검체까지 전부 찾아보는 자리입니다.",
+      { key: "queue", use: "queue", menu: "검체 접수", title: "검체 접수",
+        need: "pathology.queue.view" },
+
+      { key: "specimens", use: "list", menu: "환자 목록", title: "환자 목록",
         need: "pathology.list.view" },
 
-      { key: "specimens/:id/upload", use: "upload", menu: "업로드", title: "조직 이미지 업로드",
-        sub: "크롭 조직 이미지를 올리고 AI 분석을 겁니다. 분석이 끝나야 판독으로 넘어갑니다.",
+      { key: "specimens/:id/upload", use: "upload", menu: "업로드", title: "업로드",
         need: "pathology.upload.view", deep: true },
 
-      { key: "read/:id", use: "read", menu: "판독", title: "병리 판독",
-        sub: "원본 조직 이미지에 AI 분할 마스크를 얹어 보고 소견을 씁니다. 저장하면 유방외과로 전송됩니다.",
+      { key: "read/:id", use: "read", menu: "판독", title: "판독",
         need: "pathology.read.view", deep: true },
 
       /* 판독 정정(5장) 없음 — 확정 사양서 §8-2, 병리는 정정 경로를
@@ -74,55 +151,26 @@ const DEPTS = [
   },
 
   {
-    key: "radiology",
-    name: "영상의학과",
-    who: { name: "김지현", role: "교수" },
-    screens: [
-      { key: "", use: "queue", menu: "촬영 대기", title: "촬영 대기 큐",
-        sub: "유방외과가 낸 오더 중 아직 아무도 집지 않은 것이 뜹니다. 집으면 다른 선생님 화면에서 사라집니다.",
-        need: "radiology.queue.view" },
-
-      { key: "patients", use: "list", menu: "환자 목록", title: "전체 환자 목록",
-        sub: "지난 검사까지 전부 찾아보는 자리입니다. 판독 정정도 여기서 들어갑니다.",
-        need: "radiology.list.view" },
-
-      { key: "studies/:id/upload", use: "upload", menu: "업로드", title: "촬영 업로드",
-        sub: "촬영본을 올리고 AI 분석을 겁니다. 분석이 끝나야 판독으로 넘어갑니다.",
-        need: "radiology.upload.view", deep: true },
-
-      { key: "read/:id", use: "read", menu: "판독", title: "영상 판독",
-        sub: "원본 영상에 AI 오버레이를 얹어 보고 소견을 씁니다. 저장하면 유방외과로 전송됩니다.",
-        need: "radiology.read.view", deep: true },
-
-      { key: "read/:id/amend", use: "amend", menu: "판독 정정", title: "영상 판독 정정",
-        sub: "이미 확정한 판독을 고칩니다. 새 판독 행이 생기고 옛 행이 그것을 가리킵니다.",
-        need: "radiology.amend.view", deep: true },
-    ],
-  },
-
-  {
     key: "breast",
     name: "유방외과",
     who: { name: "서나영", role: "교수" },
     screens: [
-      { key: "", use: "breast.waiting", menu: "대기 환자", title: "대기 환자",
-        sub: "내 환자 목록입니다. 병리·영상과 달리 집는 절차가 없습니다 — 주치의로 배정된 환자가 곧 큐입니다.",
+      { key: "", use: "home", menu: "홈", title: "홈",
         need: "breast.waiting.view" },
 
-      { key: "patients", use: "breast.patients", menu: "전체 환자", title: "전체 환자 목록",
-        sub: "진료 이력이 있는 환자를 검색하고 검사 종합·수술 결정 화면으로 이동합니다.",
+      { key: "waiting", use: "breast.waiting", menu: "대기 환자", title: "대기 환자",
         need: "breast.waiting.view" },
 
-      { key: "patients/:id/review", use: "breast.review", menu: "검사 종합", title: "검사 종합 확인",
-        sub: "영상과 병리 결과를 함께 놓고 봅니다.",
+      { key: "patients", use: "breast.patients", menu: "전체 환자", title: "전체 환자",
+        need: "breast.waiting.view" },
+
+      { key: "patients/:id/review", use: "breast.review", menu: "검사 종합", title: "검사 종합",
         need: "breast.review.view", deep: true },
 
       { key: "patients/:id/decision", use: "breast.decision", menu: "수술 결정", title: "수술 결정",
-        sub: "치료 방침을 정하고 리포트를 확정합니다.",
         need: "breast.decision.view", deep: true },
 
-      { key: "discordances/:id", use: "breast.discordance", menu: "판정 불일치", title: "판정 불일치 처분",
-        sub: "영상 판정과 병리 확진이 갈린 건입니다. 어느 쪽을 따를지 정합니다.",
+      { key: "discordances/:id", use: "breast.discordance", menu: "판정 불일치", title: "판정 불일치",
         need: "breast.discordance.view", deep: true },
     ],
   },
@@ -136,40 +184,10 @@ const DEPTS = [
     name: "관리자",
     screens: [
       { key: "", use: "admin.console", menu: "관리자", title: "관리자",
-        sub: "계정 승인과 자료 관리는 Django 관리자 화면에서 합니다.",
         need: "admin.console.open" },
     ],
   },
 
-  /* 간호과가 환자의 병원 내 첫 창구다. 원무의 검색·접수·예약 기능을
-     이 과에 묶어, 접수 뒤 다시 다른 부서 화면으로 옮길 필요가 없게 한다. */
-  {
-    key: "nursing",
-    name: "간호과",
-    who: { name: "정다은", role: "간호사" },
-    screens: [
-      { key: "", use: "nursing.intake", menu: "접수 · 간호", title: "접수 · 간호",
-        sub: "환자를 확인하고 접수와 간호 확인을 진행합니다.",
-        need: ["nursing.waiting.view", "reception.intake.view"] },
-
-      /* 접수·간호 첫 화면에 함께 보인다. 기존 주소는 북마크 호환용으로만 둔다. */
-      { key: "waiting", use: "nursing.waiting", menu: "내원 환자", title: "내원 환자 · 유방외과 배정",
-        sub: "접수된 환자의 문진과 전달 메모를 확인한 뒤 유방외과로 전달합니다.",
-        need: "nursing.waiting.view", deep: true },
-
-      { key: "patients", use: "nursing.patients", menu: "환자 목록 · 예약", title: "환자 목록 · 예약",
-        sub: "환자 정보를 확인하고 예약을 관리합니다.",
-        need: ["nursing.waiting.view", "reception.patients.view"] },
-
-      { key: "requests", use: "nursing.requests", menu: "예약 확인", title: "예약 확인",
-        sub: "앱으로 들어온 예약 신청을 확인합니다.",
-        need: ["nursing.waiting.view", "reception.requests.view"] },
-
-      { key: "followups", use: "nursing.followups", menu: "추적 관리", title: "추적 대상 관리",
-        sub: "BI-RADS 3 확정 환자의 6·12·24개월 추적을 관리합니다.",
-        need: "nursing.followup.view" },
-    ],
-  },
 ];
 
 export { DEPTS };
@@ -182,6 +200,11 @@ export const HOME = DEPTS[0];
    ⚠ key 는 화면 라우팅 키(breast)가 아니라 signup_staff 의 role
    값이다 (2026-09-16 백엔드 확인) — 유방외과가 "surgery" 다. */
 export const STAFF_DEPTS = [
+  /* ⚠ **원무과는 화면에선 없어졌지만 여기엔 남는다.** 이 목록은 가입
+     폼의 선택지이고 key 는 서버의 `account.role` 값이다 — 서버가 아직
+     `reception` 역할을 쓰고 `RECEPTION_PERMS` 를 그 역할에 준다.
+     여기서 빼면 원무 직원이 가입을 못 한다. 서버가 역할을 합치면
+     그때 같이 뺀다 */
   { key: "reception", name: "원무과" },
   { key: "nursing",   name: "간호과" },
   { key: "radiology", name: "영상의학과" },
@@ -248,6 +271,8 @@ function deptKey(value) {
     pathology: "pathology", "병리": "pathology", "병리과": "pathology",
     radiology: "radiology", "영상의학": "radiology", "영상의학과": "radiology",
     breast: "breast", surgery: "breast", "유방외과": "breast",
+    /* 원무과는 없어지고 그 일이 간호과로 갔다(6.1). 계정 소속이
+       「원무과」로 와도 간호과로 보낸다 — 안 그러면 첫 화면을 못 찾는다 */
     reception: "nursing", "원무": "nursing", "원무과": "nursing",
     nursing: "nursing", "간호": "nursing", "간호과": "nursing",
     admin: "admin", "관리자": "admin",
@@ -284,15 +309,24 @@ export const go = {
   /* ⚠ 과 바깥이다. 사람은 과에 딸린 것이 아니라서 /hospital/me 로 둔다 */
   me: () => `${ROOT}/me`,
 
+  /* 환자 상세도 과 바깥이다. 다섯 과가 같은 화면을 보고, 홈의 환자 줄이
+     전부 여기로 온다 (5.2 · 6.5) */
+  patient: (id) => `${ROOT}/patients/${id}`,
+
+  /* ⚠ 과의 맨 앞(`${P}` 처럼 과 주소 그대로)은 이제 **홈**이다. 일하던
+     화면들은 이름 있는 주소로 내려갔다 — 여기 안 고치면 「촬영 대기」를
+     눌렀는데 홈이 뜬다 */
   pathology: {
-    queue:  () => P,
+    home:   () => P,
+    queue:  () => `${P}/queue`,
     list:   () => `${P}/specimens`,
     upload: (id) => `${P}/specimens/${id}/upload`,
     read:   (id) => `${P}/read/${id}`,
     /* amend 없음 — 확정 사양서 §8-2, 병리는 정정 경로를 두지 않는다 */
   },
   radiology: {
-    queue:  () => R,
+    home:   () => R,
+    queue:  () => `${R}/queue`,
     list:   () => `${R}/patients`,
     upload: (id) => `${R}/studies/${id}/upload`,
     read:   (id) => `${R}/read/${id}`,
@@ -302,26 +336,23 @@ export const go = {
   /* ⚠ 유방외과는 이름이 다르다. queue/list/upload/read/amend 를 억지로
      맞추면 「read 가 뭐였지」를 매번 되묻게 된다 */
   breast: {
-    queue:       () => B,
-    waiting:     () => B,
+    home:        () => B,
+    queue:       () => `${B}/waiting`,
+    waiting:     () => `${B}/waiting`,
     patients:    () => `${B}/patients`,
     review:      (id) => `${B}/patients/${id}/review`,
     decision:    (id) => `${B}/patients/${id}/decision`,
     discordance: (id) => `${B}/discordances/${id}`,
   },
 
-  /* 원무는 지금 화면이 하나다. 캘린더 · 환자 목록 · 예약 확인이 뒤에 온다 */
-  reception: {
-    intake:   () => `${ROOT}/reception`,
-    patients: () => `${ROOT}/reception/patients`,
-    requests: () => `${ROOT}/reception/requests`,
-  },
-
+  /* 간호과 — 원무 일도 여기 있다(6.1). 원무 쪽 화면도 이 주소를 쓴다.
+     ⚠ go.reception 은 없앴다. 두 이름을 남겨 두면 어느 쪽이 진짜인지
+       매번 헷갈리고, 한쪽만 고치는 일이 생긴다 */
   nursing: {
-    intake:    () => N,
-    waiting:   () => `${N}/waiting`,
+    home:      () => N,
+    intake:    () => `${N}/intake`,
     patients:  () => `${N}/patients`,
-    requests:  () => `${N}/requests`,
+    reservations: () => `${N}/reservations`,
     followups: () => `${N}/followups`,
   },
 };

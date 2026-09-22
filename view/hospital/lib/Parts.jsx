@@ -38,12 +38,17 @@ export function useCan(need) {
   };
 }
 
-/* 화면 전체가 막혔을 때 */
-export function Locked({ what = "이 화면" }) {
+/* 화면 전체가 막혔을 때 — 네 가지 상태의 넷째다(Body.jsx 참고).
+   **무슨 권한이 필요한지 적는다.** 「권한이 없습니다」만 띄우면 관리자에게
+   무엇을 달라고 해야 하는지 몰라서 한 번 더 물으러 와야 한다. */
+export function Locked({ what = "이 화면", need }) {
   return (
-    <div className="slot big">
+    <div className="state">
       <b>열람 권한이 없습니다</b>
-      <span>{what}을 볼 수 있는 권한이 계정에 없습니다. 관리자에게 문의하세요.</span>
+      <span>
+        {what}을 보려면 {need ? <code>{need}</code> : "해당"} 권한이 필요합니다.
+        관리자에게 문의하세요.
+      </span>
     </div>
   );
 }
@@ -144,8 +149,15 @@ export function Fold({ title, open = true, right, children }) {
   );
 }
 
-/* ── 표 목록 ──────────────────────────────────────────────── */
-export function Table({ cols, rows, value, onPick }) {
+/* ── 표 목록 ──────────────────────────────────────────────────
+   판독실에서 훑어보는 자리다. 줄 높이를 키우지 않고 촘촘하게 둔다.
+   고른 줄은 왼쪽에 굵은 선.
+
+   ⚠ 빈 문구를 **부르는 쪽이 정한다.** 「해당하는 환자가 없습니다」는
+     검색 결과에는 맞지만 큐에는 틀리다 — 「접수 대기 중인 검체가
+     없습니다」처럼 무엇이 비었는지 말해야 다음에 할 일이 보인다. */
+export function Table({ cols, rows, value, onPick,
+                        emptyText = "해당하는 환자가 없습니다" }) {
   return (
     <div className="tbl-wrap">
       <table className="tbl">
@@ -161,7 +173,7 @@ export function Table({ cols, rows, value, onPick }) {
             </tr>
           ))}
           {rows.length === 0 && (
-            <tr className="none"><td colSpan={cols.length}>해당하는 환자가 없습니다</td></tr>
+            <tr className="none"><td colSpan={cols.length}>{emptyText}</td></tr>
           )}
         </tbody>
       </table>
