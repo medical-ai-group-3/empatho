@@ -169,7 +169,7 @@ JWT = {
     "SECRET": os.environ.get("JWT_SECRET") or SECRET_KEY,
     "ALGORITHM": "HS256",
     "ISSUER": os.environ.get("JWT_ISSUER", "empatho-cdss"),
-    "ACCESS_TTL_MIN": int(os.environ.get("JWT_ACCESS_TTL_MIN", "30")),
+    "ACCESS_TTL_MIN": int(os.environ.get("JWT_ACCESS_TTL_MIN", "480")),
     "REFRESH_TTL_DAYS": int(os.environ.get("JWT_REFRESH_TTL_DAYS", "14")),
 }
 
