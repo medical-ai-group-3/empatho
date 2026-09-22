@@ -184,6 +184,32 @@ function useWorkflow(id) {
   return useApi(() => (id ? api.workflow(id) : Promise.resolve(null)), [id]);
 }
 
+/* ⚠ 2026-09-22 확인 — "맘모를 다시 요청했는데 안내가 초음파로 뜬다"는
+ * 버그의 원인. 이 환자가 **평생 한 번이라도** 그 모달리티를 판독
+ * 확정했으면 끝났다고 봤다(옛 final/ordered). 방문·회차 개념이 서버
+ * 데이터에 없어서(Visit 모델 자체가 없다) 그렇게 짰던 것인데, 재검진
+ * 환자는 과거 확정 이력이 반드시 있으므로 **새로 오더를 넣어도 매번
+ * 그 모달리티를 건너뛴다** — 재검진을 영영 안내 못 하는 셈이다.
+ *
+ * study 는 exam_order 를 물고 있으니(Study.exam_order), "확정됐다"를
+ * 그 모달리티의 **가장 최근 오더에 물린 study**로 좁힌다. 옛 확정
+ * study 는 그 옛 오더에만 붙어 있고 새 오더에는 아직 study 가 없거나
+ * 있어도 미확정이라, 새로 요청한 순간부터는 다시 "대기 중"으로 보인다. */
+function latestOrder(orders, modality) {
+  return orders
+    .filter((o) => asModality(o.modality) === modality && o.order_status !== "cancelled")
+    .sort((a, b) => new Date(b.ordered_at ?? 0) - new Date(a.ordered_at ?? 0))[0]
+    ?? null;
+}
+
+function modalityStatus(data, modality) {
+  const order = latestOrder(data.orders ?? [], modality);
+  if (!order) return "todo";
+  const study = (data.studies ?? [])
+    .find((s) => s.exam_order === order.exam_order_id);
+  return study?.read_status === "finalized" ? "done" : "waiting";
+}
+
 /* 고정된 진료 순서. 이미 요청된 검사는 다시 만들지 않고, 촬영·판독이
    끝날 때까지 현재 단계만 안내한다. 병리 검체는 MRI 판독 확정 뒤에만
    등록 안내를 낸다. */
@@ -193,16 +219,10 @@ function nextCareStep(data) {
     message: "환자 기록을 불러오는 중입니다. 잠시 후 다시 진료 보기를 눌러 주세요.",
   };
 
-  const studies = data.studies ?? [];
-  const orders = data.orders ?? [];
-  const final = (modality) => studies.some((study) =>
-    asModality(study.modality) === modality && study.read_status === "finalized");
-  const ordered = (modality) => orders.some((order) =>
-    asModality(order.modality) === modality && order.order_status !== "cancelled");
-
   for (const modality of ["mammo", "us", "mri"]) {
-    if (final(modality)) continue;
-    if (!ordered(modality)) {
+    const status = modalityStatus(data, modality);
+    if (status === "done") continue;
+    if (status === "todo") {
       return {
         kind: "request", modality,
         message: `진료를 보기 전에 ${label({ mammo: "맘모그래피", us: "초음파", mri: "MRI" }, modality)} 촬영 요청을 먼저 진행해 주세요.`,
@@ -225,15 +245,12 @@ function nextCareStep(data) {
 }
 
 function workflowProgress(data) {
-  const studies = data?.studies ?? [];
-  const orders = data?.orders ?? [];
+  const d = data ?? {};
   const state = {};
   for (const modality of ["mammo", "us", "mri"]) {
-    const isFinal = studies.some((study) => asModality(study.modality) === modality && study.read_status === "finalized");
-    const isOrdered = orders.some((order) => asModality(order.modality) === modality && order.order_status !== "cancelled");
-    state[modality] = isFinal ? "done" : isOrdered ? "waiting" : "todo";
+    state[modality] = modalityStatus(d, modality);
   }
-  const specimens = data?.specimens ?? [];
+  const specimens = d.specimens ?? [];
   state.specimen = specimens.some((row) => row.finalized_at) ? "done" : specimens.length ? "waiting" : "todo";
   return state;
 }
