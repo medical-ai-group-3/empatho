@@ -387,17 +387,25 @@ input,select,textarea{font:inherit; color:inherit}
 
 /* ── 주 큐 — 한 줄짜리 ───────────────────────────────────────── */
 .qrows{flex:1; min-height:0; overflow-y:auto;
-  display:grid; grid-template-columns: var(--qrow-n-w) auto auto auto 1fr auto;
+  display:grid; grid-template-columns: max-content auto auto auto 1fr auto;
   column-gap:calc(14px * var(--ft));}
 .qrow{display:grid; grid-template-columns: subgrid; grid-column: 1/-1; align-items: center;
   padding:var(--qrow-pad-y) var(--hcard-pad-x);
   border-bottom:var(--hair) solid var(--line-2);}
 .qrow-r{justify-self: end;}
+/* 컬럼 이름 줄 — 데이터와 같은 subgrid 라 열이 정확히 맞는다. 위에 붙어
+   따라 스크롤한다. 번호 칸(첫 셀)은 라벨 없이 자리만 잡는다. */
+.qrow-head{display:grid; grid-template-columns: subgrid; grid-column: 1/-1;
+  align-items:center; position:sticky; top:0; z-index:1;
+  padding:calc(6px * var(--sp)) var(--hcard-pad-x);
+  background:var(--card); border-bottom:var(--hair) solid var(--line-2);
+  font-size:var(--qrow-meta-fs); font-weight:600; color:var(--warm)}
+.qrow-head .qrow-r{justify-self:end}
 /* 누를 데가 있을 때만 손가락이 된다 — 못 누르는 줄에 커서만 바뀌면
    눌러 보고 나서야 안 된다는 걸 안다 */
 .qrow[role="button"]{cursor:pointer}
 .qrow[role="button"]:hover{background:var(--canvas)}
-.qrow-n{flex:none; width:var(--qrow-n-w); font-style:normal;
+.qrow-n{justify-self:end; text-align:right; font-style:normal;
   font-size:var(--qrow-meta-fs); color:var(--faint);
   font-variant-numeric:tabular-nums}
 .qrow > b{flex:none; font-size:var(--qrow-nm-fs); font-weight:600;

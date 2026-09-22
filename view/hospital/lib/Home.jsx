@@ -263,7 +263,17 @@ function Queue({ queue }) {
       <div className="qrows">
         {rows.length === 0
           ? <p className="hcard-k hpad">{tab.empty ?? "없습니다"}</p>
-          : rows.map((r, i) => <QRow key={r.id} row={r} n={i + 1} />)}
+          : <>
+              <div className="qrow-head" aria-hidden="true">
+                <i className="qrow-n" />
+                <b>이름</b>
+                <span className="qrow-meta">나이·성별</span>
+                <span className="qrow-chip">구분</span>
+                <span className="qrow-sub">상태</span>
+                <span className="qrow-r">환자번호</span>
+              </div>
+              {rows.map((r, i) => <QRow key={r.id} row={r} n={i + 1} />)}
+            </>}
       </div>
     </Card>
   );
