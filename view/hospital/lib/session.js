@@ -18,7 +18,7 @@
  * **둘만** 고치면 된다.
  */
 import { useSyncExternalStore } from "react";
-import { setToken, setOnRefreshed } from "../api";
+import { setToken, setOnRefreshed, setOnAuthLost } from "../api";
 
 const KEY = "empatho_staff_token";
 
@@ -102,6 +102,9 @@ export const signOut = () => {
    안 하면 새로고침에 **옛 토큰**이 되살아나 바로 401 이 난다.
    api.js 가 이 파일을 import 하면 서로 물리므로 이쪽에서 등록한다 */
 setOnRefreshed((access) => set(access));
+
+/* 토큰이 끊기면(갱신 실패) 세션을 비운다 → Gate 가 로그인 화면으로. */
+setOnAuthLost(() => set(null));
 
 /* 로그인했나. 토큰이 있느냐로만 본다 — 화면이 스스로 「로그인함」을 적어
    두고 그걸 믿으면, 만료된 뒤에도 화면은 열리고 요청만 하나씩 실패한다. */

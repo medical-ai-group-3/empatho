@@ -151,6 +151,11 @@ let refreshing = null;
 let onRefreshed = null;
 export const setOnRefreshed = (fn) => { onRefreshed = fn; };
 
+/* 갱신도 실패해 세션이 끝났을 때 부른다. session.js 가 로그아웃을 걸어
+   Gate 가 로그인 화면으로 되돌린다 — 죽은 에러 카드에 갇히지 않게. */
+let onAuthLost = null;
+export const setOnAuthLost = (fn) => { onAuthLost = fn; };
+
 async function refreshAccess() {
   refreshing ??= (async () => {
     try {
@@ -232,6 +237,8 @@ async function call(method, path, body, opt = {}) {
   if (res.status === 401 && !opt.noRetry && !NO_RETRY.has(path)) {
     const next = await refreshAccess();
     if (next) return call(method, path, body, { noRetry: true });
+    /* 갱신도 실패 = 세션이 끝났다. 로그인 화면으로 보낸다 */
+    onAuthLost?.();
   }
 
   const traceId = res.headers.get("X-Trace-Id");
