@@ -211,9 +211,7 @@ export default function Stage({
 
             {/* ── PNG 마스크 (병리) ─────────────────────────── */}
             {mask && (
-              <img className="stage-mask" src={mask} alt="" aria-hidden="true"
-                   width={w} height={h} draggable={false}
-                   style={{ opacity: opacity / 100 }} />
+              <MaskOverlay src={mask} w={w} h={h} opacity={opacity} />
             )}
 
             {/* ── SVG 도형 (초음파 폴리곤 · 맘모 박스) ───────── */}
@@ -236,6 +234,66 @@ export default function Stage({
         )}
       </div>
     </div>
+  );
+}
+
+/*
+ * 병리 AI가 반환하는 마스크는 색상 이미지가 아니라 픽셀값으로 영역을
+ * 표시하는 labelmap(0=배경, 1=조직, 2=세포)이다. 이를 그대로 img로
+ * 겹치면 값 1/2가 검정으로 렌더링되어 원본을 어둡게 만든다. 캔버스에서
+ * 배경은 투명하게 지우고 라벨별 색상으로 바꿔 실제 세그멘테이션 영역이
+ * 보이도록 한다.
+ */
+function MaskOverlay({ src, w, h, opacity }) {
+  const canvasRef = useRef(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !src) return undefined;
+
+    const image = new Image();
+    image.onload = () => {
+      const width = Number(w) || image.naturalWidth;
+      const height = Number(h) || image.naturalHeight;
+      if (!width || !height) return;
+
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      ctx.clearRect(0, 0, width, height);
+      ctx.drawImage(image, 0, 0, width, height);
+
+      const pixels = ctx.getImageData(0, 0, width, height);
+      for (let i = 0; i < pixels.data.length; i += 4) {
+        const value = Math.max(pixels.data[i], pixels.data[i + 1], pixels.data[i + 2]);
+        if (pixels.data[i + 3] === 0 || value === 0) {
+          pixels.data[i + 3] = 0;
+          continue;
+        }
+        if (value <= 1) {
+          pixels.data[i] = 0;
+          pixels.data[i + 1] = 220;
+          pixels.data[i + 2] = 150;
+        } else if (value <= 2) {
+          pixels.data[i] = 255;
+          pixels.data[i + 1] = 120;
+          pixels.data[i + 2] = 0;
+        } else {
+          pixels.data[i] = 255;
+          pixels.data[i + 1] = 70;
+          pixels.data[i + 2] = 180;
+        }
+        pixels.data[i + 3] = 220;
+      }
+      ctx.putImageData(pixels, 0, 0);
+    };
+    image.src = src;
+    return () => { image.onload = null; };
+  }, [src, w, h]);
+
+  return (
+    <canvas ref={canvasRef} className="stage-mask" aria-hidden="true"
+            width={w} height={h} style={{ opacity: opacity / 100 }} />
   );
 }
 

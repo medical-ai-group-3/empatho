@@ -1,5 +1,6 @@
 import { path } from "../api";
 import { go } from "../nav";
+import * as H from "./home";
 import { Chip, Facts, Fold } from "../lib/Parts";
 import { Body } from "../lib/Body";
 import { useApi } from "../lib/useApi";
@@ -52,10 +53,10 @@ const api = {
       path.uploadInfo(id),
       path.progress(id).catch(() => null),
     ]);
-    const result = toRead(s, up);
     const ai = progress?.results ?? progress?.items ?? progress?.data?.results
       ?? (Array.isArray(progress?.data) ? progress.data : null)
-      ?? result.ai;
+      ?? (Array.isArray(s.ai) ? s.ai : []);
+    const result = toRead(s, up, Array.isArray(ai) ? ai : []);
     return { ...result, ai: Array.isArray(ai) ? ai : result.ai };
   },
   draft:      (id, b) => path.draft(id, b),
@@ -74,7 +75,10 @@ const api = {
 function pathFile(raw = {}) {
   const bytes = raw.byte_size;
   const size = typeof bytes === "number" ? `${(bytes / 1048576).toFixed(1)} MB` : "";
-  const image = raw.image ?? (raw.object_key ? { key: raw.object_key } : null);
+  const kind = raw.kind ?? raw.file_kind ?? raw.type ?? "image";
+  const image = fileRef(raw.image ?? raw.file ?? raw.object ?? raw.object_key, kind === "mask");
+  const mask = fileRef(raw.mask ?? raw.mask_image ?? raw.segmentation
+    ?? raw.labelmap ?? raw.mask_object ?? raw.mask_file, true);
   return {
     ...raw,
     id: raw.storage_object_id ?? raw.id,
@@ -83,14 +87,67 @@ function pathFile(raw = {}) {
     w: raw.w ?? raw.width_px,
     h: raw.h ?? raw.height_px,
     image,
+    mask,
+    kind,
   };
+}
+
+/* 서버가 파일 참조를 {key}, {url}, 문자열 중 어느 모양으로 내려도
+ * Stage/useFile 이 이해하는 형태로 맞춘다. 세그멘테이션은 원본 업로드와
+ * 별도 storage object 로 내려올 수 있으므로 이 변환을 공용으로 쓴다. */
+function fileRef(value, derived = false) {
+  if (!value) return null;
+  if (typeof value === "string") {
+    return /^(https?:|data:|blob:)/i.test(value)
+      ? { url: value }
+      : { key: value, ...(derived ? { derived: true } : {}) };
+  }
+  if (typeof value !== "object") return null;
+  if (value.url || value.src || value.download_url) {
+    return { url: value.url ?? value.src ?? value.download_url };
+  }
+  if (value.key || value.object_key) {
+    return { key: value.key ?? value.object_key, ...(derived ? { derived: true } : {}) };
+  }
+  return null;
+}
+
+function isMaskFile(file = {}) {
+  const kind = String(file.kind ?? "").toLowerCase();
+  return ["mask", "segmentation", "labelmap", "overlay"].includes(kind)
+    || /(^|[-_.])(mask|segmentation|labelmap)([-_.]|$)/i.test(file.name ?? "");
+}
+
+function attachMasks(crops, files, aiRows) {
+  const masks = files.filter(isMaskFile);
+  return crops.map((crop, index) => {
+    if (crop.mask) return crop;
+
+    const ai = aiRows[index] ?? {};
+    const aiMask = fileRef(ai.mask ?? ai.mask_image ?? ai.segmentation
+      ?? ai.labelmap ?? ai.overlay);
+    if (aiMask) return { ...crop, mask: aiMask };
+
+    /* 우선 원본 파일 id/이름으로 짝을 찾고, 식별자가 없는 응답은
+     * 원본과 마스크가 같은 순서로 내려오는 경우만 순서로 연결한다. */
+    const match = masks.find((mask) => {
+      const source = mask.source_id ?? mask.source_object_id ?? mask.source_storage_object_id
+        ?? mask.parent_id ?? mask.original_id;
+      return source != null && String(source) === String(crop.id);
+    }) ?? masks.find((mask) => {
+      const base = String(crop.name ?? "").replace(/\.[^.]+$/, "");
+      return base && String(mask.name ?? "").includes(base);
+    }) ?? masks[index];
+    return match?.image ? { ...crop, mask: match.image } : crop;
+  });
 }
 
 /* 서버 두 응답 → 판독 화면이 쓰는 한 덩어리.
  *
  * **서버 모양이 바뀌면 여기만 고친다.** 화면 다섯 장은 이 모양만 안다. */
-function toRead(s, up) {
+function toRead(s, up, aiRows = []) {
   const files = (up.uploads ?? []).map(pathFile);
+  const cropFiles = files.filter((file) => !isMaskFile(file));
   return {
     patient: {
       name: s.patient_name, age: s.age, sex: s.sex,
@@ -107,18 +164,18 @@ function toRead(s, up) {
       amend_history: s.amend_history ?? [],
     },
     radiology_summary: s.radiology_summary ?? null,
-    /* 크롭 한 장 = 원본 + (있으면) 마스크.
-       ⚠ 마스크는 아직 생산자가 없다. 판독 서버가 조직 마스크 생성을
-         꺼 두었다. 없으면 「마스크 없음」으로 뜨고 원본만 보인다.
-         StorageObject 에 mask 칸이 없어서 항상 null 이다 */
-    crops: files.map((f) => ({
+    /* 크롭 한 장 = 원본 + (있으면) 세그멘테이션 마스크.
+       마스크가 업로드 목록의 별도 파일로 오거나 AI 결과 안에 포함될 수
+       있어 attachMasks()가 두 응답을 병합한다. 두 응답 모두에 없으면
+       그때만 「마스크 없음」으로 표시한다. */
+    crops: attachMasks(cropFiles.map((f) => ({
       id: f.id, name: f.name,
       w: f.w ?? 512, h: f.h ?? 512,      /* 크롭은 512×512 */
       image: f.image,
       mask: f.mask ?? null,
-    })),
-    images: files.map((f) => ({ id: f.id, name: f.name })),
-    ai: s.ai ?? [],
+    })), files, aiRows),
+    images: cropFiles.map((f) => ({ id: f.id, name: f.name })),
+    ai: aiRows,
     doctor: s.doctor ?? {},
   };
 }
@@ -129,6 +186,63 @@ export const pathology = {
   api,
   go: go.pathology,
 
+  /* ── 홈 (docs/mockup/PathologyHome.html) ────────────
+   *
+   * 영상과 같은 틀이다. 다른 것은 판독 단위가 검체라는 것뿐이다.
+   */
+  home: {
+    load: () => Promise.all([api.queue(), H.soft(api.list({}))])
+      .then(([queue, list]) => ({ queue: H.rows(queue), specimens: H.rows(list) })),
+
+    primary: { label: "다음 검체 받기", to: go.pathology.queue(),
+               need: "pathology.queue.view" },
+
+    queue: ({ queue }) => ({
+      title: "검체 대기",
+      hint: "바인딩 순서대로",
+      empty: "접수 대기 검체가 없습니다",
+      rows: queue.map((r) => ({
+        id: r.id,
+        name: H.nameOf(r),
+        no: H.noOf(r),
+        meta: H.who(r),
+        chip: r.kind,
+        chipTone: "fill",
+        /* ⚠ 목업은 「· 영상 4C · 마스크 완료」까지 적는다. 영상 판정도 AI
+           마스크 상태도 검체 목록에 없다 — 검체번호만 적는다 */
+        sub: r.specimen_no ?? "",
+        at: H.at(r.collected_at),
+        to: r.patient != null ? go.patient(r.patient) : null,
+        why: "검체 접수",
+      })),
+    }),
+
+    stuck: ({ specimens }) => [
+      { tag: "초안", text: "집었는데 아직 확정 안 한 검체",
+        count: specimens.filter(
+          (r) => r.assigned_to && !(r.finalized_at || r.finalized)).length,
+        to: go.pathology.list() },
+      /* ⚠ 목업의 「마스크 확인」·「영상 대조」는 못 센다. AI 마스크를 봤는지,
+         영상 판정과 맞춰 봤는지를 남기는 칸이 서버에 없다 */
+    ],
+
+    done: ({ specimens }) => {
+      const it = specimens.filter((r) => H.isToday(r.finalized_at));
+      return {
+        summary: `확정 ${it.length}`,
+        items: it.map((r) => ({
+          id: r.id,
+          at: H.at(r.finalized_at),
+          text: `${H.nameOf(r)} · ${r.diagnosis ?? "진단"} 확정`,
+          to: go.pathology.read(r.id),
+        })),
+      };
+    },
+
+    /* ⚠ 목업의 「판독 당번 · 다학제 회의」는 서버에 표가 없다 */
+    marks: () => [],
+  },
+
   /* 티켓이 여는 범위의 단위. 서버가 `scope_kind` 로 받는 넷
      (study · specimen · report · account) 중 하나여야 한다 —
      병리는 검체다. lib/files.js 참고 */
@@ -136,15 +250,27 @@ export const pathology = {
 
   /* ── 1장 · 검체 접수 대기 ─────────────────────────────── */
   queue: {
-    title: "검체 접수 대기",
-    sub: "간호·유방외과가 바인딩을 끝낸 검체가 채취 순서대로 뜹니다. 집으면 다른 선생님 화면에서 사라집니다.",
+    title: "검체 접수",
     listTitle: "접수 대기 검체",
+    /* 네 단 껍데기가 읽는 제목들(screens/Queue.jsx) */
+    detailTitle: "이 검체",
+    pastTitle: "이 환자의 이력",
+    /* ⚠ **서버가 주는 값이 아니다.** 상용구를 저장하는 경로가 없어 여기
+       박아 뒀다. 사람마다 다르게 쓰려면 서버에 자리가 있어야 한다(8장) */
+    phrases: [
+      ["조직", ["침윤성 유관암 (IDC)", "관상피내암 (DCIS), 저등급"]],
+      ["양성", ["섬유선종", "섬유낭종성 변화"]],
+      ["검체", ["표적 병변 미포함 가능성", "검체량 부족 — 재채취 권고"]],
+      ["결론", ["악성 소견 없음", "추가 면역조직화학 검사 시행"]],
+    ],
     searchHint: "환자 · 검체번호",
     emptyText: "접수 대기 중인 검체가 없습니다",
     need: { view: "pathology.queue.view", assign: "pathology.queue.assign" },
 
     row: (it) => ({
       id: it.id,
+      /* 이 환자의 이력 칸이 이 번호로 부른다 */
+      patientId: it.patient_id ?? it.patient ?? null,
       title: `${it.patient_name} (${it.age}/${label(SEX, it.sex)})`,
       sub: `${it.specimen_no} · ${it.site}`,
       chip: it.method,
@@ -199,8 +325,7 @@ export const pathology = {
 
   /* ── 2장 · 조직 이미지 업로드 ─────────────────────────── */
   upload: {
-    title: "조직 이미지 업로드",
-    sub: "크롭 조직 이미지를 올리고 AI 분석을 겁니다. 분석이 끝나야 판독으로 넘어갑니다.",
+    title: "업로드",
     infoTitle: "검체 정보",
     dropText: "조직 이미지를 드래그하세요 (여러 장 가능)",
     accept: "image/png,image/jpeg,image/tiff",
@@ -239,10 +364,13 @@ export const pathology = {
 
   /* ── 3장 · 판독 ───────────────────────────────────────── */
   read: {
-    title: "병리 판독",
-    sub: "원본 조직 이미지에 AI 분할 마스크를 얹어 보고 소견을 씁니다.",
+    title: "판독",
     infoName: "검체 정보",
-    saveHint: "저장하면 확진이 확정되고 유방외과로 소견이 전송됩니다. 되돌릴 수 없습니다.",
+    /* ⚠ **병리는 정정 경로가 없다**(확정 사양서 §8-2). 영상은 정정
+       화면이 있지만 여기는 없다 — 그 사실을 저장 줄에 적는다. 「되돌릴
+       수 없다」만으로는 «나중에 고칠 수 있나»가 안 읽힌다 */
+    saveHint: "확정은 한 번뿐입니다. 병리는 정정 경로가 없어, 확정한 뒤 "
+      + "오류가 나면 새 검체로 다시 받아야 합니다.",
     need: {
       view: "pathology.read.view",
       ai: "pathology.ai.view",
@@ -325,7 +453,7 @@ export const pathology = {
         <label className="field">
           <span>판독 소견</span>
           <textarea className="lg" rows={10} value={f.finding_note ?? ""}
-                    placeholder="면역염색 결과처럼 별도 입력칸이 없는 값은 여기에 문장으로 적습니다"
+                    placeholder="소견"
                     onChange={(e) => set("finding_note", e.target.value)} />
         </label>
       </>
@@ -334,8 +462,7 @@ export const pathology = {
 
   /* ── 4장 · 전체 환자 목록 ─────────────────────────────── */
   list: {
-    title: "전체 환자 목록",
-    sub: "지난 검체까지 전부 찾아보는 자리입니다.",
+    title: "환자 목록",
     /* 영상의학과 목록과 같은 목록 1 : 상세 2 구조다. 병리는 한 검체의
        조직 사진만 보므로 모달리티 탭 없이 첫 조직 사진을 고정으로 둔다. */
     splitSide: "third",

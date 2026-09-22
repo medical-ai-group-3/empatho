@@ -106,7 +106,6 @@ export default function Register({ onClose, onDone }) {
   return (
     <Dialog
       title="환자 등록"
-      sub="앱을 쓰지 않는 환자를 창구에서 만듭니다"
       onClose={busy ? undefined : onClose}
       foot={
         <>
@@ -134,10 +133,6 @@ export default function Register({ onClose, onDone }) {
           <input value={form.phone} onChange={set("phone")} disabled={busy}
                  inputMode="tel" placeholder="010-0000-0000" />
         </label>
-
-        <p className="hint">
-          셋 다 필요합니다. <b>환자번호는 서버가 발급</b>하므로 입력하지 않습니다.
-        </p>
 
         {clash && (
           <div className="slot bad" role="alert">

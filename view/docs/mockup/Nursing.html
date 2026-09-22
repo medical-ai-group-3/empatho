@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>간호과 · 내원 대기</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:'IBM Plex Sans KR',system-ui,sans-serif;background:#f5f4f2;color:#0c0a09}
+a{color:#1d6fa8}a:hover{color:#155a8a}
+header a:hover{color:#fafaf9}
+button,input,select,textarea{font-family:inherit}
+:focus-visible{outline:2px solid #3ba6f1;outline-offset:2px}
+.ep-pick{transition:background-color .12s ease}
+.ep-pick:hover{background:#fafaf9}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; display: flex; flex-direction: column; background: #f5f4f2; overflow: hidden;">
+
+  <header style="height: 52px; flex-shrink: 0; background: #1c1917; color: #fafaf9; display: flex; align-items: center; gap: 18px; padding: 0 16px; box-sizing: border-box;">
+    <a href="Main.dc.html" style="display: flex; align-items: center; gap: 10px; text-decoration: none; color: #fafaf9;">
+      <img src="/_blob/8b72413df6cbff803f5c0794f04a2a3f" alt="" style="width: 28px; height: 28px; background: #fafaf9; border-radius: 7px; padding: 2px; box-sizing: border-box;">
+      <span style="font-weight: 700; letter-spacing: 0.08em; font-size: 14px;">EMPATHO</span>
+    </a>
+    <span style="width: 1px; height: 18px; background: #44403c;"></span>
+    <nav aria-label="과" style="display: flex; height: 52px;">
+      <a href="ReceptionHome.dc.html" style="display: flex; align-items: center; gap: 7px; padding: 0 14px; height: 52px; box-sizing: border-box; text-decoration: none; font-size: 13px; font-weight: 500; color: #a8a29e; border-bottom: 2px solid transparent;">원무 <span style="font-size: 11px; min-width: 18px; height: 18px; border-radius: 9px; background: #44403c; color: #fafaf9; display: inline-flex; align-items: center; justify-content: center; padding: 0 5px; box-sizing: border-box;">4</span></a>
+      <a href="NursingHome.dc.html" aria-current="page" style="display: flex; align-items: center; gap: 7px; padding: 0 14px; height: 52px; box-sizing: border-box; text-decoration: none; font-size: 13px; font-weight: 600; color: #fafaf9; border-bottom: 2px solid #3ba6f1;">간호 <span style="font-size: 11px; min-width: 18px; height: 18px; border-radius: 9px; background: #1d7fc2; display: inline-flex; align-items: center; justify-content: center; padding: 0 5px; box-sizing: border-box;">5</span></a>
+      <a href="RadiologyHome.dc.html" style="display: flex; align-items: center; gap: 7px; padding: 0 14px; height: 52px; box-sizing: border-box; text-decoration: none; font-size: 13px; font-weight: 500; color: #a8a29e; border-bottom: 2px solid transparent;">영상의학 <span style="font-size: 11px; min-width: 18px; height: 18px; border-radius: 9px; background: #44403c; color: #fafaf9; display: inline-flex; align-items: center; justify-content: center; padding: 0 5px; box-sizing: border-box;">7</span></a>
+      <a href="PathologyHome.dc.html" style="display: flex; align-items: center; gap: 7px; padding: 0 14px; height: 52px; box-sizing: border-box; text-decoration: none; font-size: 13px; font-weight: 500; color: #a8a29e; border-bottom: 2px solid transparent;">병리 <span style="font-size: 11px; min-width: 18px; height: 18px; border-radius: 9px; background: #44403c; color: #fafaf9; display: inline-flex; align-items: center; justify-content: center; padding: 0 5px; box-sizing: border-box;">5</span></a>
+      <a href="SurgeryHome.dc.html" style="display: flex; align-items: center; gap: 7px; padding: 0 14px; height: 52px; box-sizing: border-box; text-decoration: none; font-size: 13px; font-weight: 500; color: #a8a29e; border-bottom: 2px solid transparent;">유방외과 <span style="font-size: 11px; min-width: 18px; height: 18px; border-radius: 9px; background: #44403c; color: #fafaf9; display: inline-flex; align-items: center; justify-content: center; padding: 0 5px; box-sizing: border-box;">6</span></a>
+    </nav>
+    <div style="flex-grow: 1;"></div>
+    <label style="display: flex; align-items: center; gap: 8px; width: 340px; height: 34px; padding: 0 12px; border-radius: 8px; background: #292524; border: 1px solid #44403c; box-sizing: border-box; color: #a8a29e;">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+      <span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);">환자 검색</span>
+      <input type="search" placeholder="환자 이름 · 환자번호" style="flex-grow: 1; min-width: 0; background: transparent; border: none; color: #fafaf9; font-size: 13px; outline: none;">
+      <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #78716c; border: 1px solid #44403c; border-radius: 4px; padding: 1px 5px;">/</span>
+    </label>
+    <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #a8a29e;">09-21 (월) 14:32</span>
+    <button type="button" aria-label="알림 3건" style="position: relative; width: 34px; height: 34px; border-radius: 8px; border: none; background: transparent; color: #d6d3d1; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 1112 0c0 7 3 8 3 8H3s3-1 3-8"></path><path d="M10 20a2 2 0 004 0"></path></svg>
+      <span style="position: absolute; top: 6px; right: 7px; width: 7px; height: 7px; border-radius: 50%; background: #f87171;"></span>
+    </button>
+    <a href="Main.dc.html" style="display: flex; align-items: center; gap: 8px; text-decoration: none; color: #fafaf9;">
+      <span style="width: 28px; height: 28px; border-radius: 50%; background: #44403c; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700;">간</span>
+      <span style="display: flex; flex-direction: column; line-height: 1.2;"><span style="font-size: 12px; font-weight: 600;">시연간호</span><span style="font-size: 11px; color: #a8a29e;">간호과</span></span>
+    </a>
+  </header>
+
+  <div style="height: 50px; flex-shrink: 0; background: #ffffff; border-bottom: 1px solid #e7e5e4; display: flex; align-items: center; padding: 0 20px; gap: 28px; box-sizing: border-box;">
+    <h1 style="margin: 0; font-size: 16px; font-weight: 700;">내원 대기 · 유방외과 배정</h1>
+    <sc-for list="{{kpis}}" as="k" hint-placeholder-count="5">
+      <div style="display: flex; align-items: baseline; gap: 7px;">
+        <span style="font-size: 12px; color: #57534e;">{{k.label}}</span>
+        <span style="font-family: 'IBM Plex Mono', monospace; font-size: 17px; font-weight: 600; {{k.style}}">{{k.value}}</span>
+      </div>
+    </sc-for>
+    <div style="flex-grow: 1;"></div>
+    <a href="#" style="height: 32px; padding: 0 12px; border-radius: 7px; border: 1px solid #d6d3d1; background: #ffffff; color: #292524; font-size: 13px; display: flex; align-items: center; text-decoration: none;">추적 관리 전체</a>
+  </div>
+
+  <div style="flex-grow: 1; min-height: 0; padding: 14px 16px 16px; box-sizing: border-box; display: grid; grid-template-columns: 330px minmax(0, 1fr) 380px; gap: 12px;">
+
+    <section style="background: #ffffff; border: 1px solid #e7e5e4; border-radius: 10px; display: flex; flex-direction: column; min-height: 0; overflow: hidden;">
+      <div style="padding: 12px 13px; border-bottom: 1px solid #f0efee; display: flex; align-items: center; gap: 8px;">
+        <span style="width: 8px; height: 8px; border-radius: 2px; background: #1d7fc2;"></span>
+        <h2 style="margin: 0; font-size: 14px; font-weight: 700;">내원한 대기 환자</h2>
+        <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600; color: #57534e;">{{queueCount}}</span>
+        <div style="flex-grow: 1;"></div>
+        <span style="font-size: 11px; color: #57534e;">접수 순 · 순서 고정</span>
+      </div>
+      <div style="flex-grow: 1; overflow: auto;">
+        <sc-for list="{{queue}}" as="q" hint-placeholder-count="5">
+          <button type="button" class="ep-pick" onClick="{{q.pick}}" style="width: 100%; text-align: left; border: none; border-bottom: 1px solid #f5f5f4; padding: 10px 13px; display: flex; gap: 10px; align-items: flex-start; cursor: pointer; {{q.bg}}">
+            <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #78716c; width: 18px; padding-top: 2px;">{{q.no}}</span>
+            <span style="flex-grow: 1; display: flex; flex-direction: column; gap: 3px; min-width: 0;">
+              <span style="display: flex; align-items: baseline; gap: 6px;">
+                <b style="font-size: 13.5px; font-weight: 600; color: #0c0a09;">{{q.name}}</b>
+                <span style="font-size: 12px; color: #57534e;">{{q.meta}}</span>
+                <span style="flex-grow: 1;"></span>
+                <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; {{q.waitStyle}}">{{q.waitText}}</span>
+              </span>
+              <span style="display: flex; gap: 6px; align-items: center; font-size: 12px; color: #78716c;">
+                <span style="font-family: 'IBM Plex Mono', monospace;">{{q.time}} 접수</span>
+                <span style="font-size: 11px; padding: 1px 6px; border-radius: 4px; {{q.chipStyle}}">{{q.chip}}</span>
+                <span>{{q.status}}</span>
+              </span>
+            </span>
+          </button>
+        </sc-for>
+      </div>
+    </section>
+
+    <section style="background: #ffffff; border: 1px solid #e7e5e4; border-radius: 10px; display: flex; flex-direction: column; min-height: 0; overflow: hidden;">
+      <div style="padding: 16px 20px; border-bottom: 1px solid #f0efee; display: flex; align-items: center; gap: 14px;">
+        <div style="width: 44px; height: 44px; border-radius: 50%; background: #f3e8ef; color: #9d3b56; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px;">{{cur.initial}}</div>
+        <div style="display: flex; flex-direction: column; gap: 3px;">
+          <div style="display: flex; align-items: baseline; gap: 10px;"><h2 style="margin: 0; font-size: 20px; font-weight: 700;">{{cur.name}}</h2><span style="font-size: 14px; color: #57534e;">{{cur.meta}}</span></div>
+          <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #78716c;">{{cur.pno}} · {{cur.birth}} · {{cur.time}} 접수</div>
+        </div>
+        <div style="flex-grow: 1;"></div>
+        <span style="font-size: 12px; padding: 4px 9px; border-radius: 6px; background: #fef3c7; color: #78350f; font-weight: 600;">조영제 알레르기</span>
+        <span style="font-size: 12px; padding: 4px 9px; border-radius: 6px; {{cur.chipStyle}}">{{cur.chip}}</span>
+      </div>
+
+      <div style="flex-grow: 1; overflow: auto; padding: 16px 20px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-content: start;">
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <h3 style="margin: 0; font-size: 12px; font-weight: 600; color: #57534e; letter-spacing: 0.04em;">방문 정보</h3>
+          <dl style="margin: 0; display: grid; grid-template-columns: 88px minmax(0, 1fr); row-gap: 9px; font-size: 13px;">
+            <dt style="color: #78716c;">방문 구분</dt><dd style="margin: 0;">{{cur.chip}} · {{cur.status}}</dd>
+            <dt style="color: #78716c;">내원 목적</dt><dd style="margin: 0;">좌측 유방 멍울 촉지</dd>
+            <dt style="color: #78716c;">알레르기</dt><dd style="margin: 0; color: #a16207; font-weight: 600;">요오드 조영제</dd>
+            <dt style="color: #78716c;">지난 검사</dt><dd style="margin: 0;">2026-03 US · BI-RADS 2</dd>
+            <dt style="color: #78716c;">메모</dt><dd style="margin: 0; color: #57534e;">보호자 동행 · 청력 저하 있어 크게 안내</dd>
+          </dl>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <div style="display: flex; align-items: center; gap: 8px;"><h3 style="margin: 0; font-size: 12px; font-weight: 600; color: #57534e; letter-spacing: 0.04em;">문진</h3><span style="font-size: 11px; padding: 1px 6px; border-radius: 4px; background: #dcfce7; color: #166534;">작성 완료</span></div>
+          <dl style="margin: 0; display: grid; grid-template-columns: 112px minmax(0, 1fr); row-gap: 9px; font-size: 13px;">
+            <dt style="color: #78716c;">가족력</dt><dd style="margin: 0;">있음 · 모친</dd>
+            <dt style="color: #78716c;">최근 유방 촬영</dt><dd style="margin: 0;">2025-09</dd>
+            <dt style="color: #78716c;">현재 증상</dt><dd style="margin: 0;">좌측 멍울 · 통증 없음</dd>
+            <dt style="color: #78716c;">호르몬 치료</dt><dd style="margin: 0;">없음</dd>
+          </dl>
+          <button type="button" style="align-self: flex-start; height: 30px; padding: 0 12px; border-radius: 7px; border: 1px solid #d6d3d1; background: #ffffff; color: #292524; font-size: 12px; cursor: pointer;">문진 고치기</button>
+        </div>
+
+        <div style="grid-column: 1 / -1; border-top: 1px solid #f0efee; padding-top: 16px; display: flex; flex-direction: column; gap: 10px;">
+          <h3 style="margin: 0; font-size: 12px; font-weight: 600; color: #57534e; letter-spacing: 0.04em;">유방외과 의사 배정</h3>
+          <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;">
+            <sc-for list="{{doctors}}" as="d" hint-placeholder-count="2">
+              <button type="button" onClick="{{d.pick}}" style="text-align: left; padding: 12px 14px; border-radius: 9px; cursor: pointer; display: flex; align-items: center; gap: 12px; {{d.style}}">
+                <span style="width: 16px; height: 16px; border-radius: 50%; box-sizing: border-box; {{d.radio}}"></span>
+                <span style="display: flex; flex-direction: column; gap: 2px;">
+                  <b style="font-size: 14px; color: #0c0a09;">{{d.name}}</b>
+                  <span style="font-size: 12px; color: #57534e;">지금 대기 {{d.load}}명 · {{d.note}}</span>
+                </span>
+              </button>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+
+      <div style="padding: 12px 20px; border-top: 1px solid #f0efee; display: flex; gap: 8px; align-items: center; background: #fafaf9;">
+        <button type="button" style="height: 36px; padding: 0 14px; border-radius: 8px; border: 1px solid #d6d3d1; background: #ffffff; color: #292524; font-size: 13px; cursor: pointer;">검체 바인딩</button>
+        <div style="flex-grow: 1;"></div>
+        <span style="font-size: 12px; color: #57534e;">보내면 그 의사의 「내 환자」에만 뜹니다</span>
+        <button type="button" style="height: 36px; padding: 0 16px; border-radius: 8px; border: none; background: #1d7fc2; color: #ffffff; font-size: 13px; font-weight: 600; cursor: pointer;">유방외과 큐로 보내기</button>
+      </div>
+    </section>
+
+    <div style="display: flex; flex-direction: column; gap: 12px; min-height: 0;">
+      <section style="background: #ffffff; border: 1px solid #e7e5e4; border-radius: 10px; overflow: hidden; flex: 1 1 0; display: flex; flex-direction: column; min-height: 0;">
+        <div style="padding: 11px 13px; border-bottom: 1px solid #f0efee; display: flex; align-items: center; gap: 8px;">
+          <h2 style="margin: 0; font-size: 14px; font-weight: 700;">금일 내원 예정</h2>
+          <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600; color: #57534e;">8</span>
+          <div style="flex-grow: 1;"></div><span style="font-size: 11px; color: #57534e;">아직 안 온 사람</span>
+        </div>
+        <div style="overflow: auto;">
+          <sc-for list="{{today}}" as="t" hint-placeholder-count="5">
+            <div style="display: flex; align-items: center; gap: 10px; padding: 7px 13px; border-bottom: 1px solid #f5f5f4; font-size: 13px;">
+              <span style="font-family: 'IBM Plex Mono', monospace; color: #57534e; width: 42px;">{{t.time}}</span>
+              <span style="flex-grow: 1;">{{t.name}} <span style="color: #78716c; font-size: 12px;">{{t.meta}}</span></span>
+              <span style="font-size: 11px; padding: 1px 6px; border-radius: 4px; {{t.chipStyle}}">{{t.chip}}</span>
+            </div>
+          </sc-for>
+        </div>
+      </section>
+
+      <section style="background: #ffffff; border: 1px solid #e7e5e4; border-radius: 10px; overflow: hidden; flex: 1 1 0; display: flex; flex-direction: column; min-height: 0;">
+        <div style="padding: 11px 13px; border-bottom: 1px solid #f0efee; display: flex; align-items: center; gap: 8px;">
+          <h2 style="margin: 0; font-size: 14px; font-weight: 700;">오늘 추적 콜</h2>
+          <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600; color: #57534e;">4</span>
+          <div style="flex-grow: 1;"></div><span style="font-size: 11px; color: #57534e;">BI-RADS 3 · 6·12·24개월</span>
+        </div>
+        <div style="overflow: auto;">
+          <sc-for list="{{calls}}" as="c" hint-placeholder-count="4">
+            <div style="display: flex; align-items: center; gap: 10px; padding: 8px 13px; border-bottom: 1px solid #f5f5f4; font-size: 13px;">
+              <span style="flex-grow: 1; display: flex; flex-direction: column; gap: 1px;"><span>{{c.name}} <span style="color: #78716c; font-size: 12px;">{{c.round}}</span></span><span style="font-size: 12px; color: #78716c;">{{c.due}}</span></span>
+              <span style="font-size: 11px; padding: 1px 6px; border-radius: 4px; {{c.resultStyle}}">{{c.result}}</span>
+              <button type="button" style="height: 28px; padding: 0 10px; border-radius: 6px; border: 1px solid #d6d3d1; background: #ffffff; color: #292524; font-size: 12px; cursor: pointer;">콜 기록</button>
+            </div>
+          </sc-for>
+        </div>
+      </section>
+
+      <section style="background: #ffffff; border: 1px solid #e7e5e4; border-radius: 10px; overflow: hidden; flex-shrink: 0;">
+        <div style="padding: 11px 13px; border-bottom: 1px solid #f0efee; display: flex; align-items: center; gap: 8px;">
+          <h2 style="margin: 0; font-size: 14px; font-weight: 700;">검체 바인딩 필요</h2>
+          <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600; color: #b91c1c;">2</span>
+        </div>
+        <sc-for list="{{binds}}" as="b" hint-placeholder-count="2">
+          <div style="display: flex; align-items: center; gap: 10px; padding: 8px 13px; border-bottom: 1px solid #f5f5f4; font-size: 13px;">
+            <span style="flex-grow: 1;">{{b.name}} <span style="color: #78716c; font-size: 12px;">{{b.lesion}}</span></span>
+            <button type="button" style="height: 28px; padding: 0 10px; border-radius: 6px; border: none; background: #1d7fc2; color: #ffffff; font-size: 12px; font-weight: 600; cursor: pointer;">바인딩</button>
+          </div>
+        </sc-for>
+      </section>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { picked: 0, doctor: 0 };
+  }
+  renderVals() {
+    const waitStyle = (m) => m >= 60 ? 'color:#b91c1c;font-weight:600;' : (m >= 30 ? 'color:#a16207;font-weight:600;' : 'color:#78716c;');
+    const waitText = (m) => m >= 60 ? Math.floor(m / 60) + 'h' + String(m % 60).padStart(2, '0') + 'm' : m + '′';
+    const chips = {
+      '신환': 'background:#e0f0fc;color:#155a8a;',
+      '재진': 'background:#f5f5f4;color:#57534e;',
+      '추적': 'background:#f3e8ef;color:#9d3b56;',
+      '예약': 'background:#ecfdf5;color:#166534;'
+    };
+    const raw = [
+      ['시연환자11', 51, 'P-0011', '1975-06-02', '13:31', 61, '재진', '문진 완료'],
+      ['시연환자18', 66, 'P-0018', '1960-01-19', '13:52', 40, '신환', '문진 중'],
+      ['시연환자25', 44, 'P-0025', '1982-08-11', '14:12', 20, '예약', '문진 대기'],
+      ['시연환자29', 53, 'P-0029', '1973-04-27', '14:20', 12, '추적', '문진 대기'],
+      ['시연환자31', 48, 'P-0031', '1978-12-05', '14:26', 6, '재진', '문진 대기']
+    ];
+    const picked = this.state.picked;
+    const queue = raw.map((r, i) => ({
+      no: i + 1, name: r[0], meta: r[1] + ' · 여', time: r[4],
+      waitText: waitText(r[5]), waitStyle: waitStyle(r[5]),
+      chip: r[6], chipStyle: chips[r[6]], status: r[7],
+      bg: i === picked ? 'background:#e0f0fc;' : 'background:#ffffff;',
+      pick: () => this.setState({ picked: i })
+    }));
+    const c = raw[picked];
+    const docs = [
+      { name: '서나영 교수', load: 6, note: '오늘 외래 오후' },
+      { name: '이도윤 교수', load: 3, note: '오늘 외래 종일' }
+    ];
+    const doctors = docs.map((d, i) => ({
+      name: d.name, load: d.load, note: d.note,
+      style: i === this.state.doctor ? 'border:1.5px solid #1d7fc2;background:#f0f8fe;' : 'border:1px solid #e7e5e4;background:#ffffff;',
+      radio: i === this.state.doctor ? 'border:5px solid #1d7fc2;background:#ffffff;' : 'border:1.5px solid #a8a29e;background:#ffffff;',
+      pick: () => this.setState({ doctor: i })
+    }));
+    const done = 'background:#dcfce7;color:#166534;', miss = 'background:#fef3c7;color:#78350f;', none = 'background:#f5f5f4;color:#57534e;';
+    return {
+      kpis: [
+        { label: '내원 대기', value: '5', style: '' },
+        { label: '평균 대기', value: '28분', style: '' },
+        { label: '최장 대기', value: '1h01m', style: 'color:#b91c1c;' },
+        { label: '금일 예정', value: '8', style: '' },
+        { label: '오늘 추적 콜', value: '4', style: '' }
+      ],
+      queueCount: raw.length,
+      queue: queue,
+      cur: { initial: c[0].slice(0, 1), name: c[0], meta: c[1] + '세 · 여', pno: c[2], birth: c[3], time: c[4], chip: c[6], chipStyle: chips[c[6]], status: c[7] },
+      doctors: doctors,
+      today: [
+        { time: '14:40', name: '시연환자33', meta: '59 · 여', chip: '예약', chipStyle: chips['예약'] },
+        { time: '15:00', name: '시연환자34', meta: '46 · 여', chip: '추적', chipStyle: chips['추적'] },
+        { time: '15:20', name: '시연환자35', meta: '62 · 여', chip: '예약', chipStyle: chips['예약'] },
+        { time: '15:40', name: '시연환자36', meta: '51 · 여', chip: '추적', chipStyle: chips['추적'] },
+        { time: '16:00', name: '시연환자37', meta: '40 · 여', chip: '예약', chipStyle: chips['예약'] },
+        { time: '16:20', name: '시연환자38', meta: '55 · 여', chip: '예약', chipStyle: chips['예약'] }
+      ],
+      calls: [
+        { name: '시연환자40', round: '6개월 · 1회차', due: '예정일 09-21', result: '미연락', resultStyle: none },
+        { name: '시연환자41', round: '12개월 · 2회차', due: '예정일 09-20 · 하루 지남', result: '부재', resultStyle: miss },
+        { name: '시연환자42', round: '6개월 · 1회차', due: '예정일 09-21', result: '연결', resultStyle: done },
+        { name: '시연환자43', round: '24개월 · 3회차', due: '예정일 09-22', result: '미연락', resultStyle: none }
+      ],
+      binds: [
+        { name: '시연환자05', lesion: 'L1 · 좌 2시 · 채취 13:40' },
+        { name: '시연환자16', lesion: 'L2 · 우 10시 · 채취 14:05' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

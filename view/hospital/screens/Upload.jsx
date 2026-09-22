@@ -48,7 +48,7 @@ export default function UploadScreen({ cfg }) {
 
   if (!can(c.need.view)) {
     return (
-      <Page crumb={[cfg.name, c.title]} title={c.title} sub={c.sub}>
+      <Page crumb={[cfg.name, c.title]} title={c.title}>
         <Locked what={c.title} />
       </Page>
     );
@@ -61,7 +61,7 @@ function Inner({ cfg, id }) {
   const { loading, data, error, reload } = useApi(() => cfg.api.uploadInfo(id), [id]);
 
   return (
-    <Page crumb={[cfg.name, c.title]} title={c.title} sub={c.sub}>
+    <Page crumb={[cfg.name, c.title]} title={c.title}>
       <Body loading={loading} error={error} onRetry={reload}>
         {data && <Work cfg={cfg} id={id} d={data} reload={reload} />}
       </Body>
@@ -185,14 +185,19 @@ function Work({ cfg, id, d, reload }) {
     }
   }
 
+  /* 배치는 `docs/mockup/RadiologyUpload.html` — **두 단이다.**
+     왼쪽이 「올리는 일」(누구의 무엇인가 · 파일), 오른쪽이 「넘기는 일」
+     (품질 확인 · AI 분석). 전에는 세 단이라 환자 정보가 한 단을 통째로
+     먹고 정작 파일 줄이 좁았다. */
   return (
-    <div className="grid3">
-      {/* ── 왼쪽 · 누구의 무엇인가 ─────────────────────────── */}
+    <div className="up-cols">
+      <div className="up-col">
+      {/* ── 누구의 무엇인가 ─────────────────────────────────── */}
       <Card title={c.infoTitle}>
         <c.Info d={d} />
       </Card>
 
-      {/* ── 가운데 · 올리는 곳 ──────────────────────────────── */}
+      {/* ── 올리는 곳 ──────────────────────────────────────── */}
       <Card title="파일 올리기">
         <div className={`drop ${dragging ? "dragging" : ""}`}
              onDragEnter={(e) => { e.preventDefault(); setDragging(true); }}
@@ -252,8 +257,27 @@ function Work({ cfg, id, d, reload }) {
           </ul>
         </Fold>
       </Card>
+      </div>
 
-      {/* ── 오른쪽 · AI 분석 ───────────────────────────────── */}
+      <div className="up-col">
+      {/* ── 품질 확인 — 목업이 라디오 둘로 둔 자리 ───────────
+          「승인」은 아래 [AI 분석 시작] 이 곧 그것이라 여기서는
+          **반려 · 재촬영**만 받는다. 같은 일을 두 자리에서 시키면
+          어느 쪽이 진짜인지 헷갈린다.
+          ⚠ **반려를 여기서 직접 부르면 안 된다.** `retake` 는 이 화면의
+            id(study_id)가 아니라 **오더 번호**로 걸어야 하고, 그 번호를
+            찾는 자리가 과별 설정(`c.Extra`)에 있다.
+          ⚠ 병리에는 `Extra` 가 없다 — 칸은 두고 그렇게 적는다(8장) */}
+      <Card title="품질 확인">
+        <p className="muted small">
+          승인은 아래 [AI 분석 시작] 입니다. 판독 대기로 넘어갑니다.
+        </p>
+        {c.Extra
+          ? <c.Extra cfg={cfg} id={id} d={d} />
+          : <p className="muted">이 과에는 반려 경로가 없습니다</p>}
+      </Card>
+
+      {/* ── AI 분석 ────────────────────────────────────────── */}
       <Card title="AI 분석"
             right={prog && <Chip tone={tone("run", prog.status)}>{label(RUN_STATUS, prog.status)}</Chip>}>
         {!prog && (
@@ -293,10 +317,11 @@ function Work({ cfg, id, d, reload }) {
         </div>
 
         <div className="stack top">
+          {/* 재촬영은 위 「품질 확인」 칸으로 옮겼다 — 목업 자리다 */}
           <Btn kind="ghost" onClick={() => nav(cfg.go.queue())}>이전 단계</Btn>
-          {c.Extra && <c.Extra cfg={cfg} id={id} d={d} />}
         </div>
       </Card>
+      </div>
     </div>
   );
 }

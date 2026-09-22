@@ -2,163 +2,170 @@ import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { breast as api } from "../../../api";
 import { useApi } from "../../../lib/useApi";
-import { Page } from "../../../lib/Page";
-import { Body } from "../../../lib/Body";
+import { Page, Btn } from "../../../lib/Page";
+import { Body, Empty } from "../../../lib/Body";
+import { Chip, useCan } from "../../../lib/Parts";
 import { go } from "../../../nav";
-import "../breast.css";   /* 유방외과 전용 — .breast 안에 갇혀 있다. 네 화면이 각자
-                             끌고 온다: 주소로 곧장 들어와도 스타일이 빠지면 안 된다 */
+import * as H from "../../home";
 
-/* 화면 5 · 영상-병리 불일치 처분 ("/discordances/:id")
+/* 유방외과 · 불일치 처분 — `docs/mockup/SurgeryDiscordance.html`
+ * ════════════════════════════════════════════════════════════════
  *
- * breast.html 레퍼런스에 이 화면이 통째로 빠져 있어(정리본 §2-5) 명세서
- * 서술만으로 새로 설계했다. 병변별 영상의학과 판정 vs 병리과 판정을
- * VS 레이아웃으로 비교하고, 처분(재생검/절제/관찰)과 사유를 받아 저장한다.
+ * 영상과 병리가 엇갈린 건만 모인다. 왼쪽에 엇갈린 목록, 오른쪽에 처분.
  *
- * 화면 쪽 수정요청 반영:
- *   · [수용] 버튼 제거 — "관찰" 하나만 남긴다
- *   · 불일치 상태 SEV1 배지 제거
+ *   ┌ 1fr ─────────────────────────┬ 380px ─────────┐
+ *   │ 환자 │번호│영상 │병리 │ [처분]│ 김민지 · 처분  │
+ *   │ ──────────────────────────── │ ○ 재생검       │
+ *   │ 김민지 … 4(악성 의심) 양성    │ ○ 절제         │
+ *   │                              │ ○ 관찰         │
+ *   │                              │ [처분 확정]    │
+ *   └──────────────────────────────┴────────────────┘
  *
- * 처분은 유방외과만 할 수 있는 단독 권한(CanDisposeDiscordance)이라는
- * 전제 위에서 만들었다 — 목업에는 권한 분기를 따로 두지 않는다.
- * closed_at 이 찍혀야 화면3의 "② 대조 종결" 조건이 참이 된다. */
-const DISPOSITIONS = [
-  { v: "rebiopsy", label: "재생검" },
-  { v: "excision", label: "절제" },
-  { v: "no_action", label: "관찰" },
+ * ⚠ **「판독 후 3일」을 안 쓴다.** 목업 표의 그 칸은 경과 시간이다.
+ *   대신 판독 날짜를 적는다 — 언제 났는지는 서버가 준다.
+ * ⚠ **목록은 이 건 하나다.** 서버에 `GET /discordances`(전체 목록)가
+ *   있지만 api.js 에 없고 새 경로는 안 판다. 대신 주소로 들어온 한 건을
+ *   펴 놓고, 나머지는 「내 환자」의 불일치 탭이 센다 — 거기가 목록이다.
+ * ⚠ **되돌릴 수 없다.** 처분하면 flag 가 닫히고 치료 방침 결정이 열린다.
+ */
+const DISPOSE = [
+  { v: "rebiopsy", label: "재조직검사" },
+  { v: "excision", label: "수술적 절제" },
+  { v: "followup", label: "단기 추적 (6개월)" },
+  { v: "no_action", label: "불일치 아님 — 종결" },
 ];
 
 export default function Discordance() {
   const { id } = useParams();
   const nav = useNavigate();
-  const { loading, data, error, reload } = useApi(() => api.discordance(id), [id]);
+  const one = useApi(() => api.discordance(id), [id]);
 
   return (
-    <Page className="breast" crumb={["유방외과", "판정 불일치 처분"]}
-            title="영상-병리 불일치 처분"
-            sub={data ? `${data.patient.name} · ${data.lesion.site}` : ""}
-            back={() => nav(go.breast.waiting())}>
-      <div className="pane">
-        <Body loading={loading} error={error} onRetry={reload}>
-          {data && <Inner d={data} onDisposed={() => nav(go.breast.waiting(), { state: { advance: true, from: data.patient.patient_id } })} />}
-        </Body>
-      </div>
+    <Page className="disc-page" crumb={["유방외과", "불일치 처분"]}
+          title="불일치 처분"
+          right={<Btn to={go.breast.waiting()}>내 환자</Btn>}>
+      <Body loading={one.loading && !one.data} error={one.error} onRetry={one.reload}>
+        {one.data && (
+          <div className="disc">
+            <Compare d={one.data} />
+            <Dispose d={one.data} done={one.data.flag_status !== "open"}
+                     onDone={() => nav(go.breast.waiting())} />
+          </div>
+        )}
+      </Body>
     </Page>
   );
 }
 
-function Inner({ d, onDisposed }) {
-  const [type, setType] = useState(null);
-  const [reason, setReason] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [err, setErr] = useState(null);
+/* 왼쪽 — 무엇이 엇갈렸나. 두 판독을 나란히 놓는다 */
+function Compare({ d }) {
+  const p = d.patient ?? {};
+  const rad = d.radiology_reading ?? {};
+  const pat = d.pathology_reading ?? {};
 
-  async function save() {
-    if (!type) { setErr("처분을 선택해 주세요"); return; }
-    if (!reason.trim()) { setErr("처분 사유는 필수입니다"); return; }
-    setSaving(true);
+  return (
+    <div className="disc-l">
+      <header className="disc-h">
+        <span className="work-1">
+          <b>{H.nameOf(p)}</b>
+          {H.who(p) && <span>{H.who(p)}</span>}
+        </span>
+        <span className="home-fill" />
+        {d.lesion && (
+          <Chip>{d.lesion.site} · {d.lesion.size_mm}mm</Chip>
+        )}
+      </header>
+
+      {/* 규칙이 무엇을 걸었는지 — 사람이 읽는 한 줄이다 */}
+      <p className="disc-rule">{d.violated_rule}</p>
+
+      <div className="disc-vs">
+        <Side title="영상 판독" r={rad} big={rad.assessment} />
+        <Side title="병리 판독" r={pat} big={pat.assessment} />
+      </div>
+    </div>
+  );
+}
+
+function Side({ title, r, big }) {
+  return (
+    <section className="disc-side">
+      <header>
+        <h3>{title}</h3>
+        <span className="home-fill" />
+        {H.day(r.read_at) && <time>{H.day(r.read_at)}</time>}
+      </header>
+      <b className="disc-big">{big ?? "아직 없습니다"}</b>
+      {r.finding && <p className="disc-find">{r.finding}</p>}
+      {r.assessor && <span className="hcard-k">{r.assessor}</span>}
+    </section>
+  );
+}
+
+/* 오른쪽 — 처분. 고르는 것과 확정하는 것을 두 걸음으로 나눈다 */
+function Dispose({ d, done, onDone }) {
+  const [pick, setPick] = useState(null);
+  const [why, setWhy] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+  const may = useCan("breast.discordance.dispose");
+
+  async function send() {
+    if (!pick) return;
+    setBusy(true);
     setErr(null);
     try {
-      await api.dispose(d.discordance_id, { disposition_type: type, disposition_reason: reason });
-      onDisposed?.();
-    } catch (e) {
-      setErr(e.detail || e.message);
-    } finally {
-      setSaving(false);
-    }
+      await api.dispose(d.discordance_id, { disposition: pick, reason: why });
+      onDone?.();
+    } catch (e) { setErr(e.detail || e.message); }
+    finally { setBusy(false); }
+  }
+
+  if (done) {
+    return (
+      <aside className="disc-r">
+        <header className="bcol-h"><i className="hdot" aria-hidden="true" /><b>처분</b></header>
+        <Empty title="이미 처분된 건입니다" />
+      </aside>
+    );
   }
 
   return (
-    <>
-      <div className="card discordance-summary">
-        <div className="card-head">
-          <div>
-            <span className="pill danger">불일치 · {d.flag_status === "open" ? "미해결" : "해결"}</span>
-            <h3>{d.patient.name} · 영상-병리 대조</h3>
-          </div>
-          <span className="meta">{d.lesion.lesion_id} · {specimenId(d)}</span>
-        </div>
-        <div className="discordance-patient-info">
-          <span>병변 위치 <b>{d.lesion.site}</b></span>
-          <span>병변 크기 <b>{d.lesion.size_mm}mm</b></span>
-          <span>검체 <b>{specimenId(d)}</b></span>
-        </div>
-        <div className="discordance-compare" aria-label="영상과 병리 판정 비교">
-          <ComparisonGrade label="영상 판정" value={birads(d.radiology_reading)} />
-          <span className="discordance-vs" aria-hidden="true">↔</span>
-          <ComparisonGrade label="병리 판정" value={bCategory(d.pathology_reading)} />
-        </div>
-        <div className="discordance-reason">
-          <span>불일치 사유</span>
-          <b>{d.violated_rule}</b>
-        </div>
-      </div>
-
-      <div className="vs">
-        <div className="side">
-          <h3>영상의학과 판정</h3>
-          <div className="kv"><span className="k">BI-RADS</span><span className="v">{birads(d.radiology_reading)}</span></div>
-          <div className="kv" style={{ marginTop: 8 }}><span className="k">상세 판정</span><span className="v">{d.radiology_reading.assessment}</span></div>
-          <div className="kv" style={{ marginTop: 8 }}><span className="k">소견</span><span className="v">{d.radiology_reading.finding}</span></div>
-          <div className="kv" style={{ marginTop: 8 }}><span className="k">판독의</span><span className="v">{d.radiology_reading.assessor}</span></div>
-        </div>
-        <div className="mid">VS</div>
-        <div className="side">
-          <h3>병리과 판정</h3>
-          <div className="kv"><span className="k">B 분류</span><span className="v">{bCategory(d.pathology_reading)}</span></div>
-          <div className="kv" style={{ marginTop: 8 }}><span className="k">상세 판정</span><span className="v">{d.pathology_reading.assessment}</span></div>
-          <div className="kv" style={{ marginTop: 8 }}><span className="k">소견</span><span className="v">{d.pathology_reading.finding}</span></div>
-          <div className="kv" style={{ marginTop: 8 }}><span className="k">판독의</span><span className="v">{d.pathology_reading.assessor}</span></div>
-        </div>
-      </div>
-
-      <div className="card" style={{ marginTop: 16 }}>
-        <h3>처분 결정</h3>
-        <div style={{ display: "flex", gap: 8 }}>
-          {DISPOSITIONS.map((opt) => (
-            <button key={opt.v}
-              className={type === opt.v ? "btn" : "btn ghost"}
-              onClick={() => setType(opt.v)}>
-              {opt.label}
+    <aside className="disc-r">
+      <header className="bcol-h">
+        <i className="hdot" aria-hidden="true" />
+        <b>처분</b>
+      </header>
+      <div className="disc-r-b">
+        <div className="ndocs one" role="radiogroup" aria-label="처분">
+          {DISPOSE.map((o) => (
+            <button type="button" key={o.v} role="radio" aria-checked={o.v === pick}
+                    className={`ndoc${o.v === pick ? " on" : ""}`}
+                    disabled={!may.ok} onClick={() => setPick(o.v)}>
+              <i aria-hidden="true" />
+              <b>{o.label}</b>
             </button>
           ))}
         </div>
-        <div className="field" style={{ marginTop: 14 }}>
-          <label>처분 사유 <span className="req">*</span></label>
-          <textarea value={reason} onChange={(e) => setReason(e.target.value)}
-            placeholder="근거 없이 처분하면 추적이 안 됩니다 — 사유를 적어 주세요" />
-        </div>
-        {err && <p className="field err">{err}</p>}
-        <button className="btn" onClick={save} disabled={saving}>
-          {saving ? "저장 중…" : "저장"}
-        </button>
+
+        <label className="disc-why">
+          <span>판단 근거</span>
+          <textarea value={why} onChange={(e) => setWhy(e.target.value)}
+                    rows={3} disabled={!may.ok} />
+        </label>
+
+        {err && <p className="note err">{err}</p>}
       </div>
-    </>
+
+      <footer className="disc-f">
+        {/* ⚠ 9장이 남기라고 한 되돌릴 수 없다는 말 */}
+        <span className="hcard-k">확정하면 되돌릴 수 없습니다</span>
+        <span className="home-fill" />
+        <Btn kind="fill" onClick={send} {...may.attrs}
+             disabled={!pick || busy || !may.ok}>
+          {busy ? "확정하는 중…" : "처분 확정"}
+        </Btn>
+      </footer>
+    </aside>
   );
-}
-
-function ComparisonGrade({ label, value }) {
-  return (
-    <span className="discordance-grade">
-      <span>{label}</span>
-      <b>{value}</b>
-    </span>
-  );
-}
-
-function birads(reading = {}) {
-  if (reading.birads != null) return `BI-RADS ${String(reading.birads).toUpperCase()}`;
-  return reading.assessment?.match(/BI-RADS\s*([0-9]+[a-c]?)/i)?.[0]?.toUpperCase()
-    ?? reading.assessment
-    ?? "—";
-}
-
-function bCategory(reading = {}) {
-  if (reading.b_category != null) return String(reading.b_category).toUpperCase();
-  return reading.assessment?.match(/B[1-5]/i)?.[0]?.toUpperCase()
-    ?? reading.assessment
-    ?? "—";
-}
-
-function specimenId(d) {
-  return d.specimen?.specimen_id ?? d.specimen_id ?? d.lesion?.specimen_id ?? "검체 정보 없음";
 }
