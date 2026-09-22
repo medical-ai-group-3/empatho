@@ -60,6 +60,15 @@ export default function Waiting() {
   const workflow = useWorkflow(selectedId);
 
   function openReview(patient) {
+    /* 진료 보기는 전체 검사 순서를 모두 끝내야만 열리는 화면이 아니다.
+     * 맘모·초음파·MRI 중 하나라도 판독이 확정되면 의사가 그 결과를
+     * 먼저 확인할 수 있어야 한다. 기존 nextCareStep()는 다음 검사 요청을
+     * 안내하는 용도로만 유지하고, 진입 차단에는 사용하지 않는다. */
+    const hasFinalizedStudy = (workflow.data?.studies ?? []).some(isFinalizedStudy);
+    if (hasFinalizedStudy) {
+      nav(go.breast.review(patient.patient_id));
+      return;
+    }
     const next = nextCareStep(workflow.data);
     if (next.kind === "ready") {
       nav(go.breast.review(patient.patient_id));
@@ -184,6 +193,15 @@ function useWorkflow(id) {
   return useApi(() => (id ? api.workflow(id) : Promise.resolve(null)), [id]);
 }
 
+function isFinalizedStudy(study = {}) {
+  const status = String(
+    study.read_status ?? study.status ?? study.report?.read_status ?? study.report?.status ?? ""
+  ).toLowerCase();
+  return study.finalized === true
+    || Boolean(study.finalized_at ?? study.report?.finalized_at)
+    || ["finalized", "final", "completed", "complete", "done"].includes(status);
+}
+
 /* 고정된 진료 순서. 이미 요청된 검사는 다시 만들지 않고, 촬영·판독이
    끝날 때까지 현재 단계만 안내한다. 병리 검체는 MRI 판독 확정 뒤에만
    등록 안내를 낸다. */
@@ -196,7 +214,7 @@ function nextCareStep(data) {
   const studies = data.studies ?? [];
   const orders = data.orders ?? [];
   const final = (modality) => studies.some((study) =>
-    asModality(study.modality) === modality && study.read_status === "finalized");
+    asModality(study.modality) === modality && isFinalizedStudy(study));
   const ordered = (modality) => orders.some((order) =>
     asModality(order.modality) === modality && order.order_status !== "cancelled");
 
@@ -229,7 +247,7 @@ function workflowProgress(data) {
   const orders = data?.orders ?? [];
   const state = {};
   for (const modality of ["mammo", "us", "mri"]) {
-    const isFinal = studies.some((study) => asModality(study.modality) === modality && study.read_status === "finalized");
+    const isFinal = studies.some((study) => asModality(study.modality) === modality && isFinalizedStudy(study));
     const isOrdered = orders.some((order) => asModality(order.modality) === modality && order.order_status !== "cancelled");
     state[modality] = isFinal ? "done" : isOrdered ? "waiting" : "todo";
   }
