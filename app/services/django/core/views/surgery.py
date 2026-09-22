@@ -319,6 +319,44 @@ class FinalReportView(viewsets.ViewSet):
         return Response(serializers.ReportSerializer(out, many=True).data,
                         status=status.HTTP_201_CREATED)
 
+def _specimen_ai(specimen):
+    """크롭 한 장 = AiResult 한 행. 병리 판독 화면의 AI 소견 칸이 읽는다.
+
+    ⚠ sTIL 은 내보내지 않는다(null). 소켓이 내는 stil_percent 는 임상 육안
+      TIL 의 약 1/12 스케일이고(비보정), 보정은 슬라이드 합산값에만 적용한다
+      — empatho-inference/sockets/pathology.py 상단. 그 합산 코드가 아직
+      앱 서버에 없다. 비보정값을 보정값 자리에 넣으면 화면이 「면역 반응이
+      거의 없다」로 읽힌다.
+
+    ⚠ 평균을 내지 않는다. 같은 슬라이드도 자른 자리에 따라 0~36% 로
+      요동친다(CV≈1.0). 크롭마다 한 줄씩 그대로 올린다.
+    """
+    rows = (models.AiResult.objects
+            .filter(source_object__specimen=specimen, run_status="done")
+            .select_related("source_object")
+            .order_by("source_object_id"))
+
+    out = []
+    for r in rows:
+        res = (r.result or {}).get("result") or {}
+        so = r.source_object
+        out.append({
+            "id": r.pk,
+            "name": so.object_key if so else None,
+            "abstained": bool(r.abstained),
+            "abstain_reason": r.abstain_reason,
+            "stroma_status": res.get("stroma_status"),
+            "stil_calibrated": None,
+            "stil_level": None,
+            "tsr_percent": res.get("tsr_stroma_percent"),
+            "cell_counts": {
+                "total": res.get("n_cells_total"),
+                "til": res.get("n_cells_til"),
+                "til_stromal": res.get("n_cells_til_stromal"),
+            },
+        })
+    return out
+
 class SpecimenBindViewSet(AuditMixin, viewsets.ViewSet):
     """§4 POST /specimens — 검체 바인딩.
     §4(병리과) GET /specimens — 전체 목록 + 필터/정렬.
@@ -369,7 +407,9 @@ class SpecimenBindViewSet(AuditMixin, viewsets.ViewSet):
     def retrieve(self, request, pk=None):
         specimen = models.Specimen.objects.get(pk=pk)
         out = serializers.SpecimenSerializer(specimen)
-        return Response(out.data)
+        # ai 는 상세에서만 붙인다 — 목록(list)에 붙이면 행마다 크롭 조회가
+        # 따라붙어 N+1 이 된다.
+        return Response({**out.data, "ai": _specimen_ai(specimen)})
 
 class SpecimenUploadListView(viewsets.ViewSet):
     resource = "specimen_pathology"
