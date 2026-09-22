@@ -125,7 +125,7 @@ function attachMasks(crops, files, aiRows) {
 
     const ai = aiRows[index] ?? {};
     const aiMask = fileRef(ai.mask ?? ai.mask_image ?? ai.segmentation
-      ?? ai.labelmap ?? ai.overlay);
+      ?? ai.labelmap ?? ai.overlay, true);
     if (aiMask) return { ...crop, mask: aiMask };
 
     /* 우선 원본 파일 id/이름으로 짝을 찾고, 식별자가 없는 응답은
