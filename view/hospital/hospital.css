@@ -241,10 +241,16 @@ input,select,textarea{font:inherit; color:inherit}
 /* ── 네 가지 상태 (lib/Body.jsx · Parts.jsx 의 Locked) ─────────
    비었음 · 오류 · 권한 없음이 같은 모양으로 선다. 빈 목록으로 위장하지
    않는 것이 규칙이라 셋 다 **글로 말한다.** */
+/* ⚠ 2026-09-22 확인 — 유방외과 큐(.work-q)처럼 어두운 칸 안에 이 카드가
+   서면 글씨가 안 보이던 것. .work-q가 색을 밝게(--v-ink) 걸어 두는데
+   이 카드는 배경을 늘 밝은 --card로 스스로 깔면서 글자색은 안 정해
+   부모 것을 물려받았다 — 흰 배경에 흰 글씨. 어디 놓이든 이 카드는
+   자기 배경에 맞는 색을 스스로 정한다. */
 .state{display:flex; flex-direction:column; align-items:center;
   justify-content:center; gap:var(--gap-sm);
   padding:var(--state-pad); text-align:center;
-  background:var(--card); border:var(--hair) solid var(--border);
+  background:var(--card); color:var(--ink);
+  border:var(--hair) solid var(--border);
   border-radius:var(--card-radius)}
 .state b{font-family:var(--font-head); font-size:var(--card-h-fs)}
 .state span{font-size:var(--state-fs); color:var(--warm); max-width:var(--form-w)}
