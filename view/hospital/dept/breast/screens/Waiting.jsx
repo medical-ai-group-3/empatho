@@ -177,6 +177,11 @@ function Mid({ p, onNext, onOpen, onDone }) {
   const d = p.open_discordance;
   const rep = p.other_reports ?? [];
   const pick = (want) => rep.find((r) => (r.dept ?? "").includes(want)) ?? null;
+  /* 판정(BI-RADS · B 분류)은 소견문에 안 들어 있다 — 검사 종합 화면과 같은
+     자리에서 같은 것을 읽는다(api.js 의 readings 주석) */
+  const readings = p.readings ?? { radiology: [], pathology: [] };
+  const radRead = readings.radiology?.[0] ?? null;
+  const patRead = readings.pathology?.[0] ?? null;
 
   return (
     <>
@@ -208,8 +213,10 @@ function Mid({ p, onNext, onOpen, onDone }) {
       )}
 
       <div className="work-reads">
-        <Read title="영상 판독" r={pick("영상")} to={go.breast.review(p.patient_id)} />
-        <Read title="병리 판독" r={pick("병리")} to={go.breast.review(p.patient_id)} />
+        <Read title="영상 판독" r={pick("영상")} v={radRead} gradeLabel="BI-RADS"
+              to={go.breast.review(p.patient_id)} />
+        <Read title="병리 판독" r={pick("병리")} v={patRead} gradeLabel="B"
+              to={go.breast.review(p.patient_id)} />
       </div>
 
       <Decide p={p} onDone={onDone} />
@@ -230,21 +237,33 @@ function Mid({ p, onNext, onOpen, onDone }) {
    ⚠ **칸을 없애지 않는다.** 한쪽이 아직 없어도 자리를 둔다 — 없어진
      칸을 보면 「이 환자는 병리를 안 했다」가 아니라 「화면이 깨졌다」로
      읽힌다 */
-function Read({ title, r, to }) {
+function Read({ title, r, v = null, gradeLabel, to }) {
+  /* ⚠ 판정이 있으면 소견문이 없어도 칸을 채운다. 전에는 소견문 하나만
+     보고 있어서, BI-RADS 가 멀쩡히 붙은 환자도 「아직 없습니다」였다
+     (09-23 확인) — 소견문은 LLM 이 나중에 써 넣는 글이다 */
+  const has = Boolean(r || v);
   return (
     <section className="work-read">
       <header>
         <h3>{title}</h3>
         <span className="home-fill" />
-        {H.day(r?.at) && <time>{H.day(r.at)}</time>}
+        {v?.grade && (
+          <Chip tone="fill">
+            {gradeLabel ? `${gradeLabel} ${v.grade}` : v.grade}
+          </Chip>
+        )}
+        {H.day(v?.at ?? r?.at) && <time>{H.day(v?.at ?? r.at)}</time>}
       </header>
-      {!r
+      {!has
         ? <p className="hcard-k">아직 없습니다</p>
         : (
           <>
-            <p className="work-read-b">{r.summary}</p>
+            {v?.note && <p className="work-read-b">{v.note}</p>}
+            {r?.summary && <p className="work-read-b">{r.summary}</p>}
             <footer>
-              <span className="hcard-k">{r.author}</span>
+              {/* ⚠ 낸 사람 이름을 서버가 안 준다 — 판독 응답의 assessed_by 는
+                  번호다. 번호를 사람 이름 자리에 찍지 않는다 */}
+              <span className="hcard-k">{r?.author ?? ""}</span>
               <span className="home-fill" />
               <Btn to={to}>자세히</Btn>
             </footer>

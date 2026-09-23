@@ -889,7 +889,10 @@ export const specimens = {
   lesionsByPatient: (pid) => get(`/lesions/${qs({ patient: pid })}`),
   /* 현재 서버의 specimens 목록은 patient 필터를 아직 받지 않는다. 유방외과
      워크플로 안내에서는 응답을 받은 뒤 해당 환자 것만 골라 쓴다. */
-  list: () => get("/specimens/").then(unwrapList),
+  /* ⚠ 환자 조건을 **서버에** 건다(09-23에 서버도 같이 고쳤다). 전에는
+     병원 전체 검체를 받아 화면에서 걸렀다 — 건수가 늘면 그대로 무거워지고,
+     거르는 것을 한 곳이라도 빠뜨리면 남의 검체가 섞인다 */
+  list: (patient) => get(`/specimens/${qs({ patient })}`).then(unwrapList),
   bind: (b) => post("/specimens/", b),
 };
 
@@ -994,10 +997,21 @@ export const breast = {
      리포트를 함께 쓰므로 목록을 별도로 받아 최신 종합 리포트를 붙인다.
      아직 리포트가 없는 환자는 null로 두고 화면이 안내 상태를 보여 준다. */
   patient:      async (id) => {
-    const [rawPatient, reports, orders] = await Promise.all([
+    const [rawPatient, reports, orders, readings, lesions, odds] = await Promise.all([
       get(`/patients/${id}/`),
       get(`/reports/${qs({ patient: id })}`).then(unwrapList).catch(() => []),
       breast.ordersOf(id).catch(() => []),
+      /* 판독값 · 병변 — 환자 상세 응답에 둘 다 없다. 아래 주석 참고.
+         곁가지라 실패해도 화면이 통째로 죽지 않게 빈 값으로 떨어뜨린다 */
+      breast.readings(id).catch(() => ({ radiology: [], pathology: [] })),
+      /* ⚠ 받아서도 **한 번 더 거른다.** 서버가 ?patient= 을 조용히 무시하던
+         적이 있었다(09-23에 고쳤다) — 그때 이 화면은 남의 병변을 이 환자
+         것으로 그렸다. 같은 실수가 또 나면 화면에서 막는다 */
+      specimens.lesionsByPatient(id).then(unwrapList)
+        .then((rows) => rows.filter(
+          (l) => Number(l.patient_id ?? l.patient) === Number(id)))
+        .catch(() => []),
+      breast.openDiscordances(id).catch(() => []),
     ]);
     const patient = normalizePatient(rawPatient);
     const currentOrder = orders.find((row) => row.visited_at && !["completed", "cancelled"].includes(row.order_status))
@@ -1022,6 +1036,24 @@ export const breast = {
           dept: REPORT_DEPT[row.socket_id] ?? "판독",
           summary: row.narrative_text,
         })),
+      /* ⚠ **판정 그 자체가 없었다.** 검사 종합 화면이 「확정」 칩만 띄우고
+         정작 BI-RADS 도 B 분류도 못 보여 주고 있었다(09-23 확인). 화면이
+         읽던 것은 리포트의 소견문(narrative_text) 하나뿐인데, 판정은
+         Assessment · Specimen 표에 있어서 리포트에도 환자 상세에도 안
+         실린다. 서버는 진작 내주고 있었다(GET /assessments?study= 는
+         유방외과도 부를 수 있다) — 부르는 쪽이 없었을 뿐이다 */
+      readings,
+      /* ⚠ **화면이 p.lesions 를 읽는데 서버가 그 칸을 안 준다.**
+         PatientDetailSerializer 는 Patient + pii 뿐이다. 그래서 병변 줄도,
+         뷰어의 3D 패널도 늘 비어 있었다 — /lesions?patient= 로 따로 받는다 */
+      lesions,
+      /* ⚠ **안 열린 불일치가 늘 「없음」이었다.** 화면은 p.open_discordance
+         를 읽는데 서버 응답에 그런 칸이 없다 — undefined 라 검사 종합의
+         안전 띠가 어느 환자에게나 초록 「엇갈린 것이 없습니다」로 떴다
+         (09-23 확인). 엇갈렸는데 안 엇갈렸다고 말하는 쪽이라 그냥
+         비어 있는 것보다 나쁘다. 목록 경로는 진작 있었다 */
+      open_discordance: odds[0] ?? null,
+      open_discordances: odds,
       current_order: currentOrder,
       visit_type: currentOrder?.visit_type ?? null,
       visit_purpose: currentOrder?.exam_purpose ?? null,
@@ -1058,13 +1090,62 @@ export const breast = {
      "촬영한 검사가 없습니다"가 표시된다. */
   studies:      (pid) => get(`/patients/${pid}/studies`).then(unwrapList),
 
+  /* 아직 처분 안 한 판정 불일치 — 영상과 병리가 엇갈린 건.
+     ⚠ 목록 경로에는 끝 슬래시가 없다(core/urls.py 의 "discordances") */
+  openDiscordances: (pid) =>
+    get(`/discordances${qs({ patient: pid, status: "open" })}`).then(unwrapList),
+
+  /* 판독값 — **소견문이 아니라 판정이다.**
+   *
+   *   영상   Assessment.category (BI-RADS) · finding_note
+   *   병리   Specimen.b_category (B 분류) · diagnosis
+   *
+   * 둘 다 확정된 것만 센다. 임시저장(draft)은 아직 남에게 보일 값이 아니다.
+   * 최신순이다 — 목록이 -performed_at 으로 와서 맨 앞이 이번 검사다. */
+  readings: async (pid) => {
+    const [studies, specimenRows] = await Promise.all([
+      breast.studies(pid).catch(() => []),
+      specimens.list(pid).catch(() => []),
+    ]);
+
+    const found = await Promise.all(
+      studies.map((s) => radCurrentAssessment(s.study_id ?? s.id)),
+    );
+
+    const radiology = studies
+      .map((s, i) => {
+        const a = found[i];
+        if (!a) return null;
+        return {
+          study_id: s.study_id ?? s.id,
+          modality: s.modality ?? null,
+          grade: a.category ?? null,
+          note: a.finding_note ?? null,
+          at: a.finalized_at ?? a.created_at ?? null,
+        };
+      })
+      .filter(Boolean);
+
+    const pathology = specimenRows
+      .filter((row) => Number(row.patient_id ?? row.patient) === Number(pid))
+      .filter((row) => row.finalized_at && (row.diagnosis || row.b_category))
+      .map((row) => ({
+        specimen_id: row.specimen_id ?? row.id,
+        grade: row.b_category ?? null,
+        note: row.diagnosis ?? null,
+        at: row.finalized_at ?? null,
+      }));
+
+    return { radiology, pathology };
+  },
+
   /* 유방외과 진료를 열기 전 다음 단계를 판단할 최소 이력. 서버에 별도
      workflow API가 없어서, 이미 있는 검사·오더·검체 조회를 한 번에 묶는다. */
   workflow: async (pid) => {
     const [studiesRaw, orders, specimenRows] = await Promise.all([
       get(`/patients/${pid}/studies`),
       breast.ordersOf(pid),
-      specimens.list(),
+      specimens.list(pid),
     ]);
     return {
       studies: unwrapList(studiesRaw),

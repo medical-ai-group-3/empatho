@@ -60,6 +60,14 @@ function Inner({ p, onSaved }) {
   const of = (want) => rep.find((r) => (r.dept ?? "").includes(want)) ?? null;
   const rad = of("영상");
   const pat = of("병리");
+  /* ⚠ **판정 그 자체를 여기서 처음으로 쓴다.** 위 other_reports 는 LLM
+     소견문(narrative_text)이라 BI-RADS 도 B 분류도 안 들어 있다. 화면이
+     「확정」 칩만 띄우고 정작 몇 등급인지를 못 보여 주던 자리다(09-23).
+     판정은 Assessment · Specimen 표에 있고 api.js 의 readings 가 모은다.
+     최신순이라 맨 앞이 이번 것이다 */
+  const readings = p.readings ?? { radiology: [], pathology: [] };
+  const radRead = readings.radiology?.[0] ?? null;
+  const patRead = readings.pathology?.[0] ?? null;
   const odd = p.open_discordance;
 
   return (
@@ -75,9 +83,8 @@ function Inner({ p, onSaved }) {
           </dl>
         </section>
 
-        <Reading title="영상 판독" r={rad}
-                 lines={[["병변", p.lesions?.[0]
-                   && `${p.lesions[0].site} · ${p.lesions[0].size_mm}mm`]]}
+        <Reading title="영상 판독" r={rad} v={radRead} gradeLabel="BI-RADS"
+                 lines={[["병변", lesionLine(p.lesions?.[0])]]}
                  action={(
                    <Btn onClick={() => setSeeing((v) => !v)}>
                      {seeing ? "영상 접기" : "영상 보기"}
@@ -102,8 +109,9 @@ function Inner({ p, onSaved }) {
           )}
         </section>
 
-        <Reading title="병리 결과" r={pat}
-                 lines={[["검체", p.lesions?.find((l) => l.specimen_id)?.specimen_id]]} />
+        <Reading title="병리 결과" r={pat} v={patRead} gradeLabel="B"
+                 lines={[["검체", patRead?.specimen_id
+                   ?? p.lesions?.find((l) => l.specimen_id)?.specimen_id]]} />
       </div>
 
       {seeing && (
@@ -119,28 +127,58 @@ function Inner({ p, onSaved }) {
   );
 }
 
+/* 병변 한 줄 — 「좌상 외측 · 12mm」.
+ *
+ * ⚠ 전에는 l.site · l.size_mm 을 읽었는데 **서버에 그런 칸이 없다.**
+ *   Lesion 표의 이름은 label · measured_size_mm · ai_size_mm 이라
+ *   줄이 늘 「undefined · undefinedmm」 이었다(09-23 확인).
+ * ⚠ 잰 값이 먼저다. AI 값은 사람이 확인하기 전의 값이라 뒤에 온다 —
+ *   환자 상세(screens/Patient.jsx)가 쓰는 규칙과 같다.
+ */
+function lesionLine(l) {
+  if (!l) return null;
+  const site = l.label ?? l.site ?? null;
+  const mm = l.measured_size_mm ?? l.ai_size_mm ?? null;
+  return [site, mm != null ? `${mm}mm` : null].filter(Boolean).join(" · ") || null;
+}
+
 /* 판독 한 칸 — 영상과 병리가 같은 모양을 쓴다.
-   ⚠ **칸을 없애지 않는다.** 한쪽이 아직 없어도 자리를 둔다 */
-function Reading({ title, r, lines = [], action }) {
+ *
+ *   r  리포트의 소견문 (LLM 이 쓴 글. 없을 수 있다)
+ *   v  **판정** — BI-RADS 나 B 분류와 판독의가 쓴 소견. 이쪽이 본체다
+ *
+ * ⚠ **칸을 없애지 않는다.** 한쪽이 아직 없어도 자리를 둔다.
+ * ⚠ 둘 중 하나만 있어도 칸을 채운다 — 전에는 소견문이 없으면(파이프라인이
+ *   안 돌면) 판정이 멀쩡히 있어도 「아직 없습니다」였다(09-23).
+ */
+function Reading({ title, r, v = null, gradeLabel, lines = [], action }) {
+  const has = Boolean(r || v);
   return (
     <section className="rev-box">
       <header className="rev-box-h">
         <h3>{title}</h3>
         <span className="home-fill" />
-        {r ? <Chip>확정</Chip> : <span className="hcard-k">아직 없습니다</span>}
+        {v?.grade && (
+          <Chip tone="fill">
+            {gradeLabel ? `${gradeLabel} ${v.grade}` : v.grade}
+          </Chip>
+        )}
+        {has ? <Chip>확정</Chip> : <span className="hcard-k">아직 없습니다</span>}
       </header>
-      {r && (
+      {has && (
         <>
           <dl className="kv">
-            {lines.filter(([, v]) => v).map(([k, v]) => (
-              <div key={k}><dt>{k}</dt><dd>{v}</dd></div>
+            {lines.filter(([, x]) => x).map(([k, x]) => (
+              <div key={k}><dt>{k}</dt><dd>{x}</dd></div>
             ))}
             {/* 낸 사람·시각을 모르면 빈 줄을 그리지 않는다. 서버 리포트에
                 발행 시각 칸이 없어(created_at 은 응답에서 빠진다) 늘
                 빈 「판독 —」 이 남았다. 대신 어느 검사인지를 적는다 */}
-            {r.dept && <div><dt>판독</dt><dd>{r.dept}</dd></div>}
+            {r?.dept && <div><dt>판독</dt><dd>{r.dept}</dd></div>}
           </dl>
-          <p className="rev-find">{r.summary}</p>
+          {/* 판독의가 쓴 소견이 먼저다. 소견문은 그것을 풀어 쓴 글이다 */}
+          {v?.note && <p className="rev-find">{v.note}</p>}
+          {r?.summary && <p className="rev-find muted">{r.summary}</p>}
         </>
       )}
       {action && <div className="rowb">{action}</div>}
