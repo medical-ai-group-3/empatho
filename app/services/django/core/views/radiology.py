@@ -14,7 +14,7 @@ from rest_framework import viewsets, status, generics
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from django.db.models import Q
+from django.db.models import Count, F, Q
 from django.utils import timezone
 
 from ..tasks import run_inference
@@ -50,7 +50,16 @@ class StudyViewSet(viewsets.ReadOnlyModelViewSet):
     }
 
     def get_queryset(self):
-        qs = models.Study.objects.select_related("patient__pii")
+        # image_count 는 행마다 세면 N+1 이라 여기서 한 번에 얹는다.
+        # 부르는 쪽이 「판독으로 보낼까 업로드로 보낼까」를 이 값으로 가른다
+        # (serializers/radiology.py 의 get_image_count 참고).
+        qs = models.Study.objects.select_related("patient__pii").annotate(
+            image_count=Count(
+                "storage_objects",
+                filter=Q(storage_objects__deleted_at__isnull=True),
+                distinct=True,
+            ),
+        )
 
         # ?patient= 은 한 환자의 검사만 본다. 없으면 조용히 전체가 나와서
         # 부르는 쪽이 남의 환자 검사를 자기 것으로 읽는다 — 09-23 에 그랬다.
@@ -77,7 +86,14 @@ class StudyViewSet(viewsets.ReadOnlyModelViewSet):
         field = ordering.lstrip("-")
         if field in self.ORDERING_FIELDS:
             db_field = self.ORDERING_FIELDS[field]
-            qs = qs.order_by(("-" + db_field) if ordering.startswith("-") else db_field)
+            desc = ordering.startswith("-")
+            # ⚠ **빈 칸을 맨 앞에 두지 않는다.** Postgres 는 DESC 에서 NULL 을
+            #   먼저 놓는다 — 그냥 두면 시각을 모르는 검사가 목록 맨 위에
+            #   서고, 부르는 쪽은 맨 앞을 «이번 검사»로 읽는다.
+            #   촬영 시작이 이 칸을 채우고 0022 가 옛 행을 백필했지만,
+            #   그 전후로 손으로 들어온 행까지 보장되지는 않는다.
+            expr = F(db_field).desc(nulls_last=True) if desc else F(db_field).asc(nulls_last=True)
+            qs = qs.order_by(expr, "-study_id")
 
         return qs
 
@@ -90,9 +106,15 @@ class PatientStudiesView(generics.ListAPIView):
     serializer_class = serializers.StudySerializer
 
     def get_queryset(self):
-        return models.Study.objects.select_related("patient__pii").filter(
+        return models.Study.objects.select_related("patient__pii").annotate(
+            image_count=Count(
+                "storage_objects",
+                filter=Q(storage_objects__deleted_at__isnull=True),
+                distinct=True,
+            ),
+        ).filter(
             patient_id=self.kwargs["pk"]
-        ).order_by("-performed_at")
+        ).order_by(F("performed_at").desc(nulls_last=True), "-study_id")
 
 
 class ExamOrderQueueView(generics.ListAPIView):
@@ -108,9 +130,15 @@ class ExamOrderQueueView(generics.ListAPIView):
     serializer_class = serializers.ExamOrderSerializer
 
     def get_queryset(self):
+        # ⚠ **주석이 말하던 조건이 코드에 없었다**(09-23). 「아직 Study 가
+        #   생성되지 않은 오더만」이라고 적혀 있는데 거르는 줄이 없어서,
+        #   start-study 를 부른 오더가 큐에 그대로 남았다. start-study 는
+        #   assigned_to 도 order_status 도 안 건드리기 때문에, 집기(assign)
+        #   없이 촬영만 시작한 경로가 생기면 그 오더는 영영 큐에 남는다.
+        #   재촬영 오더는 새 행이라 studies 가 비어 있어 그대로 올라온다.
         qs = models.ExamOrder.objects.filter(
             modality__in=["mammo", "us", "mri"]
-        ).order_by("ordered_at")
+        ).filter(studies__isnull=True).order_by("ordered_at")
         
         status_param = self.request.query_params.get("status")
         if status_param:
@@ -200,6 +228,31 @@ class StudyStartView(AuditMixin, viewsets.ViewSet):
             exam_order = models.ExamOrder.objects.get(pk=pk)
         except models.ExamOrder.DoesNotExist:
             raise ApiError("NOT_FOUND")
+
+        # 같은 오더로 두 번 들어오면 **있는 것을 돌려준다.**
+        # 전에는 부를 때마다 행이 하나씩 더 생겼다 — 두 사람이 같이 눌렀거나
+        # 새로고침으로 다시 들어오면 고아 Study 가 남고, 업로드·판독이
+        # 어느 쪽 id 로 갈지가 누른 순서에 달렸다. 오더 하나에 검사 하나다
+        # (다시 찍는 것은 새 오더를 만드는 /retake 경로다).
+        # ⚠ **아무 거나 고르면 안 된다.** 전에 행이 여러 개 쌓인 오더가 있고,
+        #   영상은 그중 한 행에만 달려 있다. 빈 행을 돌려주면 부르는 쪽이
+        #   영영 업로드 화면으로만 간다 — 영상이 붙은 행을 먼저 고르고,
+        #   없으면 최신 행으로 간다.
+        pool = exam_order.studies.annotate(image_count=Count(
+            "storage_objects",
+            filter=Q(storage_objects__deleted_at__isnull=True),
+            distinct=True,
+        ))
+        # 품질 반려된 것은 뒤로 미룬다 — 그걸 돌려주면 판독이 409
+        # STUDY_REJECTED 로 떨어진다. 다만 그것밖에 없으면 그대로 준다.
+        # **새로 만들지는 않는다** — 다시 찍는 것은 /retake 가 새 오더를
+        # 만드는 일이고, 여기서 행을 더 만들면 고아가 쌓인다.
+        existing = (pool.exclude(quality_status="rejected")
+                    .order_by("-image_count", "-study_id").first()
+                    or pool.order_by("-study_id").first())
+        if existing is not None:
+            # 만든 것이 아니라 **있던 것**이라 200 이다.
+            return Response(serializers.StudySerializer(existing).data)
 
         account = self._current_account()
         # ⚠ **촬영 시각을 여기서 찍는다.** 이 호출이 곧 「촬영 시작」이다.
@@ -305,7 +358,15 @@ class StudyReadView(viewsets.ViewSet):
             base = "/svc/v1/dicom/instances"
             if study.modality == "mri":
                 extra = {"volume_manifest": manifest, "volume_base": base}
-            elif study.modality == "mammo" :
+            else:
+                # 맘모와 **초음파**가 같은 모양이다 — 한 시리즈를 한 장씩
+                # 넘겨 보는 더미다. MRI 만 단면 재구성(volume)이 필요하다.
+                #
+                # ⚠ 전에는 맘모만 주소를 받았다. 초음파는 아무 것도 못 받아
+                #   뷰어가 열 길이 없었고, 화면은 DICOM 원본(sop) 주소를
+                #   <img> 에 그대로 넣고 있었다 — Orthanc 가 돌려주는 것은
+                #   Part-10 파일이라 브라우저가 못 푼다. 그래서 초음파는
+                #   어느 화면에서도 한 장도 안 떴다(09-23 확인).
                 extra = {"stack_manifest": manifest, "stack_base": base}
 
         return Response({
@@ -486,13 +547,47 @@ class StudyFinalizeView(AuditMixin, viewsets.ViewSet):
 
 
 class LesionViewSet(AuditMixin, viewsets.ModelViewSet):
-    """POST /lesions (manual), PATCH /lesions/{id} (오탐 표시)."""
+    """POST /lesions (manual), PATCH /lesions/{id} (오탐 표시),
+    GET /lesions/?patient={id} · ?study={id}.
+
+    ⚠ **?patient= 을 아무도 안 보고 있었다**(09-23 확인). 필터 백엔드도
+      get_queryset 도 없어서 질의가 조용히 무시되고 표 앞쪽 스무 건이
+      그대로 나갔다 — 부르는 쪽(유방외과 검사 종합 · 환자 상세)은 그것을
+      «이 환자의 병변»으로 그리고 있었다. 남의 병변 위치·크기가 이 환자
+      것으로 보이는 자리라 조용히 틀리면 안 된다.
+
+    ⚠ **조건 없는 목록은 안 준다.** 환자도 검사도 안 짚으면 빈 목록이다 —
+      환자 표 전체를 실수로 긁는 것을 막는다(PatientViewSet 과 같은 규칙).
+    """
 
     resource = "lesion"
     permission_classes = [MatrixPermission]
     queryset = models.Lesion.objects.all()
     serializer_class = serializers.LesionSerializer
     http_method_names = ["get", "post", "patch", "head", "options"]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        if self.action != "list":
+            return qs
+
+        patient = self.request.query_params.get("patient")
+        study = self.request.query_params.get("study")
+        if not patient and not study:
+            return qs.none()
+
+        if patient:
+            if not str(patient).isdigit():
+                raise ApiError("VALIDATION_ERROR", "patient 는 숫자여야 합니다.")
+            qs = qs.filter(patient_id=int(patient))
+        if study:
+            if not str(study).isdigit():
+                raise ApiError("VALIDATION_ERROR", "study 는 숫자여야 합니다.")
+            qs = qs.filter(study_id=int(study))
+        # ⚠ **순서를 못 박는다.** 안 박으면 Postgres 가 아무 순서로나 주고,
+        #   부르는 쪽은 맨 앞을 「이 환자의 병변」으로 그린다 — 새로고침할
+        #   때마다 다른 병변이 대표로 뜬다. 쪽 나눔 경계도 흔들린다.
+        return qs.order_by("study_id", "lesion_index", "lesion_id")
 
     def create(self, request, *args, **kwargs):
         serializer = serializers.LesionCreateSerializer(data=request.data)

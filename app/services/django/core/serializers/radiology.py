@@ -19,6 +19,24 @@ class StudySerializer(serializers.ModelSerializer):
     )
     age = serializers.SerializerMethodField()
     sex = serializers.CharField(source="patient.sex", read_only=True, allow_null=True)
+    image_count = serializers.SerializerMethodField()
+
+    def get_image_count(self, obj) -> int:
+        """올라온 영상 파일 수. **0 이면 아직 촬영 전이다.**
+
+        검사는 「촬영 시작」에 만들어지므로 파일이 한 장도 없는 채로
+        read_status="pending" 인 시간이 있다. 그 동안 판독 화면을 열면
+        409 STUDY_NOT_READ_READY 다 — 그런데 목록 행에는 그것을 가릴
+        칸이 하나도 없어서, 부르는 쪽이 판독으로 보낼지 업로드로 보낼지
+        정할 수가 없었다(09-23). 그 칸을 여기서 준다.
+
+        목록은 queryset 에서 annotate 해 오므로 행마다 세지 않는다.
+        단건 조회처럼 안 실려 온 자리에서만 그때 센다.
+        """
+        counted = getattr(obj, "image_count", None)
+        if counted is not None:
+            return counted
+        return obj.storage_objects.filter(deleted_at__isnull=True).count()
 
     def get_age(self, obj) -> int | None:
         pii = getattr(obj.patient, "pii", None)
