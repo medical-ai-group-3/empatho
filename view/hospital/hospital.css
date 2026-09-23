@@ -1240,6 +1240,17 @@ a.frow:hover .frow-k{color:var(--ink)}
   border:var(--hair) solid var(--faint); border-radius:var(--in-radius);
   font-size:var(--in-fs)}
 .resv-quick{display:flex; flex-wrap:wrap; gap:var(--gap-5)}
+
+/* 「찾기」는 입력 칸과 키를 맞추고 늘어나지 않는다 — flex:1 을 물려받으면
+   단추가 입력 칸만큼 넓어진다 */
+.resv-find .btn{flex:none; height:var(--todo-in-h)}
+
+/* ⚠ **라벨이 없는 줄도 입력 칸의 왼쪽 선에 맞춘다.** 날짜·시간은 36px
+   라벨 뒤에서 시작하는데 고른 환자 · 빠른 날짜 · 검색 결과는 카드 왼쪽
+   끝에서 시작해서, 한 카드 안에 왼쪽 선이 둘이었다 — 폼이 만들다 만
+   것처럼 읽히던 이유다(09-23). */
+.resv-who, .resv-quick, .resv-hit{
+  margin-left:calc(var(--resv-label-w) + var(--gap-sm))}
 .pill-n{font-style:normal; margin-left:var(--gap-xs);
   font-variant-numeric:tabular-nums}
 
@@ -2619,7 +2630,12 @@ code{padding:0 var(--gap-xs); border-radius:var(--radius-xs);
 .sticky-memo-tab{position:fixed; z-index:500; border:none; border-radius:999px;
   background:#fde047; color:#4a3c00; box-shadow:0 6px 16px rgba(0,0,0,.2);
   padding:9px 16px; font-size:13px; font-weight:700; cursor:pointer;
-  user-select:none; touch-action:none}
+  user-select:none; touch-action:none;
+  /* ⚠ **줄바꿈을 막는다.** 이 알약은 left 만 잡힌 fixed 라 폭이 «화면
+     오른쪽 끝까지 남은 자리»로 줄어든다 — 오른쪽으로 끌면 글자가
+     「메 / 모」로 세로로 눌렸다. 게다가 폭이 줄면 다음 계산에서 더
+     오른쪽까지 갈 수 있게 되어, 끌수록 더 눌리는 악순환이었다(09-23) */
+  white-space:nowrap}
 .sticky-memo-tab:hover{filter:brightness(.97)}
 
 /* ── 내 업무(SideDashboard) — 목록 옆에 두는 캘린더·TODO·오늘 현황 ───

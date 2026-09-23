@@ -96,11 +96,19 @@ export default function StickyMemo() {
     }
   }
 
-  /* 지금 떠 있는 것의 실제 크기 — 접힌 탭이냐 펼친 창이냐에 따라 다르다.
-     좌표를 가둘 때 이것으로 잰다(keepInView 의 경고 참고). */
-  function seen() {
+  /* 좌표를 가둘 때 쓸 «지금 떠 있는 것»의 크기.
+   *
+   * ⚠ **펼친 창은 재지 않고 저장된 크기를 쓴다.** 창도 탭도 left 만 잡힌
+   *   fixed 라, 오른쪽으로 갈수록 실제 폭이 남은 자리만큼 줄어든다. 그
+   *   줄어든 폭으로 다시 가두면 더 오른쪽까지 갈 수 있게 되고, 그러면 또
+   *   줄어든다 — 끌수록 밀려 나가는 악순환이다. 창은 저장된 w·h 가
+   *   「원래 이만하다」는 값이라 그것으로 잰다.
+   *   탭은 저장된 크기가 없어서 재야 하는데, 이제 줄바꿈을 막아 뒀으므로
+   *   (hospital.css 의 white-space:nowrap) 폭이 위치와 상관없이 일정하다. */
+  function fit(v) {
+    if (v.open) return keepInView(v);
     const el = boxRef.current;
-    return el ? { w: el.offsetWidth, h: el.offsetHeight } : null;
+    return keepInView(v, el ? { w: el.offsetWidth, h: el.offsetHeight } : null);
   }
 
   /* 첫 렌더엔 위치가 없다(x·y null) — 오른쪽 아래 기본 자리를
@@ -113,15 +121,15 @@ export default function StickyMemo() {
   /* 접었다 펼 때 크기가 확 달라진다 — 그때마다 다시 가둔다. 탭을 오른쪽
      끝까지 끌어 두고 펼치면 창이 화면 밖으로 나가기 때문이다. */
   useEffect(() => {
-    setS((v) => keepInView(v, seen()));
+    setS((v) => fit(v));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [s.open]);
 
   /* 창을 줄였을 때 이전의 오른쪽 좌표가 화면 밖에 남지 않게 보정한다. */
   useEffect(() => {
-    const fit = () => setS((v) => keepInView(v, seen()));
-    window.addEventListener("resize", fit);
-    return () => window.removeEventListener("resize", fit);
+    const onResize = () => setS((v) => fit(v));
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -145,7 +153,7 @@ export default function StickyMemo() {
     const dx = e.clientX - d.startX;
     const dy = e.clientY - d.startY;
     if (Math.abs(dx) > 3 || Math.abs(dy) > 3) d.moved = true;
-    setS((v) => keepInView({ ...v, x: d.origX + dx, y: d.origY + dy }, seen()));
+    setS((v) => fit({ ...v, x: d.origX + dx, y: d.origY + dy }));
   }
   function stopDrag() {
     const d = dragRef.current;
@@ -161,8 +169,7 @@ export default function StickyMemo() {
   function onResizeEnd() {
     const el = boxRef.current;
     if (!el) return;
-    setS((v) => keepInView({ ...v, w: el.offsetWidth, h: el.offsetHeight },
-                           { w: el.offsetWidth, h: el.offsetHeight }));
+    setS((v) => fit({ ...v, w: el.offsetWidth, h: el.offsetHeight }));
   }
 
   if (s.x == null) return null; // 첫 위치 계산 전 프레임엔 안 그린다(깜빡임 방지)

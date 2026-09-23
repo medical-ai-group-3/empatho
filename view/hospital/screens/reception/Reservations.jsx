@@ -493,7 +493,10 @@ function New({ cfg, at, order, rows, onDone, onDate }) {
         </p>
       ) : (
         <>
-          <form className="intake-find" onSubmit={find}>
+          {/* 「날짜」·「시간」과 같은 두 단 리듬에 맞춘다 — 라벨이 없으면
+              이 줄만 왼쪽으로 튀어나와 폼이 어긋나 보인다(09-23) */}
+          <form className="resv-field resv-find" onSubmit={find}>
+            <span>환자</span>
             <input value={q} onChange={(e) => setQ(e.target.value)}
                    placeholder="이름 · 전화 · 생년월일" aria-label="환자 찾기" />
             <button className="btn dark" type="submit">찾기</button>
