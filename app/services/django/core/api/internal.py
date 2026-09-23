@@ -356,9 +356,24 @@ class DicomInstanceCallback(InternalCallbackView):
         if study is None:
             return
         changed = []
-        if not study.study_uid and p.get("study_instance_uid"):
-            study.study_uid = p["study_instance_uid"]
-            changed.append("study_uid")
+        uid = p.get("study_instance_uid")
+        if not study.study_uid and uid:
+            # study_uid 는 unique 다. 같은 DICOM 을 다른 검사에 또 올리면
+            # (재촬영 · 시연 · 같은 영상 재사용) 여기서 IntegrityError 가 나고,
+            # 위 transaction.atomic() 이 obj.save() 까지 통째로 되돌린다.
+            # 그러면 sop_instance_uid 가 안 남아 판독이 「이 검사에 맘모 영상이
+            # 없다」로 실패한다 — 09-23 에 맘모 다섯 건이 그랬다.
+            #
+            # 이 칸은 뷰어가 검사를 여는 편의값이라 못 채워도 판독은 돈다.
+            # 남이 이미 쓰고 있으면 비워 두고 넘어간다.
+            taken = (Study.objects
+                     .filter(study_uid=uid).exclude(pk=study.pk).exists())
+            if taken:
+                logger.info("[I-2] study_uid 가 이미 다른 검사에 있다 — 비워 둔다 "
+                            "study=%s uid=%s", study.pk, uid)
+            else:
+                study.study_uid = uid
+                changed.append("study_uid")
         if not study.orthanc_study_id and p.get("orthanc_study_id"):
             study.orthanc_study_id = p["orthanc_study_id"]
             changed.append("orthanc_study_id")

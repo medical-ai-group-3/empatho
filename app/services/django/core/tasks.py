@@ -592,8 +592,22 @@ def _ref(ai, modality) :
         raise ValueError("원본이 비어있다")
     if modality == "mammo" :
         # 맘모는 DICOM 한 장이다. Orthanc 에서 꺼내려면 인스턴스 번호가 필요하다.
+        if not src.sop_instance_uid :
+            raise ValueError(
+                "맘모 원본에 SOP Instance UID 가 없다 — DICOM 정보 콜백이 "
+                f"아직 안 들어왔거나 실패했다 (storage_object {src.pk})")
         return [src.sop_instance_uid]
     # 초음파 · 병리는 Garage 에 그대로 있다.
+    #
+    # 키가 비는 경우가 있다 — DICOM 을 올리면 Orthanc 로 옮기면서 Garage 키를
+    # 비운다(I-2). 초음파·병리 검사에 DICOM 이 올라오면 그 일이 생긴다.
+    # 그냥 두면 아래에서 None.split 이 나 「'NoneType' object has no attribute
+    # 'split'」로만 남는다 — 무엇이 잘못됐는지 안 보인다(09-23 study 117).
+    if not src.object_key :
+        raise ValueError(
+            f"{modality} 원본에 저장소 키가 없다 (storage_object {src.pk}) — "
+            f"Orthanc 로 옮겨진 DICOM 이면 이 모달리티로는 못 읽는다 "
+            f"(orthanc_series_id={src.orthanc_series_id})")
     return [src.object_key]
     
 def _upload_derived(ai, kind, payload, content_type, filename, source_id, lesion_id=None, object_name=None):

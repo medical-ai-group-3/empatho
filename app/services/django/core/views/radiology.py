@@ -52,6 +52,14 @@ class StudyViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         qs = models.Study.objects.select_related("patient__pii")
 
+        # ?patient= 은 한 환자의 검사만 본다. 없으면 조용히 전체가 나와서
+        # 부르는 쪽이 남의 환자 검사를 자기 것으로 읽는다 — 09-23 에 그랬다.
+        patient = self.request.query_params.get("patient")
+        if patient:
+            if not str(patient).isdigit():
+                raise ApiError("VALIDATION_ERROR", "patient 는 숫자여야 합니다.")
+            qs = qs.filter(patient_id=int(patient))
+
         status_param = self.request.query_params.get("status")
         if status_param:
             qs = qs.filter(quality_status=status_param)
