@@ -483,7 +483,7 @@ function New({ cfg, at, order, rows, onDone, onDate }) {
   }
 
   return (
-    <Card title="새 예약">
+    <Card title="새 예약" className="resv-new">
       {who ? (
         <p className="resv-who">
           <b>{who.name ?? `#${who.patient_id}`}</b>

@@ -1123,6 +1123,27 @@ a.frow:hover .frow-k{color:var(--ink)}
 .resv-mid{display:flex; flex-direction:column; gap:var(--gap-sm);
   min-width:0; min-height:0}
 
+/* ⚠ **좁은 창에서 오른쪽 단이 통째로 잘렸다.**
+ *
+ *   양 옆 단은 폭이 고정(--resv-side · --resv-aside)이고 가운데만 늘었다
+ *   줄었다 한다. 창이 좁아지면 가운데가 0 까지 줄어든 뒤에도 자리가
+ *   모자라서, 오른쪽 단이 페이지 밖으로 밀려난다. 그런데 .resv-page 가
+ *   overflow:hidden 이라 **스크롤도 안 생기고 그냥 잘려 나갔다** —
+ *   415px 창에서 오른쪽 단의 212px 가 화면 밖이었다(09-23 실측).
+ *   「예약 정보」·「지난 예약」 카드가 오른쪽이 잘려 보이던 이유다.
+ *
+ *   세 단이 다 들어갈 수 없는 폭에서는 한 단으로 쌓는다. 쌓으면 높이를
+ *   화면에 맞춰 둘 이유도 없어지므로(세로로 길어진다) 고정 높이와
+ *   overflow:hidden 도 같이 푼다 — 안 풀면 이번엔 아래가 잘린다. */
+@media (max-width: 1080px) {
+  .page.resv-page{height:auto; overflow:visible}
+  .resv{grid-template-columns:minmax(0, 1fr); grid-template-rows:none}
+  .resv-side, .resv-aside{overflow:visible}
+  /* 주간 칸은 제 안에서 가로로 스크롤한다(.resv-grid 가 overflow:auto) —
+     한 단이 되어도 요일 폭이 뭉개지지 않게 최소 높이를 준다 */
+  .resv-mid{min-height:60vh}
+}
+
 /* 왼쪽 — 달 달력 둘과 보는 사람 */
 .resv-mini, .resv-people{background:var(--card); flex:none;
   border:var(--hair) solid var(--border); border-radius:var(--hcard-radius);
@@ -1249,7 +1270,9 @@ a.frow:hover .frow-k{color:var(--ink)}
    라벨 뒤에서 시작하는데 고른 환자 · 빠른 날짜 · 검색 결과는 카드 왼쪽
    끝에서 시작해서, 한 카드 안에 왼쪽 선이 둘이었다 — 폼이 만들다 만
    것처럼 읽히던 이유다(09-23). */
-.resv-who, .resv-quick, .resv-hit{
+/* ⚠ **「새 예약」 카드 안에서만이다.** .resv-who 는 오른쪽 「예약 정보」
+   카드도 쓴다 — 거기엔 라벨 단이 없어서 같이 들여쓰면 그 카드가 어긋난다 */
+.resv-new .resv-who, .resv-new .resv-quick, .resv-new .resv-hit{
   margin-left:calc(var(--resv-label-w) + var(--gap-sm))}
 .pill-n{font-style:normal; margin-left:var(--gap-xs);
   font-variant-numeric:tabular-nums}
