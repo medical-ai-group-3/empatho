@@ -2607,7 +2607,9 @@ code{padding:0 var(--gap-xs); border-radius:var(--radius-xs);
 .sticky-memo-head{flex:0 0 auto; display:flex; align-items:center;
   justify-content:space-between; gap:8px; padding:7px 10px;
   font-size:12.5px; font-weight:700; color:#7c5e00; cursor:move;
-  user-select:none; background:rgba(0,0,0,.05)}
+  user-select:none; background:rgba(0,0,0,.05);
+  /* 손가락으로 끌 때 브라우저가 대신 화면을 스크롤해 버리지 않게 */
+  touch-action:none}
 .sticky-memo-head button{border:none; background:none; font-size:17px;
   line-height:1; cursor:pointer; color:inherit; padding:0 2px}
 .sticky-memo-head button:hover{opacity:.65}
@@ -2616,7 +2618,8 @@ code{padding:0 var(--gap-xs); border-radius:var(--radius-xs);
   font-family:var(--font-ui, inherit); color:#4a3c00; outline:none}
 .sticky-memo-tab{position:fixed; z-index:500; border:none; border-radius:999px;
   background:#fde047; color:#4a3c00; box-shadow:0 6px 16px rgba(0,0,0,.2);
-  padding:9px 16px; font-size:13px; font-weight:700; cursor:pointer}
+  padding:9px 16px; font-size:13px; font-weight:700; cursor:pointer;
+  user-select:none; touch-action:none}
 .sticky-memo-tab:hover{filter:brightness(.97)}
 
 /* ── 내 업무(SideDashboard) — 목록 옆에 두는 캘린더·TODO·오늘 현황 ───

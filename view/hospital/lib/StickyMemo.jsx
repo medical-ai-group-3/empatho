@@ -22,11 +22,25 @@ const EDGE = 12;
 /* 저장된 좌표와 드래그 좌표 모두 이 함수만 통과시킨다. 화면 크기가
    달라져도 메모 전체가 브라우저 안에 남아, 화면 밖으로 보내 버리는 일이
    없다. */
-function keepInView(v) {
+function keepInView(v, seen) {
   const width = Math.min(v.w ?? DEFAULT.w, Math.max(200, window.innerWidth - EDGE * 2));
   const height = Math.min(v.h ?? DEFAULT.h, Math.max(160, window.innerHeight - EDGE * 2));
-  const maxX = Math.max(EDGE, window.innerWidth - width - EDGE);
-  const maxY = Math.max(EDGE, window.innerHeight - height - EDGE);
+
+  /* ⚠ **가두는 기준은 «지금 화면에 떠 있는 것»의 크기다.**
+   *
+   *   접힌 탭은 작은 알약인데 펼친 창의 260×220 으로 재고 있었다. 그래서
+   *   접었을 때 오른쪽 약 250px · 아래 약 210px 이 «못 가는 띠»가 됐다 —
+   *   그쪽으로 끌면 손은 따라가는데 메모만 도로 튕겨 나온다. 좁은 창에서는
+   *   띠가 화면 절반이라 아예 안 움직이는 것처럼 보인다(09-23).
+   *
+   * ⚠ **펼친 창의 저장된 크기(w·h)는 그대로 둔다.** 탭 크기로 덮어쓰면
+   *   다시 펼칠 때 창이 알약만 해진다. 아래 반환값이 width·height 를
+   *   쓰는 이유다 — seen 은 좌표를 가둘 때만 쓴다. */
+  const fitW = seen?.w ?? width;
+  const fitH = seen?.h ?? height;
+
+  const maxX = Math.max(EDGE, window.innerWidth - fitW - EDGE);
+  const maxY = Math.max(EDGE, window.innerHeight - fitH - EDGE);
   const x = v.x == null ? maxX : Math.min(maxX, Math.max(EDGE, v.x));
   const y = v.y == null ? maxY : Math.min(maxY, Math.max(EDGE, v.y));
   return { ...v, x, y, w: width, h: height };
@@ -82,6 +96,13 @@ export default function StickyMemo() {
     }
   }
 
+  /* 지금 떠 있는 것의 실제 크기 — 접힌 탭이냐 펼친 창이냐에 따라 다르다.
+     좌표를 가둘 때 이것으로 잰다(keepInView 의 경고 참고). */
+  function seen() {
+    const el = boxRef.current;
+    return el ? { w: el.offsetWidth, h: el.offsetHeight } : null;
+  }
+
   /* 첫 렌더엔 위치가 없다(x·y null) — 오른쪽 아래 기본 자리를
      뷰포트 기준으로 한 번 잡아 둔다. */
   useEffect(() => {
@@ -89,22 +110,34 @@ export default function StickyMemo() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /* 접었다 펼 때 크기가 확 달라진다 — 그때마다 다시 가둔다. 탭을 오른쪽
+     끝까지 끌어 두고 펼치면 창이 화면 밖으로 나가기 때문이다. */
+  useEffect(() => {
+    setS((v) => keepInView(v, seen()));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [s.open]);
+
   /* 창을 줄였을 때 이전의 오른쪽 좌표가 화면 밖에 남지 않게 보정한다. */
   useEffect(() => {
-    const fit = () => setS((v) => keepInView(v));
+    const fit = () => setS((v) => keepInView(v, seen()));
     window.addEventListener("resize", fit);
     return () => window.removeEventListener("resize", fit);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /* onTap — 접힌 탭은 버튼이라 «눌렀다 뗐다»가 "펼치기"도 되고
      "옮기기"도 된다. 드래그 중 몇 픽셀이라도 움직였으면 뗄 때 펼치지
      않는다 — 안 그러면 옮기려고 누를 때마다 같이 펼쳐진다. */
+  /* ⚠ **마우스 전용이었다.** mousedown/mousemove 만 듣고 있어서 터치
+     화면이나 펜에서는 끌어도 꿈쩍하지 않았다 — 포인터 이벤트는 마우스 ·
+     손가락 · 펜을 한 길로 받는다(09-23). */
   function startDrag(e, onTap) {
     dragRef.current = {
       startX: e.clientX, startY: e.clientY, origX: s.x, origY: s.y, moved: false, onTap,
     };
-    window.addEventListener("mousemove", onDrag);
-    window.addEventListener("mouseup", stopDrag);
+    window.addEventListener("pointermove", onDrag);
+    window.addEventListener("pointerup", stopDrag);
+    window.addEventListener("pointercancel", stopDrag);
   }
   function onDrag(e) {
     const d = dragRef.current;
@@ -112,13 +145,14 @@ export default function StickyMemo() {
     const dx = e.clientX - d.startX;
     const dy = e.clientY - d.startY;
     if (Math.abs(dx) > 3 || Math.abs(dy) > 3) d.moved = true;
-    setS((v) => keepInView({ ...v, x: d.origX + dx, y: d.origY + dy }));
+    setS((v) => keepInView({ ...v, x: d.origX + dx, y: d.origY + dy }, seen()));
   }
   function stopDrag() {
     const d = dragRef.current;
     dragRef.current = null;
-    window.removeEventListener("mousemove", onDrag);
-    window.removeEventListener("mouseup", stopDrag);
+    window.removeEventListener("pointermove", onDrag);
+    window.removeEventListener("pointerup", stopDrag);
+    window.removeEventListener("pointercancel", stopDrag);
     if (d && !d.moved) d.onTap?.();
   }
 
@@ -127,16 +161,17 @@ export default function StickyMemo() {
   function onResizeEnd() {
     const el = boxRef.current;
     if (!el) return;
-    setS((v) => keepInView({ ...v, w: el.offsetWidth, h: el.offsetHeight }));
+    setS((v) => keepInView({ ...v, w: el.offsetWidth, h: el.offsetHeight },
+                           { w: el.offsetWidth, h: el.offsetHeight }));
   }
 
   if (s.x == null) return null; // 첫 위치 계산 전 프레임엔 안 그린다(깜빡임 방지)
 
   if (!s.open) {
     return (
-      <button type="button" className="sticky-memo-tab"
+      <button type="button" ref={boxRef} className="sticky-memo-tab"
         style={{ left: s.x, top: s.y }}
-        onMouseDown={(e) => startDrag(e, () => setS((v) => ({ ...v, open: true })))}>
+        onPointerDown={(e) => startDrag(e, () => setS((v) => ({ ...v, open: true })))}>
         📝 메모
       </button>
     );
@@ -146,7 +181,7 @@ export default function StickyMemo() {
     <div ref={boxRef} className="sticky-memo"
       style={{ left: s.x, top: s.y, width: s.w, height: s.h }}
       onMouseUp={onResizeEnd}>
-      <div className="sticky-memo-head" onMouseDown={(e) => startDrag(e)}>
+      <div className="sticky-memo-head" onPointerDown={(e) => startDrag(e)}>
         <span>📝 메모</span>
         <button type="button" aria-label="접기" onClick={() => setS((v) => ({ ...v, open: false }))}>
           −
