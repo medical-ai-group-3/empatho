@@ -2683,3 +2683,62 @@ code{padding:0 var(--gap-xs); border-radius:var(--radius-xs);
 .list-viewer-slides button{border:var(--hair) solid var(--border); border-radius:var(--radius-sm);
   padding:4px 10px; font-size:12px; background:var(--card); color:var(--warm); cursor:pointer}
 .list-viewer-slides button.on{background:var(--soot); color:var(--soot-ink); border-color:var(--soot)}
+
+/* ── AI 산출값 시각화 (dept/AiViz.jsx) ──────────────────────────
+   「AI 산출값 시각화 방안」(2026-09-22)의 표·그래프 쪽. 이미지 오버레이가
+   아니라 저장된 수치로만 그린다. 색은 뜻을 나르지 않는다 — 항목을 가를
+   뿐이다(판독 화면 규칙). 값이 없으면 컴포넌트가 아예 안 그린다. */
+.viz{margin:calc(10px * var(--sp)) 0}
+.viz-h{display:flex; align-items:baseline; justify-content:space-between;
+  gap:var(--gap-sm); font-size:var(--qrow-meta-fs); color:var(--muted);
+  margin-bottom:calc(6px * var(--sp))}
+.viz-h b{color:var(--ink); font-variant-numeric:tabular-nums}
+
+/* 합이 100 인 비율 띠 */
+.viz-split{display:flex; height:calc(14px * var(--sp)); border-radius:999px;
+  overflow:hidden; background:var(--line-2)}
+.viz-seg{display:block; height:100%}
+.viz-seg.t0{background:var(--cyan)}
+.viz-seg.t1{background:var(--line)}
+.viz-seg.t2{background:var(--warm)}
+.viz-keys{display:flex; flex-wrap:wrap; gap:var(--gap-sm);
+  margin-top:calc(6px * var(--sp))}
+.viz-key{display:inline-flex; align-items:center; gap:calc(4px * var(--sp));
+  font-size:var(--hint-fs); color:var(--muted)}
+.viz-key b{color:var(--ink); font-variant-numeric:tabular-nums}
+.viz-dot{width:calc(8px * var(--sp)); height:calc(8px * var(--sp)); border-radius:50%}
+.viz-dot.t0{background:var(--cyan)}
+.viz-dot.t1{background:var(--line)}
+.viz-dot.t2{background:var(--warm)}
+
+/* 한 줄짜리 막대 — 이름 · 막대 · 값 */
+.viz-row{display:grid; grid-template-columns:minmax(0,7em) 1fr auto;
+  align-items:center; gap:var(--gap-sm); margin-bottom:calc(5px * var(--sp))}
+.viz-name{font-size:var(--hint-fs); color:var(--muted); white-space:nowrap;
+  overflow:hidden; text-overflow:ellipsis}
+.viz-track{height:calc(10px * var(--sp)); border-radius:999px;
+  background:var(--line-2); overflow:hidden}
+.viz-track.lg{height:calc(16px * var(--sp))}
+.viz-fill{display:block; height:100%; background:var(--cyan)}
+.viz-fill.t1{background:var(--line)}
+.viz-fill.t2{background:var(--warm)}
+.viz-fill.on{background:var(--ink)}
+.viz-val{font-size:var(--hint-fs); color:var(--ink); white-space:nowrap;
+  font-variant-numeric:tabular-nums}
+.viz-val em{color:var(--muted); font-style:normal}
+
+/* 점 분포 — 평균을 내지 않는다는 것을 그림으로 말한다 */
+.viz-strip{position:relative; height:calc(28px * var(--sp));
+  margin:calc(4px * var(--sp)) calc(10px * var(--sp))}
+.viz-range{position:absolute; top:50%; height:var(--hair);
+  background:var(--line); transform:translateY(-50%)}
+.viz-pt{position:absolute; top:50%; width:calc(9px * var(--sp));
+  height:calc(9px * var(--sp)); border-radius:50%; background:var(--cyan);
+  transform:translate(-50%,-50%)}
+.viz-pt em{position:absolute; left:50%; top:calc(9px * var(--sp));
+  transform:translateX(-50%); font-style:normal; font-size:var(--hint-fs);
+  color:var(--muted); white-space:nowrap}
+.viz-ends{display:flex; justify-content:space-between;
+  font-size:var(--hint-fs); color:var(--faint); font-variant-numeric:tabular-nums}
+.viz-note{margin-top:calc(5px * var(--sp)); font-size:var(--hint-fs);
+  color:var(--muted)}

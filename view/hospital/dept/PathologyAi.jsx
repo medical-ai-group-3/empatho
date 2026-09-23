@@ -1,5 +1,6 @@
 import { Chip } from "../lib/Parts";
 import { STIL_LEVEL, label } from "../codes";
+import { PartBar, SplitBar, StripPlot } from "./AiViz";
 
 /* 병리 AI 소견 — 등급이 아니라 정량 지표다
  * ────────────────────────────────────────────────────────────────
@@ -36,6 +37,15 @@ export default function PathologyAi({ d }) {
       <p className="muted small">
         크롭 {rows.length}장. 자른 자리에 따라 값이 크게 달라지므로 평균을 내지 않고 장마다 보여 줍니다.
       </p>
+
+      {/* 크롭이 두 장 이상일 때만 — 한 점은 분포가 아니다. 평균을 내지
+          않는다는 원칙을 그림으로 지킨다(변동계수 ≈ 1.0). */}
+      <StripPlot
+        label="크롭별 sTIL"
+        points={rows
+          .filter((r) => !r.abstained && r.stroma_status !== "absent")
+          .map((r, i) => ({ name: `${i + 1}`, value: r.stil_percent }))}
+        note="장마다 점으로 찍습니다. 평균은 모델이 낸 값이 아닙니다." />
 
       {rows.map((r, i) => (
         <section className="ai-card" key={r.id ?? i}>
@@ -93,6 +103,38 @@ export default function PathologyAi({ d }) {
               </div>
             </dl>
           )}
+
+          {/* ── 산출값 그림 ─────────────────────────────────────
+              값이 없으면 각 조각이 스스로 안 그린다. 간질이 없으면
+              비율·세포 구성이 뜻을 잃으므로 통째로 건너뛴다. */}
+          {!r.abstained && r.stroma_status !== "absent" && (
+            <>
+              <SplitBar
+                label="조직 구성 (TSR)"
+                parts={[
+                  { name: "종양", value: r.tsr_tumor_percent },
+                  { name: "간질", value: r.tsr_stroma_percent },
+                ]} />
+
+              <PartBar
+                label="세포 구성"
+                total={r.n_cells_total}
+                parts={[
+                  { name: "TIL", value: r.n_cells_til },
+                  { name: "간질내 TIL", value: r.n_cells_til_stromal },
+                ]} />
+
+              <PartBar
+                label={`면적 분해${r.mpp ? ` · ${mm2(r.tumor_area_px + r.stroma_area_px, r.mpp)}` : ""}`}
+                total={sum(r.tumor_area_px, r.stroma_area_px)}
+                unit=" px"
+                parts={[
+                  { name: "종양", value: r.tumor_area_px },
+                  { name: "간질", value: r.stroma_area_px },
+                  { name: "면역세포", value: r.immune_cell_area_px },
+                ]} />
+            </>
+          )}
         </section>
       ))}
 
@@ -105,4 +147,17 @@ export default function PathologyAi({ d }) {
 
 function fmt(n) {
   return n == null ? "—" : n.toLocaleString("ko-KR");
+}
+
+function sum(...xs) {
+  const use = xs.filter((x) => typeof x === "number" && Number.isFinite(x));
+  return use.length ? use.reduce((a, b) => a + b, 0) : null;
+}
+
+/* 화소를 mm² 로. mpp 는 화소 한 변의 µm 다 — 면적이라 제곱하고,
+   µm² → mm² 로 10^6 을 나눈다. */
+function mm2(px, mpp) {
+  if (typeof px !== "number" || typeof mpp !== "number") return "";
+  const v = (px * mpp * mpp) / 1e6;
+  return `${v < 0.01 ? v.toFixed(4) : v.toFixed(2)} mm²`;
 }

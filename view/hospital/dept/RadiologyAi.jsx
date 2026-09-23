@@ -1,5 +1,6 @@
 import { Chip, Fold } from "../lib/Parts";
 import { DESCRIPTOR_AXIS, LESION_KIND, label, modality as asModality } from "../codes";
+import { Gauge, GradeBars } from "./AiViz";
 
 /* 영상의학과 AI 소견 — 모달리티마다 내용이 다르다
  * ────────────────────────────────────────────────────────────────
@@ -78,6 +79,24 @@ function Ultrasound({ a }) {
         <div><dt>마스크 신뢰도</dt><dd>{pct(a.mask_confidence)}</dd></div>
       </dl>
       <p className="muted small">두 확신도는 서로 다른 축입니다. 합치거나 평균 내지 않습니다.</p>
+
+      {/* 인접 등급 확률 — 「2인지 3인지」가 얼마나 애매한지 본다.
+          CORAL 헤드가 경계마다 확률을 하나씩 낸다(boundary_p).
+          ⚠ malignancy(악성 확률)는 화면에 내지 않는다(비노출 지침). */}
+      <GradeBars
+        label="등급 경계 확률"
+        values={boundaries(a.grade)}
+        note={a.grade?.ambiguity != null
+          ? `애매함 ${num(a.grade.ambiguity, 2)} — 값이 클수록 인접 등급과 갈린다`
+          : null} />
+
+      {(a.n_detections != null || a.mask_confidence) && (
+        <div className="chips">
+          {a.n_detections != null && <Chip tone="line">검출 {a.n_detections}건</Chip>}
+          {a.mask_confidence && <Chip tone="line">마스크 신뢰도 {a.mask_confidence}</Chip>}
+          {a.shape?.area != null && <Chip tone="line">면적 {num(a.shape.area, 0)} px²</Chip>}
+        </div>
+      )}
 
       <Fold title="형태 지표">
         <dl className="ai-m two">
@@ -212,7 +231,16 @@ function Mri({ a }) {
         MRI 모델은 등급(BI-RADS)을 내지 않습니다. 위치 값은 근사치입니다.
       </p>
 
-      <Fold title="유방 밀도">
+      {/* 치밀 조직 비율 한 값. BI-RADS 밀도 범주와 다른 축이다 —
+          같은 이름으로 읽히지 않게 「치밀 조직 비율」로 적는다. */}
+      <Gauge
+        label="치밀 조직 비율"
+        percent={a.density?.percent}
+        note={a.density?.breast_voxels != null
+          ? `치밀 ${num(a.density.dense_voxels, 0)} / 유방 ${num(a.density.breast_voxels, 0)} 복셀 · BI-RADS 밀도 범주와는 다른 값입니다`
+          : null} />
+
+      <Fold title="유방 밀도" open={false}>
         <dl className="ai-m two">
           <div><dt>유방 복셀</dt><dd>{num(a.density?.breast_voxels)}</dd></div>
           <div><dt>치밀 복셀</dt><dd>{num(a.density?.dense_voxels)}</dd></div>
@@ -236,6 +264,21 @@ function Mri({ a }) {
       ))}
     </>
   );
+}
+
+/* CORAL 헤드는 등급 경계마다 확률을 하나씩 낸다 — boundary_p 의 i 번째는
+   「i+2 등급 이상일 확률」이다(t2 · t3 · t4 문턱과 짝). 어느 경계에서
+   갈렸는지 보이면 「2인지 3인지」의 애매함이 숫자 하나보다 잘 읽힌다.
+   배열 길이가 달라질 수 있어 이름을 인덱스로 만든다. */
+function boundaries(grade) {
+  const ps = grade?.boundary_p;
+  if (!Array.isArray(ps)) return [];
+  const now = String(grade?.value ?? grade?.display ?? "");
+  return ps.map((p, i) => ({
+    name: `${i + 2} 이상`,
+    p,
+    on: now.startsWith(String(i + 2)),
+  }));
 }
 
 function num(n, digits = 1) {
