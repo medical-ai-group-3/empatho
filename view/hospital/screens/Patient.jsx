@@ -1,10 +1,11 @@
 import { useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { Page, Card } from "../lib/Page";
 import { Body, Empty } from "../lib/Body";
-import { Chip } from "../lib/Parts";
+import { Chip, useCan } from "../lib/Parts";
 import { useApi } from "../lib/useApi";
 import { reception, breast, nursing, specimens } from "../api";
+import { go } from "../nav";
 import * as H from "../dept/home";
 
 /* 환자 상세 — 모든 과가 같은 화면을 본다 (6.5)
@@ -21,10 +22,11 @@ import * as H from "../dept/home";
  *   히스토리로 적었지만 6.5 는 가운데로 적었다. 화면별 절인 6.5 를 따른다 —
  *   히스토리가 이 화면의 본체라 가장 넓은 가운데가 맞다.
  *
- * ⚠ **타임라인 줄을 누를 수 없다.** 서버가 이벤트마다 `{at, type, detail}`
- *   만 주고 무엇의 몇 번인지를 안 준다(판독만 assessment_id 가 있다).
- *   눌러도 무엇을 열지 알 수 없어서 누르는 자리로 만들지 않았다 —
- *   눌리는 것처럼 보이고 아무 일도 안 일어나는 쪽이 더 나쁘다(8장 11번).
+ * **타임라인 줄을 누르면 그것이 열린다.** 서버가 줄마다 study_id ·
+ *   specimen_id 를 같이 주기로 해서(2026-09-23) 무엇의 몇 번인지 안다.
+ *   영상은 판독 화면으로, 검체는 병리 판독 화면으로 간다.
+ *   ⚠ 번호가 없거나 그 화면을 볼 권한이 없으면 **누르는 자리로 만들지
+ *     않는다.** 눌리는 것처럼 보이고 아무 일도 안 일어나는 쪽이 더 나쁘다.
  */
 export default function Patient() {
   const { id } = useParams();
@@ -218,8 +220,22 @@ const MARK = {
   "검체 채취": "검", "병리 확진": "병",
 };
 
+/* 줄 하나가 어디로 가나. 갈 곳이 없으면 null 을 돌려주고, 부르는 쪽이
+   그냥 글자로 그린다 — 못 여는 것을 눌리게 만들지 않는다. */
+function eventTo(e, may) {
+  if (e.specimen_id != null && may.pathology) return go.pathology.read(e.specimen_id);
+  if (e.study_id != null && may.radiology) return go.radiology.read(e.study_id);
+  return null;
+}
+
 function History({ events }) {
   const [only, setOnly] = useState(null);
+  /* 권한은 화면마다 다르다 — 유방외과는 판독 화면을 못 연다.
+     못 여는 사람에게는 누르는 자리로 안 보이게 한다. */
+  const may = {
+    radiology: useCan("radiology.read.view").ok,
+    pathology: useCan("pathology.read.view").ok,
+  };
 
   const kinds = useMemo(
     () => [...new Set(events.map((e) => e.type))], [events]);
@@ -255,14 +271,21 @@ function History({ events }) {
         : days.map(([day, list]) => (
           <section className="pday" key={day}>
             <h3>{day || "날짜 없음"}</h3>
-            {list.map((e, i) => (
-              <p className="pevent" key={`${day}-${i}`}>
-                <i className="pevent-m" aria-hidden="true">{MARK[e.type] ?? "·"}</i>
-                <time>{H.at(e.at)}</time>
-                <b>{e.type}</b>
-                {e.detail && <span>{e.detail}</span>}
-              </p>
-            ))}
+            {list.map((e, i) => {
+              const to = eventTo(e, may);
+              const body = (
+                <>
+                  <i className="pevent-m" aria-hidden="true">{MARK[e.type] ?? "·"}</i>
+                  <time>{H.at(e.at)}</time>
+                  <b>{e.type}</b>
+                  {e.detail && <span>{e.detail}</span>}
+                  {to && <span className="pevent-go" aria-hidden="true">›</span>}
+                </>
+              );
+              return to
+                ? <Link className="pevent on" key={`${day}-${i}`} to={to}>{body}</Link>
+                : <p className="pevent" key={`${day}-${i}`}>{body}</p>;
+            })}
           </section>
         ))}
     </Card>

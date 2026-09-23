@@ -1304,6 +1304,15 @@ a.frow:hover .frow-k{color:var(--ink)}
 .pevent > span{min-width:0; color:var(--warm); overflow:hidden;
   text-overflow:ellipsis; white-space:nowrap}
 
+/* 누를 수 있는 줄 — 번호가 실려 온 것만 이 모양이 된다(판독·검체).
+   누를 수 없는 줄과 **보이는 것이 달라야 한다** — 같아 보이면 눌러도
+   안 열리는 줄을 계속 누르게 된다. */
+a.pevent{text-decoration:none; color:inherit; border-radius:var(--radius-sm);
+  margin:0 calc(-1 * var(--gap-xs)); padding:var(--gap-xxs) var(--gap-xs)}
+a.pevent:hover{background:var(--line-2)}
+a.pevent:focus-visible{outline:var(--hair) solid var(--cyan); outline-offset:2px}
+.pevent > .pevent-go{flex:none; margin-left:auto; color:var(--faint)}
+
 /* ── 쪽 ─────────────────────────────────────────────────────── */
 /* ⚠ width:100% 과 max-width 를 따로 쓰면 안 된다 — .shell(column flex)
    아래서 stretch가 항상 «줄의 가로 크기까지 채운다»는 보장이 없다
