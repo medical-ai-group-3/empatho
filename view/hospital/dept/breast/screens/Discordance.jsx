@@ -28,10 +28,14 @@ import * as H from "../../home";
  *   펴 놓고, 나머지는 「내 환자」의 불일치 탭이 센다 — 거기가 목록이다.
  * ⚠ **되돌릴 수 없다.** 처분하면 flag 가 닫히고 치료 방침 결정이 열린다.
  */
+/* ⚠ **서버가 받는 값만 둔다** — DISPOSITION_TYPE 은 셋이다
+     (rebiopsy · excision · no_action, models.py).
+   ⚠ 「단기 추적 (6개월)」을 뺐다(09-23). 서버에 그 값이 없어서 고르면
+     400 이었다 — 고를 수 있는데 안 되는 단추는 없는 단추보다 나쁘다.
+     추적으로 처분하는 길이 필요하면 서버 enum 부터 늘려야 한다. */
 const DISPOSE = [
   { v: "rebiopsy", label: "재조직검사" },
   { v: "excision", label: "수술적 절제" },
-  { v: "followup", label: "단기 추적 (6개월)" },
   { v: "no_action", label: "불일치 아님 — 종결" },
 ];
 
@@ -48,7 +52,11 @@ export default function Discordance() {
         {one.data && (
           <div className="disc">
             <Compare d={one.data} />
-            <Dispose d={one.data} done={one.data.flag_status !== "open"}
+            {/* ⚠ **처분 여부는 closed_at 이다.** flag_status 에는 "open" 이란
+                값이 아예 없어서(pass·sev1·sev2·review·unbindable) 이 판단이
+                늘 참이었다 — 어느 건을 열어도 「이미 처분된 건입니다」였다
+                (09-23 확인). 서버가 열린 것을 고르는 기준도 closed_at 이다 */}
+            <Dispose d={one.data} done={Boolean(one.data.closed_at)}
                      onDone={() => nav(go.breast.waiting())} />
           </div>
         )}
@@ -115,7 +123,13 @@ function Dispose({ d, done, onDone }) {
     setBusy(true);
     setErr(null);
     try {
-      await api.dispose(d.discordance_id, { disposition: pick, reason: why });
+      /* ⚠ 칸 이름이 서버와 달랐다 — disposition/reason 으로 보내고 있었는데
+         DiscordanceDisposeSerializer 는 disposition_type/disposition_reason
+         을 받는다. 늘 400 이었다(09-23 확인) */
+      await api.dispose(d.discordance_id, {
+        disposition_type: pick,
+        disposition_reason: why,
+      });
       onDone?.();
     } catch (e) { setErr(e.detail || e.message); }
     finally { setBusy(false); }

@@ -50,13 +50,17 @@ export default function ReviewViewer({
    * 코드표를 항상 다 보여주면 안 찍은 검사까지 탭이 떠서
    * "표시할 영상이 없습니다" 빈 화면만 늘어난다.
    */
+  /* ⚠ **「찍었다」를 performed_at 으로 보지 않는다.** 그 칸은 «촬영 시작»에
+     찍히므로 파일이 한 장도 없는 검사도 값을 갖는다 — 그걸로 거르면 빈
+     탭이 서고 「표시할 영상이 없습니다」만 늘어난다. 올라온 파일 수를
+     본다. 옛 서버는 그 칸이 없어서(undefined) 그때만 시각으로 대신한다 */
+  const shot = (item) => (item.image_count != null
+    ? item.image_count > 0
+    : Boolean(item.performed_at));
+
   const availableModalities = Array.isArray(studies)
     ? Object.keys(MODALITY).filter((code) =>
-        studies.some(
-          (item) =>
-            asModality(item.modality) === code &&
-            item.performed_at
-        )
+        studies.some((item) => asModality(item.modality) === code && shot(item))
       )
     : [];
 
@@ -90,13 +94,15 @@ export default function ReviewViewer({
     if (!Array.isArray(studies) || availableModalities.length === 0) return;
 
     const completed = studies.filter(
-      (study) =>
-        study?.performed_at &&
-        asModality(study.modality) in MODALITY
+      (study) => study && shot(study) && asModality(study.modality) in MODALITY
     );
 
+    /* ⚠ 시각이 비어 있으면 뺄셈이 NaN 이라 정렬이 통째로 무너진다 —
+       시각을 모르는 것은 검사 번호로 견준다(뒤에 만든 것이 최근이다) */
+    const key = (r) => (r.performed_at ? new Date(r.performed_at).getTime() : 0);
     const latest = [...completed].sort(
-      (a, b) => new Date(b.performed_at) - new Date(a.performed_at)
+      (a, b) => (key(b) - key(a))
+        || ((b.study_id ?? b.id ?? 0) - (a.study_id ?? a.id ?? 0))
     )[0];
 
     const next = asModality(latest?.modality) ?? availableModalities[0];
