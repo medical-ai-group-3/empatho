@@ -51,26 +51,46 @@ class PatientTimelineView(AuditMixin, viewsets.ViewSet):
         if request.user.role == "patient" and patient.account_id != request.user.account_id:
             raise ApiError("ROLE_FORBIDDEN", "본인 기록만 볼 수 있습니다.")
 
+        # ⚠ 줄마다 **무엇의 몇 번인지**를 같이 싣는다. 전에는 {at, type,
+        #   detail} 뿐이라 화면이 줄을 눌러도 무엇을 열지 몰랐고, 그래서
+        #   누르는 자리로 만들지 못했다(empatho-view/hospital/screens/
+        #   Patient.jsx 윗 주석). 번호가 있으면 판독·검체 화면으로 보낸다.
         events = []
         for study in models.Study.objects.filter(patient=patient):
             if study.performed_at:
-                events.append({"at": study.performed_at, "type": "촬영", "detail": study.modality})
+                events.append({"at": study.performed_at, "type": "촬영",
+                               "detail": study.modality, "study_id": study.study_id,
+                               "modality": study.modality})
 
         for ai in models.AiResult.objects.filter(patient=patient):
             if ai.analyzed_at:
-                events.append({"at": ai.analyzed_at, "type": "AI 분석 완료", "detail": None})
+                events.append({"at": ai.analyzed_at, "type": "AI 분석 완료", "detail": None,
+                               "study_id": ai.study_id, "specimen_id": ai.specimen_id})
 
-        for assessment in models.Assessment.objects.filter(study__patient=patient):
+        # select_related — 아래에서 study.modality 를 읽는다. 없으면 줄마다
+        # 검사를 한 번씩 더 부른다.
+        for assessment in (models.Assessment.objects
+                           .filter(study__patient=patient)
+                           .select_related("study")):
             events.append({
                 "at": assessment.created_at, "type": "판독", "detail": assessment.category,
                 "assessment_id": assessment.assessment_id,
+                "study_id": assessment.study_id,
+                "modality": assessment.study.modality,
+                # 확정 전(draft)도 이 줄로 나온다. 화면이 「확정」이라고
+                # 읽지 않도록 단계를 같이 준다.
+                "read_stage": assessment.read_stage,
             })
 
         for specimen in models.Specimen.objects.filter(patient=patient):
             if specimen.collected_at:
-                events.append({"at": specimen.collected_at, "type": "검체 채취", "detail": specimen.specimen_label})
+                events.append({"at": specimen.collected_at, "type": "검체 채취",
+                               "detail": specimen.specimen_label,
+                               "specimen_id": specimen.specimen_id})
             if specimen.finalized_at:
-                events.append({"at": specimen.finalized_at, "type": "병리 확진", "detail": specimen.diagnosis})
+                events.append({"at": specimen.finalized_at, "type": "병리 확진",
+                               "detail": specimen.diagnosis,
+                               "specimen_id": specimen.specimen_id})
 
         events.sort(key=lambda e: e["at"])
         return Response(events)
