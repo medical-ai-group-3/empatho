@@ -30,7 +30,9 @@ function radStage(d, i = 0) {
   const s = (d.series ?? [])[i];
   const ai = d.ai;
   let shapes = [];
-  const abstained = ai?.abstained ?? ai?.summary?.abstained;
+  /* 기권 판정은 RadiologyAi 와 같은 규칙이어야 한다 — 봉투와 summary 중
+     하나라도 참이면 기권. `??` 로는 봉투의 false 에서 멈춘다. */
+  const abstained = Boolean(ai?.abstained || ai?.summary?.abstained);
   if (ai && !abstained && ai.lesion_found !== false) {
     if (asModality(ai.modality) === "us") shapes = polygonsFromAi(ai);
   }

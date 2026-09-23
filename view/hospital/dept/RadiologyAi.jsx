@@ -31,7 +31,12 @@ export default function RadiologyAi({ d, pick, onPick }) {
   const ai = d.ai;
   if (!ai) return <p className="muted">AI 결과가 없습니다.</p>;
 
-  const abstained = ai.abstained ?? ai.summary?.abstained;
+  /* ⚠ `??` 를 쓰면 안 된다. 봉투의 abstained 는 「추론 서버가 거부했나」이고
+     summary.abstained 는 「모델이 판정을 못 했나」로 **뜻이 다르다.** 맘모가
+     검출 0건이면 봉투는 false, summary 는 true 로 온다. `??` 는 null·undefined
+     일 때만 넘어가므로 false 에서 멈춰 기권을 놓치고, 화면이 「병변 수 0」을
+     정상 소견처럼 그린다(2026-09-23 study 131). 둘 중 하나라도 참이면 기권이다. */
+  const abstained = Boolean(ai.abstained || ai.summary?.abstained);
   if (abstained || ai.lesion_found === false) {
     return (
       <div className="ai-na">
