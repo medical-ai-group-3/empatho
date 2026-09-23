@@ -2697,6 +2697,17 @@ code{padding:0 var(--gap-xs); border-radius:var(--radius-xs);
 .exam-history-at{font-size:11.5px; color:var(--warm); font-variant-numeric:tabular-nums; flex:none}
 .exam-history-detail{font-size:12.5px; color:var(--ink-2); margin-top:2px}
 
+/* 고를 수 있는 줄 — 검사 번호가 실려 온 것만. 누르면 위 뷰어가 그 검사를
+   연다. 고른 줄은 왼쪽에 선을 세워 어느 것을 보고 있는지 알린다. */
+.exam-history-pick{display:block; width:100%; text-align:left; cursor:pointer;
+  background:none; border:0; padding:0; font:inherit; color:inherit;
+  border-radius:var(--radius-sm)}
+.exam-history-pick:hover .exam-history-type{text-decoration:underline}
+.exam-history-pick:focus-visible{outline:var(--hair) solid var(--cyan);
+  outline-offset:2px}
+.exam-history li.on{box-shadow:inset 2px 0 0 var(--cyan)}
+.exam-history li.on .exam-history-type{color:var(--cyan)}
+
 /* 환자 목록 상세 안 뷰어 — 판독 화면(Read.jsx)보다 작게, 조회 전용으로.
  * ⚠ 2026-09-18 — 셋(초음파·맘모·MRI)이 서로 다른 크기로 따로 놀았다.
  *   MRIReviewGrid 는 자기 안에 min-height:680px 를 박아 두고 있어서

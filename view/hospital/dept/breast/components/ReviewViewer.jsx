@@ -28,6 +28,9 @@ export default function ReviewViewer({
   patientId,
   lesions = [],
   onModalityChange,
+  /* 검사 이력에서 고른 검사. 주면 그 검사를 연다 — 모달리티가 같은 검사가
+     여러 건일 때 탭만으로는 「어느 것」을 못 고른다(늘 첫 건이 열렸다). */
+  studyId = null,
 }) {
   const {
     loading,
@@ -67,6 +70,19 @@ export default function ReviewViewer({
    * 따라가므로(onModalityChange), "최근 검사"와 "리포트 작성 대상"이
    * 항상 같은 걸 가리키게 된다.
    */
+  /* 고른 검사가 바뀌면 그 검사의 모달리티로 탭을 옮긴다. 탭만 옮기고
+     끝나는 것이 아니라 아래 study 도 그 검사를 집는다. */
+  const chosen = Array.isArray(studies) && studyId != null
+    ? studies.find((item) => String(item.study_id ?? item.id) === String(studyId))
+    : null;
+
+  useEffect(() => {
+    if (!chosen) return;
+    const code = asModality(chosen.modality);
+    setTab(code);
+    onModalityChange?.(code);
+  }, [chosen?.study_id ?? chosen?.id, onModalityChange]);
+
   useEffect(() => {
     if (tab !== null) return;
     if (!Array.isArray(studies) || availableModalities.length === 0) return;
@@ -89,12 +105,14 @@ export default function ReviewViewer({
   /*
    * API에서 해당 modality 검사 결과를 찾는다.
    */
+  /* 고른 검사가 지금 탭과 같은 모달리티면 그것을 쓴다. 탭을 손으로 다른
+     모달리티로 옮기면 고른 것을 놓고 그 모달리티의 첫 검사로 돌아간다. */
   const study =
-    Array.isArray(studies)
-      ? studies.find(
-          (item) => asModality(item.modality) === tab
-        )
-      : null;
+    chosen && asModality(chosen.modality) === tab
+      ? chosen
+      : (Array.isArray(studies)
+          ? studies.find((item) => asModality(item.modality) === tab)
+          : null);
 
   return (
     <div className="viewer-shell">

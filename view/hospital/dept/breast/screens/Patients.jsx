@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { breast as api } from "../../../api";
 import { SEX, label } from "../../../codes";
 import { Body } from "../../../lib/Body";
@@ -110,13 +110,18 @@ function PatientDetail({ id }) {
 
 function PatientDetailBody({ patient }) {
   const timeline = useApi(() => api.timeline(patient.patient_id), [patient.patient_id]);
+  /* 검사 이력에서 고른 줄. 뷰어가 이 검사를 연다 — 고르기 전에는 null
+     이고, 그때는 뷰어가 가장 최근 검사를 스스로 고른다. */
+  const [pick, setPick] = useState(null);
+  useEffect(() => { setPick(null); }, [patient.patient_id]);
 
   return (
     <div className="list-detail-cols">
       {/* 영상의학과 목록의 조회 전용 Viewer와 같은 자리다. 유방외과는
           판독 입력·판독 정정 도구를 이 화면에 노출하지 않는다. */}
       <div className="list-detail-viewer breast-list-viewer">
-        <ReviewViewer patientId={patient.patient_id} lesions={patient.lesions ?? []} />
+        <ReviewViewer patientId={patient.patient_id} lesions={patient.lesions ?? []}
+                      studyId={pick} />
       </div>
       <div className="list-detail-info">
         <Facts items={[
@@ -132,26 +137,47 @@ function PatientDetailBody({ patient }) {
         ]} />
         <p className="section-label">검사 이력</p>
         <Body loading={timeline.loading} error={timeline.error} onRetry={timeline.reload}>
-          {timeline.data && <PatientTimeline events={timeline.data} />}
+          {timeline.data && (
+            <PatientTimeline events={timeline.data} pick={pick} onPick={setPick} />
+          )}
         </Body>
       </div>
     </div>
   );
 }
 
-function PatientTimeline({ events }) {
+/* 검사 이력.
+ *
+ * 검사 번호(study_id)가 실려 온 줄만 고를 수 있다 — 그 줄을 누르면 위
+ * 뷰어가 그 검사를 연다. 검체 줄처럼 번호가 없거나 영상이 아닌 줄은
+ * 그대로 글자로 둔다. 누를 수 없는 것을 누르게 만들지 않는다. */
+function PatientTimeline({ events, pick, onPick }) {
   if (events.length === 0) return <p className="muted small">아직 검사 이력이 없습니다.</p>;
   return (
     <ul className="exam-history">
-      {events.map((event, index) => (
-        <li key={index}>
-          <div className="exam-history-head">
-            <span className="exam-history-type">{event.type}</span>
-            <span className="exam-history-at">{event.at?.replace("T", " ").slice(0, 16)}</span>
-          </div>
-          {event.detail && <p className="exam-history-detail">{event.detail}</p>}
-        </li>
-      ))}
+      {events.map((event, index) => {
+        const id = event.study_id ?? null;
+        const on = id != null && String(id) === String(pick);
+        const body = (
+          <>
+            <div className="exam-history-head">
+              <span className="exam-history-type">{event.type}</span>
+              <span className="exam-history-at">{event.at?.replace("T", " ").slice(0, 16)}</span>
+            </div>
+            {event.detail && <p className="exam-history-detail">{event.detail}</p>}
+          </>
+        );
+        return (
+          <li key={index} className={on ? "on" : undefined}>
+            {id == null ? body : (
+              <button type="button" className="exam-history-pick"
+                      aria-pressed={on} onClick={() => onPick?.(on ? null : id)}>
+                {body}
+              </button>
+            )}
+          </li>
+        );
+      })}
     </ul>
   );
 }
