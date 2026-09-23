@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
-import { breast as api } from "../../../api";
+import { breast as api, rad } from "../../../api";
+import { radStage } from "../../radiology";
 import { useApi } from "../../../lib/useApi";
+import { useFile } from "../../../lib/files";
 import { Body } from "../../../lib/Body";
 import MRIReviewGrid from "../../../lib/dicom/MRIReviewGrid";
 import { MODALITY, label, modality as asModality } from "../../../codes";
@@ -154,28 +156,9 @@ export default function ReviewViewer({
           error={error}
           onRetry={reload}
         >
-          {tab === null ? null : tab === "mri" ? (
-            <MRIReviewGrid
-              lesions={lesions}
-              study={study}
-              mode="review"
-            />
-          ) : tab === "mammo" && study?.stack_manifest ? (
-            /* 공통 영상 Viewer 3단계 — 맘모도 MRI처럼 Cornerstone 엔진으로
-               옮겼다. stack_manifest가 아직 없는(옛 mock) 검사는 종전대로
-               PngOverlayViewer로 떨어진다 — 둘 다 review 모드라 조작 폭은
-               같다(탐색만, 편집 도구 없음). */
-            <DicomStackViewer
-              manifestUrl={study.stack_manifest}
-              baseUrl={study.stack_base}
-              mode="review"
-            />
-          ) : (
-            <PngOverlayViewer
-              modality={tab}
-              study={study}
-            />
-          )}
+          {tab === null ? null : study ? (
+            <StudyView study={study} lesions={lesions} />
+          ) : null}
         </Body>
       </div>
 
@@ -553,9 +536,50 @@ export default function ReviewViewer({
 
 
 /* ===========================================================
-   PNG 오버레이 Viewer — 초음파(공통 Stage.jsx 재사용). 맘모는
-   stack_manifest가 있으면 DicomStackViewer로 빠지고, 병리는 이제
-   이 화면에 안 온다(파일 위 주석 참고 — specimen이라 study가 아니다).
+   검사 한 건을 연다 — **판독 화면과 같은 경로로 받는다.**
+
+   전에는 `GET /patients/{id}/studies` 가 준 행을 그대로 뷰어에 넘기고
+   study.slices · study.mask_slices 를 읽으려 했다. 그런 칸은 서버에
+   없다(StudySerializer 는 Study 모델 그대로다) — 목업 시절 모양이라
+   초음파는 늘 「이 검사에 등록된 영상이 없습니다」였다.
+
+   파일은 `GET /radiology/studies/{id}/read` 가 알고, 바이트는 Go 관문이
+   티켓을 받고 준다. 판독 화면이 하는 그대로다 — 모달리티마다 어느
+   뷰어인지는 radStage() 한 곳에만 적혀 있다.
+
+   ⚠ 여기는 **보기만 한다.** 도형을 누르거나 그리는 도구를 붙이지 않는다
+     — 유방외과는 판독을 고치는 자리가 아니다.
+=========================================================== */
+
+function StudyView({ study, lesions }) {
+  const id = study?.study_id ?? study?.id ?? null;
+  const read = useApi(() => (id == null ? Promise.resolve(null) : rad.read(id)), [id]);
+  const d = read.data;
+  const view = d ? radStage(d, 0) : {};
+  /* 티켓이 여는 범위 — 영상은 검사 단위다(lib/files.js) */
+  const img = useFile(view.image, rad.ticket, { kind: "study", id });
+
+  return (
+    <Body loading={read.loading} error={read.error} onRetry={read.reload}>
+      {!d ? null : view.volumeManifest ? (
+        <MRIReviewGrid lesions={lesions} study={d} mode="review" />
+      ) : view.stackManifest ? (
+        <DicomStackViewer manifestUrl={view.stackManifest}
+                          baseUrl={view.stackBase} mode="review" />
+      ) : (
+        <Stage src={img.src} w={view.w} h={view.h} alt={view.alt}
+               loading={img.loading} loadError={img.error}
+               shapes={view.shapes ?? []} opacity={45} mode="review" />
+      )}
+    </Body>
+  );
+}
+
+
+/* ===========================================================
+   PNG 오버레이 Viewer — 목업 시절 모양(study.slices)을 읽던 자리다.
+   지금은 StudyView 가 대신한다. 아직 지우지 않은 것은 mock 화면
+   (mock/hospital.json)이 이 모양을 쓰기 때문이다.
 =========================================================== */
 
 function PngOverlayViewer({ modality, study }) {

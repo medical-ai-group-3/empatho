@@ -19,7 +19,10 @@ import { BIRADS, MODALITY, READ_STATUS, SEX, label, modality as asModality, text
 const MRIReviewGrid = lazy(() => import("../lib/dicom/MRIReviewGrid"));
 const DicomStackViewer = lazy(() => import("../lib/dicom/DicomStackViewer"));
 
-function radStage(d, i = 0) {
+/* 판독 응답 하나 → 뷰어가 아는 모양. 유방외과 검사 종합 뷰어도 같은
+   것을 쓴다(dept/breast/components/ReviewViewer.jsx) — 모달리티마다
+   어느 뷰어를 쓰는지가 한 곳에만 적혀 있어야 둘이 안 엇갈린다. */
+export function radStage(d, i = 0) {
   if (d.unit?.modality === "mri") {
     return { volumeManifest: d.volume_manifest, volumeBase: d.volume_base };
   }
