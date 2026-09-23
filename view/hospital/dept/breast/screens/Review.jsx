@@ -135,7 +135,10 @@ function Reading({ title, r, lines = [], action }) {
             {lines.filter(([, v]) => v).map(([k, v]) => (
               <div key={k}><dt>{k}</dt><dd>{v}</dd></div>
             ))}
-            <div><dt>판독</dt><dd>{[r.author, H.day(r.at)].filter(Boolean).join(" · ")}</dd></div>
+            {/* 낸 사람·시각을 모르면 빈 줄을 그리지 않는다. 서버 리포트에
+                발행 시각 칸이 없어(created_at 은 응답에서 빠진다) 늘
+                빈 「판독 —」 이 남았다. 대신 어느 검사인지를 적는다 */}
+            {r.dept && <div><dt>판독</dt><dd>{r.dept}</dd></div>}
           </dl>
           <p className="rev-find">{r.summary}</p>
         </>
@@ -152,16 +155,29 @@ function Reading({ title, r, lines = [], action }) {
  * ⚠ **어느 판독에 붙일지는 진료 이력이 안다** — 환자 응답에 assessment
  *   번호가 없다. timeline 의 「판독」 줄이 달고 온다.
  */
-const KINDS = ["수술", "추적 관찰", "추가 검사", "재조직검사"];
-const GOES = ["진행", "보류"];
+/* ⚠ **보내는 값은 서버 코드다.** 화면 글자를 그대로 보내면 안 된다 —
+     서버 DECISION_TYPE 은 surgery·biopsy·imaging·rebiopsy 고
+     DECISION_VALUE 는 yes·no·defer 다(models.py:79-80). 전에는 한글을
+     `decision`·`reason` 이라는 없는 키로 보내서 **저장이 늘 실패했다**
+     (서버가 받는 키는 decision_value·decision_reason 이다). */
+const KINDS = [
+  { v: "surgery",  label: "수술" },
+  { v: "imaging",  label: "추적 관찰" },
+  { v: "biopsy",   label: "추가 검사" },
+  { v: "rebiopsy", label: "재조직검사" },
+];
+const GOES = [
+  { v: "yes",   label: "진행" },
+  { v: "defer", label: "보류" },
+];
 
 function Decide({ p, onSaved }) {
   const line = useApi(() => H.soft(api.timeline(p.patient_id)), [p.patient_id]);
   const aid = H.rows(line.data).filter((r) => r.assessment_id).at(-1)?.assessment_id ?? null;
   const rid = p.report?.report_id ?? null;
 
-  const [kind, setKind] = useState(KINDS[0]);
-  const [goNo, setGoNo] = useState(GOES[0]);
+  const [kind, setKind] = useState(KINDS[0].v);
+  const [goNo, setGoNo] = useState(GOES[0].v);
   const [why, setWhy] = useState("");
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -172,8 +188,15 @@ function Decide({ p, onSaved }) {
     setBusy(true);
     setMsg(null);
     try {
-      await api.decide(aid, { decision_type: kind, decision: goNo, reason: why });
-      if (open && rid) await api.explain(rid, { patient_explanation: why });
+      await api.decide(aid, {
+        decision_type: kind, decision_value: goNo, decision_reason: why,
+      });
+      /* 환자에게 여는 것은 설명 **방법**과 확인 여부다 — 서버가 받는
+         것이 그 둘뿐이라(ReportExplainSerializer) 글은 여기로 안 간다.
+         근거는 바로 위 decision_reason 에 이미 남는다. */
+      if (open && rid) {
+        await api.explain(rid, { explain_method: "대면", patient_confirmed: true });
+      }
       setMsg("확정했습니다");
       onSaved?.();
     } catch (e) { setMsg(e.detail || e.message); }
@@ -193,9 +216,9 @@ function Decide({ p, onSaved }) {
           <span>결정 종류</span>
           <div className="work-seg" role="radiogroup" aria-label="결정 종류">
             {KINDS.map((k) => (
-              <button type="button" key={k} role="radio" aria-checked={k === kind}
-                      className={`work-opt${k === kind ? " on" : ""}`}
-                      disabled={!may.ok} onClick={() => setKind(k)}>{k}</button>
+              <button type="button" key={k.v} role="radio" aria-checked={k.v === kind}
+                      className={`work-opt${k.v === kind ? " on" : ""}`}
+                      disabled={!may.ok} onClick={() => setKind(k.v)}>{k.label}</button>
             ))}
           </div>
         </label>
@@ -204,9 +227,9 @@ function Decide({ p, onSaved }) {
           <span>가부</span>
           <div className="work-seg narrow" role="radiogroup" aria-label="가부">
             {GOES.map((g) => (
-              <button type="button" key={g} role="radio" aria-checked={g === goNo}
-                      className={`work-opt${g === goNo ? " on" : ""}`}
-                      disabled={!may.ok} onClick={() => setGoNo(g)}>{g}</button>
+              <button type="button" key={g.v} role="radio" aria-checked={g.v === goNo}
+                      className={`work-opt${g.v === goNo ? " on" : ""}`}
+                      disabled={!may.ok} onClick={() => setGoNo(g.v)}>{g.label}</button>
             ))}
           </div>
         </label>

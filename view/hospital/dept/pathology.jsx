@@ -190,6 +190,10 @@ function pathAiRow(row = {}) {
     stroma_area_px: r.stroma_area_px ?? null,
     immune_cell_area_px: r.immune_cell_area_px ?? null,
     mpp: r.mpp ?? null,
+
+    /* 마스크 픽셀값의 뜻 — {"0":"other","1":"tumor","2":"stroma"} 꼴.
+       뷰어가 색 범례를 이걸로 적는다(lib/Stage.jsx 의 MaskKeys) */
+    mask_legend: r.tissue_mask_legend ?? null,
   };
 }
 
@@ -436,6 +440,9 @@ export const pathology = {
         /* { url } 이면 그대로, { key } 면 티켓 받아 Go 에서 가져온다 */
         image: c?.image,
         maskImage: c?.mask,
+        /* 마스크 픽셀값이 무슨 뜻인지는 서버가 같이 보낸다. 화면이
+           번호를 제멋대로 해석하지 않게 그대로 넘긴다 */
+        maskLegend: (d.ai ?? [])[i]?.mask_legend ?? null,
         w: c?.w ?? 512, h: c?.h ?? 512,     /* 크롭은 512×512 */
         alt: `크롭 ${i + 1}`,
         shapes: [],            /* 병리는 도형이 없다 — 마스크가 그림이다 */

@@ -238,12 +238,46 @@ export default function Stage({
 }
 
 /*
- * 병리 AI가 반환하는 마스크는 색상 이미지가 아니라 픽셀값으로 영역을
- * 표시하는 labelmap(0=배경, 1=조직, 2=세포)이다. 이를 그대로 img로
- * 겹치면 값 1/2가 검정으로 렌더링되어 원본을 어둡게 만든다. 캔버스에서
- * 배경은 투명하게 지우고 라벨별 색상으로 바꿔 실제 세그멘테이션 영역이
- * 보이도록 한다.
+ * 병리 AI가 내는 마스크는 색 그림이 아니라 픽셀값이 곧 분류 번호인
+ * labelmap 이다. 그대로 <img> 로 겹치면 1·2 가 거의 검정이라 원본이
+ * 어두워진다. 캔버스에서 번호별 색으로 바꿔 칠한다.
+ *
+ * ⚠ **번호의 뜻은 서버가 같이 보낸다**(tissue_mask_legend). 지금 병리는
+ *   `{"0":"other","1":"tumor","2":"stroma"}` 다 — 전에 이 자리 주석은
+ *   「0=배경, 1=조직, 2=세포」라고 적혀 있었는데 틀린 말이었다. 번호를
+ *   화면이 제멋대로 해석하면, 서버가 뜻을 바꿀 때 조용히 어긋난다.
+ *
+ * 0 번은 칠하지 않는다 — 「그 밖」이라 화면 대부분을 덮어 원본을 가린다.
+ * 대신 아래 MaskKeys 가 어느 색이 무엇인지 적는다.
  */
+const MASK_COLORS = [
+  null,             /* 0 — 칠하지 않는다 */
+  [0, 220, 150],
+  [255, 120, 0],
+  [255, 70, 180],
+  [250, 210, 0],
+];
+const maskColor = (v) => MASK_COLORS[v] ?? MASK_COLORS[MASK_COLORS.length - 1];
+
+/* 어느 색이 무엇인가. 범례가 없으면 그리지 않는다 — 색만 보여 주고
+   뜻을 안 적으면 판독의가 주황이 종양인지 간질인지 알 수 없다. */
+export function MaskKeys({ legend }) {
+  const keys = Object.entries(legend ?? {})
+    .filter(([v]) => Number(v) > 0)
+    .sort(([a], [b]) => Number(a) - Number(b));
+  if (keys.length === 0) return null;
+  return (
+    <div className="mask-keys">
+      {keys.map(([v, name]) => (
+        <span key={v} className="mask-key">
+          <i style={{ background: `rgb(${maskColor(Number(v)).join(",")})` }} />
+          {name}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function MaskOverlay({ src, w, h, opacity }) {
   const canvasRef = useRef(null);
 
@@ -266,23 +300,14 @@ function MaskOverlay({ src, w, h, opacity }) {
       const pixels = ctx.getImageData(0, 0, width, height);
       for (let i = 0; i < pixels.data.length; i += 4) {
         const value = Math.max(pixels.data[i], pixels.data[i + 1], pixels.data[i + 2]);
-        if (pixels.data[i + 3] === 0 || value === 0) {
+        const rgb = pixels.data[i + 3] === 0 ? null : maskColor(value);
+        if (!rgb) {                       /* 0 번과 투명 픽셀은 그대로 둔다 */
           pixels.data[i + 3] = 0;
           continue;
         }
-        if (value <= 1) {
-          pixels.data[i] = 0;
-          pixels.data[i + 1] = 220;
-          pixels.data[i + 2] = 150;
-        } else if (value <= 2) {
-          pixels.data[i] = 255;
-          pixels.data[i + 1] = 120;
-          pixels.data[i + 2] = 0;
-        } else {
-          pixels.data[i] = 255;
-          pixels.data[i + 1] = 70;
-          pixels.data[i + 2] = 180;
-        }
+        pixels.data[i] = rgb[0];
+        pixels.data[i + 1] = rgb[1];
+        pixels.data[i + 2] = rgb[2];
         pixels.data[i + 3] = 220;
       }
       ctx.putImageData(pixels, 0, 0);

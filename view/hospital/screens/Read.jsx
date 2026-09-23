@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Body } from "../lib/Body";
 import { Card, Page } from "../lib/Page";
 import { Chip, Locked, Save, Slide, Viewer } from "../lib/Parts";
-import Stage from "../lib/Stage";
+import Stage, { MaskKeys } from "../lib/Stage";
 import { useFile } from "../lib/files";
 import { useApi } from "../lib/useApi";
 import { can } from "../perm";
@@ -169,6 +169,9 @@ function Inner({ cfg, id, d }) {
               <div className="vknobs">
                 <Slide label={view.maskImage ? "마스크 투명도" : "표시 투명도"}
                        value={mask} onChange={setMask} />
+                {/* 어느 색이 무엇인지 적는다. 색만 있고 뜻이 없으면
+                    주황이 종양인지 간질인지 알 수 없다 */}
+                {msk.src && <MaskKeys legend={view.maskLegend} />}
                 {/* 원본이 서버에서 8bit PNG 로 변환돼 오므로 **창값 조절은
                     못 한다.** 이건 화면 보정일 뿐이고, 판독의가 창값으로
                     오해하지 않게 이름을 그렇게 붙였다.

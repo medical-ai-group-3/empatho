@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Body } from "../lib/Body";
 import { Btn, Card, Page } from "../lib/Page";
 import { Chip, Locked, Search, Sort, Split, Table, useCan } from "../lib/Parts";
@@ -41,7 +41,22 @@ function Inner({ cfg }) {
   const c = cfg.list;
   const [sort, setSort] = useState(c.sorts[0].key);
   const [q, setQ] = useState("");
-  const [pick, setPick] = useState(null);
+
+  /* 고른 줄은 **주소에 적는다.** 화면 안의 state 로 두면 판독을 보고
+     뒤로 왔을 때 고른 환자가 풀린다 — 오른쪽이 「목록에서 한 사람을
+     고르면」으로 돌아가 버린다(09-23 확인). 주소에 있으면 뒤로가기가
+     그대로 되살린다. 히스토리를 늘리지 않게 replace 로 바꾼다. */
+  const [params, setParams] = useSearchParams();
+  const picked = params.get("pick");
+  /* Table 은 value === row.id 로 비교한다. 숫자 id 를 문자로 돌려주면
+     아무 줄도 안 켜지므로 숫자꼴이면 숫자로 되돌린다. */
+  const pick = picked == null ? null : (/^\d+$/.test(picked) ? Number(picked) : picked);
+  const setPick = (id) => setParams((prev) => {
+    const next = new URLSearchParams(prev);
+    if (id == null) next.delete("pick");
+    else next.set("pick", String(id));
+    return next;
+  }, { replace: true });
 
   /* ⚠ 전에는 서버에 q 를 실어 보내면서 **deps 에는 sort 만** 두었다.
      그래서 글자를 쳐도 다시 안 부르고, 정렬을 바꾸는 순간에만 그때

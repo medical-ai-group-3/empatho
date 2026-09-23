@@ -963,6 +963,14 @@ function ageFromBirthDate(value) {
   return age >= 0 ? age : null;
 }
 
+/* 리포트를 낸 소켓 → 어느 과가 낸 판독인가. 서버 models.py 의
+   REPORT_SOCKET_ID 주석 그대로다 — 1 병리 · 3 MRI · 4b 맘모 · 5 초음파 ·
+   7 종합. 유방외과 화면은 이 글자에 「영상」·「병리」가 들어 있는지로
+   두 칸을 가른다(Review.jsx 의 of("영상") / of("병리")). */
+const REPORT_DEPT = {
+  "1": "병리", "3": "영상 · MRI", "4b": "영상 · 유방촬영", "5": "영상 · 초음파",
+};
+
 export const breast = {
   /* 1장 · 대기 환자 */
   /* ⚠ 서버가 페이지네이션 봉투({count,results,…})로 준다. 화면(Waiting.jsx)은
@@ -1003,6 +1011,17 @@ export const breast = {
     return {
       ...patient,
       report,
+      /* 나머지 리포트를 버리지 않는다. 검사 종합·내 환자 화면이 영상/병리
+         판독 요약을 여기서 읽는데(Review.jsx·Waiting.jsx 의 other_reports),
+         만들어 주는 사람이 없어 늘 「아직 없습니다」로 떴다 — 소견문은
+         서버에 멀쩡히 있었다(09-23 김환자에서 확인). */
+      other_reports: reports
+        .filter((row) => row.report_type === "stage" && row.narrative_text)
+        .map((row) => ({
+          ...row,
+          dept: REPORT_DEPT[row.socket_id] ?? "판독",
+          summary: row.narrative_text,
+        })),
       current_order: currentOrder,
       visit_type: currentOrder?.visit_type ?? null,
       visit_purpose: currentOrder?.exam_purpose ?? null,

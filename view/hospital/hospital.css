@@ -2091,6 +2091,15 @@ td.none,tr.none td{text-align:center; padding:var(--card-pad) 0}
 .vknobs{display:flex; flex-direction:column; gap:var(--gap-xs)}
 .vknobs .muted{color:var(--v-warm)}
 
+/* 마스크 색 범례 — 어느 색이 무엇인지. 뜻은 서버가 주고(tissue_mask_legend)
+   색은 lib/Stage.jsx 의 MASK_COLORS 가 정한다. 둘이 어긋나면 안 되므로
+   점 색은 CSS 가 아니라 그쪽에서 인라인으로 박는다. */
+.mask-keys{display:flex; flex-wrap:wrap; gap:var(--gap-sm)}
+.mask-key{display:inline-flex; align-items:center; gap:calc(5px * var(--sp));
+  font-size:var(--hint-fs); color:var(--v-warm)}
+.mask-key i{width:calc(9px * var(--sp)); height:calc(9px * var(--sp));
+  border-radius:var(--radius-xs, 2px)}
+
 /* ── 내 정보 ──────────────────────────────────────────────────
    상단바의 이름이 여기로 오는 링크가 된다. 누를 수 있다는 것이 보여야
    하지만, 상단바는 이미 빽빽해서 테두리를 더 두르면 시끄럽다. 그래서

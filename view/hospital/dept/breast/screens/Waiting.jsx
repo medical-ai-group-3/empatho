@@ -261,16 +261,29 @@ function Read({ title, r, to }) {
  *   없다. `/patients/{id}/timeline` 의 「판독」 줄이 `assessment_id` 를
  *   달고 온다 — 가장 최근 것에 붙인다.
  */
-const KINDS = ["수술", "조직검사", "추가 영상", "재조직검사"];
-const VALUES = ["예", "아니오", "보류"];
+/* ⚠ **보내는 값은 서버 코드다.** 화면 글자를 그대로 보내면 안 된다 —
+     서버 DECISION_TYPE 은 surgery·biopsy·imaging·rebiopsy 고
+     DECISION_VALUE 는 yes·no·defer 다(models.py:79-80). 전에는 한글을
+     `decision`·`reason` 이라는 없는 키로 보내서 **저장이 늘 실패했다**. */
+const KINDS = [
+  { v: "surgery",  label: "수술" },
+  { v: "biopsy",   label: "조직검사" },
+  { v: "imaging",  label: "추가 영상" },
+  { v: "rebiopsy", label: "재조직검사" },
+];
+const VALUES = [
+  { v: "yes",   label: "예" },
+  { v: "no",    label: "아니오" },
+  { v: "defer", label: "보류" },
+];
 
 function Decide({ p, onDone }) {
   const line = useApi(() => H.soft(api.timeline(p.patient_id)), [p.patient_id]);
   const aid = H.rows(line.data)
     .filter((r) => r.assessment_id).at(-1)?.assessment_id ?? null;
 
-  const [kind, setKind] = useState(KINDS[0]);
-  const [value, setValue] = useState(VALUES[0]);
+  const [kind, setKind] = useState(KINDS[0].v);
+  const [value, setValue] = useState(VALUES[0].v);
   const [why, setWhy] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState(null);
@@ -280,7 +293,9 @@ function Decide({ p, onDone }) {
     setBusy(true);
     setMsg(null);
     try {
-      await api.decide(aid, { decision_type: kind, decision: value, reason: why });
+      await api.decide(aid, {
+        decision_type: kind, decision_value: value, decision_reason: why,
+      });
       setMsg("남겼습니다");
       onDone?.();
     } catch (e) { setMsg(e.detail || e.message); }
@@ -297,18 +312,18 @@ function Decide({ p, onDone }) {
 
       <div className="work-seg" role="radiogroup" aria-label="결정 종류">
         {KINDS.map((k) => (
-          <button type="button" key={k} role="radio" aria-checked={k === kind}
-                  className={`work-opt${k === kind ? " on" : ""}`}
-                  onClick={() => setKind(k)}>{k}</button>
+          <button type="button" key={k.v} role="radio" aria-checked={k.v === kind}
+                  className={`work-opt${k.v === kind ? " on" : ""}`}
+                  onClick={() => setKind(k.v)}>{k.label}</button>
         ))}
       </div>
 
       <div className="work-dec-b">
         <div className="work-seg narrow" role="radiogroup" aria-label="결정">
           {VALUES.map((v) => (
-            <button type="button" key={v} role="radio" aria-checked={v === value}
-                    className={`work-opt${v === value ? " on" : ""}`}
-                    onClick={() => setValue(v)}>{v}</button>
+            <button type="button" key={v.v} role="radio" aria-checked={v.v === value}
+                    className={`work-opt${v.v === value ? " on" : ""}`}
+                    onClick={() => setValue(v.v)}>{v.label}</button>
           ))}
         </div>
         <textarea value={why} onChange={(e) => setWhy(e.target.value)}

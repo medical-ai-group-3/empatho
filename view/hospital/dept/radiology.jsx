@@ -208,8 +208,15 @@ export const radiology = {
    *   줄 수만큼 요청이 나간다(8장 1번).
    */
   home: {
-    load: () => Promise.all([H.soft(api.queue()), api.list({})])
-      .then(([queue, list]) => ({ queue: H.rows(queue), studies: H.rows(list) })),
+    /* 판독(assessment)을 한 번 더 받는다 — 줄마다 부르는 것이 아니라
+       필터 없이 한 번이다(GET /assessments). 「오늘 한 일」이 확정 시각을
+       알려면 이게 있어야 한다. 검사 목록에는 확정 시각이 없다 —
+       StudySerializer 가 updated_at 을 빼고(exclude = AUDIT_FIELDS)
+       Study 에는 확정 시각 칸 자체가 없다. */
+    load: () => Promise.all([H.soft(api.queue()), api.list({}), H.soft(api.history())])
+      .then(([queue, list, reads]) => ({
+        queue: H.rows(queue), studies: H.rows(list), reads: H.rows(reads),
+      })),
 
     primary: { label: "다음 환자 받기", to: go.radiology.queue(),
                need: "radiology.queue.view" },
@@ -230,7 +237,9 @@ export const radiology = {
            요청이 나간다 — 8장 1번이 붙을 때까지 검사 이름만 적는다 */
         sub: [r.exam_name, r.purpose].filter(Boolean).join(" · "),
         at: H.at(r.performed_at),
-        to: r.patient != null ? go.patient(r.patient) : null,
+        /* 판독 대기 줄이다 — 누르면 판독으로 간다. 환자 화면으로 보내면
+           거기서 판독으로 가는 길이 없어 막다른 길이 된다(09-23 확인). */
+        to: go.radiology.read(r.id),
         why: "판독",
       })),
     }),
@@ -245,19 +254,27 @@ export const radiology = {
          병변을 위양성으로 표시하고 정리했는지는 목록에 안 실린다 */
     ],
 
-    done: ({ studies }) => {
-      const it = studies
-        .filter((r) => r.read_status === "finalized" && H.isToday(r.updated_at));
+    /* 확정 시각은 검사가 아니라 판독이 안다(Assessment.finalized_at).
+       전에는 검사 목록의 updated_at 으로 걸렀는데 그 값이 응답에 아예
+       없어서(StudySerializer 가 뺀다) 늘 0 건이었다 — 확정이 다섯인
+       날에도 「아직 집계하지 않습니다」가 떴다. */
+    done: ({ studies, reads }) => {
+      const study = new Map(studies.map((r) => [r.id, r]));
+      const it = (reads ?? []).filter((a) =>
+        a.read_stage === "final" && !a.superseded_by && H.isToday(a.finalized_at));
       return {
         summary: `확정 ${it.length}`,
-        /* ⚠ 판정(BI-RADS)은 Assessment 표에 있고 목록에 안 실린다 —
-           목업처럼 「— BI-RADS 4C」 까지는 못 적는다 */
-        items: it.map((r) => ({
-          id: r.id,
-          at: H.at(r.updated_at),
-          text: `${H.nameOf(r)} · ${r.modality ? label(MODALITY, asModality(r.modality)) : "검사"} 판독 확정`,
-          to: go.radiology.read(r.id),
-        })),
+        items: it.map((a) => {
+          const s = study.get(a.study_id) ?? {};
+          const kind = s.modality ? label(MODALITY, asModality(s.modality)) : "검사";
+          return {
+            id: a.assessment_id,
+            at: H.at(a.finalized_at),
+            /* 판정(BI-RADS)도 이제 적는다 — 판독을 같이 받으므로 있다 */
+            text: `${H.nameOf(s)} · ${kind} 판독 확정${a.category ? ` · BI-RADS ${a.category}` : ""}`,
+            to: go.radiology.read(a.study_id),
+          };
+        }),
       };
     },
 
