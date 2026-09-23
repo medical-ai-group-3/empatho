@@ -273,11 +273,13 @@ function Mri({ a }) {
 function boundaries(grade) {
   const ps = grade?.boundary_p;
   if (!Array.isArray(ps)) return [];
-  const now = String(grade?.value ?? grade?.display ?? "");
+  /* 「넘은 경계」를 강조한다 — 등급 5면 2·3·4 경계를 모두 넘은 것이다.
+     문자열 앞글자로 보면(5 는 "2"로 시작하지 않는다) 하나도 안 켜진다. */
+  const now = Number(grade?.value);
   return ps.map((p, i) => ({
     name: `${i + 2} 이상`,
     p,
-    on: now.startsWith(String(i + 2)),
+    on: Number.isFinite(now) && now >= i + 2,
   }));
 }
 

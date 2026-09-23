@@ -1977,6 +1977,18 @@ td.none,tr.none td{text-align:center; padding:var(--card-pad) 0}
 .card .ai-m dd,.card .ai-card .ai-h b,.card .cells span{color:var(--ink)}
 .card .grade{color:var(--ink)}
 
+/* ⚠ 바로 위 네 줄은 판독 화면까지 닿는다. .read-page 가 뷰어 전체를
+   카드로 감싸서(.read-page .read-workspace > .card) 어두운 AI 패널
+   .vside 도 .card 안에 들어온다. 특정도가 .vside 쪽과 똑같아(0,2,1)
+   뒤에 있는 이쪽이 이기고, 어두운 바탕(#292524)에 글자가 #0C0A09 로
+   깔려 안 보였다. 여기서 어두운 쪽으로 되돌린다. */
+.card .vside .ai-card{background:var(--v-card)}
+.card .vside .ai-m dt,.card .vside .ai-m dd i,
+.card .vside .ai-m dd em{color:var(--v-warm)}
+.card .vside .ai-m dd,.card .vside .ai-card .ai-h b,
+.card .vside .cells span{color:var(--v-ink)}
+.card .vside .grade{color:var(--v-ink)}
+
 /* ── 4장 · 목록 위 정렬 줄 ─────────────────────────────────── */
 .tbl-top{display:flex; align-items:center; justify-content:space-between;
   gap:var(--gap-sm); padding:var(--gap-sm) var(--card-pad-sm);
@@ -2742,3 +2754,13 @@ code{padding:0 var(--gap-xs); border-radius:var(--radius-xs);
   font-size:var(--hint-fs); color:var(--faint); font-variant-numeric:tabular-nums}
 .viz-note{margin-top:calc(5px * var(--sp)); font-size:var(--hint-fs);
   color:var(--muted)}
+
+/* 판독 화면 AI 패널(.vside)만 어둡다. 같은 조각이 밝은 카드에도 쓰이므로
+   기본은 밝은 쪽에 두고 여기서만 어두운 토큰으로 바꾼다 — 안 바꾸면
+   글자(--ink #0C0A09)와 강조 막대가 어두운 바탕(#292524)에 묻힌다. */
+.vside .viz-h b,.vside .viz-val{color:var(--v-ink)}
+.vside .viz-h,.vside .viz-name,.vside .viz-val em,
+.vside .viz-note{color:var(--v-warm)}
+.vside .viz-track{background:var(--v-line)}
+.vside .viz-fill.on{background:var(--v-ink)}
+.vside .viz-fill.t1{background:var(--v-warm)}
