@@ -91,10 +91,14 @@ class PatientListSerializer(serializers.ModelSerializer):
     name = serializers.CharField(source="pii.name", read_only=True)
     phone = serializers.CharField(source="pii.phone", read_only=True)
     birth_date = serializers.DateField(source="pii.birth_date", read_only=True, default=None)
+    # PatientViewSet.get_queryset 이 Exists 로 얹어 준다. 목록 밖에서 이
+    # serializer 를 쓰면 없을 수 있어 default 를 둔다.
+    has_open_discordance = serializers.BooleanField(read_only=True, default=False)
 
     class Meta:
         model = models.Patient
-        fields = ("patient_id", "patient_number", "name", "phone", "birth_date", "birth_year", "sex", "has_allergy")
+        fields = ("patient_id", "patient_number", "name", "phone", "birth_date",
+                  "birth_year", "sex", "has_allergy", "has_open_discordance")
 
 
 # ── 워크플로 액션 전용 (쓰기) ──────────────────────────────────

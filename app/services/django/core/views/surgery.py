@@ -392,6 +392,14 @@ class SpecimenBindViewSet(AuditMixin, viewsets.ViewSet):
     
     def list(self, request):
         qs = models.Specimen.objects.select_related("patient__pii").all()
+        # ?patient= 로 한 환자 것만. 없으면 종전대로 전부 — 검체 접수 화면이
+        # 전체 목록을 쓴다. 유방외과·검사 종합은 한 환자만 보면 되는데
+        # 지금까지 전부 받아 화면에서 걸렀다(api.js 의 readings).
+        patient = request.query_params.get("patient")
+        if patient:
+            if not str(patient).isdigit():
+                raise ApiError("VALIDATION_ERROR", "patient 는 숫자여야 합니다.")
+            qs = qs.filter(patient_id=int(patient))
         ordering = request.query_params.get("ordering")
         allowed = {
             "patient__name": "patient__pii__name",
@@ -487,7 +495,10 @@ class DiscordanceListView(generics.ListAPIView):
             qs = qs.filter(lesion__patient_id=patient_id)
         if status_param == "open":
             qs = qs.filter(closed_at__isnull=True)
-        return qs
+        # ⚠ 순서를 못 박는다 — 부르는 쪽이 맨 앞 하나를 골라 「처분하기」를
+        #   건다(api.js 의 open_discordance). 안 박으면 어느 건으로 갈지가
+        #   요청마다 달라진다. 최근에 걸린 것이 앞이다.
+        return qs.order_by("-flagged_at", "-discordance_flag_id")
 
 
 class DiscordanceDisposeView(AuditMixin, viewsets.ViewSet):
@@ -513,8 +524,14 @@ class DiscordanceDisposeView(AuditMixin, viewsets.ViewSet):
         return Response(out.data)
     
     def retrieve(self, request, pk=None):
-        flag = models.DiscordanceFlag.objects.get(pk=pk)
-        out = serializers.DiscordanceFlagSerializer(flag)
+        # 상세는 **펴서** 준다 — 화면이 두 판독을 나란히 놓는 자리다.
+        # 얕은 것(FK 번호)만 주면 양쪽이 「아직 없습니다」로 뜬다.
+        flag = (models.DiscordanceFlag.objects
+                .select_related("lesion__patient__pii",
+                                "assessment__assessed_by",
+                                "specimen__assigned_to")
+                .get(pk=pk))
+        out = serializers.DiscordanceDetailSerializer(flag)
         return Response(out.data)
 
 

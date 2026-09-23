@@ -15,9 +15,85 @@ class ReportSerializer(serializers.ModelSerializer):
 
 
 class DiscordanceFlagSerializer(serializers.ModelSerializer):
+    # ⚠ 화면은 discordance_id 로 링크를 만든다(go.breast.discordance). PK 의
+    #   진짜 이름은 discordance_flag_id 라, 그대로 두면 주소에 undefined 가
+    #   박혀 「처분하기」가 아무 데도 안 갔다(09-23 확인).
+    discordance_id = serializers.IntegerField(
+        source="discordance_flag_id", read_only=True)
+
     class Meta:
         model = models.DiscordanceFlag
         exclude = AUDIT_FIELDS
+
+
+def _staff_name(staff):
+    return getattr(staff, "full_name", None) if staff else None
+
+
+class DiscordanceDetailSerializer(DiscordanceFlagSerializer):
+    """§5 상세 — **두 판독을 나란히 놓는 자리다.**
+
+    ⚠ 지금까지 이 경로도 얕은 것(FK 번호만)을 돌려줬다. 화면은
+      `radiology_reading` · `pathology_reading` · `patient` · `lesion` 을
+      읽는데 그런 칸이 하나도 없어서, 판정 불일치 화면이 양쪽 다
+      「아직 없습니다」로 떴다(09-23 확인). 엇갈린 것을 보고 처분하라는
+      화면인데 정작 무엇이 엇갈렸는지가 안 보였다.
+
+    ⚠ 목록(DiscordanceListView)은 얕은 채로 둔다 — 거기는 건수와 처분
+      여부만 보면 되고, 행마다 이걸 펴면 목록이 무거워진다.
+    """
+
+    patient = serializers.SerializerMethodField()
+    lesion = serializers.SerializerMethodField()
+    radiology_reading = serializers.SerializerMethodField()
+    pathology_reading = serializers.SerializerMethodField()
+
+    def get_patient(self, obj):
+        patient = getattr(obj.lesion, "patient", None) if obj.lesion else None
+        if patient is None:
+            return None
+        pii = getattr(patient, "pii", None)
+        return {
+            "patient_id": patient.patient_id,
+            "patient_no": patient.patient_number,
+            "patient_name": getattr(pii, "name", None),
+            "sex": patient.sex,
+            "age": patient.birth_year and (timezone.now().year - patient.birth_year),
+        }
+
+    def get_lesion(self, obj):
+        les = obj.lesion
+        if les is None:
+            return None
+        # 잰 값이 먼저다. AI 값은 사람이 확인하기 전의 값이라 뒤에 온다.
+        size = les.measured_size_mm if les.measured_size_mm is not None else les.ai_size_mm
+        return {
+            "lesion_id": les.lesion_id,
+            "site": les.label,
+            "size_mm": size,
+        }
+
+    def get_radiology_reading(self, obj):
+        a = obj.assessment
+        if a is None:
+            return None
+        return {
+            "assessment": a.category,          # BI-RADS
+            "finding": a.finding_note,
+            "read_at": a.finalized_at,
+            "assessor": _staff_name(a.assessed_by),
+        }
+
+    def get_pathology_reading(self, obj):
+        sp = obj.specimen
+        if sp is None:
+            return None
+        return {
+            "assessment": sp.b_category,       # B 분류
+            "finding": sp.diagnosis,
+            "read_at": sp.finalized_at,
+            "assessor": _staff_name(sp.assigned_to),
+        }
 
 
 class SpecimenSerializer(serializers.ModelSerializer):

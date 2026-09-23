@@ -1,6 +1,6 @@
 """원무과(reception) view."""
 
-from django.db.models import Q
+from django.db.models import Exists, OuterRef, Q
 from django.utils import timezone
 from rest_framework import generics, status, viewsets
 from rest_framework import mixins as drf_mixins
@@ -38,7 +38,22 @@ class PatientViewSet(AuditMixin, OwnedOnlyMixin, viewsets.ModelViewSet):
         raise ApiError("ROLE_FORBIDDEN", "환자 등록은 /patients/register 로 합니다.")
 
     def get_queryset(self):
-        qs = super().get_queryset()
+        # 아직 처분 안 한 판정 불일치가 있는가 — 목록 행에 한 칸으로 얹는다.
+        #
+        # ⚠ 화면(유방외과 「대기 환자」)은 진작 has_open_discordance 를 읽고
+        #   있었는데 **어느 응답에도 그런 칸이 없었다**(09-23 확인). 늘
+        #   undefined 라 「판정 불일치」 탭이 어떤 환자도 못 세고, 줄의 경고
+        #   점도 안 켜졌다 — 엇갈린 것을 안 엇갈렸다고 말하는 쪽이다.
+        #
+        # 행마다 세지 않고 Exists 로 얹는다 — 있는지만 알면 된다.
+        qs = super().get_queryset().annotate(
+            has_open_discordance=Exists(
+                models.DiscordanceFlag.objects.filter(
+                    lesion__patient_id=OuterRef("patient_id"),
+                    closed_at__isnull=True,
+                )
+            ),
+        )
 
         # retrieve · update · partial_update · destroy 는 pk 로 단건을
         # 찾는다 — 목록 유출 방지용 필터(q/status 없으면 빈 쿼리셋)를 걸면

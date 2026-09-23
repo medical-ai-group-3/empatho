@@ -50,6 +50,7 @@ from .radiology import (
 from .surgery import (
     ReportSerializer,
     DiscordanceFlagSerializer,
+    DiscordanceDetailSerializer,
     SpecimenSerializer,
     LesionSerializer,
     ExamOrderRequestSerializer,
