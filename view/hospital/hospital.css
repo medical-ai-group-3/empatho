@@ -99,6 +99,37 @@ input,select,textarea{font:inherit; color:inherit}
   font-size:var(--bell-dot-fs); font-style:normal; font-weight:700;
   display:flex; align-items:center; justify-content:center}
 
+/* ── 좁은 창 — 띠가 안 줄어들어 화면 전체가 가로로 밀렸다 ──────────
+ *
+ * 띠의 조각이 거의 다 flex:none 이라 창이 좁아져도 하나도 안 줄었다.
+ * 415px 창에서 열한 조각이 화면 밖으로 나가고, 띠의 최소 폭이 833px 라
+ * 그만큼 **모든 화면**이 가로로 밀렸다(09-23 실측).
+ *
+ * 좁아지는 순서대로 덜 중요한 것부터 접는다. **검색과 사람은 끝까지
+ * 남긴다** — 검색은 이 시스템에서 제일 많이 하는 일이고, 누구로
+ * 로그인했는지는 판독실 공용 PC 에서 늘 보여야 한다.
+ *
+ * 과·화면 탭은 손댈 것이 없다 — 진작 overflow-x:auto 라 알아서 밀린다.
+ */
+@media (max-width: 1080px) {
+  /* 병원 이름과 그 구분선 — 로고가 이미 어디인지 말하고 있다 */
+  .band-hosp, .band-div{display:none}
+  /* 시계 — 운영체제 시계와 겹친다. 좁을 때 양보할 것으로 첫 번째다 */
+  .when{display:none}
+  /* 단축키 안내 — 이 폭에서 「/」를 누를 일이 드물다 */
+  .band-find kbd{display:none}
+}
+
+@media (max-width: 720px) {
+  /* 이름 옆 직함·과까지는 접는다. 아바타와 이름은 남는다 */
+  .who em{display:none}
+  .who{flex:0 1 auto; min-width:0}
+  .who b{overflow:hidden; text-overflow:ellipsis}
+  /* 검색은 없애지 않고 자리를 양보한다 — 남은 폭을 채운다 */
+  .band-find{width:auto; flex:1 1 auto; min-width:0; margin:0}
+  .band-find:focus-within{width:auto}
+}
+
 /* ── 탭 두 줄 — 과 줄과 화면 줄 ───────────────────────────────
    **색을 늘리지 않고 무게와 움직임으로 낸다.** 색을 들이면 판독 영상
    위에서 병변 표시와 싸운다.
