@@ -39,13 +39,26 @@ export default function PathologyAi({ d }) {
       </p>
 
       {/* 크롭이 두 장 이상일 때만 — 한 점은 분포가 아니다. 평균을 내지
-          않는다는 원칙을 그림으로 지킨다(변동계수 ≈ 1.0). */}
+          않는다는 원칙을 그림으로 지킨다.
+
+          ⚠ 여기 찍는 것은 **보정 sTIL** 이다. 비보정 stil_percent 는 임상
+            육안 TIL 의 약 1/12 스케일이라 화면에 그대로 내면 「면역 반응이
+            거의 없다」로 읽힌다. 보정값이 없으면 점이 없어 안 그려진다 —
+            빈 그림이 나오는 편이 틀린 그림보다 낫다. */}
       <StripPlot
-        label="크롭별 sTIL"
+        label="크롭별 sTIL (보정값)"
         points={rows
           .filter((r) => !r.abstained && r.stroma_status !== "absent")
-          .map((r, i) => ({ name: `${i + 1}`, value: r.stil_percent }))}
+          .map((r, i) => ({ name: `${i + 1}`, value: r.stil_calibrated }))}
         note="장마다 점으로 찍습니다. 평균은 모델이 낸 값이 아닙니다." />
+
+      {/* 종양 비율은 보정 문제가 없다 — 크롭 사이 흔들림을 여기서 본다. */}
+      <StripPlot
+        label="크롭별 종양 비율"
+        points={rows
+          .filter((r) => !r.abstained && r.stroma_status !== "absent")
+          .map((r, i) => ({ name: `${i + 1}`, value: r.tsr_tumor_percent }))}
+        note="자른 자리에 따라 조직 구성이 달라집니다." />
 
       {rows.map((r, i) => (
         <section className="ai-card" key={r.id ?? i}>

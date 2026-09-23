@@ -56,8 +56,9 @@ const api = {
     const ai = progress?.results ?? progress?.items ?? progress?.data?.results
       ?? (Array.isArray(progress?.data) ? progress.data : null)
       ?? (Array.isArray(s.ai) ? s.ai : []);
-    const result = toRead(s, up, Array.isArray(ai) ? ai : []);
-    return { ...result, ai: Array.isArray(ai) ? ai : result.ai };
+    const rows = (Array.isArray(ai) ? ai : []).map(pathAiRow);
+    const result = toRead(s, up, rows);
+    return { ...result, ai: rows };
   },
   draft:      (id, b) => path.draft(id, b),
   finalize:   (id, b) => path.finalize(id, b),
@@ -145,6 +146,53 @@ function attachMasks(crops, files, aiRows) {
 /* 서버 두 응답 → 판독 화면이 쓰는 한 덩어리.
  *
  * **서버 모양이 바뀌면 여기만 고친다.** 화면 다섯 장은 이 모양만 안다. */
+/* /ai-results 는 **봉투**를 준다 — { ai_result_id, run_status, abstained,
+   result: { image, socket_id, result: { …모델이 낸 값… } } }.
+   화면은 안쪽 값을 이름으로 찾는데 봉투를 그대로 넘기고 있었다. 그래서
+   sTIL·TSR·세포 수가 전부 「—」로, 간질 상태는 undefined !== "absent" 라
+   늘 「있음」으로 나왔다(09-23 검체 40 에서 확인). 한 겹 벗겨 준다.
+
+   ⚠ stil_percent 는 **그대로 내지 않는다.** 임상 육안 TIL 대비 약 1/12
+     스케일이라(sockets/pathology.py) 그대로 보이면 「면역 반응이 거의
+     없다」로 읽힌다. 화면에 낼 수 있는 것은 보정값(stil_calibrated)뿐인데
+     그건 앱 서버가 검체 행에 채워야 하고 지금은 비어 있다. 그래서 sTIL
+     칸은 「보정 전 — 표시하지 않음」이 맞다. */
+function pathAiRow(row = {}) {
+  const env = row.result ?? {};
+  const r = env.result ?? {};
+  return {
+    ...row,
+    id: row.ai_result_id ?? row.id,
+    name: env.image?.filename ?? row.name,
+    abstained: Boolean(row.abstained ?? env.abstained),
+    abstain_reason: row.abstain_reason ?? env.reason ?? null,
+
+    stroma_status: r.stroma_status ?? null,
+    /* 보정값은 검체 행에 있다. 없으면 null 로 두고 화면이 「표시하지 않음」 */
+    stil_calibrated: row.stil_calibrated ?? null,
+    stil_level: row.stil_level ?? null,
+
+    /* TSR 은 종양 비율로 읽는다. 간질 비율은 짝으로 함께 넘긴다. */
+    tsr_percent: r.tsr_tumor_percent ?? null,
+    tsr_tumor_percent: r.tsr_tumor_percent ?? null,
+    tsr_stroma_percent: r.tsr_stroma_percent ?? null,
+
+    cell_counts: {
+      total: r.n_cells_total ?? null,
+      til: r.n_cells_til ?? null,
+      til_stromal: r.n_cells_til_stromal ?? null,
+    },
+    n_cells_total: r.n_cells_total ?? null,
+    n_cells_til: r.n_cells_til ?? null,
+    n_cells_til_stromal: r.n_cells_til_stromal ?? null,
+
+    tumor_area_px: r.tumor_area_px ?? null,
+    stroma_area_px: r.stroma_area_px ?? null,
+    immune_cell_area_px: r.immune_cell_area_px ?? null,
+    mpp: r.mpp ?? null,
+  };
+}
+
 function toRead(s, up, aiRows = []) {
   const files = (up.uploads ?? []).map(pathFile);
   const cropFiles = files.filter((file) => !isMaskFile(file));
