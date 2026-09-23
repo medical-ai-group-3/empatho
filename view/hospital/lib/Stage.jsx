@@ -257,7 +257,12 @@ const MASK_COLORS = [
   [255, 70, 180],
   [250, 210, 0],
 ];
-const maskColor = (v) => MASK_COLORS[v] ?? MASK_COLORS[MASK_COLORS.length - 1];
+/* ⚠ `??` 를 쓰면 안 된다. 0 번 자리는 일부러 null 인데 `null ?? x` 는
+   x 로 넘어가 버려서, 칠하지 말아야 할 「그 밖」이 맨 끝 색으로 칠해진다
+   (09-23 검체 48 에서 23,976 px 이 노랗게 덮였다). 칸 안이면 그 값을
+   그대로 쓰고, 넘어가면 맨 끝 색이다. */
+const maskColor = (v) =>
+  (v < MASK_COLORS.length ? MASK_COLORS[v] : MASK_COLORS[MASK_COLORS.length - 1]);
 
 /* 어느 색이 무엇인가. 범례가 없으면 그리지 않는다 — 색만 보여 주고
    뜻을 안 적으면 판독의가 주황이 종양인지 간질인지 알 수 없다. */
