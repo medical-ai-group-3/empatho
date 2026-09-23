@@ -23,20 +23,31 @@ trap restore EXIT
 APK=android/app/build/outputs/apk/debug/app-debug.apk
 rm -f "$APK"                      # 낡은 산출물을 지워 실패를 성공으로 오인하지 않는다
 
+API_ORIGIN="${API_ORIGIN:-https://empatho.example.com}"
+
 cp "$CFG" "$BAK"
 python - <<'PY'
 import json
 p = "capacitor.config.json"
 c = json.load(open(p, encoding="utf-8"))
-# 앱은 fetch("/api/v1/…") 상대경로를 쓴다 — 서버 주소에서 열려야 API 가 붙는다.
-c["server"] = {"url": "https://empatho.example.com", "cleartext": False}
+# 앱은 화면 파일을 자기가 들고 돈다 — server.url 을 없앤다.
+#   웹의 / 는 의료진 화면이라(커밋 ceebfbf) 서버 주소를 열면 안 된다.
+# 서버는 api.js 가 VITE_API_ORIGIN 으로 박아 둔 주소로 부른다.
+c.pop("server", None)
+# CapacitorHttp — fetch 를 네이티브 요청으로 보낸다. 앱의 출처는
+# https://localhost 라 브라우저로 부르면 CORS 에 걸리는데, 네이티브로 가면
+# 그 검사 자체가 없다. 서버의 허용 출처 목록을 안 건드려도 된다.
+c.setdefault("plugins", {})["CapacitorHttp"] = {"enabled": True}
 json.dump(c, open(p, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
-print("[빌드용 설정]", c["server"])
+print("[빌드용 설정] 번들 모드 · CapacitorHttp 켜짐")
 PY
 
-echo "=== 1/3 웹 빌드 ==="
-npm run build >/tmp/web.log 2>&1 || { echo "[실패] npm run build"; tail -15 /tmp/web.log; exit 1; }
-echo "  dist 생성됨"
+echo "=== 1/3 웹 빌드 (API_ORIGIN=$API_ORIGIN) ==="
+VITE_API_ORIGIN="$API_ORIGIN" npm run build >/tmp/web.log 2>&1 \
+  || { echo "[실패] npm run build"; tail -15 /tmp/web.log; exit 1; }
+grep -q "$API_ORIGIN" dist/assets/*.js 2>/dev/null \
+  && echo "  dist 에 서버 주소 박힘 확인" \
+  || { echo "[실패] dist 에 API 주소가 안 들어갔다"; exit 1; }
 
 echo "=== 2/3 capacitor sync ==="
 npx cap sync android >/tmp/sync.log 2>&1 || { echo "[실패] cap sync"; tail -15 /tmp/sync.log; exit 1; }

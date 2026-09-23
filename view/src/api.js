@@ -7,7 +7,22 @@
  * 아래 함수들이 전부 상대 경로로 시작하는 이유가 그것이다. 개발 중에는
  * Vite 가 서버로 넘겨 주고(vite.config.js), 배포에서는 nginx 가 같은
  * 주소에서 받는다. 어느 쪽이든 화면 코드는 그대로다.
+ *
+ * ── 예외 하나: 안드로이드 앱 ───────────────────────────────────────
+ * 앱은 화면 파일을 **자기가 들고 돈다**(Capacitor 번들). 그래서 열린 주소가
+ * https://localhost 이고, 상대 경로로 부르면 서버가 아니라 자기 자신을
+ * 두드린다. 웹의 / 는 의료진 화면이라 서버 주소를 열어 둘 수도 없다
+ * (nginx 의 입구 표 · 커밋 ceebfbf).
+ *
+ * 그래서 **빌드할 때만** 서버 주소를 넣는다. 코드에 박는 것이 아니라
+ * 빌드 인자로 받는다 — 웹 빌드에서는 비어 있어 예전 그대로 상대 경로다.
+ *   앱  VITE_API_ORIGIN=https://empatho.example.com npm run build
+ *   웹  npm run build                      (그대로)
  */
+const API_ORIGIN = String(import.meta.env?.VITE_API_ORIGIN || "").replace(/\/+$/, "");
+
+/* 상대 경로 앞에 서버 주소를 붙인다. 비어 있으면 상대 경로 그대로 나간다. */
+const at = (path) => API_ORIGIN + path;
 
 /* ── 오류 ─────────────────────────────────────────────────────────
    서버는 { code, detail } 로 실패를 알려 준다. 화면이 code 로 갈라야
@@ -80,7 +95,7 @@ async function refreshAccess() {
     try {
       // 쿠키가 있으면 서버가 그걸 먼저 본다(웹). 앱은 저장해 둔 refresh 를 싣는다.
       const saved = getRefreshToken();
-      const res = await fetch("/api/v1/token/refresh", {
+      const res = await fetch(at("/api/v1/token/refresh"), {
         method: "POST",
         headers: {
           Accept: "application/json",
@@ -109,7 +124,7 @@ async function call(path, { method = "GET", body, signal, headers, retried = fal
   if (!path.startsWith("/")) {
     throw new Error(`상대 경로여야 한다: ${path}`);
   }
-  const res = await fetch(path, {
+  const res = await fetch(at(path), {
     method,
     signal,
     headers: {
