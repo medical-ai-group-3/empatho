@@ -67,7 +67,12 @@ export const breast = {
         no: H.noOf(r),
         meta: H.who(r),
         chip: H.allergy(r) ? "알레르기" : null,
-        to: go.patient(r.patient_id),
+        /* 줄에 「검사 종합」이라고 적어 놓고 **일반 환자 화면**으로 보내고
+           있었다(09-23 확인). 유방외과가 이 줄에서 할 일이 바로 검사 종합
+           확인이고, 그 화면이 이 과에 따로 있다 — 적힌 대로 보낸다.
+           권한이 없으면 그 화면이 Locked 로 알려 준다(main.jsx) */
+        to: go.breast.review(r.patient_id),
+        pid: r.patient_id,
         why: "검사 종합",
       })),
     }),

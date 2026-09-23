@@ -5,6 +5,7 @@ import { Btn, Page } from "../lib/Page";
 import { Chip, Locked, useCan } from "../lib/Parts";
 import { useApi } from "../lib/useApi";
 import { can } from "../perm";
+import { go } from "../nav";
 import { ERR } from "../api";
 import * as H from "../dept/home";
 
@@ -233,7 +234,9 @@ function Mid({ cfg, row, onTook }) {
                 <i aria-hidden="true">⚠</i>{H.some(d.contrast_allergy)}
               </span>
             )}
-            {d.patient_id && <Btn to={`/hospital/patients/${d.patient_id}`}>환자 상세</Btn>}
+            {/* ⚠ 주소를 직접 적지 않는다 — 주소가 바뀌면 nav.js 만 고치면
+                되게 해 둔 자리다. 이 한 줄만 규칙을 벗어나 있었다(09-23) */}
+            {d.patient_id && <Btn to={go.patient(d.patient_id)}>환자 상세</Btn>}
           </header>
 
           <section className="work-box">

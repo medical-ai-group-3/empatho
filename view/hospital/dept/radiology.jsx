@@ -21,12 +21,18 @@ const DicomStackViewer = lazy(() => import("../lib/dicom/DicomStackViewer"));
 
 /* 판독 응답 하나 → 뷰어가 아는 모양. 유방외과 검사 종합 뷰어도 같은
    것을 쓴다(dept/breast/components/ReviewViewer.jsx) — 모달리티마다
-   어느 뷰어를 쓰는지가 한 곳에만 적혀 있어야 둘이 안 엇갈린다. */
+   어느 뷰어를 쓰는지가 한 곳에만 적혀 있어야 둘이 안 엇갈린다.
+
+   ⚠ **모달리티 이름이 아니라 «서버가 준 주소»로 고른다.** 전에는 맘모일
+     때만 스택 뷰어로 갔다. 그런데 서버가 초음파에도 같은 주소를 주기
+     시작하면(09-23) 이름으로 거르는 쪽은 그것을 못 받는다. 주소가 왔다는
+     것은 그 뷰어가 열 수 있다는 뜻이다 — 아래 <img> 길은 DICOM 원본을
+     못 푼다. */
 export function radStage(d, i = 0) {
-  if (d.unit?.modality === "mri") {
+  if (d.volume_manifest) {
     return { volumeManifest: d.volume_manifest, volumeBase: d.volume_base };
   }
-  if (d.unit?.modality === "mammo") {
+  if (d.stack_manifest) {
     return { stackManifest: d.stack_manifest, stackBase: d.stack_base };
   }
 
@@ -240,9 +246,27 @@ export const radiology = {
            요청이 나간다 — 8장 1번이 붙을 때까지 검사 이름만 적는다 */
         sub: [r.exam_name, r.purpose].filter(Boolean).join(" · "),
         at: H.at(r.performed_at),
-        /* 판독 대기 줄이다 — 누르면 판독으로 간다. 환자 화면으로 보내면
-           거기서 판독으로 가는 길이 없어 막다른 길이 된다(09-23 확인). */
-        to: go.radiology.read(r.id),
+        /* 누르면 **다음에 할 일**로 간다 — 영상이 없으면 업로드, 있으면 판독.
+         *
+         * 두 번 틀렸던 자리다(09-23).
+         *   · 환자 화면으로 보냈다 → 거기서 판독·업로드로 가는 길이 없어
+         *     막다른 길이었다
+         *   · 그래서 판독으로 돌렸다 → 이번엔 **영상이 한 장도 없는 건**이
+         *     409 STUDY_NOT_READ_READY 로 떨어졌다. 검사는 「촬영 시작」에
+         *     만들어져서 파일 없이 pending 인 시간이 반드시 있다
+         *
+         * read_status 로는 이 둘을 못 가른다 — pending 은 「아직 판독을
+         * 안 썼다」는 말이지 「영상이 있다」는 말이 아니다. 그래서 서버가
+         * 목록 행에 image_count 를 싣게 했다(serializers/radiology.py).
+         *
+         * ⚠ 옛 서버는 이 칸을 안 준다. 그때는 undefined > 0 이 거짓이라
+         *   업로드로 간다 — 업로드 화면은 이미 올라온 파일을 보여 주고
+         *   분석이 끝나 있으면 「판독으로」를 열어 주니 흐름이 안 끊긴다.
+         *   반대로 틀리면 에러 화면이라, 모를 때는 업로드가 안전한 쪽이다. */
+        to: r.image_count > 0 ? go.radiology.read(r.id) : go.radiology.upload(r.id),
+        /* ⚠ 위 id 는 **검사 번호**다. 「최근 본 환자」는 환자 번호로 담아야
+           한다 — 섞이면 남의 환자를 덮어쓴다(lib/recent.js) */
+        pid: r.patient ?? r.patient_id ?? null,
         why: "판독",
       })),
     }),

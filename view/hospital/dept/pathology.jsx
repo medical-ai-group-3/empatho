@@ -268,6 +268,9 @@ export const pathology = {
            환자 화면으로 보내면 거기서 접수·업로드로 가는 길이 없어
            막다른 길이 된다(09-23 확인, 영상의학과와 같은 자리). */
         to: `${go.pathology.queue()}?pick=${r.id}`,
+        /* ⚠ 위 id 는 **검체 번호**다 — 「최근 본 환자」는 환자 번호로 담는다
+           (lib/recent.js). 줄에 환자 번호를 같이 싣는다 */
+        pid: r.patient ?? r.patient_id ?? null,
         why: "검체 접수",
       })),
     }),

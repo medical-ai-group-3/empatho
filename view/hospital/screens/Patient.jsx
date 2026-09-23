@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { Page, Card } from "../lib/Page";
+import { Page, Card, Btn } from "../lib/Page";
 import { Body, Empty } from "../lib/Body";
 import { Chip, useCan } from "../lib/Parts";
 import { useApi } from "../lib/useApi";
 import { reception, breast, nursing, specimens } from "../api";
 import { go } from "../nav";
+import { can } from "../perm";
 import * as H from "../dept/home";
 
 /* 환자 상세 — 모든 과가 같은 화면을 본다 (6.5)
@@ -99,16 +100,54 @@ function Visit({ studies, timeline }) {
     );
   }
 
-  const aiDone = timeline.some((e) => e.type === "AI 분석 완료"
-    && String(e.at).slice(0, 10) === String(last.performed_at ?? "").slice(0, 10));
+  /* ⚠ 전에는 AI 사건과 촬영을 **«같은 날»로** 맞췄다. 그런데 서버가
+     performed_at 을 아무도 안 채우고 있어서 비교의 한쪽이 늘 빈 글자였고 —
+     AI 점이 어떤 환자에게도 영원히 「알 수 없음」이었다. 이제 촬영 시작이
+     그 시각을 찍는다(서버 0022 로 옛 행도 백필).
+     분석이 자정을 넘겨 끝나는 것도 있어서 «같은 날»이 아니라 «촬영 뒤»로 본다 */
+  const shotAt = last.performed_at ? String(last.performed_at) : null;
+  const aiDone = shotAt
+    ? timeline.some((e) => e.type === "AI 분석 완료" && String(e.at) >= shotAt)
+    : false;
   const read = last.read_status === "finalized" ? "done"
     : last.read_status === "draft" ? "going" : "none";
 
+  /* 영상이 올라왔는가 — 서버가 목록 행에 image_count 를 실어 준다.
+   *
+   * ⚠ **performed_at 으로는 못 본다.** 그 칸은 «촬영 시작»에 찍히므로
+   *   파일이 한 장도 없는 검사도 값을 갖는다 — 그걸로 보면 아무것도 안
+   *   올라온 검사가 「촬영 완료」로 읽히고, 업로드로 가는 길이 사라진다.
+   * ⚠ 옛 서버는 image_count 를 안 준다. 그때만 performed_at 으로 대신 본다 */
+  const shot = last.image_count != null
+    ? last.image_count > 0
+    : Boolean(last.performed_at);
+
   const steps = [
-    ["촬영", last.performed_at ? "done" : "going"],
+    ["촬영", shot ? "done" : "going"],
     ["AI", aiDone ? "done" : "unsure"],
     ["판독", read],
   ];
+
+  /* ── 다음 단계로 가는 길 ───────────────────────────────────
+   *
+   * **이 화면은 막다른 길이었다**(09-23 확인). 다섯 과의 홈이 줄을 누르면
+   * 전부 여기로 보내는데, 여기서 나가는 링크가 한 개도 없었다 — 판독을
+   * 이어 하려면 메뉴로 나갔다 과 목록을 거쳐 다시 들어와야 했다.
+   *
+   * 갈 곳은 이 화면이 이미 손에 쥐고 있었다. 검사 번호도 진행 상태도
+   * 위에서 점을 찍느라 다 읽고 있다 — 글자로만 찍고 링크를 안 걸었다.
+   *
+   * ⚠ **권한이 없으면 안 띄운다.** 간호과 사람에게 판독 단추를 보여 주고
+   *   눌러야 Locked 를 만나게 하면, 눌러 보고 나서야 아는 꼴이다. */
+  const studyId = last.study_id ?? last.id ?? null;
+  const next = [];
+  if (studyId != null) {
+    if (!shot && can("radiology.upload.view")) {
+      next.push(["업로드", go.radiology.upload(studyId)]);
+    } else if (shot && can("radiology.read.view")) {
+      next.push(["판독 화면", go.radiology.read(studyId)]);
+    }
+  }
 
   return (
     <Card title="이번 방문" right={<span className="src">{H.at(last.performed_at)}</span>}>
@@ -124,6 +163,13 @@ function Visit({ studies, timeline }) {
           </span>
         ))}
       </p>
+      {next.length > 0 && (
+        <div className="stack top" style={{ justifyContent: "flex-end" }}>
+          {next.map(([label, to]) => (
+            <Btn key={label} kind="line" to={to}>{label}</Btn>
+          ))}
+        </div>
+      )}
     </Card>
   );
 }

@@ -84,6 +84,9 @@ export const nursing = {
             sub: r.questionnaire ? "문진 완료 · 배정 대기" : "문진 대기",
             at: H.at(r.visited_at),
             to: r.patient != null ? go.patient(r.patient) : null,
+            /* ⚠ 위 id 는 **오더 번호**다 — 「최근 본 환자」는 환자 번호로
+               담아야 한다(lib/recent.js) */
+            pid: r.patient ?? null,
             why: "문진 · 배정",
           })) },
 
@@ -101,6 +104,9 @@ export const nursing = {
             sub: `예약 ${H.at(r.scheduled_at) ?? "시각 미정"} · 아직 안 오심`,
             at: H.at(r.scheduled_at),
             to: r.patient != null ? go.patient(r.patient) : null,
+            /* ⚠ 위 id 는 **오더 번호**다 — 「최근 본 환자」는 환자 번호로
+               담아야 한다(lib/recent.js) */
+            pid: r.patient ?? null,
           })) },
 
         /* ⚠ 이 탭의 줄에는 나이·성별·번호·시각이 없다.
@@ -112,6 +118,9 @@ export const nursing = {
             name: H.nameOf(r),
             sub: r.stage,
             to: r.patient_id != null ? go.patient(r.patient_id) : null,
+            /* ⚠ 위 id 는 **오더 번호**다 — 「최근 본 환자」는 환자 번호로
+               담아야 한다(lib/recent.js) */
+            pid: r.patient_id ?? null,
           })) },
 
         /* 오늘 오기로 했는데 아직 안 온 사람 전부(시각이 안 지난 것도) */
@@ -126,6 +135,9 @@ export const nursing = {
             sub: "아직 안 오셨습니다",
             at: H.at(r.scheduled_at),
             to: r.patient != null ? go.patient(r.patient) : null,
+            /* ⚠ 위 id 는 **오더 번호**다 — 「최근 본 환자」는 환자 번호로
+               담아야 한다(lib/recent.js) */
+            pid: r.patient ?? null,
           })) },
 
         /* 앱으로 들어온 신청 — 날짜·시간을 정해 줘야 한다 */
@@ -140,6 +152,7 @@ export const nursing = {
             sub: "앱 신청 · 날짜를 정해야 합니다",
             at: H.at(r.scheduled_at),
             to: go.nursing.reservations(),
+            pid: r.patient ?? r.patient_id ?? null,
           })) },
       ],
     }),

@@ -314,7 +314,11 @@ function useOpen(row) {
   const nav = useNavigate();
   if (!row.to) return {};
   const go = () => {
-    seen({ id: row.id, name: row.name, no: row.no, why: row.why });
+    /* ⚠ **환자 번호로 담는다.** row.id 는 과마다 다르다 — 영상은 검사,
+       병리는 검체, 간호는 오더 번호다. 그대로 담으면 「최근 본 환자」가
+       같은 환자를 여러 칩으로 늘리고 번호가 겹치면 남을 덮어쓴다
+       (lib/recent.js 의 경고). 과들이 줄에 pid 를 같이 실어 준다 */
+    seen({ id: row.pid ?? row.id, name: row.name, no: row.no, why: row.why });
     nav(row.to);
   };
   return {
