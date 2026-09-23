@@ -202,10 +202,16 @@ class StudyStartView(AuditMixin, viewsets.ViewSet):
             raise ApiError("NOT_FOUND")
 
         account = self._current_account()
+        # ⚠ **촬영 시각을 여기서 찍는다.** 이 호출이 곧 「촬영 시작」이다.
+        #   아무도 안 채우고 있었다(09-23 기준 검사 36 건 전부 NULL) —
+        #   읽는 곳은 넷이나 된다: 목록 정렬(-performed_at), 나이 계산,
+        #   타임라인의 「촬영」 줄, 그리고 유방외과 뷰어의 모달리티 탭.
+        #   비어 있으면 뷰어가 「촬영한 검사가 없습니다」로 남는다.
         study = models.Study.objects.create(
             patient=exam_order.patient,
             exam_order=exam_order,
             modality=exam_order.modality,
+            performed_at=timezone.now(),
             created_by=account,
             updated_by=account,
         )
