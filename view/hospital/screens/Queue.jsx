@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Body, Empty } from "../lib/Body";
 import { Btn, Page } from "../lib/Page";
 import { Chip, Locked, useCan } from "../lib/Parts";
@@ -54,7 +54,19 @@ function Inner({ cfg }) {
   const nav = useNavigate();
   const list = useApi(() => cfg.api.queue(), []);
   const again = list.reload;
-  const [pick, setPick] = useState(null);
+
+  /* 고른 줄은 주소에 적는다. 홈의 대기 카드가 ?pick= 을 붙여 보내므로
+     「그 줄을 눌렀는데 다른 것이 열려 있다」가 안 된다. 목록 화면
+     (screens/List.jsx)과 같은 방식이다 — 뒤로 와도 살아남는다. */
+  const [params, setParams] = useSearchParams();
+  const raw = params.get("pick");
+  const pick = raw == null ? null : (/^\d+$/.test(raw) ? Number(raw) : raw);
+  const setPick = (id) => setParams((prev) => {
+    const next = new URLSearchParams(prev);
+    if (id == null) next.delete("pick");
+    else next.set("pick", String(id));
+    return next;
+  }, { replace: true });
 
   /* 남이 집어 가면 줄어든다. 가만히 두면 화면이 거짓말을 한다.
      ⚠ **reload(true) 다** — 그냥 reload() 면 7초마다 화면이 「불러오는
