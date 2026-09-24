@@ -109,3 +109,86 @@ class DbScreenTests(TestCase):
         self.assertEqual(spreads["order_status"],
                          [{"value": "requested", "n": 2},
                           {"value": "cancelled", "n": 1}])
+
+    # ── 시안이 요구하는 값 (2026-09-25 admin-redesign) ──────────
+    def _index(self, **params):
+        return self.client.get(reverse("admin:empatho_db"), params)
+
+    def test_요약_넉_장의_값이_실제와_맞는다(self):
+        res = self._index()
+        summary = res.context["summary"]
+
+        self.assertEqual(summary["total"], len(views.db_tables()))
+        self.assertEqual(summary["shown"], summary["total"])
+        # 이 시험이 넣은 것 중 exam_order 가 3 행으로 제일 많다
+        self.assertEqual(summary["biggest_rows"], 3)
+        self.assertEqual(summary["biggest_name"], "검사 오더")
+
+    def test_가린_표를_요약이_이름으로만_말한다(self):
+        """이름을 세는 것과 안을 들여다보는 것은 다른 일이다."""
+        res = self._index()
+
+        self.assertIn("계정", res.context["summary"]["hidden"])
+        self.assertNotContains(res, SECRET_NAME)
+        self.assertNotContains(res, "secret_login")
+
+    def test_비어_있는_표를_따로_센다(self):
+        res = self._index()
+        summary = res.context["summary"]
+
+        empty = [t["name"] for t in views.db_tables() if not t["rows"]]
+        self.assertEqual(summary["empty_count"], len(empty))
+        self.assertIn("동의", summary["empty"])
+
+    def test_이름이_많으면_줄이고_말줄임을_붙인다(self):
+        """다 적으면 카드가 목록이 되고, 아래 표와 같은 말을 두 번 한다."""
+        few = ["가", "나"]
+        many = [str(i) for i in range(views.SUMMARY_NAMES + 3)]
+
+        self.assertEqual(views._join_names(few), "가 · 나")
+        self.assertTrue(views._join_names(many).endswith(" …"))
+        self.assertEqual(views._join_names([]), "없음")
+
+    def test_행_수_막대는_제일_큰_표를_기준으로_한다(self):
+        rows = views._with_bars([{"rows": 10}, {"rows": 5}, {"rows": 0}])
+
+        self.assertEqual([r["pct"] for r in rows], [100.0, 50.0, 0.0])
+
+    def test_표가_하나도_없어도_막대가_안_터진다(self):
+        """0 으로 나누면 화면이 통째로 500 이 된다."""
+        self.assertEqual(views._with_bars([{"rows": 0}])[0]["pct"], 0.0)
+
+    # ── ?q= 검색 ────────────────────────────────────────────────
+    def test_표_이름으로_찾는다(self):
+        res = self._index(q="exam_order")
+
+        self.assertEqual(res.context["summary"]["shown"], 1)
+        self.assertContains(res, "exam_order")
+        self.assertNotContains(res, ">patient_pii<")
+
+    def test_한글_이름으로도_찾는다(self):
+        """화면에 한글이 보이는데 영문으로만 찾히면 아무도 못 쓴다."""
+        res = self._index(q="검사 오더")
+
+        self.assertEqual(res.context["summary"]["shown"], 1)
+        self.assertEqual(res.context["tables"][0]["table"], "exam_order")
+
+    def test_대소문자를_안_가린다(self):
+        self.assertEqual(self._index(q="EXAM_ORDER").context["summary"]["shown"],
+                         self._index(q="exam_order").context["summary"]["shown"])
+
+    def test_못_찾으면_찾는_법을_알려준다(self):
+        """「0 건」 한 줄로 두면 없는 것인지 잘못 친 것인지 모른다."""
+        res = self._index(q="없는표이름")
+
+        self.assertEqual(res.context["summary"]["shown"], 0)
+        self.assertContains(res, "맞는 표가 없습니다")
+
+    def test_검색해도_요약의_전체_수는_안_변한다(self):
+        """「22개 중 1개 표시」가 되어야 한다 — 전체가 1 로 줄면 거짓말이다."""
+        whole = self._index().context["summary"]["total"]
+
+        summary = self._index(q="exam_order").context["summary"]
+
+        self.assertEqual(summary["total"], whole)
+        self.assertEqual(summary["shown"], 1)

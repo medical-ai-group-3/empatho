@@ -191,9 +191,68 @@ def status(site, request):
 
 
 def db_index(site, request):
-    """표 목록 — 한글명 · 표 이름 · 행 수 · 칸 수."""
-    return site.page(request, "admin/empatho/db_index.html", "db",
-                     "DB 조회", {"tables": db_tables()})
+    """표 목록 — 한글명 · 표 이름 · 행 수 · 칸 수.
+
+    ?q= 로 좁힌다. 서버에서 거르는 이유 — 화면에 스크립트를 들이지 않으려는
+    것이다. 이 화면은 서버가 그리고 끝이라 붙일 것이 그것 하나뿐인데, 그 하나
+    때문에 정적파일과 CSP 를 신경 써야 한다.
+    """
+    q = (request.GET.get("q") or "").strip()
+    all_tables = db_tables()
+    shown = [t for t in all_tables if _matches(t, q)] if q else all_tables
+    return site.page(request, "admin/empatho/db_index.html", "db", "DB 조회", {
+        "tables": _with_bars(shown),
+        "summary": db_summary(all_tables, len(shown)),
+        "q": q,
+    })
+
+
+def _matches(table, q):
+    """표 이름(account)으로도 한글명(계정)으로도 찾힌다."""
+    low = q.lower()
+    return low in table["table"].lower() or low in table["name"].lower()
+
+
+def _with_bars(tables):
+    """행 수 막대의 길이. 제일 큰 표를 100% 로 본다.
+
+    ⚠ 0 행이어도 막대를 그린다(길이 0). 칸 자체가 사라지면 «빠뜨린 표»로
+      보이는데, 비어 있는 것과 없는 것은 다르다.
+    """
+    top = max((t["rows"] for t in tables), default=0) or 1
+    for t in tables:
+        t["pct"] = round(t["rows"] / top * 100, 1)
+    return tables
+
+
+def db_summary(tables, shown):
+    """머리말 넉 장.
+
+    ⚠ 표 이름만 낸다. 「가린 표」의 값은 여기서도 안 보여준다 — 이름을 세는
+      것과 안을 들여다보는 것은 다른 일이다.
+    """
+    biggest = max(tables, key=lambda t: t["rows"], default=None)
+    return {
+        "total": len(tables),
+        "shown": shown,
+        "biggest_name": biggest["name"] if biggest else "",
+        "biggest_rows": biggest["rows"] if biggest else 0,
+        "hidden": _join_names([t["name"] for t in tables if t["hidden"]]),
+        "empty": _join_names([t["name"] for t in tables if not t["rows"]]),
+        "empty_count": sum(1 for t in tables if not t["rows"]),
+    }
+
+
+#: 머리말 한 칸에 늘어놓을 이름 수. 넘치면 「…」로 줄인다 — 다 적으면 카드가
+#: 목록이 되고, 그러면 아래 표와 같은 말을 두 번 하는 셈이다.
+SUMMARY_NAMES = 5
+
+
+def _join_names(names):
+    if not names:
+        return "없음"
+    head = " · ".join(names[:SUMMARY_NAMES])
+    return head + (" …" if len(names) > SUMMARY_NAMES else "")
 
 
 def db_detail(site, request, table):

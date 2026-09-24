@@ -506,7 +506,134 @@ body,
 .e-probe-none b { font-size: 14px; font-weight: 600; color: var(--e-ink-2); }
 .e-probe-none span { font-size: 13px; color: var(--e-faint); line-height: 1.6; }
 
-/* ══ DB 조회 ═══════════════════════════════════════════════════ */
+/* ══ 공통 — 요약 넉 장 · 입력칸 · 화면만 읽는 라벨 ══════════════ */
+.e-sr {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip-path: inset(50%); white-space: nowrap;
+}
+
+.e-input {
+  width: 240px; padding: 11px 14px; border-radius: 10px;
+  border: 1px solid var(--e-btn-br); background: var(--e-card);
+  color: var(--e-ink); font-size: 14px; font-family: inherit;
+}
+.e-input::placeholder { color: var(--e-faint); }
+.e-input:focus { outline: none; border-color: var(--e-cyan); }
+
+.e-sum4 {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px; margin-bottom: 22px;
+}
+@media (max-width: 1280px) { .e-sum4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 760px)  { .e-sum4 { grid-template-columns: 1fr; } }
+
+.e-sum-card {
+  padding: 18px 20px; border-radius: 14px;
+  background: var(--e-card); border: 1px solid var(--e-border);
+  display: flex; flex-direction: column; gap: 6px; min-width: 0;
+}
+.e-sum-card.pink { background: var(--e-pink-bg); border-color: var(--e-pink-br); }
+
+.e-sum-label { font-size: 13px; color: var(--e-warm); }
+.e-sum-card.pink .e-sum-label { color: var(--e-pink-fg); }
+.e-sum-num {
+  font-family: var(--e-mono); font-size: 30px; font-weight: 700;
+  color: var(--e-ink); font-variant-numeric: tabular-nums; line-height: 1.1;
+}
+.e-sum-big { font-size: 20px; font-weight: 700; color: var(--e-ink); }
+.e-sum-accent { font-family: var(--e-mono); color: var(--e-cyan); }
+.e-sum-list { font-size: 15px; font-weight: 600; }
+.e-sum-list.pink  { color: #FF9FB4; }
+.e-sum-list.amber { color: var(--e-amber-fg); }
+
+/* ══ DB 조회 ═══════════════════════════════════════════════════
+   표 하나가 한 줄. 행 수는 막대로 견준다 — 숫자만 세로로 쌓으면 어느 표가
+   큰지 눈으로 안 잡힌다 */
+.e-table {
+  border-radius: 16px; border: 1px solid var(--e-border); overflow: hidden;
+}
+.e-table-head, .e-table-row {
+  display: grid;
+  grid-template-columns: 210px 170px minmax(0, 1fr) 70px 150px;
+  gap: 16px; align-items: center; padding: 11px 20px;
+}
+.e-table-head {
+  background: var(--e-soot); padding: 12px 20px;
+  font-size: 12px; color: var(--e-faint); letter-spacing: .06em;
+}
+.e-table-head .right { text-align: right; }
+
+/* 줄을 번갈아 칠한다 — 스물두 줄을 가로로 읽어야 해서 눈이 줄을 놓친다 */
+.e-table-row { background: var(--e-card); }
+.e-table-row:nth-child(even) { background: var(--e-row-alt); }
+.e-table-row:hover { background: var(--e-line-2); }
+
+@media (max-width: 1100px) {
+  .e-table-head { display: none; }
+  .e-table-row { grid-template-columns: 1fr 1fr; row-gap: 6px; }
+}
+
+.e-code {
+  font-family: var(--e-mono); font-size: 13px; color: var(--e-code);
+  overflow: hidden; text-overflow: ellipsis;
+}
+.e-table-name {
+  font-size: 14px; color: var(--e-ink);
+  display: flex; align-items: center; gap: 8px; min-width: 0;
+}
+
+/* 가림 배지 — 자물쇠와 글자가 같이 선다. 색만으로는 못 읽는 사람이 있다 */
+.e-lock {
+  display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0;
+  padding: 3px 9px; border-radius: 999px;
+  background: #2A1A20; border: 1px solid #5A2E3B;
+  font-size: 12px; color: #FF9FB4;
+}
+
+.e-rows { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.e-bar {
+  flex-grow: 1; height: 8px; border-radius: 999px;
+  background: var(--e-line-2); overflow: hidden;
+}
+.e-bar i { display: block; height: 8px; border-radius: 999px; background: var(--e-cyan); }
+.e-rows b {
+  font-family: var(--e-mono); font-size: 13px; font-weight: 500;
+  width: 32px; text-align: right; color: var(--e-ink);
+  font-variant-numeric: tabular-nums;
+}
+.e-cols {
+  font-family: var(--e-mono); font-size: 13px;
+  color: var(--e-faint); text-align: right;
+}
+
+.e-acts { display: flex; gap: 8px; justify-content: flex-end; }
+.e-act {
+  padding: 6px 12px; border-radius: 8px; background: var(--e-nav-on);
+  font-size: 13px; color: var(--e-ink); text-decoration: none; white-space: nowrap;
+}
+.e-act:hover { background: var(--e-wash); color: var(--e-ink); }
+.e-act.ghost {
+  background: transparent; border: 1px solid var(--e-btn-br);
+  color: var(--e-nav-fg);
+}
+.e-act.ghost:hover { border-color: var(--e-cyan); color: var(--e-ink); }
+
+/* ══ 빈 목록 ═══════════════════════════════════════════════════
+   「0 건」 한 줄로 두지 않는다. 찾는 사람은 그게 «없는 것»인지 «잘못 친
+   것»인지를 먼저 알고 싶어 한다 */
+.e-empty {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 14px; padding: 60px 20px; background: var(--e-card); text-align: center;
+}
+.e-empty-mark {
+  width: 72px; height: 72px; border-radius: 50%;
+  background: var(--e-mint-bg); border: 1px solid var(--e-mint-br);
+  display: flex; align-items: center; justify-content: center;
+}
+.e-empty-mark svg { stroke: var(--e-mint); fill: none; }
+.e-empty b { font-size: 18px; font-weight: 600; color: var(--e-ink); }
+.e-empty > span:last-child { font-size: 14px; color: var(--e-faint); }
+
 .e-box h2 small {
   color: var(--e-warm); font-size: 13px; font-weight: 400; margin-left: 6px;
 }
