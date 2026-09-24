@@ -9,6 +9,17 @@
  */
 
 :root {
+  /* ══ 글꼴 ═══════════════════════════════════════════════════
+     본문은 IBM Plex Sans KR, 숫자와 표 이름은 JetBrains Mono.
+     파일은 static/empatho/fonts/ 에 있고 fonts.css 가 @font-face 로 건다
+     (base_site.html 이 admin.css 보다 먼저 얹는다).
+
+     ⚠ 뒤에 원래 글꼴을 남겨 둔다. 파일을 못 받아도 글자는 읽혀야 한다. */
+  --e-font: "IBM Plex Sans KR", -apple-system, BlinkMacSystemFont,
+            "Segoe UI", Roboto, "Malgun Gothic", sans-serif;
+  --e-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo,
+            Consolas, monospace;
+
   /* ══ 우리 색 — 위 목록 그대로 ═══════════════════════════════ */
   --e-canvas: #FAFAF9;
   --e-card:   #FFFFFF;
@@ -112,13 +123,21 @@
 }
 
 /* ══ 글꼴 ══════════════════════════════════════════════════════
-   병원 웹과 같은 것을 쓴다. 다만 **웹폰트를 새로 받아오지 않는다** —
-   admin 한 장 때문에 폰트를 내려받게 하지 않는다. 기기에 있으면 쓰고
-   없으면 시스템 글꼴로 떨어진다. 한글은 Noto Sans KR 이 받는다. */
+   우리가 들고 있는 파일을 쓴다(static/empatho/fonts/). 시안이 IBM Plex
+   Sans KR · JetBrains Mono 로 그려져 있고, 글꼴이 다르면 같은 화면으로
+   안 보인다 — 자간과 숫자 폭이 특히 다르다.
+
+   ⚠ Google Fonts 를 직접 부르지 않는다. 내부망이 막히면 글꼴만 조용히
+     안 떠서 «다른 글꼴로 멀쩡히» 보인다. */
 body,
 .button, input[type=submit], input[type=button], textarea, select, .vTextField {
-  font-family: "Inter", "Noto Sans KR", system-ui, -apple-system,
-               "Segoe UI", Roboto, sans-serif;
+  font-family: var(--e-font);
+}
+
+/* 숫자는 고정폭으로. 값이 바뀔 때 자리가 흔들리면 눈이 따라가지 못한다 */
+.e-mono, .e-cell b, .e-chip b, .e-probe .num {
+  font-family: var(--e-mono);
+  font-variant-numeric: tabular-nums;
 }
 
 /* ══ 머리띠 ════════════════════════════════════════════════════ */

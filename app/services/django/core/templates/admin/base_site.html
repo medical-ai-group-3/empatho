@@ -10,7 +10,17 @@
 
 {% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
 
+{% comment %}
+  글꼴은 **우리가 들고 있는 파일**이다. fonts.googleapis.com 을 부르지 않는다 —
+  내부망이 막히면 글꼴만 조용히 안 떠서, 화면이 깨진 게 아니라 «다른 글꼴로
+  멀쩡히» 보인다. 그러면 시안과 달라진 것을 아무도 못 알아챈다.
+
+  fonts.css 가 admin.css 보다 **먼저** 와야 한다. 뒤에 두면 첫 그림에서
+  기본 글꼴로 한 번 그렸다가 바뀌어 글자가 튄다.
+  파일은 tools/fetch_fonts.py 가 받는다.
+{% endcomment %}
 {% block extrastyle %}{{ block.super }}
+  <link rel="stylesheet" href="{% static 'empatho/fonts.css' %}">
   <link rel="stylesheet" href="{% static 'empatho/admin.css' %}">
 {% endblock %}
 
