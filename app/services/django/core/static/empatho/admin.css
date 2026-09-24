@@ -253,18 +253,35 @@ body,
 .e-chip:hover { border-color: var(--e-cyan); }
 .e-chip b { color: var(--e-ink); font-variant-numeric: tabular-nums; }
 
-/* ══ 사이드바 (core/adminsite.py 의 _nav) ══════════════════════
-   Django 의 사이드바 «자리»는 그대로 쓰고 내용만 우리 것으로 바꾼다.
-   왼쪽 칸이라 **세로로 쌓는다** — 가로로 두면 화면 폭에 따라 줄이 접힌다. */
+/* ══ 왼쪽 내비 (core/adminsite.py 의 _nav) ═════════════════════
+   시안: admin-redesign 네 장의 <nav> (넷이 같다)
+   Django 의 사이드바 «자리»는 그대로 쓰고 내용만 우리 것으로 바꾼다. */
 #nav-sidebar.e-nav {
-  padding: 16px 12px;
-  background: var(--e-canvas);
-  border-right: 1px solid var(--e-border);
-  display: flex; flex-direction: column;
+  width: 248px; flex-shrink: 0; box-sizing: border-box;
+  padding: 24px 16px;
+  background: var(--e-soot);
+  border-right: 1px solid var(--e-nav-br);
+  display: flex; flex-direction: column; gap: 28px;
+}
+
+/* 로고 — 시안은 머리띠가 없고 이름이 여기 하나뿐이다 */
+.e-brand { display: flex; align-items: center; gap: 10px; padding: 0 8px; }
+.e-brand-mark {
+  width: 34px; height: 34px; flex-shrink: 0; border-radius: 10px;
+  background: var(--e-cyan); color: var(--e-cyan-ink);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 17px;
+}
+.e-brand-text { display: flex; flex-direction: column; min-width: 0; }
+.e-brand-text b {
+  font-weight: 700; font-size: 16px; letter-spacing: .04em; color: var(--e-ink);
+}
+.e-brand-text span {
+  font-size: 11px; color: var(--e-faint); letter-spacing: .12em;
 }
 
 #nav-sidebar.e-nav ul {
-  display: flex; flex-direction: column; gap: 2px;
+  display: flex; flex-direction: column; gap: 4px;
   margin: 0; padding: 0; list-style: none;
 }
 /* Django 와 브라우저가 붙이는 목록 기호를 둘 다 끈다 —
@@ -276,28 +293,35 @@ body,
 #nav-sidebar.e-nav a::after { content: none; }
 
 #nav-sidebar.e-nav a {
-  display: flex; align-items: center; justify-content: space-between; gap: 8px;
-  padding: 9px 12px; border-radius: 8px;
-  border-left: 3px solid transparent;
-  font-size: 13px; color: var(--e-ink-2); text-decoration: none;
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 12px; border-radius: 10px;
+  font-size: 14px; color: var(--e-nav-fg); text-decoration: none;
   white-space: nowrap;
 }
-#nav-sidebar.e-nav a:hover { background: var(--e-line-2); color: var(--e-ink); }
+#nav-sidebar.e-nav a:hover { background: var(--e-nav-on); color: var(--e-ink); }
 
-/* 지금 있는 자리 — 색만으로 가르지 않는다. 왼쪽 굵은 선이 같이 선다 */
+/* 지금 있는 자리 — 색만으로 가르지 않는다. 글자가 굵어지고 아이콘이 강조색이 된다 */
 #nav-sidebar.e-nav a.on {
   background: var(--e-nav-on); color: #FFFFFF; font-weight: 600;
-  border-left-color: var(--e-cyan);
 }
+.e-nav-icon { display: flex; flex-shrink: 0; }
+#nav-sidebar.e-nav a.on .e-nav-icon { color: var(--e-cyan); }
+.e-nav-label { flex-grow: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 
-/* 「병원 웹으로」는 맨 아래로 내리고 선으로 가른다 — 메뉴가 아니라 나가는 문이다 */
+/* 맨 아래 안내 카드. 「어디서 열리는가」는 여기서 제일 자주 나오는 물음이라
+   화면이 스스로 말하게 둔다 */
 #nav-sidebar.e-nav .e-nav-foot {
-  margin-top: auto; padding-top: 12px;
-  border-top: 1px solid var(--e-border);
+  margin-top: auto;
+  padding: 14px; border-radius: 12px;
+  background: var(--e-foot-bg); border: 1px solid var(--e-foot-br);
+  display: flex; flex-direction: column; gap: 6px;
 }
-#nav-sidebar.e-nav .e-nav-foot a { color: var(--e-warm); font-size: 12px; }
+.e-nav-foot .e-foot-label { font-size: 12px; color: var(--e-faint); }
+.e-nav-foot b { font-size: 13px; font-weight: 600; color: var(--e-ink); }
+.e-nav-foot .e-foot-note { font-size: 12px; color: var(--e-faint); }
 
-/* 승인 대기 건수. 0 이면 아예 안 붙는다 */
+/* 승인 대기 건수. 0 이면 아예 안 붙는다 — 시안이 0 인 상태로 그려져 있어
+   평소에는 시안과 같고, 밀린 것이 있을 때만 이 점이 선다 */
 .e-badge {
   min-width: 20px; padding: 1px 7px; border-radius: 999px;
   background: var(--e-cyan); color: var(--e-cyan-ink);
@@ -307,11 +331,30 @@ body,
 
 /* 접는 손잡이 — 선만 남기고 가라앉힌다 */
 .toggle-nav-sidebar {
-  background: var(--e-canvas) !important;
-  border-right: 1px solid var(--e-border) !important;
+  background: var(--e-soot) !important;
+  border-right: 1px solid var(--e-nav-br) !important;
   color: var(--e-faint) !important;
 }
 .toggle-nav-sidebar:hover { color: var(--e-ink) !important; }
+
+/* ══ 껍데기 ════════════════════════════════════════════════════
+   시안에는 머리띠도 빵부스러기도 없다. 이름은 내비 로고가 맡는다.
+
+   ⚠ **우리 네 화면에서만** 걷는다(.e-full). 표 화면 스물두 장은 시안에
+     없는 자리라 Django 의 머리띠를 그대로 둔다 — 거기 로그아웃과 빵부스러기가
+     있고, 그걸 전 화면에서 없애면 나갈 길이 사라진다. */
+.e-full #header,
+.e-full nav[aria-label="Breadcrumbs"],
+.e-full .breadcrumbs { display: none; }
+
+.e-full #main { min-height: 100vh; }
+
+/* 본문 여백 — 시안 main 의 padding: 28px 36px.
+   Django 는 제목을 .titles-and-tools > .titles 로 감싸는데, 우리 .e-head 가
+   그 안에서 한 줄을 통째로 쓰므로 감싸개의 여백을 걷는다 */
+.e-full #content { padding: 28px 36px; }
+.e-full .titles-and-tools { display: block; margin: 0; }
+.e-full .titles { margin: 0; }
 
 /* ══ 빵부스러기 ════════════════════════════════════════════════
    회색 띠를 걷어내고 가는 선 하나로 둔다. 여기는 «지금 어디인가»만

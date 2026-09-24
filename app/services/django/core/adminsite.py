@@ -205,6 +205,10 @@ def _nav(current=None):
     for key, label, name, query in NAV:
         url = reverse(name)
         out.append({
+            # 아이콘을 고르는 열쇠이기도 하다 (templates/admin/empatho/_nav.html).
+            # 그림을 파이썬에 두지 않는 이유 — SVG 는 화면 것이고, 여기 두면
+            # 색을 바꿀 때마다 파이썬을 고치게 된다
+            "key": key,
             "label": label,
             "url": url + "?" + query if query else url,
             "on": key == current,
