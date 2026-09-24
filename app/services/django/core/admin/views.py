@@ -16,29 +16,26 @@ from urllib.parse import urlparse
 
 from django.conf import settings
 from django.contrib import admin
-from django.db.models import Count, Q
-from django.db.models.functions import TruncHour
+from django.db.models import Count
+from django.db.models.functions import TruncDate
 from django.http import Http404
 from django.urls import reverse
 from django.utils import timezone
-from django.utils.html import format_html, format_html_join
-from django.utils.safestring import mark_safe
 
 from ..models import (
-    Account, AiResult, DiscordanceFlag, ExamOrder, Patient, Report, Specimen,
-    Study,
+    Account, AiResult, Assessment, DiscordanceFlag, ExamOrder, Followup, Image,
+    Lesion, Notification, Patient,
 )
 
+#: 시안의 칩 차례 그대로다. 개수 순으로 정렬하지 않는다 — 순서가 매번 바뀌면
+#: 「우리 과가 몇 명인지」를 보려고 눈이 자리를 외울 수가 없다.
+ROLE_ORDER = ("admin", "reception", "nursing", "radiology", "surgery",
+              "pathology", "patient")
 ROLE_NAMES = {
-    "reception": "원무", "nursing": "간호", "radiology": "영상",
+    "reception": "원무", "nursing": "간호", "radiology": "영상의학",
     "pathology": "병리", "surgery": "유방외과", "admin": "관리자",
     "patient": "환자",
 }
-STATUS_NAMES = {
-    "pending": "승인 대기", "active": "활성",
-    "rejected": "거절", "suspended": "정지",
-}
-
 
 def _tally(model, field):
     """상태별 개수를 한 번에. {값: 개수}"""
@@ -55,111 +52,115 @@ def _url(model, **params):
     return path + "?" + "&".join(f"{k}={v}" for k, v in params.items())
 
 
-def _cell(label, count, url=None, warn=False):
-    """칸 하나. warn 은 「오래 두면 안 되는 것」이라 눈에 걸리게 한다."""
-    return {"label": label, "count": count, "url": url, "warn": warn}
+#: 진료 흐름 막대. (라벨, 모델, 색 열쇠) — 차례도 색도 시안 그대로다.
+#: 개수 순으로 정렬하지 않는다: 진료가 흐르는 차례라 순서 자체가 뜻이다.
+FLOW = (
+    ("검사 오더", ExamOrder, "cyan"),
+    ("알림", Notification, "indigo"),
+    ("AI 결과", AiResult, "mint"),
+    ("병변", Lesion, "mint"),
+    ("영상 파일", Image, "amber"),
+    ("환자", Patient, "pink"),
+    ("추적 관찰", Followup, "none"),
+)
+
+#: 검사 오더 잔무늬에 쓸 날 수.
+SPARK_DAYS = 5
+
+#: 도넛 둘레. 반지름 60 의 2πr 이고, 시안의 stroke-dasharray 값과 같다.
+RING = 377
+
+#: 요일. Django 템플릿으로는 한글 요일이 안 나온다 — LANGUAGE_CODE 를 건드리지
+#: 않고 여기서 만든다.
+WEEKDAYS = "월화수목금토일"
+
+
+def _pending_staff():
+    """승인 대기 직원. 환자는 승인 대상이 아니라 뺀다.
+
+    ⚠ 사이드바 배지와 **같은 함수를 쓴다.** 한 화면에 같은 것을 세는 수가
+      둘이면 어느 쪽이 맞는지 아무도 모른다 — 예전에 대시보드는 환자를
+      포함해 세고 배지는 빼고 세서 둘이 달랐다.
+    """
+    from ..adminsite import _pending
+    return _pending()
+
+
+def _order_spark():
+    """최근 5일 일별 검사 오더 수.
+
+    0 인 날도 칸을 남긴다 — 빈 날이 보이는 것이 이 잔무늬의 목적이다.
+    """
+    first = timezone.localdate() - timedelta(days=SPARK_DAYS - 1)
+    rows = (ExamOrder.objects
+            .filter(created_at__date__gte=first)
+            .annotate(d=TruncDate("created_at"))
+            .values("d").annotate(n=Count("pk")))
+    by_day = {r["d"]: r["n"] for r in rows}
+    counts = [by_day.get(first + timedelta(days=i), 0)
+              for i in range(SPARK_DAYS)]
+    top = max(counts) or 1
+    # 0 건인 날도 자국은 남긴다(최소 12%) — 칸이 아예 없으면 날이 빠진 줄 안다
+    return [{"n": c, "pct": max(round(c / top * 100), 12)} for c in counts]
+
+
+def _flow_rows():
+    """단계별 건수 막대. 제일 큰 것을 100% 로 본다."""
+    rows = [{"label": label, "n": model.objects.count(), "tone": tone,
+             "url": _url(model)}
+            for label, model, tone in FLOW]
+    top = max((r["n"] for r in rows), default=0) or 1
+    for r in rows:
+        r["pct"] = round(r["n"] / top * 100)
+    return rows
 
 
 def dash_numbers(request):
-    """첫 화면에 넘길 묶음 넷."""
-    today = timezone.localdate()
+    """첫 화면에 넘길 값 — 시안(Main.dc.html) 이 그리는 것만."""
+    today = timezone.localtime()
 
-    acc = _tally(Account, "account_status")
+    acc_total = Account.objects.count()
     role = _tally(Account, "role")
-    order = _tally(ExamOrder, "order_status")
-    run = _tally(AiResult, "run_status")
-    read = _tally(Study, "read_status")
-    acc_st = _tally(Specimen, "accession_status")
     flag = _tally(DiscordanceFlag, "flag_status")
 
-    # ── 계정 ────────────────────────────────────────────────────
-    accounts = [
-        _cell("전체", sum(acc.values()), _url(Account, approval="all", kind="all")),
-        _cell("승인 대기", acc.get("pending", 0),
-              _url(Account, approval="pending"), warn=acc.get("pending", 0) > 0),
-        _cell("활성", acc.get("active", 0), _url(Account, approval="active")),
-        _cell("정지", acc.get("suspended", 0), _url(Account, approval="suspended")),
-    ]
-    roles = [
-        _cell(ROLE_NAMES.get(r, r), n,
-              _url(Account, approval="all", kind="all", role__exact=r))
-        for r, n in sorted(role.items(), key=lambda x: -x[1]) if n
-    ]
-
-    # ── 진행 중 ─────────────────────────────────────────────────
-    #
-    # 승인 대기가 맨 위다. 관리자가 지금 할 일이고, 안 풀면 그 사람이
-    # 아예 못 들어온다.
-    #
     # 불일치는 pass 를 뺀 나머지가 전부 미해소다 — sev1 · sev2 · review ·
     # unbindable 이 각각 다른 이유로 남아 있는 것이라 한 덩어리로 센다.
     open_flags = sum(n for s, n in flag.items() if s != "pass")
-    working = [
-        _cell("승인 대기 계정", acc.get("pending", 0),
-              _url(Account, approval="pending"), warn=acc.get("pending", 0) > 0),
-        _cell("AI 분석 대기", run.get("queued", 0),
-              _url(AiResult, run_status__exact="queued")),
-        _cell("AI 실행 중", run.get("running", 0),
-              _url(AiResult, run_status__exact="running")),
-        _cell("AI 실패", run.get("failed", 0),
-              _url(AiResult, run_status__exact="failed"),
-              warn=run.get("failed", 0) > 0),
-        _cell("판독 대기", read.get("pending", 0),
-              _url(Study, read_status__exact="pending")),
-        _cell("판독 작성 중", read.get("draft", 0),
-              _url(Study, read_status__exact="draft")),
-        _cell("검체 접수 대기", acc_st.get("unbound", 0) + acc_st.get("bound", 0),
-              _url(Specimen, accession_status__exact="bound")),
-        _cell("미해소 불일치", open_flags,
-              _url(DiscordanceFlag), warn=open_flags > 0),
-    ]
 
-    # ── 최근 24시간 ─────────────────────────────────────────────
-    # 「막힌 데가 있나」를 본다. 그중 **추론 대기**가 핵심이다 — 워커가 죽거나
-    # 큐가 막히면 여기만 는다. 나머지 셋은 정상이어도 는다.
-    since = timezone.now() - timedelta(hours=24)
-    stuck_before = timezone.now() - timedelta(
-        minutes=settings.ADMIN_INFERENCE_WAIT_MIN)
-
-    # 실패와 보류는 칸이 다르다 — run_status 는 실행 결과, abstained 는 판단 보류
-    ai = AiResult.objects.filter(created_at__gte=since).aggregate(
-        made=Count("pk"),
-        bad=Count("pk", filter=Q(run_status="failed") | Q(abstained=True)),
-    )
-    stuck = Study.objects.filter(
-        created_at__lt=stuck_before, ai_results__isnull=True).count()
-
-    today_cells = [
-        _cell("추론 결과", ai["made"], _url(AiResult)),
-        _cell("추론 실패·보류", ai["bad"],
-              _url(AiResult, run_status__exact="failed"), warn=ai["bad"] > 0),
-        _cell("추론 대기", stuck, _url(Study, read_status__exact="pending"),
-              warn=stuck > 0),
-        # 확정 시각을 따로 안 들고 있어 updated_at 으로 센다. 근사치다
-        _cell("판독 완료",
-              Study.objects.filter(read_status="finalized",
-                                   updated_at__gte=since).count(),
-              _url(Study, read_status__exact="finalized")),
-    ]
-
-    # ── 데이터 ──────────────────────────────────────────────────
-    #
-    # 검사 · 검체는 위 GROUP BY 를 더해 쓴다 — 같은 표를 또 세지 않는다.
-    data = [
-        _cell("환자", Patient.objects.count(), _url(Patient)),
-        _cell("검사", sum(order.values()), _url(ExamOrder)),
-        _cell("검체", sum(acc_st.values()), _url(Specimen)),
-        _cell("리포트", Report.objects.count(), _url(Report)),
-    ]
+    # 서비스 고리는 상태 화면과 **같은 값**을 쓴다. 따로 찌르면 첫 화면에
+    # 최대 ADMIN_PROBE_DEADLINE_SEC 이 붙는다(probe_all_cached 의 머리말).
+    probes = probe_all_cached()
+    service = probe_summary(probes)
+    service["ring"] = (round(RING * service["ok"] / service["total"])
+                       if service["total"] else 0)
+    service["names"] = [{"name": p["name"], "ok": p["ok"], "slow": p["slow"]}
+                        for p in probes]
 
     return {
-        "accounts": accounts,
-        "roles": roles,
-        "working": working,
-        "today": today_cells,
-        "data": data,
-        "today_label": today.strftime("%Y-%m-%d"),
-        "chart": _chart(),
+        "date_label": "%s (%s)" % (today.strftime("%Y-%m-%d"),
+                                   WEEKDAYS[today.weekday()]),
+        # ── 핵심 지표 넉 장 ─────────────────────────────────────
+        "pending_staff": _pending_staff(),
+        "orders": ExamOrder.objects.count(),
+        "order_spark": _order_spark(),
+        "ai_results": AiResult.objects.count(),
+        "lesions": Lesion.objects.count(),
+        "assessments": Assessment.objects.count(),
+        "open_flags": open_flags,
+        # ── 아래 세 덩어리 ──────────────────────────────────────
+        "flow": _flow_rows(),
+        "service": service,
+        "accounts_total": acc_total,
+        "roles": [{"label": ROLE_NAMES.get(r, r), "n": role.get(r, 0),
+                   "url": _url(Account, approval="all", kind="all",
+                               role__exact=r)}
+                  for r in ROLE_ORDER],
+        # 누르면 가는 곳
+        "url_pending": _url(Account, approval="pending", kind="staff"),
+        "url_orders": _url(ExamOrder),
+        "url_ai": _url(AiResult),
+        "url_flags": _url(DiscordanceFlag),
+        "url_accounts": _url(Account, approval="all", kind="all"),
     }
 
 
@@ -599,93 +600,3 @@ def probe_summary(probes):
         "rest_avg_ms": (round(sum(p["ms"] for p in rest) / len(rest))
                         if rest else None),
     }
-
-
-# ── 최근 24시간 막대 (SVG) ────────────────────────────────────────────
-#
-# 빈 시간대가 보이는 것이 목적이라 **0 건인 시간도 칸을 그린다.**
-# 라이브러리를 안 쓰는 이유 — CDN 이 막힌 망이 있고, collectstatic·CSP 에
-# 짐만 는다. 막대 24개는 SVG 로 충분하다.
-
-CHART_W, CHART_H = 960, 180
-PAD_L, PAD_B, PAD_T = 34, 22, 10
-
-
-def _hourly(since):
-    """시간별 완료·실패 수. **DB 에서 한 번에 묶는다** — 24번 세지 않는다.
-
-    TruncHour 는 settings.TIME_ZONE(KST)로 자른다. 사람이 보는 시각과 맞는다.
-    """
-    rows = (AiResult.objects
-            .filter(created_at__gte=since)
-            .annotate(h=TruncHour("created_at"))
-            .values("h")
-            .annotate(done=Count("pk", filter=Q(run_status="done")),
-                      bad=Count("pk", filter=Q(run_status="failed")
-                                | Q(abstained=True)))
-            .order_by("h"))
-    return {r["h"]: (r["done"], r["bad"]) for r in rows}
-
-
-def _chart():
-    """24칸 막대. 완료는 기본색, 실패는 경고색으로 쌓는다."""
-    now = timezone.localtime().replace(minute=0, second=0, microsecond=0)
-    start = now - timedelta(hours=23)
-    by_hour = _hourly(start)
-
-    slots = []
-    for i in range(24):
-        t = start + timedelta(hours=i)
-        done, bad = by_hour.get(t, (0, 0))
-        slots.append((t, done, bad))
-
-    top = max((d + b) for _, d, b in slots) or 1
-    gap = 4
-    band = (CHART_W - PAD_L) / 24
-    bw = band - gap
-    plot = CHART_H - PAD_B - PAD_T
-
-    bars = []
-    for i, (t, done, bad) in enumerate(slots):
-        x = PAD_L + i * band + gap / 2
-        h_done = done / top * plot
-        h_bad = bad / top * plot
-        label = "%d시 · 완료 %d · 실패 %d" % (t.hour, done, bad)
-
-        # 0 건이어도 바닥에 자국을 남긴다 — 칸이 있다는 것이 보여야 한다
-        bars.append(format_html(
-            '<g><title>{}</title>'
-            '<rect x="{}" y="{}" width="{}" height="{}" class="c-zero"/>'
-            '<rect x="{}" y="{}" width="{}" height="{}" class="c-done"/>'
-            '<rect x="{}" y="{}" width="{}" height="{}" class="c-bad"/>'
-            '</g>',
-            label,
-            round(x, 1), CHART_H - PAD_B - 1, round(bw, 1), 1,
-            round(x, 1), round(CHART_H - PAD_B - h_done, 1), round(bw, 1),
-            round(h_done, 1),
-            round(x, 1), round(CHART_H - PAD_B - h_done - h_bad, 1),
-            round(bw, 1), round(h_bad, 1),
-        ))
-
-    # y 눈금 — 최대값에 맞춰 둘만
-    ticks = []
-    for v in (top, top // 2 if top > 1 else 0):
-        y = CHART_H - PAD_B - (v / top * plot)
-        ticks.append(format_html(
-            '<line x1="{}" y1="{}" x2="{}" y2="{}" class="c-grid"/>'
-            '<text x="{}" y="{}" class="c-ax" text-anchor="end">{}</text>',
-            PAD_L, round(y, 1), CHART_W, round(y, 1),
-            PAD_L - 6, round(y + 4, 1), v))
-
-    # x 눈금 — 3시간마다
-    marks = format_html_join(
-        "", '<text x="{}" y="{}" class="c-ax" text-anchor="middle">{}</text>',
-        ((round(PAD_L + i * band + band / 2, 1), CHART_H - 6,
-          "%d시" % slots[i][0].hour)
-         for i in range(0, 24, 3)))
-
-    return format_html(
-        '<svg class="e-chart" viewBox="0 0 {} {}" role="img" '
-        'aria-label="최근 24시간 추론 완료와 실패">{}{}{}</svg>',
-        CHART_W, CHART_H,
-        mark_safe("".join(ticks)), mark_safe("".join(bars)), marks)

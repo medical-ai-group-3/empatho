@@ -137,7 +137,7 @@ body,
 }
 
 /* 숫자는 고정폭으로. 값이 바뀔 때 자리가 흔들리면 눈이 따라가지 못한다 */
-.e-mono, .e-cell b, .e-chip b, .e-probe .num {
+.e-mono {
   font-family: var(--e-mono);
   font-variant-numeric: tabular-nums;
 }
@@ -199,12 +199,11 @@ body,
 .permgrid th.res span { color: var(--e-warm) !important; }
 .permgrid ul.solo { color: var(--e-warm) !important; }
 
-/* ══ 대시보드 (core/admin_dash.py) ═════════════════════════════
-   표 목록 위에 「지금 뭐가 밀려 있나」. 숫자만 나온다 */
-.e-dash { margin-bottom: 24px; }
-.e-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-@media (max-width: 1024px) { .e-row { grid-template-columns: 1fr; } }
+/* ══ 대시보드 (core/admin/views.py 의 dash_numbers) ════════════
+   시안: admin-redesign/Main.dc.html
+   핵심 지표 넉 장 → 진료 흐름 + 서비스 → 역할별 계정. 숫자만 나온다.
 
+   .e-box 는 대시보드 것이 아니라 DB 상세와 「준비 중」 화면이 쓴다 */
 .e-box {
   background: var(--e-card);
   border: 1px solid var(--e-border);
@@ -219,39 +218,163 @@ body,
 }
 .e-box h2 small { font-weight: 400; color: var(--e-faint); }
 
-.e-cells { display: flex; flex-wrap: wrap; gap: 8px; }
-
-/* 칸 하나 — 누르면 그 필터가 걸린 목록으로 간다 */
-.e-cell {
-  flex: 1 1 96px; min-width: 96px;
-  display: flex; flex-direction: column; gap: 2px;
-  padding: 10px 12px;
-  border: 1px solid var(--e-border); border-radius: 8px;
-  background: var(--e-line-2);
-  text-decoration: none;
+/* ── 머리의 상태 알약 · 아바타 ─────────────────────────────── */
+.e-pill {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 14px; border-radius: 999px;
+  background: var(--e-mint-bg); border: 1px solid var(--e-mint-br);
+  font-size: 13px; color: var(--e-mint-fg); text-decoration: none;
+  white-space: nowrap;
 }
-.e-cell:hover { border-color: var(--e-cyan); }
-.e-cell b {
-  font-size: 22px; font-weight: 600; line-height: 1.1;
-  color: var(--e-ink); font-variant-numeric: tabular-nums;
+.e-pill i {
+  width: 8px; height: 8px; border-radius: 50%; font-style: normal;
+  background: var(--e-mint); box-shadow: 0 0 0 4px rgba(47, 212, 176, .18);
 }
-.e-cell span { font-size: 11px; color: var(--e-warm); }
-
-/* 오래 두면 안 되는 것 — **색만으로 가르지 않는다.** 왼쪽 굵은 선이 선다.
-   승인 대기를 놓치면 그 사람이 아예 못 들어오고, 미해소 불일치는 어느
-   큐에도 안 남는다 */
-.e-cell.warn { border-left: 3px solid var(--e-cyan); background: var(--e-wash); }
-.e-cell.warn b { color: var(--e-ink); }
-
-/* 역할별 분포 — 칸보다 작게. 밀린 일이 아니라 참고 값이다 */
-.e-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
-.e-chip {
-  padding: 3px 9px; border-radius: 999px;
-  border: 1px solid var(--e-border); background: var(--e-line-2);
-  font-size: 11px; color: var(--e-warm); text-decoration: none;
+.e-pill.bad {
+  background: var(--e-pink-bg); border-color: var(--e-pink-br); color: var(--e-pink);
 }
-.e-chip:hover { border-color: var(--e-cyan); }
-.e-chip b { color: var(--e-ink); font-variant-numeric: tabular-nums; }
+.e-pill.bad i { background: var(--e-pink); box-shadow: 0 0 0 4px rgba(255, 143, 168, .18); }
+
+.e-avatar-form { margin: 0; }
+.e-avatar {
+  width: 40px; height: 40px; border-radius: 50%; border: none;
+  background: var(--e-nav-on); color: var(--e-cyan);
+  font-family: inherit; font-weight: 700; font-size: 15px; cursor: pointer;
+}
+.e-avatar:hover { background: var(--e-wash); }
+
+/* ── 핵심 지표 넉 장 ───────────────────────────────────────── */
+.e-kpis {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px; margin-bottom: 24px;
+}
+@media (max-width: 1280px) { .e-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 760px)  { .e-kpis { grid-template-columns: 1fr; } }
+
+.e-kpi {
+  padding: 20px; border-radius: 16px;
+  background: var(--e-card); border: 1px solid var(--e-border);
+  display: flex; flex-direction: column; gap: 10px;
+  text-decoration: none; min-width: 0;
+}
+.e-kpi:hover { border-color: var(--e-cyan); }
+.e-kpi.pink { background: var(--e-pink-bg); border-color: var(--e-pink-br); }
+.e-kpi.pink:hover { border-color: var(--e-pink); }
+
+.e-kpi-label { font-size: 13px; color: var(--e-warm); }
+.e-kpi.pink .e-kpi-label { color: var(--e-pink-fg); }
+.e-kpi-num {
+  font-family: var(--e-mono); font-size: 40px; font-weight: 700;
+  color: #FFFFFF; line-height: 1; font-variant-numeric: tabular-nums;
+}
+.e-kpi.pink .e-kpi-num { color: var(--e-pink); }
+.e-kpi-sub { font-size: 12px; color: var(--e-warm); }
+.e-kpi-sub.ok   { color: var(--e-mint-fg); }
+.e-kpi-sub.warn { color: var(--e-amber-fg); }
+.e-kpi-sub.pink { color: var(--e-pink); }
+
+/* 최근 5일. 마지막 칸(오늘)만 강조색이라 어디가 지금인지 바로 보인다 */
+.e-kpi-spark { display: flex; align-items: flex-end; gap: 4px; height: 22px; }
+.e-kpi-spark i {
+  width: 10px; border-radius: 3px; background: #2A4A6B; font-style: normal;
+}
+.e-kpi-spark i.now { background: var(--e-cyan); }
+
+/* ── 진료 흐름 + 서비스 ────────────────────────────────────── */
+.e-dash-grid {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px; margin-bottom: 16px;
+}
+@media (max-width: 1100px) { .e-dash-grid { grid-template-columns: 1fr; } }
+
+.e-panel {
+  padding: 22px 24px; border-radius: 16px;
+  background: var(--e-card); border: 1px solid var(--e-border);
+  display: flex; flex-direction: column; gap: 18px; min-width: 0;
+}
+.e-panel.wide { grid-column: span 2; }
+@media (max-width: 1100px) { .e-panel.wide { grid-column: auto; } }
+
+.e-panel-head {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+}
+.e-panel-head h2 {
+  margin: 0; font-size: 17px; font-weight: 600; color: var(--e-ink);
+  background: none; padding: 0; letter-spacing: 0;
+}
+.e-panel-note { font-size: 12px; color: var(--e-faint); }
+.e-panel-head a { font-size: 13px; }
+
+.e-flow { display: flex; flex-direction: column; gap: 14px; }
+.e-flow-row {
+  display: grid; grid-template-columns: 110px minmax(0, 1fr) 56px;
+  align-items: center; gap: 14px; text-decoration: none;
+}
+.e-flow-label { font-size: 14px; color: var(--e-ink-2); }
+.e-flow-bar {
+  height: 14px; border-radius: 999px; background: var(--e-line-2); overflow: hidden;
+}
+.e-flow-bar i { display: block; height: 14px; border-radius: 999px; }
+.e-flow-row b {
+  font-family: var(--e-mono); font-size: 14px; font-weight: 500;
+  text-align: right; color: var(--e-ink); font-variant-numeric: tabular-nums;
+}
+.e-flow-row b.zero { color: var(--e-faint); }
+.e-flow-row:hover .e-flow-label { color: var(--e-ink); }
+
+/* 색은 단계마다 고정이다. 개수에 따라 바뀌면 색이 뜻을 잃는다 */
+.t-cyan   { background: var(--e-cyan); }
+.t-indigo { background: #6C7BFF; }
+.t-mint   { background: var(--e-mint); }
+.t-amber  { background: var(--e-amber); }
+.t-pink   { background: var(--e-pink); }
+
+.e-ring-wrap { display: flex; justify-content: center; padding: 6px 0; }
+.e-ring .track { stroke: var(--e-line-2); }
+.e-ring .arc   { stroke: var(--e-mint); }
+.e-ring .big {
+  fill: #FFFFFF; font-size: 34px; font-weight: 700; font-family: var(--e-mono);
+}
+.e-ring .cap { fill: var(--e-warm); font-size: 13px; font-family: var(--e-font); }
+
+.e-ring-list {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;
+}
+.e-ring-list span {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; color: var(--e-ink-2);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.e-ring-list i {
+  width: 7px; height: 7px; flex-shrink: 0; border-radius: 50%;
+  background: var(--e-mint); font-style: normal;
+}
+.e-ring-list .slow i { background: var(--e-amber); }
+/* 실패는 빈 점이다 — 찬 점과 모양부터 다르다 */
+.e-ring-list .down i { background: transparent; box-shadow: inset 0 0 0 2px var(--e-pink); }
+.e-ring-list .down { color: var(--e-pink); }
+
+/* ── 역할별 계정 ───────────────────────────────────────────── */
+.e-roles {
+  padding: 18px 24px; border-radius: 16px;
+  background: var(--e-card); border: 1px solid var(--e-border);
+  display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+}
+.e-roles h2 {
+  margin: 0; font-size: 15px; font-weight: 600; white-space: nowrap;
+  color: var(--e-ink); background: none; padding: 0; letter-spacing: 0;
+}
+.e-role-chips { display: flex; gap: 10px; flex-wrap: wrap; }
+.e-role-chip {
+  padding: 6px 12px; border-radius: 999px;
+  background: #17202B; border: 1px solid #263244;
+  font-size: 13px; color: var(--e-ink-2); text-decoration: none;
+  font-variant-numeric: tabular-nums;
+}
+.e-role-chip:hover { border-color: var(--e-cyan); color: var(--e-ink); }
+/* 0 명인 과도 자리를 지킨다 — 칩이 사라지면 과가 없어진 줄 안다 */
+.e-role-chip.zero { color: var(--e-faint); }
+.e-roles-more { margin-left: auto; font-size: 13px; white-space: nowrap; }
 
 /* ══ 왼쪽 내비 (core/adminsite.py 의 _nav) ═════════════════════
    시안: admin-redesign 네 장의 <nav> (넷이 같다)
@@ -379,16 +502,6 @@ body,
 .e-cell.zero:hover { opacity: 1; }
 
 .e-soon { color: var(--e-warm); font-size: 13px; margin: 6px 0; }
-
-/* ══ 추론 막대 (core/admin/views.py 의 _chart) ═════════════════
-   서버가 SVG 를 만들어 넣는다. 색은 여기서 준다 — 파이썬에 색을 박으면
-   다크판이 안 따라온다 */
-.e-chart { width: 100%; height: auto; max-height: 200px; display: block; }
-.e-chart .c-done { fill: var(--e-cyan); }
-.e-chart .c-bad  { fill: var(--e-ink-2); }
-/* 0 건인 시간에도 바닥 자국을 남긴다 — 빈 시간대가 보이는 게 목적이다 */
-.e-chart .c-zero { fill: var(--e-border); }
-.e-chart .c-grid { stroke: var(--e-line-2); stroke-width: 1; }
 
 /* ══ 화면 머리 (전 화면 공통) ══════════════════════════════════
    눈썹줄 · 제목 · 오른쪽 손잡이. Django 의 {% block content_title %} 을
@@ -698,13 +811,4 @@ body,
   font-size: 13px; font-weight: 600; margin: 0 0 4px;
   color: var(--e-ink-2);
 }
-.e-chart .c-ax   { fill: var(--e-faint); font-size: 10px; }
-.e-chart g:hover .c-done { fill: var(--e-wash); }
 
-.e-legend { float: right; font-weight: 400; color: var(--e-warm); }
-.e-legend i {
-  display: inline-block; width: 9px; height: 9px; border-radius: 2px;
-  margin: 0 4px 0 12px; vertical-align: baseline;
-}
-.e-legend .k-done { background: var(--e-cyan); }
-.e-legend .k-bad  { background: var(--e-ink-2); }
