@@ -213,6 +213,19 @@ ADMIN_PROBE_DEADLINE_SEC = float(os.environ.get("ADMIN_PROBE_DEADLINE_SEC", "4")
 # 누르게 두면 죽은 것을 한참 뒤에 안다. 짧게 잡으면 그만큼 자주 찌른다.
 ADMIN_STATUS_REFRESH_SEC = int(os.environ.get("ADMIN_STATUS_REFRESH_SEC", "30"))
 
+# 찔러 본 결과를 이만큼 재사용한다. 대시보드와 상태 화면이 같은 값을 쓴다 —
+# 둘이 따로 찌르면 대시보드를 열 때마다 최대 ADMIN_PROBE_DEADLINE_SEC 이 붙는데,
+# 대시보드는 admin 의 첫 화면이라 그게 곧 «admin 이 느리다» 가 된다.
+#
+# ⚠ 프로세스마다 따로 갖는다. gunicorn 워커가 넷이면 최악의 경우 15초에 네 번
+#   찌른다 — 그래도 화면마다 찌르는 것보다 훨씬 적다.
+ADMIN_PROBE_CACHE_SEC = float(os.environ.get("ADMIN_PROBE_CACHE_SEC", "15"))
+
+# 이 이상 걸리면 「느림」으로 칠한다. 살아 있지만 눈에 걸려야 하는 자리다 —
+# celery 는 브로커를 거쳐 2초가 예사이고, 나머지는 10ms 안쪽이라 둘이 한 화면에
+# 같은 색으로 있으면 어느 쪽이 정상인지 안 보인다.
+ADMIN_SLOW_MS = int(os.environ.get("ADMIN_SLOW_MS", "500"))
+
 # admin 「DB 조회」에서 **값을 안 보여줄** 표. db_table 이름이다.
 #
 # 구조(컬럼 · 타입 · NULL · 기본값)는 어느 표든 보인다. 막는 것은 값 쪽이다 —

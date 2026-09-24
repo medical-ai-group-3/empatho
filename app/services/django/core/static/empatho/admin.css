@@ -1,14 +1,18 @@
-/* EMPATHO — Django admin 을 병원 웹과 같은 인상으로.
+/* EMPATHO — Django admin 을 시안(admin-redesign) 그대로.
  *
  * Django 기본 파일(base.css · dark_mode.css)은 그대로 두고 :root 변수만 덮는다.
- * 어두운 판은 Django 의 prefers-color-scheme 를 그대로 타고, 값만 병원 웹의
- * 뷰어 색을 쓴다.
  *
- * ⚠ 색은 empatho-view/hospital/tokens.css 에서 손으로 옮겼다.
- *   저장소가 달라 import 로 못 잇는다 — 저쪽이 바뀌면 여기도 바꿔야 한다.
+ * ⚠ 색은 empatho-view/docs/admin-redesign/ 시안에서 손으로 옮겼다. 저장소가
+ *   달라 import 로 못 잇는다 — 저쪽이 바뀌면 여기도 바꿔야 한다.
+ *
+ * ⚠ 선택자에 html[data-theme=…] 을 같이 적는다. Django 6.1 의 판 고르개가
+ *   html[data-theme="light"] 로 변수를 덮는데 그쪽 특이도가 :root 보다 높다.
+ *   :root 만 적으면 사용자가 「밝게」를 고른 순간 이 파일이 통째로 진다.
  */
 
-:root {
+:root,
+html[data-theme="light"],
+html[data-theme="dark"] {
   /* ══ 글꼴 ═══════════════════════════════════════════════════
      본문은 IBM Plex Sans KR, 숫자와 표 이름은 JetBrains Mono.
      파일은 static/empatho/fonts/ 에 있고 fonts.css 가 @font-face 로 건다
@@ -20,20 +24,51 @@
   --e-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo,
             Consolas, monospace;
 
-  /* ══ 우리 색 — 위 목록 그대로 ═══════════════════════════════ */
-  --e-canvas: #FAFAF9;
-  --e-card:   #FFFFFF;
-  --e-border: #E8E6E5;
-  --e-warm:   #78716C;
-  --e-ink:    #0C0A09;
-  --e-soot:   #1C1917;
-  --e-wash:   #C1E1F7;
-  --e-cyan:   #3BA6F1;
-  --e-ink-2:  #44403C;
-  --e-faint:  #A8A29E;
-  --e-line-2: #F0EEED;
-  --e-cyan-ink: #FFFFFF;
-  --e-soot-ink: #FAFAF9;
+  /* ══ 우리 색 — 시안(admin-redesign) 그대로 ══════════════════
+     ⚠ **밝은 판이 없다.** 시안이 어두운 한 벌로만 그려져 있고, 밝은 판을
+       따로 지어내면 그건 시안이 아니라 우리가 만든 화면이 된다. 그래서
+       prefers-color-scheme 를 보지 않고 늘 이 값을 쓴다. */
+  color-scheme: dark;
+
+  --e-canvas: #0B0E13;   /* 바탕 */
+  --e-card:   #131922;   /* 패널 */
+  --e-border: #1F2733;   /* 선 */
+  --e-line-2: #1C2430;   /* 더 옅은 선 · 막대 트랙 */
+  --e-ink:    #E8ECF2;   /* 글자 */
+  --e-ink-2:  #C4CCD7;   /* 조금 가라앉힌 글자 */
+  --e-warm:   #9AA4B2;   /* 보조 글자 */
+  --e-faint:  #8B96A6;   /* 눈썹줄 · 단위 */
+  --e-soot:   #0F131A;   /* 내비 · 표 머리 */
+  --e-cyan:   #4DA3FF;   /* 강조 */
+  --e-wash:   #132338;   /* 강조를 깐 자리 */
+  --e-cyan-ink: #0B0E13;
+  --e-soot-ink: #E8ECF2;
+
+  /* 상태색 셋. **색만으로 가르지 않는다** — 배지 글자와 테두리가 같이 선다 */
+  --e-mint:    #2FD4B0;  /* 정상 */
+  --e-mint-bg: #10231F;
+  --e-mint-br: #1F4A40;
+  --e-mint-fg: #6FE3C6;
+  --e-amber:   #FFB547;  /* 느림 */
+  --e-amber-fg:#FFD08A;
+  --e-pink:    #FF8FA8;  /* 실패 · 불일치 · 가림 */
+  --e-pink-bg: #1E1418;
+  --e-pink-br: #4A2530;
+  --e-pink-fg: #F2B8C6;
+
+  /* 시안에만 있는 자리들 */
+  --e-nav-br:  #1E2530;  /* 내비 오른쪽 선 */
+  --e-nav-on:  #1A2230;  /* 지금 있는 메뉴 */
+  --e-nav-fg:  #B7C0CD;  /* 안 고른 메뉴 */
+  --e-foot-bg: #141A23;  /* 내비 아래 안내 카드 */
+  --e-foot-br: #222B38;
+  --e-btn-br:  #2A3442;  /* 테두리 단추 · 입력칸 */
+  --e-link:    #7CC4FF;
+  --e-link-h:  #B5DDFF;
+  --e-code:    #9CCBFF;  /* 표 이름(mono) */
+  --e-row-alt: #111720;  /* 표 교대 줄 */
+  --e-ok-bg:   #0F1F1B;  /* 「모두 정상」 띠 */
+  --e-ok-fg:   #9ED9C9;
 
   /* ══ Django admin 변수를 우리 값으로 ════════════════════════
      머리띠는 soot 다. 병원 웹 상단바가 흰 바탕이지만 admin 은 머리띠가
@@ -57,11 +92,11 @@
 
   --breadcrumbs-fg:      var(--e-warm);
   --breadcrumbs-link-fg: var(--e-ink-2);
-  --breadcrumbs-bg:      var(--e-line-2);
+  --breadcrumbs-bg:      var(--e-soot);
 
-  --link-fg:           #1B7FC4;   /* cyan 을 흰 바탕에서 읽히게 낮춘 값 */
-  --link-hover-color:  var(--e-ink);
-  --link-selected-fg:  var(--e-ink);
+  --link-fg:           var(--e-link);
+  --link-hover-color:  var(--e-link-h);
+  --link-selected-fg:  var(--e-link-h);
 
   --hairline-color: var(--e-line-2);
   --border-color:   var(--e-border);
@@ -85,42 +120,9 @@
   --object-tools-hover-bg: var(--e-ink);
 }
 
-/* ══ 어두운 판 ════════════════════════════════════════════════
-   Django 의 dark_mode.css 가 이 미디어 쿼리로 변수를 덮는다. 우리 것이
-   뒤에 오므로 이 블록이 이긴다. 값은 병원 웹의 뷰어 색이다. */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --e-canvas: #121212;
-    --e-card:   #1C1917;
-    --e-border: #44403C;
-    --e-line-2: #292524;
-    --e-ink:    #FAFAF9;
-    --e-ink-2:  #D6D3D1;
-    --e-warm:   #A8A29E;
-    --e-wash:   #1E3A52;
-
-    --primary:   var(--e-card);
-    --secondary: var(--e-card);
-    --header-bg: var(--e-card);
-
-    --breadcrumbs-bg:      var(--e-line-2);
-    --breadcrumbs-fg:      var(--e-warm);
-    --breadcrumbs-link-fg: var(--e-ink-2);
-
-    /* 어두운 바탕에서는 시안을 낮추지 않는다 — 낮추면 안 읽힌다 */
-    --link-fg:          var(--e-cyan);
-    --link-hover-color: var(--e-wash);
-    --link-selected-fg: var(--e-cyan);
-
-    --button-bg:       var(--e-border);
-    --button-fg:       var(--e-ink);
-    --button-hover-bg: var(--e-warm);
-
-    --darkened-bg:  var(--e-card);
-    --selected-bg:  var(--e-line-2);
-    --selected-row: var(--e-wash);
-  }
-}
+/* 밝은 판은 두지 않는다 — 시안이 어두운 한 벌뿐이다. 예전에 있던
+   @media (prefers-color-scheme: dark) 블록은 뺐다: 이제 위 :root 가 늘
+   어두운 값이라, 미디어 쿼리로 한 번 더 덮으면 값이 두 군데가 된다. */
 
 /* ══ 글꼴 ══════════════════════════════════════════════════════
    우리가 들고 있는 파일을 쓴다(static/empatho/fonts/). 시안이 IBM Plex
@@ -158,12 +160,9 @@ body,
 
 /* 실행 줄(액션) — 승인·거절을 고르는 자리라 가라앉지 않게 */
 #changelist .actions {
-  background: var(--e-wash);
+  background: var(--e-line-2);
   border: 1px solid var(--e-border);
   border-radius: 8px;
-}
-@media (prefers-color-scheme: dark) {
-  #changelist .actions { background: var(--e-line-2); }
 }
 
 /* ══ 표 ════════════════════════════════════════════════════════
@@ -190,10 +189,7 @@ body,
   font-size: 11px;
   letter-spacing: .04em;
 }
-#nav-sidebar .current-model { background: var(--e-wash); }
-@media (prefers-color-scheme: dark) {
-  #nav-sidebar .current-model { background: var(--e-line-2); }
-}
+#nav-sidebar .current-model { background: var(--e-line-2); }
 
 /* ══ 권한 격자 (core/admin_perms.py) ═══════════════════════════
    그쪽은 인라인 <style> 로 제 색을 박아 두었다. 어두운 판에서 흰 상자가
@@ -231,7 +227,7 @@ body,
   display: flex; flex-direction: column; gap: 2px;
   padding: 10px 12px;
   border: 1px solid var(--e-border); border-radius: 8px;
-  background: var(--e-canvas);
+  background: var(--e-line-2);
   text-decoration: none;
 }
 .e-cell:hover { border-color: var(--e-cyan); }
@@ -251,18 +247,11 @@ body,
 .e-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .e-chip {
   padding: 3px 9px; border-radius: 999px;
-  border: 1px solid var(--e-border); background: var(--e-canvas);
+  border: 1px solid var(--e-border); background: var(--e-line-2);
   font-size: 11px; color: var(--e-warm); text-decoration: none;
 }
 .e-chip:hover { border-color: var(--e-cyan); }
 .e-chip b { color: var(--e-ink); font-variant-numeric: tabular-nums; }
-
-@media (prefers-color-scheme: dark) {
-  .e-cell { background: var(--e-line-2); }
-  .e-chip { background: var(--e-line-2); }
-  .e-cell.warn { background: var(--e-wash); }
-  .e-cell.warn b, .e-cell.warn span { color: var(--e-ink); }
-}
 
 /* ══ 사이드바 (core/adminsite.py 의 _nav) ══════════════════════
    Django 의 사이드바 «자리»는 그대로 쓰고 내용만 우리 것으로 바꾼다.
@@ -297,9 +286,8 @@ body,
 
 /* 지금 있는 자리 — 색만으로 가르지 않는다. 왼쪽 굵은 선이 같이 선다 */
 #nav-sidebar.e-nav a.on {
-  background: var(--e-card); color: var(--e-ink); font-weight: 600;
+  background: var(--e-nav-on); color: #FFFFFF; font-weight: 600;
   border-left-color: var(--e-cyan);
-  box-shadow: 0 1px 3px rgba(12, 10, 9, .06);
 }
 
 /* 「병원 웹으로」는 맨 아래로 내리고 선으로 가른다 — 메뉴가 아니라 나가는 문이다 */
@@ -349,13 +337,6 @@ body,
 
 .e-soon { color: var(--e-warm); font-size: 13px; margin: 6px 0; }
 
-@media (prefers-color-scheme: dark) {
-  #nav-sidebar.e-nav { background: var(--e-canvas); }
-  #nav-sidebar.e-nav a.on { background: var(--e-card); box-shadow: none; }
-  .breadcrumbs { background: var(--e-card) !important; }
-  .toggle-nav-sidebar { background: var(--e-canvas) !important; }
-}
-
 /* ══ 추론 막대 (core/admin/views.py 의 _chart) ═════════════════
    서버가 SVG 를 만들어 넣는다. 색은 여기서 준다 — 파이썬에 색을 박으면
    다크판이 안 따라온다 */
@@ -366,33 +347,164 @@ body,
 .e-chart .c-zero { fill: var(--e-border); }
 .e-chart .c-grid { stroke: var(--e-line-2); stroke-width: 1; }
 
+/* ══ 화면 머리 (전 화면 공통) ══════════════════════════════════
+   눈썹줄 · 제목 · 오른쪽 손잡이. Django 의 {% block content_title %} 을
+   이것으로 덮는다 — 그 블록이 원래 <h1> 하나만 그린다. */
+.e-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; margin: 0 0 22px;
+}
+.e-head .e-eyebrow { display: block; font-size: 13px; color: var(--e-faint); }
+.e-head h1 {
+  margin: 4px 0 0; font-size: 28px; font-weight: 700; color: var(--e-ink);
+}
+.e-head-right {
+  display: flex; align-items: center; gap: 12px;
+  font-size: 13px; color: var(--e-faint);
+}
+
+/* 테두리 단추 — 화면마다 하나씩 있는 보조 손잡이 */
+.e-btn {
+  padding: 10px 16px; border-radius: 10px;
+  border: 1px solid var(--e-btn-br); background: var(--e-card);
+  color: var(--e-ink); font-size: 14px; font-family: inherit;
+  text-decoration: none; cursor: pointer; white-space: nowrap;
+}
+.e-btn:hover { border-color: var(--e-cyan); color: var(--e-ink); }
+/* 채움 단추는 화면당 하나. 그 화면에서 할 일 하나를 가리킨다 */
+.e-btn-fill {
+  background: var(--e-cyan); border-color: var(--e-cyan);
+  color: var(--e-cyan-ink); font-weight: 600;
+}
+.e-btn-fill:hover { background: #6FB6FF; border-color: #6FB6FF; color: var(--e-cyan-ink); }
+
 /* ══ 서버 상태 ═════════════════════════════════════════════════
-   색만으로 가르지 않는다. 점의 «찬 것 · 빈 것»과 글자(정상 · 실패)가
-   따로 말하게 둔다 — 색각이 다른 사람에게도 같은 화면이어야 한다 */
+   색만으로 가르지 않는다. 배지의 «점 + 글자(정상 · 느림 · 실패)»가 따로
+   말하게 둔다 — 색각이 다른 사람에게도 같은 화면이어야 한다 */
 .e-note { color: var(--e-warm); font-size: 13px; margin: 6px 0 14px; }
 
-.e-probe { width: 100%; border-collapse: collapse; font-size: 13px; }
-.e-probe th, .e-probe td {
-  text-align: left; padding: 9px 10px;
-  border-bottom: 1px solid var(--e-line-2);
+/* ── 요약 띠 ───────────────────────────────────────────────── */
+.e-summary {
+  padding: 22px 26px; border-radius: 18px;
+  background: var(--e-ok-bg); border: 1px solid var(--e-mint-br);
+  display: flex; align-items: center; gap: 22px;
+  margin-bottom: 22px;
 }
-.e-probe thead th {
-  color: var(--e-warm); font-weight: 600; font-size: 12px;
-  border-bottom: 1px solid var(--e-border);
-}
-.e-probe tbody th { font-weight: 600; white-space: nowrap; }
-.e-probe .num { text-align: right; font-variant-numeric: tabular-nums; }
+.e-summary.bad { background: var(--e-pink-bg); border-color: var(--e-pink-br); }
 
-.e-dot {
-  display: inline-block; width: 8px; height: 8px; margin-right: 7px;
-  border-radius: 50%; vertical-align: 1px;
+.e-summary-icon {
+  width: 52px; height: 52px; flex-shrink: 0; border-radius: 50%;
+  background: var(--e-mint); box-shadow: 0 0 0 10px rgba(47, 212, 176, .14);
+  display: flex; align-items: center; justify-content: center;
 }
-.e-probe tr.up   .e-dot { background: var(--e-cyan); }
-.e-probe tr.down .e-dot { background: transparent; box-shadow: inset 0 0 0 2px var(--e-warm); }
-.e-probe tr.down { color: var(--e-ink-2); }
+.e-summary.bad .e-summary-icon {
+  background: var(--e-pink); box-shadow: 0 0 0 10px rgba(255, 143, 168, .14);
+}
+.e-summary-icon svg { stroke: var(--e-canvas); }
 
-/* 무엇을 보라는 한 줄. 실패한 줄에만 붙는다 */
+.e-summary-text { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.e-summary-text b { font-size: 22px; font-weight: 700; color: var(--e-ink); }
+.e-summary-text span { font-size: 14px; color: var(--e-ok-fg); }
+.e-summary.bad .e-summary-text span { color: var(--e-pink-fg); }
+
+.e-summary-nums { margin-left: auto; display: flex; gap: 28px; }
+.e-summary-nums div { display: flex; flex-direction: column; align-items: flex-end; }
+.e-summary-nums dt { font-size: 12px; color: var(--e-ok-fg); }
+.e-summary.bad .e-summary-nums dt { color: var(--e-pink-fg); }
+.e-summary-nums dd {
+  margin: 0; font-family: var(--e-mono);
+  font-size: 22px; font-weight: 700; color: var(--e-ink);
+  font-variant-numeric: tabular-nums;
+}
+.e-summary-nums dd.slow { color: var(--e-amber-fg); }
+
+/* ── 서비스 카드 ───────────────────────────────────────────── */
+.e-probes {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px;
+}
+@media (max-width: 1280px) { .e-probes { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 760px)  { .e-probes { grid-template-columns: 1fr; } }
+
+.e-probe-card {
+  padding: 20px; border-radius: 16px;
+  background: var(--e-card); border: 1px solid var(--e-border);
+  display: flex; flex-direction: column; gap: 14px;
+}
+.e-probe-card.down { background: var(--e-pink-bg); border-color: var(--e-pink-br); }
+
+.e-probe-top {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+}
+.e-probe-name { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.e-probe-name b {
+  font-size: 16px; font-weight: 600; color: var(--e-ink);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.e-probe-name span { font-size: 12px; color: var(--e-faint); }
+
+/* 배지 — 점 하나와 글자. 둘 다 있어야 색 없이도 읽힌다 */
+.e-state {
+  display: flex; align-items: center; gap: 6px; flex-shrink: 0;
+  padding: 5px 10px; border-radius: 999px;
+  background: var(--e-mint-bg); border: 1px solid var(--e-mint-br);
+  font-size: 12px; color: var(--e-mint-fg); white-space: nowrap;
+}
+.e-state i {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--e-mint); font-style: normal;
+}
+.e-state.slow { border-color: #4A3A1F; background: #241C10; color: var(--e-amber-fg); }
+.e-state.slow i { background: var(--e-amber); }
+.e-state.down { border-color: var(--e-pink-br); background: #2A1A20; color: var(--e-pink); }
+/* 실패는 «빈 점» 이다. 찬 점과 모양부터 다르다 */
+.e-state.down i { background: transparent; box-shadow: inset 0 0 0 2px var(--e-pink); }
+
+.e-probe-ms { display: flex; align-items: baseline; gap: 6px; }
+.e-probe-ms b {
+  font-family: var(--e-mono); font-size: 34px; font-weight: 700;
+  color: #FFFFFF; font-variant-numeric: tabular-nums; line-height: 1;
+}
+.e-probe-ms b.slow { color: var(--e-amber-fg); }
+.e-probe-ms b.down { color: var(--e-pink); }
+.e-probe-ms span { font-size: 13px; color: var(--e-faint); }
+
+/* 카드 아래 잔무늬. **값이 아니라 장식이다** — 응답 시간의 이력을 우리가
+   들고 있지 않다. 카드 높이를 맞추고 시안과 같은 결을 내는 자리다.
+   높이·투명도는 시안의 12칸을 그대로 옮겼다 */
+.e-spark { display: flex; align-items: flex-end; gap: 3px; height: 22px; }
+.e-spark i {
+  flex-grow: 1; border-radius: 2px; background: var(--e-mint); font-style: normal;
+}
+.e-probe-card.slow .e-spark i { background: var(--e-amber); }
+.e-probe-card.down .e-spark i { background: var(--e-pink); }
+.e-spark i:nth-child(1)  { height: 10px; opacity: .35; }
+.e-spark i:nth-child(2)  { height: 14px; opacity: .40; }
+.e-spark i:nth-child(3)  { height: 12px; opacity: .45; }
+.e-spark i:nth-child(4)  { height: 18px; opacity: .50; }
+.e-spark i:nth-child(5)  { height: 11px; opacity: .55; }
+.e-spark i:nth-child(6)  { height: 16px; opacity: .60; }
+.e-spark i:nth-child(7)  { height: 13px; opacity: .65; }
+.e-spark i:nth-child(8)  { height: 20px; opacity: .70; }
+.e-spark i:nth-child(9)  { height: 12px; opacity: .75; }
+.e-spark i:nth-child(10) { height: 15px; opacity: .85; }
+.e-spark i:nth-child(11) { height: 17px; opacity: .90; }
+.e-spark i:nth-child(12) { height: 14px; opacity: 1; }
+
+.e-probe-detail {
+  font-family: var(--e-mono); font-size: 12px; color: var(--e-faint);
+  overflow: hidden; text-overflow: ellipsis;
+}
+
+/* 무엇을 보라는 한 줄. 실패한 카드에만 붙는다 */
 .e-hint { display: block; color: var(--e-warm); font-size: 12px; margin-top: 2px; }
+
+/* 안 찌르는 것 — 점선 카드. 빈칸으로 두면 «빠뜨린 것»으로 읽힌다 */
+.e-probe-none {
+  padding: 20px; border-radius: 16px; border: 1px dashed var(--e-btn-br);
+  display: flex; flex-direction: column; gap: 8px; justify-content: center;
+}
+.e-probe-none b { font-size: 14px; font-weight: 600; color: var(--e-ink-2); }
+.e-probe-none span { font-size: 13px; color: var(--e-faint); line-height: 1.6; }
 
 /* ══ DB 조회 ═══════════════════════════════════════════════════ */
 .e-box h2 small {

@@ -176,9 +176,15 @@ def dashboard(site, request):
 
 
 def status(site, request):
-    """지금 무엇이 살아 있나. 찌르는 쪽은 브라우저가 아니라 web 컨테이너다."""
+    """지금 무엇이 살아 있나. 찌르는 쪽은 브라우저가 아니라 web 컨테이너다.
+
+    ?refresh=1 은 캐시를 버리고 다시 찌른다 — 화면의 [지금 다시 확인] 이다.
+    고치고 나서 30초를 기다리게 하면 고쳐졌는지를 못 본다.
+    """
+    probes = probe_all_cached(force=bool(request.GET.get("refresh")))
     return site.page(request, "admin/empatho/status.html", "status", "서버 상태", {
-        "probes": probe_all(),
+        "probes": probes,
+        "summary": probe_summary(probes),
         "checked_at": timezone.localtime().strftime("%H:%M:%S"),
         "refresh_sec": settings.ADMIN_STATUS_REFRESH_SEC,
     })
@@ -343,9 +349,25 @@ def _label(value):
 # ⚠ 어느 것도 화면을 멎게 하면 안 된다. 예외는 전부 「실패」 한 줄로 바꾼다.
 
 
+#: 이름 밑에 붙는 한 줄. 「llm-proxy 가 죽었다」만 보면 무엇이 멈추는지
+#: 모르는 사람이 있다. 이름은 ADMIN_PROBES 의 열쇠와 같아야 붙는다.
+PROBE_SUBTITLES = {
+    "postgres": "DB",
+    "celery 워커": "작업 큐",
+    "file-gateway": "Go 업로드",
+    "llm-proxy": "소견문 중계",
+    "notify": "실시간 알림",
+    "garage (S3)": "파일 저장소",
+    "orthanc (PACS)": "DICOM",
+}
+
+
 def _result(name, ok, detail, ms, hint=""):
-    return {"name": name, "ok": ok, "detail": detail,
-            "ms": None if ms is None else round(ms * 1000), "hint": hint}
+    ms = None if ms is None else round(ms * 1000)
+    return {"name": name, "ok": ok, "detail": detail, "ms": ms, "hint": hint,
+            "subtitle": PROBE_SUBTITLES.get(name, ""),
+            # 살아 있지만 느린 것. 색이 갈려야 한 화면에서 구별된다
+            "slow": bool(ok and ms is not None and ms >= settings.ADMIN_SLOW_MS)}
 
 
 def _timed(fn):
@@ -448,7 +470,76 @@ def probe_all():
             out.append(future.result())
         except Exception as exc:          # 찌르는 함수가 터져도 화면은 뜬다
             out.append(_result(name, False, _why(exc), None))
+    # 부른 순서를 유지한다. ThreadPoolExecutor 의 futures 는 끝난 순서라,
+    # 그대로 두면 **빠른 것이 먼저 오도록 화면이 매번 뒤바뀐다** — 같은 칸을
+    # 보려고 눈이 자리를 외우는 화면인데 그게 안 된다.
+    order = {name: i for i, (name, _) in enumerate(jobs)}
+    out.sort(key=lambda r: order.get(r["name"], 99))
     return out
+
+
+# ── 찔러 본 결과를 잠깐 들고 있는다 ──────────────────────────────────
+#
+# 대시보드와 상태 화면이 같은 값을 쓴다. 둘이 따로 찌르면 대시보드를 열 때마다
+# 최대 ADMIN_PROBE_DEADLINE_SEC 이 붙는데, 대시보드는 admin 의 첫 화면이라
+# 그게 곧 «admin 이 느리다» 가 된다.
+#
+# ⚠ 프로세스 메모리다. gunicorn 워커가 넷이면 워커마다 따로 센다 — 그래도
+#   화면마다 찌르는 것보다 훨씬 적다. Redis 로 옮길 값은 아니다.
+_PROBE_CACHE = {"at": 0.0, "value": None}
+_PROBE_LOCK = threading.Lock()
+
+
+def probe_all_cached(force=False):
+    """캐시된 결과. force 면 버리고 다시 찌른다.
+
+    ⚠ 찌르는 동안 잠금을 쥐지 않는다. 쥐면 두 사람이 같이 열었을 때 뒤엣사람이
+      앞사람의 4초를 그대로 기다린다 — 겹쳐서 두 번 찌르는 편이 낫다.
+    """
+    now = time.monotonic()
+    if not force:
+        with _PROBE_LOCK:
+            value, at = _PROBE_CACHE["value"], _PROBE_CACHE["at"]
+        if value is not None and now - at < settings.ADMIN_PROBE_CACHE_SEC:
+            return value
+
+    value = probe_all()
+    with _PROBE_LOCK:
+        _PROBE_CACHE["value"] = value
+        _PROBE_CACHE["at"] = time.monotonic()
+    return value
+
+
+def probe_cache_clear():
+    """들고 있던 것을 버린다. 시험이 서로 앞 시험의 값을 보지 않게 한다."""
+    with _PROBE_LOCK:
+        _PROBE_CACHE["value"] = None
+        _PROBE_CACHE["at"] = 0.0
+
+
+def probe_summary(probes):
+    """머리말 한 줄에 쓸 값.
+
+    「가장 느린 것」을 따로 빼고 나머지 평균을 낸다. 같이 평균 내면 celery
+    2초가 나머지 열 배를 끌어올려 전부 느려 보인다 — 실제로 느린 것은 하나다.
+    """
+    total = len(probes)
+    ok = sum(1 for p in probes if p["ok"])
+    timed = sorted((p for p in probes if p["ms"] is not None),
+                   key=lambda p: p["ms"])
+    slowest = timed[-1] if timed else None
+    rest = timed[:-1]
+    return {
+        "ok": ok,
+        "total": total,
+        "all_ok": ok == total and total > 0,
+        "down": total - ok,
+        "slowest_ms": slowest["ms"] if slowest else None,
+        "slowest_name": slowest["name"] if slowest else "",
+        "slowest_slow": bool(slowest and slowest["slow"]),
+        "rest_avg_ms": (round(sum(p["ms"] for p in rest) / len(rest))
+                        if rest else None),
+    }
 
 
 # ── 최근 24시간 막대 (SVG) ────────────────────────────────────────────
