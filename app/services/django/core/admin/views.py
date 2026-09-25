@@ -24,7 +24,7 @@ from django.utils import timezone
 
 from ..models import (
     Account, AiResult, Assessment, DiscordanceFlag, ExamOrder, Followup, Image,
-    Lesion, Notification, Patient,
+    Lesion, Notification, Patient, Specimen, Study,
 )
 
 #: 시안의 칩 차례 그대로다. 개수 순으로 정렬하지 않는다 — 순서가 매번 바뀌면
@@ -50,6 +50,11 @@ def _url(model, **params):
     if not params:
         return path
     return path + "?" + "&".join(f"{k}={v}" for k, v in params.items())
+
+
+def _cell(label, count, url=None, warn=False):
+    """「진행 중」 칸 하나. warn 은 오래 두면 안 되는 것이라 눈에 걸리게 한다."""
+    return {"label": label, "count": count, "url": url, "warn": warn}
 
 
 #: 진료 흐름 막대. (라벨, 모델, 색 열쇠) — 차례도 색도 시안 그대로다.
@@ -122,10 +127,33 @@ def dash_numbers(request):
     acc_total = Account.objects.count()
     role = _tally(Account, "role")
     flag = _tally(DiscordanceFlag, "flag_status")
+    run = _tally(AiResult, "run_status")
+    read = _tally(Study, "read_status")
+    acc_st = _tally(Specimen, "accession_status")
 
     # 불일치는 pass 를 뺀 나머지가 전부 미해소다 — sev1 · sev2 · review ·
     # unbindable 이 각각 다른 이유로 남아 있는 것이라 한 덩어리로 센다.
     open_flags = sum(n for s, n in flag.items() if s != "pass")
+
+    # ── 진행 중 ─────────────────────────────────────────────────
+    # 시안에는 없지만 되살렸다(2026-09-25). 여기가 **막힌 데를 보는 유일한
+    # 자리**라, 빼 두면 워커가 죽거나 큐가 밀린 것을 아무도 모른다.
+    #
+    # 승인 대기는 위 KPI 카드가 이미 말하므로 여기서 뺀다 — 같은 수를 한
+    # 화면에 두 번 두면 어느 쪽이 맞는지 눈이 먼저 묻는다.
+    working = [
+        _cell("AI 분석 대기", run.get("queued", 0),
+              _url(AiResult, run_status__exact="queued")),
+        _cell("AI 실패", run.get("failed", 0),
+              _url(AiResult, run_status__exact="failed"),
+              warn=run.get("failed", 0) > 0),
+        _cell("판독 대기", read.get("pending", 0),
+              _url(Study, read_status__exact="pending")),
+        _cell("검체 접수 대기", acc_st.get("unbound", 0) + acc_st.get("bound", 0),
+              _url(Specimen, accession_status__exact="bound")),
+        _cell("미해소 불일치", open_flags,
+              _url(DiscordanceFlag), warn=open_flags > 0),
+    ]
 
     # 서비스 고리는 상태 화면과 **같은 값**을 쓴다. 따로 찌르면 첫 화면에
     # 최대 ADMIN_PROBE_DEADLINE_SEC 이 붙는다(probe_all_cached 의 머리말).
@@ -148,6 +176,7 @@ def dash_numbers(request):
         "assessments": Assessment.objects.count(),
         "open_flags": open_flags,
         # ── 아래 세 덩어리 ──────────────────────────────────────
+        "working": working,
         "flow": _flow_rows(),
         "service": service,
         "accounts_total": acc_total,

@@ -280,6 +280,38 @@ body,
 }
 .e-kpi-spark i.now { background: var(--e-cyan); }
 
+/* ── 진행 중 ───────────────────────────────────────────────────
+   막힌 데를 보는 자리. KPI 카드보다 작게 둔다 — 지표가 아니라 «지금
+   밀려 있는 것»이라 눈이 먼저 가야 할 곳은 위쪽이다 */
+.e-working {
+  display: grid; grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px; margin-bottom: 16px;
+}
+@media (max-width: 1100px) { .e-working { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 700px)  { .e-working { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+.e-work {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 14px 16px; border-radius: 12px;
+  background: var(--e-card); border: 1px solid var(--e-border);
+  text-decoration: none; min-width: 0;
+}
+.e-work:hover { border-color: var(--e-cyan); }
+.e-work b {
+  font-family: var(--e-mono); font-size: 24px; font-weight: 700;
+  color: var(--e-ink); line-height: 1.1; font-variant-numeric: tabular-nums;
+}
+.e-work span {
+  font-size: 12px; color: var(--e-warm);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* 오래 두면 안 되는 것 — 색만으로 가르지 않는다. 왼쪽 굵은 선이 같이 선다 */
+.e-work.warn { border-left: 3px solid var(--e-amber); }
+.e-work.warn b { color: var(--e-amber-fg); }
+/* 0 이면 가라앉힌다. 링크는 살아 있다 */
+.e-work.zero { opacity: .5; }
+.e-work.zero:hover { opacity: 1; }
+
 /* ── 진료 흐름 + 서비스 ────────────────────────────────────── */
 .e-dash-grid {
   display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -519,6 +551,21 @@ body,
   font-size: 13px; color: var(--e-faint);
 }
 
+/* ══ 본문 링크 ═════════════════════════════════════════════════
+   밑줄을 기본으로 깔지 않는다. 카드·표·칩이 전부 링크라 밑줄이 있으면
+   화면이 줄무늬가 된다. 대신 **호버에서만** 긋는다 — 누를 수 있는 것을
+   가리키는 신호는 남겨야 한다. */
+#content a { text-decoration: none; }
+#content a:hover { text-decoration: underline; }
+/* 단추처럼 생긴 것은 호버에서도 안 긋는다 — 밑줄 그어진 단추는 없다 */
+#content a.e-btn:hover,
+#content a.e-act:hover,
+#content a.e-fchip:hover,
+#content a.e-role-chip:hover,
+#content a.e-pill:hover,
+#content a.e-kpi:hover,
+#content a.e-flow-row:hover { text-decoration: none; }
+
 /* 테두리 단추 — 화면마다 하나씩 있는 보조 손잡이 */
 .e-btn {
   padding: 10px 16px; border-radius: 10px;
@@ -527,12 +574,17 @@ body,
   text-decoration: none; cursor: pointer; white-space: nowrap;
 }
 .e-btn:hover { border-color: var(--e-cyan); color: var(--e-ink); }
-/* 채움 단추는 화면당 하나. 그 화면에서 할 일 하나를 가리킨다 */
-.e-btn-fill {
+
+/* 채움 단추는 화면당 하나. 그 화면에서 할 일 하나를 가리킨다.
+   ⚠ #content a 가 --link-fg 로 글자색을 덮으므로 여기도 같은 무게로 적는다 —
+     안 그러면 파란 바탕에 파란 글씨가 되어 안 읽힌다. */
+#content a.e-btn-fill, .e-btn-fill {
   background: var(--e-cyan); border-color: var(--e-cyan);
-  color: var(--e-cyan-ink); font-weight: 600;
+  color: var(--e-cyan-ink); font-weight: 700;
 }
-.e-btn-fill:hover { background: #6FB6FF; border-color: #6FB6FF; color: var(--e-cyan-ink); }
+#content a.e-btn-fill:hover, .e-btn-fill:hover {
+  background: #6FB6FF; border-color: #6FB6FF; color: var(--e-cyan-ink);
+}
 
 /* ══ 서버 상태 ═════════════════════════════════════════════════
    색만으로 가르지 않는다. 배지의 «점 + 글자(정상 · 느림 · 실패)»가 따로
@@ -624,28 +676,8 @@ body,
 .e-probe-ms b.down { color: var(--e-pink); }
 .e-probe-ms span { font-size: 13px; color: var(--e-faint); }
 
-/* 카드 아래 잔무늬. **값이 아니라 장식이다** — 응답 시간의 이력을 우리가
-   들고 있지 않다. 카드 높이를 맞추고 시안과 같은 결을 내는 자리다.
-   높이·투명도는 시안의 12칸을 그대로 옮겼다 */
-.e-spark { display: flex; align-items: flex-end; gap: 3px; height: 22px; }
-.e-spark i {
-  flex-grow: 1; border-radius: 2px; background: var(--e-mint); font-style: normal;
-}
-.e-probe-card.slow .e-spark i { background: var(--e-amber); }
-.e-probe-card.down .e-spark i { background: var(--e-pink); }
-.e-spark i:nth-child(1)  { height: 10px; opacity: .35; }
-.e-spark i:nth-child(2)  { height: 14px; opacity: .40; }
-.e-spark i:nth-child(3)  { height: 12px; opacity: .45; }
-.e-spark i:nth-child(4)  { height: 18px; opacity: .50; }
-.e-spark i:nth-child(5)  { height: 11px; opacity: .55; }
-.e-spark i:nth-child(6)  { height: 16px; opacity: .60; }
-.e-spark i:nth-child(7)  { height: 13px; opacity: .65; }
-.e-spark i:nth-child(8)  { height: 20px; opacity: .70; }
-.e-spark i:nth-child(9)  { height: 12px; opacity: .75; }
-.e-spark i:nth-child(10) { height: 15px; opacity: .85; }
-.e-spark i:nth-child(11) { height: 17px; opacity: .90; }
-.e-spark i:nth-child(12) { height: 14px; opacity: 1; }
-
+/* 잔무늬 12칸은 뺐다 — 응답 시간의 이력을 들고 있지 않아 **값이 아니라
+   장식**이었다. 없는 자료를 있는 것처럼 그리는 자리라 지웠다. */
 .e-probe-detail {
   font-family: var(--e-mono); font-size: 12px; color: var(--e-faint);
   overflow: hidden; text-overflow: ellipsis;
@@ -787,6 +819,9 @@ body,
   display: flex; align-items: center; justify-content: center;
 }
 .e-empty-mark svg { stroke: var(--e-mint); fill: none; }
+/* 「없다」가 좋은 소식이 아닐 때 — 초록 체크를 쓰지 않는다 */
+.e-empty-mark.plain { background: var(--e-line-2); border-color: var(--e-border); }
+.e-empty-mark.plain svg { stroke: var(--e-faint); }
 .e-empty b { font-size: 18px; font-weight: 600; color: var(--e-ink); }
 .e-empty > span:last-child { font-size: 14px; color: var(--e-faint); }
 
@@ -799,10 +834,22 @@ body,
    Django changelist 위에 올린다 — 검색 · 정렬 · 페이지 · 감사 로그는
    그대로 두고 보이는 모양만 바꾼다. */
 
-/* Django 가 그리는 틀 걷어내기. 이 화면에만 건다(.e-approvals) */
-.e-approvals #changelist.module { background: none; border: none; }
-.e-approvals .changelist-form-container { display: block; }
-.e-approvals #changelist-filter { all: unset; }   /* 오른쪽 세로 칸을 푼다 */
+/* Django 가 그리는 틀 걷어내기. 이 화면에만 건다(.e-approvals)
+ *
+ * ⚠ 선택자에 #changelist 를 반드시 넣는다. Django 쪽이
+ *   `#changelist .changelist-form-container` (특이도 1,1,0)라, 우리가
+ *   `.e-approvals .changelist-form-container` (0,2,0)로 적으면 **진다** —
+ *   그러면 컨테이너가 flex 로 남아 칩 카드와 목록이 좌우로 갈라지고
+ *   둘 다 좁아진다. 2026-09-25 에 실제로 그렇게 보였다.
+ *
+ * ⚠ #changelist-filter 는 여기 없다. 우리 change_list.html 이 filters 블록을
+ *   통째로 갈아서 그 요소 자체가 안 그려진다 — 그래서 Django 의
+ *   `:has(#changelist-filter)` 규칙도 안 걸린다. */
+.e-approvals #changelist.module { background: none; border: none; padding: 0; }
+.e-approvals #changelist .changelist-form-container { display: block; }
+.e-approvals #changelist .changelist-form-container > div {
+  width: 100%; max-width: none;
+}
 .e-approvals .e-rowform { display: none; }
 
 /* 필터 칩 석 줄 */

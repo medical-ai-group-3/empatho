@@ -43,8 +43,10 @@
     {% rows_with_objects cl as rows %}
     {% for row in rows %}
       <tr>
-        {# 칸은 list_display 가 만든 것을 그대로 쓴다 — 서식과 고르개를
-           두 벌로 들지 않으려는 것이다 #}
+        {% comment %}
+          칸은 list_display 가 만든 것을 그대로 쓴다 — 서식과 고르개를
+          두 벌로 들지 않으려는 것이다
+        {% endcomment %}
         {% for cell in row.cells %}{{ cell }}{% endfor %}
         <td class="e-approve-act">
           {% if row.obj.account_status == "pending" %}
@@ -65,15 +67,30 @@
 </table>
 
 {% if not cl.result_list %}
-  {# 「0 계정」 한 줄로 두지 않는다. 승인할 것이 없는 것은 좋은 소식이다 #}
-  <div class="e-empty">
-    <span class="e-empty-mark" aria-hidden="true">
-      <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke-width="2.2"
-           stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg>
-    </span>
-    <b>승인을 기다리는 직원이 없습니다</b>
-    <span>직원이 가입하면 여기에 뜨고, 승인해야 로그인할 수 있습니다</span>
-  </div>
+  {% comment %}
+    「0 계정」 한 줄로 두지 않는다. 다만 문구는 **지금 무엇을 보고 있느냐**에
+    따라 갈린다 — 거절됨을 보는 중인데 「승인을 기다리는 직원이 없습니다」가
+    뜨면 거짓말이다. 초록 체크도 승인 대기일 때만 쓴다(좋은 소식이라서).
+  {% endcomment %}
+  {% if cl.get_filters_params.approval == "pending" or not cl.get_filters_params.approval %}
+    <div class="e-empty">
+      <span class="e-empty-mark" aria-hidden="true">
+        <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke-width="2.2"
+             stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg>
+      </span>
+      <b>승인을 기다리는 직원이 없습니다</b>
+      <span>직원이 가입하면 여기에 뜨고, 승인해야 로그인할 수 있습니다</span>
+    </div>
+  {% else %}
+    <div class="e-empty">
+      <span class="e-empty-mark plain" aria-hidden="true">
+        <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke-width="2.2"
+             stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4.3-4.3"/></svg>
+      </span>
+      <b>조건에 맞는 계정이 없습니다</b>
+      <span>위 필터를 바꾸거나 「전체」를 눌러 보세요</span>
+    </div>
+  {% endif %}
 {% endif %}
 </div>
 

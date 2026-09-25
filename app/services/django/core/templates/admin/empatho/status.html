@@ -53,8 +53,10 @@
       celery 워커는 브로커(redis)를 거쳐 확인</span>
   </div>
 
-  {# 가장 느린 것을 따로 뺀다. 같이 평균 내면 celery 2초가 나머지 열 배를
-     끌어올려 전부 느려 보인다 — 실제로 느린 것은 하나다 #}
+  {% comment %}
+    가장 느린 것을 따로 뺀다. 같이 평균 내면 celery 2초가 나머지 열 배를
+    끌어올려 전부 느려 보인다 — 실제로 느린 것은 하나다
+  {% endcomment %}
   <dl class="e-summary-nums">
     <div>
       <dt>가장 느린 응답</dt>
@@ -89,12 +91,6 @@
         {% else %}
           <b class="{% if not p.ok %}down{% endif %}">—</b>
         {% endif %}
-      </div>
-
-      {# 장식이다. 응답 시간의 이력을 들고 있지 않다 — 높이는 CSS 에 박혀 있다 #}
-      <div class="e-spark" aria-hidden="true">
-        <i></i><i></i><i></i><i></i><i></i><i></i>
-        <i></i><i></i><i></i><i></i><i></i><i></i>
       </div>
 
       <span class="e-probe-detail">

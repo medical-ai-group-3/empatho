@@ -127,6 +127,26 @@ class DashboardTests(TestCase):
         self.assertEqual(flow["검사 오더"], "cyan")
         self.assertEqual(flow["영상 파일"], "amber")
 
+    # ── 진행 중 (2026-09-25 되살림) ─────────────────────────────
+    def test_진행_중_다섯_칸이_뜬다(self):
+        """막힌 데를 보는 유일한 자리다 — 빼 두면 큐가 밀린 것을 아무도 모른다."""
+        working = self._dash().context["dash"]["working"]
+
+        self.assertEqual([c["label"] for c in working],
+                         ["AI 분석 대기", "AI 실패", "판독 대기",
+                          "검체 접수 대기", "미해소 불일치"])
+
+    def test_승인_대기는_진행_중에_없다(self):
+        """위 KPI 카드가 이미 말한다 — 같은 수가 한 화면에 둘이면 헷갈린다."""
+        labels = [c["label"] for c in self._dash().context["dash"]["working"]]
+
+        self.assertNotIn("승인 대기 계정", labels)
+
+    def test_칸마다_그_일을_하는_목록으로_간다(self):
+        for cell in self._dash().context["dash"]["working"]:
+            with self.subTest(cell["label"]):
+                self.assertTrue(cell["url"], "누를 곳이 없으면 숫자만 남는다")
+
     # ── 서비스 고리 ─────────────────────────────────────────────
     def test_고리는_상태_화면과_같은_값을_쓴다(self):
         """따로 찌르면 admin 첫 화면에 최대 4초가 붙는다."""

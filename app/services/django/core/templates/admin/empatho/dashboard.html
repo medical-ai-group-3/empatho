@@ -75,6 +75,19 @@
   </a>
 </section>
 
+{% comment %}
+  시안에는 없지만 되살렸다(2026-09-25). 여기가 **막힌 데를 보는 유일한
+  자리**라, 빼 두면 워커가 죽거나 큐가 밀린 것을 아무도 모른다.
+{% endcomment %}
+<section class="e-working" aria-label="진행 중">
+  {% for c in dash.working %}
+    <a class="e-work{% if c.warn %} warn{% endif %}{% if not c.count %} zero{% endif %}"
+       href="{{ c.url }}">
+      <b>{{ c.count }}</b><span>{{ c.label }}</span>
+    </a>
+  {% endfor %}
+</section>
+
 <div class="e-dash-grid">
   <section class="e-panel wide" aria-label="진료 흐름">
     <div class="e-panel-head">

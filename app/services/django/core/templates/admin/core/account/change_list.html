@@ -36,8 +36,10 @@
 {% block object-tools %}{% endblock %}
 
 {% block filters %}
-{# spec.choices 는 changelist 를 받는 메서드라 템플릿에서 못 부른다 —
-   인자 없이 쓰면 오류도 없이 칩만 사라진다. 태그가 미리 펴서 넘긴다 #}
+{% comment %}
+  spec.choices 는 changelist 를 받는 메서드라 템플릿에서 못 부른다 —
+  인자 없이 쓰면 오류도 없이 칩만 사라진다. 태그가 미리 펴서 넘긴다
+{% endcomment %}
 {% filter_chips cl as chip_rows %}
 <section class="e-chips-card" aria-label="필터">
   {% for row in chip_rows %}

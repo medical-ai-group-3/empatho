@@ -1,12 +1,18 @@
 {% extends "admin/base.html" %}
 {% load i18n static %}
 
-{# ⚠ 이 파일은 Django 것을 **덮는다**(shadow). base_site.html 은 제목과 머리띠
-   두 블록뿐이라 옮겨 적을 것이 적어서 그렇게 했다. Django 를 올릴 때 이
-   파일이 바뀌었는지만 보면 된다 — 나머지 템플릿은 하나도 안 건드린다.
+{% comment %}
+  ⚠ 이 파일은 Django 것을 **덮는다**(shadow). base_site.html 은 제목과 머리띠
+  두 블록뿐이라 옮겨 적을 것이 적어서 그렇게 했다. Django 를 올릴 때 이
+  파일이 바뀌었는지만 보면 된다 — 나머지 템플릿은 하나도 안 건드린다.
 
-   Django 6.1 원본에서 옮긴 것: title · branding 두 블록.
-   더한 것: extrastyle 의 CSS 한 장, nav-sidebar 의 우리 내비. #}
+  Django 6.1 원본에서 옮긴 것: title · branding 두 블록.
+  더한 것: extrastyle 의 CSS 한 장, nav-sidebar 의 우리 내비.
+
+  ⚠ 주석은 반드시 comment 태그로 쓴다. {# #} 는 **한 줄짜리**라 두 줄로 쓰면
+    주석으로 안 잡히고 화면에 그대로 찍힌다 — 오류가 안 나서 눈으로 볼 때까지
+    모른다. 2026-09-25 에 네 파일이 실제로 그랬다.
+{% endcomment %}
 
 {% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
 

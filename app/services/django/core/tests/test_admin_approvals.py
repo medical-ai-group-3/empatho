@@ -66,7 +66,36 @@ class ApprovalScreenTests(TestCase):
         roles = [r for r, _ in RoleFilter.lookups(RoleFilter, None, None)]
 
         self.assertNotIn("patient", roles)
-        self.assertEqual(roles[0], "admin")
+        # 「전체」가 맨 앞이다. Django 가 붙이는 「모두」는 걷어냈으므로
+        # 우리가 값 있는 선택지로 직접 둔다
+        self.assertEqual(roles[:2], ["all", "admin"])
+
+    def test_모두_줄이_사라지고_전체만_남는다(self):
+        """다른 필터가 걸려도 그렇다 — 내비 링크가 바로 그 경우다."""
+        res = self._list("?approval=pending&kind=staff")
+        chips = [c["display"] for c in
+                 res.context["cl"].filter_specs[0].choices(res.context["cl"])]
+
+        self.assertNotIn("모두", chips)
+        self.assertIn("전체", chips)
+
+    def test_아무것도_안_고르면_기본값_칩에_표가_선다(self):
+        """목록은 승인 대기로 걸러져 있는데 칩이 안 밝으면 필터가 없는 줄 안다."""
+        res = self._list()
+        spec = res.context["cl"].filter_specs[0]
+        on = [c["display"] for c in spec.choices(res.context["cl"]) if c["selected"]]
+
+        self.assertEqual(on, ["승인 대기"])
+
+    def test_전체를_누르면_정말_전부_나온다(self):
+        _pending("waiting1")
+        Account.objects.create(login_id="active1", role="reception",
+                               account_status="active", is_active=True)
+
+        res = self._list("?approval=all&kind=all")
+
+        self.assertEqual(res.context["cl"].result_count,
+                         Account.objects.count())
 
     def test_고른_칩에_표가_선다(self):
         res = self._list("?approval=pending&kind=staff")
@@ -79,6 +108,13 @@ class ApprovalScreenTests(TestCase):
 
         self.assertContains(res, "승인을 기다리는 직원이 없습니다")
         self.assertContains(res, "승인해야 로그인할 수 있습니다")
+
+    def test_다른_필터에서는_그_문구를_안_쓴다(self):
+        """거절됨을 보는 중에 「승인을 기다리는…」이 뜨면 거짓말이다."""
+        res = self._list("?approval=rejected&kind=staff")
+
+        self.assertNotContains(res, "승인을 기다리는 직원이 없습니다")
+        self.assertContains(res, "조건에 맞는 계정이 없습니다")
 
     def test_줄마다_승인_거절_단추가_붙는다(self):
         account = _pending("nurse1")

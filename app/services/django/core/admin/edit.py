@@ -29,6 +29,33 @@ from ..models import Account, Staff
 logger = logging.getLogger(__name__)
 
 
+def _without_all_row(spec, changelist):
+    """Django 가 맨 앞에 붙이는 「모두」 줄을 뺀다.
+
+    우리 세 필터는 「전체」를 **값 있는 선택지**로 따로 갖고 있다. 두 줄이
+    같이 있으면 뜻이 갈린다 — 「모두」는 그 매개변수를 **지우는** 주소라
+    기본값(승인 대기 · 직원)으로 되돌아오고, 「전체」는 정말 전부를 본다.
+
+    ⚠ **query_string == "?" 로 가려내면 안 된다.** 다른 필터가 하나라도
+      걸려 있으면 「모두」의 주소가 "?kind=staff" 가 되어 그 비교가 빗나간다.
+      내비 링크(?approval=pending&kind=staff)가 바로 그 경우라, 화면에
+      「모두」가 남고 눌러도 전체가 안 나왔다 (2026-09-25 확인).
+      골라낼 기준은 「이 매개변수를 지운 주소인가」다.
+
+    덤으로, 아무것도 안 골랐을 때 **기본값 칩에 표를 세운다.** 목록은 이미
+    그 값으로 걸러져 있는데 칩이 하나도 안 밝으면 「필터가 없다」로 읽힌다.
+    """
+    drop = changelist.get_query_string(remove=[spec.parameter_name])
+    default = changelist.get_query_string({spec.parameter_name: spec.default_value})
+
+    rows = [c for c in admin.SimpleListFilter.choices(spec, changelist)
+            if c["query_string"] != drop]
+    if not any(c["selected"] for c in rows):
+        for c in rows:
+            c["selected"] = c["query_string"] == default
+    return rows
+
+
 # ── 목록을 「승인 대기」로 먼저 보여주는 필터 ──────────────────────────
 #
 # 관리자가 이 화면에 오는 이유는 거의 언제나 «승인할 것이 있나» 다. 전체
@@ -41,6 +68,8 @@ class ApprovalFilter(admin.SimpleListFilter):
     # 시안(Approvals.dc.html)의 첫 줄 이름이다
     title = "상태"
     parameter_name = "approval"
+    #: 안 고르면 이 값으로 걸러진다(아래 queryset). 칩 표시도 이걸 본다
+    default_value = "pending"
 
     def lookups(self, request, model_admin):
         return (
@@ -60,11 +89,7 @@ class ApprovalFilter(admin.SimpleListFilter):
         return queryset.filter(account_status=value)
 
     def choices(self, changelist):
-        """「모두」 줄을 없앤다 — 기본이 승인 대기라 그 줄이 거짓말이 된다."""
-        for choice in super().choices(changelist):
-            if choice["query_string"] == "?":   # SimpleListFilter 가 넣는 「모두」
-                continue
-            yield choice
+        return _without_all_row(self, changelist)
 
 
 class KindFilter(admin.SimpleListFilter):
@@ -75,6 +100,7 @@ class KindFilter(admin.SimpleListFilter):
 
     title = "구분"
     parameter_name = "kind"
+    default_value = "staff"
 
     def lookups(self, request, model_admin):
         return (("staff", "직원"), ("patient", "환자"), ("all", "전체"))
@@ -88,10 +114,7 @@ class KindFilter(admin.SimpleListFilter):
         return queryset
 
     def choices(self, changelist):
-        for choice in super().choices(changelist):
-            if choice["query_string"] == "?":
-                continue
-            yield choice
+        return _without_all_row(self, changelist)
 
 
 class RoleFilter(admin.SimpleListFilter):
@@ -105,6 +128,7 @@ class RoleFilter(admin.SimpleListFilter):
 
     title = "역할"
     parameter_name = "role"
+    default_value = "all"
 
     def lookups(self, request, model_admin):
         # 시안 차례 그대로. 「전체」는 Django 가 맨 앞에 붙인다.
@@ -115,11 +139,17 @@ class RoleFilter(admin.SimpleListFilter):
         # 이름은 칩에 쓰는 짧은 쪽(ROLE_NAMES)이다. 표 칸의 「부서」는 정식
         # 명칭(DEPT_NAMES, 「간호과」)을 쓴다 — 자리가 달라 길이도 다르다.
         from .views import ROLE_NAMES, ROLE_ORDER
-        return tuple((r, ROLE_NAMES[r]) for r in ROLE_ORDER if r != "patient")
+        return (("all", "전체"),) + tuple(
+            (r, ROLE_NAMES[r]) for r in ROLE_ORDER if r != "patient")
 
     def queryset(self, request, queryset):
         value = self.value()
-        return queryset.filter(role=value) if value else queryset
+        if value in (None, "all"):
+            return queryset
+        return queryset.filter(role=value)
+
+    def choices(self, changelist):
+        return _without_all_row(self, changelist)
 
 
 # ── 계정 안에서 신원을 같이 본다 ──────────────────────────────────────
