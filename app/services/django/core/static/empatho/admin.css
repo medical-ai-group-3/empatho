@@ -49,7 +49,9 @@ html[data-theme="dark"] {
   --e-mint-bg: #10231F;
   --e-mint-br: #1F4A40;
   --e-mint-fg: #6FE3C6;
-  --e-amber:   #FFB547;  /* 느림 */
+  --e-amber:   #FFB547;  /* 느림 · 정지 */
+  --e-amber-bg:#231A0F;
+  --e-amber-br:#4A3A1F;
   --e-amber-fg:#FFD08A;
   --e-pink:    #FF8FA8;  /* 실패 · 불일치 · 가림 */
   --e-pink-bg: #1E1418;
@@ -560,7 +562,7 @@ body,
 /* 단추처럼 생긴 것은 호버에서도 안 긋는다 — 밑줄 그어진 단추는 없다 */
 #content a.e-btn:hover,
 #content a.e-act:hover,
-#content a.e-fchip:hover,
+#content a.e-seg-item:hover,
 #content a.e-role-chip:hover,
 #content a.e-pill:hover,
 #content a.e-kpi:hover,
@@ -852,35 +854,68 @@ body,
 }
 .e-approvals .e-rowform { display: none; }
 
-/* 필터 칩 석 줄 */
-.e-chips-card {
-  padding: 18px 22px; border-radius: 16px;
-  background: var(--e-card); border: 1px solid var(--e-border);
-  display: flex; flex-direction: column; gap: 12px; margin-bottom: 22px;
-}
-.e-chip-row { display: flex; align-items: center; gap: 10px; }
-.e-chip-title { font-size: 13px; color: var(--e-faint); width: 44px; flex-shrink: 0; }
-.e-chip-set { display: flex; gap: 8px; flex-wrap: wrap; }
-.e-fchip {
-  padding: 7px 13px; border-radius: 999px;
-  border: 1px solid var(--e-btn-br); background: var(--e-card);
-  font-size: 13px; color: var(--e-nav-fg); text-decoration: none;
-}
-.e-fchip:hover { border-color: var(--e-cyan); color: var(--e-ink); }
-/* 고른 것 — 색만으로 가르지 않는다. 테두리와 글자가 같이 밝아진다 */
-.e-fchip.on {
-  border-color: var(--e-cyan); background: var(--e-wash); color: #CFE6FF;
+/* ── 한 줄 툴바 ────────────────────────────────────────────────
+   상태 탭 · 구분 토글 · 역할 고르개 · 검색을 한 줄에 둔다. 좁아지면
+   줄바꿈해서 내려간다 — 가로 스크롤이 생기면 오른쪽 검색칸이 사라진다. */
+.e-toolbar {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin-bottom: 18px;
 }
 
-/* 검색칸 — 시안에는 없지만 기능을 살려 둔다(이 화면의 유일한 덧댐) */
-.e-approvals #toolbar {
-  padding: 0 0 14px; background: none; border: none;
-  display: flex; gap: 8px;
+/* 세그먼트 — 낱개 칩이 아니라 «하나를 고르는 한 덩어리»로 보이게
+   테두리를 한 번만 두르고 안쪽을 선으로 나눈다 */
+.e-seg {
+  display: flex; border-radius: 10px; overflow: hidden;
+  border: 1px solid var(--e-border); background: var(--e-card);
+}
+.e-seg-item {
+  display: flex; align-items: center; gap: 7px;
+  padding: 8px 14px; font-size: 13px; line-height: 1;
+  color: var(--e-nav-fg); text-decoration: none; white-space: nowrap;
+}
+.e-seg-item + .e-seg-item { border-left: 1px solid var(--e-line-2); }
+.e-seg-item:hover { background: var(--e-line-2); color: var(--e-ink); }
+/* 고른 것 — 색만으로 가르지 않는다. 바탕과 글자가 같이 밝아진다 */
+.e-seg-item.on { background: var(--e-wash); color: #CFE6FF; }
+
+/* 탭에 붙는 건수 배지 */
+.e-seg-item i {
+  font-style: normal; font-size: 11px; line-height: 1;
+  padding: 3px 6px; border-radius: 999px;
+  background: var(--e-soot); color: var(--e-faint);
+}
+.e-seg-item.on i { background: rgba(77, 163, 255, .18); color: #CFE6FF; }
+
+/* 역할 고르개 */
+.e-field { display: flex; align-items: center; gap: 8px; }
+.e-field label { font-size: 13px; color: var(--e-faint); }
+.e-field select {
+  padding: 8px 12px; border-radius: 10px;
+  border: 1px solid var(--e-btn-br); background: var(--e-card);
+  color: var(--e-ink); font-size: 13px; font-family: inherit; cursor: pointer;
+}
+.e-field button {
+  padding: 8px 12px; border-radius: 10px; cursor: pointer;
+  border: 1px solid var(--e-btn-br); background: var(--e-card);
+  color: var(--e-ink); font-size: 13px; font-family: inherit;
+}
+
+/* 검색 — 남는 자리를 먹고 오른쪽 끝에 붙는다 */
+.e-search {
+  position: relative; display: flex; align-items: center;
+  margin-left: auto; flex: 1 1 220px; max-width: 320px;
+}
+.e-search svg {
+  position: absolute; left: 12px; color: var(--e-faint); pointer-events: none;
 }
 .e-approvals #searchbar {
-  padding: 10px 14px; border-radius: 10px;
+  width: 100%; padding: 9px 14px 9px 36px; border-radius: 10px;
   border: 1px solid var(--e-btn-br); background: var(--e-card);
-  color: var(--e-ink); font-size: 14px; min-width: 240px;
+  color: var(--e-ink); font-size: 13px; font-family: inherit;
+}
+.e-approvals #searchbar::placeholder { color: var(--e-faint); }
+.e-approvals #searchbar:focus {
+  outline: none; border-color: var(--e-cyan); background: var(--e-soot);
 }
 
 /* 고르개 줄 + 표를 한 상자로 */
@@ -893,6 +928,8 @@ body,
   background: var(--e-soot); border: none; border-radius: 0;
 }
 .e-sel-count { font-size: 13px; color: var(--e-faint); }
+/* 지금 보고 있는 조건. 줄 오른쪽 끝에 붙는다 */
+.e-sel-scope { margin-left: auto; font-size: 12px; color: var(--e-faint); }
 
 .e-bulk {
   padding: 8px 14px; border-radius: 8px;
@@ -900,6 +937,7 @@ body,
 }
 .e-bulk.ok { border: none; background: #1D3B34; color: #7FA89C; }
 .e-bulk.no { border: 1px solid #3A2A30; background: transparent; color: #8A6F78; }
+.e-bulk.hold { border: 1px solid #3A3320; background: transparent; color: #8A7C58; }
 /* 고른 것이 있을 때만 또렷해진다 — 시안의 흐린 상태가 기본이다 */
 .e-approvals #changelist-form:has(.action-select:checked) .e-bulk.ok {
   background: var(--e-mint); color: var(--e-canvas); font-weight: 600;
@@ -907,12 +945,20 @@ body,
 .e-approvals #changelist-form:has(.action-select:checked) .e-bulk.no {
   border-color: var(--e-pink-br); color: var(--e-pink);
 }
+.e-approvals #changelist-form:has(.action-select:checked) .e-bulk.hold {
+  border-color: var(--e-amber-br); color: var(--e-amber-fg);
+}
 
-/* 표 — 보기에는 칸 나눔이지만 마크업은 table 이다(actions.js 가 tr 을 찾는다) */
+/* 표 — 보기에는 칸 나눔이지만 마크업은 table 이다(actions.js 가 tr 을 찾는다)
+ *
+ * 앞 넷은 fr 이라 창이 넓어지면 같이 늘어난다. 뒤 둘(상태 · 처리)은 고정폭이다
+ * — 단추가 줄마다 다른 너비로 서면 오른쪽 끝이 들쭉날쭉해진다. */
 .e-approve table#result_list { width: 100%; border-collapse: collapse; }
 .e-approve thead tr, .e-approve tbody tr {
   display: grid;
-  grid-template-columns: 40px 200px 160px 140px 160px minmax(0, 1fr);
+  grid-template-columns:
+    44px minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr)
+    132px 200px;
   gap: 16px; align-items: center; padding: 12px 20px;
 }
 .e-approve thead tr {
@@ -932,17 +978,73 @@ body,
 .e-approve tbody tr:nth-child(even) { background: var(--e-row-alt); }
 .e-approve tbody tr:hover > * { background: transparent; }
 .e-approve tbody tr:hover { background: var(--e-line-2); }
-.e-approve td.e-mono { font-size: 13px; color: var(--e-ink-2); }
-.e-approve-name a { color: var(--e-ink); text-decoration: none; font-weight: 500; }
-.e-approve-name a:hover { color: var(--e-link-h); }
 
-/* 시안 모양 고르개 */
-.e-approve .action-select {
+/* 이름 칸 — 아바타 + 이름 */
+.e-approve td.e-who { display: flex; align-items: center; gap: 10px; }
+.e-approve td.e-who b { font-weight: 500; color: var(--e-ink); }
+.e-avatar-sm {
+  flex-shrink: 0; width: 34px; height: 34px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: #1A2230; font-size: 13px; font-weight: 600;
+}
+
+/* 사번 · 신청 일시 — 자릿수가 세로로 맞아야 훑어볼 수 있다 */
+.e-approve td.e-mono { font-family: var(--e-mono); }
+.e-approve td.e-no { font-size: 13px; color: var(--e-ink-2); }
+.e-approve td.e-at { font-size: 13px; color: var(--e-warm); }
+
+/* 부서 — 점 + 이름. 점 색이 아바타 색과 같다 */
+.e-approve td.e-dept {
+  display: flex; align-items: center; gap: 8px; color: var(--e-ink-2);
+}
+.e-approve td.e-dept i {
+  flex-shrink: 0; width: 8px; height: 8px; border-radius: 50%;
+  background: currentColor;
+}
+
+/* 부서색. 여섯 과가 서로 구별되는 것이 목적이라 상태색(민트 · 분홍)과
+ * 값이 겹쳐도 자리가 달라 헷갈리지 않는다 */
+.d-admin     { color: #4DA3FF; }
+.d-surgery   { color: #FF8FA8; }
+.d-pathology { color: #B98CFF; }
+.d-radiology { color: #2FD4B0; }
+.d-nursing   { color: #FFB547; }
+.d-reception { color: #8FB8FF; }
+.d-patient   { color: var(--e-faint); }
+
+/* 상태 알약 — 점 + 말. 색만으로 가르지 않는다 */
+.e-state-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px; border-radius: 999px;
+  font-size: 12px; line-height: 1.5; white-space: nowrap;
+  border: 1px solid transparent;
+}
+.e-state-pill i {
+  width: 6px; height: 6px; border-radius: 50%; background: currentColor;
+}
+.e-state-pill.s-pending {
+  background: var(--e-wash); border-color: #24405E; color: #9CC9FF;
+}
+.e-state-pill.s-active {
+  background: var(--e-mint-bg); border-color: var(--e-mint-br); color: var(--e-mint-fg);
+}
+.e-state-pill.s-rejected {
+  background: var(--e-pink-bg); border-color: var(--e-pink-br); color: var(--e-pink-fg);
+}
+.e-state-pill.s-suspended {
+  background: var(--e-amber-bg); border-color: var(--e-amber-br); color: var(--e-amber-fg);
+}
+
+/* 시안 모양 고르개. 머리줄의 「모두 고르기」(#action-toggle)도 같이 맞춘다 */
+.e-approve .action-select,
+.e-approve #action-toggle {
   appearance: none; width: 18px; height: 18px; margin: 0;
+  accent-color: var(--e-cyan);
   border: 1px solid var(--e-btn-br); border-radius: 5px;
   background: var(--e-canvas); cursor: pointer;
 }
-.e-approve .action-select:checked {
+.e-approve .action-select:checked,
+.e-approve #action-toggle:checked {
   background: var(--e-cyan) url("data:image/svg+xml;charset=utf-8,\
 %3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' \
 stroke='%230B0E13' stroke-width='3.5' stroke-linecap='round' \
@@ -951,11 +1053,16 @@ stroke-linejoin='round'%3E%3Cpath d='M5 12l5 5 9-10'/%3E%3C/svg%3E")
   border-color: var(--e-cyan);
 }
 
-/* 줄마다 붙는 처리 단추 */
-.e-approve-act { display: flex; gap: 6px; justify-content: flex-end; }
-.e-act-ok, .e-act-no {
-  padding: 5px 12px; border-radius: 8px;
-  font-size: 13px; font-family: inherit; cursor: pointer;
+/* 줄마다 붙는 처리 단추
+ *
+ * 상태마다 앞 단추가 바뀌고 [상세]는 늘 있다. [상세]가 고정이라 눈이
+ * 오른쪽 끝을 찾아 헤매지 않는다. */
+.e-approve td.e-approve-act {
+  display: flex; gap: 6px; justify-content: flex-end; overflow: visible;
+}
+.e-act-ok, .e-act-no, .e-act-quiet, .e-approve-act .e-act {
+  padding: 5px 12px; border-radius: 8px; white-space: nowrap;
+  font-size: 13px; font-family: inherit; line-height: 1.5; cursor: pointer;
 }
 .e-act-ok {
   border: 1px solid var(--e-mint-br); background: var(--e-mint-bg);
@@ -966,12 +1073,17 @@ stroke-linejoin='round'%3E%3Cpath d='M5 12l5 5 9-10'/%3E%3C/svg%3E")
   border: 1px solid var(--e-btn-br); background: transparent; color: var(--e-nav-fg);
 }
 .e-act-no:hover { border-color: var(--e-pink); color: var(--e-pink); }
-
-/* 처리가 끝난 줄 — 단추 자리에 지금 상태를 적는다 */
-.e-act-done { font-size: 13px; color: var(--e-faint); }
-.e-act-done.s-active    { color: var(--e-mint-fg); }
-.e-act-done.s-rejected  { color: var(--e-pink); }
-.e-act-done.s-suspended { color: var(--e-amber-fg); }
+/* 정지 · 복구 — 되돌릴 수 있는 일이라 승인 · 거절보다 조용하게 둔다 */
+.e-act-quiet {
+  border: 1px solid var(--e-btn-br); background: transparent; color: var(--e-nav-fg);
+}
+.e-act-quiet:hover { border-color: var(--e-amber); color: var(--e-amber-fg); }
+/* [상세] — 단추가 아니라 링크다. 누르면 아무것도 안 바뀌는 쪽 */
+.e-approve-act .e-act {
+  border: 1px solid transparent; background: #1A2230; color: var(--e-ink);
+  text-decoration: none;
+}
+.e-approve-act .e-act:hover { border-color: var(--e-btn-br); }
 
 /* 시안에 없는 Django 부속 — 숨긴다. 지우지 않는 이유는 actions.js 가 찾아서다 */
 .e-approvals .action-counter.hidden,

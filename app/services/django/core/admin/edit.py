@@ -19,6 +19,7 @@ import logging
 from django import forms
 from django.apps import apps
 from django.contrib import admin, messages
+from django.db.models import Count
 from django.utils import timezone
 
 from .perms import PermissionGrid
@@ -27,6 +28,57 @@ from .perms import PermissionGrid
 from ..models import Account, Staff
 
 logger = logging.getLogger(__name__)
+
+
+#: 상태 탭 — 시안 차례. **「모두」는 안 쓴다**: 그건 매개변수를 지우는 줄이라
+#: 기본값(승인 대기)으로 되돌아온다. 「전체」가 값 있는 선택지다.
+STATUS_TABS = (
+    ("pending", "승인 대기"),
+    ("active", "승인됨"),
+    ("rejected", "거절됨"),
+    ("suspended", "정지됨"),
+    ("all", "전체"),
+)
+
+#: 구분 토글. 시안은 둘뿐이다 — 「전체」는 역할 고르개가 대신한다.
+KIND_TABS = (("staff", "직원"), ("patient", "환자"))
+
+#: 액션 넷이 옮기는 자리. (상태, 로그인 가능, 사람이 읽는 말, approved_at)
+#:
+#: 정지·복구가 approved_at 을 안 건드리는(keep) 이유 — 그 칸은 「승인된 적이
+#: 있나」를 남긴다. 정지는 승인을 무르는 것이 아니라 잠시 막는 것이라,
+#: 지웠다가 복구하면 승인 이력이 사라진다.
+TRANSITIONS = {
+    "approve": ("active", True, "승인", "set"),
+    "reject": ("rejected", False, "거절", "clear"),
+    "suspend": ("suspended", False, "정지", "keep"),
+    "restore": ("active", True, "복구", "keep"),
+}
+
+
+def _link(request, **changes):
+    """지금 주소에서 **자기 매개변수만** 바꾼 주소.
+
+    서로의 조건을 지키는 것이 요점이다 — 상태 탭을 눌렀다고 역할이나 검색이
+    풀리면, 좁혀 놓고 하나만 바꾸는 일을 매번 처음부터 해야 한다.
+
+    쪽(p)은 버린다. 3쪽을 보다가 조건을 바꾸면 그 조건에 3쪽이 없어서 빈
+    화면이 나온다.
+    """
+    params = request.GET.copy()
+    params.pop("p", None)
+    for key, value in changes.items():
+        params[key] = value
+    return "?" + params.urlencode()
+
+
+def _keep(request, *drop):
+    """GET 폼이 들고 갈 숨은 칸. 폼은 자기 칸만 보내서 나머지가 날아간다."""
+    params = request.GET.copy()
+    params.pop("p", None)
+    for key in drop:
+        params.pop(key, None)
+    return [{"name": k, "value": v} for k in params for v in params.getlist(k)]
 
 
 def _without_all_row(spec, changelist):
@@ -130,17 +182,22 @@ class RoleFilter(admin.SimpleListFilter):
     parameter_name = "role"
     default_value = "all"
 
-    def lookups(self, request, model_admin):
-        # 시안 차례 그대로. 「전체」는 Django 가 맨 앞에 붙인다.
-        #
-        # ⚠ 환자를 뺀다 — 위 「구분」 줄이 이미 가르는 값이라, 여기 또 두면
-        #   두 줄이 서로 싸운다(역할=환자 + 구분=직원 → 늘 빈 목록).
-        #
-        # 이름은 칩에 쓰는 짧은 쪽(ROLE_NAMES)이다. 표 칸의 「부서」는 정식
-        # 명칭(DEPT_NAMES, 「간호과」)을 쓴다 — 자리가 달라 길이도 다르다.
+    @staticmethod
+    def role_choices():
+        """역할 고르개에 담을 (값, 이름). 툴바와 필터가 같은 목록을 쓴다.
+
+        ⚠ 환자를 뺀다 — 「구분」 토글이 이미 가르는 값이라, 여기 또 두면
+          둘이 서로 싸운다(역할=환자 + 구분=직원 → 늘 빈 목록).
+
+        이름은 짧은 쪽(ROLE_NAMES)이다. 표 칸의 「부서」는 정식 명칭
+        (DEPT_NAMES, 「간호과」)을 쓴다 — 자리가 달라 길이도 다르다.
+        """
         from .views import ROLE_NAMES, ROLE_ORDER
         return (("all", "전체"),) + tuple(
             (r, ROLE_NAMES[r]) for r in ROLE_ORDER if r != "patient")
+
+    def lookups(self, request, model_admin):
+        return self.role_choices()
 
     def queryset(self, request, queryset):
         value = self.value()
@@ -180,7 +237,8 @@ class AccountAdmin(admin.ModelAdmin):
     # ⚠ login_id 를 뺐다. 시안에 없고, 목록에 로그인 아이디가 줄줄이 있으면
     #   화면을 찍는 것만으로 계정 목록이 새어 나간다. 검색으로는 계속 찾힌다
     #   (아래 search_fields).
-    list_display = ("staff_name", "staff_number", "dept", "signed_up")
+    list_display = ("staff_name", "staff_number", "dept", "signed_up",
+                    "status_label")
     # 링크 칸을 이름으로 옮긴다. 안 옮기면 첫 칸(이름)이 링크가 되는 것은
     # 같지만, 나중에 칸 차례를 바꿀 때 조용히 딴 칸으로 옮겨간다.
     list_display_links = ("staff_name",)
@@ -197,7 +255,7 @@ class AccountAdmin(admin.ModelAdmin):
     readonly_fields = ("password_hash", "last_login_at",
                        "created_at", "updated_at", "created_by", "updated_by")
 
-    actions = ("approve", "reject")
+    actions = ("approve", "reject", "suspend", "restore")
 
     @admin.display(description="이름", ordering="staff__full_name")
     def staff_name(self, obj):
@@ -213,9 +271,16 @@ class AccountAdmin(admin.ModelAdmin):
     def dept(self, obj):
         return dict(DEPT_NAMES).get(obj.role, obj.role)
 
-    @admin.display(description="신청일", ordering="created_at")
+    @admin.display(description="신청 일시", ordering="created_at")
     def signed_up(self, obj):
         return timezone.localtime(obj.created_at).strftime("%Y-%m-%d %H:%M")
+
+    # 목록의 「상태」 칸은 템플릿이 알약으로 그린다. 이 함수는 **머리글과
+    # 정렬 링크**를 얻으려고 둔다 — list_display 에 없으면 그 칸을 눌러
+    # 정렬할 수가 없다.
+    @admin.display(description="상태", ordering="account_status")
+    def status_label(self, obj):
+        return dict(STATUS_TABS).get(obj.account_status, obj.account_status)
 
     # ── 승인 · 거절 ────────────────────────────────────────────────
     #
@@ -230,16 +295,23 @@ class AccountAdmin(admin.ModelAdmin):
     #   로그가 남긴다 (core/api/admin_session.py). 둘을 시각으로 맞춰 본다.
     @admin.action(description="선택한 계정 승인 — 로그인할 수 있게 한다")
     def approve(self, request, queryset):
-        self._decide(request, queryset, approved=True)
+        self._set_status(request, queryset, "approve")
 
     @admin.action(description="선택한 계정 거절 — 로그인을 막는다")
     def reject(self, request, queryset):
-        self._decide(request, queryset, approved=False)
+        self._set_status(request, queryset, "reject")
 
-    def _decide(self, request, queryset, approved):
+    @admin.action(description="선택한 계정 정지 — 로그인을 잠시 막는다")
+    def suspend(self, request, queryset):
+        self._set_status(request, queryset, "suspend")
+
+    @admin.action(description="선택한 계정 복구 — 정지를 푼다")
+    def restore(self, request, queryset):
+        self._set_status(request, queryset, "restore")
+
+    def _set_status(self, request, queryset, action):
+        status, active, word, approved_at = TRANSITIONS[action]
         now = timezone.now()
-        status = "active" if approved else "rejected"
-        word = "승인" if approved else "거절"
 
         # 환자는 승인 대상이 아니다. 골라 왔으면 건너뛰고 그렇다고 알린다 —
         # 조용히 넘기면 「눌렀는데 안 됐다」가 된다
@@ -249,12 +321,14 @@ class AccountAdmin(admin.ModelAdmin):
         done = 0
         for account in targets:
             account.account_status = status
-            account.is_active = approved
+            account.is_active = active
             account.save(update_fields=["account_status", "is_active", "updated_at"])
 
+            # approved_at 은 「승인된 적이 있나」를 남기는 칸이라 정지·복구는
+            # 안 건드린다 — 정지는 승인을 무르는 것이 아니라 잠시 막는 것이다.
             staff = getattr(account, "staff", None)
-            if staff is not None:
-                staff.approved_at = now if approved else None
+            if staff is not None and approved_at != "keep":
+                staff.approved_at = now if approved_at == "set" else None
                 staff.save(update_fields=["approved_at", "updated_at"])
             done += 1
 
@@ -266,11 +340,12 @@ class AccountAdmin(admin.ModelAdmin):
             self.log_change(
                 request, account,
                 "%s — account_status=%s · is_active=%s"
-                % (word, status, approved))
+                % (word, status, active))
 
-            logger.info(
-                "admin %s account_id=%s login_id=%s role=%s → %s",
-                word, account.account_id, account.login_id, account.role, status)
+            # ⚠ login_id 를 로그에 안 찍는다. 계정 값이라, 로그만 모아도
+            #   누가 있는지가 드러난다. 행 번호면 되짚기에 충분하다.
+            logger.info("admin %s account_id=%s role=%s → %s",
+                        word, account.account_id, account.role, status)
 
         if done:
             self.message_user(request, f"{done}건을 {word}했습니다.",
@@ -281,6 +356,72 @@ class AccountAdmin(admin.ModelAdmin):
                 f"환자 계정 {patients.count()}건은 건너뛰었습니다 — "
                 "환자는 승인 없이 바로 쓸 수 있습니다.",
                 messages.WARNING)
+
+    # ── 툴바에 넘길 값 ────────────────────────────────────────────
+    def changelist_view(self, request, extra_context=None):
+        return super().changelist_view(
+            request, {**(extra_context or {}), **self.toolbar(request)})
+
+    def toolbar(self, request):
+        """상태 탭 · 구분 토글 · 역할 고르개 · 검색에 필요한 것 전부."""
+        counts = self.status_counts(request)
+        approval = request.GET.get("approval") or ApprovalFilter.default_value
+        kind = request.GET.get("kind") or KindFilter.default_value
+        role = request.GET.get("role") or RoleFilter.default_value
+
+        return {
+            "e_tabs": [{
+                "label": label,
+                "url": _link(request, approval=value),
+                "on": approval == value,
+                # 「전체」는 나머지를 더한다 — 표를 또 세지 않는다
+                "count": (sum(counts.values()) if value == "all"
+                          else counts.get(value, 0)),
+            } for value, label in STATUS_TABS],
+            "e_kinds": [{"label": label, "url": _link(request, kind=value),
+                         "on": kind == value}
+                        for value, label in KIND_TABS],
+            "e_roles": [{"value": value, "label": label, "on": role == value}
+                        for value, label in RoleFilter.role_choices()],
+            # GET 폼이 다른 조건을 잃지 않게 숨은 칸으로 들고 간다
+            "e_role_keep": _keep(request, "role"),
+            "e_search_keep": _keep(request, "q"),
+            "e_q": request.GET.get("q", ""),
+            "e_summary": " · ".join([
+                dict(KIND_TABS).get(kind, kind),
+                dict(STATUS_TABS).get(approval, approval),
+            ]),
+        }
+
+    def status_counts(self, request):
+        """상태별 건수. **상태만 빼고** 지금 걸린 조건을 그대로 반영한다.
+
+        조건을 손으로 다시 짜지 않고 ChangeList 를 한 번 더 세운다 — 검색과
+        구분·역할 규칙이 두 벌이 되면 탭의 숫자와 목록이 어긋난다.
+
+        ⚠ approval 을 지우기만 하면 기본값(승인 대기)으로 걸러져 전부 그
+          숫자가 된다. 「전체」를 명시해야 상태를 안 거른 기준이 나온다.
+
+        ⚠ **order_by() 로 정렬을 먼저 비운다.** 안 비우면 ordering 의
+          created_at 이 GROUP BY 에 딸려 들어가서 같은 상태가 시각마다 따로
+          세어진다 — 승인 대기 둘이 「1, 1」로 갈라져 나오고, 아래 dict 가
+          그중 하나만 남겨 탭에 1 이 뜬다 (2026-09-25 확인).
+        """
+        original = request.GET
+        params = original.copy()
+        params["approval"] = "all"
+        params.pop("p", None)          # 쪽은 건수와 무관하다
+        request.GET = params
+        try:
+            changelist = self.get_changelist_instance(request)
+            rows = (changelist.get_queryset(request).order_by()
+                    .values("account_status").annotate(n=Count("pk")))
+            return {r["account_status"]: r["n"] for r in rows}
+        except Exception:               # 필터 값이 엉터리면 탭만 0 으로 둔다
+            logger.info("admin 상태 건수를 못 셌다 — 탭을 0 으로 둔다")
+            return {}
+        finally:
+            request.GET = original
 
 
 DEPT_NAMES = (

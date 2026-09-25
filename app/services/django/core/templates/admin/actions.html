@@ -29,6 +29,14 @@
 
   <button type="submit" class="e-bulk ok" name="action" value="approve">선택 승인</button>
   <button type="submit" class="e-bulk no" name="action" value="reject">선택 거절</button>
+  <button type="submit" class="e-bulk hold" name="action" value="suspend">선택 정지</button>
+
+  {% comment %}
+    지금 무엇을 보고 있는지를 오른쪽 끝에 적는다. 툴바가 화면 위로 스크롤돼
+    사라진 뒤에도 「승인 대기 · 직원」을 보고 있다는 것이 남아야, 목록이 짧은
+    이유를 필터 탓으로 알아본다.
+  {% endcomment %}
+  <span class="e-sel-scope">{{ e_summary }}</span>
 
   {% comment %}
     「전체 N개 고르기」 줄은 시안에 없어 숨긴다. 지우지 않고 숨기는 이유 —

@@ -30,8 +30,8 @@
     <tr>
       {% comment %}
         첫 칸은 Django 가 주는 「모두 고르기」다(header.text 에 #action-toggle
-        이 들어 있다). 시안에는 안 보이지만 지우지 않는다 — actions.js 가 그
-        id 를 찾고, 없으면 「선택 N건」이 0 에서 안 움직인다. CSS 로 감춘다.
+        이 들어 있다). 지우지 않는다 — actions.js 가 그 id 를 찾고, 없으면
+        「선택 N건」이 0 에서 안 움직인다. 모양만 CSS 로 맞춘다.
       {% endcomment %}
       {% for header in result_headers %}
         <th scope="col"{{ header.class_attrib }}>{% if header.sortable %}<a href="{{ header.url_primary }}">{{ header.text|capfirst }}</a>{% else %}{{ header.text }}{% endif %}</th>
@@ -40,26 +40,55 @@
     </tr>
   </thead>
   <tbody>
-    {% rows_with_objects cl as rows %}
+    {% account_rows cl as rows %}
     {% for row in rows %}
       <tr>
-        {% comment %}
-          칸은 list_display 가 만든 것을 그대로 쓴다 — 서식과 고르개를
-          두 벌로 들지 않으려는 것이다
-        {% endcomment %}
-        {% for cell in row.cells %}{{ cell }}{% endfor %}
+        <td class="e-col-check">
+          {% comment %}
+            이름(_selected_action)과 class(action-select)는 Django 액션과
+            actions.js 가 읽는 그대로여야 한다. 바꾸면 고르기가 통째로 멎는다.
+          {% endcomment %}
+          <input type="checkbox" class="action-select" name="_selected_action"
+                 value="{{ row.obj.pk }}" aria-label="{{ row.name }} 선택">
+        </td>
+
+        <td class="e-who">
+          <span class="e-avatar-sm d-{{ row.tone }}" aria-hidden="true">{{ row.initial }}</span>
+          <b>{{ row.name }}</b>
+        </td>
+
+        <td class="e-mono e-no">{{ row.number }}</td>
+
+        <td class="e-dept">
+          <i class="d-{{ row.tone }}" aria-hidden="true"></i>{{ row.dept }}
+        </td>
+
+        <td class="e-mono e-at">{{ row.signed }}</td>
+
+        <td>
+          <span class="e-state-pill s-{{ row.status_tone }}">
+            <i aria-hidden="true"></i>{{ row.status }}</span>
+        </td>
+
         <td class="e-approve-act">
-          {% if row.obj.account_status == "pending" %}
-            {# 폼은 change_list.html 의 filters 갈래가 미리 세워 둔 것이다 #}
+          {% comment %}
+            폼은 change_list.html 의 filters 갈래가 미리 세워 둔 것이다.
+            단추가 놓이는 자리는 상태마다 다르다 — 이미 승인된 줄에 [승인]이
+            또 있으면 무엇을 눌러야 할지가 안 보인다.
+          {% endcomment %}
+          {% if row.can_approve %}
             <button type="submit" class="e-act-ok" form="row-approve-{{ row.obj.pk }}"
-                    title="{{ row.obj.login_id }} 승인">승인</button>
+                    title="승인">승인</button>
             <button type="submit" class="e-act-no" form="row-reject-{{ row.obj.pk }}"
-                    title="{{ row.obj.login_id }} 거절">거절</button>
-          {% else %}
-            {# 처리가 끝난 줄. 단추 자리에 지금 상태를 적는다 #}
-            <span class="e-act-done s-{{ row.obj.account_status }}"
-              >{{ row.obj.get_account_status_display }}</span>
+                    title="거절">거절</button>
+          {% elif row.can_suspend %}
+            <button type="submit" class="e-act-quiet" form="row-suspend-{{ row.obj.pk }}"
+                    title="정지">정지</button>
+          {% elif row.can_restore %}
+            <button type="submit" class="e-act-quiet" form="row-restore-{{ row.obj.pk }}"
+                    title="복구">복구</button>
           {% endif %}
+          <a class="e-act" href="{% url 'admin:core_account_change' row.obj.pk %}">상세</a>
         </td>
       </tr>
     {% endfor %}
