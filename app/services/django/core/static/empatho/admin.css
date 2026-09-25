@@ -557,16 +557,41 @@ body,
    밑줄을 기본으로 깔지 않는다. 카드·표·칩이 전부 링크라 밑줄이 있으면
    화면이 줄무늬가 된다. 대신 **호버에서만** 긋는다 — 누를 수 있는 것을
    가리키는 신호는 남겨야 한다. */
-#content a { text-decoration: none; }
-#content a:hover { text-decoration: underline; }
-/* 단추처럼 생긴 것은 호버에서도 안 긋는다 — 밑줄 그어진 단추는 없다 */
-#content a.e-btn:hover,
-#content a.e-act:hover,
-#content a.e-seg-item:hover,
-#content a.e-role-chip:hover,
-#content a.e-pill:hover,
-#content a.e-kpi:hover,
-#content a.e-flow-row:hover { text-decoration: none; }
+/* ⚠ **선택자에 #container 를 반드시 붙인다.** Django 의 base.css 가
+ *
+ *     a:not([role="button"], #header a, #nav-sidebar a, …) { underline }
+ *
+ *   로 긋는데, :not() 의 특이도는 **안에 든 것 중 제일 센 것**을 따른다 —
+ *   `#header a` 때문에 이 규칙이 (1,0,2) 가 된다. 그래서 `#content a`
+ *   (1,0,1) 로는 **진다**. 2026-09-25 에 실제로 화면이 줄무늬였다.
+ *   `#container #content a` 는 (2,0,1) 이라 이긴다.
+ *
+ *   :link · :visited 도 같이 적는다 — base.css 에 `a:link` 계열이 따로 있어
+ *   상태에 따라 다시 그어지는 자리가 있다. */
+#container #content a,
+#container #content a:link,
+#container #content a:visited { text-decoration: none; }
+#container #content a:hover { text-decoration: underline; }
+
+/* 단추·탭처럼 생긴 것은 호버에서도 안 긋는다 — 밑줄 그어진 단추는 없다.
+ * 머리줄 정렬 링크(thead a)도 여기 든다: 누를 수 있다는 신호는 화살표가
+ * 이미 낸다. */
+#container #content a.e-btn:hover,
+#container #content a.e-act:hover,
+#container #content a.e-seg-item:hover,
+#container #content a.e-role-chip:hover,
+#container #content a.e-pill:hover,
+#container #content a.e-kpi:hover,
+#container #content a.e-flow-row:hover,
+#container #content .e-approve thead a:hover,
+#container #content a.e-btn-fill:hover { text-decoration: none; }
+
+/* base.css 는 a:focus 에도 밑줄을 긋는다(0,1,1). 탭·단추는 그 자리에
+ * 테두리로 초점을 내므로 밑줄까지는 필요 없다 */
+#container #content a.e-btn:focus,
+#container #content a.e-act:focus,
+#container #content a.e-seg-item:focus,
+#container #content .e-approve thead a:focus { text-decoration: none; }
 
 /* 테두리 단추 — 화면마다 하나씩 있는 보조 손잡이 */
 .e-btn {
@@ -875,8 +900,12 @@ body,
 }
 .e-seg-item + .e-seg-item { border-left: 1px solid var(--e-line-2); }
 .e-seg-item:hover { background: var(--e-line-2); color: var(--e-ink); }
-/* 고른 것 — 색만으로 가르지 않는다. 바탕과 글자가 같이 밝아진다 */
-.e-seg-item.on { background: var(--e-wash); color: #CFE6FF; }
+/* 고른 것 — 색만으로 가르지 않는다. 바탕 · 글자 · 굵기가 같이 선다.
+ * 앞서 쓰던 --e-wash 는 탭 줄에서 너무 묽어 어느 탭이 켜졌는지 한눈에
+ * 안 들어왔다 (2026-09-25 라이브 확인) */
+.e-seg-item.on {
+  background: #1E2A3A; color: #FFFFFF; font-weight: 600;
+}
 
 /* 탭에 붙는 건수 배지 */
 .e-seg-item i {
@@ -884,7 +913,10 @@ body,
   padding: 3px 6px; border-radius: 999px;
   background: var(--e-soot); color: var(--e-faint);
 }
-.e-seg-item.on i { background: rgba(77, 163, 255, .18); color: #CFE6FF; }
+/* 켜진 탭의 배지는 불투명하게 — 반투명은 뒤 바탕에 묻힌다 */
+.e-seg-item.on i {
+  background: var(--e-cyan); color: #0B0E13; font-weight: 700;
+}
 
 /* 역할 고르개 */
 .e-field { display: flex; align-items: center; gap: 8px; }
@@ -931,22 +963,25 @@ body,
 /* 지금 보고 있는 조건. 줄 오른쪽 끝에 붙는다 */
 .e-sel-scope { margin-left: auto; font-size: 12px; color: var(--e-faint); }
 
+/* 일괄 단추. **켜진 모습이 기본이고 disabled 가 흐린 쪽**이다 —
+ * 자바스크립트가 꺼져 있으면 단추는 켜진 채로 남아야 한다
+ * (approvals.js 가 고른 줄 수에 따라 disabled 를 건다) */
 .e-bulk {
   padding: 8px 14px; border-radius: 8px;
   font-size: 13px; font-family: inherit; cursor: pointer;
 }
-.e-bulk.ok { border: none; background: #1D3B34; color: #7FA89C; }
-.e-bulk.no { border: 1px solid #3A2A30; background: transparent; color: #8A6F78; }
-.e-bulk.hold { border: 1px solid #3A3320; background: transparent; color: #8A7C58; }
-/* 고른 것이 있을 때만 또렷해진다 — 시안의 흐린 상태가 기본이다 */
-.e-approvals #changelist-form:has(.action-select:checked) .e-bulk.ok {
-  background: var(--e-mint); color: var(--e-canvas); font-weight: 600;
+.e-bulk.ok {
+  border: 1px solid var(--e-mint); background: var(--e-mint);
+  color: var(--e-canvas); font-weight: 600;
 }
-.e-approvals #changelist-form:has(.action-select:checked) .e-bulk.no {
-  border-color: var(--e-pink-br); color: var(--e-pink);
+.e-bulk.no {
+  border: 1px solid var(--e-pink-br); background: transparent; color: var(--e-pink);
 }
-.e-approvals #changelist-form:has(.action-select:checked) .e-bulk.hold {
-  border-color: var(--e-amber-br); color: var(--e-amber-fg);
+.e-bulk.hold {
+  border: 1px solid var(--e-amber-br); background: transparent; color: var(--e-amber-fg);
+}
+.e-bulk:disabled {
+  opacity: .4; cursor: default; filter: grayscale(.5);
 }
 
 /* 표 — 보기에는 칸 나눔이지만 마크업은 table 이다(actions.js 가 tr 을 찾는다)
@@ -961,21 +996,47 @@ body,
     132px 200px;
   gap: 16px; align-items: center; padding: 12px 20px;
 }
-.e-approve thead tr {
-  background: var(--e-card); border-bottom: 1px solid var(--e-border);
-}
-.e-approve th, .e-approve td {
+/* ⚠ **줄 나눔 선은 tr 에 긋는다.** tr 이 grid 라 칸 사이에 gap 16px 이
+ *   있고, 선을 td 에 걸면 그 gap 마다 16px 씩 끊겨서 점선처럼 보인다.
+ *   tr 은 격자 «상자»라 선이 끝까지 이어진다.
+ *
+ * ⚠ td · th 쪽 선은 특이도를 올려서 꺼야 한다 — base.css 의
+ *   `td, th { border-bottom: … }` 는 약하지만 `thead th` (0,0,2) 는
+ *   위아래 선을 또 긋는다. #changelist 를 붙여 (1,1,1) 로 이긴다. */
+#changelist .e-approve th,
+#changelist .e-approve td {
   display: block; border: none; padding: 0; text-align: left;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+
+/* 머리줄 — 배경은 **thead tr 하나**로 깐다.
+ *
+ * ⚠ th 는 투명이어야 한다. base.css 에 `thead th { background: darkened-bg }`
+ *   (검정에 가까운 #0B0E13)와 `thead th.sorted { background: selected-bg }`
+ *   (#1C2430)가 있어서, 안 끄면 칸마다 배경이 따로 깔리고 **정렬 중인 칸만
+ *   색이 다른 네모**로 튄다. .sorted 가 (0,1,2) 라 여기도 그보다 세게 적는다.
+ *   정렬 중이라는 신호는 배경이 아니라 화살표가 낸다. */
+.e-approve thead tr {
+  background: var(--e-soot); border-bottom: 1px solid var(--e-border);
+}
+#changelist .e-approve thead th,
+#changelist .e-approve thead th.sorted { background: transparent; }
 .e-approve th {
   font-size: 12px; font-weight: 400; color: var(--e-faint); letter-spacing: .06em;
+  text-transform: none;
 }
 .e-approve th a { color: inherit; }
+.e-approve th a:hover { color: var(--e-ink); }
+/* 정렬 방향 — 켜진 칸에만 붙는다 */
+.e-sort { margin-left: 5px; color: var(--e-cyan); font-size: 11px; }
 .e-approve th.right, .e-approve td.e-approve-act { text-align: right; }
 
-.e-approve tbody tr { background: var(--e-card); font-size: 14px; }
+.e-approve tbody tr {
+  background: var(--e-card); font-size: 14px;
+  border-bottom: 1px solid var(--e-line-2);
+}
 .e-approve tbody tr:nth-child(even) { background: var(--e-row-alt); }
+.e-approve tbody tr:last-child { border-bottom: none; }
 .e-approve tbody tr:hover > * { background: transparent; }
 .e-approve tbody tr:hover { background: var(--e-line-2); }
 

@@ -141,6 +141,14 @@ class ApprovalScreenTests(TestCase):
 
         self.assertContains(res, "e-seg-item on")
 
+    def test_정렬_중인_칸에_화살표가_붙는다(self):
+        """머리줄 배경으로 알리면 칸 하나만 색이 다른 네모가 되어 깨져 보인다."""
+        _pending("sortme")
+
+        res = self._list("?o=2")
+
+        self.assertContains(res, 'class="e-sort"')
+
     def test_탭을_눌러도_다른_조건이_남는다(self):
         """상태만 바꾸려다 검색과 역할이 풀리면 좁히는 일을 매번 다시 한다."""
         res = self._list("?approval=pending&kind=patient&role=nursing&q=김")
@@ -464,13 +472,50 @@ class ApprovalScreenTests(TestCase):
         entry = LogEntry.objects.filter(object_id=str(account.pk)).latest("id")
         self.assertIn("정지", entry.change_message)
 
-    def test_일괄_정지_단추가_있다(self):
+    # ── 일괄 단추는 지금 탭에서 할 수 있는 것만 ──────────────────
+    def test_탭마다_내놓는_일괄_단추가_다르다(self):
+        """승인됨만 보는 중에 [선택 승인]이 있으면 눌러도 아무 일이 안
+        일어나고, 눌러 본 사람은 고장인 줄 안다."""
+        want = {
+            "?approval=pending": {"approve", "reject"},
+            "?approval=active": {"suspend"},
+            "?approval=rejected": {"approve"},
+            "?approval=suspended": {"restore"},
+            "?approval=all": {"approve", "reject", "suspend", "restore"},
+        }
+        for query, actions in want.items():
+            with self.subTest(query):
+                res = self._list(query)
+                shown = {b["action"] for b in res.context["e_bulk"]}
+                self.assertEqual(shown, actions)
+
+    def test_일괄_단추가_화면에_그려진다(self):
+        """컨텍스트만 맞고 템플릿이 안 그리면 아무도 못 누른다."""
         Account.objects.create(login_id="bulk_hold", role="reception",
                                account_status="active", is_active=True)
 
         res = self._list("?approval=active")
 
-        self.assertContains(res, 'value="suspend"')
+        # 줄마다 숨은 폼에도 value="approve" 가 있다 — 일괄 단추만 본다
+        self.assertContains(res, "선택 정지")
+        self.assertNotContains(res, "선택 승인")
+        self.assertNotContains(res, "선택 거절")
+
+    def test_일괄_단추를_흐리게_할_스크립트가_붙는다(self):
+        """0건인데 눌리면 한 번 헛걸음을 시킨다."""
+        res = self._list()
+
+        self.assertContains(res, "empatho/approvals.js")
+
+    def test_그_스크립트는_계정_표에만_붙는다(self):
+        """base_site 에 넣으면 스물두 표가 다 받는다."""
+        from core.models import Patient
+
+        Patient.objects.create(patient_number="P-JS-1", sex="F")
+
+        res = self.client.get(reverse("admin:core_patient_changelist"))
+
+        self.assertNotContains(res, "empatho/approvals.js")
 
     def test_환자는_여전히_건너뛴다(self):
         patient = Account.objects.create(login_id="pat1", role="patient",

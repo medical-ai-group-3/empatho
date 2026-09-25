@@ -55,6 +55,24 @@ TRANSITIONS = {
     "restore": ("active", True, "복구", "keep"),
 }
 
+#: 상태 탭마다 일괄 단추로 내놓을 액션. **지금 보고 있는 줄에 할 수 있는
+#: 것만** 낸다 — 승인됨만 보는 중에 [선택 승인]이 있으면 눌러도 아무 일이
+#: 안 일어나고, 눌러 본 사람은 고장인 줄 안다.
+#:
+#: 거절됨은 시안에 없어서 [선택 승인] 하나만 둔다. 되돌릴 길이 아예 없으면
+#: 잘못 거절한 계정을 목록에서 살릴 방법이 없다.
+BULK_BY_STATUS = {
+    "pending": ("approve", "reject"),
+    "active": ("suspend",),
+    "rejected": ("approve",),
+    "suspended": ("restore",),
+    "all": ("approve", "reject", "suspend", "restore"),
+}
+
+#: 일괄 단추의 결(모양 열쇠). 값은 admin.css 의 .e-bulk.* 에 있다
+BULK_TONE = {"approve": "ok", "reject": "no",
+             "suspend": "hold", "restore": "ok"}
+
 
 def _link(request, **changes):
     """지금 주소에서 **자기 매개변수만** 바꾼 주소.
@@ -257,6 +275,10 @@ class AccountAdmin(admin.ModelAdmin):
 
     actions = ("approve", "reject", "suspend", "restore")
 
+    # 이 화면에서만 쓴다 — base_site.html 에 넣으면 스물두 표가 다 받는다
+    class Media:
+        js = ("empatho/approvals.js",)
+
     @admin.display(description="이름", ordering="staff__full_name")
     def staff_name(self, obj):
         staff = getattr(obj, "staff", None)
@@ -387,6 +409,10 @@ class AccountAdmin(admin.ModelAdmin):
             "e_role_keep": _keep(request, "role"),
             "e_search_keep": _keep(request, "q"),
             "e_q": request.GET.get("q", ""),
+            # 지금 탭에서 할 수 있는 일괄 처리만 (actions.html 이 그린다)
+            "e_bulk": [{"action": a, "tone": BULK_TONE[a],
+                        "label": "선택 " + TRANSITIONS[a][2]}
+                       for a in BULK_BY_STATUS.get(approval, ())],
             "e_summary": " · ".join([
                 dict(KIND_TABS).get(kind, kind),
                 dict(STATUS_TABS).get(approval, approval),

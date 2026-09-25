@@ -201,8 +201,7 @@ def dash_numbers(request):
 
 def dashboard(site, request):
     """지금 뭐가 밀려 있나. 카드를 누르면 그 일을 하는 화면으로 간다."""
-    return site.page(request, "admin/empatho/dashboard.html", "dashboard",
-                     "대시보드", {"dash": dash_numbers(request)})
+    return site.page(request, "admin/empatho/dashboard.html", "대시보드", {"dash": dash_numbers(request)})
 
 
 def status(site, request):
@@ -212,7 +211,7 @@ def status(site, request):
     고치고 나서 30초를 기다리게 하면 고쳐졌는지를 못 본다.
     """
     probes = probe_all_cached(force=bool(request.GET.get("refresh")))
-    return site.page(request, "admin/empatho/status.html", "status", "서버 상태", {
+    return site.page(request, "admin/empatho/status.html", "서버 상태", {
         "probes": probes,
         "summary": probe_summary(probes),
         "checked_at": timezone.localtime().strftime("%H:%M:%S"),
@@ -230,7 +229,7 @@ def db_index(site, request):
     q = (request.GET.get("q") or "").strip()
     all_tables = db_tables()
     shown = [t for t in all_tables if _matches(t, q)] if q else all_tables
-    return site.page(request, "admin/empatho/db_index.html", "db", "DB 조회", {
+    return site.page(request, "admin/empatho/db_index.html", "DB 조회", {
         "tables": _with_bars(shown),
         "summary": db_summary(all_tables, len(shown)),
         "q": q,
@@ -292,7 +291,7 @@ def db_detail(site, request, table):
         raise Http404("그런 표가 없습니다: %s" % table)
 
     hidden = _is_sensitive(model)
-    return site.page(request, "admin/empatho/db_detail.html", "db",
+    return site.page(request, "admin/empatho/db_detail.html",
                      _table_title(model), {
                          "table": _table_row(model),
                          "columns": db_columns(model),

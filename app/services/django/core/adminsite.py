@@ -19,7 +19,7 @@ from django.contrib.admin import AdminSite
 from django.contrib.admin.apps import AdminConfig
 from django.core.exceptions import PermissionDenied
 from django.template.response import TemplateResponse
-from django.urls import reverse
+from django.urls import NoReverseMatch, reverse
 
 # ── 사이드바 묶음 ────────────────────────────────────────────────────
 #
@@ -76,7 +76,7 @@ class EmpathoAdminSite(AdminSite):
           아래 _page() 가 그 일을 한다.
         """
         context = super().each_context(request)
-        context["e_nav"] = _nav(getattr(request, "_e_nav_key", None))
+        context["e_nav"] = _nav(_nav_key(request))
         context["e_hospital_url"] = self.site_url
         return context
 
@@ -111,13 +111,14 @@ class EmpathoAdminSite(AdminSite):
             return view(self, request, *args, **kwargs)
         return self.admin_view(inner)
 
-    def page(self, request, template, nav_key, title, context=None):
+    def page(self, request, template, title, context=None):
         """커스텀 화면 한 장.
 
         ⚠ **each_context 를 반드시 넣는다.** 빠지면 머리띠도 사이드바도 없는
           맨 화면이 나온다 — Django admin 의 껍데기가 그 값으로 그려진다.
+
+        사이드바의 «지금 여기»는 안 넘긴다 — _nav_key() 가 주소로 정한다.
         """
-        request._e_nav_key = nav_key
         return TemplateResponse(request, template, {
             **self.each_context(request),
             "title": title,
@@ -197,6 +198,38 @@ def _pending():
     from .models import Account
     return Account.objects.filter(account_status="pending").exclude(
         role="patient").count()
+
+
+#: 주소 → 내비 열쇠. **차례가 곧 규칙이다** — 「DB 수정」은 /admin/ 자체라
+#: 나머지를 전부 머금는다. 그래서 맨 뒤에 두고, 앞의 넷이 먼저 집는다.
+NAV_PATHS = (
+    ("dashboard", "admin:empatho_dashboard"),
+    ("status", "admin:empatho_status"),
+    ("db", "admin:empatho_db"),
+    ("accounts", "admin:core_account_changelist"),
+    ("models", "admin:index"),
+)
+
+
+def _nav_key(request):
+    """지금 보고 있는 화면이 내비의 어느 항목인가.
+
+    ⚠ **컨텍스트 값이 아니라 주소로 정한다.** 전에는 우리가 만든 화면 셋만
+      열쇠를 넘겨서, 계정 승인과 DB 수정에는 불이 안 들어왔다 — 그 둘은
+      Django 의 changelist 라 우리 뷰를 안 거친다 (2026-09-25 라이브 확인).
+
+    startswith 라 목록 · 상세 · 추가 · 삭제 · 이력이 다 같은 항목으로 묶인다.
+    계정 하나를 열어 보는 동안 사이드바가 꺼지면 어디 있는지를 잃는다.
+    """
+    path = getattr(request, "path", "") or ""
+    for key, name in NAV_PATHS:
+        try:
+            prefix = reverse(name)
+        except NoReverseMatch:      # 표가 등록 안 된 판에서도 안 죽는다
+            continue
+        if path.startswith(prefix):
+            return key
+    return None
 
 
 def _nav(current=None):

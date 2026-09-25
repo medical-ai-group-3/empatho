@@ -33,8 +33,12 @@
         이 들어 있다). 지우지 않는다 — actions.js 가 그 id 를 찾고, 없으면
         「선택 N건」이 0 에서 안 움직인다. 모양만 CSS 로 맞춘다.
       {% endcomment %}
+      {% comment %}
+        정렬 중인 칸은 **배경이 아니라 화살표**로 알린다 — 칸 하나만 색이
+        다른 네모가 되면 머리줄이 깨져 보인다(Django 의 thead th.sorted).
+      {% endcomment %}
       {% for header in result_headers %}
-        <th scope="col"{{ header.class_attrib }}>{% if header.sortable %}<a href="{{ header.url_primary }}">{{ header.text|capfirst }}</a>{% else %}{{ header.text }}{% endif %}</th>
+        <th scope="col"{{ header.class_attrib }}>{% if header.sortable %}<a href="{{ header.url_primary }}">{{ header.text|capfirst }}{% if header.sorted %}<span class="e-sort" aria-hidden="true">{{ header.ascending|yesno:"↑,↓" }}</span>{% endif %}</a>{% else %}{{ header.text }}{% endif %}</th>
       {% endfor %}
       <th scope="col" class="right">처리</th>
     </tr>

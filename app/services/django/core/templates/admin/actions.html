@@ -27,9 +27,15 @@
         data-actions-icnt="{{ cl.result_list|length }}"
         aria-live="polite" aria-atomic="true">{{ selection_note }}</span>
 
-  <button type="submit" class="e-bulk ok" name="action" value="approve">선택 승인</button>
-  <button type="submit" class="e-bulk no" name="action" value="reject">선택 거절</button>
-  <button type="submit" class="e-bulk hold" name="action" value="suspend">선택 정지</button>
+  {% comment %}
+    단추는 **지금 탭에서 할 수 있는 것만** 나온다(AccountAdmin.toolbar 의
+    e_bulk). 승인됨만 보는 중에 [선택 승인]이 있으면 눌러도 아무 일이
+    안 일어나고, 눌러 본 사람은 고장인 줄 안다.
+  {% endcomment %}
+  {% for b in e_bulk %}
+    <button type="submit" class="e-bulk {{ b.tone }}"
+            name="action" value="{{ b.action }}">{{ b.label }}</button>
+  {% endfor %}
 
   {% comment %}
     지금 무엇을 보고 있는지를 오른쪽 끝에 적는다. 툴바가 화면 위로 스크롤돼
