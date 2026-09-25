@@ -1,0 +1,47 @@
+{% extends "admin/actions.html" %}
+{% load i18n %}
+
+{% comment %}
+  ⚠ **Django 6.1 의 admin/actions.html 을 덮음 · 업그레이드 시 재검토.**
+     이 파일은 원본을 extends 해서 actions 블록만 바꾼다(같은 이름을 덮어도
+     Django 가 원본을 찾아 준다). 원본이 블록 이름을 바꾸면 여기가 조용히
+     안 먹는다 — 판을 올릴 때 이 파일을 연다.
+
+  ⚠ 이 템플릿도 **모든 표**가 쓴다. 계정 표일 때만 시안 모양으로 바꾸고
+     나머지는 block.super 로 원본을 그대로 낸다.
+
+  시안: empatho-view/docs/admin-redesign/Approvals.dc.html
+{% endcomment %}
+
+{% block actions %}
+{% if cl.opts.app_label == "core" and cl.opts.model_name == "account" %}
+  {% comment %}
+    시안은 고르개 목록 대신 단추 둘이다. 단추가 name="action" 을 들고 가므로
+    Django 의 response_action 이 그대로 받는다 — 새 경로를 파지 않는다.
+
+    「선택 N건」은 Django 의 actions.js 가 갱신한다. 그래서 class 이름
+    (action-counter · all · question · clear)을 그대로 둔다 — 바꾸면 숫자가
+    0 에서 안 움직인다.
+  {% endcomment %}
+  <span class="e-sel-count action-counter"
+        data-actions-icnt="{{ cl.result_list|length }}"
+        aria-live="polite" aria-atomic="true">{{ selection_note }}</span>
+
+  <button type="submit" class="e-bulk ok" name="action" value="approve">선택 승인</button>
+  <button type="submit" class="e-bulk no" name="action" value="reject">선택 거절</button>
+
+  {% comment %}
+    「전체 N개 고르기」 줄은 시안에 없어 숨긴다. 지우지 않고 숨기는 이유 —
+    actions.js 가 이 세 자리를 찾아 쓰고, 없으면 고르개가 통째로 멎는다.
+  {% endcomment %}
+  {% if cl.result_count != cl.result_list|length %}
+    <span class="all hidden">{{ selection_note_all }}</span>
+    <span class="question hidden">
+      <a role="button" href="#">{% blocktranslate with cl.result_count as total_count %}Select all {{ total_count }} {{ module_name }}{% endblocktranslate %}</a>
+    </span>
+    <span class="clear hidden"><a role="button" href="#">{% translate "Clear selection" %}</a></span>
+  {% endif %}
+{% else %}
+  {{ block.super }}
+{% endif %}
+{% endblock %}

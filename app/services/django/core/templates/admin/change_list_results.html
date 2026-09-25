@@ -1,0 +1,112 @@
+{% load i18n admin_urls empatho_admin %}
+{% comment %}
+  ⚠ **Django 6.1 의 admin/change_list_results.html 을 덮음 · 업그레이드 시 재검토.**
+     이 파일은 블록이 없어서 extends 로 못 얹는다 — 원본을 통째로 베껴 왔다.
+     아래 «기본 갈래»가 Django 6.1 원본 그대로이므로, 판을 올릴 때 원본과
+     대조해서 달라진 곳을 여기 옮겨야 한다. 안 옮기면 표 스물한 장이 옛
+     마크업으로 남는다.
+
+  ⚠ 이 템플릿은 **모든 표**가 쓴다({% result_list %} 가 경로를 박아 둔다).
+     그래서 계정 표일 때만 시안 모양으로 그리고, 나머지는 원본대로 둔다.
+
+  시안: empatho-view/docs/admin-redesign/Approvals.dc.html
+{% endcomment %}
+
+{% if result_hidden_fields %}
+<div class="hiddenfields">{# DIV for HTML validation #}
+{% for item in result_hidden_fields %}{{ item }}{% endfor %}
+</div>
+{% endif %}
+
+{% if cl.opts.app_label == "core" and cl.opts.model_name == "account" %}
+{% comment %}
+  ⚠ **표(table)로 그린다.** 보기에는 시안의 칸 나눔 그대로지만(CSS grid),
+    Django 의 actions.js 가 `tr input.action-select` 로 고르개를 찾는다 —
+    div 로 바꾸면 「선택 N건」이 0 에서 영영 안 움직인다.
+{% endcomment %}
+<div class="results e-approve">
+<table id="result_list">
+  <thead>
+    <tr>
+      {% comment %}
+        첫 칸은 Django 가 주는 「모두 고르기」다(header.text 에 #action-toggle
+        이 들어 있다). 시안에는 안 보이지만 지우지 않는다 — actions.js 가 그
+        id 를 찾고, 없으면 「선택 N건」이 0 에서 안 움직인다. CSS 로 감춘다.
+      {% endcomment %}
+      {% for header in result_headers %}
+        <th scope="col"{{ header.class_attrib }}>{% if header.sortable %}<a href="{{ header.url_primary }}">{{ header.text|capfirst }}</a>{% else %}{{ header.text }}{% endif %}</th>
+      {% endfor %}
+      <th scope="col" class="right">처리</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% rows_with_objects cl as rows %}
+    {% for row in rows %}
+      <tr>
+        {# 칸은 list_display 가 만든 것을 그대로 쓴다 — 서식과 고르개를
+           두 벌로 들지 않으려는 것이다 #}
+        {% for cell in row.cells %}{{ cell }}{% endfor %}
+        <td class="e-approve-act">
+          {% if row.obj.account_status == "pending" %}
+            {# 폼은 change_list.html 의 filters 갈래가 미리 세워 둔 것이다 #}
+            <button type="submit" class="e-act-ok" form="row-approve-{{ row.obj.pk }}"
+                    title="{{ row.obj.login_id }} 승인">승인</button>
+            <button type="submit" class="e-act-no" form="row-reject-{{ row.obj.pk }}"
+                    title="{{ row.obj.login_id }} 거절">거절</button>
+          {% else %}
+            {# 처리가 끝난 줄. 단추 자리에 지금 상태를 적는다 #}
+            <span class="e-act-done s-{{ row.obj.account_status }}"
+              >{{ row.obj.get_account_status_display }}</span>
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% if not cl.result_list %}
+  {# 「0 계정」 한 줄로 두지 않는다. 승인할 것이 없는 것은 좋은 소식이다 #}
+  <div class="e-empty">
+    <span class="e-empty-mark" aria-hidden="true">
+      <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke-width="2.2"
+           stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg>
+    </span>
+    <b>승인을 기다리는 직원이 없습니다</b>
+    <span>직원이 가입하면 여기에 뜨고, 승인해야 로그인할 수 있습니다</span>
+  </div>
+{% endif %}
+</div>
+
+{% else %}
+{# ══ 기본 갈래 — Django 6.1 원본 그대로 ═════════════════════════ #}
+{% if results %}
+<div class="results">
+<table id="result_list">
+<thead>
+<tr>
+{% for header in result_headers %}
+<th scope="col"{{ header.class_attrib }}>
+   {% if header.sortable and header.sort_priority > 0 %}
+       <div class="sortoptions">
+         <a class="sortremove" href="{{ header.url_remove }}" title="{% translate "Remove from sorting" %}"></a>
+         {% if num_sorted_fields > 1 %}<span class="sortpriority" title="{% blocktranslate with priority_number=header.sort_priority %}Sorting priority: {{ priority_number }}{% endblocktranslate %}">{{ header.sort_priority }}</span>{% endif %}
+         <a href="{{ header.url_toggle }}" class="toggle {{ header.ascending|yesno:'ascending,descending' }}" title="{% translate "Toggle sorting" %}"></a>
+       </div>
+   {% endif %}
+   <div class="text">{% if header.sortable %}<a role="button" href="{{ header.url_primary }}">{{ header.text|capfirst }}</a>{% else %}<span>{{ header.text|capfirst }}</span>{% endif %}</div>
+   <div class="clear"></div>
+</th>{% endfor %}
+</tr>
+</thead>
+<tbody>
+{% for result in results %}
+{% if result.form and result.form.non_field_errors %}
+    <tr><td colspan="{{ result|length }}">{{ result.form.non_field_errors }}</td></tr>
+{% endif %}
+<tr>{% for item in result %}{{ item }}{% endfor %}</tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+{% endif %}
+{% endif %}

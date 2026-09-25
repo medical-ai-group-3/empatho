@@ -38,7 +38,8 @@ logger = logging.getLogger(__name__)
 # 「필터 지우기」가 빈 주소로 돌아가고 그게 다시 기본값으로 튕겨서 전체를
 # 볼 방법이 없어진다. 여기서는 「전체」가 값을 가진 선택지라 그런 일이 없다.
 class ApprovalFilter(admin.SimpleListFilter):
-    title = "승인"
+    # 시안(Approvals.dc.html)의 첫 줄 이름이다
+    title = "상태"
     parameter_name = "approval"
 
     def lookups(self, request, model_admin):
@@ -93,6 +94,34 @@ class KindFilter(admin.SimpleListFilter):
             yield choice
 
 
+class RoleFilter(admin.SimpleListFilter):
+    """역할 — 시안의 셋째 줄.
+
+    기본 FieldListFilter 를 안 쓰는 이유 둘.
+      ① 제목이 칸 이름(role)으로 나온다. 시안은 「역할」이다.
+      ② 값이 DB 에 적힌 영문 그대로 나온다(as_choices 가 (v, v) 다).
+         칩에 「nursing」이 뜨면 화면의 다른 자리와 말이 어긋난다.
+    """
+
+    title = "역할"
+    parameter_name = "role"
+
+    def lookups(self, request, model_admin):
+        # 시안 차례 그대로. 「전체」는 Django 가 맨 앞에 붙인다.
+        #
+        # ⚠ 환자를 뺀다 — 위 「구분」 줄이 이미 가르는 값이라, 여기 또 두면
+        #   두 줄이 서로 싸운다(역할=환자 + 구분=직원 → 늘 빈 목록).
+        #
+        # 이름은 칩에 쓰는 짧은 쪽(ROLE_NAMES)이다. 표 칸의 「부서」는 정식
+        # 명칭(DEPT_NAMES, 「간호과」)을 쓴다 — 자리가 달라 길이도 다르다.
+        from .views import ROLE_NAMES, ROLE_ORDER
+        return tuple((r, ROLE_NAMES[r]) for r in ROLE_ORDER if r != "patient")
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        return queryset.filter(role=value) if value else queryset
+
+
 # ── 계정 안에서 신원을 같이 본다 ──────────────────────────────────────
 #
 # account 와 staff 가 1:1 인데 표가 나뉘어 있다. 승인하려면 「누구인지」를
@@ -114,9 +143,20 @@ class StaffInline(admin.StackedInline):
 
 @admin.register(Account)
 class AccountAdmin(admin.ModelAdmin):
-    list_display = ("login_id", "staff_name", "dept", "signed_up",
-                    "account_status", "is_active", "last_login_at")
-    list_filter = (ApprovalFilter, KindFilter, "role", "is_active")
+    # 시안(admin-redesign/Approvals.dc.html)의 다섯 칸이다: 이름 · 사번 ·
+    # 부서 · 신청 일시 · 처리. 「처리」는 list_display 가 아니라 줄마다 단추라
+    # 템플릿이 그린다(admin/change_list_results.html 의 account 갈래).
+    #
+    # ⚠ login_id 를 뺐다. 시안에 없고, 목록에 로그인 아이디가 줄줄이 있으면
+    #   화면을 찍는 것만으로 계정 목록이 새어 나간다. 검색으로는 계속 찾힌다
+    #   (아래 search_fields).
+    list_display = ("staff_name", "staff_number", "dept", "signed_up")
+    # 링크 칸을 이름으로 옮긴다. 안 옮기면 첫 칸(이름)이 링크가 되는 것은
+    # 같지만, 나중에 칸 차례를 바꿀 때 조용히 딴 칸으로 옮겨간다.
+    list_display_links = ("staff_name",)
+    # 시안의 칩 석 줄: 상태 · 구분 · 역할.
+    # is_active 를 뺐다 — 「상태」와 겹쳐 보이고(승인됨 ≈ 활성) 줄만 늘어난다.
+    list_filter = (ApprovalFilter, KindFilter, RoleFilter)
     search_fields = ("login_id", "staff__full_name", "staff__staff_number")
     ordering = ("-created_at",)
     list_select_related = ("staff",)
@@ -133,6 +173,11 @@ class AccountAdmin(admin.ModelAdmin):
     def staff_name(self, obj):
         staff = getattr(obj, "staff", None)
         return staff.full_name if staff else "—"
+
+    @admin.display(description="사번", ordering="staff__staff_number")
+    def staff_number(self, obj):
+        staff = getattr(obj, "staff", None)
+        return staff.staff_number if staff else "—"
 
     @admin.display(description="부서", ordering="role")
     def dept(self, obj):

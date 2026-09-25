@@ -82,13 +82,17 @@ class NavTests(TestCase):
 
     # ── 껍데기 경계 ─────────────────────────────────────────────
     def test_우리_화면은_머리띠를_걷는_표를_단다(self):
-        for name in OURS:
+        # 계정 승인도 시안 넉 장 중 하나라 같이 건다(admin/core/account/)
+        for name in OURS + ["admin:core_account_changelist"]:
             with self.subTest(name):
                 self.assertContains(self._get(name), "e-full")
 
-    def test_표_화면은_그_표를_안_단다(self):
-        """머리띠를 같이 걷으면 로그아웃과 빵부스러기가 사라진다."""
-        res = self.client.get(reverse("admin:core_account_changelist"))
+    def test_시안에_없는_표_화면은_그_표를_안_단다(self):
+        """머리띠를 같이 걷으면 로그아웃과 빵부스러기가 사라진다.
+
+        스물한 표는 시안에 없는 자리라 Django 것을 그대로 둔다.
+        """
+        res = self.client.get(reverse("admin:core_patient_changelist"))
 
         self.assertNotContains(res, "e-full")
         self.assertContains(res, "logout-form")

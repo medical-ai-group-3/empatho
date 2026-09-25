@@ -794,6 +794,150 @@ body,
   color: var(--e-warm); font-size: 13px; font-weight: 400; margin-left: 6px;
 }
 
+/* ══ 계정 승인 ═════════════════════════════════════════════════
+   시안: admin-redesign/Approvals.dc.html
+   Django changelist 위에 올린다 — 검색 · 정렬 · 페이지 · 감사 로그는
+   그대로 두고 보이는 모양만 바꾼다. */
+
+/* Django 가 그리는 틀 걷어내기. 이 화면에만 건다(.e-approvals) */
+.e-approvals #changelist.module { background: none; border: none; }
+.e-approvals .changelist-form-container { display: block; }
+.e-approvals #changelist-filter { all: unset; }   /* 오른쪽 세로 칸을 푼다 */
+.e-approvals .e-rowform { display: none; }
+
+/* 필터 칩 석 줄 */
+.e-chips-card {
+  padding: 18px 22px; border-radius: 16px;
+  background: var(--e-card); border: 1px solid var(--e-border);
+  display: flex; flex-direction: column; gap: 12px; margin-bottom: 22px;
+}
+.e-chip-row { display: flex; align-items: center; gap: 10px; }
+.e-chip-title { font-size: 13px; color: var(--e-faint); width: 44px; flex-shrink: 0; }
+.e-chip-set { display: flex; gap: 8px; flex-wrap: wrap; }
+.e-fchip {
+  padding: 7px 13px; border-radius: 999px;
+  border: 1px solid var(--e-btn-br); background: var(--e-card);
+  font-size: 13px; color: var(--e-nav-fg); text-decoration: none;
+}
+.e-fchip:hover { border-color: var(--e-cyan); color: var(--e-ink); }
+/* 고른 것 — 색만으로 가르지 않는다. 테두리와 글자가 같이 밝아진다 */
+.e-fchip.on {
+  border-color: var(--e-cyan); background: var(--e-wash); color: #CFE6FF;
+}
+
+/* 검색칸 — 시안에는 없지만 기능을 살려 둔다(이 화면의 유일한 덧댐) */
+.e-approvals #toolbar {
+  padding: 0 0 14px; background: none; border: none;
+  display: flex; gap: 8px;
+}
+.e-approvals #searchbar {
+  padding: 10px 14px; border-radius: 10px;
+  border: 1px solid var(--e-btn-br); background: var(--e-card);
+  color: var(--e-ink); font-size: 14px; min-width: 240px;
+}
+
+/* 고르개 줄 + 표를 한 상자로 */
+.e-approvals #changelist-form {
+  border-radius: 16px; border: 1px solid var(--e-border); overflow: hidden;
+}
+.e-approvals .actions {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 20px; margin: 0;
+  background: var(--e-soot); border: none; border-radius: 0;
+}
+.e-sel-count { font-size: 13px; color: var(--e-faint); }
+
+.e-bulk {
+  padding: 8px 14px; border-radius: 8px;
+  font-size: 13px; font-family: inherit; cursor: pointer;
+}
+.e-bulk.ok { border: none; background: #1D3B34; color: #7FA89C; }
+.e-bulk.no { border: 1px solid #3A2A30; background: transparent; color: #8A6F78; }
+/* 고른 것이 있을 때만 또렷해진다 — 시안의 흐린 상태가 기본이다 */
+.e-approvals #changelist-form:has(.action-select:checked) .e-bulk.ok {
+  background: var(--e-mint); color: var(--e-canvas); font-weight: 600;
+}
+.e-approvals #changelist-form:has(.action-select:checked) .e-bulk.no {
+  border-color: var(--e-pink-br); color: var(--e-pink);
+}
+
+/* 표 — 보기에는 칸 나눔이지만 마크업은 table 이다(actions.js 가 tr 을 찾는다) */
+.e-approve table#result_list { width: 100%; border-collapse: collapse; }
+.e-approve thead tr, .e-approve tbody tr {
+  display: grid;
+  grid-template-columns: 40px 200px 160px 140px 160px minmax(0, 1fr);
+  gap: 16px; align-items: center; padding: 12px 20px;
+}
+.e-approve thead tr {
+  background: var(--e-card); border-bottom: 1px solid var(--e-border);
+}
+.e-approve th, .e-approve td {
+  display: block; border: none; padding: 0; text-align: left;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.e-approve th {
+  font-size: 12px; font-weight: 400; color: var(--e-faint); letter-spacing: .06em;
+}
+.e-approve th a { color: inherit; }
+.e-approve th.right, .e-approve td.e-approve-act { text-align: right; }
+
+.e-approve tbody tr { background: var(--e-card); font-size: 14px; }
+.e-approve tbody tr:nth-child(even) { background: var(--e-row-alt); }
+.e-approve tbody tr:hover > * { background: transparent; }
+.e-approve tbody tr:hover { background: var(--e-line-2); }
+.e-approve td.e-mono { font-size: 13px; color: var(--e-ink-2); }
+.e-approve-name a { color: var(--e-ink); text-decoration: none; font-weight: 500; }
+.e-approve-name a:hover { color: var(--e-link-h); }
+
+/* 시안 모양 고르개 */
+.e-approve .action-select {
+  appearance: none; width: 18px; height: 18px; margin: 0;
+  border: 1px solid var(--e-btn-br); border-radius: 5px;
+  background: var(--e-canvas); cursor: pointer;
+}
+.e-approve .action-select:checked {
+  background: var(--e-cyan) url("data:image/svg+xml;charset=utf-8,\
+%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' \
+stroke='%230B0E13' stroke-width='3.5' stroke-linecap='round' \
+stroke-linejoin='round'%3E%3Cpath d='M5 12l5 5 9-10'/%3E%3C/svg%3E")
+    center / 12px no-repeat;
+  border-color: var(--e-cyan);
+}
+
+/* 줄마다 붙는 처리 단추 */
+.e-approve-act { display: flex; gap: 6px; justify-content: flex-end; }
+.e-act-ok, .e-act-no {
+  padding: 5px 12px; border-radius: 8px;
+  font-size: 13px; font-family: inherit; cursor: pointer;
+}
+.e-act-ok {
+  border: 1px solid var(--e-mint-br); background: var(--e-mint-bg);
+  color: var(--e-mint-fg);
+}
+.e-act-ok:hover { background: var(--e-mint); color: var(--e-canvas); }
+.e-act-no {
+  border: 1px solid var(--e-btn-br); background: transparent; color: var(--e-nav-fg);
+}
+.e-act-no:hover { border-color: var(--e-pink); color: var(--e-pink); }
+
+/* 처리가 끝난 줄 — 단추 자리에 지금 상태를 적는다 */
+.e-act-done { font-size: 13px; color: var(--e-faint); }
+.e-act-done.s-active    { color: var(--e-mint-fg); }
+.e-act-done.s-rejected  { color: var(--e-pink); }
+.e-act-done.s-suspended { color: var(--e-amber-fg); }
+
+/* 시안에 없는 Django 부속 — 숨긴다. 지우지 않는 이유는 actions.js 가 찾아서다 */
+.e-approvals .action-counter.hidden,
+.e-approvals .actions .all,
+.e-approvals .actions .question,
+.e-approvals .actions .clear,
+.e-approvals .paginator .showall { display: none; }
+
+.e-approvals .changelist-footer, .e-approvals .paginator {
+  padding: 14px 20px; background: none; border: none;
+  font-size: 13px; color: var(--e-faint);
+}
+
 /* 「가림」 · 「상태」 같은 짧은 표시. 색이 아니라 글자가 말하게 둔다 */
 .e-tag {
   display: inline-block; padding: 1px 6px; margin-left: 4px;
