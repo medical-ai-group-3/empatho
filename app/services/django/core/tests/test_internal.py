@@ -6,10 +6,12 @@ services/gosvc/tools/fake_django.py 의 sign() 과 대조한다 — 그쪽이 Go
 callback.Sign 을 그대로 옮긴 참조 구현이다.
 """
 
+import contextlib
 import hashlib
 import hmac
 import json
 import time
+from unittest import mock
 
 from django.test import TestCase, override_settings
 from django.utils import timezone
@@ -19,6 +21,27 @@ from core.models import (Account, ExamOrder, Notification, Patient, Report,
                          Specimen, Staff, StorageObject, Study, Lesion)
 
 SECRET = "test-callback-secret-0123456789abcdef"
+
+#: 시간차 시험이 기준으로 삼는 «지금». 아무 값이나 된다 — 고정이라는 것이 뜻이다
+NOW = 1757400000
+
+
+@contextlib.contextmanager
+def frozen(now=NOW):
+    """서버가 보는 시계를 세운다.
+
+    ⚠ **진짜 시계로 재면 안 된다.** 전에는 ts 를 `time.time() - 299` 로
+      만들어 놓고 창이 300 초였다. 요청이 1 초만 늦으면 넘어가는데, 전체
+      스위트를 돌리면 실제로 그런 일이 생겨 이유 없이 빨개졌다
+      (2026-09-25 확인). 여유를 늘리는 것으로는 창이 좁아질 때 또 나온다 —
+      시계를 세우는 것이 답이다.
+
+    internal.py 가 `import time` 으로 이름을 자기 안에 들고 있어서, 그
+    이름만 갈아 끼우면 다른 데는 안 건드린다.
+    """
+    with mock.patch("core.api.internal.time") as clock:
+        clock.time.return_value = float(now)
+        yield
 
 
 def go_sign(secret: bytes, ts: str, body: bytes) -> str:
@@ -84,17 +107,28 @@ class SignatureVerificationTests(CallbackTestCase):
         self.assertEqual(r.status_code, 401)
 
     def test_시간이_5분을_넘으면_401(self):
-        old = str(int(time.time()) - 301)
-        self.assertEqual(self.post(self.PATH, {"a": 1}, ts=old).status_code, 401)
+        with frozen():
+            r = self.post(self.PATH, {"a": 1}, ts=str(NOW - 301))
+        self.assertEqual(r.status_code, 401)
 
     def test_미래_시각도_5분을_넘으면_401(self):
-        future = str(int(time.time()) + 301)
-        self.assertEqual(self.post(self.PATH, {"a": 1}, ts=future).status_code, 401)
+        with frozen():
+            r = self.post(self.PATH, {"a": 1}, ts=str(NOW + 301))
+        self.assertEqual(r.status_code, 401)
 
     def test_5분_안이면_서명은_통과한다(self):
         # 서명은 통과하고 본문 검증에서 걸린다 — 401 이 아니다.
-        r = self.post(self.PATH, {"a": 1}, ts=str(int(time.time()) - 299))
+        with frozen():
+            r = self.post(self.PATH, {"a": 1}, ts=str(NOW - 299))
         self.assertEqual(r.status_code, 400)
+
+    def test_창의_양끝이_정확히_300초다(self):
+        """299 가 되고 301 이 안 된다는 것만으로는 창이 300 인지 모른다."""
+        for offset, code in ((-300, 400), (300, 400),
+                             (-301, 401), (301, 401)):
+            with self.subTest(offset=offset), frozen():
+                r = self.post(self.PATH, {"a": 1}, ts=str(NOW + offset))
+                self.assertEqual(r.status_code, code)
 
     def test_시각_형식이_이상하면_401(self):
         self.assertEqual(self.post(self.PATH, {"a": 1}, ts="어제").status_code, 401)
