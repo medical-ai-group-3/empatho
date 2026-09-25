@@ -49,6 +49,18 @@ def _find(needle):
     return [(s, p) for s, p in _rules() if needle in s]
 
 
+def _box(value):
+    """padding 줄임말을 (위, 오른쪽, 아래, 왼쪽) 로 편다."""
+    parts = [int(p.removesuffix("px")) for p in value.split()]
+    if len(parts) == 1:
+        parts *= 4
+    elif len(parts) == 2:
+        parts = [parts[0], parts[1], parts[0], parts[1]]
+    elif len(parts) == 3:
+        parts = [parts[0], parts[1], parts[2], parts[1]]
+    return parts
+
+
 def _merged(needle):
     """그 선택자를 쓰는 규칙들을 **적힌 차례대로** 포갠 값.
 
@@ -141,6 +153,23 @@ class AdminCssTests(SimpleTestCase):
         tall = int(avatar["height"].removesuffix("px"))
 
         self.assertEqual(pad * 2 + tall, 58)
+
+    def test_역할_고르개에_글자_들어갈_자리가_있다(self):
+        """높이를 안 적으면 padding 이 곧 높이가 된다. 8+8 에 테두리 2 라
+        글자에 남는 자리가 14px 뿐이었고 한글 받침이 잘렸다.
+
+        값을 여기 또 적지 않고 CSS 에서 읽어 뺀다 — 두 벌로 두면 한쪽만
+        고쳐 놓고 시험은 계속 통과한다."""
+        props = _merged(".e-field select")
+
+        tall = int(props["height"].removesuffix("px"))
+        top, _, bottom, _ = _box(props["padding"])
+        font = int(props["font-size"].removesuffix("px"))
+        inner = tall - top - bottom - 2          # 위아래 테두리 1px 씩
+
+        self.assertGreaterEqual(
+            inner, font + 6,
+            "글자 %dpx 에 남는 높이가 %dpx 다 — 받침이 잘린다" % (font, inner))
 
     # ── ② 특이도가 모자라 Django 에 지던 자리 ───────────────────
     def test_밑줄_끄는_규칙이_base_css_를_이긴다(self):

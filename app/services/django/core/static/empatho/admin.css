@@ -921,15 +921,24 @@ body,
 /* 역할 고르개 */
 .e-field { display: flex; align-items: center; gap: 8px; }
 .e-field label { font-size: 13px; color: var(--e-faint); }
+/* ⚠ **height 를 준다.** 높이를 안 적으면 padding 이 곧 높이가 되는데,
+ *   8px + 8px 에 테두리 2px 이라 글자에 남는 자리가 14px 뿐이었다 —
+ *   한글 받침이 잘렸다 (2026-09-25 라이브 확인).
+ *
+ *   오른쪽 padding 30px 은 브라우저가 그리는 화살표 자리다. line-height 는
+ *   normal 로 둔다 — box-sizing 이 border-box 라 36px 을 그대로 적으면
+ *   테두리 2px 만큼 넘친다. select 는 한 줄이라 가운데 정렬은 알아서 된다. */
 .e-field select {
-  padding: 8px 12px; border-radius: 10px;
+  height: 36px; padding: 0 30px 0 10px; border-radius: 10px;
   border: 1px solid var(--e-btn-br); background: var(--e-card);
-  color: var(--e-ink); font-size: 13px; font-family: inherit; cursor: pointer;
+  color: var(--e-ink); font-size: 14px; line-height: normal;
+  font-family: inherit; cursor: pointer;
 }
+/* 스크립트가 꺼졌을 때만 뜨는 [적용]. 옆의 고르개와 키를 맞춘다 */
 .e-field button {
-  padding: 8px 12px; border-radius: 10px; cursor: pointer;
+  height: 36px; padding: 0 12px; border-radius: 10px; cursor: pointer;
   border: 1px solid var(--e-btn-br); background: var(--e-card);
-  color: var(--e-ink); font-size: 13px; font-family: inherit;
+  color: var(--e-ink); font-size: 14px; font-family: inherit;
 }
 
 /* 검색 — 남는 자리를 먹고 오른쪽 끝에 붙는다 */
