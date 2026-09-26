@@ -39,7 +39,15 @@ class SpecimenQueueView(generics.ListAPIView):
 
 
 class SpecimenAssignView(AuditMixin, viewsets.ViewSet):
-    """§1 PATCH /specimens/{id}/assign — 집기. 동시 집기는 409."""
+    """§1 PATCH /specimens/{id}/assign — 집기. 동시 집기는 409.
+
+    ⚠ 09-26 확인 — accession_status 를 여기서 "accessioned" 로 안 올리면
+    bound(접수 대기) 였던 검체가 확진까지 끝나도 영원히 접수 대기로
+    보인다. draft·finalize·ai-results 어디도 이 칸을 안 건드리기 때문에
+    (grep 으로 확인 — bind 때 "bound" 로 찍는 게 유일한 대입이었다),
+    집는 순간(=병리과가 검체를 정식으로 받는 시점)이 유일하게 맞는
+    자리다.
+    """
 
     resource = "specimen_pathology"
     permission_classes = [MatrixPermission]
@@ -51,7 +59,8 @@ class SpecimenAssignView(AuditMixin, viewsets.ViewSet):
 
         updated = models.Specimen.objects.filter(
             pk=pk, assigned_to__isnull=True
-        ).update(assigned_to=staff, updated_by=self._current_account())
+        ).update(assigned_to=staff, accession_status="accessioned",
+                 accessioned_at=timezone.now(), updated_by=self._current_account())
 
         if updated == 0:
             raise ApiError("ALREADY_ASSIGNED", "다른 선생님이 이미 맡았습니다.")

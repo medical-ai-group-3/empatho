@@ -70,6 +70,12 @@ class PathologyEndpointsTests(TestCase):
         self.specimen.refresh_from_db()
         self.assertEqual(self.specimen.assigned_to, self.account.staff)
 
+        # 09-26 확인 — 집으면 accession_status 도 accessioned 로 올라간다.
+        # 이걸 안 하면 확진까지 끝난 검체도 "전체 환자 목록" 진행상황 칸에
+        # 영원히 "접수 대기"(bound)로 남는다.
+        self.assertEqual(self.specimen.accession_status, "accessioned")
+        self.assertIsNotNone(self.specimen.accessioned_at)
+
         # 두 번째 집기는 409.
         other = Account.objects.create(
             login_id="pathology-endpoints-test-2", role="pathology",
