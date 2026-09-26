@@ -63,6 +63,11 @@ const api = {
   draft:      (id, b) => path.draft(id, b),
   finalize:   (id, b) => path.finalize(id, b),
   list:       (o)     => path.list(o),
+  /* 09-26 추가 — 큐(1장)의 「이 환자의 이력」 칸이 병리는 timeline이
+     없다고 믿고 「이 과에는 이력을 부르는 경로가 없습니다」를 띄우고
+     있었다(Queue.jsx의 Past()가 typeof cfg.api.timeline === "function"
+     으로 판정). 서버는 이미 지원한다 — api.js의 path.timeline 참고. */
+  timeline:   (pid)   => path.timeline(pid),
   /* amend 없음 — 확정 사양서 §8-2: 병리는 판독 정정 경로를 두지 않는다.
      확정 후 오류는 새 검체로 처리한다 (services/django/core/views/
      pathology.py 상단 docstring) */

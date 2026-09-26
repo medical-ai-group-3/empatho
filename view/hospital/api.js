@@ -474,6 +474,12 @@ export const path = {
   ticket:     (b)      => post("/tickets", b),   /* lib/files.js 가 쓴다 */
   analyze:    (id)     => post(`/specimens/${id}/ai-results`),
   progress:   (id)     => get(`/ai-results${qs({ specimen: id })}`),
+  /* 09-26 확인 — PatientTimelineView(GET /patients/{id}/timeline)는
+     resource="patient"라 매트릭스에 PATHOLOGY: R이 이미 있고, 검체
+     채취·병리 확진 이벤트도 실제로 내려준다(specimen_id 포함). rad·
+     breast의 timeline과 같은 서버 경로 — "병리에는 timeline이 없다"는
+     예전 확인이 지금은 틀렸다. */
+  timeline:   (pid)    => get(`/patients/${pid}/timeline`),
 
   /* ⚠ 병리는 판독 조회 경로가 없다. 상세와 업로드 조회를 합쳐 쓴다 —
      dept/pathology.jsx 의 read 참고. 경로가 생기면 여기 한 줄 추가하고
