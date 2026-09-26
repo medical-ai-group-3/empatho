@@ -6,6 +6,7 @@ from django.utils import timezone
 
 from .. import models
 from core.api.perms import perms_for_role
+from ..services import discordance
 
 AUDIT_FIELDS = ("created_at", "created_by", "updated_at", "updated_by")
 
@@ -32,6 +33,37 @@ class PatientSerializer(serializers.ModelSerializer):
 class PatientDetailSerializer(PatientSerializer):
     pii = PatientPiiSerializer(read_only=True)
     created_at = serializers.DateTimeField(read_only=True)
+    open_discordance = serializers.SerializerMethodField()
+
+    def get_open_discordance(self, patient) -> dict | None:
+        """아직 처분되지 않은 영상·병리 불일치 한 건.
+
+        유방외과 「검사 종합」 화면의 배너가 이 칸을 읽는다. **없으면 null**
+        이고, 화면은 그때 「엇갈린 것이 없습니다」를 띄운다.
+
+        ⚠ **「열림」은 상태값이 아니라 closed_at IS NULL 이다**
+          (FLAG_STATUS 에 open 이 없다 — models.py:87). 목록 API 와 잠금
+          해제 조건도 같은 기준으로 센다(views/surgery.py:226 · :468).
+        ⚠ **lesion 으로 환자를 찾는다.** 플래그에 환자 FK 가 없다
+          (models.py:811-820) — 같은 표의 다른 곳도 전부 이 경로다.
+        ⚠ violated_rule 은 20자 코드라 그대로 내보내면 화면에 「rule1」이
+          뜬다. 사람이 읽는 문장으로 바꿔서 같은 이름에 싣는다.
+        """
+        flag = (models.DiscordanceFlag.objects
+                .filter(lesion__patient=patient, closed_at__isnull=True)
+                .order_by("-flagged_at", "-discordance_flag_id")
+                .first())
+        if flag is None:
+            return None
+        return {
+            "discordance_id": flag.pk,
+            "violated_rule": discordance.describe(flag),
+            "rule_code": flag.violated_rule,
+            "flag_status": flag.flag_status,
+            "lesion_id": flag.lesion_id,
+            "specimen_id": flag.specimen_id,
+            "flagged_at": flag.flagged_at,
+        }
 
     class Meta:
         model = models.Patient

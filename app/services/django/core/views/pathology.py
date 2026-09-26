@@ -13,6 +13,7 @@ from django.utils import timezone
 from ..tasks import run_inference
 from .. import models, serializers
 from ..mixins import AuditMixin
+from ..services import discordance
 from core.api.permissions import MatrixPermission, CanFinalizePathologyRead
 from core.api.errors import ApiError
 
@@ -146,7 +147,11 @@ class SpecimenFinalizeView(AuditMixin, viewsets.ViewSet):
         specimen.updated_by = self._current_account()
         specimen.save()
 
-        # TODO: 자동 대조(discordance) 로직 트리거 — 영상 최종 판정과 비교
+        # 영상 최종 판정과 자동 대조. 규칙은 services/discordance.py 한 곳에
+        # 모여 있다 — 여기에 조건문을 두지 않는다.
+        # ⚠ **커밋된 뒤** 돈다. 같은 트랜잭션에서 돌리면 확정이 뒤에 실패해
+        #   되돌려질 때 플래그만 남는다.
+        discordance.evaluate_on_commit(specimen.patient, specimen)
 
         out = serializers.SpecimenSerializer(specimen)
         return Response(out.data)
