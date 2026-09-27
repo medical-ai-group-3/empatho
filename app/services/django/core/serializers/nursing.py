@@ -37,14 +37,42 @@ class FollowupCreateSerializer(serializers.Serializer):
     """POST /followups — 추적 회차 생성(§2)."""
 
     patient_id = serializers.IntegerField()
-    round_no = serializers.IntegerField()
+    round_no = serializers.IntegerField(min_value=1)
     due_at = serializers.DateTimeField()
-    
-class FollowupCallSerializer(serializers.Serializer):
-    """PATCH /followups/{id}/call — 안내 콜 기록(§2)."""
 
-    call_result = serializers.CharField()
-    call_note = serializers.CharField(required=False, allow_blank=True)
+    def validate_patient_id(self, value):
+        # 없는 환자면 FK 위반으로 500 이 났다
+        if not models.Patient.objects.filter(pk=value).exists():
+            raise serializers.ValidationError("존재하지 않는 환자입니다.")
+        return value
+
+
+class FollowupCallSerializer(serializers.Serializer):
+    """PATCH /followups/{id}/call — 안내 콜 기록(§2).
+
+    call_result 는 CALL_RESULT(연결 · 부재 · 거부) 중 하나다. 아무 문자열이나
+    받으면 DB 칸(varchar 20)을 넘거나 화면이 모르는 값이 쌓였다.
+    call_note 는 varchar(250) — 넘치면 Postgres 가 DataError 로 500 을 냈다.
+    """
+
+    call_result = serializers.ChoiceField(choices=models.as_choices(models.CALL_RESULT))
+    call_note = serializers.CharField(required=False, allow_blank=True, max_length=250)
+
+
+class FollowupUpdateSerializer(serializers.Serializer):
+    """PATCH /followups/{id}/ — 종료 또는 통화 기록(범용 경로).
+
+    closed_reason 이 있으면 종료, 없으면 통화 기록이다(기존 동작 그대로).
+    """
+
+    status = serializers.ChoiceField(
+        choices=models.as_choices([s for s in models.FOLLOWUP_STATUS if s != "open"]),
+        required=False)
+    closed_reason = serializers.CharField(required=False, allow_blank=True, max_length=100)
+    call_result = serializers.ChoiceField(
+        choices=models.as_choices(models.CALL_RESULT), required=False, allow_null=True)
+    call_note = serializers.CharField(required=False, allow_blank=True,
+                                      allow_null=True, max_length=250)
     
 class PrimaryStaffAssignSerializer(serializers.Serializer):
     """PATCH /patients/{id} — 주치의 지정(§1)."""
