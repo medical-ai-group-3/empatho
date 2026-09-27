@@ -4,7 +4,7 @@ import { breast as api } from "../../../api";
 import { useApi } from "../../../lib/useApi";
 import { Page, Btn } from "../../../lib/Page";
 import { Body, Empty } from "../../../lib/Body";
-import { Chip, useCan } from "../../../lib/Parts";
+import { Chip } from "../../../lib/Parts";
 import { go } from "../../../nav";
 import * as H from "../../home";
 import "../breast.css";
@@ -69,8 +69,7 @@ export default function Waiting() {
               <Body loading={detail.loading && !detail.data} error={detail.error}
                     onRetry={detail.reload}>
                 {detail.data && (
-                  <Mid p={detail.data} onNext={next} onOpen={setModal}
-                       onDone={() => { detail.reload(true); list.reload(true); }} />
+                  <Mid p={detail.data} onNext={next} onOpen={setModal} />
                 )}
               </Body>
             )}
@@ -173,7 +172,7 @@ function Queue({ state, rows, all, odd, tab, onTab, pick, onPick }) {
 }
 
 /* ── 가운데 — 고른 환자 ───────────────────────────────────────── */
-function Mid({ p, onNext, onOpen, onDone }) {
+function Mid({ p, onNext, onOpen }) {
   const d = p.open_discordance;
   const rep = p.other_reports ?? [];
   const pick = (want) => rep.find((r) => (r.dept ?? "").includes(want)) ?? null;
@@ -219,14 +218,13 @@ function Mid({ p, onNext, onOpen, onDone }) {
               to={go.breast.review(p.patient_id)} />
       </div>
 
-      <Decide p={p} onDone={onDone} />
-
       <div className="work-foot">
         <Btn onClick={() => onOpen("exam")}>촬영 요청</Btn>
         <Btn onClick={() => onOpen("specimen")}>검체 등록</Btn>
         <Btn onClick={() => onOpen("close")}>이상 없음 · 종결</Btn>
         <span className="home-fill" />
         <Btn onClick={onNext}>다음 환자 →</Btn>
+        <Btn to={go.breast.decision(p.patient_id)}>치료 방침 결정</Btn>
         <Btn kind="fill" to={go.breast.review(p.patient_id)}>검사 종합</Btn>
       </div>
     </>
@@ -269,95 +267,6 @@ function Read({ title, r, v = null, gradeLabel, to }) {
             </footer>
           </>
         )}
-    </section>
-  );
-}
-
-/* ── 치료 방침 결정 ────────────────────────────────────────────
- * ⚠ **되돌릴 수 없다.** 결정은 지워지지 않고 새 결정으로만 덮는다.
- * ⚠ **어느 판독에 붙일지는 진료 이력이 안다.** `PATCH /assessments/{id}/
- *   decision` 이 assessment 하나를 집어야 하는데, 환자 응답에는 그 번호가
- *   없다. `/patients/{id}/timeline` 의 「판독」 줄이 `assessment_id` 를
- *   달고 온다 — 가장 최근 것에 붙인다.
- */
-/* ⚠ **보내는 값은 서버 코드다.** 화면 글자를 그대로 보내면 안 된다 —
-     서버 DECISION_TYPE 은 surgery·biopsy·imaging·rebiopsy 고
-     DECISION_VALUE 는 yes·no·defer 다(models.py:79-80). 전에는 한글을
-     `decision`·`reason` 이라는 없는 키로 보내서 **저장이 늘 실패했다**. */
-const KINDS = [
-  { v: "surgery",  label: "수술" },
-  { v: "biopsy",   label: "조직검사" },
-  { v: "imaging",  label: "추가 영상" },
-  { v: "rebiopsy", label: "재조직검사" },
-];
-const VALUES = [
-  { v: "yes",   label: "예" },
-  { v: "no",    label: "아니오" },
-  { v: "defer", label: "보류" },
-];
-
-function Decide({ p, onDone }) {
-  const line = useApi(() => H.soft(api.timeline(p.patient_id)), [p.patient_id]);
-  const aid = H.rows(line.data)
-    .filter((r) => r.assessment_id).at(-1)?.assessment_id ?? null;
-
-  const [kind, setKind] = useState(KINDS[0].v);
-  const [value, setValue] = useState(VALUES[0].v);
-  const [why, setWhy] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState(null);
-  const may = useCan("breast.decision.save");
-
-  async function save() {
-    setBusy(true);
-    setMsg(null);
-    try {
-      await api.decide(aid, {
-        decision_type: kind, decision_value: value, decision_reason: why,
-      });
-      setMsg("남겼습니다");
-      onDone?.();
-    } catch (e) { setMsg(e.detail || e.message); }
-    finally { setBusy(false); }
-  }
-
-  return (
-    <section className="work-dec">
-      <header>
-        <h3>치료 방침 결정</h3>
-        <span className="home-fill" />
-        {msg && <span className="hcard-k">{msg}</span>}
-      </header>
-
-      <div className="work-seg" role="radiogroup" aria-label="결정 종류">
-        {KINDS.map((k) => (
-          <button type="button" key={k.v} role="radio" aria-checked={k.v === kind}
-                  className={`work-opt${k.v === kind ? " on" : ""}`}
-                  onClick={() => setKind(k.v)}>{k.label}</button>
-        ))}
-      </div>
-
-      <div className="work-dec-b">
-        <div className="work-seg narrow" role="radiogroup" aria-label="결정">
-          {VALUES.map((v) => (
-            <button type="button" key={v.v} role="radio" aria-checked={v.v === value}
-                    className={`work-opt${v.v === value ? " on" : ""}`}
-                    onClick={() => setValue(v.v)}>{v.label}</button>
-          ))}
-        </div>
-        <textarea value={why} onChange={(e) => setWhy(e.target.value)}
-                  rows={2} placeholder="결정 사유" aria-label="결정 사유"
-                  disabled={!may.ok} />
-      </div>
-
-      <div className="rowb">
-        {/* ⚠ 붙일 판독이 없으면 저장할 데가 없다. 왜 못 누르는지 적는다 */}
-        {!aid && <span className="hcard-k">확정된 판독이 있어야 결정을 답니다</span>}
-        <Btn kind="fill" onClick={save} {...may.attrs}
-             disabled={busy || !aid || !may.ok}>
-          {busy ? "남기는 중…" : "결정 저장"}
-        </Btn>
-      </div>
     </section>
   );
 }

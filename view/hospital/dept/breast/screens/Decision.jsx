@@ -20,7 +20,7 @@ const DECISIONS = [
 ];
 const EXPLAIN_METHODS = ["대면", "유선", "영상"];
 
-/* 화면 3 · 수술 결정 및 환자 설명 ("/patients/:id/decision")
+/* 화면 3 · 치료 방침 결정 및 환자 설명 ("/patients/:id/decision")
  *
  * 3열 2행: (좌)AI·의사 종합 리포트 / (중)수술 여부·환자 처방 /
  * (우)환자 정보·의사 최종 소견. 환자 리포트 상태와 잠금 해제는 최종
@@ -36,8 +36,8 @@ export default function Decision() {
 
   return (
     /* 되돌릴 수 없는 결정을 저장하는 화면이다. **누구인지 안 보이면 안 된다** */
-    <Page className="breast" crumb={["유방외과", "수술 결정"]}
-            title="수술 결정" patient={patient}
+    <Page className="breast" crumb={["유방외과", "치료 방침"]}
+            title="치료 방침" patient={patient}
             back={() => nav(go.breast.waiting(), { state: { advance: true, from: id } })}>
       <div className="pane">
         <Body loading={loading} error={error} onRetry={reload}>
