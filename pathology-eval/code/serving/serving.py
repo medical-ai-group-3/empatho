@@ -354,9 +354,9 @@ def predict(bundle: dict, image, *, return_tissue_mask: bool | None = None) -> d
         return round(x, n) if x is not None else None
 
     return {
-        # ⚠ 화면 비노출(또는 캘리브 후에만 노출) — 임상 육안 TIL 스코어 대비 ~12배 낮게
-        #   나오도록 검증됨(비보정). 노출하려면 slide_stil_calibrated ≈ 12 × stil_percent
-        #   (또는 저/중/고 3분류만) 사용할 것. docs/stil_pipeline_limitations.md §2-6.
+        # ⚠ stil_percent 는 화면·소견문에서 'AI 계측값'으로만 표시. 보정계수 적용 금지
+        #   (크롭 값에 곱하면 100% 초과). 임상 sTIL 은 병리의 직접 입력
+        #   (specimen.stil_calibrated, stil_source='manual').
         "stil_percent": _r(stil_percent),
         # ⚠ "신뢰구간"으로 표기 금지 — 소켓2 분류기 재현성 하한일 뿐, 조직분할·검출·
         #   캘리브레이션 불확실성은 미포함(§2-8). UI 라벨은 "재현성 범위" 등으로.
