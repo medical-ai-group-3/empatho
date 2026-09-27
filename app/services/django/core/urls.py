@@ -78,6 +78,17 @@ urlpatterns = [
         views.ExamOrderConfirmView.as_view({"patch": "partial_update"}),
         name = "exam-order-confirm",
     ),
+    # 09-27 예약 변경 · 취소(지우지 않고 cancelled 로)
+    path(
+        "exam-orders/<int:pk>/reschedule",
+        views.ExamOrderRescheduleView.as_view({"patch": "partial_update"}),
+        name="exam-order-reschedule",
+    ),
+    path(
+        "exam-orders/<int:pk>/cancel",
+        views.ExamOrderRescheduleView.as_view({"post": "cancel"}),
+        name="exam-order-cancel",
+    ),
     path("patients/today-status", views.PatientTodayStatusView.as_view({"get": "list"}), name = "patient-today-status"),
     path(
         "patients/<int:pk>/questionnaire/",

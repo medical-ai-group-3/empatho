@@ -587,6 +587,52 @@ class ExamOrderScheduleView(AuditMixin, viewsets.ViewSet):
         out = serializers.ExamOrderSerializer(order)
         return Response(out.data, status = status.HTTP_201_CREATED)
     
+class ExamOrderRescheduleView(AuditMixin, viewsets.ViewSet):
+    """09-27 예약 변경 · 취소 — 새 예약을 또 만들지 않고 **있는 것을 고친다.**
+
+    PATCH /exam-orders/{id}/reschedule   {scheduled_at}   날짜·시각만 바꾼다
+    POST  /exam-orders/{id}/cancel                        order_status → cancelled
+
+    ⚠ **지우지 않는다.** 취소는 상태만 바꾼다 — 행을 지우면 「안 오신 적
+      n번」 같은 이력이 같이 사라진다.
+    ⚠ 바꿀 수 있는 것은 **아직 안 온 예약**뿐이다(requested · scheduled 이고
+      visited_at 이 빈 것). 내원했거나 검사로 넘어간 오더는 409.
+    """
+
+    resource = "exam_order"
+    permission_classes = [MatrixPermission]
+
+    EDITABLE = ("requested", "scheduled")
+
+    def _locked_order(self, pk):
+        order = get_object_or_404(models.ExamOrder.objects.select_for_update(), pk=pk)
+        if order.order_status not in self.EDITABLE or order.visited_at is not None:
+            raise ApiError("RESERVATION_LOCKED")
+        return order
+
+    def partial_update(self, request, pk=None):
+        from django.db import transaction
+
+        serializer = serializers.ExamOrderConfirmSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        with transaction.atomic():
+            order = self._locked_order(pk)
+            order.scheduled_at = serializer.validated_data["scheduled_at"]
+            order.updated_by = self._current_account()
+            order.save(update_fields=["scheduled_at", "updated_by", "updated_at"])
+        return Response(serializers.ExamOrderSerializer(order).data)
+
+    def cancel(self, request, pk=None):
+        from django.db import transaction
+
+        with transaction.atomic():
+            order = self._locked_order(pk)
+            order.order_status = "cancelled"
+            order.updated_by = self._current_account()
+            order.save(update_fields=["order_status", "updated_by", "updated_at"])
+        return Response(serializers.ExamOrderSerializer(order).data)
+
+
 class MeView(viewsets.ViewSet):
     """GET /me"""
 

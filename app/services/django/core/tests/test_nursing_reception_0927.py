@@ -336,3 +336,22 @@ class NursingEndpointTests(TestCase):
         self.assertEqual(o.visited_at, first)
         self.patient.refresh_from_db()
         self.assertEqual(self.patient.first_visited_at, first)
+
+
+class ReservationEditRouteTests(SimpleTestCase):
+    """09-27 예약 변경 · 취소 경로 — 새로 만들지 않고 있는 오더를 고친다."""
+
+    def test_경로가_있다(self):
+        from django.urls import resolve
+        from core import views
+        for url in ("/api/v1/exam-orders/7/reschedule", "/api/v1/exam-orders/7/cancel"):
+            match = resolve(url)
+            self.assertIs(match.func.cls, views.ExamOrderRescheduleView, url)
+
+    def test_잠긴_예약은_409(self):
+        from core.api.errors import spec_for
+        self.assertEqual(spec_for("RESERVATION_LOCKED").status, 409)
+
+    def test_바꿀_수_있는_것은_아직_안_온_예약뿐(self):
+        from core import views
+        self.assertEqual(set(views.ExamOrderRescheduleView.EDITABLE), {"requested", "scheduled"})

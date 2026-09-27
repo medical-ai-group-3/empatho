@@ -12,6 +12,7 @@ from .reception import (
     PatientRegisterView,     
     CheckInView,
     ExamOrderScheduleView,
+    ExamOrderRescheduleView,
     MeView,
     PushTokenView,
     NotificationViewSet,
