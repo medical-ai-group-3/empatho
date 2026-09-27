@@ -97,6 +97,7 @@ function Inner({ patient, onReload }) {
       <div className="dec-col">
         <PatientInfoCard patient={patient} />
         <DecisionLog />
+        <PatientReportCard report={report} reports={reports} unlock={unlock} />
       </div>
       </div>
     </>
@@ -116,6 +117,59 @@ function DecisionLog() {
         아직 못 불러옵니다 — 환자로 결정을 모으는 경로가 없습니다.
       </p>
       <p className="card-text">결정은 지워지지 않습니다. 바꾸려면 새 결정을 남기세요.</p>
+    </div>
+  );
+}
+
+/* 환자에게 공개되는 리포트를 결정 화면에서도 바로 확인한다. 기존에는
+   리포트가 왼쪽 작성 카드 안에만 있어, 결정 기록과 환자 정보 아래에서
+   최종 결과를 찾기 어려웠다. 최종 리포트가 없으면 확정된 검사별 리포트
+   목록을 보여 주고, 잠금 상태는 서버의 unlock-status를 그대로 표시한다. */
+function PatientReportCard({ report, reports }) {
+  const stageReports = (reports.data ?? []).filter((row) => row.report_type === "stage");
+  const content = report?.content_json ?? {};
+  const title = report ? "최종 환자 리포트" : "환자 리포트 열람";
+  const status = report ? (report.is_unlocked ? "열람 가능" : "잠금 상태") : "작성 대기";
+
+  return (
+    <div className="card patient-report-card">
+      <div className="card-head">
+        <h3>{title}</h3>
+        <span className={`pill ${report?.is_unlocked ? "ok" : report ? "wait" : "warn"}`}>{status}</span>
+      </div>
+      {reports.loading ? <p className="note">리포트를 불러오는 중입니다.</p>
+        : reports.error ? <p className="warnline">환자 리포트를 불러오지 못했습니다. 새로고침 후 다시 확인해 주세요.</p>
+        : report ? (
+          <div className="patient-report-body">
+            <div className="report-meta-row">
+              <span>리포트 번호</span><b>#{report.report_id}</b>
+            </div>
+            <div className="report-meta-row">
+              <span>작성일</span><b>{report.finalized_at ?? report.created_at ?? "—"}</b>
+            </div>
+            <p className="section-label">종합 요약</p>
+            <p className="card-text">{report.ai_summary || content.doctor_summary || "등록된 요약이 없습니다."}</p>
+            {report.ai_evidence?.length > 0 && (
+              <>
+                <p className="section-label">주요 근거</p>
+                <ul className="bullets compact">{report.ai_evidence.slice(0, 3).map((item) => <li key={item}>{item}</li>)}</ul>
+              </>
+            )}
+            <p className="note report-lock-note">잠금 해제 조건과 환자 공개 여부는 아래 환자 설명 카드에서 관리합니다.</p>
+          </div>
+        ) : stageReports.length ? (
+          <div className="patient-report-body">
+            <p className="card-text">최종 리포트 생성 전입니다. 현재 확인 가능한 검사별 판독문:</p>
+            <div className="report-stage-list">
+              {stageReports.map((row) => (
+                <div className="report-stage-row" key={row.report_id}>
+                  <b>{row.title ?? row.modality ?? "검사 판독문"}</b>
+                  <span>{row.narrative_text || row.ai_summary || "내용 없음"}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : <p className="note">확정된 리포트가 없습니다. 검사 판독 확정 후 열람할 수 있습니다.</p>}
     </div>
   );
 }
