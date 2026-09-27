@@ -93,7 +93,9 @@ export default function Top({ dept, now, counts, summary }) {
           <span className="who"><b>—</b><em>로그인 정보 없음</em></span>
         )}
 
-        <PatientSearch dept={dept} />
+        {/* 유방외과는 띠의 환자 검색을 안 쓴다 — 홈의 내 환자와 「전체 환자」
+            목록 검색이 그 자리를 한다(두 곳에서 찾게 하지 않는다) */}
+        {dept?.key !== "breast" && <PatientSearch dept={dept} />}
 
         <div className="band-r">
           <span className="when">{now}</span>

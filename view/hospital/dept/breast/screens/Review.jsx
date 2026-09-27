@@ -39,8 +39,8 @@ export default function Review() {
   const p = useApi(() => api.patient(id), [id]);
 
   return (
-    <Page className="rev-page" crumb={["유방외과", "검사 종합"]}
-          title="검사 종합" patient={p.data}
+    <Page className="rev-page" crumb={["유방외과", "환자 상세"]}
+          title="환자 상세" patient={p.data}
           right={(
             <>
               <Btn to={go.patient(id)}>환자 상세</Btn>

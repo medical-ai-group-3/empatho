@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { breast as api } from "../../../api";
 import { SEX, label } from "../../../codes";
 import { Body } from "../../../lib/Body";
-import { Card, Page } from "../../../lib/Page";
+import { Btn, Card, Page } from "../../../lib/Page";
+import { go } from "../../../nav";
 import { Facts, Search, Sort, Split, Table } from "../../../lib/Parts";
 import { useApi } from "../../../lib/useApi";
 import "../breast.css";
@@ -96,7 +97,8 @@ function PatientDetail({ id }) {
   const { loading, data: patient, error, reload } = useApi(() => api.patient(id), [id]);
 
   return (
-    <Card title="환자 상세" className="patients-detail-card">
+    <Card title="환자 요약" className="patients-detail-card"
+          right={<Btn kind="fill" to={go.breast.review(id)}>환자 상세</Btn>}>
       <Body loading={loading} error={error} onRetry={reload}>
         {patient && (
           <>

@@ -79,7 +79,7 @@ export const breast = {
            권한이 없으면 그 화면이 Locked 로 알려 준다(main.jsx) */
         to: go.breast.review(r.patient_id),
         pid: r.patient_id,
-        why: "검사 종합",
+        why: "환자 상세",
       })),
     }),
 

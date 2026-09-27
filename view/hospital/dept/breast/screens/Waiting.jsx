@@ -269,7 +269,7 @@ function Mid({ p, onNext, onOpen, onGuide }) {
         <span className="home-fill" />
         <Btn onClick={onNext}>다음 환자 →</Btn>
         <Btn to={go.breast.decision(p.patient_id)}>치료 방침 결정</Btn>
-        <Btn kind="fill" to={go.breast.review(p.patient_id)}>검사 종합</Btn>
+        <Btn kind="fill" to={go.breast.review(p.patient_id)}>환자 상세</Btn>
       </div>
 
       <section className="work-read">
@@ -340,7 +340,7 @@ function nextCareStep(p) {
   }
   return { progress, step: {
     kind: "decision", label: "치료 방침",
-    message: "필요한 검사 결과가 준비되었습니다. 검사 종합을 확인한 뒤 치료 방침을 결정해 주세요.",
+    message: "필요한 검사 결과가 준비되었습니다. 환자 상세에서 검사 결과를 확인한 뒤 치료 방침을 결정해 주세요.",
   } };
 }
 
