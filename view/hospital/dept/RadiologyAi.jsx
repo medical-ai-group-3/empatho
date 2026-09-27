@@ -255,7 +255,7 @@ function Mri({ a }) {
             <div><dt>부피</dt><dd>{num(l.volume_cm3)} <i>cm³</i></dd></div>
             <div><dt>최대 직경</dt><dd>{num(l.max_diameter_mm)} <i>mm</i></dd></div>
             <div><dt>유두 거리</dt><dd>{num(l.nipple_distance_mm)} <i>mm</i></dd></div>
-            <div><dt>사분면</dt><dd>{l.quadrant ?? "—"}</dd></div>
+            <div className="wide"><dt>사분면</dt><dd>{l.quadrant ?? "—"}</dd></div>
           </dl>
           <p className="muted small">
             현재 분석 결과에는 2D 단면 좌표가 없어 위치 표시는 제공하지 않습니다.

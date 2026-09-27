@@ -197,8 +197,10 @@ export function Save({ hint, onDraft, onSave, saveLabel = "저장", busy,
   const d = useCan(draftNeed);
   const s = useCan(saveNeed);
   return (
-    /* top — 화면 윗줄에 가로로 선다(판독 화면). 아래 줄 모양이 기본이다 */
-    <div className={`save${top ? " top" : ""}`}>
+    /* top — 화면 윗줄에 가로로 선다(판독 화면). 아래 줄 모양이 기본이다.
+       ⚠ 클래스는 top 이 아니라 at-top 이다 — .top 은 상단바 전역 클래스라
+         sticky · z-index 20 을 물려받아 스크롤하면 상단바 위로 올라탔다(09-27) */
+    <div className={`save${top ? " at-top" : ""}`}>
       {hint && <p className="hint">{hint}</p>}
       <div className="save-b">
         <button className="btn line" onClick={onDraft}

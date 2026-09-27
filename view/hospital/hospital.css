@@ -1657,9 +1657,9 @@ a.pevent:focus-visible{outline:var(--hair) solid var(--cyan); outline-offset:2px
   border-top:var(--hair) solid var(--border); padding-top:var(--card-pad-sm)}
 .save-b{display:flex; gap:var(--btn-gap); justify-content:flex-end}
 /* 윗줄에 선 저장 — 안내 글과 단추가 한 줄이고 선을 긋지 않는다 */
-.save.top{flex-direction:row; align-items:center; margin-left:auto;
+.save.at-top{flex-direction:row; align-items:center; margin-left:auto;
   border-top:none; padding-top:0}
-.save.top .hint{max-width:40ch; text-align:right}
+.save.at-top .hint{max-width:40ch; text-align:right}
 .hint{margin:0; font-size:var(--hint-fs); color:var(--warm)}
 
 /* ── 팝업 ───────────────────────────────────────────────────── */
@@ -2140,7 +2140,10 @@ td.none,tr.none td{text-align:center; padding:var(--card-pad) 0}
 .ai-m.two{display:grid; grid-template-columns:1fr 1fr; gap:var(--gap-xs) var(--gap-sm)}
 .ai-m > div{display:flex; align-items:baseline; justify-content:space-between;
   gap:var(--sub-gap)}
-.ai-m dt{font-size:var(--ai-k-fs); color:var(--v-warm)}
+/* ⚠ 이름은 줄을 안 바꾼다 — 값이 길면 이름이 한 글자씩 세로로 쪼개졌다
+   (09-27 MRI 「사분면」). 값이 긴 줄은 .wide 로 한 줄을 통째로 쓴다 */
+.ai-m dt{font-size:var(--ai-k-fs); color:var(--v-warm); white-space:nowrap; flex:none}
+.ai-m.two > .wide{grid-column:1 / -1}
 .ai-m dd{margin:0; font-size:var(--ai-v-fs); color:var(--v-ink);
   font-variant-numeric:tabular-nums; text-align:right}
 .ai-m dd i{font-style:normal; font-size:var(--ai-k-fs); color:var(--v-warm)}
