@@ -313,7 +313,9 @@ export const acknowledgeNotification = (id) =>
    다를 뿐 같은 API를 쓰므로 여기 하나로 모은다. */
 export const notes = {
   list:   (type) => get(`/me/notes${qs({ type })}`).then(unwrapList),
-  create: (type, content) => post(`/me/notes${qs({ type })}`, { content }),
+  /* ⚠ 서버 시리얼라이저는 종류를 **본문**의 note_type 에서 읽는다. 주소에만
+     실어서는 400 이었다(09-27 확인 — 이 경로가 한 번도 안 쓰여 몰랐다) */
+  create: (type, content) => post(`/me/notes${qs({ type })}`, { note_type: type, content }),
   update: (id, content) => patch(`/me/notes/${id}`, { content }),
   remove: (id) => del(`/me/notes/${id}`),
 };

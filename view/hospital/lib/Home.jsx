@@ -6,6 +6,8 @@ import { can } from "../perm";
 import { byDate, monthGrid, today } from "../dept/home";
 import { seen, useRecent } from "./recent";
 import * as notes from "./notes";
+import { notes as notesApi } from "../api";
+import { useApi } from "./useApi";
 import Register from "../screens/reception/Register";
 
 /* 과 홈 — 배치는 `docs/mockup/*Home.html` 이 정한다
@@ -444,19 +446,39 @@ function Done({ done }) {
 
 /* ── 가운데 아래 — 인계 사항 ───────────────────────────────────
  * 그 과 전체가 본다. **교대 메모이지 환자 기록이 아니다.**
- * ⚠ 저장하는 자리는 lib/notes.js 뒤에 숨어 있다. 서버 표가 생겨도
- *   이 화면은 안 고친다(8장 2번).
+ * ⚠ 09-27 서버로 옮겼다(GET/POST/DELETE /me/notes?type=handover). 전에는
+ *   이 브라우저에만 남아 **같은 과 다른 사람에게 안 보였다** — 인계가
+ *   안 되는 인계 칸이었다. 서버가 같은 역할끼리 보여 준다.
+ *   과 구분은 서버가 로그인한 역할로 하므로 dept 는 다시 부르는 열쇠로만 쓴다.
  */
 function Handover({ dept }) {
-  const [list, setList] = useState(() => notes.read("handover", dept));
+  const remote = useApi(() => notesApi.list("handover"), [dept]);
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const list = (remote.data ?? []).map((n) => ({
+    id: n.personal_note_id,
+    at: n.created_at,
+    who: n.owner_name,
+    body: n.content?.text ?? "",
+  }));
 
-  function submit(e) {
+  async function submit(e) {
     e.preventDefault();
-    setList(notes.add("handover", dept, text));
-    setText("");
-    setOpen(false);
+    const v = text.trim();
+    if (!v || busy) return;          /* 한글 입력 중 Enter 두 번에 두 건 안 남게 */
+    setBusy(true);
+    try {
+      await notesApi.create("handover", { text: v });
+      setText("");
+      setOpen(false);
+      remote.reload();
+    } finally { setBusy(false); }
+  }
+
+  async function remove(id) {
+    await notesApi.remove(id).catch(() => {});
+    remote.reload();
   }
 
   return (
@@ -473,21 +495,22 @@ function Handover({ dept }) {
             <button type="button" className="btn line sm"
                     onClick={() => setOpen(false)}>취소</button>
             <button type="submit" className="btn fill sm"
-                    disabled={!text.trim()}>남기기</button>
+                    disabled={!text.trim() || busy}>남기기</button>
           </div>
         </form>
       )}
 
-      {list.length === 0 && !open
-        ? <p className="hcard-k hpad">넘길 말이 없습니다</p>
+      {remote.error && <p className="hcard-k hpad">인계 사항을 불러오지 못했습니다</p>}
+      {list.length === 0 && !open && !remote.error
+        ? <p className="hcard-k hpad">{remote.loading ? "불러오는 중…" : "넘길 말이 없습니다"}</p>
         : list.map((it) => (
           <article className="hrow" key={it.id}>
             <div className="hrow-1">
-              <time>{String(it.at ?? "").slice(11, 16)}</time>
-              <b>{it.who ?? "나"}</b>
+              <time>{String(it.at ?? "").slice(5, 16).replace("T", " ")}</time>
+              <b>{it.who ?? "—"}</b>
               <span className="home-fill" />
               <button className="note-x" aria-label="지우기"
-                      onClick={() => setList(notes.remove("handover", dept, it.id))}>
+                      onClick={() => remove(it.id)}>
                 ×
               </button>
             </div>
