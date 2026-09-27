@@ -72,6 +72,7 @@ export default function EmpathoLogin({
 }) {
   const sceneRef = useRef(null);
   const videoRef = useRef(null);
+  const enterRef = useRef(null);
 
   /* 전환 단계는 상태로 두되, 언마운트 이후 갱신을 막기 위해 ref 로 함께 추적 */
   const [phase, setPhase] = useState({
@@ -90,6 +91,13 @@ export default function EmpathoLogin({
     aliveRef.current = true;
     return () => { aliveRef.current = false; };
   }, []);
+
+  /* 폼이 사라지면 포커스가 갈 곳을 잃는다 — 아이디 칸이 autoFocus 라
+     거기 있던 캐럿이 남아 「환영합니다」 위에서 깜빡였다.
+     받아 줄 자리를 만들어 옮긴다. */
+  useEffect(() => {
+    if (phase.opening) enterRef.current?.focus();
+  }, [phase.opening]);
 
   /* 누를 때마다 지금 상태를 본다. keydown·keyup 둘 다 걸어야 Shift 로
      대문자 한 글자만 친 경우와 안 섞인다 */
@@ -354,7 +362,7 @@ export default function EmpathoLogin({
           )}
 
           {phase.opening && (
-            <div className="entering" role="status" aria-live="polite">
+            <div className="entering" role="status" tabIndex={-1} ref={enterRef}>
               <svg className="pulse" viewBox="0 0 32 32" aria-hidden="true">
                 <circle cx="16" cy="16" r="14" />
                 <circle cx="16" cy="16" r="14" className="pulse__arc" />

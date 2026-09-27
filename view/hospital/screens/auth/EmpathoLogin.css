@@ -306,7 +306,14 @@
 
 /* ──────────────────────  입장 중 상태  ────────────────────── */
 
-.empatho-scene .entering { display: grid; gap: 26px; justify-items: start; }
+/* 고를 수 없는 글이라 캐럿이 설 자리가 아니다 */
+.empatho-scene .entering {
+  display: grid; gap: 26px; justify-items: start;
+  caret-color: transparent;
+  user-select: none;
+}
+/* 포커스를 받아 두는 자리일 뿐이라 테두리는 안 그린다 */
+.empatho-scene .entering:focus { outline: none; }
 .empatho-scene .entering[hidden] { display: none; }
 
 /* 「환영합니다」는 라벨, 이름이 주인공. 한국어는 단어 중간에서 끊지 않는다 */
