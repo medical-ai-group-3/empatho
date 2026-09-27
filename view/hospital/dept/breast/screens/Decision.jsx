@@ -86,14 +86,17 @@ function Inner({ patient, onReload }) {
       <div className="decision-grid">
       <div className="dec-col">
         <DecisionForm assessmentId={assessmentId} assessmentIdLoading={timeline.loading} />
-        {report ? <AiSummaryCard report={report} /> : <FinalReportCard patient={patient} reports={reports} onCreated={onReload} />}
+        {/* 만든 뒤에도 생성 칸을 남긴다 — 전에는 리포트가 있으면 이 칸이
+            사라져서 판독이 더 들어와도 다시 만들 길이 없었다 */}
+        {report && <AiSummaryCard report={report} />}
+        <FinalReportCard patient={patient} reports={reports} onCreated={onReload} again={Boolean(report)} />
         {report ? <DoctorSummaryCard report={report} /> : <PendingReportCard title="의사 종합 리포트" />}
         <PrescriptionDraft patient={patient} report={report} />
       </div>
 
       <div className="dec-col">
         <PatientInfoCard patient={patient} />
-        <PatientReportCard report={report} reports={reports} unlock={unlock} />
+        <PatientReportCard report={patient.patient_report} reports={reports} unlock={unlock} />
         {report
           ? <ExplainForm report={report} onSaved={onReload} unlock={unlock} />
           : <PendingReportCard title="의사 최종 소견" />}
@@ -127,7 +130,8 @@ function PatientReportCard({ report, reports }) {
               <span>리포트 번호</span><b>#{report.report_id}</b>
             </div>
             <div className="report-meta-row">
-              <span>작성일</span><b>{report.finalized_at ?? report.created_at ?? "—"}</b>
+              {/* finalized_at · created_at 은 리포트 응답에 없다 — 있는 것은 공개(잠금 해제) 시각 */}
+              <span>공개일</span><b>{String(report.unlocked_at ?? "").slice(0, 10) || "공개 전"}</b>
             </div>
             <p className="section-label">종합 요약</p>
             <p className="card-text">{report.ai_summary || content.doctor_summary || "등록된 요약이 없습니다."}</p>
@@ -165,7 +169,7 @@ function PendingReportCard({ title }) {
   );
 }
 
-function FinalReportCard({ patient, reports, onCreated }) {
+function FinalReportCard({ patient, reports, onCreated, again = false }) {
   const [selected, setSelected] = useState(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState(null);
@@ -192,8 +196,12 @@ function FinalReportCard({ patient, reports, onCreated }) {
 
   return (
     <div className="card">
-      <div className="card-head"><h3>AI 종합 리포트</h3></div>
-      <p className="card-text">확정된 검사 판독문을 선택해 최종 종합 리포트를 생성합니다.</p>
+      <div className="card-head"><h3>{again ? "AI 종합 리포트 다시 만들기" : "AI 종합 리포트"}</h3></div>
+      <p className="card-text">
+        {again
+          ? "판독이 더 들어왔으면 골라서 새로 만듭니다. 새 리포트가 위 칸에 뜹니다."
+          : "확정된 검사 판독문을 선택해 최종 종합 리포트를 생성합니다."}
+      </p>
       {reports.loading ? <p className="note">판독문을 불러오는 중입니다.</p>
         : reports.error ? <p className="warnline">판독문을 불러오지 못했습니다. 새로고침 후 다시 시도해 주세요.</p>
         : sources.length === 0 ? <p className="note">생성할 확정 검사 판독문이 없습니다.</p>
@@ -207,7 +215,7 @@ function FinalReportCard({ patient, reports, onCreated }) {
           </div>}
       {msg && <p className="warnline">{msg}</p>}
       <div className="card-foot"><button className="btn fill" onClick={create} disabled={busy || !effectiveSelected.length}>
-        {busy ? "생성 중…" : "최종 리포트 생성"}
+        {busy ? "생성 중…" : again ? "다시 생성" : "최종 리포트 생성"}
       </button></div>
     </div>
   );
@@ -219,11 +227,13 @@ function AiSummaryCard({ report }) {
       <div className="card-head">
         <h3>AI 종합 리포트</h3>
         <span className="pill" style={{ background: "var(--accent-weak)", color: "var(--accent)" }}>
-          {report.ai_modality_count}개 모달리티 통합
+          {/* 센 것은 모달리티가 아니라 묶은 판독 수다(source_ai_ids) */}
+          {report.ai_modality_count ? `판독 ${report.ai_modality_count}건 통합` : "통합"}
         </span>
       </div>
       <p className="section-label">요약</p>
-      <p className="card-text">{report.ai_summary || "아직 생성되지 않았습니다"}</p>
+      {/* 리포트 행은 바로 서고 소견문은 리포트 서버가 뒤에 채운다(수십 초) */}
+      <p className="card-text">{report.ai_summary || "소견문을 만드는 중입니다. 잠시 뒤 새로고침해 주세요."}</p>
       {report.ai_evidence?.length > 0 && (
         <>
           <p className="section-label">근거</p>

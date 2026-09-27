@@ -1045,12 +1045,29 @@ export const breast = {
       ?? null;
     /* 단계 판독을 최종 리포트로 취급하면 치료 방침 화면이 최종 리포트
        생성 단계를 건너뛴다. final 타입만 환자 대표 리포트로 사용한다. */
-    const report = patient?.report?.report_type === "final"
+    /* 종합 소견서는 의사용 · 환자용 두 벌이 같이 서고, 다시 만들면 또
+       두 벌이 는다. 치료 방침은 **가장 최근 의사용**을, 환자 리포트 칸은
+       가장 최근 환자용을 본다.
+       ⚠ 화면이 읽던 ai_summary · ai_modality_count · is_unlocked 는
+         서버에 없는 칸이다 — 그래서 리포트가 있어도 「아직 생성되지
+         않았습니다」가 떴다(09-27 환자 127). 서버 칸으로 여기서 채운다:
+         본문은 narrative_text, 통합한 판독 수는 content_json.source_ai_ids,
+         열람 가능은 lock_status */
+    const asFinal = (r) => r && ({
+      ...r,
+      ai_summary: r.ai_summary ?? r.narrative_text,
+      ai_modality_count: r.ai_modality_count ?? r.content_json?.source_ai_ids?.length,
+      is_unlocked: r.is_unlocked ?? r.lock_status === "unlocked",
+    });
+    const finals = reports.filter((row) => row.report_type === "final");
+    const report = asFinal(patient?.report?.report_type === "final"
       ? patient.report
-      : reports.find((row) => row.report_type === "final") ?? null;
+      : finals.filter((row) => row.audience !== "patient").at(-1) ?? finals.at(-1) ?? null);
+    const patientReport = asFinal(finals.filter((row) => row.audience === "patient").at(-1) ?? null);
     return {
       ...patient,
       report,
+      patient_report: patientReport,
       /* 나머지 리포트를 버리지 않는다. 검사 종합·내 환자 화면이 영상/병리
          판독 요약을 여기서 읽는데(Review.jsx·Waiting.jsx 의 other_reports),
          만들어 주는 사람이 없어 늘 「아직 없습니다」로 떴다 — 소견문은
