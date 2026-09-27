@@ -411,7 +411,7 @@ export const radiology = {
           ["알레르기", d.contrast_allergy || "없음"],
           ["검사명", d.exam_name],
           ["검사 목적", d.purpose],
-          ["검사일", d.performed_at],
+          ["촬영일", d.performed_at],
           ["모달리티", label(MODALITY, asModality(d.modality))],
         ]} />
 
@@ -678,7 +678,7 @@ export const radiology = {
                 ["알레르기", d.contrast_allergy || "없음"],
                 ["모달리티", label(MODALITY, asModality(d.modality))],
                 ["촬영 장비", d.device],
-                ["검사일", d.performed_at],
+                ["촬영일", d.performed_at],
                 ["담당 판독의", d.assigned_to],
                 ["진행상황", text(d, "read_status", READ_STATUS, "status_label")],
                 ["유방외과 열람", d.viewed_at ?? "미열람"],
@@ -725,7 +725,7 @@ export const radiology = {
         ["연락처", d.patient.phone],
         ["알레르기", d.patient.contrast_allergy || "없음"],
         ["검사명", d.unit.exam_name],
-        ["검사일시", d.unit.performed_at],
+        ["촬영 일시", d.unit.performed_at],
         ["담당 판독의", d.unit.assigned_to],
       ]} />
     ),

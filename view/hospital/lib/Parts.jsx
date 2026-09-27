@@ -169,7 +169,7 @@ export function Table({ cols, rows, value, onPick,
             <tr key={r.id} className={value === r.id ? "on" : undefined}
                 onClick={() => onPick?.(r.id)} tabIndex={0}
                 onKeyDown={(e) => { if (e.key === "Enter") onPick?.(r.id); }}>
-              {cols.map((c) => <td key={c.key}>{r[c.key]}</td>)}
+              {cols.map((c) => <td key={c.key}>{readable(r[c.key])}</td>)}
             </tr>
           ))}
           {rows.length === 0 && (
@@ -230,6 +230,10 @@ export function Bar({ value = 0, label }) {
    그 칸의 width 자체가 손잡이(vtab) 폭으로 줄어들고, 가운데
    Viewer(flex:1)가 남는 공간을 그대로 흡수한다 — visibility만
    지우고 자리를 남겨 두는 방식이 아니다. */
+/* ⚠ 09-27 개편 — AI 소견과 의사 소견을 **한 칸(소견)에 위아래로** 넣고
+   각자 따로 접는다. 칸이 넷이면 가운데 영상이 좁아지고 의사 소견 칸이
+   화면 밖으로 잘렸다. 소견 칸 전체도 접을 수 있다(그때 영상이 가장 넓다).
+   의사 소견이 위다 — 쓰는 곳이 본체이고 AI 는 곁에서 보는 것이다. */
 export function Viewer({
   infoName = "환자 정보", info,
   aiName = "AI 소견", ai, aiOpen = false,          /* AI 는 기본 접힘 */
@@ -237,6 +241,7 @@ export function Viewer({
   tools, below, children,
 }) {
   const [L, setL] = useState(true);
+  const [S, setS] = useState(true);
   const [A, setA] = useState(aiOpen);
   const [D, setD] = useState(doctorOpen);
 
@@ -258,22 +263,30 @@ export function Viewer({
         {below && <div className="vunder">{below}</div>}
       </div>
 
-      {ai && (A
-        ? <aside className="vside">
-            <div className="vside-h"><b>{aiName}</b>
-              <button className="x" onClick={() => setA(false)} aria-label="접기">›</button></div>
-            <div className="vside-b">{ai}</div>
+      {(ai || doctor) && (S
+        ? <aside className="vside vside-2">
+            <div className="vside-h"><b>소견</b>
+              <button className="x" onClick={() => setS(false)} aria-label="소견 칸 접기">›</button></div>
+            <div className="vside-b">
+              {doctor && <Sec name={doctorName} open={D} onToggle={() => setD((v) => !v)}>{doctor}</Sec>}
+              {ai && <Sec name={aiName} open={A} onToggle={() => setA((v) => !v)}>{ai}</Sec>}
+            </div>
           </aside>
-        : <button className="vtab" onClick={() => setA(true)}>{aiName}</button>)}
-
-      {doctor && (D
-        ? <aside className="vside">
-            <div className="vside-h"><b>{doctorName}</b>
-              <button className="x" onClick={() => setD(false)} aria-label="접기">›</button></div>
-            <div className="vside-b">{doctor}</div>
-          </aside>
-        : <button className="vtab" onClick={() => setD(true)}>{doctorName}</button>)}
+        : <button className="vtab" onClick={() => setS(true)}>소견</button>)}
     </div>
+  );
+}
+
+/* 소견 칸 안의 한 묶음 — 머리를 누르면 접히고 펴진다 */
+function Sec({ name, open, onToggle, children }) {
+  return (
+    <section className={`vsec${open ? " on" : ""}`}>
+      <button type="button" className="vsec-h" aria-expanded={open} onClick={onToggle}>
+        <b>{name}</b>
+        <i aria-hidden="true">{open ? "▾" : "▸"}</i>
+      </button>
+      {open && <div className="vsec-b">{children}</div>}
+    </section>
   );
 }
 
@@ -291,12 +304,25 @@ export function Slide({ label, value, onChange, min = 0, max = 100, unit = "%" }
   );
 }
 
+/* 서버 시각 문자열(2026-09-21T10:11:46.939910+09:00)을 사람이 읽는 꼴로.
+   정보 칸(Facts)과 표(Table)가 값을 그리기 전에 한 번 거친다 — 화면마다
+   고치면 한 곳은 꼭 빠진다(09-27 영상 목록 「촬영일」이 원본 그대로 떴다).
+   날짜만 온 값(2026-09-21)은 그대로, 시각이 있으면 「2026-09-21 10:11」,
+   자정 정각(날짜만 뜻하는 값)이면 날짜만 */
+const ISO = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/;
+export function readable(v) {
+  if (typeof v !== "string") return v;
+  const m = v.match(ISO);
+  if (!m) return v;
+  return m[2] === "00:00" ? m[1] : `${m[1]} ${m[2]}`;
+}
+
 /* 정의 목록 — 「이름 : 값」이 줄줄이 있는 자리. 좌측 정보 패널이 쓴다 */
 export function Facts({ items }) {
   return (
     <dl className="kv">
       {items.filter(Boolean).map(([k, v], i) => (
-        <div key={i}><dt>{k}</dt><dd>{v}</dd></div>
+        <div key={i}><dt>{k}</dt><dd>{readable(v)}</dd></div>
       ))}
     </dl>
   );

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Body } from "../lib/Body";
 import { Btn, Card, Page } from "../lib/Page";
-import { Chip, Fold, Locked, Save } from "../lib/Parts";
+import { Chip, Fold, Locked, Save, readable } from "../lib/Parts";
 import { useApi } from "../lib/useApi";
 import { can } from "../perm";
 
@@ -194,7 +194,7 @@ function Inner({ cfg, id, d }) {
               {history.map((h, i) => (
                 <li key={i}>
                   <div className="hist-h">
-                    <b>{h.amended_at ?? h.finalized_at}</b>
+                    <b>{readable(h.amended_at ?? h.finalized_at)}</b>
                     <span>{h.reported_by}</span>
                   </div>
                   {h.amend_reason && <p className="why">사유 — {h.amend_reason}</p>}
