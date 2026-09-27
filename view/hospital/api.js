@@ -262,6 +262,11 @@ const put   = (p, b) => call("PUT", p, b);
 const patch = (p, b) => call("PATCH", p, b);
 const del   = (p)    => call("DELETE", p);
 
+/* ⚠ 서버 목록은 한 쪽 20건이다(DefaultPagination). 창구 화면들은 **줄을 다
+   보여 줘야** 해서 한 번에 넉넉히 받는다 — 스물한 번째 환자가 화면에서
+   사라지던 자리(내원 대기 · 예약 판)에 싣는다. ?page_size= 는 서버가 받는다 */
+const PAGE_ALL = 500;
+
 function qs(o = {}) {
   const e = Object.entries(o).filter(([, v]) => v !== undefined && v !== null && v !== "");
   return e.length ? `?${new URLSearchParams(e)}` : "";
@@ -1195,8 +1200,8 @@ export const breast = {
  *   3장 검체 바인딩      유방외과와 같은 팝업(specimens, 위에서 공용화) */
 export const nursing = {
   /* 1장 */
-  waitingArrived: () => get(`/exam-orders${qs({ status: "requested", visited: "yes", ordering: "visited_at" })}`),
-  scheduledToday: () => get(`/exam-orders${qs({ scheduled_on: "today", visited: "none" })}`),
+  waitingArrived: () => get(`/exam-orders${qs({ status: "requested", visited: "yes", ordering: "visited_at", page_size: PAGE_ALL })}`),
+  scheduledToday: () => get(`/exam-orders${qs({ scheduled_on: "today", visited: "none", ordering: "scheduled_at", page_size: PAGE_ALL })}`),
   examOrder:      (id) => get(`/exam-orders/${id}`),
   patient:        (id) => get(`/patients/${id}/`),
   saveNote:       (examOrderId, note) => patch(`/exam-orders/${examOrderId}/note`, { note }),
@@ -1254,7 +1259,7 @@ export const reception = {
   search:      (q)  => get(`/patients/${qs({ q })}`).then(unwrapList),
   register:    (b)  => post("/patients/register", b),
   checkIn:     (b)  => post("/exam-orders/checkin", b),
-  todayStatus: ()   => get("/patients/today-status").then(unwrapList),
+  todayStatus: ()   => get(`/patients/today-status${qs({ page_size: PAGE_ALL })}`).then(unwrapList),
 
   /* 예약 캘린더 — 한 달 치를 한 번에 받는다. 조회 전용이다.
      GET /exam-orders 는 한 경로에서 메서드로 갈린다(urls.py 의
@@ -1275,6 +1280,7 @@ export const reception = {
       scheduled_from: `${from}T00:00:00`,
       scheduled_to:   `${to}T23:59:59`,
       ordering:       "scheduled_at",
+      page_size:      PAGE_ALL,
     })}`).then(unwrapList),
 
   /* ── 3장 환자 목록 · 예약 ────────────────────────────────────
@@ -1326,6 +1332,7 @@ export const ALL_PATIENTS = { status: "all" };
 reception.requests = () =>
   get(`/exam-orders${qs({
     status: "requested", visited: "none", ordering: "scheduled_at",
+    page_size: PAGE_ALL,
   })}`).then(unwrapList);
 
 /* [예약 확인]. **날짜만 보낸다.**

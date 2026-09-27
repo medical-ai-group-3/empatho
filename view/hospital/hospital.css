@@ -545,6 +545,9 @@ a.frow:hover .frow-k{color:var(--ink)}
   justify-content:center; gap:var(--hcal-gap); font-style:normal;
   font-size:var(--hcal-d-fs); font-variant-numeric:tabular-nums}
 .hcal-d.past{opacity:var(--hcal-past)}
+/* 누를 수 있는 날 — 과가 갈 곳을 준 달력(간호과 → 예약 판) */
+.hcal-d.go{cursor:pointer}
+.hcal-d.go:hover{background:var(--canvas); opacity:1}
 .hcal-d.now{background:var(--soot); color:var(--soot-ink); font-weight:600;
   opacity:1}
 /* 점이 없는 날도 자리는 지킨다 — 안 그러면 점 있는 날만 숫자가 위로 밀린다.
@@ -654,7 +657,10 @@ a.frow:hover .frow-k{color:var(--ink)}
      띄우면 칸마다 안쪽 여백이 또 생기고 환자 줄이 앉을 자리가 없어진다.
      위 현황판(.board)과 같은 규칙이라 머리줄(.bcol-h)도 그대로 쓴다.
    ⚠ **경과 시간을 안 쓴다.** 접수 시각만 적는다. */
-.nwait{display:grid; min-height:var(--nwait-h);
+/* ⚠ **높이를 못 박는다.** min-height 만 두면 줄이 늘 때 상자가 같이 길어져
+     왼쪽 목록이 제 안에서 안 굴렀다 — 스크롤이 아니라 쪽이 늘어났다 */
+.nwait{display:grid; height:var(--nwait-h);
+  grid-template-rows:minmax(0, 1fr);
   grid-template-columns:var(--nwait-l) minmax(0, 1fr) var(--nwait-r);
   background:var(--card); border:var(--hair) solid var(--border);
   border-radius:var(--hcard-radius); overflow:hidden}
@@ -1151,6 +1157,10 @@ a.frow:hover .frow-k{color:var(--ink)}
   grid-template-rows:minmax(0, 1fr)}
 .resv-side, .resv-aside{display:flex; flex-direction:column;
   gap:var(--desk-gap); min-width:0; min-height:0; overflow-y:auto}
+/* ⚠ 단 안의 카드는 **줄어들지 않는다.** flex 기본값(shrink 1)이면 카드
+   셋이 단 높이에 맞춰 눌려서 「예약 정보」「지난 예약」「새 예약」 아래가
+   잘렸다. 제 높이를 지키고 단이 굴린다 */
+.resv-side > *, .resv-aside > *{flex:none}
 .resv-mid{display:flex; flex-direction:column; gap:var(--gap-sm);
   min-width:0; min-height:0}
 

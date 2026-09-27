@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Page, Card, Btn } from "../../lib/Page";
 import { Body, Empty } from "../../lib/Body";
 import { Chip, useCan } from "../../lib/Parts";
@@ -66,8 +67,13 @@ export default function Reservations({ cfg }) {
   const api = cfg.api;
   const today = ymd(new Date());
 
-  const [span, setSpan] = useState("week");      /* day · week · month */
-  const [anchor, setAnchor] = useState(today);   /* 보고 있는 날 */
+  /* 홈 달력에서 날을 눌러 오면 ?date= 가 붙는다 — 그 하루를 연다 */
+  const [params] = useSearchParams();
+  const asked = /^\d{4}-\d{2}-\d{2}$/.test(params.get("date") ?? "")
+    ? params.get("date") : null;
+
+  const [span, setSpan] = useState(asked ? "day" : "week"); /* day · week · month */
+  const [anchor, setAnchor] = useState(asked ?? today);      /* 보고 있는 날 */
   const [pick, setPick] = useState(null);        /* 오른쪽에 띄운 예약·환자 */
   const [tab, setTab] = useState("board");       /* board · requests */
 
@@ -95,7 +101,9 @@ export default function Reservations({ cfg }) {
             </span>
           )}>
       <div className="resv">
-        <Side anchor={anchor} onPick={(d) => { setAnchor(d); setSpan("week"); }}
+        {/* 작은 달력은 **하루**를 고른다 — 주 전체가 칠해지면 어느 날을
+            골랐는지 안 보였다. 주·월로 넓히는 것은 가운데 머리의 단추다 */}
+        <Side anchor={anchor} onPick={(d) => { setAnchor(d); setSpan("day"); }}
               cfg={cfg} />
 
         <div className="resv-mid">
@@ -185,7 +193,6 @@ function Mini({ y, m, anchor, onPick }) {
   for (let i = 0; i < first; i += 1) cells.push(null);
   for (let n = 1; n <= last; n += 1) cells.push(`${year}-${pad(mon + 1)}-${pad(n)}`);
 
-  const week = startOfWeek(anchor);
   return (
     <section className="resv-mini">
       <h3>{year}. {pad(mon + 1)}</h3>
@@ -196,7 +203,8 @@ function Mini({ y, m, anchor, onPick }) {
           : (
             <button type="button" key={iso}
                     className={`hcal-d w${new Date(`${iso}T00:00:00`).getDay()}`
-                      + `${startOfWeek(iso) === week ? " now" : ""}`}
+                      + `${iso === anchor ? " now" : ""}`}
+                    aria-pressed={iso === anchor}
                     onClick={() => onPick(iso)}>
               {Number(iso.slice(8))}
             </button>
@@ -380,6 +388,11 @@ function Aside({ cfg, pick, rows, onDone, onDate }) {
 
   return (
     <div className="resv-aside">
+      {/* 새 예약이 맨 위다 — 창구에서 제일 많이 누르는 것이 여기라 스크롤
+          아래에 두면 매번 내려가야 했다 */}
+      <New cfg={cfg} at={pick?.at} order={order} rows={rows}
+           onDone={onDone} onDate={onDate} />
+
       <Card title="예약 정보">
         {order ? (
           <>
@@ -424,8 +437,6 @@ function Aside({ cfg, pick, rows, onDone, onDate }) {
           )}
       </Card>
 
-      <New cfg={cfg} at={pick?.at} order={order} rows={rows}
-           onDone={onDone} onDate={onDate} />
     </div>
   );
 }

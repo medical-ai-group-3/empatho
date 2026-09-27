@@ -1,12 +1,13 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Page, Btn } from "../../lib/Page";
 import { Body } from "../../lib/Body";
 import { Chip, useCan } from "../../lib/Parts";
 import { useApi } from "../../lib/useApi";
-import { can } from "../../perm";
 import { go, DESK } from "../../nav";
 import * as H from "../../dept/home";
 import NursingWaiting from "../../dept/nursing/screens/Waiting";
+import { isSent, sentList } from "../../dept/nursing/sent";
+import Register from "./Register";
 
 /* 접수 — 오늘 현황판 위, 내원 대기 줄 아래
  * ════════════════════════════════════════════════════════════════
@@ -33,34 +34,56 @@ import NursingWaiting from "../../dept/nursing/screens/Waiting";
  *   하나 늘렸을 때 그 줄이 어느 칸에도 안 들어간다.
  */
 
-/* `/patients/today-status` 의 stage 가 곧 칸이다. 뷰가 다섯 값을 낸다 —
-   앞 넷은 이름을 지어 주고, 그 밖(order_status 가 그대로 온 것)은 종결 칸 */
+/* 칸 다섯. 무엇으로 채우는지가 칸마다 다르다 —
+ *
+ *   접수 대기   내원 대기 목록 중 문진이 아직 없는 사람
+ *   간호 · 문진  내원 대기 목록 중 문진을 낸 사람(배정 차례)
+ *   검사 진행   today-status 의 영상 쪽 stage
+ *   외래 진료   오늘 유방외과로 보낸 사람(../../dept/nursing/sent.js) 중
+ *               아직 검사·종결로 안 넘어간 사람
+ *   오늘 종결   today-status 의 completed · cancelled
+ *
+ * ⚠ 앞 둘은 today-status 가 아니라 **아래 내원 대기와 같은 목록**을 쓴다.
+ *   today-status 는 둘을 「접수 대기」 하나로 뭉쳐 주고, 따로 세면 아래
+ *   목록과 숫자가 어긋난다. 보낸 사람은 앞 둘에서 빠지고 외래 칸으로 간다. */
+const EXAM_STAGE = ["영상의학과 대기", "영상의학과 촬영중", "AI 분석중"];
+const CLOSED_STAGE = ["completed", "cancelled"];
+
 const BOARD = [
-  { key: "checkin", title: "접수 대기", stage: "접수 대기" },
-  { key: "nurse", title: "간호 · 문진", stage: null },
-  { key: "exam", title: "검사 진행",
-    stage: ["영상의학과 대기", "영상의학과 촬영중", "AI 분석중"] },
-  { key: "clinic", title: "외래 진료", stage: null },
-  { key: "closed", title: "오늘 종결", stage: ["completed", "cancelled"] },
+  { key: "checkin", title: "접수 대기" },
+  { key: "nurse", title: "간호 · 문진" },
+  { key: "exam", title: "검사 진행" },
+  { key: "clinic", title: "외래 진료" },
+  { key: "closed", title: "오늘 종결" },
 ];
+
+/* 아래 내원 대기와 같은 박자로 다시 부른다 — 보내면 위 칸도 바로 옮겨야 한다 */
+const POLL_MS = 7000;
 
 export default function Intake({ cfg }) {
   const api = cfg.api;
 
-  const today = useApi(() => api.todayStatus(), []);
+  const [tick, setTick] = useState(0);
+  const today = useApi(() => api.todayStatus(), [tick]);
+  const arrived = useApi(() => H.soft(api.waitingArrived()), [tick]);
   const rows = H.rows(today.data);
-  const again = () => today.reload(true);
+  const again = () => setTick((n) => n + 1);
+
+  useEffect(() => {
+    const t = setInterval(() => setTick((n) => n + 1), POLL_MS);
+    return () => clearInterval(t);
+  }, []);
 
   return (
     <Page crumb={[cfg.name, "접수"]} title="접수" className="intake-page"
           right={(
             <Btn to={go.nursing.patients()}>환자 목록 · 예약</Btn>
           )}>
-      <Find api={api} go={cfg.go} onDone={again} />
+      <Find api={api} onDone={again} />
 
       <Body loading={today.loading && !today.data} error={today.error}
             onRetry={today.reload}>
-        <Board rows={rows} />
+        <Board rows={rows} arrived={H.rows(arrived.data)} />
       </Body>
 
       {/* 아래는 **내원 대기 화면 통째로**다. 목록만 다시 그리면 문진·배정을
@@ -76,11 +99,12 @@ export default function Intake({ cfg }) {
  * 찾아서 확인한 뒤 누른다. **자동으로 접수하지 않는다** — 동명이인이
  * 있어서 한 명이어도 사람이 골라야 한다.
  */
-function Find({ api, go: goTo, onDone }) {
+function Find({ api, onDone }) {
   const [q, setQ] = useState("");
   const [found, setFound] = useState(null);
   const [busy, setBusy] = useState(null);
   const [err, setErr] = useState(null);
+  const [reg, setReg] = useState(false);
   const may = useCan("reception.checkin");
 
   async function find(e) {
@@ -108,9 +132,15 @@ function Find({ api, go: goTo, onDone }) {
         <input value={q} onChange={(e) => setQ(e.target.value)}
                placeholder="이름 · 전화 · 생년월일" aria-label="환자 검색" />
         <button className="btn dark" type="submit">검색</button>
-        {can("reception.patient.create")
-          && <Btn to={goTo.patients()}>+ 환자 등록</Btn>}
+        {/* 창구에서 바로 만든다 — 환자 목록으로 넘기면 접수하러 다시 와야
+            한다. 만든 사람은 아래 찾은 줄에 올라와 [접수] 만 누르면 된다 */}
+        <Btn type="button" onClick={() => setReg(true)}>+ 신규 등록</Btn>
       </form>
+
+      {reg && (
+        <Register onClose={() => setReg(false)}
+                  onDone={(p) => { setReg(false); setErr(null); setFound([p]); }} />
+      )}
 
       {err && <p className="note err">{err.detail || err.message}</p>}
       {found?.length === 0 && !err && (
@@ -141,17 +171,26 @@ function Find({ api, go: goTo, onDone }) {
  *   **칸을 없애지 않는다** — 없애면 흐름이 끊겨 보이고, 나중에 stage 가
  *   늘었을 때 자리를 다시 찾아야 한다.
  */
-function Board({ rows }) {
-  const bucket = (col) => {
-    if (!col.stage) return [];
-    const want = Array.isArray(col.stage) ? col.stage : [col.stage];
-    return rows.filter((r) => want.includes(r.stage));
+function Board({ rows, arrived }) {
+  const waiting = arrived.filter((r) => !isSent(r));
+  const sent = new Set(sentList().map((r) => String(r.order)));
+  const moved = (r) => EXAM_STAGE.includes(r.stage) || CLOSED_STAGE.includes(r.stage);
+
+  const cols = {
+    checkin: waiting.filter((r) => !r.questionnaire)
+      .map((r) => ({ ...r, stage: "문진 대기" })),
+    nurse: waiting.filter((r) => r.questionnaire)
+      .map((r) => ({ ...r, stage: "문진 완료 · 배정 대기" })),
+    exam: rows.filter((r) => EXAM_STAGE.includes(r.stage)),
+    clinic: rows.filter((r) => sent.has(String(r.exam_order_id)) && !moved(r))
+      .map((r) => ({ ...r, stage: "유방외과 진료 대기" })),
+    closed: rows.filter((r) => CLOSED_STAGE.includes(r.stage)),
   };
 
   return (
     <div className="board">
       {BOARD.map((col) => {
-        const here = bucket(col);
+        const here = cols[col.key];
         return (
           <section className="bcol" key={col.key}>
             <header className="bcol-h">
@@ -161,12 +200,8 @@ function Board({ rows }) {
             </header>
             <div className="bcol-b">
               {here.length === 0
-                ? (
-                  <p className="hcard-k hpad">
-                    {col.stage ? "대기 중인 환자가 없습니다" : "이 단계는 아직 집계되지 않습니다"}
-                  </p>
-                )
-                : here.map((r) => <BRow key={r.exam_order_id ?? r.patient_id} row={r} />)}
+                ? <p className="hcard-k hpad">대기 중인 환자가 없습니다</p>
+                : here.map((r) => <BRow key={r.exam_order_id ?? r.id ?? r.patient_id} row={r} />)}
             </div>
           </section>
         );

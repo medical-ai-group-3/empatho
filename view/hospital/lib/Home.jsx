@@ -6,6 +6,7 @@ import { can } from "../perm";
 import { byDate, monthGrid, today } from "../dept/home";
 import { seen, useRecent } from "./recent";
 import * as notes from "./notes";
+import Register from "../screens/reception/Register";
 
 /* 과 홈 — 배치는 `docs/mockup/*Home.html` 이 정한다
  * ════════════════════════════════════════════════════════════════
@@ -129,18 +130,23 @@ function Desk({ cfg, home, bag, again }) {
   const stuck = (bag && home.stuck ? home.stuck(bag) : []).filter((s) => s.count > 0);
   const done = bag && home.done ? home.done(bag) : null;
   const marks = bag && home.marks ? home.marks(bag) : [];
+  const side = bag && home.side ? home.side(bag) : null;
 
   return (
     <div className="desk">
       <div className="pane">
-        {home.intake && <Intake api={cfg.api} go={cfg.go} onDone={again} />}
+        {home.intake && <Intake api={cfg.api} onDone={again} />}
         <Queue queue={queue} />
         <Stuck items={stuck} />
       </div>
 
       <div className="pane">
         {home.flow && <Flow flow={home.flow(bag)} />}
-        <Done done={done} />
+        {/* 「오늘 한 일」을 안 쓰는 과(home.done 이 없다)는 그 자리에 할 일이
+            올라온다 — 오른쪽 단은 달력과 오늘 예약이 쓴다 */}
+        {home.done
+          ? <Done done={done} />
+          : <Todo key={cfg.key} dept={cfg.key} />}
         {/* ⚠ key 로 과를 건다. 과를 옮기면 **다시 마운트**되어 useState 의
             첫 읽기가 그 과 것으로 다시 돈다 — 효과 안에서 setList 하면
             렌더가 한 번 더 돌고, 그 사이 남의 과 메모가 한 판 보인다 */}
@@ -148,8 +154,10 @@ function Desk({ cfg, home, bag, again }) {
       </div>
 
       <div className="pane">
-        <Calendar marks={marks} note={bag && home.calNote ? home.calNote(bag) : null} />
-        <Todo key={cfg.key} dept={cfg.key} />
+        <Calendar marks={marks} note={bag && home.calNote ? home.calNote(bag) : null}
+                  to={home.calTo} />
+        {home.side && <Side side={side} />}
+        {home.done && <Todo key={cfg.key} dept={cfg.key} />}
       </div>
     </div>
   );
@@ -177,11 +185,12 @@ function Card({ dot = "fill", title, count, right, grow, className = "", childre
  * 찾아서 확인한 뒤 누른다. **자동으로 접수하지 않는다** — 동명이인이
  * 있어서 한 명이어도 사람이 골라야 한다.
  */
-function Intake({ api, go, onDone }) {
+function Intake({ api, onDone }) {
   const [q, setQ] = useState("");
   const [found, setFound] = useState(null);
   const [busy, setBusy] = useState(null);
   const [err, setErr] = useState(null);
+  const [reg, setReg] = useState(false);
 
   async function find(e) {
     e.preventDefault();
@@ -204,11 +213,19 @@ function Intake({ api, go, onDone }) {
 
   return (
     <Card title="접수" right={<span className="hcard-k">찾아서 확인한 뒤 누릅니다</span>}>
+      {/* 등록 팝업을 여기서 바로 연다 — 만든 사람은 아래 찾은 줄에 올라와
+          [접수] 만 누르면 된다. 다른 화면으로 넘기지 않는다 */}
+      {reg && (
+        <Register onClose={() => setReg(false)}
+                  onDone={(p) => { setReg(false); setErr(null); setFound([p]); }} />
+      )}
       <form className="intake-find" onSubmit={find}>
         <input value={q} onChange={(e) => setQ(e.target.value)}
                placeholder="이름 · 전화 · 생년월일" aria-label="환자 검색" />
         <button className="btn dark" type="submit">검색</button>
-        <Link className="btn line" to={go.intake()}>+ 환자 등록</Link>
+        <button className="btn line" type="button" onClick={() => setReg(true)}>
+          + 신규 등록
+        </button>
       </form>
 
       {err && <p className="hcard-err">{err.detail || err.message}</p>}
@@ -470,13 +487,40 @@ function Handover({ dept }) {
   );
 }
 
+/* ── 오른쪽 — 달력 밑 한 칸 (과가 home.side 를 줄 때만) ─────────
+ * 간호과는 「오늘 예약」이다 — 오늘 올 사람을 시각 순으로. 줄을 누르면
+ * 그 환자로, 머리의 단추는 예약 판으로 간다.
+ */
+function Side({ side }) {
+  const rows = side?.rows ?? [];
+  return (
+    <Card dot="ring" title={side?.title ?? ""} count={rows.length} grow
+          right={side?.to && <Link className="btn line sm" to={side.to}>예약 관리</Link>}>
+      <div className="drows">
+        {rows.length === 0
+          ? <p className="hcard-k hpad">{side?.empty ?? "없습니다"}</p>
+          : rows.map((r) => (
+            <Line key={r.id} to={r.to} className="drow">
+              <time>{r.at ?? "—"}</time>
+              <i className="drow-dot" aria-hidden="true" />
+              <span>
+                <b>{r.name}</b>{r.meta && <> · {r.meta}</>}{r.sub && <> · {r.sub}</>}
+              </span>
+            </Line>
+          ))}
+      </div>
+    </Card>
+  );
+}
+
 /* ── 오른쪽 위 — 달력 ──────────────────────────────────────────
  * ⚠ **점은 과가 아는 날짜만** 찍는다. 목업은 「판독 당번 · 학회」를
  *   찍지만 우리 서버에 근무표가 없다. 없는 점은 안 찍는다.
  */
 const DOW = ["일", "월", "화", "수", "목", "금", "토"];
 
-function Calendar({ marks, note }) {
+function Calendar({ marks, note, to }) {
+  const nav = useNavigate();
   const [at, setAt] = useState(() => {
     const n = new Date();
     return { y: n.getFullYear(), m: n.getMonth() };
@@ -511,9 +555,16 @@ function Calendar({ marks, note }) {
         {grid.cells.map((c, i) => c === null
           ? <i className="hcal-d off" key={`x${i}`} />
           : (
+            /* 과가 갈 곳(to)을 주면 날을 누를 수 있다 — 그날 예약 판으로 간다 */
             <i key={c.iso}
                className={`hcal-d w${c.dow}${c.iso === nowIso ? " now" : ""}`
-                 + `${c.iso < nowIso ? " past" : ""}`}>
+                 + `${c.iso < nowIso ? " past" : ""}${to ? " go" : ""}`}
+               {...(to ? {
+                 role: "button", tabIndex: 0,
+                 "aria-label": `${c.iso} 예약 보기`,
+                 onClick: () => nav(to(c.iso)),
+                 onKeyDown: (e) => { if (e.key === "Enter") nav(to(c.iso)); },
+               } : {})}>
               {c.d}
               <s className={dotClass(dots.get(c.iso), kinds)} />
             </i>
