@@ -68,8 +68,11 @@ function Inner({ p }) {
 
   const radRows = rows(rad, of("영상"), "study_id",
     (r) => label(MODALITY, r.modality) || "영상");
-  const patRows = rows(pat, of("병리"), "specimen_id",
-    (r) => `검체 ${r.specimen_id}`);
+  const specimenName = (r) => r.label ?? `검체 ${r.specimen_id}`;
+  const patRows = rows(pat, of("병리"), "specimen_id", specimenName);
+  /* 영상 칸의 「병변」 줄처럼 병리 칸 머리에 검체 ID 를 모아 둔다 */
+  const specimenLine = pat.map((r) => (r.label ? `${r.label} (#${r.specimen_id})` : `#${r.specimen_id}`))
+    .join(", ") || null;
 
   return (
     <div className="rev2">
@@ -111,7 +114,8 @@ function Inner({ p }) {
                     lines={[["병변", lesionLine(p.lesions)]]} />
         </div>
         <div className="rev-r">
-          <Readings title="병리 결과" gradeLabel="B" items={patRows} />
+          <Readings title="병리 결과" gradeLabel="B" items={patRows}
+                    lines={[["검체", specimenLine]]} />
         </div>
       </div>
 

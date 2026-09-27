@@ -1181,6 +1181,7 @@ export const breast = {
       .filter((row) => row.finalized_at && (row.diagnosis || row.b_category))
       .map((row) => ({
         specimen_id: row.specimen_id ?? row.id,
+        label: row.specimen_label ?? null,   /* 검체번호 — S-DEMO-TISSUE 같은 것 */
         grade: row.b_category ?? null,
         note: row.diagnosis ?? null,
         at: row.finalized_at ?? null,
