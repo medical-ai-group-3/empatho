@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import PortOne from "@portone/browser-sdk/v2";
 import { api } from "../api";
 import { Head } from "../lib/Screen";
+import DateWheel from "../lib/DateWheel";
 
 /* 02 · 가입
  *
@@ -146,11 +147,11 @@ export default function Signup() {
                      autoComplete="name" disabled={busy} />
             </label>
 
-            <label className="field">
+            <div className="field">
               <span>생년월일</span>
-              <input type="date" value={f.birth} onChange={set("birth")}
-                     autoComplete="bday" disabled={busy} />
-            </label>
+              <DateWheel value={f.birth} disabled={busy}
+                         onChange={(v) => setF({ ...f, birth: v })} />
+            </div>
 
             <div className="field">
               <span>성별</span>

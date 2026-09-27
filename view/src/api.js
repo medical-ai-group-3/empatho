@@ -381,7 +381,20 @@ export const api = {
   //     내원 한 번에 리포트 하나다. 서버가 report_type='final' ·
   //     audience='patient' 만 준다 — **앱은 묶는 일을 하지 않는다.**
   //     lock_status 가 'locked' 면 본문이 오지 않는다(대면 설명 전).
-  results:      ()         => get("/api/v1/reports/"),
+  //
+  //     ⚠ 서버는 목록을 { count, results } 로 준다(알림과 같다). 화면은
+  //     items 를 읽어서 여기서 맞춘다 — 안 맞추면 결과가 있어도 늘 빈 목록이다.
+  //     Report 에는 title · visit_date · read_at 칸이 없어 가까운 칸으로
+  //     채운다: 날짜는 잠금이 풀린 날(설명한 날), 읽음은 last_viewed_at.
+  results:      ()         => get("/api/v1/reports/").then((raw) => ({
+    ...(raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {}),
+    items: (Array.isArray(raw) ? raw : (raw?.results ?? raw?.items ?? [])).map((r) => ({
+      ...r,
+      title: r.title ?? "검사 결과 안내",
+      visit_date: r.visit_date ?? (r.unlocked_at || r.explained_at || "").slice(0, 10),
+      read_at: r.read_at ?? r.last_viewed_at,
+    })),
+  })),
   report:       (id)       => get(`/api/v1/reports/${id}/`),
 
   // 08  챗봇 — 개인 결과를 인용하지 않는 안내용이다

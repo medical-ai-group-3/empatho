@@ -1,4 +1,5 @@
 import { Link, useParams } from "react-router-dom";
+import { Capacitor, registerPlugin } from "@capacitor/core";
 import { api } from "../api";
 import { HOSPITAL } from "../brand";
 import { deptSuffix } from "../lib/dept";
@@ -23,6 +24,15 @@ import { fmtDay } from "../lib/when";
  * 만들어지므로 안에서는 r 이 있다고 믿고 써도 된다. 다른 화면(Me)도
  * 같은 모양이다.
  */
+/* 안드로이드 WebView 는 window.print() 를 무시한다. 앱에서는 안드로이드
+   인쇄 창을 직접 연다(android/.../PrinterPlugin.java) — 거기서 「PDF 로
+   저장」을 고르면 파일이 남는다. 웹은 브라우저 인쇄 창이 같은 일을 한다. */
+const Printer = registerPlugin("Printer");
+const savePdf = () =>
+  Capacitor.isNativePlatform()
+    ? Printer.print({ name: "EMPATHO 검사 안내문" })
+    : window.print();
+
 export default function Report() {
   const { id } = useParams();
   const { loading, data, error, reload } = useApi(() => api.report(id), [id]);
@@ -100,18 +110,17 @@ function Letter({ r }) {
       )}
 
       <div className="row2">
-        {/* 브라우저의 인쇄를 부른다. 인쇄 창에서 「PDF 로 저장」을 고르면
-            파일이 남고, 종이로 뽑을 수도 있다 — 접수처에 들고 갈 사람도
-            있다.
+        {/* 인쇄 창을 연다(savePdf). 거기서 「PDF 로 저장」을 고르면 파일이
+            남고, 종이로 뽑을 수도 있다 — 접수처에 들고 갈 사람도 있다.
 
             서버에서 PDF 를 받아 오는 길(GET …/pdf)은 아직 없다. 생기면
-            여기만 그쪽으로 바꾸면 된다. 그때까지 단추가 아무 일도 안 하는
-            것보다는 이 편이 낫다.
+            여기만 그쪽으로 바꾸면 된다.
+            ⚠ 전에는 서버가 주지 않는 pdf_available 로 잠가서 늘 눌리지
+              않았다. 잠긴 안내문은 위에서 이미 돌아가므로 여기는 늘 연다.
 
             @media print 가 앱 껍데기를 걷어 내고 안내문만 남긴다
             (index.css 맨 아래). */}
-        <button className="btn soft" disabled={!r.pdf_available}
-                onClick={() => window.print()}>
+        <button className="btn soft" onClick={savePdf}>
           PDF 저장
         </button>
         <Link className="btn ghost" to="/chat">모르는 말 묻기</Link>
