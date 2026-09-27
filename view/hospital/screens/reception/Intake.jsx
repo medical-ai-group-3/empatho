@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Page, Btn } from "../../lib/Page";
 import { Body } from "../../lib/Body";
 import { Chip, useCan } from "../../lib/Parts";
@@ -100,7 +101,11 @@ export default function Intake({ cfg }) {
  * 있어서 한 명이어도 사람이 골라야 한다.
  */
 function Find({ api, onDone }) {
-  const [q, setQ] = useState("");
+  /* 홈의 「안 오심 · 오늘 예약」 줄은 ?find= 를 달고 온다 — 그 사람을 찾아
+     둔 채로 연다. **접수는 여전히 사람이 누른다**(동명이인) */
+  const [params] = useSearchParams();
+  const asked = params.get("find") ?? "";
+  const [q, setQ] = useState(asked);
   const [found, setFound] = useState(null);
   const [busy, setBusy] = useState(null);
   const [err, setErr] = useState(null);
@@ -110,6 +115,11 @@ function Find({ api, onDone }) {
      규칙). reception.checkin 만 보면 간호 열쇠만 가진 사람은 [접수] 가 늘
      잠겨 있었다. 서버도 이제 간호에게 원무 권한을 준다 */
   const may = useCan(["reception.checkin", "nursing.waiting.view"]);
+
+  useEffect(() => {
+    if (!asked) return;
+    api.search(asked).then((r) => setFound(r ?? [])).catch((e2) => { setErr(e2); setFound([]); });
+  }, [api, asked]);
 
   async function find(e) {
     e.preventDefault();

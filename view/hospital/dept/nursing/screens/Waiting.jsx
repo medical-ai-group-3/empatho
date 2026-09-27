@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Page, Btn } from "../../../lib/Page";
 import { Body, Empty } from "../../../lib/Body";
 import { Chip, Locked } from "../../../lib/Parts";
@@ -51,7 +52,13 @@ const POLL_MS = 7000;
 
 function Inner({ cfg, embedded }) {
   const api = cfg.api;
-  const [pick, setPick] = useState(null);
+  /* 홈의 「접수 대기 환자」 줄을 누르면 ?order= 를 달고 온다 — 그 사람을
+     골라 둔 채로 연다. 환자 상세로 보내면 볼 것만 있고 할 것이 없었다 */
+  const [params] = useSearchParams();
+  const [pick, setPick] = useState(() => {
+    const n = Number(params.get("order"));
+    return Number.isFinite(n) && n > 0 ? n : null;
+  });
   const [tick, setTick] = useState(0);
 
   const arrived = useApi(() => api.waitingArrived(), [tick]);
