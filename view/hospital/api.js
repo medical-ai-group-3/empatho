@@ -943,6 +943,14 @@ function normalizePatient(p) {
   };
 }
 
+/* 부가 자료가 실패해도 환자 기본 정보까지 숨기지 않되, 화면에는 실패를
+   '자료 없음'으로 오인하지 않도록 상태를 함께 전달한다. */
+function optionalResult(promise, fallback) {
+  return promise
+    .then((value) => ({ value, failed: false }))
+    .catch(() => ({ value: fallback, failed: true }));
+}
+
 /* 대기·목록은 가볍게 유지하되, 상세를 열었을 때만 환자 원본을 보완한다.
    ExamOrder/Study 응답에는 생년월일·연락처가 없기 때문이다. */
 async function radWithPatient(row) {
@@ -996,10 +1004,9 @@ export const breast = {
       const rows = raw?.results ?? raw?.items ?? (Array.isArray(raw) ? raw : []);
       return rows.map(normalizePatient);
     }),
-  /* 유방외과 전체 환자 목록은 병원 전체 명부가 아니라 내 과에 배정된
-     환자를 모두 본다. 대기 상태만 빼고 "all"로 가져와, 아래 뷰어의
-     patient_id와 유방외과 검사 이력이 같은 환자를 가리키게 한다. */
-  patients:     ()   => get(`/patients/${qs({ primary_staff: "me", status: "all" })}`)
+  /* 유방외과 전체 환자 목록은 현재 로그인한 의사에게 배정된 환자만이
+     아니라 과에서 관리하는 과거·현재 환자 전체를 보여 준다. */
+  patients:     ()   => get(`/patients/${qs({ status: "all" })}`)
     .then((raw) => {
       const rows = raw?.results ?? raw?.items ?? (Array.isArray(raw) ? raw : []);
       return rows.map(normalizePatient);
@@ -1008,31 +1015,39 @@ export const breast = {
      리포트를 함께 쓰므로 목록을 별도로 받아 최신 종합 리포트를 붙인다.
      아직 리포트가 없는 환자는 null로 두고 화면이 안내 상태를 보여 준다. */
   patient:      async (id) => {
-    const [rawPatient, reports, orders, readings, lesions, odds] = await Promise.all([
+    const [rawPatient, reportsR, ordersR, readingsR, lesionsR, oddsR] = await Promise.all([
       get(`/patients/${id}/`),
-      get(`/reports/${qs({ patient: id })}`).then(unwrapList).catch(() => []),
-      breast.ordersOf(id).catch(() => []),
+      optionalResult(get(`/reports/${qs({ patient: id })}`).then(unwrapList), []),
+      optionalResult(breast.ordersOf(id), []),
       /* 판독값 · 병변 — 환자 상세 응답에 둘 다 없다. 아래 주석 참고.
          곁가지라 실패해도 화면이 통째로 죽지 않게 빈 값으로 떨어뜨린다 */
-      breast.readings(id).catch(() => ({ radiology: [], pathology: [] })),
+      optionalResult(breast.readings(id), { radiology: [], pathology: [] }),
       /* ⚠ 받아서도 **한 번 더 거른다.** 서버가 ?patient= 을 조용히 무시하던
          적이 있었다(09-23에 고쳤다) — 그때 이 화면은 남의 병변을 이 환자
          것으로 그렸다. 같은 실수가 또 나면 화면에서 막는다 */
-      specimens.lesionsByPatient(id).then(unwrapList)
-        .then((rows) => rows.filter(
-          (l) => Number(l.patient_id ?? l.patient) === Number(id)))
-        .catch(() => []),
-      breast.openDiscordances(id).catch(() => []),
+      optionalResult(
+        specimens.lesionsByPatient(id).then(unwrapList)
+          .then((rows) => rows.filter(
+            (l) => Number(l.patient_id ?? l.patient) === Number(id))),
+        [],
+      ),
+      optionalResult(breast.openDiscordances(id), []),
     ]);
+    const reports = reportsR.value;
+    const orders = ordersR.value;
+    const readings = readingsR.value;
+    const lesions = lesionsR.value;
+    const odds = oddsR.value;
     const patient = normalizePatient(rawPatient);
     const currentOrder = orders.find((row) => row.visited_at && !["completed", "cancelled"].includes(row.order_status))
       ?? orders.find((row) => row.visited_at)
       ?? orders.at(-1)
       ?? null;
-    const report = patient?.report
-      ?? reports.find((row) => row.report_type === "final")
-      ?? reports.at(-1)
-      ?? null;
+    /* 단계 판독을 최종 리포트로 취급하면 치료 방침 화면이 최종 리포트
+       생성 단계를 건너뛴다. final 타입만 환자 대표 리포트로 사용한다. */
+    const report = patient?.report?.report_type === "final"
+      ? patient.report
+      : reports.find((row) => row.report_type === "final") ?? null;
     return {
       ...patient,
       report,
@@ -1065,6 +1080,13 @@ export const breast = {
          비어 있는 것보다 나쁘다. 목록 경로는 진작 있었다 */
       open_discordance: odds[0] ?? null,
       open_discordances: odds,
+      data_warnings: [
+        reportsR.failed && "판독 리포트",
+        ordersR.failed && "검사 오더",
+        readingsR.failed && "판독 결과",
+        lesionsR.failed && "병변",
+        oddsR.failed && "판정 불일치",
+      ].filter(Boolean),
       current_order: currentOrder,
       visit_type: currentOrder?.visit_type ?? null,
       visit_purpose: currentOrder?.exam_purpose ?? null,

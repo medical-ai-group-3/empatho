@@ -5,6 +5,7 @@ import { SEX, label } from "../../../codes";
 import { useApi } from "../../../lib/useApi";
 import { Page } from "../../../lib/Page";
 import { Body } from "../../../lib/Body";
+import { useCan } from "../../../lib/Parts";
 import { go } from "../../../nav";
 import "../breast.css";   /* 유방외과 전용 — .breast 안에 갇혀 있다. 네 화면이 각자
                              끌고 온다: 주소로 곧장 들어와도 스타일이 빠지면 안 된다 */
@@ -76,7 +77,13 @@ function Inner({ patient, onReload }) {
        종류·가부·근거 셋뿐이고 수술 일정 자원이 따로 없다(8장).
        지어내지 않고, 있는 저장 경로 일곱을 그대로 둔다. */
   return (
-    <div className="decision-grid">
+    <>
+      {patient.data_warnings?.length > 0 && (
+        <p className="warnline">
+          일부 자료를 불러오지 못했습니다: {patient.data_warnings.join(", ")}. 새로고침 후 다시 확인해 주세요.
+        </p>
+      )}
+      <div className="decision-grid">
       <div className="dec-col">
         <DecisionForm assessmentId={assessmentId} assessmentIdLoading={timeline.loading} />
         {report ? <AiSummaryCard report={report} /> : <FinalReportCard patient={patient} reports={reports} onCreated={onReload} />}
@@ -91,7 +98,8 @@ function Inner({ patient, onReload }) {
         <PatientInfoCard patient={patient} />
         <DecisionLog />
       </div>
-    </div>
+      </div>
+    </>
   );
 }
 
@@ -151,6 +159,7 @@ function FinalReportCard({ patient, reports, onCreated }) {
       <div className="card-head"><h3>AI 종합 리포트</h3></div>
       <p className="card-text">확정된 검사 판독문을 선택해 최종 종합 리포트를 생성합니다.</p>
       {reports.loading ? <p className="note">판독문을 불러오는 중입니다.</p>
+        : reports.error ? <p className="warnline">판독문을 불러오지 못했습니다. 새로고침 후 다시 시도해 주세요.</p>
         : sources.length === 0 ? <p className="note">생성할 확정 검사 판독문이 없습니다.</p>
         : <div className="stack">
             {sources.map((source) => (
@@ -210,9 +219,12 @@ function DoctorSummaryCard({ report }) {
 
   async function save() {
     setSaving(true);
+    setMsg(null);
     try {
       await api.saveReport(report.report_id, { content_json: { doctor_summary: text } });
       setMsg("저장되었습니다");
+    } catch (e) {
+      setMsg(e.detail || e.message || "리포트 저장에 실패했습니다.");
     } finally {
       setSaving(false);
     }
@@ -257,14 +269,18 @@ function DecisionForm({ assessmentId, assessmentIdLoading }) {
   const [reason, setReason] = useState("");
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState(null);
+  const may = useCan("breast.decision.save");
 
   async function save() {
     setSaving(true);
+    setMsg(null);
     try {
       await api.decide(assessmentId, {
         decision_type: "surgery", decision_value: decisionValue, decision_reason: reason,
       });
       setMsg("결정이 저장되었습니다");
+    } catch (e) {
+      setMsg(e.detail || e.message || "결정 저장에 실패했습니다.");
     } finally {
       setSaving(false);
     }
@@ -277,20 +293,23 @@ function DecisionForm({ assessmentId, assessmentIdLoading }) {
         {DECISIONS.map((d) => (
           <label className="radio-row" key={d.v}>
             <input type="radio" name="decision_value" value={d.v}
-              checked={decisionValue === d.v} onChange={() => setDecisionValue(d.v)} />
+              checked={decisionValue === d.v} disabled={!may.ok}
+              onChange={() => setDecisionValue(d.v)} />
             {d.label}
           </label>
         ))}
       </div>
       <div className="field">
         <label>수술 관련 결정 사유</label>
-        <textarea value={reason} onChange={(e) => setReason(e.target.value)} />
+        <textarea value={reason} disabled={!may.ok}
+          onChange={(e) => setReason(e.target.value)} />
       </div>
       <div className="card-foot split">
         <span className="note">
           {msg ?? (!assessmentIdLoading && !assessmentId ? "판독 기록이 아직 없어 저장할 수 없습니다" : null)}
         </span>
-        <button className="btn ghost" onClick={save} disabled={saving || !assessmentId}>
+        <button className="btn ghost" onClick={save} {...may.attrs}
+          disabled={saving || !assessmentId || !may.ok}>
           {saving ? "저장 중…" : "결정 저장"}
         </button>
       </div>
@@ -364,6 +383,7 @@ function PrescriptionDraft({ patient, report }) {
       </div>
 
       {saved.data?.length > 0 && <p className="meta">저장된 처방 {saved.data.length}건</p>}
+      {saved.error && <p className="warnline">저장된 처방을 불러오지 못했습니다.</p>}
       {!reportId && <p className="note">종합 리포트가 생성된 뒤 처방을 저장할 수 있습니다.</p>}
 
       {drugs.map((drug, index) => (
@@ -429,12 +449,15 @@ function ExplainForm({ report, onSaved, unlock }) {
 
   async function save() {
     setSaving(true);
+    setMsg(null);
     try {
       await api.explain(report.report_id, {
         explain_method: method, explain_content: content, patient_confirmed: confirmed,
       });
       setMsg("환자 설명이 기록되었습니다");
       onSaved?.();
+    } catch (e) {
+      setMsg(e.detail || e.message || "환자 설명 저장에 실패했습니다.");
     } finally {
       setSaving(false);
     }
@@ -485,9 +508,12 @@ function ExplainForm({ report, onSaved, unlock }) {
 }
 
 function PatientInfoCard({ patient }) {
+  const sex = label(SEX, patient.sex) || "—";
+  const age = patient.age != null ? `${patient.age}세` : "—";
+  const birth = patient.birth_date || "—";
   const rows = [
     { k: "이름", v: patient.name },
-    { k: "성별 / 나이", v: `${label(SEX, patient.sex)} / ${patient.age}세 (${patient.birth_date})` },
+    { k: "성별 / 나이", v: `${sex} / ${age} (${birth})` },
     { k: "등록번호", v: patient.patient_number },
     { k: "연락처", v: patient.phone },
     { k: "알레르기", v: patient.allergy },
@@ -516,14 +542,18 @@ function PatientInfoCard({ patient }) {
 }
 
 function LockPanel({ reportId, status, onUnlocked }) {
-  const c = status.conditions;
+  const c = status.conditions ?? {};
   const [unlocking, setUnlocking] = useState(false);
+  const [error, setError] = useState(null);
 
   async function unlock() {
     setUnlocking(true);
+    setError(null);
     try {
       await api.unlock(reportId);
       onUnlocked?.();
+    } catch (e) {
+      setError(e.detail || e.message || "잠금 해제에 실패했습니다.");
     } finally {
       setUnlocking(false);
     }
@@ -543,6 +573,7 @@ function LockPanel({ reportId, status, onUnlocked }) {
       <button className="btn" disabled={!status.can_unlock || unlocking} onClick={unlock}>
         {unlocking ? "해제 중…" : "환자 리포트 열람 잠금 해제"}
       </button>
+      {error && <p className="note err">{error}</p>}
       {!status.can_unlock && (
         <p className="hint">설명 기록 저장 후 환자 확인 체크 시 해제할 수 있습니다.</p>
       )}

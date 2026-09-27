@@ -80,7 +80,10 @@ function Compare({ d }) {
         </span>
         <span className="home-fill" />
         {d.lesion && (
-          <Chip>{d.lesion.site} · {d.lesion.size_mm}mm</Chip>
+          <Chip>{d.lesion.label ?? d.lesion.site ?? "병변"}
+            {(d.lesion.measured_size_mm ?? d.lesion.ai_size_mm ?? d.lesion.size_mm) != null
+              && ` · ${d.lesion.measured_size_mm ?? d.lesion.ai_size_mm ?? d.lesion.size_mm}mm`}
+          </Chip>
         )}
       </header>
 
