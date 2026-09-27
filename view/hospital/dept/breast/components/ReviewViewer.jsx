@@ -282,14 +282,20 @@ export default function ReviewViewer({
            Viewer Content
         =================================================== */
 
+        /* ⚠ flex 통이어야 한다. 아니면 안의 .stage(flex:1)가 늘어나지
+           못해 이미지 크기 · 최소 높이(240px)로 쪼그라든다 — 초음파처럼
+           작은 영상이면 팝업 안에서 뷰어가 작게 떴다(09-27) */
         .viewer-content {
           flex: 1;
+          display: flex;
+          flex-direction: column;
 
           min-width: 0;
           min-height: 0;
 
           overflow: hidden;
         }
+        .viewer-content > * { flex: 1; min-height: 0; }
 
 
         /* ===================================================
