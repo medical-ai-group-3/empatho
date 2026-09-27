@@ -222,7 +222,8 @@ export const radiology = {
        알려면 이게 있어야 한다. 검사 목록에는 확정 시각이 없다 —
        StudySerializer 가 updated_at 을 빼고(exclude = AUDIT_FIELDS)
        Study 에는 확정 시각 칸 자체가 없다. */
-    load: () => Promise.all([H.soft(api.queue()), api.list({}), H.soft(api.history())])
+    /* ⚠ 목록은 한 쪽 20건이다 — 홈이 단계별로 나눠 세려면 넉넉히 받는다 */
+    load: () => Promise.all([H.soft(api.queue()), api.list({ page_size: 200 }), H.soft(api.history())])
       .then(([queue, list, reads]) => ({
         queue: H.rows(queue), studies: H.rows(list), reads: H.rows(reads),
       })),
@@ -230,46 +231,71 @@ export const radiology = {
     primary: { label: "다음 환자 받기", to: go.radiology.queue(),
                need: "radiology.queue.view" },
 
-    queue: ({ studies }) => ({
-      title: "판독 대기",
-      hint: "큐 맨 앞부터 집습니다",
-      empty: "판독 대기가 없습니다",
-      rows: studies.filter((r) => r.read_status === "pending").map((r) => ({
+    /* ── 홈 주 큐 — 판독 현황 ─────────────────────────────────
+     * 한 줄에 몰아 두면 「AI 가 아직 도는 것」과 「AI 는 끝났고 내 소견만
+     * 남은 것」이 섞여서 무엇부터 집을지 안 보였다. 단계대로 탭을 가른다.
+     *
+     *   촬영 대기   유방외과가 낸 오더 중 아직 아무도 안 집은 것
+     *   업로드 대기 촬영은 시작했는데 영상이 아직 없는 검사
+     *   AI 분석 중  영상은 올라왔고 AI 가 도는 중(queued · running)
+     *   소견 대기   AI 가 끝났거나(done · failed) 안 돌린 것 — 의사 소견 차례
+     *   초안        저장만 하고 확정 안 한 판독
+     *
+     * ⚠ AI 상태는 서버 목록 행의 ai_status(가장 최근 실행)다. 옛 서버는 이
+     *   칸이 없어 undefined 다 — 그때는 「소견 대기」로 떨어진다(판독은 AI
+     *   없이도 쓸 수 있으니 막히지 않는 쪽이다). */
+    queue: ({ queue, studies }) => {
+      const pending = studies.filter((r) => r.read_status === "pending");
+      const hasImg = (r) => r.image_count > 0;
+      const running = (r) => r.ai_status === "queued" || r.ai_status === "running";
+      const AI_NOTE = { done: "AI 완료", failed: "AI 실패", queued: "AI 대기", running: "AI 분석 중" };
+
+      const study = (why) => (r) => ({
         id: r.id,
         name: H.nameOf(r),
         no: H.noOf(r),
         meta: H.who(r),
         chip: r.modality ? label(MODALITY, asModality(r.modality)) : null,
         chipTone: "fill",
-        /* ⚠ 목업은 여기에 「AI 4B~5 · 신뢰도 중」을 적지만 **목록 응답에 AI
-           상태가 없다.** 줄마다 /ai-results?study= 를 부르면 줄 수만큼
-           요청이 나간다 — 8장 1번이 붙을 때까지 검사 이름만 적는다 */
-        sub: [r.exam_name, r.purpose].filter(Boolean).join(" · "),
+        sub: [AI_NOTE[r.ai_status] ?? (hasImg(r) ? "AI 없음" : null),
+              r.exam_name].filter(Boolean).join(" · "),
         at: H.at(r.performed_at),
-        /* 누르면 **다음에 할 일**로 간다 — 영상이 없으면 업로드, 있으면 판독.
-         *
-         * 두 번 틀렸던 자리다(09-23).
-         *   · 환자 화면으로 보냈다 → 거기서 판독·업로드로 가는 길이 없어
-         *     막다른 길이었다
-         *   · 그래서 판독으로 돌렸다 → 이번엔 **영상이 한 장도 없는 건**이
-         *     409 STUDY_NOT_READ_READY 로 떨어졌다. 검사는 「촬영 시작」에
-         *     만들어져서 파일 없이 pending 인 시간이 반드시 있다
-         *
-         * read_status 로는 이 둘을 못 가른다 — pending 은 「아직 판독을
-         * 안 썼다」는 말이지 「영상이 있다」는 말이 아니다. 그래서 서버가
-         * 목록 행에 image_count 를 싣게 했다(serializers/radiology.py).
-         *
-         * ⚠ 옛 서버는 이 칸을 안 준다. 그때는 undefined > 0 이 거짓이라
-         *   업로드로 간다 — 업로드 화면은 이미 올라온 파일을 보여 주고
-         *   분석이 끝나 있으면 「판독으로」를 열어 주니 흐름이 안 끊긴다.
-         *   반대로 틀리면 에러 화면이라, 모를 때는 업로드가 안전한 쪽이다. */
-        to: r.image_count > 0 ? go.radiology.read(r.id) : go.radiology.upload(r.id),
-        /* ⚠ 위 id 는 **검사 번호**다. 「최근 본 환자」는 환자 번호로 담아야
-           한다 — 섞이면 남의 환자를 덮어쓴다(lib/recent.js) */
+        /* 영상이 없으면 업로드, 있으면 판독 — 영상 없는 검사를 판독으로
+           보내면 409 STUDY_NOT_READ_READY 다(서버 image_count 참고) */
+        to: hasImg(r) ? go.radiology.read(r.id) : go.radiology.upload(r.id),
+        /* ⚠ id 는 검사 번호다 — 「최근 본 환자」는 환자 번호로(lib/recent.js) */
         pid: r.patient ?? r.patient_id ?? null,
-        why: "판독",
-      })),
-    }),
+        why,
+      });
+
+      return {
+        title: "판독 현황",
+        hint: "단계별로 나눠 봅니다",
+        tabs: [
+          { key: "doctor", name: "소견 대기", empty: "소견을 쓸 검사가 없습니다",
+            rows: pending.filter((r) => hasImg(r) && !running(r)).map(study("판독")) },
+          { key: "ai", name: "AI 분석 중", empty: "AI 가 분석 중인 검사가 없습니다",
+            rows: pending.filter((r) => hasImg(r) && running(r)).map(study("판독")) },
+          { key: "draft", name: "초안", empty: "확정 안 한 판독이 없습니다",
+            rows: studies.filter((r) => r.read_status === "draft").map(study("판독")) },
+          { key: "upload", name: "업로드 대기", empty: "영상을 기다리는 검사가 없습니다",
+            rows: pending.filter((r) => !hasImg(r)).map(study("업로드")) },
+          /* 유방외과가 낸 오더 — 집는 것은 촬영 대기 화면이 한다 */
+          { key: "order", name: "촬영 대기", empty: "촬영 대기 중인 오더가 없습니다",
+            rows: queue.map((o) => ({
+              id: `o-${o.id}`,
+              name: o.patient_name ?? H.nameOf(o),
+              no: o.patient_no ?? H.noOf(o),
+              meta: H.who(o),
+              chip: o.modality ? label(MODALITY, asModality(o.modality)) : null,
+              sub: [`${o.ordered_by_name ?? "유방외과"} 요청`, o.exam_name].filter(Boolean).join(" · "),
+              at: H.at(o.ordered_at),
+              to: go.radiology.queue(),
+              pid: o.patient_id ?? o.patient ?? null,
+            })) },
+        ],
+      };
+    },
 
     stuck: ({ queue, studies }) => [
       { tag: "초안", text: "저장만 하고 확정 안 한 판독",
@@ -340,7 +366,9 @@ export const radiology = {
       /* 지난 검사 칸이 이 번호로 환자 이력을 부른다 */
       patientId: it.patient_id ?? it.patient ?? null,
       title: `${it.patient_name} (${it.age}/${label(SEX, it.sex)})`,
-      sub: `${it.patient_no} · ${label(MODALITY, asModality(it.modality))}`,
+      /* 누가 낸 오더인지 같이 적는다 — 이 큐는 유방외과가 낸 촬영 요청이다 */
+      sub: [it.patient_no, label(MODALITY, asModality(it.modality)),
+            `${it.ordered_by_name ?? "유방외과"} 요청`].filter(Boolean).join(" · "),
       chip: it.contrast_allergy ? "조영제 알레르기" : it.device,
       chipTone: it.contrast_allergy ? "fill" : "line",
     }),
@@ -360,7 +388,7 @@ export const radiology = {
           ["촬영 장비", d.device],
           ["검사명", d.exam_name],
           ["요청 일시", d.ordered_at],
-          ["요청한 의사", d.ordered_by],
+          ["요청한 의사", d.ordered_by_name ?? d.ordered_by ?? "—"],
         ]} />
 
         {d.purpose && (
