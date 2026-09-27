@@ -12,6 +12,7 @@ import ExamOrderModal from "../components/ExamOrderModal";
 import CloseVisitModal from "../components/CloseVisitModal";
 import CareGuideModal from "../components/CareGuideModal";
 import SpecimenBindingModal from "../../../lib/SpecimenBindingModal";
+import { isHandled, markHandled } from "../handled";
 
 /* 유방외과 · 내 환자 — `docs/mockup/Surgery.html`
  * ════════════════════════════════════════════════════════════════
@@ -43,7 +44,12 @@ export default function Waiting() {
   const [guide, setGuide] = useState(null);
   const [examModality, setExamModality] = useState(null);
 
-  const rows = H.rows(list.data);
+  const rows = useMemo(() => {
+    const all = H.rows(list.data);
+    const filtered = all.filter((row) => !isHandled(row.patient_id));
+    Object.defineProperty(filtered, "total", { value: filtered.length });
+    return filtered;
+  }, [list.data]);
   const odd = useMemo(() => rows.filter((r) => r.has_open_discordance), [rows]);
   const shown = tab === "odd" ? odd : rows;
   const picked = shown.some((r) => r.patient_id === pick)
@@ -92,11 +98,19 @@ export default function Waiting() {
           {modal === "exam" && (
             <ExamOrderModal patient={detail.data} initialModality={examModality}
                             onClose={() => setModal(null)}
-                            onDone={() => { setModal(null); detail.reload(true); }} />
+                            onDone={() => {
+                              markHandled(detail.data.patient_id);
+                              setModal(null); setPick(null);
+                              detail.reload(true); list.reload(true);
+                            }} />
           )}
           {modal === "specimen" && (
             <SpecimenBindingModal patient={detail.data} onClose={() => setModal(null)}
-                                  onDone={() => { setModal(null); detail.reload(true); }} />
+                                  onDone={() => {
+                                    markHandled(detail.data.patient_id);
+                                    setModal(null); setPick(null);
+                                    detail.reload(true); list.reload(true);
+                                  }} />
           )}
           {modal === "close" && (
             <CloseVisitModal patient={detail.data} onClose={() => setModal(null)}
