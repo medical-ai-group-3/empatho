@@ -992,6 +992,10 @@ class PatientReservationsView(APIView):
         orders = (models.ExamOrder.objects
                   .filter(patient=patient)
                   .exclude(order_status__in=["cancelled", "completed"])
+                  # 온 예약(visited_at)과 날짜가 지난 예약은 「내 예약」이 아니다.
+                  # 진료만 보고 가면 오더가 completed 로 안 넘어가 계속 남았다(09-28)
+                  .filter(visited_at__isnull=True)
+                  .exclude(scheduled_at__date__lt=timezone.localdate())
                   .order_by("-scheduled_at"))
         items = [{
             "exam_order_id": o.exam_order_id, "scheduled_at": o.scheduled_at,
