@@ -80,6 +80,15 @@ class ExamOrderSerializer(serializers.ModelSerializer):
     age = serializers.SerializerMethodField()
     sex = serializers.CharField(source="patient.sex", read_only=True, allow_null=True)
     visit_type = serializers.SerializerMethodField()
+    # 09-27 — 환자의 주치의(유방외과 배정). 간호 「내원 대기」가 이미 유방외과로
+    # 보낸 환자를 가려내려고 localStorage 에 오더 번호를 적어 두고 있었다 —
+    # 응답에 이 칸이 없어서다. 오더가 아니라 환자의 값이라 읽기 전용이다.
+    primary_staff = serializers.IntegerField(
+        source="patient.primary_staff_id", read_only=True, default=None
+    )
+    primary_staff_name = serializers.CharField(
+        source="patient.primary_staff.full_name", read_only=True, default=None
+    )
 
     def get_age(self, obj) -> int | None:
         pii = getattr(obj.patient, "pii", None)
@@ -88,7 +97,9 @@ class ExamOrderSerializer(serializers.ModelSerializer):
             return None
 
         reference = obj.visited_at or obj.scheduled_at or timezone.now()
-        reference_date = reference.date()
+        # ⚠ .date() 를 바로 부르면 UTC 날짜다 — 한국 시각 00~09시 방문은
+        #   전날로 계산돼 생일 당일 나이가 하나 적게 나왔다. 현지 날짜로 본다.
+        reference_date = timezone.localtime(reference).date()
         return reference_date.year - birth_date.year - (
             (reference_date.month, reference_date.day)
             < (birth_date.month, birth_date.day)
@@ -126,11 +137,17 @@ class PatientListSerializer(serializers.ModelSerializer):
     # PatientViewSet.get_queryset 이 Exists 로 얹어 준다. 목록 밖에서 이
     # serializer 를 쓰면 없을 수 있어 default 를 둔다.
     has_open_discordance = serializers.BooleanField(read_only=True, default=False)
+    # 09-27 — 목록에도 주치의를 싣는다. 간호 환자 목록이 「배정됨」을 보려고
+    # 행마다 상세(GET /patients/{id}/)를 다시 부르지 않게.
+    primary_staff_name = serializers.CharField(
+        source="primary_staff.full_name", read_only=True, default=None
+    )
 
     class Meta:
         model = models.Patient
         fields = ("patient_id", "patient_number", "name", "phone", "birth_date",
-                  "birth_year", "sex", "has_allergy", "has_open_discordance")
+                  "birth_year", "sex", "has_allergy", "has_open_discordance",
+                  "primary_staff", "primary_staff_name")
 
 
 # ── 워크플로 액션 전용 (쓰기) ──────────────────────────────────
@@ -283,16 +300,31 @@ class PatientRegisterSerializer(serializers.Serializer):
         models.PatientPii.objects.create(patient=patient, **validated_data, **audit)
         return patient
     
+def _validate_patient_exists(value):
+    # 없는 환자 번호를 그대로 create 에 넘기면 FK 위반(IntegrityError)으로
+    # 500 이 났다. 여기서 400 으로 돌려준다.
+    if not models.Patient.objects.filter(pk=value).exists():
+        raise serializers.ValidationError("존재하지 않는 환자입니다.")
+    return value
+
+
 class CheckInSerializer(serializers.Serializer):
-     """POST /exam-orders (§1 접수하기) — requested + visited_at."""
-     
-     patient_id = serializers.IntegerField()
-     
+    """POST /exam-orders (§1 접수하기) — requested + visited_at."""
+
+    patient_id = serializers.IntegerField()
+
+    def validate_patient_id(self, value):
+        return _validate_patient_exists(value)
+
+
 class ExamOrderScheduleSerializer(serializers.Serializer):
     """POST /exam-orders (§3 예약 완료) — 원무가 날짜만 잡는다."""
 
     patient_id = serializers.IntegerField()
     scheduled_at = serializers.DateTimeField()
+
+    def validate_patient_id(self, value):
+        return _validate_patient_exists(value)
 
 
 class ExamOrderConfirmSerializer(serializers.Serializer):

@@ -31,6 +31,7 @@ from .nursing import (
     ExamOrderNoteSerializer,
     FollowupCreateSerializer,
     FollowupCallSerializer,
+    FollowupUpdateSerializer,
     PrimaryStaffAssignSerializer,
 )
 
