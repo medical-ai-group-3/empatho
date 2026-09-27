@@ -822,32 +822,22 @@ a.frow:hover .frow-k{color:var(--ink)}
 /* ── 4.4 히스토리 레일 (screens/Read.jsx) ────────────────────
    **판독은 이전과 견주는 일이다.** 왼쪽에 지난 기록, 가운데 뷰어,
    오른쪽에 쓰는 칸. 색을 안 쓴다 — 날짜만 진하고 나머지는 흐리다 */
+/* ⚠ 09-27 — 지난 기록은 왼쪽 칸이 아니라 뷰어 위 고르개(.past-pick)다.
+   칸이 영상 폭을 먹고 판독을 방해했다 */
 .read-cols{flex:1; min-height:0; display:grid; gap:var(--desk-gap);
-  grid-template-columns:var(--prail-w) minmax(0, 1fr)}
+  grid-template-columns:minmax(0, 1fr)}
+.past-pick{display:flex; align-items:center; flex-wrap:wrap; gap:var(--gap-sm);
+  margin-bottom:var(--gap-sm); font-size:var(--row-fs)}
+.past-pick label{display:flex; align-items:center; gap:var(--gap-xs)}
+.past-pick label span{font-weight:700}
+.past-pick select{min-width:320px; max-width:100%; padding:var(--gap-xxs) var(--gap-sm);
+  border-radius:var(--card-radius); box-shadow:inset 0 0 0 var(--hair) var(--border);
+  background:var(--card); font:inherit}
+.past-pick-d{color:var(--ink-2)}
+.past-pick-d a{margin-left:var(--gap-sm); color:var(--cyan); font-weight:600}
 /* 전체화면이면 레일이 없다 — 그때는 영상만 본다 */
 .read-cols.readfull{grid-template-columns:minmax(0, 1fr)}
 .read-cols > .read-workspace{min-width:0}
-
-.prail{display:flex; flex-direction:column; min-height:0;
-  background:var(--card); border:var(--hair) solid var(--border);
-  border-radius:var(--hcard-radius); overflow:hidden}
-.prail-h{flex:none; display:flex; align-items:center; gap:var(--chip-gap);
-  padding:var(--hcard-pad-y) var(--bcol-pad);
-  border-bottom:var(--hair) solid var(--line-2)}
-.prail-h b{font-size:var(--hcard-h-fs); font-weight:700}
-.prail-h em{font-style:normal; font-size:var(--hcard-n-fs); font-weight:600;
-  color:var(--ink-2); font-variant-numeric:tabular-nums}
-.prail-b{flex:1; min-height:0; overflow-y:auto}
-/* 맨 위 「지금」 — 돌아올 곳 */
-.prail-now{padding:var(--nside-pad-y) var(--bcol-pad); background:var(--soot);
-  color:var(--soot-ink); font-size:var(--qrow-meta-fs); font-weight:600}
-.prail-day{display:flex; flex-direction:column; gap:var(--gap-xxs);
-  padding:var(--nside-pad-y) var(--bcol-pad);
-  border-bottom:var(--hair) solid var(--line-2)}
-.prail-day time{font-size:var(--prail-d-fs); font-weight:600;
-  font-variant-numeric:tabular-nums}
-.prail-k{font-size:var(--stag-fs); color:var(--warm)}
-.prail-day b{font-size:var(--qrow-meta-fs); font-weight:600; color:var(--ink-2)}
 
 /* ── 업무 화면 네 단 — 유방외과 · 영상 · 병리가 같이 쓴다 ───────
    Surgery.html · Radiology.html · Pathology.html 세 목업이 **같은 껍데기**다.
@@ -1736,6 +1726,16 @@ a.pevent:focus-visible{outline:var(--hair) solid var(--cyan); outline-offset:2px
 .vside-b > .kv{background:var(--v-bg); border:var(--hair) solid var(--v-line);
   border-radius:var(--v-radius); padding:var(--v-pad); margin:0}
 .vside-b > .fold{background:var(--v-bg); border-color:var(--v-line)}
+/* 소견 칸 — 의사 소견 · AI 소견이 위아래로 들어가 한 칸이 넓다(Parts.jsx Viewer) */
+.vside.vside-2{width:calc(var(--v-side) * 1.35)}
+.vsec{flex:none; display:flex; flex-direction:column;
+  border:var(--hair) solid var(--v-line); border-radius:var(--v-radius); background:var(--v-bg)}
+.vsec-h{display:flex; align-items:center; gap:var(--gap-sm); width:100%;
+  padding:var(--v-pad); color:var(--v-ink); font-size:var(--v-fs); text-align:left}
+.vsec-h b{flex:1}
+.vsec-h i{font-style:normal; color:var(--v-warm)}
+.vsec.on .vsec-h{border-bottom:var(--hair) solid var(--v-line)}
+.vsec-b{padding:var(--v-pad); display:flex; flex-direction:column; gap:var(--gap-sm)}
 /* 접었을 때 남는 손잡이 — 완전히 사라지면 다시 못 찾는다. 이것도
    독립 카드다(접힌 상태의 그 패널일 뿐, 다른 패널에 붙지 않는다) */
 .vtab{width:var(--v-tab-w); flex:none; background:var(--v-card);
