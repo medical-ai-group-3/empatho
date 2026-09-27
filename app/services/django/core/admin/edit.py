@@ -231,6 +231,11 @@ class RoleFilter(admin.SimpleListFilter):
 #
 # account 와 staff 가 1:1 인데 표가 나뉘어 있다. 승인하려면 「누구인지」를
 # 봐야 하는데 이름과 사번이 staff 에 있어서, 따로 보면 창을 오가게 된다.
+def _ts(value):
+    """상세 화면의 시각 — 초는 버리고 한국 시각으로."""
+    return timezone.localtime(value).strftime("%Y-%m-%d %H:%M") if value else None
+
+
 class StaffInline(admin.StackedInline):
     model = Staff
     # staff 는 account 를 세 번 가리킨다 — 본인(account)과 감사 칸
@@ -241,9 +246,59 @@ class StaffInline(admin.StackedInline):
     verbose_name = "직원 신원"
     verbose_name_plural = "직원 신원"
     fields = ("full_name", "staff_number", "extra_permissions",
-              "approved_by", "approved_at")
+              "approver", "approved")
     # 승인 기록은 손으로 고치지 않는다. 아래 승인 액션이 찍는다
-    readonly_fields = ("approved_by", "approved_at")
+    readonly_fields = ("approver", "approved")
+
+    # 칸 이름을 한글로 — 모델에 verbose_name 이 없어 full_name · staff_number
+    # 가 그대로 떴다(09-27). 모델을 고치면 마이그레이션이 생겨 양식에서 준다.
+    # 폼은 권한 격자(StaffForm)다 — 아래 StaffForm 정의 뒤에서 붙인다
+    def get_formset(self, request, obj=None, **kwargs):
+        formset = super().get_formset(request, obj, **kwargs)
+        for name, text in (("full_name", "이름"), ("staff_number", "사번"),
+                           ("extra_permissions", "개인 추가 권한")):
+            if name in formset.form.base_fields:
+                formset.form.base_fields[name].label = text
+        return formset
+
+    @admin.display(description="승인한 사람")
+    def approver(self, obj):
+        who = getattr(obj, "approved_by", None)
+        return getattr(who, "full_name", None) or "—"
+
+    @admin.display(description="승인 일시")
+    def approved(self, obj):
+        return _ts(obj.approved_at) or "승인 전"
+
+
+class AccountForm(forms.ModelForm):
+    """계정 상세 — 칸 이름 · 선택지를 한글로, 무엇을 바꾸는 칸인지 한 줄씩."""
+
+    class Meta:
+        model = Account
+        fields = "__all__"
+        labels = {
+            "login_id": "로그인 아이디",
+            "role": "부서",
+            "account_status": "승인 상태",
+            "is_active": "로그인 허용",
+            "phone_verified": "휴대폰 인증",
+            "push_token": "앱 알림 토큰",
+        }
+        help_texts = {
+            "role": "부서가 곧 기본 권한입니다. 바꾸면 그 사람의 메뉴와 권한이 바로 바뀝니다.",
+            "account_status": "가입 흐름의 단계입니다. 실제 로그인 여부는 「로그인 허용」이 정합니다.",
+            "is_active": "끄면 로그인할 수 없습니다. 보통은 목록의 승인 · 정지 단추로 바꿉니다.",
+            "push_token": "환자 앱이 알림을 켜면 채워집니다. 비우면 푸시 알림이 가지 않습니다.",
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if "role" in self.fields:
+            self.fields["role"].choices = DEPT_NAMES
+        if "account_status" in self.fields:
+            self.fields["account_status"].choices = [
+                (v, t) for v, t in STATUS_TABS if v != "all"]
 
 
 @admin.register(Account)
@@ -267,11 +322,35 @@ class AccountAdmin(admin.ModelAdmin):
     ordering = ("-created_at",)
     list_select_related = ("staff",)
     inlines = [StaffInline]
+    form = AccountForm
 
-    # password_hash 를 읽기 전용으로 둔다 — 여기서 고치면 해시가 아닌 값이
-    # 들어가 그 계정이 영영 로그인 못 한다. 비밀번호 재설정은 따로 만든다.
-    readonly_fields = ("password_hash", "last_login_at",
-                       "created_at", "updated_at", "created_by", "updated_by")
+    # ── 상세 화면 (09-27) ────────────────────────────────────────
+    # 전에는 모델 칸을 그대로 늘어놓아 영어 이름(Login id · Password hash ·
+    # Role …)과 해시 · 감사 칸까지 한 덩어리로 떴다. 세 묶음으로 가른다.
+    #
+    # ⚠ password_hash 를 **아예 안 보인다.** 전에는 읽기 전용으로 떴는데,
+    #   고칠 수도 없고 볼 이유도 없는 값이 화면에 나오면 찍혀서 샌다.
+    #   비밀번호 재설정은 따로 만든다.
+    # ⚠ 푸시 토큰은 접어 둔다 — 문제를 볼 때만 연다.
+    fieldsets = (
+        ("계정", {"fields": ("login_id", "role", "account_status", "is_active")}),
+        ("기록", {"fields": ("joined", "last_login", "changed")}),
+        ("앱 · 알림", {"classes": ("collapse",),
+                       "fields": ("phone_verified", "push_token")}),
+    )
+    readonly_fields = ("joined", "last_login", "changed")
+
+    @admin.display(description="가입 신청")
+    def joined(self, obj):
+        return _ts(obj.created_at) or "—"
+
+    @admin.display(description="최근 로그인")
+    def last_login(self, obj):
+        return _ts(obj.last_login_at) or "로그인한 적 없음"
+
+    @admin.display(description="마지막 수정")
+    def changed(self, obj):
+        return _ts(obj.updated_at) or "—"
 
     actions = ("approve", "reject", "suspend", "restore")
 
@@ -481,6 +560,12 @@ class StaffForm(forms.ModelForm):
         # JSONField 의 기본 검증은 «문자열이 JSON 인가» 를 본다. 격자는 이미
         # dict 를 주므로 그대로 통과시킨다
         field.clean = lambda value: value
+
+
+# 계정 상세 안의 직원 신원도 같은 격자로 — 전에는 JSON 글상자로 떠서
+# {"pathology.read.view": true} 를 손으로 쳐야 했다(09-27). StaffInline 이
+# 이 폼보다 위에 있어 여기서 붙인다
+StaffInline.form = StaffForm
 
 
 class ExtraPermFilter(admin.SimpleListFilter):
