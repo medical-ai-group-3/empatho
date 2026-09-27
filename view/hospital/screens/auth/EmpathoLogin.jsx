@@ -356,7 +356,12 @@ export default function EmpathoLogin({
           {phase.opening && (
             <div className="entering" role="status" aria-live="polite">
               <span className="pulse" aria-hidden="true" />
-              <strong>환영합니다{userName ? `, ${userName}님` : ''}</strong>
+              {/* 이름은 둘째 줄로 내린다 — 한 줄에 붙이면 긴 이름에서
+                  「님」만 떨어져 나간다 */}
+              <strong>
+                환영합니다
+                {userName && <span className="entering__who">{userName}님</span>}
+              </strong>
             </div>
           )}
 
