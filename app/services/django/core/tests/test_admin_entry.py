@@ -40,7 +40,9 @@ class AdminEntryTests(TestCase):
         res = self.client.get(reverse("admin:index"))
 
         self.assertContains(res, "ADMIN CONSOLE")
-        self.assertContains(res, "학원 내부망 전용")
+        # 내비 항목이 실제로 그려졌는지까지 본다 — 로고만 보면 조각이
+        # 비어 있어도 통과한다
+        self.assertContains(res, "e-nav-label")
 
     def test_표_묶음_다섯이_그대로다(self):
         self.client.force_login(self.boss)

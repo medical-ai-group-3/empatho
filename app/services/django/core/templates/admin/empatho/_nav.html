@@ -63,13 +63,7 @@ admin 왼쪽 내비 — 전 화면 공통. 항목은 core/adminsite.py 의 _nav(
   </ul>
 
   {% comment %}
-    맨 아래 안내. 「어디서 열리는가」는 이 화면에서 제일 자주 나오는 물음이고,
-    밖에서 안 열린다는 것은 화면이 스스로 말해야 한다 — nginx 설정을 아는
-    사람만 아는 사실로 두면 «왜 안 되냐»가 매번 되돌아온다.
+    맨 아래 「접속 경로 · 학원 내부망 전용」 안내 상자는 뺐다(2026-09-25).
+    접속 경로 제한은 nginx 가 그대로 막는다 — 화면에서 문구만 지운 것이다.
   {% endcomment %}
-  <div class="e-nav-foot">
-    <span class="e-foot-label">접속 경로</span>
-    <b>학원 내부망 전용</b>
-    <span class="e-foot-note">외부(ts.net)에서는 열리지 않습니다</span>
-  </div>
 </nav>

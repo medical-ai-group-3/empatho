@@ -45,14 +45,19 @@ class NavTests(TestCase):
         self.assertEqual(keys, [k for k, _, _, _ in NAV])
         self.assertEqual(len(set(keys)), len(keys), "열쇠가 겹치면 아이콘도 겹친다")
 
-    def test_로고와_안내_카드가_전_화면에_있다(self):
+    def test_로고가_전_화면에_있다(self):
+        for name in OURS:
+            with self.subTest(name):
+                self.assertContains(self._get(name), "ADMIN CONSOLE")
+
+    def test_접속_경로_안내_상자가_없다(self):
+        """2026-09-25 에 걷었다. nginx 차단은 그대로다 — 문구만 뺀 것이다."""
         for name in OURS:
             with self.subTest(name):
                 res = self._get(name)
 
-                self.assertContains(res, "ADMIN CONSOLE")
-                self.assertContains(res, "학원 내부망 전용")
-                self.assertContains(res, "외부(ts.net)에서는 열리지 않습니다")
+                self.assertNotContains(res, "내부망 전용")
+                self.assertNotContains(res, "ts.net")
 
     def test_지금_있는_자리에_표가_선다(self):
         res = self._get("admin:empatho_status")
