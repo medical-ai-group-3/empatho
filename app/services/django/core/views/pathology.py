@@ -119,6 +119,12 @@ class SpecimenDraftView(AuditMixin, viewsets.ViewSet):
         specimen.b_category = data.get("b_category", specimen.b_category)
         specimen.diagnosis = data.get("diagnosis", specimen.diagnosis)
         specimen.finding_note = data.get("finding_note", specimen.finding_note)
+        # ⚠ 09-28 — sTIL 은 병리의가 직접 입력한다. 값이 들어왔을 때만
+        # 찍고, stil_source 를 "manual" 로 남긴다. stil_level 은 계산하지
+        # 않는다 — 여기서 안 건드리면 null 그대로 남는다.
+        if data.get("stil_calibrated") is not None:
+            specimen.stil_calibrated = data["stil_calibrated"]
+            specimen.stil_source = "manual"
         specimen.reported_by = getattr(request.user, "staff", None)
         specimen.updated_by = self._current_account()
         specimen.save()
@@ -142,6 +148,10 @@ class SpecimenFinalizeView(AuditMixin, viewsets.ViewSet):
         specimen.b_category = data["b_category"]
         specimen.diagnosis = data["diagnosis"]
         specimen.finding_note = data.get("finding_note", "")
+        # ⚠ 09-28 — draft 와 같은 규칙. SpecimenDraftView.update() 참고.
+        if data.get("stil_calibrated") is not None:
+            specimen.stil_calibrated = data["stil_calibrated"]
+            specimen.stil_source = "manual"
         specimen.reported_by = getattr(request.user, "staff", None)
         specimen.finalized_at = timezone.now()
         specimen.updated_by = self._current_account()
