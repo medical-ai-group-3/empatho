@@ -146,6 +146,14 @@ def signup_link(request):
     with transaction.atomic():
         if models.Account.objects.filter(login_id=login_id).exists():
             raise ApiError("VALIDATION_ERROR", "이미 사용 중인 아이디입니다.")
+        # ⚠ 대조를 끈 동안(MATCH_CHECK=False)은 기존 환자에 잇지 않는다.
+        #   입력값이 인증과 무관하니, 잇게 두면 본인 폰으로 인증만 하고 남의
+        #   이름 · 생년월일 · 번호를 넣어 그 사람 진료 기록에 들어갈 수 있다.
+        #   새 환자만 만든다(번호가 겹치면 아래 시리얼라이저가 막는다).
+        if not MATCH_CHECK and models.PatientPii.objects.filter(
+                name=who["name"], birth_date=who["birth_date"], phone=who["phone"]).exists():
+            raise ApiError("VALIDATION_ERROR",
+                           "지금은 기존 환자 기록에 연결할 수 없습니다. 병원에 문의해 주세요.")
         s = PatientRegisterSerializer(data={k: who[k] for k in ("name", "birth_date", "phone")})
         s.is_valid(raise_exception=True)
         # 가입 단추를 두 번 눌러도 계정이 둘 생기지 않게 잠근다

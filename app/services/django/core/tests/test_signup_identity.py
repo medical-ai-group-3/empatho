@@ -36,13 +36,25 @@ class SignupIdentityTests(TestCase):
         self.assertEqual((p.account.login_id, p.sex, p.birth_year, p.account.phone_verified),
                          ("kim1", "female", 1980, True))
 
-    def test_원무과가_먼저_등록한_환자에_잇는다(self, _):
+    def _old_patient(self):
         p = models.Patient.objects.create(patient_number="P-OLD")
         models.PatientPii.objects.create(patient=p, name="김환자",
                                          birth_date="1980-01-02", phone="01011112222")
+        return p
+
+    @mock.patch("core.api.signup.MATCH_CHECK", True)
+    def test_대조를_켜면_원무과가_먼저_등록한_환자에_잇는다(self, _):
+        p = self._old_patient()
         self.assertEqual(self._link().status_code, 201)
         p.refresh_from_db()
         self.assertEqual(p.account.login_id, "kim1")
+
+    def test_대조를_끄면_기존_환자에_잇지_않는다(self, _):
+        # 본인인증만 하고 남의 정보로 그 사람 기록에 들어가는 길을 막는다
+        p = self._old_patient()
+        self.assertEqual(self._link().status_code, 400)
+        p.refresh_from_db()
+        self.assertIsNone(p.account_id)
 
     def test_임시로_대조없이_입력값으로_가입된다(self, _):
         # MATCH_CHECK 를 True 로 되돌리면 이 테스트를 지운다
