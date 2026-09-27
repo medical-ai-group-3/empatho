@@ -176,7 +176,10 @@ input,select,textarea{font:inherit; color:inherit}
    벨만 있고 이 팝업을 열지 않는다. 규칙을 남겨 두는 이유는 나중에
    그 부품만 옮겨 붙이면 바로 서기 때문이다 */
 .bell-wrap{position:relative; display:flex}
-.notice-pop{position:absolute; z-index:30; top:calc(100% + var(--gap-sm)); right:0;
+/* ⚠ color 를 박는다 — 팝업이 검은 띠(.band) 안에 있어서 띠의 흰 글자색
+   (--soot-ink)을 물려받는다. 읽은 줄만 색이 따로 있어서, 안 읽은 줄은
+   흰 바탕에 흰 글자로 누르기 전까지 안 보였다(09-27) */
+.notice-pop{position:absolute; z-index:30; top:calc(100% + var(--gap-sm)); right:0; color:var(--ink);
   width:min(var(--notice-pop-w), calc(100vw - var(--top-pad-x) * 2));
   background:var(--card); border:var(--hair) solid var(--border); border-radius:var(--card-radius);
   box-shadow:var(--card-shadow); overflow:hidden}
