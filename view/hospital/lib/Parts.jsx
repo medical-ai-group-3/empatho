@@ -223,13 +223,10 @@ export function Bar({ value = 0, label }) {
    **이 판에서 어두운 곳은 여기뿐이다.** 판독 영상은 주변이 밝으면
    눈이 계속 조절해야 해서 오래 못 본다.
 
-   공통 영상 Viewer 레이아웃 설계(2026-09-17) — 환자 정보 · 영상
-   Viewer · AI 소견 · 의사 소견 **넷을 서로 독립된 카드**로 다룬다.
-   AI 소견과 의사 소견은 한 사이드에 위아래로 쌓지 않는다 — 각자
-   자기 테두리·자기 접힘 상태를 가진 별개의 aside다. 하나를 접으면
-   그 칸의 width 자체가 손잡이(vtab) 폭으로 줄어들고, 가운데
-   Viewer(flex:1)가 남는 공간을 그대로 흡수한다 — visibility만
-   지우고 자리를 남겨 두는 방식이 아니다. */
+   환자 정보 · 영상 Viewer · 소견 **세 칸**이다. AI 소견과 의사 소견은
+   한 칸 안에서 탭으로 오간다 — 둘을 따로 세우면 옆 칸이 늘어 영상이
+   작아졌다. 칸을 접으면 그 폭이 손잡이(vtab)로 줄고 가운데 Viewer
+   (flex:1)가 남는 공간을 그대로 흡수한다. */
 export function Viewer({
   infoName = "환자 정보", info,
   aiName = "AI 소견", ai, aiOpen = false,          /* AI 는 기본 접힘 */
@@ -237,8 +234,14 @@ export function Viewer({
   tools, below, children,
 }) {
   const [L, setL] = useState(true);
-  const [A, setA] = useState(aiOpen);
-  const [D, setD] = useState(doctorOpen);
+  /* 소견 칸은 **하나**다 — AI 소견과 의사 소견을 탭으로 오간다. 둘을 따로
+     세우면 뷰어 옆으로 칸이 셋이 되어 정작 영상이 작아졌다. 처음 여는
+     탭은 펼쳐 두라고 한 쪽(기본 의사 소견)이다 */
+  const both = Boolean(ai && doctor);
+  const [open, setOpen] = useState(Boolean(doctor ? doctorOpen : aiOpen));
+  const [which, setWhich] = useState(doctor && doctorOpen ? "doctor" : ai ? "ai" : "doctor");
+  const shown = which === "ai" && ai ? ai : doctor ?? ai;
+  const sideName = both ? "소견" : (doctor ? doctorName : aiName);
 
   return (
     <div className="vwrap">
@@ -258,21 +261,24 @@ export function Viewer({
         {below && <div className="vunder">{below}</div>}
       </div>
 
-      {ai && (A
+      {(ai || doctor) && (open
         ? <aside className="vside">
-            <div className="vside-h"><b>{aiName}</b>
-              <button className="x" onClick={() => setA(false)} aria-label="접기">›</button></div>
-            <div className="vside-b">{ai}</div>
+            <div className="vside-h">
+              {both ? (
+                <span className="vside-tabs" role="tablist">
+                  <button type="button" role="tab" aria-selected={which === "doctor"}
+                          className={which === "doctor" ? "on" : ""}
+                          onClick={() => setWhich("doctor")}>{doctorName}</button>
+                  <button type="button" role="tab" aria-selected={which === "ai"}
+                          className={which === "ai" ? "on" : ""}
+                          onClick={() => setWhich("ai")}>{aiName}</button>
+                </span>
+              ) : <b>{sideName}</b>}
+              <button className="x" onClick={() => setOpen(false)} aria-label="접기">›</button>
+            </div>
+            <div className="vside-b">{shown}</div>
           </aside>
-        : <button className="vtab" onClick={() => setA(true)}>{aiName}</button>)}
-
-      {doctor && (D
-        ? <aside className="vside">
-            <div className="vside-h"><b>{doctorName}</b>
-              <button className="x" onClick={() => setD(false)} aria-label="접기">›</button></div>
-            <div className="vside-b">{doctor}</div>
-          </aside>
-        : <button className="vtab" onClick={() => setD(true)}>{doctorName}</button>)}
+        : <button className="vtab" onClick={() => setOpen(true)}>{sideName}</button>)}
     </div>
   );
 }

@@ -184,7 +184,7 @@
 .breast table.list tbody tr.on {background:var(--accent-weak)}
 
 /* ── 전체 환자 목록 ─────────────────────────────────────────── */
-.breast .breast-list-viewer {height:680px; display:flex; min-width:0; overflow:hidden;
+.breast .breast-list-viewer {height:var(--list-viewer-h, 680px); display:flex; min-width:0; overflow:hidden;
   border:var(--hair, 1px) solid var(--line); border-radius:var(--radius-sm)}
 .breast .breast-list-viewer .viewer-shell {height:100%}
 

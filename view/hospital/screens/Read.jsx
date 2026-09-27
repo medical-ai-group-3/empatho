@@ -141,8 +141,10 @@ function Inner({ cfg, id, d }) {
          를 보려면 지난 기록이 그 자리에 있어야 한다.
        ⚠ 전체화면이면 레일을 접는다 — 그때는 영상만 본다 */
     <div className={`read-cols${full ? " readfull" : ""}`}>
-      {!full && <PastRail cfg={cfg} patientId={d.patient?.id} />}
       <div className={`read-workspace${full ? " readfull" : ""}`}>
+      {/* 지난 기록은 **필요할 때만 펼친다.** 늘 왼쪽에 세워 두면 그 폭만큼
+          영상이 작아졌다. 전체화면이면 단추도 없다 — 그때는 영상만 본다 */}
+      {!full && <PastRail cfg={cfg} patientId={d.patient?.id} />}
       <Card pad={false}>
         <Viewer
           infoName={c.infoName}
@@ -252,30 +254,33 @@ function Inner({ cfg, id, d }) {
  *   영상을 가운데에 띄우려면 study 를 날짜로 찾는 경로가 있어야 한다(8장).
  */
 function PastRail({ cfg, patientId }) {
+  const [open, setOpen] = useState(false);
   const line = useApi(
     () => (patientId ? H.soft(cfg.api.timeline(patientId)) : Promise.resolve([])),
     [patientId]);
   const rows = [...H.rows(line.data)].reverse();
 
   return (
-    <nav className="prail" aria-label="이 환자의 지난 기록">
-      <header className="prail-h">
-        <b>지난 기록</b>
-        <em>{rows.length}</em>
-      </header>
-      <div className="prail-b">
-        {/* 맨 위는 항상 「지금」이다 — 돌아올 곳이 분명해야 한다 */}
-        <p className="prail-now">지금 판독</p>
-        {rows.length === 0
-          ? <p className="hcard-k hpad">아직 없습니다</p>
-          : rows.map((r, i) => (
-            <article className="prail-day" key={`${r.at}-${i}`}>
-              <time>{H.day(r.at)}</time>
-              <span className="prail-k">{r.type}</span>
-              {r.detail && <b>{r.detail}</b>}
-            </article>
-          ))}
-      </div>
-    </nav>
+    <div className="prail-drop">
+      <button type="button" className="btn line sm" aria-expanded={open}
+              onClick={() => setOpen((v) => !v)}>
+        지난 기록 <em>{rows.length}</em> {open ? "▴" : "▾"}
+      </button>
+      {open && (
+        <nav className="prail" aria-label="이 환자의 지난 기록">
+          <div className="prail-b">
+            {rows.length === 0
+              ? <p className="hcard-k hpad">아직 없습니다</p>
+              : rows.map((r, i) => (
+                <article className="prail-day" key={`${r.at}-${i}`}>
+                  <time>{H.day(r.at)}</time>
+                  <span className="prail-k">{r.type}</span>
+                  {r.detail && <b>{r.detail}</b>}
+                </article>
+              ))}
+          </div>
+        </nav>
+      )}
+    </div>
   );
 }
