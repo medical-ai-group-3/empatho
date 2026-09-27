@@ -128,7 +128,7 @@ const PATHOLOGY_LEGEND_KO = {
   stroma: "간질",
 };
 
-function translateLegend(legend) {
+export function translateLegend(legend) {
   if (!legend) return legend;
   return Object.fromEntries(
     Object.entries(legend).map(([v, name]) => [v, PATHOLOGY_LEGEND_KO[name] ?? name])

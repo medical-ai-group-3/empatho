@@ -8,6 +8,7 @@ import MRIReviewGrid from "../../../lib/dicom/MRIReviewGrid";
 import { MODALITY, label, modality as asModality } from "../../../codes";
 import DicomStackViewer from "../../../lib/dicom/DicomStackViewer";
 import Stage from "../../../lib/Stage";
+import SpecimenView from "./SpecimenView";
 
 /* 탭에 쓰는 값은 **서버 코드**다 (mammo · us · mri).
  *
@@ -20,15 +21,22 @@ import Stage from "../../../lib/Stage";
  * 코드표와 라벨은 codes.js 한 곳에서 온다. 비교는 늘 asModality() 를
  * 거친다 — 목업 일부가 아직 "ultrasound" 로 주는데 서버는 "us" 다.
  *
- * ⚠ 「병리」가 빠진 것은 서버 MODALITY 에 그 값이 없어서다. 병리는 study
- *   가 아니라 specimen 으로 다룬다. 넣어 둬도 study.modality 와 영영 안
- *   맞아 탭이 뜨지 않는다 — 안 뜨는 탭을 목록에 두면 「왜 안 나오지」가
- *   된다. 병리를 이 뷰어에 붙이려면 specimen 을 따로 받아 와야 한다.
+ * 병리는 서버 MODALITY 에 없다 — study 가 아니라 specimen 이다. 그래서
+ * 따로 받은 검체 번호(specimenIds)로 「병리」 탭을 세우고 SpecimenView 가
+ * 그린다(09-27 검사 종합 개편).
+ *
+ * 탭 넷(초음파 · 유방촬영 · MRI · 병리)을 **늘 같은 자리에** 둔다. 이 환자에게
+ * 없는 것은 흐리게 두고 못 누르게 한다 — 사라지면 「그 검사를 안 했나,
+ * 화면이 고장 났나」를 구분할 수 없다.
  */
+const TABS = ["us", "mammo", "mri", "pathology"];
+const TAB_LABEL = { ...MODALITY, pathology: "병리" };
 
 export default function ReviewViewer({
   patientId,
   lesions = [],
+  /* 확정된 병리 검체 번호. 최신이 앞이다. 비면 병리 탭이 흐려진다 */
+  specimenIds = [],
   onModalityChange,
   /* 검사 이력에서 고른 검사. 주면 그 검사를 연다 — 모달리티가 같은 검사가
      여러 건일 때 탭만으로는 「어느 것」을 못 고른다(늘 첫 건이 열렸다). */
@@ -63,6 +71,9 @@ export default function ReviewViewer({
         studies.some((item) => asModality(item.modality) === code && shot(item))
       )
     : [];
+  const canOpen = (code) => (code === "pathology"
+    ? specimenIds.length > 0
+    : availableModalities.includes(code));
 
   const [tab, setTab] = useState(null);
 
@@ -91,7 +102,12 @@ export default function ReviewViewer({
 
   useEffect(() => {
     if (tab !== null) return;
-    if (!Array.isArray(studies) || availableModalities.length === 0) return;
+    if (!Array.isArray(studies)) return;
+    /* 영상이 하나도 없고 병리만 있으면 병리로 연다 */
+    if (availableModalities.length === 0) {
+      if (specimenIds.length > 0) setTab("pathology");
+      return;
+    }
 
     const completed = studies.filter(
       (study) => study && shot(study) && asModality(study.modality) in MODALITY
@@ -130,25 +146,21 @@ export default function ReviewViewer({
       ===================================================== */}
 
       <div className="viewer-tabs">
-        {availableModalities.length === 0 && !loading ? (
-          <span className="viewer-tabs-empty">촬영한 검사가 없습니다</span>
-        ) : (
-          availableModalities.map((code) => (
-            <button
-              key={code}
-              type="button"
-              className={
-                tab === code ? "on" : ""
-              }
-              onClick={() => {
-                setTab(code);
-                onModalityChange?.(code);
-              }}
-            >
-              {label(MODALITY, code)}
-            </button>
-          ))
-        )}
+        {TABS.map((code) => (
+          <button
+            key={code}
+            type="button"
+            className={tab === code ? "on" : ""}
+            disabled={!canOpen(code)}
+            title={canOpen(code) ? undefined : `이 환자는 ${TAB_LABEL[code]} 검사가 없습니다`}
+            onClick={() => {
+              setTab(code);
+              if (code !== "pathology") onModalityChange?.(code);
+            }}
+          >
+            {TAB_LABEL[code]}
+          </button>
+        ))}
       </div>
 
 
@@ -162,7 +174,9 @@ export default function ReviewViewer({
           error={error}
           onRetry={reload}
         >
-          {tab === null ? null : study ? (
+          {tab === "pathology" ? (
+            <SpecimenView key={specimenIds.join(",")} specimenIds={specimenIds} />
+          ) : tab === null ? null : study ? (
             <StudyView study={study} lesions={lesions} />
           ) : null}
         </Body>
@@ -246,6 +260,11 @@ export default function ReviewViewer({
           padding: 0 8px;
           color: #596169;
           font-size: 12px;
+        }
+
+        .viewer-tabs button:disabled {
+          color: #3f454b;
+          cursor: not-allowed;
         }
 
         .viewer-tabs button.on {

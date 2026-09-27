@@ -40,7 +40,6 @@ nifti-canvas              hospital/dept/breast/components/NiftiSliceViewer.jsx:9
 nifti-mask-loading        hospital/dept/breast/components/NiftiSliceViewer.jsx:97
 nifti-slice-control       hospital/dept/breast/components/NiftiSliceViewer.jsx:100
 nifti-count               hospital/dept/breast/components/NiftiSliceViewer.jsx:111
-viewer-tabs-empty         hospital/dept/breast/components/ReviewViewer.jsx:79
 viewer-content            hospital/dept/breast/components/ReviewViewer.jsx:102
 png-overlay-viewer        hospital/dept/breast/components/ReviewViewer.jsx:500
 generic-empty             hospital/dept/breast/components/ReviewViewer.jsx:501

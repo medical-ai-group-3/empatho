@@ -1186,7 +1186,11 @@ export const breast = {
         at: row.finalized_at ?? null,
       }));
 
-    return { radiology, pathology };
+    /* ⚠ 최신순으로 세운다. 화면(Review.jsx)이 맨 앞을 「이번 판정」으로
+       읽는데, 검사 · 검체 조회 순서 그대로라 예전 것이 앞에 올 수 있었다 —
+       09-27 환자 127 에서 오늘 확정한 malignant 대신 09-23 의 B2 가 떴다 */
+    const newest = (a, b) => String(b.at ?? "").localeCompare(String(a.at ?? ""));
+    return { radiology: radiology.sort(newest), pathology: pathology.sort(newest) };
   },
 
   /* 유방외과 진료를 열기 전 다음 단계를 판단할 최소 이력. 서버에 별도
