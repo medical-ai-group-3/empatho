@@ -579,7 +579,10 @@ class ExamOrderScheduleView(AuditMixin, viewsets.ViewSet):
         order = models.ExamOrder.objects.create(
             patient_id=data["patient_id"],
             scheduled_at = data["scheduled_at"],
-            order_status= "requested",
+            # 09-27 — 창구가 날짜를 정한 예약은 **처음부터 확정**이다. requested 로
+            # 세우면 앱 신청과 섞여 「예약 신청」 큐에 또 뜨고, 예약 판에서
+            # 「미확정」으로 보였다. 앱 신청을 확정한 것(confirm)과 같은 상태다
+            order_status= "scheduled",
             ordered_at = timezone.now(),
             created_by = self._current_account(),
             updated_by = self._current_account(),
