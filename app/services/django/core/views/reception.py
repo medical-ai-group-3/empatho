@@ -654,11 +654,36 @@ class ExamOrderScheduleView(AuditMixin, viewsets.ViewSet):
     permission_classes = [MatrixPermission]
     
     def create(self, request):
+        from django.db import transaction
+
         serializer = serializers.ExamOrderScheduleSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
-        
-        order = models.ExamOrder.objects.create(
+
+        # ⚠ **같은 날 살아 있는 예약이 있으면 새로 안 만든다.** [예약] 을
+        #   여러 번 누르면(연타 · 다시 골라 또 누름) 같은 예약이 계속 쌓였고,
+        #   그 사람이 접수해도 나머지가 「안 오심」 으로 남았다(09-28).
+        #   날짜를 바꾸려면 PATCH /exam-orders/{id}/reschedule 을 쓴다.
+        #   환자 행을 잠가 두 요청이 동시에 와도 하나만 선다.
+        with transaction.atomic():
+            models.Patient.objects.select_for_update().filter(pk=data["patient_id"]).first()
+            day = timezone.localtime(data["scheduled_at"]).date()                 if timezone.is_aware(data["scheduled_at"]) else data["scheduled_at"].date()
+            dup = models.ExamOrder.objects.filter(
+                patient_id=data["patient_id"],
+                order_status__in=("requested", "scheduled"),
+                visited_at__isnull=True,
+                scheduled_at__date=day,
+            ).order_by("scheduled_at").first()
+            if dup is not None:
+                at = timezone.localtime(dup.scheduled_at).strftime("%H:%M")
+                raise ApiError("DUPLICATE_RESERVATION",
+                               f"이 환자는 그날 {at} 에 이미 예약이 있습니다. 바꾸려면 그 예약을 고쳐 주세요.")
+            order = self._create_booking(data)
+        out = serializers.ExamOrderSerializer(order)
+        return Response(out.data, status = status.HTTP_201_CREATED)
+
+    def _create_booking(self, data):
+        return models.ExamOrder.objects.create(
             patient_id=data["patient_id"],
             scheduled_at = data["scheduled_at"],
             # 09-27 — 창구가 날짜를 정한 예약은 **처음부터 확정**이다. requested 로
@@ -669,8 +694,6 @@ class ExamOrderScheduleView(AuditMixin, viewsets.ViewSet):
             created_by = self._current_account(),
             updated_by = self._current_account(),
         )
-        out = serializers.ExamOrderSerializer(order)
-        return Response(out.data, status = status.HTTP_201_CREATED)
     
 class ExamOrderRescheduleView(AuditMixin, viewsets.ViewSet):
     """09-27 예약 변경 · 취소 — 새 예약을 또 만들지 않고 **있는 것을 고친다.**

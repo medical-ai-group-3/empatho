@@ -376,3 +376,27 @@ class StudyAiStatusTests(SimpleTestCase):
 
     def test_시리얼라이저에_ai_status_칸이_있다(self):
         self.assertIn("ai_status", serializers.StudySerializer().fields)
+
+
+class DuplicateReservationTests(SimpleTestCase):
+    """09-28 같은 환자 · 같은 날 예약을 또 만들면 409."""
+
+    def test_오류_코드가_있다(self):
+        from core.api.errors import spec_for
+        self.assertEqual(spec_for("DUPLICATE_RESERVATION").status, 409)
+
+
+class DuplicateReservationDbTests(TestCase):
+    def setUp(self):
+        account = models.Account.objects.create(
+            login_id="nur-dup", role="nursing", account_status="active", is_active=True)
+        models.Staff.objects.create(account=account, staff_number="NUR-DUP", full_name="간호 중복")
+        self.patient = models.Patient.objects.create(patient_number="P-0928-1")
+        self.c = _client_for(account)
+
+    def test_같은_날_두_번째_예약은_409(self):
+        body = {"patient_id": self.patient.pk, "scheduled_at": "2026-10-01T10:00:00+09:00"}
+        self.assertEqual(self.c.post("/api/v1/exam-orders/schedule", body, format="json").status_code, 201)
+        r = self.c.post("/api/v1/exam-orders/schedule", body, format="json")
+        self.assertEqual(r.status_code, 409)
+        self.assertEqual(models.ExamOrder.objects.filter(patient=self.patient).count(), 1)
