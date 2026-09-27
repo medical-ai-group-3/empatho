@@ -175,9 +175,13 @@ export default function Stage({
           <button className={`vtool ${tool === "rect" ? "on" : ""}`} onClick={() => setTool("rect")} title="박스 그리기">박스</button>
         </>}
         <span className="vzoom">{Math.round(t.z * 100)}%</span>
-        <button className="vtool" onClick={onFull}
-                aria-label={full ? "전체화면 끄기" : "전체화면"}
-                title={full ? "전체화면 끄기" : "전체화면"}>⛶</button>
+        {/* 전체화면을 넘겨받은 화면에서만 단다 — 검사 종합 팝업처럼 onFull 이
+            없는 자리에서는 눌러도 아무 일이 없는 단추였다 */}
+        {onFull && (
+          <button className="vtool" onClick={onFull}
+                  aria-label={full ? "전체화면 끄기" : "전체화면"}
+                  title={full ? "전체화면 끄기" : "전체화면"}>⛶</button>
+        )}
       </div>
 
       <div

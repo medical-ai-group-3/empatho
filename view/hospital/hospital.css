@@ -1132,6 +1132,8 @@ a.frow:hover .frow-k{color:var(--ink)}
 .spec-picks button{padding:var(--gap-xxs) var(--gap-sm); border-radius:var(--card-radius);
   box-shadow:inset 0 0 0 var(--hair) var(--v-warm); color:var(--v-warm); font-size:var(--label-fs)}
 .spec-picks button.on{background:var(--soot-ink); color:var(--soot)}
+/* 같은 모달리티를 여러 번 찍었을 때 탭 아래 날짜 줄(ReviewViewer) */
+.viewer-shots{padding:var(--gap-xs) var(--gap-sm) 0}
 .spec-stage{flex:1; min-height:360px; display:flex}
 .spec-stage > *{flex:1}
 .spec-empty{margin:0; padding:var(--desk-gap); color:var(--v-warm); font-size:var(--row-fs)}
@@ -1684,11 +1686,14 @@ a.pevent:focus-visible{outline:var(--hair) solid var(--cyan); outline-offset:2px
   gap:var(--v-pad); padding:var(--v-pad)}
 .vtools{position:absolute; left:var(--v-pad); top:var(--v-pad); z-index:2;
   display:flex; flex-direction:column; gap:var(--gap-xs)}
+/* ⚠ 영상 위에 떠 있는 단추라 **밝게** 둔다. 전에는 회색 글자(--v-warm)에
+   옅은 테두리(--v-line)라 어두운 영상 위에서 잘 안 보였다(09-27) */
 .vtool{width:var(--v-tool); height:var(--v-tool); border-radius:var(--gap-tight);
-  background:var(--v-card); color:var(--v-warm);
-  box-shadow:inset 0 0 0 var(--hair) var(--v-line);
-  display:flex; align-items:center; justify-content:center; font-size:var(--v-fs)}
-.vtool:hover{color:var(--v-ink)}
+  background:var(--v-bg); color:var(--v-ink);
+  box-shadow:inset 0 0 0 var(--hair) var(--v-warm);
+  display:flex; align-items:center; justify-content:center;
+  font-size:calc(var(--v-fs) * 1.25); font-weight:700}
+.vtool:hover{background:var(--v-ink); color:var(--v-bg)}
 /* 영상이 들어올 자리 */
 .vart{flex:1; min-height:var(--stage-h); border-radius:var(--in-radius);
   background:

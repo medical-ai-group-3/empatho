@@ -126,17 +126,24 @@ export default function ReviewViewer({
     onModalityChange?.(next);
   }, [tab, studies, availableModalities.join(","), onModalityChange]);
 
-  /*
-   * API에서 해당 modality 검사 결과를 찾는다.
-   */
-  /* 고른 검사가 지금 탭과 같은 모달리티면 그것을 쓴다. 탭을 손으로 다른
-     모달리티로 옮기면 고른 것을 놓고 그 모달리티의 첫 검사로 돌아간다. */
-  const study =
-    chosen && asModality(chosen.modality) === tab
-      ? chosen
-      : (Array.isArray(studies)
-          ? studies.find((item) => asModality(item.modality) === tab)
-          : null);
+  /* 이 탭(모달리티)의 촬영들 — 최신이 앞이다. 같은 모달리티를 여러 번
+     찍었으면 탭 아래 줄에서 날짜로 고른다(09-27). 전에는 그 모달리티의
+     첫 검사 하나만 열려 다른 날 영상을 볼 길이 없었다.
+     고르는 순서: 이 줄에서 고른 것 → 밖에서 넘겨준 검사(studyId) → 최신 */
+  const [picked, setPicked] = useState(null);
+  /* 밖에서 다른 검사를 고르면(검사 이력) 이 줄의 선택을 놓는다 */
+  useEffect(() => { setPicked(null); }, [studyId]);
+  const idOf = (s) => String(s?.study_id ?? s?.id);
+  const whenOf = (s) => s.performed_at ?? s.created_at ?? null;
+  const shots = Array.isArray(studies)
+    ? studies
+        .filter((item) => asModality(item.modality) === tab && shot(item))
+        .sort((a, b) => String(whenOf(b) ?? "").localeCompare(String(whenOf(a) ?? ""))
+          || (Number(b.study_id ?? b.id ?? 0) - Number(a.study_id ?? a.id ?? 0)))
+    : [];
+  const study = shots.find((s) => idOf(s) === String(picked))
+    ?? (chosen && asModality(chosen.modality) === tab ? chosen : null)
+    ?? shots[0] ?? null;
 
   return (
     <div className="viewer-shell">
@@ -155,6 +162,7 @@ export default function ReviewViewer({
             title={canOpen(code) ? undefined : `이 환자는 ${TAB_LABEL[code]} 검사가 없습니다`}
             onClick={() => {
               setTab(code);
+              setPicked(null);
               if (code !== "pathology") onModalityChange?.(code);
             }}
           >
@@ -162,6 +170,19 @@ export default function ReviewViewer({
           </button>
         ))}
       </div>
+
+      {/* 같은 모달리티를 두 번 이상 찍었을 때만 — 날짜로 고른다 */}
+      {tab !== "pathology" && shots.length > 1 && (
+        <div className="spec-picks viewer-shots" aria-label="촬영 고르기">
+          {shots.map((s) => (
+            <button key={idOf(s)} type="button"
+                    className={idOf(s) === idOf(study) ? "on" : ""}
+                    onClick={() => setPicked(idOf(s))}>
+              {String(whenOf(s) ?? "").slice(0, 10) || "날짜 없음"} · #{idOf(s)}
+            </button>
+          ))}
+        </div>
+      )}
 
 
       {/* =====================================================
