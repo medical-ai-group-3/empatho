@@ -144,7 +144,21 @@ function Inner({ cfg, id, d }) {
       <div className={`read-workspace${full ? " readfull" : ""}`}>
       {/* 지난 기록은 **필요할 때만 펼친다.** 늘 왼쪽에 세워 두면 그 폭만큼
           영상이 작아졌다. 전체화면이면 단추도 없다 — 그때는 영상만 본다 */}
-      {!full && <PastRail cfg={cfg} patientId={d.patient?.id} />}
+      {/* 윗줄 — 지난 기록(왼쪽) · 저장 단추(오른쪽).
+          ⚠ **저장은 위에 둔다.** 뷰어 아래에 두면 소견 탭(AI · 의사)을 바꿀
+            때마다 칸 높이가 달라져 단추가 오르내렸다. 늘 같은 자리여야
+            손이 간다 */}
+      <div className="read-top">
+        {!full && <PastRail cfg={cfg} patientId={d.patient?.id} />}
+        <Save top
+          hint={c.saveHint}
+          onDraft={draft} onSave={finalize} busy={busy}
+          draftNeed={c.need.draft} saveNeed={c.need.finalize}
+          canSave={c.ready ? c.ready(f, d) : true}
+          saveLabel="저장"
+        />
+      </div>
+      {msg && <div className="notice">{msg}</div>}
       <Card pad={false}>
         <Viewer
           infoName={c.infoName}
@@ -229,15 +243,6 @@ function Inner({ cfg, id, d }) {
         </Viewer>
       </Card>
 
-      {msg && <div className="notice">{msg}</div>}
-
-      <Save
-        hint={c.saveHint}
-        onDraft={draft} onSave={finalize} busy={busy}
-        draftNeed={c.need.draft} saveNeed={c.need.finalize}
-        canSave={c.ready ? c.ready(f, d) : true}
-        saveLabel="저장"
-      />
       </div>
     </div>
   );

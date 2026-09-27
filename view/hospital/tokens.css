@@ -524,6 +524,8 @@
   --list-w:        380px;
   --list-info-w:   300px;
   --list-viewer-h: min(76vh, 820px);
+  /* 판독 화면 뷰어 줄 높이 — 소견 탭을 바꿔도 변하지 않는다 */
+  --read-v-h:      max(var(--v-min-h), calc(100vh - 230px));
   --prail-d-fs:   calc(13px * var(--ft));
 
   /* ══ 유방외과 — 내 환자 (Surgery) ═════════════════════════

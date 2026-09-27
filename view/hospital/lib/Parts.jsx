@@ -193,11 +193,12 @@ export function Table({ cols, rows, value, onPick,
      그대로 날린다. */
 export function Save({ hint, onDraft, onSave, saveLabel = "저장", busy,
                        draftLabel = "임시저장",
-                       draftNeed, saveNeed, canSave = true }) {
+                       draftNeed, saveNeed, canSave = true, top = false }) {
   const d = useCan(draftNeed);
   const s = useCan(saveNeed);
   return (
-    <div className="save">
+    /* top — 화면 윗줄에 가로로 선다(판독 화면). 아래 줄 모양이 기본이다 */
+    <div className={`save${top ? " top" : ""}`}>
       {hint && <p className="hint">{hint}</p>}
       <div className="save-b">
         <button className="btn line" onClick={onDraft}
