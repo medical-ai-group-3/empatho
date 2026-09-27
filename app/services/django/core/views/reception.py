@@ -284,7 +284,10 @@ class ReservationRequestQueueView(generics.ListAPIView):
     permission_classes = [MatrixPermission]
     serializer_class = serializers.ExamOrderSerializer
     # 행마다 patient · pii · 주치의를 따로 읽지 않게 한 번에 붙인다(N+1)
-    queryset = (models.ExamOrder.objects.filter(order_status="requested")
+    # 09-27 — 창구 접수(walk-in)와 내원 처리된 예약도 requested 라, visited_at 이
+    # 빈 것(아직 안 온 앱 신청)만 남긴다. 예전에는 접수 환자가 신청 큐에 섞였다.
+    queryset = (models.ExamOrder.objects.filter(order_status="requested",
+                                                visited_at__isnull=True)
                 .select_related("patient__pii", "patient__primary_staff")
                 .order_by("scheduled_at", "exam_order_id"))
 
@@ -522,6 +525,48 @@ class PatientRegisterView(AuditMixin, viewsets.ViewSet):
         data = {**out.data, "created": created}
         return Response(data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
     
+def _todays_booking(patient_id, now):
+    """오늘 날짜로 잡혀 있고 아직 안 온 예약. 없으면 None."""
+    return (models.ExamOrder.objects
+            .select_for_update()
+            .filter(patient_id=patient_id,
+                    order_status__in=("requested", "scheduled"),
+                    visited_at__isnull=True,
+                    scheduled_at__date=timezone.localdate(now))
+            .order_by("scheduled_at", "exam_order_id").first())
+
+
+def mark_visited(order, now, account):
+    """예약 오더를 내원 처리한다 — 접수(CheckInView) · 오늘 방문(VisitToday) 공용.
+
+    처음 온 시각을 지킨다(이미 visited_at 이 있으면 안 덮는다).
+    scheduled 는 **requested 로 돌린다** — 간호 「내원 대기」가
+    status=requested&visited=yes 로 부르므로 scheduled 로 두면 온 환자가
+    줄에 안 선다. 창구 접수(walk-in)와 같은 상태가 된다.
+    exam_order_requested_fields_ck 는 requested 에 빈 검사 칸을 허용하므로
+    scheduled → requested 는 제약에 걸리지 않는다.
+    반환: 바뀌었는가
+    """
+    if order.visited_at is not None:
+        return False
+    fields = ["visited_at", "updated_by", "updated_at"]
+    order.visited_at = now
+    if order.order_status == "scheduled":
+        order.order_status = "requested"
+        fields.append("order_status")
+    order.updated_by = account
+    order.save(update_fields=fields)
+    return True
+
+
+def _stamp_first_visit(patient, now, account):
+    # 초진 시각은 오더의 visited_at 과 같은 값이어야 한다(visit_type 판정)
+    if not patient.first_visited_at:
+        patient.first_visited_at = now
+        patient.updated_by = account
+        patient.save(update_fields=["first_visited_at", "updated_by", "updated_at"])
+
+
 class CheckInView(AuditMixin, viewsets.ViewSet):
     """§1 [접수하기] — POST /exam-orders (requested + visited_at)."""
     
@@ -546,6 +591,16 @@ class CheckInView(AuditMixin, viewsets.ViewSet):
                         .order_by("visited_at").first())
             if existing is not None:
                 out = serializers.ExamOrderSerializer(existing)
+                return Response(out.data, status=status.HTTP_200_OK)
+
+            # 09-27 — 오늘 예약(scheduled · 아직 확정 전 requested)이 있고 아직
+            # 안 왔으면 **그 예약을 내원 처리한다.** 예전에는 새 오더를 또 만들어
+            # 예약은 visited_at 이 빈 채 「노쇼」로 남고, 환자 한 명이 두 줄이 됐다.
+            booking = _todays_booking(patient_id, now)
+            if booking is not None:
+                mark_visited(booking, now, self._current_account())
+                _stamp_first_visit(patient, now, self._current_account())
+                out = serializers.ExamOrderSerializer(booking)
                 return Response(out.data, status=status.HTTP_200_OK)
 
             order = models.ExamOrder.objects.create(
@@ -877,6 +932,11 @@ class PatientReservationCancelView(APIView):
         order = models.ExamOrder.objects.filter(pk=pk, patient=patient).first()
         if order is None:
             raise ApiError("NOT_FOUND", "예약을 찾을 수 없습니다.")
+        # 09-27 — 예전에는 상태를 안 봐서 촬영 중 · 완료된 오더도 환자가
+        # cancelled 로 덮을 수 있었다. 목록의 can_cancel 과 같은 기준으로 막는다.
+        if (order.order_status not in PatientReservationsView.CANCELLABLE
+                or order.visited_at is not None):
+            raise ApiError("RESERVATION_LOCKED")
         order.order_status = "cancelled"
         order.cancelled_by = None
         order.updated_by = request.user
