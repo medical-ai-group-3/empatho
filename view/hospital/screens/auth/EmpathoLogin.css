@@ -398,13 +398,6 @@
       inset 0 1px 0 rgba(255, 255, 255, .13),
       inset 0 -170px 150px -150px rgba(0, 0, 0, .72),
       -40px 0 90px -60px rgba(0, 0, 0, .8);
-    animation: empatho-arrive 980ms cubic-bezier(.2, .7, .2, 1) backwards;
-  }
-
-  /* forwards 로 바꾸면 .is-entering 퇴장 전환이 안 먹는다 */
-  @keyframes empatho-arrive {
-    from { opacity: 0; transform: translate3d(-6%, 0, -260px) rotateY(-1.2deg); filter: blur(7px); }
-    to   { opacity: 1; transform: translate3d(0, 0, 0) rotateY(-1.2deg); filter: blur(0); }
   }
 
   /* rotateY 를 빼면 퇴장 때 각도가 튄다 */
@@ -486,7 +479,6 @@
 @media (prefers-reduced-motion: reduce) {
   .empatho-scene .dolly, .empatho-scene .bloom, .empatho-scene .panel, .empatho-scene .veil, .empatho-scene .plate--still { transition-duration: 220ms !important; }
   .empatho-scene .pulse { animation: none; border-top-color: rgba(199, 230, 255, .28); }
-  .empatho-scene .panel { animation: none !important; }
 }
 
 /* ══════════════════════════════════════════════════════════════
