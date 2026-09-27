@@ -1,14 +1,12 @@
 import { Chip } from "../lib/Parts";
+import { STIL_LEVEL, label } from "../codes";
 import { PartBar, SplitBar, StripPlot } from "./AiViz";
 
 /* 병리 AI 소견 — 등급이 아니라 정량 지표다
  * ────────────────────────────────────────────────────────────────
  *
  * 영상의학과 AI 소견과 자리는 같고 내용이 다르다. 병리 모델은 BI-RADS 를
- * 내지 않는다. 대신 숫자 넷을 낸다 — AI 계측 TIL 면적비 · TSR · 세포 수 · 간질 상태.
- *
- * 「sTIL」이라 부르지 않는다(09-28). 임상 sTIL 은 병리의사 육안 점수고,
- * 계측값은 핵 면적 기준이라 그보다 낮게 나온다.
+ * 내지 않는다. 대신 숫자 넷을 낸다 — sTIL · TSR · 세포 수 · 간질 상태.
  *
  * ⚠ 지켜야 할 것 둘
  *
@@ -38,10 +36,10 @@ export default function PathologyAi({ d }) {
       {/* 크롭이 두 장 이상일 때만 — 한 점은 분포가 아니다. 평균을 내지
           않는다는 원칙을 그림으로 지킨다. */}
       <StripPlot
-        label="크롭별 AI 계측 TIL 면적비"
+        label="크롭별 sTIL (보정값)"
         points={rows
           .filter((r) => !r.abstained && r.stroma_status !== "absent")
-          .map((r, i) => ({ name: `${i + 1}`, value: r.stil_ai }))}
+          .map((r, i) => ({ name: `${i + 1}`, value: r.stil_calibrated }))}
         note="장마다 점으로 찍습니다. 평균은 모델이 낸 값이 아닙니다." />
 
       {/* 크롭 사이 흔들림을 여기서 본다. */}
@@ -68,14 +66,14 @@ export default function PathologyAi({ d }) {
           ) : (
             <dl className="ai-m">
               <div>
-                <dt>AI 계측 TIL 면적비</dt>
+                <dt>sTIL</dt>
                 <dd>
                   {r.stroma_status === "absent" ? (
                     <span className="ai-na inline">평가 불가 — 간질 없음</span>
-                  ) : r.stil_ai == null ? (
-                    <span className="ai-na inline">—</span>
+                  ) : r.stil_calibrated == null ? (
+                    <span className="ai-na inline">보정 전 — 표시하지 않음</span>
                   ) : (
-                    <>{r.stil_ai}<i>%</i> <em>핵 면적 기준 · 병리의사 육안 sTIL보다 낮게 나옵니다</em></>
+                    <>{r.stil_calibrated}<i>%</i> <em>({label(STIL_LEVEL, r.stil_level)})</em></>
                   )}
                 </dd>
               </div>
