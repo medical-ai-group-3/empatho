@@ -5,7 +5,7 @@ import { Chip, Facts, Fold } from "../lib/Parts";
 import { Body } from "../lib/Body";
 import { useApi } from "../lib/useApi";
 import { useFile } from "../lib/files";
-import Stage from "../lib/Stage";
+import Stage, { MaskKeys, PATHOLOGY_MASK_COLORS } from "../lib/Stage";
 import PathologyAi from "./PathologyAi";
 import { ACCESSION_STATUS, B_CATEGORY, B_CATEGORY_LABEL, DIAGNOSIS, SEX,
          label, text, tone } from "../codes";
@@ -116,6 +116,23 @@ function fileRef(value, derived = false) {
     return { key: value.key ?? value.object_key, ...(derived ? { derived: true } : {}) };
   }
   return null;
+}
+
+/* 서버가 주는 legend 값(tissue_mask_legend, 영문 "other"/"tumor"/"stroma")을
+ * 화면 표시용 한글로 바꾼다. 번호→뜻 대응은 여전히 서버 값을 그대로 따른다 —
+ * 여기서 바꾸는 건 그 뜻을 화면에 적을 글자뿐이고, 서버가 안 보낸 키는
+ * 원래 영문 그대로 둔다(모르는 값을 지우지 않는다). */
+const PATHOLOGY_LEGEND_KO = {
+  other: "기타(배경·지방 등)",
+  tumor: "종양",
+  stroma: "간질",
+};
+
+function translateLegend(legend) {
+  if (!legend) return legend;
+  return Object.fromEntries(
+    Object.entries(legend).map(([v, name]) => [v, PATHOLOGY_LEGEND_KO[name] ?? name])
+  );
 }
 
 function isMaskFile(file = {}) {
@@ -452,8 +469,12 @@ export const pathology = {
         image: c?.image,
         maskImage: c?.mask,
         /* 마스크 픽셀값이 무슨 뜻인지는 서버가 같이 보낸다. 화면이
-           번호를 제멋대로 해석하지 않게 그대로 넘긴다 */
-        maskLegend: (d.ai ?? [])[i]?.mask_legend ?? null,
+           번호를 제멋대로 해석하지 않게 그대로 넘긴다 — 한글로 바꾸는
+           것은 표시용 글자뿐, 번호→뜻 대응 자체는 그대로다. */
+        maskLegend: translateLegend((d.ai ?? [])[i]?.mask_legend) ?? null,
+        /* 병리 조직분할 전용 색(기타=회색 반투명, 종양=빨강, 간질=파랑).
+           다른 과(초음파 등)는 이 prop 을 안 넘겨 기존 색을 그대로 쓴다. */
+        maskColors: PATHOLOGY_MASK_COLORS,
         w: c?.w ?? 512, h: c?.h ?? 512,     /* 크롭은 512×512 */
         alt: `크롭 ${i + 1}`,
         shapes: [],            /* 병리는 도형이 없다 — 마스크가 그림이다 */
@@ -627,12 +648,14 @@ function FixedTissueViewer({ read, cfg }) {
   const crop = read.crops?.[0] ?? null;
   const original = useFile(crop?.image, cfg.api.ticket, { kind: cfg.scopeKind, id: read.unit.id });
   const mask = useFile(crop?.mask, cfg.api.ticket, { kind: cfg.scopeKind, id: read.unit.id });
+  const legend = translateLegend((read.ai ?? [])[0]?.mask_legend);
 
   return (
     <div className="list-viewer pathology-fixed-viewer">
       <Stage src={original.src} w={crop?.w} h={crop?.h}
         alt={crop?.name ?? "조직 사진"} loading={original.loading} loadError={original.error}
-        mask={mask.src} mode="review" />
+        mask={mask.src} maskColors={PATHOLOGY_MASK_COLORS} mode="review" />
+      {mask.src && <MaskKeys legend={legend} colors={PATHOLOGY_MASK_COLORS} />}
     </div>
   );
 }
