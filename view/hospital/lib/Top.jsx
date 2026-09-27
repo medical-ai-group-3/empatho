@@ -2,6 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { HOSPITAL, PRODUCT, deptPath, go, homeDept, menuScreens, myDepts } from "../nav";
 import { can } from "../perm";
+import { acknowledgeNotification, apiInfo, notifications, path } from "../api";
+import * as H from "../dept/home";
+import { openNotifications } from "./live";
 import { useMe } from "./useMe";
 
 /* 상단바 — 세 층
@@ -97,13 +100,101 @@ export default function Top({ dept, now, counts, summary }) {
 
         <div className="band-r">
           <span className="when">{now}</span>
-          <button className="bell" aria-label="알림">
-            <span aria-hidden="true">◍</span>
-          </button>
+          <Bell on={Boolean(me)} />
         </div>
       </div>
     );
   }
+}
+
+/* ── 알림 종 ──────────────────────────────────────────────────
+ *
+ * 전에는 누를 곳만 있고 아무 일도 안 했다. 서버는 AI 판독이 끝나면
+ * 요청한 선생님에게 SSE 로 알림을 보내는데(core/tasks.py), 받는 쪽이
+ * 없어서 화면에는 한 번도 안 떴다.
+ *
+ *   · 로그인하면 SSE 를 연다(lib/live.js). 알림이 오면 잠깐 띄우고
+ *     종의 숫자를 올린다
+ *   · 종을 누르면 내 알림 목록(GET /notifications/). 누른 줄은 확인 처리
+ *   · 숫자는 **서버 목록의 확인 안 된 것**이다 — 화면이 따로 세면
+ *     새로고침할 때마다 어긋난다
+ *
+ * ⚠ 병리는 크롭마다 분석해서 같은 알림이 연달아 둘 온다(같은 리포트).
+ *   띄우는 것만 하나로 줄인다. 목록에는 서버가 준 대로 둔다.
+ * ⚠ 목업 모드는 허브가 없어서 열지 않는다.
+ */
+function Bell({ on }) {
+  const [open, setOpen] = useState(false);
+  const [items, setItems] = useState(null);
+  const [toast, setToast] = useState(null);
+  const load = () => notifications().then(setItems).catch(() => setItems([]));
+
+  useEffect(() => {
+    if (!on || apiInfo.mock) return;
+    load();
+    let last = "";
+    return openNotifications({
+      issue: path.ticket,
+      onEvent: (ev) => {
+        const p = ev.payload ?? {};
+        const key = `${ev.type}:${p.ref_type}:${p.ref_id}`;
+        if (key !== last) setToast(p.message || "새 알림이 왔습니다");
+        last = key;
+        load();
+      },
+      onResync: load,
+    });
+  }, [on]);
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 6000);
+    return () => clearTimeout(t);
+  }, [toast]);
+
+  const unread = (items ?? []).filter((n) => !n.acknowledged_at).length;
+
+  function read(n) {
+    if (n.acknowledged_at) return;
+    acknowledgeNotification(n.notification_id).then(load).catch(() => {});
+  }
+
+  return (
+    <div className="bell-wrap">
+      <button className="bell" aria-label={`알림${unread ? ` ${unread}건` : ""}`}
+              aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+        <span aria-hidden="true">◍</span>
+        {unread > 0 && <i>{unread}</i>}
+      </button>
+      {open && (
+        <div className="notice-pop" role="dialog" aria-label="알림">
+          <header>
+            <b>알림</b>
+            <button type="button" onClick={() => setOpen(false)} aria-label="닫기">×</button>
+          </header>
+          {items == null ? <p className="notice-state">불러오는 중…</p>
+            : items.length === 0 ? <p className="notice-state">받은 알림이 없습니다</p>
+            : (
+              <ul>
+                {items.map((n) => (
+                  <li key={n.notification_id}>
+                    <button type="button" className={n.acknowledged_at ? "" : "new"}
+                            onClick={() => read(n)}>
+                      <b>{n.message}</b>
+                      <span>{H.at(n.sent_at || n.created_at)}</span>
+                      {!n.acknowledged_at && <em>새 알림</em>}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+        </div>
+      )}
+      {toast && (
+        <p className="live-toast" role="status" onClick={() => setToast(null)}>{toast}</p>
+      )}
+    </div>
+  );
 }
 
 /* ── 환자 찾기 ────────────────────────────────────────────────

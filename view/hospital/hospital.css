@@ -203,6 +203,12 @@ input,select,textarea{font:inherit; color:inherit}
 .notice-pop li button:not(.new) b{font-weight:400; color:var(--ink-2)}
 .notice-state{margin:0; padding:var(--card-pad); color:var(--warm); font-size:var(--sub-fs)}
 .notice-state.bad{color:var(--ink)}
+/* 실시간 알림 한 줄 — 종 아래에 6초 떠 있다(Top.jsx 의 Bell). 누르면 닫힌다 */
+.live-toast{position:absolute; z-index:31; top:calc(100% + var(--gap-sm)); right:0;
+  margin:0; width:max-content; max-width:min(var(--notice-pop-w), calc(100vw - var(--top-pad-x) * 2));
+  padding:var(--card-pad-sm) var(--card-pad); border-radius:var(--card-radius);
+  background:var(--cyan); color:var(--cyan-ink); box-shadow:var(--card-shadow);
+  font-size:var(--row-fs); font-weight:600; cursor:pointer}
 /* ⚠ 여기 있던 .when 은 뺐다 — 저쪽 옛 흰 상단바용이라 --warm 이고,
    그대로 두면 우리 어두운 띠의 .when(--v-warm)을 덮어 글자가 안 읽힌다 */
 /* 고른 탭의 배지는 **반전** — 흰 바탕에 검은 글자 */
