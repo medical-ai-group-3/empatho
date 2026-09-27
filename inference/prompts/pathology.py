@@ -7,10 +7,6 @@ sTIL 은 이 이미지 한 장에서 계산한 값이다 (2026-09-10 확정)
 
   stil_percent = immune_nucleus_area_px × nc_ratio(1.5) / stroma_area_px × 100
 
-  09-04 판이 예고했던 k*(12.2) 교체는 취소됐다. k* 는 WSI 슬라이드 전체를
-  ~528 타일로 집계한 값에 맞춘 상수인데, 서빙은 앱 서버가 넘기는 크롭 한
-  장으로 계산한다. 집계 단위가 달라 곱해도 맞지 않는다.
-
 ⚠ stil_interval_low/high 는 싣지 않는다
   세포 분류 헤드에만 드롭아웃을 켜고 50회 돌린 값의 2.5~97.5 백분위수다.
   담기는 것은 분류기의 흔들림뿐이고, 조직 분할·세포 검출·nc_ratio 가정은
@@ -26,7 +22,7 @@ from prompts import base
 
 # 2026-09-09.a  신규. sTIL 수치 제외 판
 # 2026-09-09.b  base.SYSTEM — 번호 붙은 항목은 항목마다 문장을 끊는다
-# 2026-09-10.a  k* 폐기 확정 — sTIL 복원. 구간과 nc_ratio 는 뺀다
+# 2026-09-10.a  sTIL 복원. 구간과 nc_ratio 는 뺀다
 # 2026-09-20.a  plain() — 환자용은 「나왔다」까지만 쓴다
 VERSION = "pathology-2026-09-20.a"
 
