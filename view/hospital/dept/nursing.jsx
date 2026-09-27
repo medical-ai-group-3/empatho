@@ -124,7 +124,9 @@ export const nursing = {
           rows: today.map((r) => ({
             id: r.exam_order_id ?? r.patient_id,
             name: H.nameOf(r),
-            sub: r.stage,
+            /* 09-27 — stage 는 「접수 대기」 하나로 뭉쳐 온다. 서버가 가른
+               stage_detail(간호·문진 · 외래 진료 …)이 있으면 그것을 쓴다 */
+            sub: r.stage_detail ?? r.stage,
             to: r.patient_id != null ? go.patient(r.patient_id) : null,
             /* ⚠ 위 id 는 **오더 번호**다 — 「최근 본 환자」는 환자 번호로
                담아야 한다(lib/recent.js) */
@@ -175,7 +177,7 @@ export const nursing = {
     flow: ({ today }) => {
       const by = new Map();
       for (const r of today) {
-        const k = r.stage || "그 밖";
+        const k = r.stage_detail || r.stage || "그 밖";
         by.set(k, (by.get(k) ?? 0) + 1);
       }
       return {

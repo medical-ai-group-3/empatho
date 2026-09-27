@@ -345,7 +345,8 @@ const dayOf = (s) => (s ? s.slice(0, 10) : "");
 /* 오더 상태를 창구 말로. requested 같은 영어 코드가 그대로 찍혔다.
    ⚠ 모르는 값은 코드 그대로 둔다 — 서버가 상태를 늘려도 줄이 안 빈다 */
 const STATUS = {
-  requested: "예약 대기", scheduled: "예약 확정", ordered: "검사 지시",
+  /* requested · 안 옴 = 앱 신청(미확정). 예약 판(Reservations.jsx)과 같은 말 */
+  requested: "미확정", scheduled: "예약 확정", ordered: "검사 지시",
   accepted: "접수됨", in_progress: "검사 중", completed: "완료", cancelled: "취소",
 };
 function statusOf(o) {

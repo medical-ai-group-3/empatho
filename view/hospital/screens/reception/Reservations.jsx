@@ -429,8 +429,10 @@ function Aside({ cfg, pick, rows, onDone, onDate, onClear }) {
      ⚠ **「부도」라고 쓰지 않는다.** 창구에서 내원을 안 찍었을 수도 있어
        단정할 수 없다. 횟수와 날짜만 보이고 판단은 사람이 한다(6.1) */
   const today = ymd(new Date());
+  /* ⚠ 취소한 예약은 안 센다 — 미리 취소한 사람이 「안 오신 적」으로 잡혔다 */
   const missed = list.filter(
-    (r) => dayOf(r.scheduled_at) && dayOf(r.scheduled_at) < today && !r.visited_at);
+    (r) => dayOf(r.scheduled_at) && dayOf(r.scheduled_at) < today && !r.visited_at
+      && r.order_status !== "cancelled");
 
   return (
     <div className="resv-aside">
@@ -585,8 +587,8 @@ function New({ cfg, at, order, rows, onDone, onDate, onClear }) {
   /* 앱 신청(requested · 아직 안 옴)을 고른 경우 — **새로 만들지 않고 그
      오더를 확정한다.** 예전엔 여기에 [예약] 하나뿐이라 신청을 열어 누르면
      같은 사람 오더가 하나 더 생기고 신청은 「예약 신청」 탭에 그대로 남았다.
-     ⚠ 창구가 잡은 예약도 서버에서는 requested 로 선다(ExamOrderScheduleView)
-       — 그것을 확정해도 scheduled 로 옮겨질 뿐 해가 없다 */
+     ⚠ 09-27 부터 창구가 잡은 예약은 처음부터 scheduled 로 선다
+       (ExamOrderScheduleView) — 이 단추는 앱 신청에만 뜬다 */
   const pending = order && order.order_status === "requested" && !order.visited_at
     && order.exam_order_id != null;
   async function confirm() {
