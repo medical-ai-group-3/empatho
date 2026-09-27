@@ -1,44 +1,41 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import PortOne from "@portone/browser-sdk/v2";
 import { api } from "../api";
 import { Head } from "../lib/Screen";
 
 /* 02 · 가입
  *
- * **아이디는 본인이 정한다.** 병원 기록과 잇는 것은 주민등록번호다 —
- * 병원이 그 고유번호로 이미 있는 환자를 찾아 준다. 그래서 병원코드도,
- * 환자번호도 묻지 않는다. 환자가 알 수 없는 값이다.
+ * **아이디는 본인이 정한다.** 병원 기록과는 이름+생년월일+휴대폰이 모두
+ * 같을 때만 잇는다(원무과가 먼저 등록해 둔 환자). 하나라도 다르면 새 환자다.
+ * 병원코드 · 환자번호 · 주민등록번호는 묻지 않는다.
  *
- * 세 걸음이다.
- *   ① 본인 확인   이름 · 주민등록번호 · 휴대폰 → 인증번호를 보낸다
- *   ② 인증번호     맞으면 verify_token 을 받는다
- *   ③ 아이디 정하기 그 표를 들고 가입을 마친다
+ * 두 걸음이다.
+ *   ① 본인 확인   이름 · 생년월일 · 성별 · 휴대폰 → 포트원(KG이니시스) 본인인증
+ *                  → 서버가 인증 결과와 입력값을 대조해 verify_token 을 준다
+ *   ② 아이디 정하기 그 표를 들고 가입을 마친다
  *
- * 걸음을 나눈 이유 — 번호가 맞는지도 모르는 채로 아이디를 궁리하게 하면,
- * 마지막에 틀렸다는 말을 듣고 처음부터 다시 해야 한다.
+ * 입력값은 우리가 저장할 환자 정보다. 인증 결과와 하나라도 다르면 서버가
+ * 거절하고 다시 받는다 — 조용히 인증값으로 바꾸면 잘못 넣은 줄 모른다.
  *
- * ⚠ 주민등록번호를 다루는 화면이다. 지키는 것 셋.
- *
- *   · **저장하지 않는다.** 화면 상태에만 있고, ①을 보내는 즉시 지운다.
- *     localStorage · sessionStorage 에 넣지 않는다
- *   · 뒷자리는 가린다. 어깨너머로 보이면 안 된다
- *   · 다시 화면에 띄우지 않는다. ②·③ 으로 넘어가면 그 칸은 사라진다
+ * ⚠ 모바일은 인증창에서 **리다이렉트로** 돌아온다. 그때 화면이 새로 열려
+ *   입력값이 사라지므로 sessionStorage(KEEP)에 잠깐 두고, 돌아오는 즉시
+ *   지운다. localStorage 에는 넣지 않는다.
  */
+const KEEP = "signup-form";
+
 export default function Signup() {
   const nav = useNavigate();
   const [step, setStep] = useState(1);
-
-  // rrn2(뒷자리)는 여기 잠깐 머물다 ① 을 보내면 지워진다
   const [f, setF] = useState({
-    name: "", rrn1: "", rrn2: "", phone: "",
-    code: "", username: "", pw: "", pw2: "",
+    name: "", birth: "", sex: "", phone: "",
+    username: "", pw: "", pw2: "",
   });
-  const [token, setToken] = useState(null);   // ② 가 준 표
+  const [token, setToken] = useState(null);   // ① 이 준 표
   const [idOk, setIdOk] = useState(null);     // 아이디 중복 확인 결과
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
   const [msg, setMsg] = useState(null);
-  const [left, setLeft] = useState(0);
 
   const set = (k) => (e) => {
     setF({ ...f, [k]: e.target.value });
@@ -47,44 +44,65 @@ export default function Signup() {
   const digits = (k) => (e) =>
     setF({ ...f, [k]: e.target.value.replace(/\D/g, "") });
 
-  /* 인증번호 유효시간. 남은 시간을 안 보여주면 번호가 이미 죽었는지
-     아직 사는지 알 길이 없다. */
-  useEffect(() => {
-    if (left <= 0) return;
-    const t = setTimeout(() => setLeft(left - 1), 1000);
-    return () => clearTimeout(t);
-  }, [left]);
-
-  const ok1 = f.name.trim() && f.rrn1.length === 6 && f.rrn2.length === 7
-              && f.phone.length >= 10;
+  const ok1 = f.name.trim() && f.birth && f.sex && f.phone.length >= 10;
   const ok3 = f.username.length >= 4 && f.pw.length >= 8 && f.pw === f.pw2;
 
-  async function sendCode(e) {
-    e.preventDefault();
-    setBusy(true); setErr(null); setMsg(null);
+  /* 서버가 포트원에 다시 묻고 입력값과 대조한다. 다르면 거절이 온다. */
+  async function confirm(ivid, form) {
+    setBusy(true); setErr(null);
     try {
-      const r = await api.sendCode({
-        name: f.name.trim(),
-        rrn: f.rrn1 + f.rrn2,
-        phone: f.phone,
+      const r = await api.identity({
+        identity_verification_id: ivid,
+        name: form.name.trim(), birth_date: form.birth,
+        sex: form.sex, phone: form.phone,
       });
-      // 보내자마자 지운다. 이 뒤로는 앱 어디에도 남지 않는다.
-      setF((v) => ({ ...v, rrn1: "", rrn2: "" }));
-      setLeft(r.expires_in_sec || 180);
-      setMsg(r.detail || "인증번호를 보냈습니다");
+      setToken(r.verify_token);
+      setMsg(r.detail);
       setStep(2);
     } catch (e2) { setErr(e2); } finally { setBusy(false); }
   }
 
-  async function verify(e) {
+  /* 리다이렉트로 돌아온 경우. 결과는 주소 뒤에 붙어 오고, 입력값은
+     sessionStorage 에서 되찾는다. */
+  useEffect(() => {
+    const q = new URLSearchParams(location.search);
+    const ivid = q.get("identityVerificationId");
+    if (!ivid) return;
+    let saved = null;
+    try { saved = JSON.parse(sessionStorage.getItem(KEEP)); sessionStorage.removeItem(KEEP); }
+    catch { /* 못 읽으면 처음부터 */ }
+    history.replaceState(null, "", location.pathname);
+    if (!saved) return;
+    setF((v) => ({ ...v, ...saved }));
+    if (q.get("code")) setErr({ code: q.get("code"), detail: q.get("message") });
+    else confirm(ivid, saved);
+  }, []);
+
+  async function verifyIdentity(e) {
     e.preventDefault();
-    setBusy(true); setErr(null);
+    setErr(null);
+    const ivid = `iv-${crypto.randomUUID()}`;
+    const form = { name: f.name, birth: f.birth, sex: f.sex, phone: f.phone };
+    try { sessionStorage.setItem(KEEP, JSON.stringify(form)); } catch { /* 없어도 PC 는 된다 */ }
+    let r;
     try {
-      const r = await api.verifyCode({ phone: f.phone, code: f.code });
-      setToken(r.verify_token);
-      setMsg(r.detail || "본인 확인이 끝났습니다");
-      setStep(3);
-    } catch (e2) { setErr(e2); } finally { setBusy(false); }
+      r = await PortOne.requestIdentityVerification({
+        storeId: import.meta.env.VITE_PORTONE_STORE_ID,
+        channelKey: import.meta.env.VITE_PORTONE_CHANNEL_KEY,
+        identityVerificationId: ivid,
+        redirectUrl: `${location.origin}/signup`,
+        bypass: { inicisUnified: { flgFixedUser: "N" } },
+      });
+    } catch (e2) {
+      r = { code: "SDK", message: e2?.message || "본인인증 창을 열지 못했습니다" };
+    }
+    // 여기까지 오면 리다이렉트가 아니라 반환값 방식(PC)이다
+    try { sessionStorage.removeItem(KEEP); } catch { /* 무시 */ }
+    if (!r || r.code !== undefined) {
+      setErr({ code: r?.code || "취소", detail: r?.message || "본인인증을 마치지 못했습니다" });
+      return;
+    }
+    confirm(ivid, form);
   }
 
   async function checkId() {
@@ -116,10 +134,10 @@ export default function Signup() {
         <Steps at={step} />
 
         {step === 1 && (
-          <form className="form" onSubmit={sendCode}>
+          <form className="form" onSubmit={verifyIdentity}>
             <p className="note">
-              병원에 있는 기록과 이어 드립니다. 주민등록번호는 <b>확인에만
-              쓰이고 앱에 저장되지 않습니다.</b>
+              병원 기록과 이어 드립니다. 입력하신 정보는 <b>본인인증 결과와
+              같아야</b> 가입됩니다.
             </p>
 
             <label className="field">
@@ -128,18 +146,22 @@ export default function Signup() {
                      autoComplete="name" disabled={busy} />
             </label>
 
+            <label className="field">
+              <span>생년월일</span>
+              <input type="date" value={f.birth} onChange={set("birth")}
+                     autoComplete="bday" disabled={busy} />
+            </label>
+
             <div className="field">
-              <span>주민등록번호</span>
+              <span>성별</span>
               <div className="rrn">
-                <input value={f.rrn1} onChange={digits("rrn1")}
-                       inputMode="numeric" maxLength={6}
-                       aria-label="주민등록번호 앞 여섯 자리" disabled={busy} />
-                <i className="sep" aria-hidden="true">–</i>
-                <input type="password" value={f.rrn2} onChange={digits("rrn2")}
-                       inputMode="numeric" maxLength={7}
-                       aria-label="주민등록번호 뒤 일곱 자리" disabled={busy} />
+                {[["female", "여"], ["male", "남"]].map(([v, t]) => (
+                  <button key={v} type="button" disabled={busy}
+                          aria-pressed={f.sex === v}
+                          className={`btn narrow ${f.sex === v ? "" : "ghost"}`}
+                          onClick={() => setF({ ...f, sex: v })}>{t}</button>
+                ))}
               </div>
-              <em>뒷자리는 가려집니다</em>
             </div>
 
             <label className="field">
@@ -152,42 +174,14 @@ export default function Signup() {
             {err && <Err e={err} />}
 
             <button className="btn" type="submit" disabled={!ok1 || busy}>
-              {busy ? "보내는 중…" : "인증번호 받기"}
+              {busy ? "확인 중…" : "본인인증 하기"}
             </button>
           </form>
         )}
 
         {step === 2 && (
-          <form className="form" onSubmit={verify}>
-            {msg && <div className="card accent"><span className="s">{msg}</span></div>}
-
-            <label className="field">
-              <span>인증번호</span>
-              <input className="code" value={f.code} onChange={digits("code")}
-                     inputMode="numeric" maxLength={6}
-                     autoComplete="one-time-code" disabled={busy} />
-              <em>
-                {left > 0
-                  ? `남은 시간 ${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}`
-                  : "시간이 지났습니다. 처음부터 다시 해 주세요"}
-              </em>
-            </label>
-
-            {err && <Err e={err} />}
-
-            <button className="btn" type="submit"
-                    disabled={f.code.length < 4 || left <= 0 || busy}>
-              {busy ? "확인 중…" : "확인"}
-            </button>
-            <button className="btn ghost" type="button" disabled={busy}
-                    onClick={() => { setStep(1); setErr(null); setLeft(0); }}>
-              처음부터 다시
-            </button>
-          </form>
-        )}
-
-        {step === 3 && (
           <form className="form" onSubmit={finish}>
+            {msg && <div className="card accent"><span className="s">{msg}</span></div>}
             <p className="note">
               <b>{f.name}</b> 님, 확인됐습니다. 앞으로 쓰실 아이디와 비밀번호를
               정해 주세요.
@@ -237,9 +231,9 @@ export default function Signup() {
   );
 }
 
-/* 지금 어디쯤인지. 세 걸음이라 끝이 보여야 시작한다. */
+/* 지금 어디쯤인지. 끝이 보여야 시작한다. */
 function Steps({ at }) {
-  const names = ["본인 확인", "인증번호", "아이디 정하기"];
+  const names = ["본인 확인", "아이디 정하기"];
   return (
     <ol className="steps">
       {names.map((n, i) => (
