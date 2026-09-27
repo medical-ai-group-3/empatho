@@ -85,7 +85,7 @@ class FollowupViewSet(AuditMixin, OwnedOnlyMixin, viewsets.ModelViewSet):
         else:
             instance.call_result = data.get("call_result")
             instance.call_note = data.get("call_note")
-            instance.called_by = self._current_account()
+            instance.called_by = getattr(request.user, "staff", None)
             instance.called_at = timezone.now()
 
         instance.updated_by = self._current_account()
