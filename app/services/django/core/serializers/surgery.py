@@ -107,6 +107,8 @@ class SpecimenSerializer(serializers.ModelSerializer):
     )
     age = serializers.SerializerMethodField()
     sex = serializers.CharField(source="patient.sex", read_only=True, allow_null=True)
+    # 「유방외과 열람」 — 목록 쿼리셋이 얹는 값(core/viewed.py)
+    viewed_at = serializers.DateTimeField(read_only=True, default=None)
 
     def get_age(self, obj) -> int | None:
         pii = getattr(obj.patient, "pii", None)

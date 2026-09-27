@@ -18,7 +18,7 @@ from django.db.models import Count, F, Q
 from django.utils import timezone
 
 from ..tasks import run_inference
-from .. import models, serializers
+from .. import models, serializers, viewed
 from ..mixins import AuditMixin
 from core.api.permissions import (
     CanCompleteExamOrder,
@@ -59,6 +59,8 @@ class StudyViewSet(viewsets.ReadOnlyModelViewSet):
                 filter=Q(storage_objects__deleted_at__isnull=True),
                 distinct=True,
             ),
+            # 목록의 「유방외과 열람」 칸 — core/viewed.py
+            viewed_at=viewed.last_seen("study"),
         )
 
         # ?patient= 은 한 환자의 검사만 본다. 없으면 조용히 전체가 나와서

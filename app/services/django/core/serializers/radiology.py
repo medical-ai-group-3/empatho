@@ -19,6 +19,9 @@ class StudySerializer(serializers.ModelSerializer):
     )
     age = serializers.SerializerMethodField()
     sex = serializers.CharField(source="patient.sex", read_only=True, allow_null=True)
+    # 「유방외과 열람」 — 목록 쿼리셋이 얹는 값(core/viewed.py). 얹지 않은
+    # 자리에서는 None 이다
+    viewed_at = serializers.DateTimeField(read_only=True, default=None)
     image_count = serializers.SerializerMethodField()
 
     def get_image_count(self, obj) -> int:

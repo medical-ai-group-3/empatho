@@ -7,7 +7,7 @@ from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 
-from .. import models, serializers
+from .. import models, serializers, viewed
 from ..mixins import AuditMixin
 from core.api.permissions import MatrixPermission, OwnedOnlyMixin, CanDisposeDiscordance
 from core.api.errors import ApiError
@@ -104,7 +104,17 @@ class SurgeryReportViewSet(AuditMixin, OwnedOnlyMixin, viewsets.ModelViewSet):
     queryset = models.Report.objects.all()
     serializer_class = serializers.ReportSerializer
     http_method_names = ["get", "put", "patch", "head", "options"]
-    
+
+    def list(self, request, *args, **kwargs):
+        res = super().list(request, *args, **kwargs)
+        # 유방외과가 한 환자의 리포트를 열면(환자 상세 · 치료 방침 · 내 환자)
+        # 그 환자 판독 리포트에 열람을 남긴다 — 영상 · 병리 목록의 「유방외과
+        # 열람」이 이 값을 읽는다(core/viewed.py). 응답을 만든 뒤에 남긴다
+        pid = request.query_params.get("patient")
+        if getattr(request.user, "role", None) == "surgery" and pid and str(pid).isdigit():
+            viewed.mark(int(pid), getattr(request.user, "staff", None))
+        return res
+
     def owned_queryset(self, queryset, account):
         # 환자에게는 환자용만. 의사용에는 BI-RADS · px · sTIL 이 그대로 들어 있다 —
         # 환자용 소견문에서 걷어낸 것들이 이 문으로 다 나간다.
@@ -399,7 +409,9 @@ class SpecimenBindViewSet(AuditMixin, viewsets.ViewSet):
         return [MatrixPermission()]
     
     def list(self, request):
-        qs = models.Specimen.objects.select_related("patient__pii").all()
+        # 목록의 「유방외과 열람」 칸 — core/viewed.py
+        qs = models.Specimen.objects.select_related("patient__pii").annotate(
+            viewed_at=viewed.last_seen("specimen"))
         # ?patient= 로 한 환자 것만. 없으면 종전대로 전부 — 검체 접수 화면이
         # 전체 목록을 쓴다. 유방외과·검사 종합은 한 환자만 보면 되는데
         # 지금까지 전부 받아 화면에서 걸렀다(api.js 의 readings).
