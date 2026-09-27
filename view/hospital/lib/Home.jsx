@@ -191,11 +191,15 @@ function Intake({ api, onDone }) {
   const [busy, setBusy] = useState(null);
   const [err, setErr] = useState(null);
   const [reg, setReg] = useState(false);
+  const [ok, setOk] = useState(null);
+  /* 접수 화면(screens/reception/Intake.jsx)과 같은 열쇠 — 원무든 간호든 */
+  const may = can(["reception.checkin", "nursing.waiting.view"]);
 
   async function find(e) {
     e.preventDefault();
     if (!q.trim()) return;
     setErr(null);
+    setOk(null);
     try { setFound(await api.search(q.trim()) ?? []); }
     catch (e2) { setErr(e2); setFound([]); }
   }
@@ -206,6 +210,8 @@ function Intake({ api, onDone }) {
     try {
       await api.checkIn({ patient_id: p.patient_id });
       setFound((list) => list.filter((r) => r.patient_id !== p.patient_id));
+      /* 줄이 조용히 사라지기만 하면 됐는지 모른다 */
+      setOk(`${p.name ?? "환자"} 님을 접수했습니다 — 「내원 대기」 탭에 올라갑니다`);
       onDone();
     } catch (e2) { setErr(e2); }
     finally { setBusy(null); }
@@ -217,7 +223,12 @@ function Intake({ api, onDone }) {
           [접수] 만 누르면 된다. 다른 화면으로 넘기지 않는다 */}
       {reg && (
         <Register onClose={() => setReg(false)}
-                  onDone={(p) => { setReg(false); setErr(null); setFound([p]); }} />
+                  onDone={(p, how) => {
+                    setReg(false); setErr(null); setFound([p]);
+                    setOk(how === "exists"
+                      ? "이미 등록된 분입니다 — 아래 줄에서 [접수] 를 누르세요"
+                      : "등록했습니다 — 아래 줄에서 [접수] 를 누르세요");
+                  }} />
       )}
       <form className="intake-find" onSubmit={find}>
         <input value={q} onChange={(e) => setQ(e.target.value)}
@@ -229,7 +240,8 @@ function Intake({ api, onDone }) {
       </form>
 
       {err && <p className="hcard-err">{err.detail || err.message}</p>}
-      {found?.length === 0 && !err && (
+      {ok && !err && <p className="hcard-k hpad" role="status">{ok}</p>}
+      {found?.length === 0 && !err && !ok && (
         <p className="hcard-k hpad">찾는 환자가 없습니다</p>
       )}
 
@@ -242,7 +254,8 @@ function Intake({ api, onDone }) {
             </span>
           </span>
           <button className="btn fill sm" onClick={() => take(p)}
-                  disabled={busy === p.patient_id}>접수</button>
+                  disabled={busy === p.patient_id || !may}
+                  title={may ? undefined : "권한이 없습니다. 관리자에게 문의하세요"}>접수</button>
         </div>
       ))}
     </Card>

@@ -55,7 +55,9 @@ function Inner({ cfg, embedded }) {
   const [tick, setTick] = useState(0);
 
   const arrived = useApi(() => api.waitingArrived(), [tick]);
-  const booked = useApi(() => H.soft(api.scheduledToday()), []);
+  /* ⚠ 예전엔 처음 한 번만 불렀다 — 예약 환자가 와도 「금일 내원 예정」에
+     그대로 남아 있었다. 다른 칸과 같은 박자로 다시 부른다 */
+  const booked = useApi(() => H.soft(api.scheduledToday()), [tick]);
   const calls = useApi(() => H.soft(api.followups()), [tick]);
   const detail = useApi(
     () => (pick ? api.examOrder(pick) : Promise.resolve(null)), [pick, tick]);
@@ -78,8 +80,13 @@ function Inner({ cfg, embedded }) {
           : (
             <Body loading={detail.loading && !detail.data} error={detail.error}
                   onRetry={detail.reload}>
+              {/* ⚠ key 로 오더를 건다. 안 걸면 다른 사람을 골라도 Detail 이
+                  그대로 살아 있어서 **앞사람의 간호 메모·고른 의사가 다음
+                  사람 칸에 남았다** — 그대로 [적어 두기]를 누르면 남의 메모가
+                  이 사람 오더에 들어간다 */}
               {detail.data && (
-                <Detail cfg={cfg} d={detail.data}
+                <Detail key={detail.data.exam_order_id ?? detail.data.id}
+                        cfg={cfg} d={detail.data}
                         onDone={() => { setPick(null); setTick((n) => n + 1); }} />
               )}
             </Body>
@@ -143,9 +150,14 @@ function Queue({ state, rows, pick, onPick }) {
                     {/* ⚠ 경과 시간이 아니라 접수 시각이다 */}
                     {H.at(r.visited_at) && <time>{H.at(r.visited_at)} 접수</time>}
                   </span>
+                  {/* ⚠ 2026-09-27 — ExamOrderSerializer 에 status · followup_id 는
+                      없다. 모델 필드 그대로 order_status · followup 이다. 예전
+                      이름으로 읽어 이 줄이 늘 「단계를 못 받았습니다」였다.
+                      order_status 는 이 큐에서 늘 requested 라 가르는 힘이
+                      없어서, 홈·접수 현황판과 같은 기준(문진 유무)으로 적는다 */}
                   <span className="nrow-3">
-                    <span>{r.status ?? "단계를 못 받았습니다"}</span>
-                    {r.followup_id && <span>추적 관찰 건</span>}
+                    <span>{r.questionnaire ? "문진 완료 · 배정 대기" : "문진 대기"}</span>
+                    {r.followup && <span>추적 관찰 건</span>}
                   </span>
                 </span>
               </article>
@@ -177,6 +189,7 @@ function Detail({ cfg, d, onDone }) {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState(null);
   const [modal, setModal] = useState(null);
+  const [bound, setBound] = useState(null);
 
   const mayNote = can("nursing.waiting.assign");
   const mayAssign = can("nursing.waiting.assign");
@@ -258,12 +271,18 @@ function Detail({ cfg, d, onDone }) {
           </div>
         </section>
 
-        <Assign cfg={cfg} orderId={id} patient={patient} picked={d.assigned_to}
+        {/* ⚠ picked 는 **환자의 주치의(primary_staff)** 다. 예전엔 오더의
+            assigned_to 를 넘겼는데 그건 영상의학과 의사 칸이라 유방외과 명단과
+            맞을 일이 없었다. 상세가 늦게 오므로 key 로 다시 세운다 */}
+        <Assign key={`${id}-${p?.primary_staff ?? ""}`}
+                cfg={cfg} orderId={id} patient={patient} picked={p?.primary_staff}
                 may={mayAssign} onDone={onDone} />
       </div>
 
       <footer className="ndet-f">
-        <Btn onClick={() => setModal("specimen")}>검체 바인딩</Btn>
+        <Btn onClick={() => { setBound(null); setModal("specimen"); }}>검체 바인딩</Btn>
+        {/* 등록하고 팝업만 닫히면 됐는지 안 됐는지 모른다 — 한 줄 남긴다 */}
+        {bound && <span className="hcard-k" role="status">{bound}</span>}
         <span className="home-fill" />
         {/* ⚠ 되돌릴 수 없다 — 9장이 남기라고 한 두 문구 중 하나다 */}
         <span className="hcard-k">보내면 그 의사의 「내 환자」에만 뜹니다</span>
@@ -271,7 +290,7 @@ function Detail({ cfg, d, onDone }) {
 
       {modal === "specimen" && (
         <SpecimenBindingModal patient={patient} onClose={() => setModal(null)}
-                              onDone={() => setModal(null)} />
+                              onDone={() => { setModal(null); setBound("검체를 등록했습니다"); }} />
       )}
     </>
   );
@@ -340,7 +359,9 @@ function Assign({ cfg, orderId, patient, picked, may, onDone }) {
  */
 function Side({ booked, calls }) {
   const waiting = H.rows(booked.data);
-  const due = H.rows(calls.data).filter((r) => H.dueBucket(r.due_at) === "today");
+  /* 끝난 회차는 뺀다(H.openFollowup) */
+  const due = H.rows(calls.data)
+    .filter((r) => H.openFollowup(r) && H.dueBucket(r.due_at) === "today");
 
   return (
     <div className="nwait-side">

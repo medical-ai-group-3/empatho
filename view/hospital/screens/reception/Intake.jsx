@@ -105,12 +105,17 @@ function Find({ api, onDone }) {
   const [busy, setBusy] = useState(null);
   const [err, setErr] = useState(null);
   const [reg, setReg] = useState(false);
-  const may = useCan("reception.checkin");
+  const [ok, setOk] = useState(null);
+  /* ⚠ 간호 계정도 접수한다 — 한 과다(Patients.jsx 의 integrated 와 같은
+     규칙). reception.checkin 만 보면 간호 열쇠만 가진 사람은 [접수] 가 늘
+     잠겨 있었다. 서버도 이제 간호에게 원무 권한을 준다 */
+  const may = useCan(["reception.checkin", "nursing.waiting.view"]);
 
   async function find(e) {
     e.preventDefault();
     if (!q.trim()) return;
     setErr(null);
+    setOk(null);
     try { setFound(await api.search(q.trim()) ?? []); }
     catch (e2) { setErr(e2); setFound([]); }
   }
@@ -121,6 +126,8 @@ function Find({ api, onDone }) {
     try {
       await api.checkIn({ patient_id: p.patient_id });
       setFound((list) => list.filter((r) => r.patient_id !== p.patient_id));
+      /* 줄이 조용히 사라지기만 하면 됐는지 모른다 — 어디로 갔는지 적는다 */
+      setOk(`${p.name ?? "환자"} 님을 접수했습니다 — 아래 내원 대기에 올라갑니다`);
       onDone();
     } catch (e2) { setErr(e2); }
     finally { setBusy(null); }
@@ -139,11 +146,19 @@ function Find({ api, onDone }) {
 
       {reg && (
         <Register onClose={() => setReg(false)}
-                  onDone={(p) => { setReg(false); setErr(null); setFound([p]); }} />
+                  onDone={(p, how) => {
+                    setReg(false); setErr(null); setFound([p]);
+                    /* 새로 만든 건지 있던 사람인지 알려 준다 — 모르면 창구에서
+                       「방금 만든 게 맞나」를 다시 찾아본다 */
+                    setOk(how === "exists"
+                      ? "이미 등록된 분입니다 — 아래 줄에서 [접수] 를 누르세요"
+                      : "등록했습니다 — 아래 줄에서 [접수] 를 누르세요");
+                  }} />
       )}
 
       {err && <p className="note err">{err.detail || err.message}</p>}
-      {found?.length === 0 && !err && (
+      {ok && !err && <p className="hcard-k hpad" role="status">{ok}</p>}
+      {found?.length === 0 && !err && !ok && (
         <p className="hcard-k hpad">찾는 환자가 없습니다</p>
       )}
 

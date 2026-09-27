@@ -48,6 +48,9 @@ export default function Patients({ cfg, integrated: asked = false }) {
      사람을 고를 때 「누구 예약인지」가 어긋난 채로 [예약 완료] 를 누르게
      된다. id 로 들고 있으면 고른 사람과 다를 때 저절로 닫힌다 */
   const [reserveFor, setReserveFor] = useState(null);
+  /* 예약을 잡으면 「환자 예약 기록」도 다시 부른다 — 따로 부르는 목록이라
+     안 알려 주면 방금 잡은 예약이 옆 칸에 안 보였다 */
+  const [booked, setBooked] = useState(0);
 
   const list = useApi(
     () => api.list(sent ? { q: sent } : ALL_PATIENTS),
@@ -68,7 +71,10 @@ export default function Patients({ cfg, integrated: asked = false }) {
         <div className="split-l">
           <Card
             title="환자"
-            right={<Chip>{rows.length}명</Chip>}
+            /* 서버가 한 번에 200명까지만 준다 — 더 있으면 총원을 같이 적어
+               「목록이 잘렸다」는 것을 알 수 있게 한다 */
+            right={<Chip>{only === "all" && list.data?.total > rows.length
+              ? `${rows.length} / ${list.data.total}명` : `${rows.length}명`}</Chip>}
             pad={false}
           >
             <div className="tbl-top">
@@ -104,10 +110,11 @@ export default function Patients({ cfg, integrated: asked = false }) {
                   고치던 값이 다음 사람 칸에 남지 않는다 */}
               <Detail key={chosen.patient_id} patient={chosen} onSaved={list.reload}
                       onReserve={() => setReserveFor(chosen.patient_id)} integrated={integrated} />
-              <ReservationHistory key={`history-${chosen.patient_id}`} patient={chosen} />
+              <ReservationHistory key={`history-${chosen.patient_id}-${booked}`} patient={chosen} />
               {reserveFor === chosen.patient_id && (
                 <Reserve key={chosen.patient_id} patient={chosen} firstDate={fromCalendar}
-                         onClose={() => setReserveFor(null)} integrated={integrated} />
+                         onClose={() => setReserveFor(null)} integrated={integrated}
+                         onBooked={() => setBooked((n) => n + 1)} />
               )}
             </>
           ) : (
@@ -136,10 +143,12 @@ const COLS = [
 
 /* 필터는 **화면이 건다.** 서버 목록에 거를 칸이 없어서다 — 아래 Missing 참고.
    자료가 오면 그대로 서버 질의로 옮긴다 */
+/* ⚠ 2026-09-27 — 「초진」 거르개를 뺐다. 목록 응답(PatientListSerializer)에
+   first_visited_at 이 없어서 늘 **전원이 초진**으로 걸렸다 — 거르는 척만
+   하는 단추였다. 서버가 그 칸을 목록에 실어 주면 다시 넣는다 */
 const FILTERS = [
   { key: "all",     label: "전체" },
   { key: "allergy", label: "알레르기" },
-  { key: "first",   label: "초진" },
 ];
 
 function filter(rows, only) {
@@ -320,7 +329,7 @@ function ReservationHistory({ patient }) {
               when: order.scheduled_at
                 ? <span className="num">{dayOf(order.scheduled_at)} {timeOf(order.scheduled_at)}</span>
                 : "일시 미정",
-              status: order.order_status ?? "—",
+              status: statusOf(order),
             }))}
           />
         ) : <p className="hint">확정된 예약 기록이 없습니다.</p>)}
@@ -332,6 +341,17 @@ function ReservationHistory({ patient }) {
 /* ── 예약 ────────────────────────────────────────────────────── */
 
 const dayOf = (s) => (s ? s.slice(0, 10) : "");
+
+/* 오더 상태를 창구 말로. requested 같은 영어 코드가 그대로 찍혔다.
+   ⚠ 모르는 값은 코드 그대로 둔다 — 서버가 상태를 늘려도 줄이 안 빈다 */
+const STATUS = {
+  requested: "예약 대기", scheduled: "예약 확정", ordered: "검사 지시",
+  accepted: "접수됨", in_progress: "검사 중", completed: "완료", cancelled: "취소",
+};
+function statusOf(o) {
+  if (o.visited_at && o.order_status === "requested") return "내원";
+  return STATUS[o.order_status] ?? o.order_status ?? "—";
+}
 const timeOf = (s) => (s ? s.slice(11, 16) : "");
 
 /* [예약] 을 누르면 열리는 자리.
@@ -343,7 +363,7 @@ const timeOf = (s) => (s ? s.slice(11, 16) : "");
  * ⚠ **시간대 정원은 보지 않는다.** 검사마다 걸리는 시간이 달라서 «몇 건»으로
  *   자리를 세면 틀린 답이 나온다.
  */
-function Reserve({ patient, firstDate, onClose, integrated }) {
+function Reserve({ patient, firstDate, onClose, integrated, onBooked }) {
   const [date, setDate] = useState(firstDate || "");
   const [time, setTime] = useState("09:00");
   const [busy, setBusy] = useState(false);
@@ -370,6 +390,7 @@ function Reserve({ patient, firstDate, onClose, integrated }) {
       });
       setDone(order);
       orders.reload();
+      onBooked?.();
     } catch (e2) {
       setError(e2);
     } finally {
@@ -421,7 +442,7 @@ function Reserve({ patient, firstDate, onClose, integrated }) {
                     <li key={o.exam_order_id}>
                       <b>{timeOf(o.scheduled_at)}</b>
                       <span>{label(MODALITY, asModality(o.modality)) || "검사 미정"}</span>
-                      <em>{o.order_status}</em>
+                      <em>{statusOf(o)}</em>
                     </li>
                   ))}
                 </ul>

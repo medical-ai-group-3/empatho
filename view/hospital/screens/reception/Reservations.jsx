@@ -120,10 +120,16 @@ export default function Reservations({ cfg }) {
           )}
         </div>
 
-        <Aside cfg={cfg} pick={pick} rows={rows} onDone={() => {
+        <Aside cfg={cfg} pick={pick} rows={rows} onDone={(changed) => {
           board.reload(true);
           requests.reload(true);
           setVer((n) => n + 1);
+          /* 신청을 확정하면 서버가 바뀐 오더를 돌려준다 — 고른 것을 그것으로
+             갈아 끼워야 오른쪽이 아직 「신청」인 줄 안다 */
+          if (changed?.exam_order_id != null) {
+            setPick((p) => ({ at: changed.scheduled_at ?? p?.at,
+                              order: { ...(p?.order ?? {}), ...changed } }));
+          }
         }} onDate={(d) => setAnchor(d)} />
       </div>
     </Page>
@@ -252,6 +258,13 @@ function Board({ span, setSpan, anchor, setAnchor, range, state, rows,
 
   const step = span === "month" ? 30 : span === "week" ? 7 : 1;
   const today = ymd(new Date());
+  /* ⚠ 월 보기에서 30일씩 밀면 31일에 서 있을 때 한 달을 건너뛴다
+     (1월 31일 + 30 = 3월 2일 — 2월이 안 보인다). 월은 달력의 달로 옮긴다 */
+  const move = (dir) => {
+    if (span !== "month") { setAnchor(addDays(anchor, dir * step)); return; }
+    const d = new Date(`${anchor}T00:00:00`);
+    setAnchor(ymd(new Date(d.getFullYear(), d.getMonth() + dir, 1)));
+  };
 
   return (
     <>
@@ -263,10 +276,10 @@ function Board({ span, setSpan, anchor, setAnchor, range, state, rows,
           ))}
         </span>
         <button type="button" className="cal-nav" aria-label="이전"
-                onClick={() => setAnchor(addDays(anchor, -step))}>‹</button>
+                onClick={() => move(-1)}>‹</button>
         <button type="button" className="pill" onClick={() => setAnchor(today)}>오늘</button>
         <button type="button" className="cal-nav" aria-label="다음"
-                onClick={() => setAnchor(addDays(anchor, step))}>›</button>
+                onClick={() => move(1)}>›</button>
         <span className="resv-range">{range.from} – {range.to}</span>
         <span className="home-fill" />
         <span className="hcard-k">{rows.length}건</span>
@@ -464,7 +477,10 @@ function Aside({ cfg, pick, rows, onDone, onDate }) {
 
 function New({ cfg, at, order, rows, onDone, onDate }) {
   const api = cfg.api;
-  const may = useCan("reception.reserve");
+  /* ⚠ 간호 계정도 예약을 잡는다 — 한 과다(Patients.jsx 의 integrated).
+     reception.reserve 만 보면 간호 열쇠만 가진 사람은 [예약] 이 늘 잠겼다 */
+  const may = useCan(["reception.reserve", "nursing.waiting.view"]);
+  const mayConfirm = useCan(["reception.confirm", "nursing.waiting.view"]);
 
   const [q, setQ] = useState("");
   const [found, setFound] = useState(null);
@@ -508,8 +524,29 @@ function New({ cfg, at, order, rows, onDone, onDate }) {
     try {
       await api.reserve({ patient_id: who.patient_id,
                           scheduled_at: `${date}T${time}:00` });
-      setOk(`${date} ${time}`);
+      /* 누구 것인지 같이 적고 고른 사람을 비운다 — 그대로 두면 판이 다시
+         불리면서 방금 잡은 예약이 「같은 날 이미 예약이 있습니다」로 떠
+         실패한 것처럼 보였고, 한 번 더 누르면 중복 예약이 생겼다 */
+      setOk(`${who.name ?? `#${who.patient_id}`} · ${date} ${time} 로 잡았습니다`);
+      setWho(null); setFound(null); setQ("");
       onDone();
+    } catch (e2) { setErr(e2); }
+    finally { setBusy(false); }
+  }
+
+  /* 앱 신청(requested · 아직 안 옴)을 고른 경우 — **새로 만들지 않고 그
+     오더를 확정한다.** 예전엔 여기에 [예약] 하나뿐이라 신청을 열어 누르면
+     같은 사람 오더가 하나 더 생기고 신청은 「예약 신청」 탭에 그대로 남았다.
+     ⚠ 창구가 잡은 예약도 서버에서는 requested 로 선다(ExamOrderScheduleView)
+       — 그것을 확정해도 scheduled 로 옮겨질 뿐 해가 없다 */
+  const pending = order && order.order_status === "requested" && !order.visited_at
+    && order.exam_order_id != null;
+  async function confirm() {
+    setBusy(true); setErr(null); setOk(null);
+    try {
+      const changed = await api.confirm(order.exam_order_id, `${date}T${time}:00`);
+      setOk(`${order.patient_name ?? `#${order.patient}`} · ${date} ${time} 로 확정했습니다`);
+      onDone(changed ?? { exam_order_id: order.exam_order_id, order_status: "scheduled" });
     } catch (e2) { setErr(e2); }
     finally { setBusy(false); }
   }
@@ -574,12 +611,16 @@ function New({ cfg, at, order, rows, onDone, onDate }) {
         <p className="note err">같은 날 이미 예약이 있습니다 — {timeOf(clash.scheduled_at)}</p>
       )}
       {err && <p className="note err">{err.detail || err.message}</p>}
-      {ok && <p className="hcard-k">{ok} 로 잡았습니다</p>}
+      {ok && <p className="hcard-k" role="status">{ok}</p>}
 
       <div className="rowb">
         <Btn to={go.nursing.patients()}>환자 목록</Btn>
-        <Btn kind="fill" onClick={save} {...may.attrs}
-             disabled={!who || busy || !may.ok}>예약</Btn>
+        {pending && (
+          <Btn kind="fill" onClick={confirm} {...mayConfirm.attrs}
+               disabled={busy || !mayConfirm.ok}>이 시각으로 신청 확정</Btn>
+        )}
+        <Btn kind={pending ? undefined : "fill"} onClick={save} {...may.attrs}
+             disabled={!who || busy || !may.ok}>{pending ? "새 예약 따로" : "예약"}</Btn>
       </div>
 
       {/* ⚠ 서버에 취소·변경 경로가 없다(8장 7번). 화면에 적어 둔다 */}

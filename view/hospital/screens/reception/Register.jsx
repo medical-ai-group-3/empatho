@@ -85,7 +85,10 @@ export default function Register({ onClose, onDone }) {
 
       const exact = same.find((r) => (r.name ?? "").trim() === name);
       if (exact) {
-        onDone({ ...exact, birth_date: form.birth_date }, "exists");
+        /* ⚠ 생년월일은 **있던 사람 것**을 둔다. 예전엔 방금 친 값으로 덮어
+           찾은 줄에 남의 생년월일처럼 보이는 값이 떴다 — 검색 응답에도 이제
+           birth_date 가 온다(PatientListSerializer) */
+        onDone({ ...exact, birth_date: exact.birth_date ?? form.birth_date }, "exists");
         return;
       }
       if (same.length > 0) {

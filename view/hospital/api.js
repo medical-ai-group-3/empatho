@@ -1205,7 +1205,11 @@ export const nursing = {
   examOrder:      (id) => get(`/exam-orders/${id}`),
   patient:        (id) => get(`/patients/${id}/`),
   saveNote:       (examOrderId, note) => patch(`/exam-orders/${examOrderId}/note`, { note }),
-  surgeons:       () => get(`/staff${qs({ role: "surgery" })}`),
+  /* ⚠ 2026-09-27 — /staff 는 ListAPIView 라 **봉투({count,results})로 온다.**
+     예약 판 왼쪽 「보는 사람」은 배열인지만 보고 있어서 명단이 늘 「못
+     불렀습니다」로 떴다. 여기서 벗겨 배열로 준다(unwrapList 는 아래 함수
+     선언이라 호이스팅된다). 한 쪽 20명에서 잘리지 않게 page_size 도 단다 */
+  surgeons:       () => get(`/staff${qs({ role: "surgery", page_size: PAGE_ALL })}`).then(unwrapList),
   /* ⚠ 2026-09-19 확인 — PatientSerializer 가 내는 이름은 primary_staff_id
    * 가 아니라 모델 필드 그대로인 primary_staff 다(core/serializers/
    * reception.py, core/models.py Patient.primary_staff). DRF 는 모르는
@@ -1220,6 +1224,12 @@ export const nursing = {
   followups:      () => get(`/followups/${qs({ include_candidates: 1 })}`),
   createFollowup: (b) => post("/followups/new", b),
   logCall:        (id, b) => patch(`/followups/${id}/call`, b),
+  /* 회차 종결. ⚠ /call 은 call_result · call_note 만 적고 status 는
+     **안 건드린다**(FollowupCallView). 「연결」로 회차를 끝내려면 ViewSet
+     쪽 PATCH /followups/{id}/ 에 closed_reason 을 실어야 서버가
+     status · closed_at 을 채운다(FollowupViewSet.partial_update).
+     라우터 경로라 끝 슬래시가 붙는다 */
+  closeFollowup:  (id, b) => patch(`/followups/${id}/`, b),
 };
 
 /* 부서 key 로 골라 쓴다 — 공통 화면들이 이걸로 갈라 부른다 */
@@ -1296,7 +1306,10 @@ export const reception = {
    *   지금은 이 길뿐이다.
    *   → 다희님께 «목록 전체를 받는 공식 방법»을 요청해 두었다. 생기면
    *     아래 ALL 을 그것으로 바꾼다. */
-  list:   (p)      => get(`/patients/${qs(p)}`).then(unwrapList),
+  /* ⚠ 2026-09-27 — page_size 를 안 달아 **스무 명에서 잘렸다**(DefaultPagination).
+     환자 목록 화면이 전체를 받는 자리라 PAGE_ALL 을 기본으로 단다. 서버
+     max_page_size 가 200 이라 그보다 많으면 거기서 멈춘다 — 수는 .total */
+  list:   (p)      => get(`/patients/${qs({ page_size: PAGE_ALL, ...p })}`).then(unwrapList),
   detail: (id)     => get(`/patients/${id}/`),
   /* ⚠ 여기로는 **이름·생년월일·전화를 못 고친다.** 그 셋은 patient_pii 에
      있고 PatientSerializer 는 patient 표만 다룬다 (상세의 pii 는 읽기 전용).
@@ -1304,7 +1317,9 @@ export const reception = {
   update: (id, b)  => patch(`/patients/${id}/`, b),
 
   /* 같은 환자의 예약을 전부 본다 — 같은 날 중복 예약을 잡으려고 */
-  ordersOf: (id)   => get(`/exam-orders${qs({ patient: id, ordering: "scheduled_at" })}`).then(unwrapList),
+  /* ⚠ page_size 가 없어 스무 건에서 잘렸다 — 예약이 많은 환자는 뒤쪽(최근)
+     예약이 안 보여 같은 날 중복을 못 잡았다 */
+  ordersOf: (id)   => get(`/exam-orders${qs({ patient: id, ordering: "scheduled_at", page_size: PAGE_ALL })}`).then(unwrapList),
 
   /* [예약 완료]. **원무는 날짜만 정한다** — modality · exam_purpose ·
      ordered_by 는 안 보낸다. 서버도 그 셋을 안 받는다
@@ -1337,10 +1352,9 @@ reception.requests = () =>
 
 /* [예약 확인]. **날짜만 보낸다.**
  *
- * ⚠ 지금 서버는 modalities · exam_purpose · ordered_by 를 **필수로** 받고
- *   그게 없으면 VALIDATION_ERROR 를 낸다. 팀 결정은 「원무는 날짜만 확정」
- *   이라 반대다 — 명세가 반대로 적혀 그대로 구현된 것이고, scheduled_at 만
- *   받도록 바뀔 예정이다. 그때까지 이 호출은 **목업에서만** 돈다.
+ * ⚠ 2026-09-27 확인 — 서버가 바뀌어 이제 scheduled_at 하나만 받는다
+ *   (ExamOrderConfirmSerializer). 실서버에서 돈다. 예약 판(Reservations.jsx)
+ *   오른쪽 [신청 확정] 이 이것을 부른다.
  *
  * ⚠ 확정하면 order_status 가 **scheduled** 가 된다. ordered 가 아니다 —
  *   검사 종류가 정해져야 ordered 이고 그건 유방외과 몫이다. 값이 새로
