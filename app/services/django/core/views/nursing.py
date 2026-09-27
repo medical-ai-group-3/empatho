@@ -11,6 +11,9 @@ from .. import models, serializers
 from ..mixins import AuditMixin
 from core.api.permissions import MatrixPermission, OwnedOnlyMixin
 from core.api import questionnaire as questionnaire_module
+from core.api.errors import ApiError
+
+from .reception import _stamp_first_visit, mark_visited
 
 
 class VisitTodayViewSet(AuditMixin, viewsets.ViewSet):
@@ -38,21 +41,18 @@ class VisitTodayViewSet(AuditMixin, viewsets.ViewSet):
         serializer.is_valid(raise_exception=True)
         now = timezone.now()
         with transaction.atomic():
-            order = (models.ExamOrder.objects.select_for_update()
-                     .select_related("patient").get(pk=serializer.validated_data["exam_order_id"]))
+            # 없는 번호면 DoesNotExist 로 500 이었다 → 404
+            order = get_object_or_404(
+                models.ExamOrder.objects.select_for_update().select_related("patient"),
+                pk=serializer.validated_data["exam_order_id"])
+            if order.order_status == "cancelled":
+                raise ApiError("RESERVATION_LOCKED", "취소된 예약은 내원 처리할 수 없습니다.")
             # 이미 내원 확인한 오더를 다시 누르면 처음 온 시각이 덮여 대기
-            # 순서가 뒤로 밀렸다. 처음 값을 지킨다.
-            if order.visited_at is None:
-                order.visited_at = now
-                order.updated_by = self._current_account()
-                order.save(update_fields=["visited_at", "updated_by", "updated_at"])
-                # 초진 시각 — 접수(CheckInView)와 같은 규칙. 예약으로 온 첫 방문이
-                # 여기서 안 찍혀 visit_type 이 계속 「초진」으로 남았다.
-                patient = order.patient
-                if not patient.first_visited_at:
-                    patient.first_visited_at = now
-                    patient.updated_by = self._current_account()
-                    patient.save(update_fields=["first_visited_at", "updated_by", "updated_at"])
+            # 순서가 뒤로 밀렸다. 처음 값을 지킨다(mark_visited 가 지킨다).
+            # 09-27 — scheduled 는 requested 로 돌려 간호 「내원 대기」에 선다.
+            if mark_visited(order, now, self._current_account()):
+                # 초진 시각 — 접수(CheckInView)와 같은 규칙
+                _stamp_first_visit(order.patient, now, self._current_account())
         out = serializers.ExamOrderSerializer(order)
         return Response(out.data, status=status.HTTP_200_OK)
 
