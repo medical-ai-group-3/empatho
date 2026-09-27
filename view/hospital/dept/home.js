@@ -131,6 +131,28 @@ export function stageSteps(stage) {
  *   없는 것이 화면에서 같아진다 — 8장 1번(GET /home)이 붙으면 한 번에
  *   받아 오므로 이 함수가 통째로 없어진다.
  */
+/* 오늘 이미 접수(내원)한 환자를 예약 목록에서 뺀다.
+ *
+ * ⚠ 접수하면 서버가 오늘 예약 **하나**에 내원을 찍는다. 같은 날 예약이
+ *   여러 건이면(예전 「새 예약이 계속 쌓이던」 버그로 생긴 것 등) 나머지는
+ *   안 온 채로 남아서, 접수한 사람이 「안 오심」에 계속 떴다. 옛 서버는
+ *   예약에 아예 안 찍고 새 오더를 만든다 — 그때도 같은 증상이다.
+ *   그래서 **환자 기준으로** 거른다: 오늘 온 사람이면 그 사람의 예약은 뺀다.
+ *
+ *   visited   오늘 온 줄들(내원 대기 · today-status). patient 나 patient_id */
+export function notYetCame(booked, ...visited) {
+  const came = new Set();
+  for (const list of visited) {
+    for (const r of list ?? []) {
+      const pid = r.patient ?? r.patient_id;
+      if (pid != null) came.add(String(pid));
+    }
+  }
+  const out = booked.filter((r) => !came.has(String(r.patient ?? r.patient_id)));
+  Object.defineProperty(out, "total", { value: out.length });
+  return out;
+}
+
 export function soft(promise) {
   return Promise.resolve(promise).catch(() => []);
 }

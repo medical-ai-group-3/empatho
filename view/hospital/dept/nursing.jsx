@@ -59,7 +59,9 @@ export const nursing = {
       day(1),
     ]).then(([arrived, today, booked, asks, follow, schedule,
               bound, thisWeek, tomorrow]) => ({
-      arrived: H.rows(arrived), today: H.rows(today), booked: H.rows(booked),
+      arrived: H.rows(arrived), today: H.rows(today),
+      /* 오늘 이미 접수한 사람의 예약은 뺀다 — 「안 오심」에 계속 뜨던 것(H.notYetCame) */
+      booked: H.notYetCame(H.rows(booked), H.rows(arrived), H.rows(today)),
       /* ⚠ 추적은 **아직 걸 회차만** 남긴다 — 서버가 끝난 회차도 같이 줘서
          「기한이 지난 추적 콜」·달력 점에 연결로 끝낸 사람이 계속 셌다 */
       asks: H.rows(asks), follow: H.rows(follow).filter(H.openFollowup),
