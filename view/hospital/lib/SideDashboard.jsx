@@ -58,7 +58,8 @@ function TodoList() {
 
   async function add() {
     const v = text.trim();
-    if (!v) return;
+    /* 누르는 중에 또 누르면(Enter 연타) 같은 할 일이 여러 번 저장됐다 */
+    if (!v || busy === "new") return;
     setBusy("new");
     try {
       await notesApi.create("todo", { text: v, done: false, status: "todo" });
@@ -94,7 +95,7 @@ function TodoList() {
         <span>할 일</span>
         <div className="b-todo-add">
           <input value={text} onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && add()}
+            onKeyDown={(e) => enter(e) && add()}
             placeholder="할 일 추가" />
           <button type="button" className="btn ghost sm" onClick={add} disabled={busy === "new"}>+ 추가</button>
         </div>
@@ -115,7 +116,7 @@ function TodoList() {
                     <td>
                       <input className="b-todo-edit-text" value={draft.text}
                         onChange={(e) => setDraft((d) => ({ ...d, text: e.target.value }))}
-                        onKeyDown={(e) => e.key === "Enter" && saveEdit(it.id)}
+                        onKeyDown={(e) => enter(e) && saveEdit(it.id)}
                         autoFocus />
                     </td>
                     <td>
@@ -153,6 +154,14 @@ function TodoList() {
       )}
     </div>
   );
+}
+
+/* ⚠ **한글 입력 중 Enter 는 두 번 온다.** 조합을 끝내는 Enter(isComposing)
+   와 진짜 Enter 가 따로 keydown 을 내서, 「검체 확인」을 치고 Enter 를
+   누르면 할 일이 두 개(끝 글자가 잘린 것까지) 저장됐다. 조합 중인 것은
+   흘려보낸다 */
+function enter(e) {
+  return e.key === "Enter" && !e.nativeEvent.isComposing && e.keyCode !== 229;
 }
 
 function asTodo(note) {
