@@ -1,8 +1,7 @@
 /* ════════════════════════════════════════════════════════════
    EMPATHO 로그인 — React 용 스타일
 
-   이 파일은 styles.css 에서 자동 생성됩니다. 직접 고치지 마세요.
-   styles.css 를 고친 뒤 `python sync-react-css.py` 를 돌리면 됩니다.
+   이 파일이 원본입니다 (styles.css · sync-react-css.py 는 없음).
 
    모든 선택자가 .empatho-scene 아래에 갇혀 있어 앱 전역 스타일과
    충돌하지 않습니다. 키프레임 이름에도 empatho- 접두사를 붙였습니다.
@@ -106,25 +105,6 @@
   transition: opacity var(--dolly-ms) ease-in;
 }
 
-/* ───────────────────────────  벽면 각인  ─────────────────────────── */
-
-.empatho-scene .wallmark {
-  position: absolute;
-  z-index: 1;
-  left: clamp(26px, 20.5vw, 320px);
-  top: 33%;
-  margin: 0;
-  font-size: clamp(9px, .72vw, 12px);
-  line-height: 2.15;
-  letter-spacing: .24em;
-  color: #4a5a6a;
-  text-shadow: 0 1px 14px rgba(255, 255, 255, .5);
-  transition: opacity 500ms ease;
-}
-.empatho-scene .wallmark .rule { display: block; width: 22px; border-top: 1px solid currentColor; }
-.empatho-scene .wallmark .rule:first-child { margin-bottom: 11px; }
-.empatho-scene .wallmark .rule:last-child { margin-top: 11px; }
-
 /* ────────────────────────────  패널  ──────────────────────────── */
 
 /* 폭은 사진에서 재서 맞췄다.
@@ -140,7 +120,6 @@
   min-width: 390px;
   display: grid;
   place-items: center;
-  border-left: 1px solid rgba(206, 226, 248, .16);
   background: linear-gradient(100deg, rgba(16, 26, 37, .30), rgba(16, 26, 37, .17));
   -webkit-backdrop-filter: blur(3px) saturate(115%);
           backdrop-filter: blur(3px) saturate(115%);
@@ -162,14 +141,15 @@
   gap: clamp(26px, 4vh, 46px);
 }
 
+/* text-indent 는 첫 줄에만 걸려서, 줄바꿈되면 첫 줄만 밀린다 */
 .empatho-scene .brand__mark {
   margin: 0;
   font-size: clamp(25px, 2.1vw, 35px);
   font-weight: 300;
   letter-spacing: .30em;
-  line-height: 1.2;
-  text-indent: .30em;
+  line-height: 1.35;
 }
+.empatho-scene .brand__hospital { display: block; }
 .empatho-scene .brand__tag {
   margin: 10px 0 0;
   font-size: clamp(13px, 1.05vw, 15px);
@@ -187,24 +167,34 @@
 
 .empatho-scene .control { position: relative; display: flex; }
 
+/* 입력칸 */
 .empatho-scene .control input {
   width: 100%;
   min-width: 0;
-  padding: 15px 48px 15px 16px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
+  padding: 16px 48px 16px 16px;
+  border: 0;
+  border-radius: 9px;
   background: var(--field);
   outline: none;
-  transition: border-color .18s, background .18s, box-shadow .18s;
+  box-shadow:
+    inset 0 1px 0 rgba(8, 16, 26, .65),
+    inset 0 -1px 0 rgba(206, 230, 255, .13),
+    inset 0 0 0 1px rgba(180, 203, 226, .16);
+  transition: background .22s ease, box-shadow .22s ease;
 }
 .empatho-scene .control input::placeholder { color: #a8b6c5; }
-.empatho-scene .control input:hover { border-color: rgba(203, 226, 250, .5); }
+.empatho-scene .control input:hover { background: rgba(244, 248, 255, .075); }
 .empatho-scene .control input:focus-visible {
-  border-color: var(--ice);
-  background: rgba(244, 248, 255, .09);
-  box-shadow: 0 0 0 3px rgba(199, 227, 255, .16);
+  background: rgba(244, 248, 255, .085);
+  box-shadow:
+    inset 0 1px 0 rgba(8, 16, 26, .5),
+    inset 0 -1px 0 rgba(207, 230, 255, .5),
+    inset 0 0 0 1px rgba(207, 230, 255, .42),
+    0 0 22px -6px rgba(140, 195, 255, .45);
 }
-.empatho-scene .control input[aria-invalid="true"] { border-color: #ff9f9c; }
+.empatho-scene .control input[aria-invalid="true"] {
+  box-shadow: inset 0 0 0 1px #ff9f9c, inset 0 1px 0 rgba(8, 16, 26, .5);
+}
 
 .empatho-scene .icon {
   position: absolute;
@@ -239,11 +229,11 @@
 .empatho-scene .icon--btn .slash { opacity: 0; transition: opacity .16s; }
 .empatho-scene .icon--btn[aria-pressed="true"] .slash { opacity: 1; }
 
-/* 체크박스 / 링크 줄 */
+/* 링크 줄 */
 .empatho-scene .row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 16px;
   flex-wrap: wrap;
   font-size: 13px;
@@ -285,18 +275,23 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 14px;
-  border-radius: 8px;
-  color: #10263c;
+  gap: 10px;
+  border-radius: 12px;
+  color: #0c1f30;
   font-weight: 600;
-  letter-spacing: .01em;
-  background: linear-gradient(96deg, #dbeeff 0%, #a7cbec 100%);
-  box-shadow: 0 10px 26px -14px rgba(10, 30, 50, .85);
-  transition: filter .18s, transform .18s, box-shadow .18s;
+  letter-spacing: 0;
+  background: #f2f7fc;
+  transition: background .18s ease, transform .14s ease;
 }
-.empatho-scene .submit:hover { filter: brightness(1.05); transform: translateY(-1px); }
-.empatho-scene .submit:active { transform: translateY(0); }
-.empatho-scene .submit:disabled { cursor: progress; filter: saturate(.55) brightness(.95); transform: none; }
+.empatho-scene .submit:hover  { background: #ffffff; }
+.empatho-scene .submit:active { background: #e2ecf6; transform: scale(.994); }
+.empatho-scene .submit:disabled {
+  cursor: progress;
+  background: rgba(240, 246, 252, .26);
+  color: rgba(233, 243, 252, .6);
+  transform: none;
+}
+
 .empatho-scene .submit__arrow {
   width: 19px; height: 19px;
   fill: none; stroke: currentColor; stroke-width: 1.7;
@@ -348,7 +343,6 @@
 
 /* 1) 인증 성공 → 폼을 걷어내고 문을 연다 */
 .empatho-scene.is-opening .form { display: none; }
-.empatho-scene.is-opening .wallmark { opacity: 0; }
 
 /* 2) 문이 열릴 무렵 → 로그인 박스를 카메라가 지나쳐 간다.
 
@@ -388,6 +382,37 @@
 }
 .empatho-scene.is-leaving .veil { opacity: 1; }
 
+/* ── 데스크톱 전용 유리 패널 (1081px 이상) ── */
+
+@media (min-width: 1081px) {
+
+  .empatho-scene:not([data-layout="split"]) .panel {
+    transform: rotateY(-1.2deg);
+    transform-origin: 100% 50%;
+    border-left: 0;
+    background: linear-gradient(104deg,
+      rgba(15, 25, 36, .50) 0%, rgba(15, 25, 36, .30) 60%, rgba(15, 25, 36, .24) 100%);
+    -webkit-backdrop-filter: blur(7px) saturate(122%);
+            backdrop-filter: blur(7px) saturate(122%);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, .13),
+      inset 0 -170px 150px -150px rgba(0, 0, 0, .72),
+      -40px 0 90px -60px rgba(0, 0, 0, .8);
+    animation: empatho-arrive 980ms cubic-bezier(.2, .7, .2, 1) backwards;
+  }
+
+  /* forwards 로 바꾸면 .is-entering 퇴장 전환이 안 먹는다 */
+  @keyframes empatho-arrive {
+    from { opacity: 0; transform: translate3d(-6%, 0, -260px) rotateY(-1.2deg); filter: blur(7px); }
+    to   { opacity: 1; transform: translate3d(0, 0, 0) rotateY(-1.2deg); filter: blur(0); }
+  }
+
+  /* rotateY 를 빼면 퇴장 때 각도가 튄다 */
+  .empatho-scene:not([data-layout="split"]).is-entering .panel {
+    transform: translate3d(42%, 0, 430px) rotateY(-1.2deg);
+  }
+}
+
 /* ──────────────────────────  반응형  ────────────────────────── */
 
 /* 태블릿 — 패널을 카드로 띄운다 */
@@ -412,7 +437,6 @@
     padding: clamp(28px, 4vw, 40px);
     gap: 28px;
   }
-  .empatho-scene .wallmark { top: 22%; left: clamp(20px, 6vw, 60px); }
 }
 
 /* 모바일 — 사진은 위, 패널은 바텀 시트 */
@@ -422,7 +446,6 @@
   .empatho-scene { display: flex; flex-direction: column; }
   .empatho-scene .stage { position: absolute; inset: 0 0 auto; height: 52svh; }
   .empatho-scene .plate { object-position: 47% 46%; }
-  .empatho-scene .wallmark { display: none; }
 
   .empatho-scene .panel {
     position: relative;
@@ -461,8 +484,9 @@
 /* ────────────────────  모션 민감 사용자 배려  ──────────────────── */
 
 @media (prefers-reduced-motion: reduce) {
-  .empatho-scene .dolly, .empatho-scene .bloom, .empatho-scene .panel, .empatho-scene .veil, .empatho-scene .plate--still, .empatho-scene .wallmark { transition-duration: 220ms !important; }
+  .empatho-scene .dolly, .empatho-scene .bloom, .empatho-scene .panel, .empatho-scene .veil, .empatho-scene .plate--still { transition-duration: 220ms !important; }
   .empatho-scene .pulse { animation: none; border-top-color: rgba(199, 230, 255, .28); }
+  .empatho-scene .panel { animation: none !important; }
 }
 
 /* ══════════════════════════════════════════════════════════════

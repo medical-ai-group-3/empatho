@@ -25,10 +25,7 @@ import { HOSPITAL, PRODUCT } from '../../nav';
      (없던 것)      →  Caps Lock 알림. 비밀번호를 대문자로 계속
                        틀리는 것을 잡아 주던 자리라 옮겨 왔다
 
-   ⚠ **CSS 는 건드리지 않았다.** `EmpathoLogin.css` 는 원본 폴더의
-     `styles.css` 에서 자동 생성된 것이라, 여기서 고치면 다음 동기화
-     때 덮인다. 그래서 **원본에 이미 있는 이름만** 쓴다 —
-     새 모양이 필요하면 원본 쪽 `styles.css` 를 고치고 다시 뽑아야 한다.
+   `EmpathoLogin.css` 가 원본이다 (자동 생성 아님).
    ══════════════════════════════════════════════════════════════ */
 
 /* 로그인 박스가 화면 밖으로 쓸려 나가는 시간.
@@ -270,7 +267,10 @@ export default function EmpathoLogin({
         <div className="panel__inner">
 
           <header className="brand">
-            <h1 className="brand__mark" id="empatho-brand">{HOSPITAL} {PRODUCT}</h1>
+            {/* 폭에 따라 한 줄/두 줄로 오락가락하지 않게 줄을 고정한다 */}
+            <h1 className="brand__mark" id="empatho-brand">
+              <span className="brand__hospital">{HOSPITAL}</span>{PRODUCT}
+            </h1>
             <p className="brand__tag">의료진용</p>
           </header>
 
@@ -332,19 +332,16 @@ export default function EmpathoLogin({
                 <p className="feedback" role="alert">⇪ Caps Lock이 켜져 있습니다.</p>
               )}
 
-              <div className="row">
-                {/* 계정을 관리자가 만들고 승인한다 — 사람이 스스로 못 푸는
-                    일이라 비밀번호 재설정 자리에 그 사정을 적는다 */}
-                <span className="check">승인된 계정만 들어갑니다</span>
-                {onSignup && (
+              {onSignup && (
+                <div className="row">
                   <a
                     className="link" href="#signup"
                     onClick={event => { event.preventDefault(); onSignup(); }}
                   >
                     회원가입 신청
                   </a>
-                )}
-              </div>
+                </div>
+              )}
 
               <p className="feedback" role="alert" aria-live="assertive">{error}</p>
 
@@ -365,10 +362,11 @@ export default function EmpathoLogin({
             </div>
           )}
 
-          <footer className="panel__foot">
-            <span>계정은 관리자가<br />만들고 승인합니다</span>
-            {showDemoBadge && <span className="demo-badge">목업</span>}
-          </footer>
+          {showDemoBadge && (
+            <footer className="panel__foot">
+              <span className="demo-badge">목업</span>
+            </footer>
+          )}
 
         </div>
       </section>
