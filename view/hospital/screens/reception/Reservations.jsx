@@ -84,7 +84,8 @@ export default function Reservations({ cfg }) {
     () => api.schedule(range.from, range.to), [range.from, range.to]);
   const requests = useApi(() => api.requests(), []);
 
-  const rows = board.data ?? [];
+  /* 취소한 예약은 판에서 뺀다 — 서버는 지우지 않고 cancelled 로 남긴다 */
+  const rows = (board.data ?? []).filter((r) => r.order_status !== "cancelled");
   const asks = requests.data ?? [];
 
   return (
@@ -130,7 +131,7 @@ export default function Reservations({ cfg }) {
             setPick((p) => ({ at: changed.scheduled_at ?? p?.at,
                               order: { ...(p?.order ?? {}), ...changed } }));
           }
-        }} onDate={(d) => setAnchor(d)} />
+        }} onDate={(d) => setAnchor(d)} onClear={() => setPick(null)} />
       </div>
     </Page>
   );
@@ -403,7 +404,7 @@ function Requests({ state, rows, onOpen }) {
 }
 
 /* ── 오른쪽 340 — 지금 쓰는 것 ────────────────────────────────── */
-function Aside({ cfg, pick, rows, onDone, onDate }) {
+function Aside({ cfg, pick, rows, onDone, onDate, onClear }) {
   const api = cfg.api;
   const order = pick?.order ?? null;
   const patientId = order?.patient ?? null;
@@ -425,7 +426,7 @@ function Aside({ cfg, pick, rows, onDone, onDate }) {
       {/* 새 예약이 맨 위다 — 창구에서 제일 많이 누르는 것이 여기라 스크롤
           아래에 두면 매번 내려가야 했다 */}
       <New cfg={cfg} at={pick?.at} order={order} rows={rows}
-           onDone={onDone} onDate={onDate} />
+           onDone={onDone} onDate={onDate} onClear={onClear} />
 
       <Card title="예약 정보">
         {order ? (
@@ -475,7 +476,7 @@ function Aside({ cfg, pick, rows, onDone, onDate }) {
   );
 }
 
-function New({ cfg, at, order, rows, onDone, onDate }) {
+function New({ cfg, at, order, rows, onDone, onDate, onClear }) {
   const api = cfg.api;
   /* ⚠ 간호 계정도 예약을 잡는다 — 한 과다(Patients.jsx 의 integrated).
      reception.reserve 만 보면 간호 열쇠만 가진 사람은 [예약] 이 늘 잠겼다 */
@@ -505,11 +506,44 @@ function New({ cfg, at, order, rows, onDone, onDate }) {
     }
   }
 
+  /* 고친다면 그 오더 자신은 「같은 날 예약」에서 뺀다 */
   const clash = useMemo(() => {
     if (!who) return null;
     return rows.find((r) => String(r.patient) === String(who.patient_id)
-      && dayOf(r.scheduled_at) === date) ?? null;
-  }, [rows, who, date]);
+      && dayOf(r.scheduled_at) === date
+      && (!order || r.exam_order_id !== order.exam_order_id)) ?? null;
+  }, [rows, who, date, order]);
+
+  /* 고른 예약이 아직 안 온 것이면 **고치는 자리**가 된다. 예전엔 여기서
+     [예약] 을 누르면 같은 사람 예약이 또 하나 생겼다 — 바꾸려던 것이
+     늘어나기만 했다 */
+  const editable = order && order.exam_order_id != null && !order.visited_at
+    && ["requested", "scheduled"].includes(order.order_status);
+
+  async function reschedule() {
+    setBusy(true); setErr(null); setOk(null);
+    try {
+      const changed = await api.reschedule(order.exam_order_id, `${date}T${time}:00`);
+      setOk(`${order.patient_name ?? `#${order.patient}`} · ${date} ${time} 로 바꿨습니다`);
+      onDone(changed ?? { exam_order_id: order.exam_order_id, scheduled_at: `${date}T${time}:00` });
+    } catch (e2) { setErr(e2); }
+    finally { setBusy(false); }
+  }
+
+  async function cancel() {
+    const name = order.patient_name ?? `#${order.patient}`;
+    // eslint-disable-next-line no-alert
+    if (!window.confirm(`${name} · ${dayOf(order.scheduled_at)} ${timeOf(order.scheduled_at)} 예약을 취소할까요?`)) return;
+    setBusy(true); setErr(null); setOk(null);
+    try {
+      await api.cancel(order.exam_order_id);
+      setOk(`${name} 예약을 취소했습니다`);
+      setWho(null);
+      onClear();
+      onDone();
+    } catch (e2) { setErr(e2); }
+    finally { setBusy(false); }
+  }
 
   async function find(e) {
     e.preventDefault();
@@ -552,13 +586,17 @@ function New({ cfg, at, order, rows, onDone, onDate }) {
   }
 
   return (
-    <Card title="새 예약" className="resv-new">
+    <Card title={editable ? "예약 변경" : "새 예약"} className="resv-new"
+          right={editable && (
+            /* 고른 예약을 놓고 빈 새 예약으로 */
+            <Btn onClick={() => { setWho(null); setFound(null); onClear(); }}>새 예약</Btn>
+          )}>
       {who ? (
         <p className="resv-who">
           <b>{who.name ?? `#${who.patient_id}`}</b>
           {who.patient_number && <span>{who.patient_number}</span>}
           <button type="button" className="note-x" aria-label="지우기"
-                  onClick={() => { setWho(null); setFound(null); }}>×</button>
+                  onClick={() => { setWho(null); setFound(null); if (editable) onClear(); }}>×</button>
         </p>
       ) : (
         <>
@@ -619,12 +657,21 @@ function New({ cfg, at, order, rows, onDone, onDate }) {
           <Btn kind="fill" onClick={confirm} {...mayConfirm.attrs}
                disabled={busy || !mayConfirm.ok}>이 시각으로 신청 확정</Btn>
         )}
-        <Btn kind={pending ? undefined : "fill"} onClick={save} {...may.attrs}
-             disabled={!who || busy || !may.ok}>{pending ? "새 예약 따로" : "예약"}</Btn>
+        {editable ? (
+          <>
+            <Btn onClick={cancel} {...may.attrs} disabled={busy || !may.ok}>예약 취소</Btn>
+            <Btn kind={pending ? undefined : "fill"} onClick={reschedule} {...may.attrs}
+                 disabled={busy || !may.ok}>변경 저장</Btn>
+          </>
+        ) : (
+          <Btn kind="fill" onClick={save} {...may.attrs}
+               disabled={!who || busy || !may.ok}>예약</Btn>
+        )}
       </div>
 
-      {/* ⚠ 서버에 취소·변경 경로가 없다(8장 7번). 화면에 적어 둔다 */}
-      <p className="hcard-k">만든 예약은 여기서 못 지웁니다.</p>
+      {order && !editable && (
+        <p className="hcard-k">이미 내원했거나 진행 중인 예약이라 바꿀 수 없습니다.</p>
+      )}
     </Card>
   );
 }

@@ -1363,6 +1363,13 @@ reception.requests = () =>
 reception.confirm = (id, scheduledAt) =>
   patch(`/exam-orders/${id}/confirm`, { scheduled_at: scheduledAt });
 
+/* 09-27 예약 변경 · 취소. 새로 만들지 않고 **있는 오더를 고친다.**
+   취소는 지우지 않고 cancelled 로 바꾼다(이력이 남는다). 이미 내원했거나
+   진행 중인 오더는 서버가 409 RESERVATION_LOCKED 로 막는다 */
+reception.reschedule = (id, scheduledAt) =>
+  patch(`/exam-orders/${id}/reschedule`, { scheduled_at: scheduledAt });
+reception.cancel = (id) => post(`/exam-orders/${id}/cancel`, {});
+
 export const byDept = { pathology: path, radiology: rad, breast, reception, nursing };
 
 /* ── 직원 회원가입 ────────────────────────────────────────────
