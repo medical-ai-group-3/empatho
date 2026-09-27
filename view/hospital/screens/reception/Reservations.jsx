@@ -37,6 +37,11 @@ const dayOf = (s) => (s ? String(s).slice(0, 10) : "");
 const timeOf = (s) => (s ? String(s).slice(11, 16) : "");
 const WEEK = ["일", "월", "화", "수", "목", "금", "토"];
 
+/* 아직 확정 안 된 예약(requested) — 확정(scheduled)과 판에서 모양을 달리한다.
+   같은 사람이 확정 예약을 두고 다른 날 또 신청했을 때 어느 쪽이 진짜인지
+   한눈에 갈라야 한다 */
+const isPending = (r) => r.order_status === "requested" && !r.visited_at;
+
 /* 08:00–18:00 을 30분으로 끊는다(6.1) */
 const SLOTS = [];
 for (let h = 8; h < 18; h += 1) {
@@ -330,8 +335,11 @@ function Row({ slot, days, byDay, today, onOrder, onSlot }) {
                       aria-label={`${d} ${slot} 새 예약`}
                       onClick={() => onSlot(`${d}T${slot}:00`)} />
             ) : here.map((r) => (
-              <button type="button" className="resv-ev" key={r.exam_order_id ?? r.id}
+              <button type="button" key={r.exam_order_id ?? r.id}
+                      className={`resv-ev${isPending(r) ? " pending" : ""}`}
+                      title={isPending(r) ? "미확정 예약" : undefined}
                       onClick={() => onOrder(r)}>
+                {isPending(r) && <i className="resv-tag">미확정</i>}
                 <time>{slot}</time>
                 <b>{r.patient_name ?? `#${r.patient}`}</b>
               </button>
@@ -358,8 +366,11 @@ function Month({ days, byDay, onOrder }) {
             <b>{Number(d.slice(8))}</b>
             {here.length > 0 && <em>{here.length}건</em>}
             {here.slice(0, 3).map((r) => (
-              <button type="button" className="resv-mev" key={r.exam_order_id ?? r.id}
+              <button type="button" key={r.exam_order_id ?? r.id}
+                      className={`resv-mev${isPending(r) ? " pending" : ""}`}
+                      title={isPending(r) ? "미확정 예약" : undefined}
                       onClick={() => onOrder(r)}>
+                {isPending(r) && "(미확정) "}
                 {timeOf(r.scheduled_at)} {r.patient_name ?? `#${r.patient}`}
               </button>
             ))}
@@ -459,7 +470,10 @@ function Aside({ cfg, pick, rows, onDone, onDate, onClear }) {
               <div className="resv-past">
                 {list.map((r) => (
                   <p key={r.exam_order_id}>
-                    <i>{r.visited_at ? "완료" : dayOf(r.scheduled_at) < today ? "안 옴" : "예정"}</i>
+                    <i>{r.order_status === "cancelled" ? "취소"
+                      : r.visited_at ? "완료"
+                      : dayOf(r.scheduled_at) < today ? "안 옴"
+                      : isPending(r) ? "미확정" : "확정"}</i>
                     <time>{dayOf(r.scheduled_at)}</time>
                     <span>{r.primary_staff_name ?? "담당 미정"}</span>
                     {/* 종류는 유방외과가 정하기 전까지 「미정」이다 — 빈 칸으로
