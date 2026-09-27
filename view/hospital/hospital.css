@@ -808,9 +808,19 @@ a.frow:hover .frow-k{color:var(--ink)}
    차지하지 않는다) */
 .read-workspace{position:relative}
 /* ⚠ 판독 화면의 뷰어 줄은 **높이를 못 박는다.** 소견 탭(AI · 의사)마다
-   내용 길이가 달라 칸이 늘었다 줄었다 했다 — 이제 칸 안에서 굴린다 */
-.read-workspace .vwrap{height:var(--read-v-h)}
+   내용 길이가 달라 칸이 늘었다 줄었다 했다 — 이제 칸 안에서 굴린다.
+   ⚠ 09-27 — 높이를 `100vh - 230px` 로 박았더니 뷰어 위(상단바 · 제목 ·
+     저장 줄)가 실제로 350px 이라 뷰어 아래 120px 이 화면 밖으로 나갔다.
+     MRI 는 격자(최소 680px)까지 넘쳐 Sagittal · 병변 3D 가 잘렸다.
+     그래서 **화면에 남은 높이를 다 쓴다** — 페이지를 창 높이로 막고
+     (flex:1 이라 height 는 안 먹어 max-height), 격자 줄 · 뷰어 층이
+     내용보다 작아질 수 있게 min-height 를 푼다 */
+.read-page{max-height:calc(100dvh - var(--top-total))}
+.read-page .read-cols{grid-template-rows:minmax(0, 1fr)}
+.read-workspace .vwrap{flex:1; min-height:var(--v-min-h)}
 .read-workspace .vwrap > *{min-height:0}
+.read-page .vstage{min-height:0}
+.read-page .mri-review-grid{min-height:0}
 .readfull .vwrap{height:auto}
 .read-top{display:flex; align-items:center; gap:var(--gap-sm);
   margin-bottom:var(--gap-sm)}
