@@ -167,6 +167,16 @@ export function dueBucket(when) {
   return day <= week ? "week" : null;
 }
 
+/* 아직 걸어야 하는 추적 회차인가.
+   ⚠ 서버 목록(FollowupViewSet.list)은 **끝난 회차도 같이 준다**
+     (resolved · declined — closed_at 이 찬 것). 기한만 보고 세면 「연결」로
+     끝낸 회차가 「지난 기한」에 계속 남는다. 후보(candidate)는 회차가 아직
+     없는 사람이라 여기서도 뺀다 */
+export function openFollowup(r) {
+  return !!r && r.status !== "candidate" && !r.closed_at
+    && r.status !== "resolved" && r.status !== "declined";
+}
+
 /* 제목 옆에 붙는 날짜 — 「2026-09-21 (월)」 */
 const DAY = ["일", "월", "화", "수", "목", "금", "토"];
 
