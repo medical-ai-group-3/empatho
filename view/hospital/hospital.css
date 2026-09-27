@@ -807,8 +807,14 @@ a.frow:hover .frow-k{color:var(--ink)}
 /* 지난 기록 — 뷰어 위 단추 하나. 누르면 영상 위로 떠서 펼쳐진다(폭을
    차지하지 않는다) */
 .read-workspace{position:relative}
-.prail-drop{position:relative; display:flex; justify-content:flex-start;
+/* ⚠ 판독 화면의 뷰어 줄은 **높이를 못 박는다.** 소견 탭(AI · 의사)마다
+   내용 길이가 달라 칸이 늘었다 줄었다 했다 — 이제 칸 안에서 굴린다 */
+.read-workspace .vwrap{height:var(--read-v-h)}
+.read-workspace .vwrap > *{min-height:0}
+.readfull .vwrap{height:auto}
+.read-top{display:flex; align-items:center; gap:var(--gap-sm);
   margin-bottom:var(--gap-sm)}
+.prail-drop{position:relative; display:flex; justify-content:flex-start}
 .prail-drop .btn em{font-style:normal; font-weight:600; margin-left:var(--gap-xxs)}
 .prail-drop .prail{position:absolute; top:calc(100% + var(--gap-xs)); left:0;
   z-index:20; width:var(--prail-w); max-height:60vh;
@@ -1650,6 +1656,10 @@ a.pevent:focus-visible{outline:var(--hair) solid var(--cyan); outline-offset:2px
 .save{display:flex; flex-direction:column; gap:var(--gap-sm);
   border-top:var(--hair) solid var(--border); padding-top:var(--card-pad-sm)}
 .save-b{display:flex; gap:var(--btn-gap); justify-content:flex-end}
+/* 윗줄에 선 저장 — 안내 글과 단추가 한 줄이고 선을 긋지 않는다 */
+.save.top{flex-direction:row; align-items:center; margin-left:auto;
+  border-top:none; padding-top:0}
+.save.top .hint{max-width:40ch; text-align:right}
 .hint{margin:0; font-size:var(--hint-fs); color:var(--warm)}
 
 /* ── 팝업 ───────────────────────────────────────────────────── */
