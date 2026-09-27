@@ -115,7 +115,8 @@ export default function Top({ dept, now, counts, summary }) {
  *
  *   · 로그인하면 SSE 를 연다(lib/live.js). 알림이 오면 잠깐 띄우고
  *     종의 숫자를 올린다
- *   · 종을 누르면 내 알림 목록(GET /notifications/). 누른 줄은 확인 처리
+ *   · 종을 누르면 확인 안 된 알림 목록(GET /notifications/). 누른 줄은
+ *     확인 처리되고 목록에서 빠진다
  *   · 숫자는 **서버 목록의 확인 안 된 것**이다 — 화면이 따로 세면
  *     새로고침할 때마다 어긋난다
  *
@@ -152,11 +153,15 @@ function Bell({ on }) {
     return () => clearTimeout(t);
   }, [toast]);
 
-  const unread = (items ?? []).filter((n) => !n.acknowledged_at).length;
+  /* 팝업에는 **확인 안 된 것만** 둔다 — 누른 알림은 목록에서 빠진다.
+     종의 숫자와 줄 수가 늘 같다. 누르자마자 화면에서 먼저 빼고, 서버
+     확인은 뒤에서 한다(실패하면 다음 목록에서 다시 나타난다) */
+  const unreadList = (items ?? []).filter((n) => !n.acknowledged_at);
+  const unread = unreadList.length;
 
   function read(n) {
-    if (n.acknowledged_at) return;
-    acknowledgeNotification(n.notification_id).then(load).catch(() => {});
+    setItems((all) => (all ?? []).filter((x) => x.notification_id !== n.notification_id));
+    acknowledgeNotification(n.notification_id).catch(load);
   }
 
   return (
@@ -173,16 +178,16 @@ function Bell({ on }) {
             <button type="button" onClick={() => setOpen(false)} aria-label="닫기">×</button>
           </header>
           {items == null ? <p className="notice-state">불러오는 중…</p>
-            : items.length === 0 ? <p className="notice-state">받은 알림이 없습니다</p>
+            : unread === 0 ? <p className="notice-state">새 알림이 없습니다</p>
             : (
               <ul>
-                {items.map((n) => (
+                {unreadList.map((n) => (
                   <li key={n.notification_id}>
-                    <button type="button" className={n.acknowledged_at ? "" : "new"}
-                            onClick={() => read(n)}>
+                    <button type="button" className="new" onClick={() => read(n)}
+                            title="누르면 확인 처리되고 목록에서 빠집니다">
                       <b>{n.message}</b>
                       <span>{H.at(n.sent_at || n.created_at)}</span>
-                      {!n.acknowledged_at && <em>새 알림</em>}
+                      <em>확인</em>
                     </button>
                   </li>
                 ))}
