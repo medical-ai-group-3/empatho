@@ -93,7 +93,6 @@ function Inner({ patient, onReload }) {
 
       <div className="dec-col">
         <PatientInfoCard patient={patient} />
-        <DecisionLog />
         <PatientReportCard report={report} reports={reports} unlock={unlock} />
         {report
           ? <ExplainForm report={report} onSaved={onReload} unlock={unlock} />
@@ -101,23 +100,6 @@ function Inner({ patient, onReload }) {
       </div>
       </div>
     </>
-  );
-}
-
-/* 이 환자의 결정 기록 — 목업의 오른쪽 아래 표.
-   ⚠ **채울 수가 없다.** 목업이 적어 둔 `GET /assessments?patient=` 가
-     api.js 에 없다. 있는 것은 `?study={id}` 하나뿐이라 환자로 못 모은다.
-     진료 이력(timeline)에도 「결정」 줄은 안 온다 — 촬영·판독·검체·확진만
-     온다. **칸은 둔다.** 없애면 「결정이 한 번도 없었다」로 읽힌다. */
-function DecisionLog() {
-  return (
-    <div className="card">
-      <div className="card-head"><h3>이 환자의 결정 기록</h3></div>
-      <p className="card-text">
-        아직 못 불러옵니다 — 환자로 결정을 모으는 경로가 없습니다.
-      </p>
-      <p className="card-text">결정은 지워지지 않습니다. 바꾸려면 새 결정을 남기세요.</p>
-    </div>
   );
 }
 

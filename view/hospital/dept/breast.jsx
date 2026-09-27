@@ -1,4 +1,4 @@
-import { breast as api } from "../api";
+import { breast as api, reception } from "../api";
 import { go } from "../nav";
 import * as H from "./home";
 
@@ -32,8 +32,8 @@ export const breast = {
 
   /* ── 홈 (docs/mockup/SurgeryHome.html) ──────────────
    *
-   * ⚠ **그 과에서 가장 빈 홈이다.** 서버가 주는 것이 환자 목록
-   *   하나뿐이다. 칸은 목업 그대로 두고 무엇이 없어 비었는지만 적는다.
+   * 환자 목록과 예약 오더를 함께 받아, 내 환자 큐와 월간 예약 캘린더를
+   *   같은 홈에서 구성한다.
    *
    * ⚠ waiting() 과 patients() 가 **같은 줄을 돌려준다.** 서버가
    *   `?primary_staff=me` 면 status 를 안 보고 바로 돌아간다 —
@@ -45,7 +45,13 @@ export const breast = {
    *   그래서 목록을 한 번만 부른다(8장 10번).
    */
   home: {
-    load: () => api.patients().then((all) => ({ all: H.rows(all) })),
+    load: () => Promise.all([
+      api.patients(),
+      H.soft(reception.schedule(...monthBounds())),
+    ]).then(([all, schedule]) => ({
+      all: H.rows(all),
+      schedule: H.rows(schedule),
+    })),
 
     primary: { label: "다음 환자 진료", to: go.breast.waiting(),
                need: "breast.waiting.view" },
@@ -89,9 +95,16 @@ export const breast = {
     /* 오늘 한 일은 별도 목록으로 제공하지 않는다. 홈의 이 영역은
        공용 Todo(할 일) 카드가 차지한다. */
 
-    /* ⚠ 목업의 「외래 · 수술」 일정은 서버에 표가 없다 */
-    marks: () => [],
+    marks: ({ schedule }) => (schedule ?? [])
+      .filter((row) => row.scheduled_at)
+      .map((row) => ({ date: row.scheduled_at, kind: "예약 있음" })),
   },
 };
+
+function monthBounds(now = new Date()) {
+  const first = new Date(now.getFullYear(), now.getMonth(), 1);
+  const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  return [H.iso(first), H.iso(last)];
+}
 
 export default breast;
