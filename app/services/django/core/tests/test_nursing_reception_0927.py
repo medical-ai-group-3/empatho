@@ -276,8 +276,13 @@ class NursingEndpointTests(TestCase):
         self.c.post("/api/v1/exam-orders/checkin", {"patient_id": self.patient.pk}, format="json")
         rows = self.c.get("/api/v1/patients/today-status").json()["data"]
         self.assertEqual(rows[0]["stage_code"], "nursing")
+        # 09-27 346b35f 부터 「외래 진료」는 주치의가 아니라 **이 오더를 유방외과로
+        # 보냈는가(handed_at)** 로 가른다 — 주치의만 있으면 아직 간호 단계다
         self.patient.primary_staff = self.surgeon
         self.patient.save()
+        rows = self.c.get("/api/v1/patients/today-status").json()["data"]
+        self.assertEqual(rows[0]["stage_code"], "nursing")
+        models.ExamOrder.objects.filter(patient=self.patient).update(handed_at=timezone.now())
         rows = self.c.get("/api/v1/patients/today-status").json()["data"]
         self.assertEqual(rows[0]["stage"], "접수 대기")
         self.assertEqual(rows[0]["stage_code"], "outpatient")
