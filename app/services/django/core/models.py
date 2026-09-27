@@ -339,6 +339,13 @@ class ExamOrder(AuditBase):
     # 갈린다. notification.staff_id 로 가르던 방식은 거절 주체가 둘이 되면서 깨졌다.
     cancelled_by = models.ForeignKey(Staff, models.PROTECT, blank=True, null=True,
                                      related_name='+', db_column='cancelled_by')
+    # 간호 → 유방외과 인계. 이 방문을 어느 외과 선생님께 언제 보냈는가.
+    # patient.primary_staff 는 환자의 값이라 재진 환자는 보내기 전부터 차 있다 —
+    # 「이번 방문을 보냈나」는 오더에 남겨야 갈린다. 비어 있으면 아직 안 보냄.
+    # ⚠ 0024 이전에 보낸 오더는 비어 있다(남은 흔적이 없어 백필하지 않는다).
+    handed_at = models.DateTimeField(blank=True, null=True)
+    handed_to = models.ForeignKey(Staff, models.PROTECT, blank=True, null=True,
+                                  related_name='+', db_column='handed_to')
 
     class Meta:
         db_table = 'exam_order'

@@ -13,6 +13,7 @@ from .reception import (
     CheckInView,
     ExamOrderScheduleView,
     ExamOrderRescheduleView,
+    ExamOrderHandoffView,
     MeView,
     PushTokenView,
     NotificationViewSet,

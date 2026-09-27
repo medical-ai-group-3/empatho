@@ -89,7 +89,7 @@ class ExamOrderQueryParamTests(SimpleTestCase):
     def test_목록은_patient_pii_주치의를_붙여_온다(self):
         qs = _query_view({}).get_queryset()
         self.assertEqual(qs.query.select_related,
-                         {"patient": {"pii": {}, "primary_staff": {}}})
+                         {"patient": {"pii": {}, "primary_staff": {}}, "handed_to": {}})
 
     def test_단건은_목록_거르기를_안_건다(self):
         qs = _query_view({"status": "requested", "ordering": "bogus"},
@@ -142,15 +142,19 @@ class PatientListParamTests(SimpleTestCase):
 
 
 class TodayStageTests(SimpleTestCase):
-    def _o(self, status, primary=None, assigned=None, has_study=False):
+    def _o(self, status, primary=None, assigned=None, has_study=False, handed_at=None):
         return SimpleNamespace(order_status=status, assigned_to_id=assigned,
-                               has_study=has_study,
+                               has_study=has_study, handed_at=handed_at,
                                patient=SimpleNamespace(primary_staff_id=primary))
 
     def test_간호_문진과_외래_진료를_가른다(self):
         stage, code, detail = rv.PatientTodayStatusView._stage(self._o("requested"))
         self.assertEqual((stage, code, detail), ("접수 대기", "nursing", "간호·문진"))
-        stage, code, detail = rv.PatientTodayStatusView._stage(self._o("requested", primary=3))
+        # 주치의만 있는 재진 환자는 아직 간호다 — 이 오더를 보냈는가(handed_at)로 가른다
+        self.assertEqual(rv.PatientTodayStatusView._stage(
+            self._o("requested", primary=3))[1], "nursing")
+        stage, code, detail = rv.PatientTodayStatusView._stage(
+            self._o("requested", primary=3, handed_at=datetime(2026, 9, 27, tzinfo=dt_tz.utc)))
         # stage 는 예전 글자 그대로 — 화면 STAGE 표가 이것으로 찾는다
         self.assertEqual((stage, code, detail), ("접수 대기", "outpatient", "외래 진료"))
 
