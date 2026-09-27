@@ -20,6 +20,7 @@ from .reception import (
     CheckInSerializer,
     ExamOrderScheduleSerializer,
     ExamOrderConfirmSerializer,
+    ExamOrderHandoffSerializer,
     MeSerializer,
     PushTokenSerializer,
     NotificationSerializer,

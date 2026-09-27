@@ -89,6 +89,12 @@ urlpatterns = [
         views.ExamOrderRescheduleView.as_view({"post": "cancel"}),
         name="exam-order-cancel",
     ),
+    # 09-27 간호 → 유방외과 인계(오더에 handed_at · handed_to 를 남긴다)
+    path(
+        "exam-orders/<int:pk>/handoff",
+        views.ExamOrderHandoffView.as_view({"patch": "partial_update"}),
+        name="exam-order-handoff",
+    ),
     path("patients/today-status", views.PatientTodayStatusView.as_view({"get": "list"}), name = "patient-today-status"),
     path(
         "patients/<int:pk>/questionnaire/",

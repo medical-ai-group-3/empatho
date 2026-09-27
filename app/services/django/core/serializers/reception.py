@@ -89,6 +89,11 @@ class ExamOrderSerializer(serializers.ModelSerializer):
     primary_staff_name = serializers.CharField(
         source="patient.primary_staff.full_name", read_only=True, default=None
     )
+    # 09-27 — 간호 → 유방외과 인계(handed_at · handed_to 는 모델 칸이라 저절로
+    # 나간다). 이름만 얹는다.
+    handed_to_name = serializers.CharField(
+        source="handed_to.full_name", read_only=True, default=None
+    )
 
     def get_age(self, obj) -> int | None:
         pii = getattr(obj.patient, "pii", None)
@@ -335,6 +340,29 @@ class ExamOrderConfirmSerializer(serializers.Serializer):
     """
 
     scheduled_at = serializers.DateTimeField()
+
+
+class ExamOrderHandoffSerializer(serializers.Serializer):
+    """PATCH /exam-orders/{id}/handoff — 간호가 이 방문을 유방외과 선생님께 보낸다.
+
+    받는 사람은 유방외과(surgery) 의료진이어야 한다. 다른 과 직원 번호를
+    넣으면 400 — 그 사람 대기 줄에는 이 환자가 영영 안 뜬다.
+    """
+
+    staff_id = serializers.IntegerField()
+
+    def validate_staff_id(self, value):
+        staff = (models.Staff.objects.select_related("account")
+                 .filter(pk=value).first())
+        if staff is None:
+            raise serializers.ValidationError("없는 직원 번호입니다.")
+        if getattr(staff.account, "role", None) != "surgery":
+            raise serializers.ValidationError("유방외과 의료진에게만 보낼 수 있습니다.")
+        return value
+
+    def validate(self, attrs):
+        attrs["staff"] = models.Staff.objects.get(pk=attrs["staff_id"])
+        return attrs
 
 
 class MeSerializer(serializers.Serializer):

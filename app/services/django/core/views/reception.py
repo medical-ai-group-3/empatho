@@ -125,16 +125,19 @@ class PatientViewSet(AuditMixin, OwnedOnlyMixin, viewsets.ModelViewSet):
         # 받는다. 예전에는 me 면 **여기서 바로 돌아가 status 를 안 봤다** —
         # 유방외과 waiting() 과 patients() 가 같은 줄을 받던 까닭.
         result = qs
+        handed_staff_id = None   # status=waiting 에서 인계받은 사람으로 거를 staff
         if primary_staff_param:
             if primary_staff_param == "me":
                 staff = getattr(self.request.user, "staff", None)
                 if staff is None:
                     return qs.none()
                 result = result.filter(primary_staff=staff)
+                handed_staff_id = staff.pk
             elif primary_staff_param == "none":
                 result = result.filter(primary_staff__isnull=True)
             elif primary_staff_param.isdigit():
                 result = result.filter(primary_staff_id=int(primary_staff_param))
+                handed_staff_id = int(primary_staff_param)
             else:
                 _bad_param("primary_staff", "me · none · 직원 번호 중 하나여야 합니다.")
         elif not q and not status_param:
@@ -144,12 +147,21 @@ class PatientViewSet(AuditMixin, OwnedOnlyMixin, viewsets.ModelViewSet):
         # status=waiting — 오늘 내원했고 아직 끝나지 않은 오더가 있는 환자.
         # 다른 값(all 등)은 예전처럼 거르지 않는다 — 간호 환자 목록이
         # status=all 을 「전체 목록 열쇠」로 쓰고 있다.
+        #
+        # 09-27 — primary_staff(me · 번호)와 같이 오면 **그 오더가 그 선생님께
+        # 인계됐어야**(handed_to) 한다. 주치의가 이미 있는 재진 환자가 간호가
+        # 보내기 전부터 유방외과 대기에 뜨던 것을 막는다.
+        # ⚠ 동작 변경 — 0024 이전에 보낸 오늘 오더(handed_at 이 빈 것)는 더
+        #   이상 유방외과 대기에 안 뜬다. 간호가 한 번 더 보내면 뜬다.
         if status_param == "waiting":
-            result = result.filter(Exists(models.ExamOrder.objects.filter(
+            open_today = models.ExamOrder.objects.filter(
                 patient_id=OuterRef("patient_id"),
                 visited_at__date=timezone.localdate(),
                 order_status__in=_OPEN_VISIT_STATUSES,
-            )))
+            )
+            if handed_staff_id is not None:
+                open_today = open_today.filter(handed_to_id=handed_staff_id)
+            result = result.filter(Exists(open_today))
 
         if q:
             cond = (Q(patient_number=q) |
@@ -339,7 +351,8 @@ class ExamOrderQueryView(
     지원 쿼리:
       status, visited(yes/none), scheduled_on(today/YYYY-MM-DD),
       visited_on(today/YYYY-MM-DD), scheduled_from, scheduled_to, patient,
-      assigned(none/yes — 환자 주치의 배정 여부), ordering
+      assigned(none/yes — 환자 주치의 배정 여부),
+      handed(none/yes — 이 오더를 유방외과로 보냈는가), ordering
     """
 
     resource = "exam_order"
@@ -354,7 +367,7 @@ class ExamOrderQueryView(
         # 목록 한 줄이 patient · pii · 주치의를 읽는다 — 붙여 두지 않으면
         # 간호 큐(page_size 200)가 줄마다 쿼리를 서너 번씩 더 쐈다(N+1).
         qs = models.ExamOrder.objects.select_related(
-            "patient__pii", "patient__primary_staff")
+            "patient__pii", "patient__primary_staff", "handed_to")
         if self.action == "retrieve":
             # 단건은 pk 로 찾는다 — 목록용 거르기를 걸면 ?status= 같은
             # 꼬리 하나로 멀쩡한 오더가 404 가 된다.
@@ -408,6 +421,16 @@ class ExamOrderQueryView(
         elif assigned:
             _bad_param("assigned", "none 또는 yes 여야 합니다.")
 
+        # 09-27 — 이 방문을 유방외과로 보냈는가(오더의 handed_at). assigned 는
+        # 환자 값이라 재진 환자는 보내기 전부터 yes 다 — 간호 대기는 이쪽을 쓴다.
+        handed = p.get("handed")
+        if handed == "none":
+            qs = qs.filter(handed_at__isnull=True)
+        elif handed == "yes":
+            qs = qs.filter(handed_at__isnull=False)
+        elif handed:
+            _bad_param("handed", "none 또는 yes 여야 합니다.")
+
         ordering = p.get("ordering", "visited_at")
         if ordering.lstrip("-") not in self.ORDERING_FIELDS:
             _bad_param("ordering", "정렬은 %s 중 하나여야 합니다." % ", ".join(self.ORDERING_FIELDS))
@@ -442,7 +465,9 @@ class PatientTodayStatusView(viewsets.ViewSet):
     # 찾는다). 09-27 — 「접수 대기」 하나로 뭉쳐 있던 것을 가르려고
     # stage_code · stage_detail 을 **더한다.**
     #   nursing                간호·문진 — 접수했고 아직 유방외과로 안 보냄
-    #   outpatient             외래 진료 — 주치의(유방외과)가 배정됨, 검사 지시 전
+    #   outpatient             외래 진료 — 간호가 이 오더를 유방외과로 보냄
+    #                          (handed_at), 검사 지시 전. ⚠ 예전에는 환자의
+    #                          primary_staff 로 봐서 재진 환자가 보내기 전부터 여기 떴다
     #   radiology_wait         영상의학과 대기
     #   radiology_in_progress  영상의학과 촬영중
     #   ai_analysis            AI 분석중
@@ -451,7 +476,7 @@ class PatientTodayStatusView(viewsets.ViewSet):
     @staticmethod
     def _stage(o):
         if o.order_status in ("requested", "scheduled"):
-            if o.patient.primary_staff_id:
+            if o.handed_at is not None:
                 return "접수 대기", "outpatient", "외래 진료"
             return "접수 대기", "nursing", "간호·문진"
         if o.order_status == "cancelled":
@@ -492,6 +517,8 @@ class PatientTodayStatusView(viewsets.ViewSet):
                 "visited_at": o.visited_at,
                 "primary_staff": o.patient.primary_staff_id,
                 "primary_staff_name": primary_staff.full_name if primary_staff else None,
+                "handed_at": o.handed_at,
+                "handed_to": o.handed_to_id,
             })
         return Response(result)
     
@@ -688,6 +715,48 @@ class ExamOrderRescheduleView(AuditMixin, viewsets.ViewSet):
             order.order_status = "cancelled"
             order.updated_by = self._current_account()
             order.save(update_fields=["order_status", "updated_by", "updated_at"])
+        return Response(serializers.ExamOrderSerializer(order).data)
+
+
+class ExamOrderHandoffView(AuditMixin, viewsets.ViewSet):
+    """09-27 간호 → 유방외과 인계 — PATCH /exam-orders/{id}/handoff {staff_id}
+
+    오더에 handed_at · handed_to 를 남기고 환자의 primary_staff 도 같이 바꾼다.
+    예전에는 PATCH /patients/{id}/ {primary_staff} 만 불러 「이번 방문을
+    보냈나」가 어디에도 안 남았다 — 간호 대기는 브라우저 localStorage 로
+    가렸고(다른 PC 에서는 다시 떴다), 재진 환자는 보내기 전부터 유방외과
+    대기에 떴다.
+
+    ⚠ 취소 · 완료된 오더는 409(HANDOFF_NOT_ALLOWED). 다시 보내기(다른
+      선생님으로 바꾸기)는 막지 않는다 — 덮어쓴다.
+    """
+
+    resource = "exam_order"
+    permission_classes = [MatrixPermission]
+
+    CLOSED = ("cancelled", "completed")
+
+    def partial_update(self, request, pk=None):
+        serializer = serializers.ExamOrderHandoffSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        staff = serializer.validated_data["staff"]
+        with transaction.atomic():
+            order = get_object_or_404(
+                models.ExamOrder.objects.select_for_update(), pk=pk)
+            if order.order_status in self.CLOSED:
+                raise ApiError("HANDOFF_NOT_ALLOWED")
+            account = self._current_account()
+            order.handed_at = timezone.now()
+            order.handed_to = staff
+            order.updated_by = account
+            order.save(update_fields=["handed_at", "handed_to", "updated_by", "updated_at"])
+            patient = models.Patient.objects.select_for_update().get(pk=order.patient_id)
+            patient.primary_staff = staff
+            patient.updated_by = account
+            patient.save(update_fields=["primary_staff", "updated_by", "updated_at"])
+        order = (models.ExamOrder.objects
+                 .select_related("patient__pii", "patient__primary_staff", "handed_to")
+                 .get(pk=order.pk))
         return Response(serializers.ExamOrderSerializer(order).data)
 
 

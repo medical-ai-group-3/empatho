@@ -87,6 +87,8 @@ INFRA_ERRORS = [
     _spec("ALREADY_CONFIRMED", 409, "이미 확정된 오더입니다."),
     # 09-27 예약 변경·취소 — 이미 내원했거나 검사로 넘어간 오더는 못 바꾼다
     _spec("RESERVATION_LOCKED", 409, "이미 내원했거나 진행 중인 예약은 바꿀 수 없습니다."),
+    # 09-27 간호 → 유방외과 인계 — 취소 · 완료된 오더는 보낼 수 없다
+    _spec("HANDOFF_NOT_ALLOWED", 409, "취소되었거나 끝난 오더는 유방외과로 보낼 수 없습니다."),
     _spec("ALREADY_ASSIGNED", 409, "다른 선생님이 이미 맡았습니다."),
     # 09-16 일운님 · 다희님 협의 — 수술 결정 기록(PATCH /assessments/{id}/decision)
     # 단독 권한. 명세 §1-4 25개엔 없어 여기 둔다.
