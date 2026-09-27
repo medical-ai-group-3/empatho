@@ -74,7 +74,9 @@ ROLE_PERMS = {
     "pathology": PATHOLOGY_PERMS + COMMON_PERMS,
     "radiology": RADIOLOGY_PERMS + COMMON_PERMS,
     "reception": RECEPTION_PERMS + COMMON_PERMS,
-    "nursing": NURSING_PERMS + COMMON_PERMS,
+    # 09-27 원무과가 간호과로 합쳐졌다 — 간호는 원무 화면 권한도 다 갖는다
+    # (permissions.py 의 _merge_reception_into_nursing 과 짝)
+    "nursing": NURSING_PERMS + RECEPTION_PERMS + COMMON_PERMS,
     "surgery": BREAST_PERMS + COMMON_PERMS,
     "admin": ADMIN_PERMS,
 }
