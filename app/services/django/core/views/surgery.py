@@ -174,6 +174,14 @@ class SurgeryReportViewSet(AuditMixin, OwnedOnlyMixin, viewsets.ModelViewSet):
             report.view_count = (report.view_count or 0) + 1
             report.last_viewed_at = timezone.now()
             report.save()
+        # 환자가 안내문을 열면 그 안내문의 「결과 도착」 알림도 확인된 것이다.
+        # 알림을 거치지 않고 홈 카드로 들어와도 「새 안내」가 꺼져야 한다 —
+        # 홈은 확인 안 된 알림으로 「새」를 센다(PatientHomeView).
+        if getattr(request.user, "role", None) == "patient":
+            models.Notification.objects.filter(
+                patient=report.patient, ref_type="report", ref_id=report.pk,
+                acknowledged_at__isnull=True,
+            ).update(acknowledged_at=timezone.now())
         out = serializers.ReportSerializer(report)
         return Response(out.data)
 

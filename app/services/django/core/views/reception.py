@@ -531,7 +531,15 @@ class PatientHomeView(APIView):
             next_res = {"scheduled_at": upcoming.scheduled_at, "place": None,
                         "modality": upcoming.modality, "modality_label": None}
 
+        # 「새」 안내문만. 잠긴 것(설명 전)과, 풀렸는데 아직 안 연 것이다.
+        # 안 연 것은 「결과 도착」 알림이 아직 확인 전인 것으로 센다 — 환자가
+        # 안내문을 열면 그 알림이 확인된다(SurgeryReportViewSet.retrieve).
+        # 전에는 조건 없이 전부 내보내서 읽어도 「새 안내」가 안 없어졌다.
+        unread = models.Notification.objects.filter(
+            patient=patient, ref_type="report", acknowledged_at__isnull=True,
+        ).values_list("ref_id", flat=True)
         reports = models.Report.objects.filter(
+            Q(lock_status="locked") | Q(report_id__in=unread),
             patient=patient, report_type="final", audience="patient").order_by("-report_id")
         new_reports = [{
             "report_id": r.report_id, "lock_status": r.lock_status,
