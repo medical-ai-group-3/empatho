@@ -289,6 +289,13 @@ HOSPITAL_API_TIMEOUT_SEC = float(os.environ.get("HOSPITAL_API_TIMEOUT_SEC", "8")
 # 개원·폐업·이전이 있어 약 정보만큼 오래 두지는 않는다. 반나절에 한 번.
 HOSPITAL_API_CACHE_SEC = int(os.environ.get("HOSPITAL_API_CACHE_SEC", str(60 * 60 * 12)))
 
+# ── 본인인증(포트원 V2 · KG이니시스 통합인증) ───────────────────────────
+# API 시크릿은 서버에만 둔다. 앱에는 storeId · channelKey(공개 값)만 들어간다.
+#   비어 있으면 가입의 본인인증 단계가 UPSTREAM_IDENTITY_UNAVAILABLE 로 멈춘다.
+PORTONE_API_BASE = os.environ.get("PORTONE_API_BASE", "https://api.portone.io")
+PORTONE_API_SECRET = os.environ.get("PORTONE_API_SECRET", "")
+PORTONE_TIMEOUT_SEC = float(os.environ.get("PORTONE_TIMEOUT_SEC", "8"))
+
 # Go 가 nonce 를 안 보내서 시간 창이 재전송을 막는 유일한 수단이다.
 CALLBACK_TIMESTAMP_TOLERANCE_SEC = int(
     os.environ.get("CALLBACK_TIMESTAMP_TOLERANCE_SEC", "300"))

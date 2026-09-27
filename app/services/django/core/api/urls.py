@@ -60,6 +60,12 @@ urlpatterns.append(
 # 아니다** — core/api/hospitals.py 의 머리말 참고.
 urlpatterns.append(
     path("hospitals", HospitalSearchView.as_view(), name="hospital-search"))
+# 앱 환자 가입(본인인증). 화면(empatho-view)의 src/api.js 가 이 경로를 쓴다.
+# core/api/signup.py 의 머리말 참고.
+from .signup import signup_check_id, signup_identity, signup_link  # noqa: E402
+urlpatterns.append(path("signup/identity", signup_identity, name="signup-identity"))
+urlpatterns.append(path("signup/check-id", signup_check_id, name="signup-check-id"))
+urlpatterns.append(path("signup/link", signup_link, name="signup-link"))
 
 # 업무 엔드포인트는 다른 브랜치에서 오는 중이다. 들어오면 자동으로 물린다.
 if find_spec("core.urls") is not None:
