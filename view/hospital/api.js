@@ -1222,8 +1222,18 @@ export const breast = {
  *   3장 검체 바인딩      유방외과와 같은 팝업(specimens, 위에서 공용화) */
 export const nursing = {
   /* 1장 */
-  waitingArrived: () => get(`/exam-orders${qs({ status: "requested", visited: "yes", ordering: "visited_at", page_size: PAGE_ALL })}`),
-  scheduledToday: () => get(`/exam-orders${qs({ scheduled_on: "today", visited: "none", ordering: "scheduled_at", page_size: PAGE_ALL })}`),
+  /* ⚠ 2026-09-27 — visited_on=today 를 단다. visited=yes 만으로는 **어제
+     접수하고 안 끝난 오더**까지 오늘 대기 줄에 섞였다.
+     ⚠ assigned=none 은 **안 단다.** 전에 배정받은 환자가 다시 오면 주치의가
+       이미 있어서 그 사람이 줄에서 통째로 빠진다 — 보낸 것은 여전히
+       nursing/sent.js 가 가린다.
+     예약 환자는 접수(checkin)가 그 예약 오더를 내원 처리하고 requested 로
+     되돌려 준다(서버) — 그래서 status=requested 하나로 둘 다 잡힌다 */
+  waitingArrived: () => get(`/exam-orders${qs({ status: "requested", visited: "yes", visited_on: "today", ordering: "visited_at", page_size: PAGE_ALL })}`),
+  /* ⚠ 서버에 상태 거르개를 안 걸어서 **취소한 예약도** 「금일 내원 예정」·
+     「안 오심」에 떴다. 아직 올 수 있는 것(requested · scheduled)만 남긴다 */
+  scheduledToday: () => get(`/exam-orders${qs({ scheduled_on: "today", visited: "none", ordering: "scheduled_at", page_size: PAGE_ALL })}`)
+    .then((raw) => onlyLive(unwrapList(raw), ["requested", "scheduled"])),
   examOrder:      (id) => get(`/exam-orders/${id}`),
   patient:        (id) => get(`/patients/${id}/`),
   saveNote:       (examOrderId, note) => patch(`/exam-orders/${examOrderId}/note`, { note }),
@@ -1280,6 +1290,17 @@ export const nursing = {
  *
  * ⚠ 안 보이게(enumerable:false) 얹는 이유 — 전개(...arr)나 JSON 으로 옮길 때
  *   따라가지 않아야 한다. 총 개수는 **이 응답의 성질**이지 줄이 아니다. */
+/* 취소한 오더를 뺀다(또는 keep 에 든 상태만 남긴다). 서버는 취소를 지우지
+   않고 cancelled 로 남겨서, 예약 판만 거르고 **홈 달력 점 · 작은 달력 점 ·
+   이번 주/내일 수 · 캘린더**는 취소한 예약까지 셌다.
+   ⚠ total 도 거른 수로 다시 단다 — 봉투의 count 는 취소까지 센 수다 */
+function onlyLive(arr, keep = null) {
+  const out = arr.filter((r) => (keep ? keep.includes(r.order_status)
+    : r.order_status !== "cancelled"));
+  Object.defineProperty(out, "total", { value: out.length });
+  return out;
+}
+
 function unwrapList(raw) {
   if (Array.isArray(raw)) return raw;
   const arr = raw?.results ?? raw?.items ?? [];
@@ -1313,7 +1334,7 @@ export const reception = {
       scheduled_to:   `${to}T23:59:59`,
       ordering:       "scheduled_at",
       page_size:      PAGE_ALL,
-    })}`).then(unwrapList),
+    })}`).then((raw) => onlyLive(unwrapList(raw))),
 
   /* ── 3장 환자 목록 · 예약 ────────────────────────────────────
    *

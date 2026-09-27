@@ -193,12 +193,15 @@ function Find({ api, onDone }) {
  *
  * ⚠ **값이 없어 못 채우는 칸이 둘이다.** 「간호 · 문진」과 「외래 진료」는
  *   `today-status` 의 stage 에 그 단계가 없다(뷰가 접수·영상 쪽만 가른다).
+ *   → 09-27 서버가 stage_code(nursing · outpatient …)를 더했다. 「외래 진료」
+ *     칸은 이제 그것도 읽는다(아래 clinic).
  *   **칸을 없애지 않는다** — 없애면 흐름이 끊겨 보이고, 나중에 stage 가
  *   늘었을 때 자리를 다시 찾아야 한다.
  */
 function Board({ rows, arrived }) {
   const waiting = arrived.filter((r) => !isSent(r));
   const sent = new Set(sentList().map((r) => String(r.order)));
+  const waitIds = new Set(waiting.map((r) => String(r.exam_order_id ?? r.id)));
   const moved = (r) => EXAM_STAGE.includes(r.stage) || CLOSED_STAGE.includes(r.stage);
 
   const cols = {
@@ -207,7 +210,12 @@ function Board({ rows, arrived }) {
     nurse: waiting.filter((r) => r.questionnaire)
       .map((r) => ({ ...r, stage: "문진 완료 · 배정 대기" })),
     exam: rows.filter((r) => EXAM_STAGE.includes(r.stage)),
-    clinic: rows.filter((r) => sent.has(String(r.exam_order_id)) && !moved(r))
+    /* ⚠ 09-27 — today-status 가 stage_code 를 준다. outpatient(주치의 있음)
+       도 센다 — 다른 PC 에서 보낸 사람은 이 PC 의 sent.js 에 없었다.
+       단 **아직 아래 대기 줄에 있는 사람은 뺀다** — 전에 배정받은 재진
+       환자는 주치의가 이미 있어 보내기 전부터 outpatient 로 온다 */
+    clinic: rows.filter((r) => !moved(r) && !waitIds.has(String(r.exam_order_id))
+      && (sent.has(String(r.exam_order_id)) || r.stage_code === "outpatient"))
       .map((r) => ({ ...r, stage: "유방외과 진료 대기" })),
     closed: rows.filter((r) => CLOSED_STAGE.includes(r.stage)),
   };
