@@ -320,22 +320,24 @@ export const api = {
   },
   me:           ()         => get("/api/v1/me"),
 
-  // 02  가입 — 세 걸음이다.
+  // 02  가입 — 두 걸음이다. 서버 쪽은 empatho-app core/api/signup.py.
   //
-  //   ① sendCode    이름 · 주민등록번호 · 휴대폰을 보내고 인증번호를 받는다
-  //   ② verifyCode  받은 번호를 확인하면 verify_token 이 온다
-  //   ③ signup      아이디 · 비밀번호를 정해 ②의 표를 들고 가입을 마친다
+  //   ① identity   포트원 본인인증을 마친 id 와 입력값(이름 · 생년월일 ·
+  //                성별 · 휴대폰)을 보낸다. 서버가 포트원에 다시 묻고 입력값과
+  //                대조해 맞으면 verify_token(10분)을 준다. 다르면 거절이다
+  //   ② signup     아이디 · 비밀번호를 정해 ①의 표를 들고 가입을 마친다
   //
-  // **아이디는 사용자가 정한다.** 병원 기록과 잇는 것은 주민등록번호다 —
-  // 병원이 그 고유번호로 이미 있는 환자를 찾아 준다.
-  //
-  // ⚠ 주민등록번호는 **어디에도 저장하지 않는다.** ①의 본문에 한 번 실려
-  //   갈 뿐이고, 화면은 보내자마자 상태에서 지운다. localStorage 나
-  //   sessionStorage 에 넣지 말 것. 로그에도 남기지 말 것.
-  sendCode:     (payload)  => post("/api/v1/signup/verify-phone", payload),
-  verifyCode:   (payload)  => post("/api/v1/signup/verify-code", payload),
+  // **아이디는 사용자가 정한다.** 병원 기록과는 이름+생년월일+휴대폰이 모두
+  // 같을 때만 잇는다. 주민등록번호는 받지 않는다.
+  identity:     (payload)  => post("/api/v1/signup/identity", payload),
   checkId:      (v)        => get(`/api/v1/signup/check-id?value=${encodeURIComponent(v)}`),
-  signup:       (payload)  => post("/api/v1/signup/link", payload),
+  signup:       async (payload) => {
+    const session = await post("/api/v1/signup/link", payload);
+    // 가입이 끝나면 곧 로그인 상태다 — login 과 같이 토큰을 쥔다
+    setAccessToken(session?.access);
+    setRefreshToken(session?.refresh);
+    return session;
+  },
 
   // 03  홈
   home:         ()         => get("/api/v1/home"),
@@ -379,7 +381,20 @@ export const api = {
   //     내원 한 번에 리포트 하나다. 서버가 report_type='final' ·
   //     audience='patient' 만 준다 — **앱은 묶는 일을 하지 않는다.**
   //     lock_status 가 'locked' 면 본문이 오지 않는다(대면 설명 전).
-  results:      ()         => get("/api/v1/reports/"),
+  //
+  //     ⚠ 서버는 목록을 { count, results } 로 준다(알림과 같다). 화면은
+  //     items 를 읽어서 여기서 맞춘다 — 안 맞추면 결과가 있어도 늘 빈 목록이다.
+  //     Report 에는 title · visit_date · read_at 칸이 없어 가까운 칸으로
+  //     채운다: 날짜는 잠금이 풀린 날(설명한 날), 읽음은 last_viewed_at.
+  results:      ()         => get("/api/v1/reports/").then((raw) => ({
+    ...(raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {}),
+    items: (Array.isArray(raw) ? raw : (raw?.results ?? raw?.items ?? [])).map((r) => ({
+      ...r,
+      title: r.title ?? "검사 결과 안내",
+      visit_date: r.visit_date ?? (r.unlocked_at || r.explained_at || "").slice(0, 10),
+      read_at: r.read_at ?? r.last_viewed_at,
+    })),
+  })),
   report:       (id)       => get(`/api/v1/reports/${id}/`),
 
   // 08  챗봇 — 개인 결과를 인용하지 않는 안내용이다

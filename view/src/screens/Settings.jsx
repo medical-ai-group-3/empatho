@@ -1,7 +1,12 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Capacitor } from "@capacitor/core";
+import { PushNotifications } from "@capacitor/push-notifications";
+import { api } from "../api";
 import { SCALES, useScale, useTheme } from "../lib/theme";
 import { Head } from "../lib/Screen";
 import { clearSeen, COACH_HOME } from "../lib/seen";
+import Switch from "../lib/Switch";
 
 /* 11 · 설정
  *
@@ -21,11 +26,46 @@ const THEMES = [
   { id: "dark",   label: "다크 모드" },
 ];
 
+/* 알림 켜짐/꺼짐. **진짜 스위치는 서버의 push_token 이다** — 토큰이 있는
+ * 계정에만 서버가 푸시를 보낸다(empatho-app core/delivery.py).
+ *
+ *   켜기  기기를 FCM 에 등록해 받은 토큰을 서버에 올린다
+ *   끄기  서버의 토큰을 비운다
+ *
+ * 켜짐 여부는 이 기기에 적어 둔다(PUSH_KEY). 서버에 토큰을 묻는 자리가 없고,
+ * 알림은 기기마다 켜고 끄는 것이라 그걸로 충분하다.
+ * 웹에서는 기기 등록을 못 해서 스위치를 잠근다.
+ */
+const PUSH_KEY = "push-on";
+const NATIVE = Capacitor.isNativePlatform();
+
+function readPush() {
+  try { return localStorage.getItem(PUSH_KEY) === "1"; } catch { return false; }
+}
+
+async function deviceToken() {
+  const p = await PushNotifications.requestPermissions();
+  if (p.receive !== "granted") {
+    throw new Error("휴대폰 설정에서 EMPATHO 알림을 허용해 주세요");
+  }
+  try {
+    return await new Promise((ok, no) => {
+      PushNotifications.addListener("registration", (t) => ok(t.value));
+      PushNotifications.addListener("registrationError", (e) => no(new Error(e.error)));
+      PushNotifications.register();
+    });
+  } finally {
+    await PushNotifications.removeAllListeners();
+  }
+}
+
 export default function Settings() {
   return (
     <>
       <Head title="설정" />
-      <Inner />
+      <div className="pane settings">
+        <Inner />
+      </div>
     </>
   );
 }
@@ -34,6 +74,21 @@ function Inner() {
   const navigate = useNavigate();
   const [theme, setTheme] = useTheme();
   const [scale, setScale] = useScale();
+  const [push, setPush] = useState(readPush);
+  const [pushBusy, setPushBusy] = useState(false);
+  const [pushErr, setPushErr] = useState(null);
+
+  async function togglePush(on) {
+    setPushBusy(true); setPushErr(null);
+    try {
+      await api.registerPushToken(on ? await deviceToken() : "");
+      setPush(on);
+      try { localStorage.setItem(PUSH_KEY, on ? "1" : "0"); } catch { /* 이 기기에서만 잊는다 */ }
+    } catch (e) {
+      setPushErr(e.detail || e.message || "알림 설정을 바꾸지 못했습니다");
+    } finally { setPushBusy(false); }
+  }
+
   function replayGuide() {
     clearSeen(COACH_HOME);
     navigate("/");
@@ -75,10 +130,17 @@ function Inner() {
 
       <h3 className="sec">알림</h3>
       <div className="card">
-        <span className="k">알림 수신 설정</span>
+        <div className="row-sw">
+          <span className="k">알림 받기</span>
+          <Switch on={push} onChange={togglePush} label="알림 받기"
+                  disabled={!NATIVE || pushBusy} />
+        </div>
         <span className="s">
-          알림 종류별 수신 설정은 준비 중입니다. 새 알림은 알림 목록에서 확인할 수 있습니다.
+          {NATIVE
+            ? "검사 결과 · 예약 · 복약 알림을 휴대폰으로 받습니다. 알림 목록에는 꺼 두어도 쌓입니다."
+            : "알림은 휴대폰 앱에서만 켜고 끌 수 있습니다."}
         </span>
+        {pushErr && <span className="s err">{pushErr}</span>}
       </div>
 
       <h3 className="sec">도움말</h3>
