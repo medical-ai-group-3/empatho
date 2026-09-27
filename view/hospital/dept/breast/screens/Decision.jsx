@@ -89,15 +89,15 @@ function Inner({ patient, onReload }) {
         {report ? <AiSummaryCard report={report} /> : <FinalReportCard patient={patient} reports={reports} onCreated={onReload} />}
         {report ? <DoctorSummaryCard report={report} /> : <PendingReportCard title="의사 종합 리포트" />}
         <PrescriptionDraft patient={patient} report={report} />
-        {report
-          ? <ExplainForm report={report} onSaved={onReload} unlock={unlock} />
-          : <PendingReportCard title="의사 최종 소견" />}
       </div>
 
       <div className="dec-col">
         <PatientInfoCard patient={patient} />
         <DecisionLog />
         <PatientReportCard report={report} reports={reports} unlock={unlock} />
+        {report
+          ? <ExplainForm report={report} onSaved={onReload} unlock={unlock} />
+          : <PendingReportCard title="의사 최종 소견" />}
       </div>
       </div>
     </>
@@ -433,7 +433,6 @@ function PrescriptionDraft({ patient, report }) {
           <h3>환자 처방</h3>
           <p className="meta">저장 즉시 환자 앱의 복약 관리에 표시됩니다. 처방 일수는 약마다 따로 셉니다.</p>
         </div>
-        <span className="pill ok">API 연결됨</span>
       </div>
 
       {saved.data?.length > 0 && <p className="meta">저장된 처방 {saved.data.length}건</p>}
