@@ -360,12 +360,6 @@ class FinalReportView(viewsets.ViewSet):
 def _specimen_ai(specimen):
     """크롭 한 장 = AiResult 한 행. 병리 판독 화면의 AI 소견 칸이 읽는다.
 
-    ⚠ sTIL 은 내보내지 않는다(null). 소켓이 내는 stil_percent 는 임상 육안
-      TIL 의 약 1/12 스케일이고(비보정), 보정은 슬라이드 합산값에만 적용한다
-      — empatho-inference/sockets/pathology.py 상단. 그 합산 코드가 아직
-      앱 서버에 없다. 비보정값을 보정값 자리에 넣으면 화면이 「면역 반응이
-      거의 없다」로 읽힌다.
-
     ⚠ 평균을 내지 않는다. 같은 슬라이드도 자른 자리에 따라 0~36% 로
       요동친다(CV≈1.0). 크롭마다 한 줄씩 그대로 올린다.
     """
