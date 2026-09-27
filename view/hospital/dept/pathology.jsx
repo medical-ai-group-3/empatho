@@ -172,13 +172,7 @@ function attachMasks(crops, files, aiRows) {
    result: { image, socket_id, result: { …모델이 낸 값… } } }.
    화면은 안쪽 값을 이름으로 찾는데 봉투를 그대로 넘기고 있었다. 그래서
    sTIL·TSR·세포 수가 전부 「—」로, 간질 상태는 undefined !== "absent" 라
-   늘 「있음」으로 나왔다(09-23 검체 40 에서 확인). 한 겹 벗겨 준다.
-
-   ⚠ stil_percent 는 **그대로 내지 않는다.** 임상 육안 TIL 대비 약 1/12
-     스케일이라(sockets/pathology.py) 그대로 보이면 「면역 반응이 거의
-     없다」로 읽힌다. 화면에 낼 수 있는 것은 보정값(stil_calibrated)뿐인데
-     그건 앱 서버가 검체 행에 채워야 하고 지금은 비어 있다. 그래서 sTIL
-     칸은 「보정 전 — 표시하지 않음」이 맞다. */
+   늘 「있음」으로 나왔다(09-23 검체 40 에서 확인). 한 겹 벗겨 준다. */
 function pathAiRow(row = {}) {
   const env = row.result ?? {};
   const r = env.result ?? {};
@@ -190,7 +184,6 @@ function pathAiRow(row = {}) {
     abstain_reason: row.abstain_reason ?? env.reason ?? null,
 
     stroma_status: r.stroma_status ?? null,
-    /* 보정값은 검체 행에 있다. 없으면 null 로 두고 화면이 「표시하지 않음」 */
     stil_calibrated: row.stil_calibrated ?? null,
     stil_level: row.stil_level ?? null,
 

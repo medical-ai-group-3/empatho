@@ -1,7 +1,10 @@
 import { useState } from "react";
 import { breast as api } from "../../../api";
 
-/* "이상 없음 · 종결" 확인 팝업 — 촬영 없이 방문을 닫는다.
+/* "진료 완료" 확인 팝업 — 촬영 없이 방문을 닫는다.
+ *
+ * 09-28 — 「이상 없음 · 종결」이라 이름 붙어 있어 진료만 보고 끝난 환자에
+ * 아무도 안 눌렀다. 오더가 안 닫혀 환자 앱 「내 예약」·대기에 계속 남았다.
  *
  * 사유 입력칸을 두지 않는다. PATCH /exam-orders/{id}/complete 는 몸통을
  * 안 받아서(api.js 의 breast.completeExamOrder 주석 참고) 여기서 뭘 적어도
@@ -19,25 +22,19 @@ export default function CloseVisitModal({ patient, onClose, onDone }) {
     setError(null);
     try {
       const orders = await api.ordersOf(patient.patient_id);
-      /* 종결은 지금 접수된 방문(requested + visited_at)만 할 수 있다.
-         미래 예약이나 이전 미종결 오더까지 후보에 넣으면 엉뚱한 검사가
-         종결될 수 있다. */
+      /* 종결은 접수된 방문(requested + visited_at)만 — 미래 예약이나
+         촬영을 지시한 오더(ordered 이후)는 넣지 않는다. */
       const open = (orders ?? [])
         .filter((o) => o.order_status === "requested" && o.visited_at)
         .sort((a, b) => new Date(b.visited_at ?? b.scheduled_at ?? b.ordered_at ?? 0)
           - new Date(a.visited_at ?? a.scheduled_at ?? a.ordered_at ?? 0));
-      const target = open[0];
-      if (!target) {
+      if (!open.length) {
         setError("종결할 오더를 찾지 못했습니다 — 원무 접수 기록을 확인해 주세요");
         return;
       }
-      /* 백엔드는 상황에 따라 exam_order_id 또는 기본 id를 돌려준다. */
-      const orderId = target.exam_order_id ?? target.id;
-      if (orderId == null) {
-        setError("종결할 방문 번호를 확인하지 못했습니다. 새로고침 후 다시 시도해 주세요.");
-        return;
-      }
-      await api.completeExamOrder(orderId);
+      /* 접수된 채 안 닫힌 방문을 모두 닫는다 — 전에 안 닫힌 것까지 남으면
+         환자 앱에 계속 뜬다. 백엔드는 exam_order_id 또는 id 를 돌려준다. */
+      for (const o of open) await api.completeExamOrder(o.exam_order_id ?? o.id);
       onDone?.();
     } catch (e) {
       setError(e.detail || e.message);
@@ -50,20 +47,20 @@ export default function CloseVisitModal({ patient, onClose, onDone }) {
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
-          <h2>이상 없음 · 종결 — {patient.name}</h2>
+          <h2>진료 완료 — {patient.name}</h2>
           <button aria-label="닫기" onClick={onClose}>×</button>
         </div>
         <div className="modal-body">
           <p style={{ fontSize: 13.5 }}>
-            촬영 없이 이 환자의 방문을 종결합니다. 대기 목록에서 빠지고
-            다음 환자로 넘어갑니다.
+            이번 방문을 마칩니다. 대기 목록과 환자 앱 예약에서 빠지고
+            다음 환자로 넘어갑니다. 촬영을 요청한 건은 판독이 끝나면 따로 닫힙니다.
           </p>
           {error && <p className="field err">{error}</p>}
         </div>
         <div className="modal-foot">
           <button className="btn ghost" onClick={onClose}>취소</button>
           <button className="btn" onClick={confirm} disabled={saving}>
-            {saving ? "처리 중…" : "종결"}
+            {saving ? "처리 중…" : "진료 완료"}
           </button>
         </div>
       </div>

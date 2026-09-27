@@ -1118,7 +1118,7 @@ export const breast = {
   finalReport:  (body) => post("/reports/final", body),
   examOrder:    (b)  => post("/exam-orders", b),
 
-  /* "이상 없음 · 종결" — 촬영 없이 방문을 닫는다. exam_order 를 새로 만들지
+  /* "진료 완료" — 촬영 없이 방문을 닫는다. exam_order 를 새로 만들지
    * 않는다(모달리티 없는 오더를 지어낼 수 없다 — ExamOrderRequestSerializer가
    * modality 를 필수로 받는다). 대신 이 환자를 여기로 데려온 exam_order를
    * 찾아 그대로 종결시킨다 — reception.ordersOf 와 같은 조회를 쓴다.
