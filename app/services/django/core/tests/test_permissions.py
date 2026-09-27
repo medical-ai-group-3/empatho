@@ -124,8 +124,17 @@ class NewResourceTests(SimpleTestCase):
         patient = perm.rule_for("patient_pii", perm.PATIENT)
         self.assertEqual(patient.actions, "R")      # /me/profile
         self.assertTrue(patient.own_only)
-        for role in (perm.NURSING, perm.RADIOLOGY, perm.PATHOLOGY, perm.SURGERY):
+        # 간호는 원무 일을 이어받아 원무와 같다(09-27 합침)
+        self.assertEqual(perm.rule_for("patient_pii", perm.NURSING).actions, "CRU")
+        for role in (perm.RADIOLOGY, perm.PATHOLOGY, perm.SURGERY):
             self.assertEqual(perm.rule_for("patient_pii", role).actions, "", role)
+
+    def test_간호는_원무가_가진_것을_다_가진다(self):
+        for resource in perm.MATRIX:
+            rec = perm.rule_for(resource, perm.RECEPTION).actions
+            nur = perm.rule_for(resource, perm.NURSING).actions
+            for a in rec:
+                self.assertIn(a, nur, resource)
 
     def test_알림은_본인_것만_읽고_확인한다(self):
         for role in perm.MATRIX["notification"]:

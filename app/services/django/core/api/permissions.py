@@ -180,6 +180,28 @@ MATRIX = {
 }
 
 
+# 09-27 — 원무과가 간호과로 합쳐졌다(프론트 hospital/nav.js 6.1). 창구 일
+# (환자 등록 · 접수 · 예약 · 인적 사항 수정)을 간호가 하므로 **간호는 원무가
+# 가진 것을 다 가진다.** 행마다 손으로 옮기면 원무 칸을 고칠 때 간호 칸을
+# 빠뜨리게 되므로 여기서 한 번에 더한다. 빼는 것은 없다 — 간호 고유의
+# 권한(문진 · 추적 · 영상 원본)은 그대로 남는다.
+def _merge_reception_into_nursing():
+    for table in MATRIX.values():
+        rec = table.get(RECEPTION, NONE)
+        nur = table.get(NURSING, NONE)
+        actions = "".join(a for a in "CRUD" if a in rec.actions or a in nur.actions)
+        # 한쪽이라도 「전체」면 전체다. 빈 쪽은 따지지 않는다
+        owns = [r.own_only for r in (rec, nur) if r.actions]
+        table[NURSING] = Rule(
+            actions=actions,
+            own_only=bool(owns) and all(owns),
+            note=" · ".join(n for n in (nur.note, rec.note) if n),
+        )
+
+
+_merge_reception_into_nursing()
+
+
 def rule_for(resource, role):
     try:
         table = MATRIX[resource]
