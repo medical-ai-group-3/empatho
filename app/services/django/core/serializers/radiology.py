@@ -23,6 +23,15 @@ class StudySerializer(serializers.ModelSerializer):
     # 자리에서는 None 이다
     viewed_at = serializers.DateTimeField(read_only=True, default=None)
     image_count = serializers.SerializerMethodField()
+    # 가장 최근 AI 실행 상태 — 목록은 views/radiology.py 의 _latest_ai_status
+    # 가 얹어 온다. 단건처럼 안 실려 온 자리에서는 그때 한 번 본다
+    ai_status = serializers.SerializerMethodField()
+
+    def get_ai_status(self, obj):
+        if hasattr(obj, "ai_status"):
+            return obj.ai_status
+        last = obj.ai_results.order_by("-created_at", "-ai_result_id").first()
+        return last.run_status if last else None
 
     def get_image_count(self, obj) -> int:
         """올라온 영상 파일 수. **0 이면 아직 촬영 전이다.**

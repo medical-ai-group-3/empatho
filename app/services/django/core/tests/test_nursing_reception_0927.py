@@ -359,3 +359,15 @@ class ReservationEditRouteTests(SimpleTestCase):
     def test_바꿀_수_있는_것은_아직_안_온_예약뿐(self):
         from core import views
         self.assertEqual(set(views.ExamOrderRescheduleView.EDITABLE), {"requested", "scheduled"})
+
+
+class StudyAiStatusTests(SimpleTestCase):
+    """09-27 영상 홈 — 검사 목록 행에 가장 최근 AI 실행 상태를 싣는다."""
+
+    def test_목록_쿼리셋에_ai_status_가_얹힌다(self):
+        from core.views import radiology as radv
+        qs = models.Study.objects.annotate(ai_status=radv._latest_ai_status())
+        self.assertIn("run_status", str(qs.query))
+
+    def test_시리얼라이저에_ai_status_칸이_있다(self):
+        self.assertIn("ai_status", serializers.StudySerializer().fields)

@@ -14,7 +14,7 @@ from rest_framework import viewsets, status, generics
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from django.db.models import Count, F, Q
+from django.db.models import Count, F, OuterRef, Q, Subquery
 from django.utils import timezone
 
 from ..tasks import run_inference
@@ -59,6 +59,7 @@ class StudyViewSet(viewsets.ReadOnlyModelViewSet):
                 filter=Q(storage_objects__deleted_at__isnull=True),
                 distinct=True,
             ),
+            ai_status=_latest_ai_status(),
             # 목록의 「유방외과 열람」 칸 — core/viewed.py
             viewed_at=viewed.last_seen("study"),
         )
@@ -119,6 +120,16 @@ class PatientStudiesView(generics.ListAPIView):
         ).order_by(F("performed_at").desc(nulls_last=True), "-study_id")
 
 
+def _latest_ai_status():
+    """이 검사의 **가장 최근** AI 실행 상태(queued · running · done · failed).
+    한 번도 안 돌렸으면 None. 목록에서 한 번의 서브쿼리로 얹는다 —
+    줄마다 /ai-results 를 부르면 N+1 이다(09-27, 영상 홈이 「AI 분석 중」 과
+    「소견 대기」를 가르려고 쓴다)."""
+    latest = models.AiResult.objects.filter(study=OuterRef("pk")).order_by(
+        "-created_at", "-ai_result_id").values("run_status")[:1]
+    return Subquery(latest)
+
+
 class ExamOrderQueueView(generics.ListAPIView):
     """GET /radiology/queue — ① 촬영 대기 리스트.
 
@@ -138,7 +149,9 @@ class ExamOrderQueueView(generics.ListAPIView):
         #   assigned_to 도 order_status 도 안 건드리기 때문에, 집기(assign)
         #   없이 촬영만 시작한 경로가 생기면 그 오더는 영영 큐에 남는다.
         #   재촬영 오더는 새 행이라 studies 가 비어 있어 그대로 올라온다.
-        qs = models.ExamOrder.objects.filter(
+        qs = models.ExamOrder.objects.select_related(
+            "patient__pii", "patient__primary_staff", "ordered_by", "handed_to",
+        ).filter(
             modality__in=["mammo", "us", "mri"]
         ).filter(studies__isnull=True).order_by("ordered_at")
         
