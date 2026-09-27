@@ -306,25 +306,44 @@
 
 /* ──────────────────────  입장 중 상태  ────────────────────── */
 
-.empatho-scene .entering { display: grid; gap: 20px; justify-items: start; }
+.empatho-scene .entering { display: grid; gap: 26px; justify-items: start; }
 .empatho-scene .entering[hidden] { display: none; }
+
+/* 「환영합니다」는 라벨, 이름이 주인공. 한국어는 단어 중간에서 끊지 않는다 */
 .empatho-scene .entering strong {
-  font-size: clamp(23px, 1.9vw, 30px);
+  font-size: clamp(18px, 1.5vw, 21px);
   font-weight: 300;
-  letter-spacing: .01em;
-  line-height: 1.35;
-  color: #f3f8ff;
-  /* 한국어는 단어 중간에서 끊지 않는다 */
+  letter-spacing: .15em;
+  line-height: 1.5;
+  color: #9db0c4;
   word-break: keep-all;
 }
-.empatho-scene .entering__who { display: block; }
+.empatho-scene .entering__who {
+  display: block;
+  margin-top: 10px;
+  font-size: clamp(27px, 2.2vw, 34px);
+  font-weight: 200;
+  letter-spacing: .03em;
+  line-height: 1.45;
+  color: #f3f8ff;
+}
 
+/* SVG 다. border-radius 로 만든 링을 회전시키면 브라우저가 한 번 래스터한
+   그림을 돌려서, 각도에 따라 원이 직선처럼 뭉개지는 프레임이 나온다 */
 .empatho-scene .pulse {
-  width: 34px; height: 34px;
-  border-radius: 50%;
-  border: 1.5px solid rgba(199, 230, 255, .28);
-  border-top-color: #cfe7ff;
+  width: 32px; height: 32px;
   animation: empatho-spin 900ms linear infinite;
+}
+.empatho-scene .pulse circle {
+  fill: none;
+  stroke: rgba(199, 230, 255, .24);
+  stroke-width: 1.6;
+}
+.empatho-scene .pulse .pulse__arc {
+  stroke: #cfe7ff;
+  stroke-linecap: round;
+  /* 둘레 2π×14 ≈ 88 — 넷 중 하나만 그린다 */
+  stroke-dasharray: 22 66;
 }
 @keyframes empatho-spin { to { transform: rotate(360deg); } }
 
@@ -486,7 +505,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .empatho-scene .dolly, .empatho-scene .bloom, .empatho-scene .panel, .empatho-scene .veil, .empatho-scene .plate--still { transition-duration: 220ms !important; }
-  .empatho-scene .pulse { animation: none; border-top-color: rgba(199, 230, 255, .28); }
+  .empatho-scene .pulse { animation: none; }
+  .empatho-scene .pulse .pulse__arc { stroke-dasharray: none; stroke: rgba(199, 230, 255, .4); }
 }
 
 /* ══════════════════════════════════════════════════════════════

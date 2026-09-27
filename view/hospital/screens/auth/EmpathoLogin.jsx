@@ -355,7 +355,10 @@ export default function EmpathoLogin({
 
           {phase.opening && (
             <div className="entering" role="status" aria-live="polite">
-              <span className="pulse" aria-hidden="true" />
+              <svg className="pulse" viewBox="0 0 32 32" aria-hidden="true">
+                <circle cx="16" cy="16" r="14" />
+                <circle cx="16" cy="16" r="14" className="pulse__arc" />
+              </svg>
               {/* 이름은 둘째 줄로 내린다 — 한 줄에 붙이면 긴 이름에서
                   「님」만 떨어져 나간다 */}
               <strong>
