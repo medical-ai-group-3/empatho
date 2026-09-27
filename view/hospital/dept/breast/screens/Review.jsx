@@ -11,20 +11,20 @@ import * as H from "../../home";
 import "../breast.css";
 import ReviewViewer from "../components/ReviewViewer";
 
-/* 유방외과 · 검사 종합 — 09-27 개편
+/* 유방외과 · 환자 상세(옛 「검사 종합」) — 09-27 개편
  * ════════════════════════════════════════════════════════════════
  *
  * **영상과 병리를 나란히 놓고 한 번에 읽는 자리다.** 두 과가 각자 확정한
  * 것을 여기서 처음으로 맞대어 본다.
  *
  *   ┌──────────────────────────────────────────────────────────────┐
- *   │ 환자 · 나이/성별 · 번호 · 내원 · 의뢰 · 주치의   [엇갈림] [화상 보기] │
+ *   │ 환자 · 나이/성별 · 번호 · 내원 · 의뢰 · 주치의   [엇갈림] [영상 확인] │
  *   ├─────────────────────────────┬────────────────────────────────┤
  *   │ 영상 판독  BI-RADS 4a        │ 병리 결과  B2                   │
  *   │  ▾ 09-23 유방촬영 · 4a       │  ▾ 09-27 검체 51 · B5           │
  *   │  ▸ 09-22 초음파 · 3          │  ▸ 09-23 검체 44 · B2           │
  *   └─────────────────────────────┴────────────────────────────────┘
- *   [화상 보기] → 팝업 뷰어. 탭 초음파 · 유방촬영 · MRI · 병리
+ *   [영상 확인] → 팝업 뷰어. 탭 초음파 · 유방촬영 · MRI · 병리
  *
  * ⚠ 판독은 **한 건씩 접는다.** 전에는 소견문이 전부 펼쳐져 있어 화면이
  *   길었고, 병리 쪽은 펼치고 접을 방법이 없었다. 가장 최근 한 건만 편다.
@@ -38,11 +38,12 @@ export default function Review() {
   const p = useApi(() => api.patient(id), [id]);
 
   return (
-    <Page className="rev-page" crumb={["유방외과", "검사 종합"]}
-          title="검사 종합" patient={p.data}
+    <Page className="rev-page" crumb={["유방외과", "환자 상세"]}
+          title="환자 상세" patient={p.data}
           right={(
             <>
-              <Btn to={go.patient(id)}>환자 상세</Btn>
+              {/* 제목이 「환자 상세」라 공용 환자 페이지는 그 중심인 히스토리 이름으로 */}
+              <Btn to={go.patient(id)}>전체 히스토리</Btn>
               <Btn to={go.breast.decision(id)}>치료 방침</Btn>
               <Btn to={go.breast.waiting()}>내 환자</Btn>
             </>
@@ -105,7 +106,7 @@ function Inner({ p }) {
           </span>
           {odd && <Btn to={go.breast.discordance(odd.discordance_id)}>처분하기</Btn>}
         </div>
-        <Btn kind="fill" onClick={() => setSeeing(true)}>화상 보기</Btn>
+        <Btn kind="fill" onClick={() => setSeeing(true)}>영상 확인</Btn>
       </section>
 
       <div className="rev">
@@ -213,7 +214,7 @@ function Readings({ title, gradeLabel, items, lines = [] }) {
   );
 }
 
-/* 화상 보기 팝업 — 화면 위에 띄운다. Esc · 바깥 누르기 · ×로 닫는다 */
+/* 영상 확인 팝업 — 화면 위에 띄운다. Esc · 바깥 누르기 · ×로 닫는다 */
 function ImagePopup({ name, onClose, children }) {
   useEffect(() => {
     const esc = (e) => { if (e.key === "Escape") onClose(); };
@@ -223,10 +224,10 @@ function ImagePopup({ name, onClose, children }) {
 
   return (
     <div className="rev-pop-back" onClick={onClose}>
-      <div className="rev-pop" role="dialog" aria-label={`화상 보기 · ${name}`}
+      <div className="rev-pop" role="dialog" aria-label={`영상 확인 · ${name}`}
            onClick={(e) => e.stopPropagation()}>
         <header>
-          <b>화상 보기 · {name}</b>
+          <b>영상 확인 · {name}</b>
           <button type="button" onClick={onClose} aria-label="닫기">×</button>
         </header>
         <div className="rev-pop-b breast">{children}</div>

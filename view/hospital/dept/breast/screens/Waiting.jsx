@@ -269,7 +269,7 @@ function Mid({ p, onNext, onOpen, onGuide }) {
         <span className="home-fill" />
         <Btn onClick={onNext}>다음 환자 →</Btn>
         <Btn to={go.breast.decision(p.patient_id)}>치료 방침 결정</Btn>
-        <Btn kind="fill" to={go.breast.review(p.patient_id)}>검사 종합</Btn>
+        <Btn kind="fill" to={go.breast.review(p.patient_id)}>환자 상세</Btn>
       </div>
 
       <section className="work-read">

@@ -174,13 +174,21 @@ export default function ReviewViewer({
       {/* 같은 모달리티를 두 번 이상 찍었을 때만 — 날짜로 고른다 */}
       {tab !== "pathology" && shots.length > 1 && (
         <div className="spec-picks viewer-shots" aria-label="촬영 고르기">
-          {shots.map((s) => (
-            <button key={idOf(s)} type="button"
-                    className={idOf(s) === idOf(study) ? "on" : ""}
-                    onClick={() => setPicked(idOf(s))}>
-              {String(whenOf(s) ?? "").slice(0, 10) || "날짜 없음"} · #{idOf(s)}
-            </button>
-          ))}
+          {shots.map((s) => {
+            const day = String(whenOf(s) ?? "").slice(0, 10);
+            /* 같은 날 여러 번 찍었으면 그날의 몇 번째인지 붙인다(오래된 것이 1) */
+            const same = shots.filter((x) => String(whenOf(x) ?? "").slice(0, 10) === day);
+            const nth = same.length > 1 ? same.length - same.indexOf(s) : null;
+            return (
+              <button key={idOf(s)} type="button"
+                      className={idOf(s) === idOf(study) ? "on" : ""}
+                      title={`검사 #${idOf(s)}`}
+                      onClick={() => setPicked(idOf(s))}>
+                {day ? day.slice(2).replaceAll("-", ".") : "날짜 없음"}
+                {nth && <small>({nth})</small>}
+              </button>
+            );
+          })}
         </div>
       )}
 

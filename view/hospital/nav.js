@@ -164,7 +164,7 @@ const DEPTS = [
       { key: "patients", use: "breast.patients", menu: "전체 환자", title: "전체 환자",
         need: "breast.waiting.view" },
 
-      { key: "patients/:id/review", use: "breast.review", menu: "검사 종합", title: "검사 종합",
+      { key: "patients/:id/review", use: "breast.review", menu: "환자 상세", title: "환자 상세",
         need: "breast.review.view", deep: true },
 
       { key: "patients/:id/decision", use: "breast.decision", menu: "치료 방침", title: "치료 방침",
