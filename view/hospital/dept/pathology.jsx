@@ -184,6 +184,9 @@ function pathAiRow(row = {}) {
     abstain_reason: row.abstain_reason ?? env.reason ?? null,
 
     stroma_status: r.stroma_status ?? null,
+    /* AI 계측 TIL 면적비 — 핵 면적 기준. 병리의사 육안 sTIL 과 척도가 달라
+       「sTIL」로 부르지 않는다(09-28) */
+    stil_ai: r.stil_percent ?? null,
     stil_calibrated: row.stil_calibrated ?? null,
     stil_level: row.stil_level ?? null,
 
@@ -410,7 +413,7 @@ export const pathology = {
     },
     notes: [
       "WSI 전체가 아니라 잘라낸 조직 이미지를 올립니다.",
-      "한 검체에 여러 장을 올릴 수 있습니다. 같은 슬라이드라도 자른 자리에 따라 sTIL 이 크게 달라져, 여러 장을 돌려 분포를 보는 쪽이 맞습니다.",
+      "한 검체에 여러 장을 올릴 수 있습니다. 같은 슬라이드라도 자른 자리에 따라 AI 계측값이 크게 달라져, 여러 장을 돌려 분포를 보는 쪽이 맞습니다.",
       "장마다 분석 결과가 한 건씩 생깁니다.",
       "파일은 Django 를 거치지 않고 Go 관문으로 곧장 올라갑니다.",
     ],
