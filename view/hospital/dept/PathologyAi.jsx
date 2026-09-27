@@ -1,21 +1,33 @@
 import { Chip } from "../lib/Parts";
-import { STIL_LEVEL, label } from "../codes";
 import { PartBar, SplitBar, StripPlot } from "./AiViz";
 
 /* 병리 AI 소견 — 등급이 아니라 정량 지표다
  * ────────────────────────────────────────────────────────────────
  *
  * 영상의학과 AI 소견과 자리는 같고 내용이 다르다. 병리 모델은 BI-RADS 를
- * 내지 않는다. 대신 숫자 넷을 낸다 — sTIL · TSR · 세포 수 · 간질 상태.
+ * 내지 않는다. 대신 숫자 넷을 낸다 — AI 계측값 · TSR · 세포 수 · 간질 상태.
  *
- * ⚠ 지켜야 할 것 둘
+ * ⚠ 09-28 결정 — **이 패널이 내는 값은 "sTIL"이 아니다.**
+ *   sTIL(임상 수치)은 병리의가 검체 단위로 직접 입력한다(Doctor 섹션,
+ *   dept/pathology.jsx). 여기 stil_percent 는 모델이 낸 원시값이고
+ *   "AI 계측값"으로만 부른다 — 이름을 "sTIL"로 쓰면 두 값이 같은
+ *   척도인 것처럼 읽힌다. 보정계수는 안 쓴다(저장소 전체를 뒤져봐도
+ *   실제로 곱하는 코드가 없었다 — 09-27 확인). 저/중/고 라벨도 안
+ *   붙인다 — 그건 임상 판정의 언어라 AI 계측값에 붙이면 안 된다.
  *
- *   1. **간질이 없으면 0% 가 아니라 「평가 불가」다.**
- *      stroma_status 가 absent 면 sTIL 이 null 이다. 0% 로 그리면
+ * ⚠ 지켜야 할 것 셋
+ *
+ *   1. **AI 계측값을 볼 때마다 안내 문구를 같이 낸다.**
+ *      "병리의사 sTIL과 척도가 달라 직접 비교할 수 없습니다. 세포
+ *      검출 누락으로 실제보다 낮게 나올 수 있습니다." — 척도가 다른
+ *      숫자를 나란히 두면 누구나 비교하고 싶어진다.
+ *
+ *   2. **간질이 없으면 0% 가 아니라 「평가 불가」다.**
+ *      stroma_status 가 absent 면 AI 계측값이 null 이다. 0% 로 그리면
  *      「면역 반응이 없다」는 정반대 뜻이 된다.
  *
- *   2. **크롭 여러 장을 평균 내지 않는다.**
- *      같은 슬라이드도 자른 자리에 따라 sTIL 이 0~36% 로 흔들린다
+ *   3. **크롭 여러 장을 평균 내지 않는다.**
+ *      같은 슬라이드도 자른 자리에 따라 값이 0~36% 로 흔들린다
  *      (변동계수 ≈ 1.0). 평균은 우리가 만든 값이지 모델이 낸 값이
  *      아니다. 장마다 나란히 놓고 판독의가 분포를 본다.
  */
@@ -34,15 +46,21 @@ export default function PathologyAi({ d }) {
       </p>
 
       {/* 크롭이 두 장 이상일 때만 — 한 점은 분포가 아니다. 평균을 내지
-          않는다는 원칙을 그림으로 지킨다. */}
-      <StripPlot
-        label="크롭별 sTIL (보정값)"
-        points={rows
-          .filter((r) => !r.abstained && r.stroma_status !== "absent")
-          .map((r, i) => ({ name: `${i + 1}`, value: r.stil_calibrated }))}
-        note="장마다 점으로 찍습니다. 평균은 모델이 낸 값이 아닙니다." />
+          않는다는 원칙을 그림으로 지킨다.
 
-      {/* 크롭 사이 흔들림을 여기서 본다. */}
+          ⚠ 이름표가 "sTIL"이 아니라 "AI 계측값"이다(09-28). 병리의가
+            입력하는 sTIL 과 척도가 다르다 — 같은 이름으로 그리면 두
+            값을 겹쳐 읽게 된다. 병리의 sTIL 과 분리해 덜 강조한다. */}
+      <div className="muted">
+        <StripPlot
+          label="크롭별 AI 계측값 (참고용)"
+          points={rows
+            .filter((r) => !r.abstained && r.stroma_status !== "absent")
+            .map((r, i) => ({ name: `${i + 1}`, value: r.stil_percent }))}
+          note="장마다 점으로 찍습니다. 평균은 모델이 낸 값이 아닙니다." />
+      </div>
+
+      {/* 종양 비율은 보정 문제가 없다 — 크롭 사이 흔들림을 여기서 본다. */}
       <StripPlot
         label="크롭별 종양 비율"
         points={rows
@@ -65,15 +83,27 @@ export default function PathologyAi({ d }) {
             </div>
           ) : (
             <dl className="ai-m">
+              {/* ⚠ "sTIL"이 아니다 — 병리의가 입력하는 sTIL 은 Doctor
+                  섹션에 따로 있다. 여기는 모델 원시값이고 이름도 값도
+                  그쪽과 섞이지 않게 둔다(작은 글씨·회색, 등급 라벨 없음). */}
               <div>
-                <dt>sTIL</dt>
-                <dd>
+                <dt>
+                  AI 계측값{" "}
+                  <span className="muted small">(간질 대비 면역세포 면적 비율)</span>
+                </dt>
+                <dd className="muted">
                   {r.stroma_status === "absent" ? (
                     <span className="ai-na inline">평가 불가 — 간질 없음</span>
-                  ) : r.stil_calibrated == null ? (
-                    <span className="ai-na inline">보정 전 — 표시하지 않음</span>
+                  ) : r.stil_percent == null ? (
+                    <span className="ai-na inline">값 없음</span>
                   ) : (
-                    <>{r.stil_calibrated}<i>%</i> <em>({label(STIL_LEVEL, r.stil_level)})</em></>
+                    <>
+                      {fmt1(r.stil_percent)}<i>%</i>
+                      <p className="muted small">
+                        병리의사 sTIL과 척도가 달라 직접 비교할 수 없습니다.
+                        세포 검출 누락으로 실제보다 낮게 나올 수 있습니다.
+                      </p>
+                    </>
                   )}
                 </dd>
               </div>
@@ -150,6 +180,13 @@ export default function PathologyAi({ d }) {
 
 function fmt(n) {
   return n == null ? "—" : n.toLocaleString("ko-KR");
+}
+
+/* AI 계측값은 소수 1자리로 낸다(09-28). 모델은 자릿수를 더 주지만
+   그 아래 자리는 크롭을 조금만 다르게 잘라도 바뀌는 값이라, 있는 대로
+   찍으면 없는 정밀도를 보여 주는 셈이 된다. */
+function fmt1(n) {
+  return typeof n === "number" && Number.isFinite(n) ? n.toFixed(1) : "—";
 }
 
 function sum(...xs) {

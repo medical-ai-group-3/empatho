@@ -116,7 +116,11 @@ function Inner({ cfg, id, d }) {
      버튼 위 한 줄에 적혀 있어야 한다 */
   async function draft() {
     setBusy(true); setMsg(null);
-    const payload = {
+    /* 09-28 추가 — 과마다 임시저장 바디 모양이 다르다(영상은 lesion_id·
+       category, 병리는 b_category·diagnosis·stil_calibrated). c.draftPayload
+       가 있으면 그걸 쓰고, 없는 과(영상)는 기존 모양 그대로 쓴다 —
+       cfg/dept/pathology.jsx 의 draftPayload 참고. */
+    const payload = c.draftPayload ? c.draftPayload(f) : {
       lesion_id: f.lesion_id ?? null,
       finding_note: f.finding_note ?? "",
       category: f.category ?? null,
