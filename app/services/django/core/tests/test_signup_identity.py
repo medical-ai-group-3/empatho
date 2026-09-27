@@ -43,6 +43,18 @@ class SignupIdentityTests(TestCase):
         p.refresh_from_db()
         self.assertEqual(p.account.login_id, "kim1")
 
+    def test_휴대폰은_임시로_대조하지_않는다(self, _):
+        # PHONE_CHECK 를 되돌리면 이 테스트를 지운다
+        r = self.c.post("/api/v1/signup/identity", {**FORM, "phone": "01099998888"},
+                        format="json")
+        self.assertEqual(r.status_code, 200)
+        r = self.c.post("/api/v1/signup/link",
+                        {"verify_token": r.json()["data"]["verify_token"],
+                         "username": "kim2", "password": "pw123456"}, format="json")
+        self.assertEqual(r.status_code, 201)
+        a = models.Account.objects.get(login_id="kim2")
+        self.assertEqual((a.patient.pii.phone, a.phone_verified), ("01099998888", False))
+
     def test_이미_가입한_환자는_다시_못한다(self, _):
         self._link()
         r = self.c.post("/api/v1/signup/identity", FORM, format="json")
