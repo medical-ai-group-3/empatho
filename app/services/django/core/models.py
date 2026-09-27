@@ -101,7 +101,9 @@ NOTIFICATION_CHANNEL = ["app", "sms", "call_queue", "sse"]
 REF_TYPE = ["assessment", "discordance_flag", "report", "exam_order"]
 # PersonalNote 용. v10 에도 §15 문서에도 없다 — 화면 쪽 임시 상태(브라우저
 # 저장만 되던 할일·스티키 메모)를 서버로 옮기며 새로 판 값이다.
-NOTE_TYPE = ["todo", "sticky"]
+# handover — 인계 사항. todo · sticky 와 달리 **같은 과(역할) 전체가 본다**
+# (views/personal_note.py). 09-27 브라우저 저장에서 옮겼다
+NOTE_TYPE = ["todo", "sticky", "handover"]
 
 
 class AuditBase(models.Model):

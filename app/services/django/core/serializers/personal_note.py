@@ -7,6 +7,13 @@ from .. import models
 
 
 class PersonalNoteSerializer(serializers.ModelSerializer):
+    # 인계는 같은 과가 같이 본다 — 누가 남겼는지가 있어야 읽힌다
+    owner_name = serializers.SerializerMethodField()
+
+    def get_owner_name(self, note):
+        staff = getattr(note.owner, "staff", None)
+        return getattr(staff, "full_name", None) or note.owner.login_id
+
     class Meta:
         model = models.PersonalNote
         fields = "__all__"
