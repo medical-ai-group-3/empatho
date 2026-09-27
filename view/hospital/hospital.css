@@ -1741,11 +1741,6 @@ a.pevent:focus-visible{outline:var(--hair) solid var(--cyan); outline-offset:2px
 .vside-b > .kv{background:var(--v-bg); border:var(--hair) solid var(--v-line);
   border-radius:var(--v-radius); padding:var(--v-pad); margin:0}
 .vside-b > .fold{background:var(--v-bg); border-color:var(--v-line)}
-/* 소견 칸에 의사 소견 · AI 소견을 둘 다 켜면 위아래 두 묶음(Parts.jsx Viewer).
-   묶음마다 이름을 달고 가는 선으로 가른다 */
-.vsec{display:flex; flex-direction:column; gap:var(--gap-sm)}
-.vsec + .vsec{border-top:var(--hair) solid var(--v-line); padding-top:var(--gap-sm)}
-.vsec-t{font-size:var(--v-fs); color:var(--v-warm); font-weight:600}
 /* 접었을 때 남는 손잡이 — 완전히 사라지면 다시 못 찾는다. 이것도
    독립 카드다(접힌 상태의 그 패널일 뿐, 다른 패널에 붙지 않는다) */
 .vtab{width:var(--v-tab-w); flex:none; background:var(--v-card);

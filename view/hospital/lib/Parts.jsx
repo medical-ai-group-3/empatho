@@ -234,19 +234,14 @@ export function Viewer({
   tools, below, children,
 }) {
   const [L, setL] = useState(true);
-  /* 소견 칸은 **하나**다 — 둘을 따로 세우면 뷰어 옆으로 칸이 셋이 되어
-     정작 영상이 작아졌다.
-     ⚠ 09-27 — 머리의 두 단추는 탭(하나만)이 아니라 **각각 켜고 끄는
-       단추**다. 둘 다 켜면 위아래로 함께 보고(의사 소견을 쓰면서 AI 를
-       견줄 수 있다), 하나만 켜면 그것이 칸을 채운다. 둘 다 끄면 칸이
-       손잡이로 접힌다. 처음에는 펼쳐 두라고 한 쪽이 켜져 있다 */
+  /* 소견 칸은 **하나**다 — AI 소견과 의사 소견을 탭으로 오간다. 둘을 따로
+     세우면 뷰어 옆으로 칸이 셋이 되어 정작 영상이 작아졌다. 처음 여는
+     탭은 펼쳐 두라고 한 쪽(기본 의사 소견)이다 */
   const both = Boolean(ai && doctor);
-  const [showD, setShowD] = useState(Boolean(doctor && doctorOpen));
-  const [showA, setShowA] = useState(Boolean(ai && (aiOpen || !doctor)));
-  const open = (doctor && showD) || (ai && showA);
+  const [open, setOpen] = useState(Boolean(doctor ? doctorOpen : aiOpen));
+  const [which, setWhich] = useState(doctor && doctorOpen ? "doctor" : ai ? "ai" : "doctor");
+  const shown = which === "ai" && ai ? ai : doctor ?? ai;
   const sideName = both ? "소견" : (doctor ? doctorName : aiName);
-  const reopen = () => (doctor ? setShowD(true) : setShowA(true));
-  const shut = () => { setShowD(false); setShowA(false); };
 
   return (
     <div className="vwrap">
@@ -270,26 +265,20 @@ export function Viewer({
         ? <aside className="vside">
             <div className="vside-h">
               {both ? (
-                <span className="vside-tabs" role="group" aria-label="보일 소견">
-                  <button type="button" aria-pressed={showD} className={showD ? "on" : ""}
-                          onClick={() => setShowD((v) => !v)}>{doctorName}</button>
-                  <button type="button" aria-pressed={showA} className={showA ? "on" : ""}
-                          onClick={() => setShowA((v) => !v)}>{aiName}</button>
+                <span className="vside-tabs" role="tablist">
+                  <button type="button" role="tab" aria-selected={which === "doctor"}
+                          className={which === "doctor" ? "on" : ""}
+                          onClick={() => setWhich("doctor")}>{doctorName}</button>
+                  <button type="button" role="tab" aria-selected={which === "ai"}
+                          className={which === "ai" ? "on" : ""}
+                          onClick={() => setWhich("ai")}>{aiName}</button>
                 </span>
               ) : <b>{sideName}</b>}
-              <button className="x" onClick={shut} aria-label="접기">›</button>
+              <button className="x" onClick={() => setOpen(false)} aria-label="접기">›</button>
             </div>
-            <div className="vside-b">
-              {/* 둘 다 켜져 있을 때만 이름을 단다 — 어디까지가 어느 소견인지 */}
-              {doctor && showD && (showA && ai
-                ? <section className="vsec"><b className="vsec-t">{doctorName}</b>{doctor}</section>
-                : doctor)}
-              {ai && showA && (showD && doctor
-                ? <section className="vsec"><b className="vsec-t">{aiName}</b>{ai}</section>
-                : ai)}
-            </div>
+            <div className="vside-b">{shown}</div>
           </aside>
-        : <button className="vtab" onClick={reopen}>{sideName}</button>)}
+        : <button className="vtab" onClick={() => setOpen(true)}>{sideName}</button>)}
     </div>
   );
 }
