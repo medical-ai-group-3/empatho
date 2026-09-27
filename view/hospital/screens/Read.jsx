@@ -171,7 +171,7 @@ function Inner({ cfg, id, d }) {
                        value={mask} onChange={setMask} />
                 {/* 어느 색이 무엇인지 적는다. 색만 있고 뜻이 없으면
                     주황이 종양인지 간질인지 알 수 없다 */}
-                {msk.src && <MaskKeys legend={view.maskLegend} />}
+                {msk.src && <MaskKeys legend={view.maskLegend} colors={view.maskColors} />}
                 {/* 원본이 서버에서 8bit PNG 로 변환돼 오므로 **창값 조절은
                     못 한다.** 이건 화면 보정일 뿐이고, 판독의가 창값으로
                     오해하지 않게 이름을 그렇게 붙였다.
@@ -216,7 +216,7 @@ function Inner({ cfg, id, d }) {
               src={img.src} w={view.w} h={view.h} alt={view.alt}
               loading={img.loading} loadError={img.error}
               bright={bright} contrast={contrast}
-              mask={msk.src} shapes={view.shapes ?? []}
+              mask={msk.src} maskColors={view.maskColors} shapes={view.shapes ?? []}
               opacity={mask}
               pick={pick} onPick={setPick}
               annotationTools={cfg.scopeKind === "study"}

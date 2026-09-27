@@ -33,6 +33,7 @@ const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 export default function Stage({
   src, w, h, alt = "원본 영상",
   mask,                 /* PNG 마스크 주소 — 없으면 안 그린다 */
+  maskColors,           /* 마스크 팔레트 — 안 넘기면 기본(MASK_COLORS) */
   shapes = [],          /* SVG 로 그릴 것들 */
   opacity = 45,         /* 0~100 */
   pick, onPick,         /* 고른 병변 — 목록과 뷰어가 같이 쓴다 */
@@ -211,7 +212,7 @@ export default function Stage({
 
             {/* ── PNG 마스크 (병리) ─────────────────────────── */}
             {mask && (
-              <MaskOverlay src={mask} w={w} h={h} opacity={opacity} />
+              <MaskOverlay src={mask} w={w} h={h} opacity={opacity} colors={maskColors} />
             )}
 
             {/* ── SVG 도형 (초음파 폴리곤 · 맘모 박스) ───────── */}
@@ -247,8 +248,10 @@ export default function Stage({
  *   「0=배경, 1=조직, 2=세포」라고 적혀 있었는데 틀린 말이었다. 번호를
  *   화면이 제멋대로 해석하면, 서버가 뜻을 바꿀 때 조용히 어긋난다.
  *
- * 0 번은 칠하지 않는다 — 「그 밖」이라 화면 대부분을 덮어 원본을 가린다.
- * 대신 아래 MaskKeys 가 어느 색이 무엇인지 적는다.
+ * 팔레트는 화면마다 다를 수 있다(병리 조직분할 vs 초음파 병변 마스크가
+ * 이 오버레이 하나를 같이 쓴다) — 그래서 <Stage maskColors={...}> 로
+ * 넘긴다. 안 넘기면 이 기본 팔레트다. 항목은 [R,G,B] 또는 [R,G,B,alpha]
+ * (alpha 생략 시 220). null 은 「칠하지 않는다」.
  */
 const MASK_COLORS = [
   null,             /* 0 — 칠하지 않는다 */
@@ -257,33 +260,51 @@ const MASK_COLORS = [
   [255, 70, 180],
   [250, 210, 0],
 ];
-/* ⚠ `??` 를 쓰면 안 된다. 0 번 자리는 일부러 null 인데 `null ?? x` 는
-   x 로 넘어가 버려서, 칠하지 말아야 할 「그 밖」이 맨 끝 색으로 칠해진다
-   (09-23 검체 48 에서 23,976 px 이 노랗게 덮였다). 칸 안이면 그 값을
-   그대로 쓰고, 넘어가면 맨 끝 색이다. */
-const maskColor = (v) =>
-  (v < MASK_COLORS.length ? MASK_COLORS[v] : MASK_COLORS[MASK_COLORS.length - 1]);
+
+/* 병리 조직분할 전용 팔레트 (확정 색상, 2026-09-27).
+ *   0 기타(배경·지방 등) — 회색, 반투명(alpha 90 — 종양·간질보다 낮게 둬서
+ *     화면을 덮지 않으면서도 「칠해진 영역」임은 보이게 한다)
+ *   1 종양 — 빨강, 2 간질 — 파랑. 3·4번은 기존 값(미사용 예비 슬롯) 유지. */
+export const PATHOLOGY_MASK_COLORS = [
+  [128, 128, 128, 90],
+  [230, 50, 50],
+  [40, 110, 255],
+  [255, 70, 180],
+  [250, 210, 0],
+];
+
+/* ⚠ `??` 를 쓰면 안 된다. 0 번 자리는 (기본 팔레트에서) 일부러 null 인데
+   `null ?? x` 는 x 로 넘어가 버려서, 칠하지 말아야 할 「그 밖」이 맨 끝
+   색으로 칠해진다(09-23 검체 48 에서 23,976 px 이 노랗게 덮였다). 칸
+   안이면 그 값을 그대로 쓰고, 넘어가면 맨 끝 색이다. */
+const maskColor = (v, colors = MASK_COLORS) =>
+  (v < colors.length ? colors[v] : colors[colors.length - 1]);
 
 /* 어느 색이 무엇인가. 범례가 없으면 그리지 않는다 — 색만 보여 주고
-   뜻을 안 적으면 판독의가 주황이 종양인지 간질인지 알 수 없다. */
-export function MaskKeys({ legend }) {
+   뜻을 안 적으면 판독의가 주황이 종양인지 간질인지 알 수 없다.
+   0 번을 항상 빼지 않는다 — 팔레트가 0 번을 실제로 칠하면(병리처럼)
+   그 색도 범례에 있어야 뜻을 알 수 있다. 칠하지 않는(null) 항목만 뺀다. */
+export function MaskKeys({ legend, colors = MASK_COLORS }) {
   const keys = Object.entries(legend ?? {})
-    .filter(([v]) => Number(v) > 0)
+    .filter(([v]) => maskColor(Number(v), colors))
     .sort(([a], [b]) => Number(a) - Number(b));
   if (keys.length === 0) return null;
   return (
     <div className="mask-keys">
-      {keys.map(([v, name]) => (
-        <span key={v} className="mask-key">
-          <i style={{ background: `rgb(${maskColor(Number(v)).join(",")})` }} />
-          {name}
-        </span>
-      ))}
+      {keys.map(([v, name]) => {
+        const [r, g, b] = maskColor(Number(v), colors);
+        return (
+          <span key={v} className="mask-key">
+            <i style={{ background: `rgb(${r},${g},${b})` }} />
+            {name}
+          </span>
+        );
+      })}
     </div>
   );
 }
 
-function MaskOverlay({ src, w, h, opacity }) {
+function MaskOverlay({ src, w, h, opacity, colors = MASK_COLORS }) {
   const canvasRef = useRef(null);
 
   useEffect(() => {
@@ -305,21 +326,21 @@ function MaskOverlay({ src, w, h, opacity }) {
       const pixels = ctx.getImageData(0, 0, width, height);
       for (let i = 0; i < pixels.data.length; i += 4) {
         const value = Math.max(pixels.data[i], pixels.data[i + 1], pixels.data[i + 2]);
-        const rgb = pixels.data[i + 3] === 0 ? null : maskColor(value);
-        if (!rgb) {                       /* 0 번과 투명 픽셀은 그대로 둔다 */
+        const rgb = pixels.data[i + 3] === 0 ? null : maskColor(value, colors);
+        if (!rgb) {                       /* 칠하지 않는 번호와 투명 픽셀은 그대로 둔다 */
           pixels.data[i + 3] = 0;
           continue;
         }
         pixels.data[i] = rgb[0];
         pixels.data[i + 1] = rgb[1];
         pixels.data[i + 2] = rgb[2];
-        pixels.data[i + 3] = 220;
+        pixels.data[i + 3] = rgb[3] ?? 220;   /* 항목별 alpha, 없으면 기존 기본값 */
       }
       ctx.putImageData(pixels, 0, 0);
     };
     image.src = src;
     return () => { image.onload = null; };
-  }, [src, w, h]);
+  }, [src, w, h, colors]);
 
   return (
     <canvas ref={canvasRef} className="stage-mask" aria-hidden="true"
