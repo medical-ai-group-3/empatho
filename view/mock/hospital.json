@@ -912,8 +912,12 @@
   "viewed_at": "2026-09-15 14:02",
   "reported_by": "박민재 교수",
   "finalized": true,
+  "diagnosis": "malignant",
   "diagnosis_label": "악성 (malignant)",
   "b_category": "b5",
+  "stil_calibrated": "35.00",
+  "stil_source": "manual",
+  "stil_level": null,
   "finding_note": "침윤성 관암종. 종양세포가 간질을 침윤하며 불규칙한 관상 구조를 형성함.",
   "patient_no": "P-2026-0031",
   "birth": "1974-03-11",
@@ -927,43 +931,63 @@
   ],
   "ai": [
    {
-    "id": "a1",
-    "name": "crop_01.png",
-    "stil_calibrated": 24,
-    "stil_level": "mid",
-    "tsr_percent": 58,
-    "cell_counts": {
-     "total": 8421,
-     "til": 1204,
-     "til_stromal": 986
-    },
-    "stroma_status": "present"
+    "ai_result_id": "a1",
+    "result": {
+     "image": { "filename": "crop_01.png" },
+     "socket_id": "1",
+     "result": {
+      "stil_percent": 2.13,
+      "stroma_status": "present",
+      "tsr_tumor_percent": 58,
+      "tsr_stroma_percent": 42,
+      "n_cells_total": 8421,
+      "n_cells_til": 1204,
+      "n_cells_til_stromal": 986,
+      "tumor_area_px": 152300,
+      "stroma_area_px": 110200,
+      "immune_cell_area_px": 8400,
+      "mpp": 0.25,
+      "tissue_mask_legend": { "0": "other", "1": "tumor", "2": "stroma" }
+     }
+    }
    },
    {
-    "id": "a2",
-    "name": "crop_02.png",
-    "stil_calibrated": 9,
-    "stil_level": "low",
-    "tsr_percent": 31,
-    "cell_counts": {
-     "total": 7180,
-     "til": 412,
-     "til_stromal": 298
-    },
-    "stroma_status": "present"
+    "ai_result_id": "a2",
+    "result": {
+     "image": { "filename": "crop_02.png" },
+     "socket_id": "1",
+     "result": {
+      "stil_percent": 0.78,
+      "stroma_status": "present",
+      "tsr_tumor_percent": 31,
+      "tsr_stroma_percent": 69,
+      "n_cells_total": 7180,
+      "n_cells_til": 412,
+      "n_cells_til_stromal": 298,
+      "tumor_area_px": 61200,
+      "stroma_area_px": 136400,
+      "immune_cell_area_px": 2100,
+      "mpp": 0.25,
+      "tissue_mask_legend": { "0": "other", "1": "tumor", "2": "stroma" }
+     }
+    }
    },
    {
-    "id": "a3",
-    "name": "crop_03.png",
-    "stil_calibrated": null,
-    "stil_level": null,
-    "tsr_percent": null,
-    "cell_counts": {
-     "total": 5902,
-     "til": 0,
-     "til_stromal": 0
-    },
-    "stroma_status": "absent"
+    "ai_result_id": "a3",
+    "result": {
+     "image": { "filename": "crop_03.png" },
+     "socket_id": "1",
+     "result": {
+      "stil_percent": null,
+      "stroma_status": "absent",
+      "tsr_tumor_percent": null,
+      "tsr_stroma_percent": null,
+      "n_cells_total": 5902,
+      "n_cells_til": 0,
+      "n_cells_til_stromal": 0,
+      "tissue_mask_legend": { "0": "other", "1": "tumor", "2": "stroma" }
+     }
+    }
    }
   ],
   "doctor": {

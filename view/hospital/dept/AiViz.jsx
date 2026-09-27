@@ -81,7 +81,9 @@ export function Gauge({ label, percent, note }) {
 }
 
 /* 값 여러 개를 한 축에 점으로 찍는다 — 평균을 내지 않기 위한 그림.
-   병리 크롭별 sTIL 이 이것이다(같은 슬라이드도 자른 자리에 따라 흔들린다). */
+   병리 크롭별 AI 계측값이 이것이다(같은 슬라이드도 자른 자리에 따라
+   흔들린다). ⚠ "sTIL"이라 부르지 않는다 — 병리의가 입력하는 sTIL 과
+   척도가 다르다(09-28, dept/PathologyAi.jsx 머리말 참고). */
 export function StripPlot({ label, points, unit = "%", note }) {
   const use = (points ?? []).filter((p) => isNum(p.value));
   if (use.length < 2) return null;          /* 한 점이면 분포가 아니다 */

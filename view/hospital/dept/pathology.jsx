@@ -19,10 +19,19 @@ import { ACCESSION_STATUS, B_CATEGORY, B_CATEGORY_LABEL, DIAGNOSIS, SEX,
  * 영상의학과와 갈리는 지점
  *   판독 단위   검사(study) 가 아니라 **검체(specimen)**
  *   등급 체계   BI-RADS 가 아니라 **b_category (b1~b5)**
- *   AI 소견     등급·크기·확신도가 아니라 **sTIL · TSR · 세포 수 · 간질**
+ *   AI 소견     등급·크기·확신도가 아니라 **AI 계측값 · TSR · 세포 수 · 간질**
  *   없는 것     조영제 알레르기 · 재촬영 · 병변 추가 · 모달리티 구분 ·
  *               **판독 정정(5장)** — 확정 사양서 §8-2, 병리는 정정
  *               경로를 두지 않는다. 확정 후 오류는 새 검체로 처리한다
+ *
+ * ⚠ 09-28 결정 — **sTIL 은 병리의가 검체 단위로 직접 입력한다.**
+ *   AI 가 낸 원시값(stil_percent)은 "sTIL"이 아니라 "AI 계측값"으로만
+ *   부른다 — 척도가 달라 같은 이름을 쓰면 두 값을 직접 비교하는 것처럼
+ *   읽힌다. 보정계수는 안 쓴다(전에 고려했던 "1/12 스케일" 보정은
+ *   실제로 곱하는 코드가 없었다 — 09-27 저장소 전체 검색으로 확인).
+ *   stil_calibrated 라는 필드 이름은 그대로 쓰지만(모델 필드명이라
+ *   마이그레이션 없인 못 바꾼다) 뜻은 "AI가 보정한 값"이 아니라
+ *   "병리의가 입력한 sTIL"이다.
  */
 
 /* ── 서버 부르는 자리를 공통 이름으로 맞춘다 ──────────────────
@@ -174,11 +183,11 @@ function attachMasks(crops, files, aiRows) {
    sTIL·TSR·세포 수가 전부 「—」로, 간질 상태는 undefined !== "absent" 라
    늘 「있음」으로 나왔다(09-23 검체 40 에서 확인). 한 겹 벗겨 준다.
 
-   ⚠ stil_percent 는 **그대로 내지 않는다.** 임상 육안 TIL 대비 약 1/12
-     스케일이라(sockets/pathology.py) 그대로 보이면 「면역 반응이 거의
-     없다」로 읽힌다. 화면에 낼 수 있는 것은 보정값(stil_calibrated)뿐인데
-     그건 앱 서버가 검체 행에 채워야 하고 지금은 비어 있다. 그래서 sTIL
-     칸은 「보정 전 — 표시하지 않음」이 맞다. */
+   ⚠ 09-28 결정으로 stil_percent 를 이제 화면에 낸다 — 단, 이름은
+     "sTIL"이 아니라 "AI 계측값"이다. 임상 육안 TIL(병리의가 입력하는
+     stil_calibrated, Specimen 쪽에서 읽는다 — toRead() 참고)과 척도가
+     달라 같은 이름을 쓰면 안 된다. 저/중/고 라벨도 안 쓴다 — 그건
+     "sTIL 수치"라는 임상 판정의 언어라 AI 계측값에 붙이면 안 된다. */
 function pathAiRow(row = {}) {
   const env = row.result ?? {};
   const r = env.result ?? {};
@@ -190,9 +199,9 @@ function pathAiRow(row = {}) {
     abstain_reason: row.abstain_reason ?? env.reason ?? null,
 
     stroma_status: r.stroma_status ?? null,
-    /* 보정값은 검체 행에 있다. 없으면 null 로 두고 화면이 「표시하지 않음」 */
-    stil_calibrated: row.stil_calibrated ?? null,
-    stil_level: row.stil_level ?? null,
+    /* AI 원시값. "sTIL"이라 안 부른다 — PathologyAi.jsx 에서 "AI 계측값"
+       으로 표시한다. */
+    stil_percent: r.stil_percent ?? null,
 
     /* TSR 은 종양 비율로 읽는다. 간질 비율은 짝으로 함께 넘긴다. */
     tsr_percent: r.tsr_tumor_percent ?? null,
@@ -236,6 +245,13 @@ function toRead(s, up, aiRows = []) {
       reported_by: s.reported_by,
       status_label: text(s, "accession_status", ACCESSION_STATUS, "status_label"),
       amend_history: s.amend_history ?? [],
+      /* 09-28 추가 — 병리의가 검체 단위로 직접 입력하는 sTIL. AI 결과
+         (ai_result 행)가 아니라 **검체(Specimen) 응답**에서 읽는다 —
+         AI 소견 패널(PathologyAi.jsx)이 보여 주는 "AI 계측값"과는
+         다른 값이다. 백엔드가 아직 이 필드를 안 주는 배포에도 화면이
+         깨지지 않도록 없으면 null 로 둔다. */
+      stil_calibrated: s.stil_calibrated ?? null,
+      stil_source: s.stil_source ?? null,
     },
     radiology_summary: s.radiology_summary ?? null,
     /* 크롭 한 장 = 원본 + (있으면) 세그멘테이션 마스크.
@@ -250,7 +266,23 @@ function toRead(s, up, aiRows = []) {
     })), files, aiRows),
     images: cropFiles.map((f) => ({ id: f.id, name: f.name })),
     ai: aiRows,
-    doctor: s.doctor ?? {},
+    /* ⚠ 09-28 확인 — Specimen 응답엔 "doctor"라는 필드가 없다.
+       s.doctor 는 늘 undefined 였고, 그래서 Read.jsx 의 편집 폼(f)이
+       검체를 다시 열 때마다 b_category·diagnosis·finding_note 를
+       매번 빈 값으로 시작하고 있었다(기존 결함 — 임시저장을 다시 열면
+       써 둔 값이 안 보였다). sTIL 입력칸을 붙이며 같이 고친다 —
+       검체 필드에서 직접 시드로 채운다.
+       stil_calibrated 는 DB 가 소수 2자리로 주는데(레거시 컬럼) 입력
+       칸 계약은 1자리다 — 안 건드린 값을 그대로 다시 보내면 2자리라
+       거부(400)당하니 여기서 1자리로 반올림해 둔다. */
+    doctor: {
+      b_category: s.b_category ?? null,
+      diagnosis: s.diagnosis ?? null,
+      finding_note: s.finding_note ?? "",
+      stil_calibrated: s.stil_calibrated != null
+        ? Number(s.stil_calibrated).toFixed(1)
+        : null,
+    },
   };
 }
 
@@ -417,7 +449,7 @@ export const pathology = {
     },
     notes: [
       "WSI 전체가 아니라 잘라낸 조직 이미지를 올립니다.",
-      "한 검체에 여러 장을 올릴 수 있습니다. 같은 슬라이드라도 자른 자리에 따라 sTIL 이 크게 달라져, 여러 장을 돌려 분포를 보는 쪽이 맞습니다.",
+      "한 검체에 여러 장을 올릴 수 있습니다. 같은 슬라이드라도 자른 자리에 따라 AI 계측값이 크게 달라져, 여러 장을 돌려 분포를 보는 쪽이 맞습니다.",
       "장마다 분석 결과가 한 건씩 생깁니다.",
       "파일은 Django 를 거치지 않고 Go 관문으로 곧장 올라갑니다.",
     ],
@@ -458,6 +490,19 @@ export const pathology = {
       finalize: "pathology.read.finalize",
     },
     ready: (f) => Boolean(f.b_category && f.diagnosis),
+
+    /* 09-28 추가 — Read.jsx 의 draft() 는 원래 영상의학과 모양
+       (lesion_id·category)을 그대로 썼다. 병리는 그 두 칸이 없어서
+       (b_category·diagnosis·stil_calibrated·finding_note 가 있는데도)
+       임시저장을 눌러도 저장되지 않았다 — finding_note 만 어쩌다 실려
+       나갔다. 이 훅이 있으면 Read.jsx 가 이걸로 바디를 만든다(없는
+       과는 기존 모양 그대로 쓴다) */
+    draftPayload: (f) => ({
+      b_category: f.b_category ?? null,
+      diagnosis: f.diagnosis ?? null,
+      finding_note: f.finding_note ?? "",
+      stil_calibrated: f.stil_calibrated === "" ? null : f.stil_calibrated ?? null,
+    }),
 
     /* 뷰어에 무엇을 얹나 — 병리는 **PNG 마스크** 한 장이다.
        조직 분할 결과를 픽셀마다 칠한 것이라 도형으로 못 그린다.
@@ -535,6 +580,22 @@ export const pathology = {
             <option value="">선택하세요</option>
             {B_CATEGORY.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
+        </label>
+
+        {/* 09-28 결정 — sTIL(임상 수치)은 병리의가 검체 단위로 직접
+           입력한다. AI 계측값(PathologyAi.jsx)과는 다른 값이고 자동
+           계산도 안 한다 — 저/중/고 같은 등급도 여기서 안 매긴다. */}
+        <label className="field">
+          <span>sTIL (%) — 병리의 입력</span>
+          <input type="number" min="0" max="100" step="0.1"
+                 value={f.stil_calibrated ?? ""}
+                 placeholder="0~100"
+                 onChange={(e) => set("stil_calibrated", e.target.value)} />
+          <span className="muted small">
+            {f.stil_calibrated === "" || f.stil_calibrated == null
+              ? "병리의 입력 대기"
+              : `sTIL ${f.stil_calibrated}% · 병리의 입력`}
+          </span>
         </label>
 
         <label className="field">
