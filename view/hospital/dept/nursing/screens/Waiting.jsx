@@ -65,6 +65,9 @@ function Inner({ cfg, embedded }) {
      그대로 남아 있었다. 다른 칸과 같은 박자로 다시 부른다 */
   const booked = useApi(() => H.soft(api.scheduledToday()), [tick]);
   const calls = useApi(() => H.soft(api.followups()), [tick]);
+  /* 오늘 온 사람 전부 — 유방외과로 보낸 사람은 내원 대기(arrived)에서
+     빠지므로, 그 사람의 예약까지 거르려면 이것도 봐야 한다 */
+  const came = useApi(() => H.soft(api.todayStatus()), [tick]);
   const detail = useApi(
     () => (pick ? api.examOrder(pick) : Promise.resolve(null)), [pick, tick]);
 
@@ -98,7 +101,7 @@ function Inner({ cfg, embedded }) {
           )}
       </div>
 
-      <Side booked={booked} calls={calls} />
+      <Side booked={booked} arrived={arrived} came={came} calls={calls} />
     </div>
   );
 
@@ -362,8 +365,9 @@ function Assign({ cfg, orderId, patient, picked, may, onDone }) {
 /* ── 오른쪽 380px — 곁에 두고 보는 것 셋 ───────────────────────
  * 금일 내원 예정 · 오늘 추적 콜 · 검체 바인딩 필요.
  */
-function Side({ booked, calls }) {
-  const waiting = H.rows(booked.data);
+function Side({ booked, arrived, came, calls }) {
+  /* 이미 접수한 사람은 「금일 내원 예정」에서 뺀다(H.notYetCame) */
+  const waiting = H.notYetCame(H.rows(booked.data), H.rows(arrived.data), H.rows(came.data));
   /* 끝난 회차는 뺀다(H.openFollowup) */
   const due = H.rows(calls.data)
     .filter((r) => H.openFollowup(r) && H.dueBucket(r.due_at) === "today");
