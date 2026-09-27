@@ -129,9 +129,24 @@ class SpecimenSerializer(serializers.ModelSerializer):
 
 
 class LesionSerializer(serializers.ModelSerializer):
+    # 병변 3D 메시(JSON) 위치 — 화면이 파생물 티켓으로 받는다. 없으면 None
+    mesh = serializers.SerializerMethodField()
+
     class Meta:
         model = models.Lesion
         exclude = AUDIT_FIELDS
+
+    def get_mesh(self, obj):
+        img = (obj.images.filter(kind="mesh_lesion", deleted_at__isnull=True)
+               .order_by("-image_id").first())
+        return mesh_spec(img, obj.study_id)
+
+
+def mesh_spec(img, study_id):
+    """화면 files.js 가 받는 파생물 주소 모양"""
+    if not img or not img.object_key:
+        return None
+    return {"key": img.object_key, "derived": True, "study_id": study_id}
 
 
 # ── 워크플로 액션 전용 ──────────────────────────────────

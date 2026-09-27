@@ -48,7 +48,7 @@ from django.utils import timezone
 
 from . import mesh 
 from celery.exceptions import SoftTimeLimitExceeded
-from .models import AiResult, ExamOrder, Notification, Report, StorageObject, Lesion
+from .models import AiResult, ExamOrder, Notification, Report, StorageObject, Lesion, Image
 
 logger = logging.getLogger(__name__) 
 
@@ -137,6 +137,8 @@ def run_inference(ai_result_id) :
     logger.info("[run_inference]행 %s modality=%s -> 소켓 %s", ai.pk, modality, socket)
     
     t0 = time.monotonic()
+    # 병변 메시는 병변 행이 생긴 뒤에 올린다(_store_lesion_meshes) — 그때까지 든다
+    lesion_meshes = []
     
     try :
         # 맘모는 영상 넷이 한 검진이라 장마다 판독하고 합친다.
@@ -155,7 +157,7 @@ def run_inference(ai_result_id) :
             
         # MRI 응답은 대부분이 3D 메시다. 걷어내지 않으면 jsonb 한 칸이 그 크기가 된다.
         elif modality == "mri" :
-            out = _store_meshes(out, ai)
+            out, lesion_meshes = _store_meshes(out, ai)
         
         elif modality in ("pathology", "us") :
             out = _store_mask(out, ai)
@@ -215,6 +217,8 @@ def run_inference(ai_result_id) :
                     ref_type="report",
                     ref_id=report.pk
                 )
+            # 메시 업로드가 실패해도 소견문 · 알림은 이미 나갔다 — 그래서 맨 뒤
+            _store_lesion_meshes(ai, lesion_meshes)
         except Exception as exc :
             logger.exception("[run_inference] 판독 뒤처리 실패 %s", ai.pk)
     logger.info("[run_inference] 행 %s %s %.1f초", ai.pk, ai.run_status, float(ai.elapsed_sec))
@@ -470,12 +474,16 @@ def _store_lesions(ai) :
     # ponytail: 같은 검사를 다시 판독하면 새 ai_result 가 생긴다. 옛 AI 병변은
     # 검체·판정이 안 붙은 것만 지운다 — 붙은 것은 PROTECT 라 지워지지도 않고,
     # 지우면 안 되는 기록이다.
-    Lesion.objects.filter(
+    old = Lesion.objects.filter(
         study_id=ai.study_id, 
         lesion_source="ai",
         specimens__isnull=True, 
         assessments__isnull=True
-    ).delete()
+    )
+    # 병변 메시(Image.lesion)가 PROTECT 라 먼저 지운다 — 안 그러면 재판독이
+    # ProtectedError 로 멈춘다. ponytail: Garage 의 메시 파일은 남는다(고아)
+    Image.objects.filter(lesion__in=old).delete()
+    old.delete()
     
     rows = [] 
     if modality == "us" :
@@ -484,6 +492,7 @@ def _store_lesions(ai) :
             grade = res.get("grade") or {} 
             rows.append(dict(
                 lesion_index=0, 
+                label="US-1",
                 birads_model = grade.get("display"),
                 grade_confidence=grade.get("confidence"),
                 ai_size_px=shape.get("max_diameter_px"),
@@ -495,7 +504,7 @@ def _store_lesions(ai) :
         for i, l in enumerate(res.get("lesions") or []) :
             rows.append(dict(
                 lesion_index=i, 
-                label=l.get("id"),
+                label=l.get("id") or f"MAMMO-{i+1}",
                 lesion_kind=l.get("kind"),
                 birads_model=l.get("birads"),
                 detail = {
@@ -510,6 +519,7 @@ def _store_lesions(ai) :
         for i, l in enumerate((res.get("tumor") or {}).get("lesions") or []) :
             rows.append(dict(
                 lesion_index=i, 
+                label=f"MRI-{i+1}",
                 ai_size_mm=l.get("max_diameter_mm"),
                 ai_size_measurable=True, 
                 detail={
@@ -726,13 +736,15 @@ def _store_meshes(out, ai) :
     # 티켓에만 싣는다 — ai_result 행에 저장하지는 않는다.
     source_id = ai.source_object_id or _series_row(ai.study_id).pk
 
+    held = []
     for part in parts :
-        # 병변 메시는 AI 병변 행이 없어 티켓에 넣을 lesion_id 가 없다, 보류
-        #   파생물 티켓은 병변 메시에 병변 번호를 요구한다. AI 결과에서 병변
-        #   행을 만드는 코드가 아직 없어 그 번호를 채울 수 없다. 올리지 않고
-        #   스텁에 「저장 안 함」 표시만 남긴다 — 없는 주소를 가리키지 않게 한다.
+        # 병변 메시는 **지금 못 올린다** — 파생물 티켓이 병변 번호를 요구하는데
+        # 병변 행은 판독이 끝난 뒤(_store_lesions) 생긴다. 스텁에는 「아직 안
+        # 올림」만 남기고 들고 있다가 _store_lesion_meshes 가 올린다(09-27).
+        # 전에는 여기서 버려서 병변 3D 가 한 번도 안 떴다.
         if part.kind == mesh.LESION_KIND :
             _walk_ref(inner, f"study/{ai.study_id}/{part.object_name}", None)
+            held.append(part)
             continue
 
         # 파생물 티켓은 쓰기 티켓이다. 범위(검사)와 함께 꼬리표를 서명에 싣는다 —
@@ -743,7 +755,25 @@ def _store_meshes(out, ai) :
         _upload_derived(ai, part.kind, part.payload, part.content_type,
                         part.object_name, source_id,
                         object_name=part.object_name)
-    return out
+    return out, held
+
+def _store_lesion_meshes(ai, held) :
+    """_store_meshes 가 들고 있던 병변 메시를 병변 행에 붙여 올린다.
+
+    part.lesion_index 는 결과의 tumor.lesions 순번이고, _store_lesions 도 같은
+    순번으로 lesion_index 를 매긴다 — 그 번호로 행을 찾는다.
+    """
+    if not held :
+        return
+    ids = dict(Lesion.objects.filter(ai_result=ai).values_list("lesion_index", "pk"))
+    source_id = ai.source_object_id or _series_row(ai.study_id).pk
+    for part in held :
+        lid = ids.get(part.lesion_index)
+        if lid is None :
+            continue
+        _upload_derived(ai, part.kind, part.payload, part.content_type,
+                        part.object_name, source_id, lesion_id=lid,
+                        object_name=part.object_name)
 
 def _walk_ref(node, planned_key, saved) :
     """예정 주소로 넣어 둔 스텁을 찾아 실제 주소로 바꾼다.

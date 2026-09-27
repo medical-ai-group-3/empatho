@@ -19,6 +19,7 @@ from django.utils import timezone
 
 from ..tasks import run_inference
 from .. import models, serializers, viewed
+from ..serializers.surgery import mesh_spec
 from ..mixins import AuditMixin
 from core.api.permissions import (
     CanCompleteExamOrder,
@@ -383,6 +384,16 @@ class StudyReadView(viewsets.ViewSet):
                 #   Part-10 파일이라 브라우저가 못 푼다. 그래서 초음파는
                 #   어느 화면에서도 한 장도 안 떴다(09-23 확인).
                 extra = {"stack_manifest": manifest, "stack_base": base}
+
+        # MRI 3D 뷰어 왼쪽의 몸 · 유방 메시 — 최신 판독이 올린 파생물 JSON
+        if study.modality == "mri" and latest_ai_result:
+            imgs = {i.kind: i for i in latest_ai_result.images.filter(
+                kind__in=("mesh_body", "mesh_breast"), deleted_at__isnull=True
+            ).order_by("image_id")}
+            extra["anatomy_meshes"] = {
+                "body": mesh_spec(imgs.get("mesh_body"), study.pk),
+                "breast": mesh_spec(imgs.get("mesh_breast"), study.pk),
+            }
 
         return Response({
             "study": serializers.StudySerializer(study).data,
