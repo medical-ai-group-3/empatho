@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Page, Card, Btn } from "../../lib/Page";
 import { Body, Empty } from "../../lib/Body";
@@ -522,13 +522,27 @@ function New({ cfg, at, order, rows, onDone, onDate, onClear }) {
     }
   }
 
-  /* 고친다면 그 오더 자신은 「같은 날 예약」에서 뺀다 */
+  /* 고른 환자의 예약을 **그 사람 기준으로** 따로 받는다. 판(rows)은 지금
+     보는 날·주만 들고 있어서, 다른 날을 보고 있으면 같은 날 예약을 못
+     찾아 [예약] 이 그대로 눌렸다 */
+  const mine = useApi(
+    () => (who?.patient_id != null ? api.ordersOf(who.patient_id) : Promise.resolve([])),
+    [who?.patient_id]);
+
+  /* 같은 날 **살아 있는**(안 왔고 취소 안 된) 예약. 고치는 중이면 그 오더
+     자신은 뺀다 */
   const clash = useMemo(() => {
     if (!who) return null;
-    return rows.find((r) => String(r.patient) === String(who.patient_id)
-      && dayOf(r.scheduled_at) === date
+    const live = (r) => !r.visited_at && ["requested", "scheduled"].includes(r.order_status);
+    const pool = [...(Array.isArray(mine.data) ? mine.data : []), ...rows];
+    return pool.find((r) => String(r.patient) === String(who.patient_id)
+      && dayOf(r.scheduled_at) === date && live(r)
       && (!order || r.exam_order_id !== order.exam_order_id)) ?? null;
-  }, [rows, who, date, order]);
+  }, [mine.data, rows, who, date, order]);
+
+  /* 연타 막기 — busy 는 다음 그림에서야 단추를 잠그므로 그 사이 두 번째
+     클릭이 또 나갔다. 이 표시는 바로 선다 */
+  const sending = useRef(false);
 
   /* 고른 예약이 아직 안 온 것이면 **고치는 자리**가 된다. 예전엔 여기서
      [예약] 을 누르면 같은 사람 예약이 또 하나 생겼다 — 바꾸려던 것이
@@ -570,6 +584,8 @@ function New({ cfg, at, order, rows, onDone, onDate, onClear }) {
   }
 
   async function save() {
+    if (sending.current || clash) return;
+    sending.current = true;
     setBusy(true); setErr(null); setOk(null);
     try {
       await api.reserve({ patient_id: who.patient_id,
@@ -581,7 +597,7 @@ function New({ cfg, at, order, rows, onDone, onDate, onClear }) {
       setWho(null); setFound(null); setQ("");
       onDone();
     } catch (e2) { setErr(e2); }
-    finally { setBusy(false); }
+    finally { setBusy(false); sending.current = false; mine.reload(true); }
   }
 
   /* 앱 신청(requested · 아직 안 옴)을 고른 경우 — **새로 만들지 않고 그
@@ -662,7 +678,10 @@ function New({ cfg, at, order, rows, onDone, onDate, onClear }) {
       <p className="hcard-k">검사 종류는 여기서 안 정합니다 — 진료 뒤 유방외과가 오더를 냅니다.</p>
 
       {clash && (
-        <p className="note err">같은 날 이미 예약이 있습니다 — {timeOf(clash.scheduled_at)}</p>
+        <p className="note err">
+          같은 날 이미 예약이 있습니다 — {timeOf(clash.scheduled_at)}.
+          시간을 바꾸려면 판에서 그 예약을 눌러 [변경 저장]으로 고쳐 주세요.
+        </p>
       )}
       {err && <p className="note err">{err.detail || err.message}</p>}
       {ok && <p className="hcard-k" role="status">{ok}</p>}
@@ -681,7 +700,7 @@ function New({ cfg, at, order, rows, onDone, onDate, onClear }) {
           </>
         ) : (
           <Btn kind="fill" onClick={save} {...may.attrs}
-               disabled={!who || busy || !may.ok}>예약</Btn>
+               disabled={!who || busy || !may.ok || Boolean(clash)}>예약</Btn>
         )}
       </div>
 
