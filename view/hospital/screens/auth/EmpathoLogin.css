@@ -306,10 +306,15 @@
 
 /* ──────────────────────  입장 중 상태  ────────────────────── */
 
-.empatho-scene .entering { display: grid; gap: 13px; justify-items: start; }
+.empatho-scene .entering { display: grid; gap: 20px; justify-items: start; }
 .empatho-scene .entering[hidden] { display: none; }
-.empatho-scene .entering strong { font-size: 21px; font-weight: 400; letter-spacing: .01em; }
-.empatho-scene .entering span:not(.pulse) { font-size: 13.5px; line-height: 1.6; color: var(--muted); }
+.empatho-scene .entering strong {
+  font-size: clamp(26px, 2.2vw, 36px);
+  font-weight: 300;
+  letter-spacing: .01em;
+  line-height: 1.3;
+  color: #f3f8ff;
+}
 
 .empatho-scene .pulse {
   width: 34px; height: 34px;

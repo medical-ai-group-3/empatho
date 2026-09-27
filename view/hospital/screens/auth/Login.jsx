@@ -1,6 +1,6 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { apiInfo, login as doLogin } from "../../api";
+import { apiInfo, login as doLogin, me as fetchMe, setToken } from "../../api";
 import { ROOT } from "../../nav";
 import { signIn } from "../../lib/session";
 import EmpathoLogin from "./EmpathoLogin";
@@ -38,6 +38,7 @@ import EmpathoLogin from "./EmpathoLogin";
 export default function Login({ onSignup }) {
   const navigate = useNavigate();
   const got = useRef(null);
+  const [who, setWho] = useState("");
 
   async function authenticate({ loginId, password }) {
     try {
@@ -49,6 +50,14 @@ export default function Login({ onSignup }) {
          전환이 끊긴다(토큰은 들어갔는데 화면은 그대로인 상태가 된다).
          받아만 두고 전환이 끝난 뒤에 넣는다 */
       got.current = access;
+
+      /* 전환 화면에 띄울 이름만 미리 받는다.
+         ⚠ **기다리지 않는다.** await 하면 그만큼 문이 늦게 열리고, /me 가
+           죽으면 로그인 자체가 막힌다. 늦거나 실패하면 이름 없이 간다.
+         ⚠ signIn 이 아니라 setToken 이다 — signIn 을 부르면 Boot 가 다시
+           서면서 이 화면이 언마운트된다(위 주석). */
+      setToken(access);
+      fetchMe().then(d => setWho(d?.name ?? ""), () => {});
     } catch (e) {
       /* 상자가 Error.message 를 그대로 띄운다. 내부 오류 코드·추적
          번호는 로그인 화면에 노출하지 않는다 — 해결이 되는 문구만 */
@@ -69,6 +78,8 @@ export default function Login({ onSignup }) {
         navigate(ROOT, { replace: true });
       }}
       onSignup={onSignup}
+      /* 못 받았으면 빈 문자열 — 상자가 「환영합니다」만 띄운다 */
+      userName={who}
       /* 배지는 목업일 때만 — 실서버에서 「목업」이 떠 있으면 안 된다 */
       showDemoBadge={apiInfo.mock}
     />

@@ -21,7 +21,7 @@ import { HOSPITAL, PRODUCT } from '../../nav';
      Keep me signed in → 뺐다. signIn({access}) 에 그 개념이 없다
      Forgot password?  →  「회원가입 신청」. 재설정 경로가 아직 없다
      Sign In        →  로그인
-     Welcome back   →  들어갑니다
+     Welcome back   →  환영합니다, ○○님
      (없던 것)      →  Caps Lock 알림. 비밀번호를 대문자로 계속
                        틀리는 것을 잡아 주던 자리라 옮겨 왔다
 
@@ -61,6 +61,8 @@ export default function EmpathoLogin({
   onEnter,
   /** 자산 경로. public/ 아래에 두고 절대 경로로 넘기는 게 가장 간단합니다. */
   assets = DEFAULT_ASSETS,
+  /** 전환 화면의 「환영합니다, ○○님」에 쓸 이름. 없으면 「환영합니다」만 */
+  userName = '',
   /** 화면에 DEMO 배지를 띄울지 */
   showDemoBadge = true,
   /** 'full' = 영상이 화면 전체, 로그인 박스는 그 위 유리 패널 (권장)
@@ -83,7 +85,6 @@ export default function EmpathoLogin({
   const [reveal, setReveal] = useState(false);
   /* Caps Lock 이 켜졌는지 — 원본에 없던 상태다(우리 옛 로그인에서 옮겨 왔다) */
   const [capsOn, setCapsOn] = useState(false);
-  const [status, setStatus] = useState('문이 열리고 있습니다…');
 
   useEffect(() => {
     aliveRef.current = true;
@@ -167,7 +168,6 @@ export default function EmpathoLogin({
       if (!panelOut && t >= d * PANEL_EXIT) {
         panelOut = true;
         mark({ entering: true });
-        setStatus('대시보드로 들어가는 중입니다…');
       }
       if (!veiled && d - t <= VEIL_AT_END) {
         veiled = true;
@@ -217,7 +217,6 @@ export default function EmpathoLogin({
       password.value = '';          /* 성공 후 평문 비밀번호를 남기지 않는다 */
 
       mark({ opening: true });
-      setStatus('문이 열리고 있습니다…');
       await playClip();
 
       if (aliveRef.current) onEnter?.();
@@ -355,10 +354,9 @@ export default function EmpathoLogin({
           )}
 
           {phase.opening && (
-            <div className="entering">
+            <div className="entering" role="status" aria-live="polite">
               <span className="pulse" aria-hidden="true" />
-              <strong>들어갑니다</strong>
-              <span role="status" aria-live="polite">{status}</span>
+              <strong>환영합니다{userName ? `, ${userName}님` : ''}</strong>
             </div>
           )}
 
