@@ -265,7 +265,7 @@ function Mid({ p, onNext, onOpen, onGuide }) {
       <div className="work-foot">
         <Btn onClick={() => onOpen("exam")}>촬영 요청</Btn>
         <Btn onClick={() => onOpen("specimen")}>검체 등록</Btn>
-        <Btn onClick={() => onOpen("close")}>이상 없음 · 종결</Btn>
+        <Btn kind="fill" onClick={() => onOpen("close")}>진료 완료</Btn>
         <span className="home-fill" />
         <Btn onClick={onNext}>다음 환자 →</Btn>
         <Btn to={go.breast.decision(p.patient_id)}>치료 방침 결정</Btn>
