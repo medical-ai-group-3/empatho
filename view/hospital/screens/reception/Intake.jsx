@@ -7,7 +7,6 @@ import { useApi } from "../../lib/useApi";
 import { go, DESK } from "../../nav";
 import * as H from "../../dept/home";
 import NursingWaiting from "../../dept/nursing/screens/Waiting";
-import { isSent, sentList } from "../../dept/nursing/sent";
 import Register from "./Register";
 
 /* 접수 — 오늘 현황판 위, 내원 대기 줄 아래
@@ -40,8 +39,8 @@ import Register from "./Register";
  *   접수 대기   내원 대기 목록 중 문진이 아직 없는 사람
  *   간호 · 문진  내원 대기 목록 중 문진을 낸 사람(배정 차례)
  *   검사 진행   today-status 의 영상 쪽 stage
- *   외래 진료   오늘 유방외과로 보낸 사람(../../dept/nursing/sent.js) 중
- *               아직 검사·종결로 안 넘어간 사람
+ *   외래 진료   today-status 의 stage_code outpatient — 간호가 이 오더를
+ *               유방외과로 보냈고(handed_at) 아직 검사·종결로 안 넘어간 사람
  *   오늘 종결   today-status 의 completed · cancelled
  *
  * ⚠ 앞 둘은 today-status 가 아니라 **아래 내원 대기와 같은 목록**을 쓴다.
@@ -199,9 +198,8 @@ function Find({ api, onDone }) {
  *   늘었을 때 자리를 다시 찾아야 한다.
  */
 function Board({ rows, arrived }) {
-  const waiting = arrived.filter((r) => !isSent(r));
-  const sent = new Set(sentList().map((r) => String(r.order)));
-  const waitIds = new Set(waiting.map((r) => String(r.exam_order_id ?? r.id)));
+  /* 보낸 사람은 서버가 이미 뺐다(waitingArrived 의 handed=none) */
+  const waiting = arrived;
   const moved = (r) => EXAM_STAGE.includes(r.stage) || CLOSED_STAGE.includes(r.stage);
 
   const cols = {
@@ -210,12 +208,10 @@ function Board({ rows, arrived }) {
     nurse: waiting.filter((r) => r.questionnaire)
       .map((r) => ({ ...r, stage: "문진 완료 · 배정 대기" })),
     exam: rows.filter((r) => EXAM_STAGE.includes(r.stage)),
-    /* ⚠ 09-27 — today-status 가 stage_code 를 준다. outpatient(주치의 있음)
-       도 센다 — 다른 PC 에서 보낸 사람은 이 PC 의 sent.js 에 없었다.
-       단 **아직 아래 대기 줄에 있는 사람은 뺀다** — 전에 배정받은 재진
-       환자는 주치의가 이미 있어 보내기 전부터 outpatient 로 온다 */
-    clinic: rows.filter((r) => !moved(r) && !waitIds.has(String(r.exam_order_id))
-      && (sent.has(String(r.exam_order_id)) || r.stage_code === "outpatient"))
+    /* ⚠ 09-27 — outpatient 는 **오더의 handed_at** 으로 갈린다(서버). 예전
+       처럼 주치의 유무로 보지 않아 재진 환자가 보내기 전에 여기 오지 않는다 */
+    clinic: rows.filter((r) => !moved(r)
+      && (r.stage_code === "outpatient" || r.handed_at))
       .map((r) => ({ ...r, stage: "유방외과 진료 대기" })),
     closed: rows.filter((r) => CLOSED_STAGE.includes(r.stage)),
   };

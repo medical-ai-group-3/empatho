@@ -8,7 +8,6 @@ import { can } from "../../../perm";
 import { DESK, go } from "../../../nav";
 import SpecimenBindingModal from "../../../lib/SpecimenBindingModal";
 import * as H from "../../home";
-import { isSent, markSent } from "../sent";
 
 /* 내원 대기 · 유방외과 배정 — `docs/mockup/Nursing-내원대기.html`
  * ════════════════════════════════════════════════════════════════
@@ -74,9 +73,8 @@ function Inner({ cfg, embedded }) {
     return () => clearInterval(t);
   }, []);
 
-  /* ⚠ 유방외과로 보낸 오더는 뺀다. 배정은 오더 status 를 안 바꿔서 서버가
-     그 사람을 계속 다시 준다(../sent.js) */
-  const rows = H.rows(arrived.data).filter((r) => !isSent(r));
+  /* 유방외과로 보낸 오더는 서버가 뺀다(waitingArrived 의 handed=none) */
+  const rows = H.rows(arrived.data);
   const body = (
     <div className="nwait">
       <Queue state={arrived} rows={rows} pick={pick} onPick={setPick} />
@@ -323,8 +321,8 @@ function Assign({ cfg, orderId, patient, picked, may, onDone }) {
     setBusy(true);
     setErr(null);
     try {
-      await cfg.api.assignSurgeon(patient.patient_id, who);
-      markSent(orderId, patient.patient_id, who);
+      /* ⚠ 오더 번호로 보낸다 — 서버가 오더에 인계를 남기고 주치의도 바꾼다 */
+      await cfg.api.handoff(orderId, who);
       onDone?.();
     } catch (e) { setErr(e.detail || e.message); }
     finally { setBusy(false); }
