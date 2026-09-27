@@ -1,7 +1,6 @@
 import { nursing as nur, path, reception as rec } from "../api";
 import { go } from "../nav";
 import * as H from "./home";
-import { isSent } from "./nursing/sent";
 
 /* 간호과 설정 — **원무과를 없애고 그 일을 여기 넣었다** (6.1)
  * ════════════════════════════════════════════════════════════════
@@ -78,8 +77,8 @@ export const nursing = {
       tabs: [
         { key: "waiting", name: "내원 대기",
           empty: "내원한 대기 환자가 없습니다",
-          /* 유방외과로 보낸 사람은 뺀다(nursing/sent.js) */
-          rows: arrived.filter((r) => !isSent(r)).map((r) => ({
+          /* 유방외과로 보낸 사람은 서버가 뺀다(waitingArrived 의 handed=none) */
+          rows: arrived.map((r) => ({
             id: r.exam_order_id ?? r.id,
             name: H.nameOf(r),
             no: H.noOf(r),
@@ -208,7 +207,7 @@ export const nursing = {
           count: follow.filter((r) => r.call_result === "부재").length,
           to: go.nursing.followups() },
         { tag: "문진", text: "접수 뒤 문진이 비어 있는 환자",
-          count: arrived.filter((r) => !isSent(r) && !r.questionnaire).length,
+          count: arrived.filter((r) => !r.questionnaire).length,
           to: go.nursing.intake() },
         /* ⚠ **「연락처 없는 환자」는 못 센다.** 그건 서버가 거르는 조건이
            아니라 **화면이 받아 놓고 거르는** 것이라, 한 쪽(20명)만 보고

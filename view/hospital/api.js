@@ -1251,11 +1251,13 @@ export const nursing = {
   /* ⚠ 2026-09-27 — visited_on=today 를 단다. visited=yes 만으로는 **어제
      접수하고 안 끝난 오더**까지 오늘 대기 줄에 섞였다.
      ⚠ assigned=none 은 **안 단다.** 전에 배정받은 환자가 다시 오면 주치의가
-       이미 있어서 그 사람이 줄에서 통째로 빠진다 — 보낸 것은 여전히
-       nursing/sent.js 가 가린다.
+       이미 있어서 그 사람이 줄에서 통째로 빠진다.
+     ⚠ 09-27 — 대신 handed=none 을 단다. 보냈는가는 **오더의 handed_at** 이
+       갈라 준다(서버, handoff 아래). 예전에는 이 PC 의 localStorage 로 가려서
+       다른 PC 에서는 보낸 사람이 다시 떴다.
      예약 환자는 접수(checkin)가 그 예약 오더를 내원 처리하고 requested 로
      되돌려 준다(서버) — 그래서 status=requested 하나로 둘 다 잡힌다 */
-  waitingArrived: () => get(`/exam-orders${qs({ status: "requested", visited: "yes", visited_on: "today", ordering: "visited_at", page_size: PAGE_ALL })}`),
+  waitingArrived: () => get(`/exam-orders${qs({ status: "requested", visited: "yes", visited_on: "today", handed: "none", ordering: "visited_at", page_size: PAGE_ALL })}`),
   /* ⚠ 서버에 상태 거르개를 안 걸어서 **취소한 예약도** 「금일 내원 예정」·
      「안 오심」에 떴다. 아직 올 수 있는 것(requested · scheduled)만 남긴다 */
   scheduledToday: () => get(`/exam-orders${qs({ scheduled_on: "today", visited: "none", ordering: "scheduled_at", page_size: PAGE_ALL })}`)
@@ -1274,6 +1276,11 @@ export const nursing = {
    * 키를 그냥 무시하고 200 을 돌려주기 때문에, 예전 이름으로는 응답은
    * 정상인데 실제로는 아무것도 안 바뀌는 채로 넘어가고 있었다. */
   assignSurgeon:  (patientId, staffId) => patch(`/patients/${patientId}/`, { primary_staff: staffId }),
+  /* 09-27 간호 → 유방외과 인계. 오더에 handed_at · handed_to 를 남기고 환자
+     primary_staff 도 서버가 같이 바꾼다 — 내원 대기의 [보내기]는 이것을 쓴다.
+     ⚠ assignSurgeon 으로 보내면 오더에 아무것도 안 남아 대기 줄에 다시
+       뜨고, 유방외과 대기에도 안 뜬다 */
+  handoff:        (orderId, staffId) => patch(`/exam-orders/${orderId}/handoff`, { staff_id: staffId }),
 
   /* 2장 */
   /* ⚠ router.register(r"followups", ...) 로 등록된 목록이라 슬래시가

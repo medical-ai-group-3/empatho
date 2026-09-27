@@ -97,9 +97,8 @@ function PatientDetail({ id }) {
   const { loading, data: patient, error, reload } = useApi(() => api.patient(id), [id]);
 
   return (
-    /* [자세히] — 이 환자의 검사 종합(환자 상세) 화면으로 간다 */
-    <Card title="환자 상세" className="patients-detail-card"
-          right={<Btn to={go.breast.review(id)}>자세히</Btn>}>
+    <Card title="환자 요약" className="patients-detail-card"
+          right={<Btn kind="fill" to={go.breast.review(id)}>환자 상세</Btn>}>
       <Body loading={loading} error={error} onRetry={reload}>
         {patient && (
           <>

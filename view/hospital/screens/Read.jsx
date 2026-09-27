@@ -2,8 +2,7 @@ import { Suspense, lazy, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Body } from "../lib/Body";
 import { Card, Page } from "../lib/Page";
-import { Chip, Locked, Save, Slide, Viewer, readable } from "../lib/Parts";
-import { go } from "../nav";
+import { Chip, Locked, Save, Slide, Viewer } from "../lib/Parts";
 import Stage, { MaskKeys } from "../lib/Stage";
 import { useFile } from "../lib/files";
 import { useApi } from "../lib/useApi";
@@ -143,7 +142,9 @@ function Inner({ cfg, id, d }) {
        ⚠ 전체화면이면 레일을 접는다 — 그때는 영상만 본다 */
     <div className={`read-cols${full ? " readfull" : ""}`}>
       <div className={`read-workspace${full ? " readfull" : ""}`}>
-      {!full && <PastPick cfg={cfg} patientId={d.patient?.id} />}
+      {/* 지난 기록은 **필요할 때만 펼친다.** 늘 왼쪽에 세워 두면 그 폭만큼
+          영상이 작아졌다. 전체화면이면 단추도 없다 — 그때는 영상만 본다 */}
+      {!full && <PastRail cfg={cfg} patientId={d.patient?.id} />}
       <Card pad={false}>
         <Viewer
           infoName={c.infoName}
@@ -242,45 +243,43 @@ function Inner({ cfg, id, d }) {
   );
 }
 
-/* ── 뷰어 위 — 이 환자의 지난 기록 (4.4 · 09-27 고르개로) ──────────
- * 전에는 왼쪽 세로 칸이었는데 영상 폭을 먹고 판독을 방해했다. 고르개
- * 하나로 접고, 고르면 그 줄을 옆에 풀어 적는다.
+/* ── 왼쪽 레일 — 이 환자의 지난 기록 (4.4) ──────────────────────
+ * 날짜를 크게, 그 아래 그날 무슨 일이 있었는지. **색을 쓰지 않는다.**
  *
- * ⚠ `timeline(pid)` 이 촬영·판독·검체·확진을 날짜로 주고, 판독 줄은
+ * ⚠ **지난 «검사»를 따로 부를 경로가 없다.** `/patients/{id}/studies` 는
+ *   api.js 에서 유방외과 것으로만 열려 있고 새 경로는 안 판다. 대신
+ *   `timeline(pid)` 이 촬영·판독·검체·확진을 날짜로 주고, 판독 줄은
  *   BI-RADS 를 `detail` 에 달고 온다 — 견주는 데 필요한 것이 그 값이다.
- * ⚠ **이 화면은 안 옮긴다.** 쓰던 소견이 날아가면 안 된다. 그 검사를
- *   볼 수 있으면 **새 창**으로 연다.
+ * ⚠ **눌러도 화면을 안 옮긴다.** 쓰던 소견이 날아가면 안 된다. 그 날짜의
+ *   영상을 가운데에 띄우려면 study 를 날짜로 찾는 경로가 있어야 한다(8장).
  */
-function PastPick({ cfg, patientId }) {
+function PastRail({ cfg, patientId }) {
+  const [open, setOpen] = useState(false);
   const line = useApi(
     () => (patientId ? H.soft(cfg.api.timeline(patientId)) : Promise.resolve([])),
     [patientId]);
   const rows = [...H.rows(line.data)].reverse();
-  const [i, setI] = useState("");
-  const r = i === "" ? null : rows[Number(i)];
-  const to = !r ? null
-    : r.study_id != null && can("radiology.read.view") ? go.radiology.read(r.study_id)
-    : r.specimen_id != null && can("pathology.read.view") ? go.pathology.read(r.specimen_id)
-    : null;
 
   return (
-    <div className="past-pick">
-      <label>
-        <span>지난 기록 {rows.length}</span>
-        <select value={i} onChange={(e) => setI(e.target.value)} aria-label="지난 기록 고르기">
-          <option value="">지금 판독</option>
-          {rows.map((x, k) => (
-            <option key={`${x.at}-${k}`} value={k}>
-              {readable(x.at)} · {x.type}{x.detail ? ` · ${x.detail}` : ""}
-            </option>
-          ))}
-        </select>
-      </label>
-      {r && (
-        <span className="past-pick-d">
-          {r.type}{r.detail && ` — ${r.detail}`}
-          {to && <a href={to} target="_blank" rel="noreferrer">새 창에서 열기 ↗</a>}
-        </span>
+    <div className="prail-drop">
+      <button type="button" className="btn line sm" aria-expanded={open}
+              onClick={() => setOpen((v) => !v)}>
+        지난 기록 <em>{rows.length}</em> {open ? "▴" : "▾"}
+      </button>
+      {open && (
+        <nav className="prail" aria-label="이 환자의 지난 기록">
+          <div className="prail-b">
+            {rows.length === 0
+              ? <p className="hcard-k hpad">아직 없습니다</p>
+              : rows.map((r, i) => (
+                <article className="prail-day" key={`${r.at}-${i}`}>
+                  <time>{H.day(r.at)}</time>
+                  <span className="prail-k">{r.type}</span>
+                  {r.detail && <b>{r.detail}</b>}
+                </article>
+              ))}
+          </div>
+        </nav>
       )}
     </div>
   );

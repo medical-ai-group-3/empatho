@@ -68,7 +68,7 @@ const BREAST = [
     where: "1장 화면 자체" },
   { key: "breast.exam.order",        label: "유방외과 영상 검사 오더",
     where: "1장 [검사 오더] — 영상의학과 대기 큐에 새 오더를 만든다" },
-  { key: "breast.review.view",       label: "유방외과 검사 종합 확인",
+  { key: "breast.review.view",       label: "유방외과 환자 상세 보기",
     where: "2장 화면 자체 — 영상·병리 결과를 함께 본다" },
   { key: "breast.decision.view",     label: "유방외과 수술 결정 보기",
     where: "3장 화면 자체" },

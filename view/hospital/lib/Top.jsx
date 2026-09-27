@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, NavLink, useNavigate } from "react-router-dom";
+import { Link, NavLink } from "react-router-dom";
 import { HOSPITAL, PRODUCT, deptPath, go, homeDept, menuScreens, myDepts } from "../nav";
 import { can } from "../perm";
 import { acknowledgeNotification, apiInfo, notifications, path } from "../api";
@@ -96,7 +96,9 @@ export default function Top({ dept, now, counts, summary }) {
           <span className="who"><b>—</b><em>로그인 정보 없음</em></span>
         )}
 
-        <PatientSearch dept={dept} />
+        {/* 띠에는 환자 검색을 두지 않는다 — 과마다 환자 목록 · 접수 화면의
+            검색이 그 자리를 한다(두 곳에서 찾게 하지 않는다) */}
+        <span className="band-fill" />
 
         <div className="band-r">
           <span className="when">{now}</span>
@@ -199,69 +201,6 @@ function Bell({ on }) {
         <p className="live-toast" role="status" onClick={() => setToast(null)}>{toast}</p>
       )}
     </div>
-  );
-}
-
-/* ── 환자 찾기 ────────────────────────────────────────────────
- *
- * 이 시스템에서 제일 많이 하는 행동이라 가운데에 크고 길게 둔다.
- * `/` 를 누르면 어디서든 여기로 들어온다 — 글자를 치던 중이면 안 뺏는다.
- *
- * ⚠ **여기서 검색하지 않는다.** 누르면 목록 화면으로 넘기고 그쪽이
- *   서버에 묻는다(?q=). 상단바가 스스로 목록을 들고 있으면 화면마다
- *   결과가 두 벌이 된다.
- *
- * ⚠ **지금 보는 과의 목록으로 보낸다.** 한 과로 고정하면 다른 과 선생님이
- *   검색할 때마다 권한 없는 화면으로 끌려간다. 과 바깥 환자 목록은 아직
- *   없다 — 생기면 여기를 그쪽 하나로 바꾼다.
- *
- * ⚠ **과 이름을 여기 박지 않는다.** 어느 화면이 목록인지는 nav.js 의 등록
- *   표에서 읽는다(`key` 가 patients · specimens 인 줄). 과가 늘거나 합쳐져도
- *   이 파일은 안 고친다 — 박아 두면 표와 여기 두 곳을 같이 고쳐야 하고,
- *   한쪽만 고치면 검색이 엉뚱한 데로 간다.
- */
-const LIST_KEYS = new Set(["patients", "specimens"]);
-
-function listPath(dept) {
-  if (!dept) return null;
-  const s = menuScreens(dept).find((x) => LIST_KEYS.has(x.key) && can(x.need));
-  return s ? `${deptPath(dept)}/${s.key}` : null;
-}
-
-function PatientSearch({ dept }) {
-  const [q, setQ] = useState("");
-  const box = useRef(null);
-  const nav = useNavigate();
-  const where = listPath(dept);
-
-  useEffect(() => {
-    const hit = (e) => {
-      if (e.key !== "/") return;
-      const t = e.target;
-      if (t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement) return;
-      e.preventDefault();
-      box.current?.focus();
-    };
-    document.addEventListener("keydown", hit);
-    return () => document.removeEventListener("keydown", hit);
-  }, []);
-
-  function submit(e) {
-    e.preventDefault();
-    const v = q.trim();
-    if (!v || !where) return;
-    nav(`${where}?q=${encodeURIComponent(v)}`);
-  }
-
-  return (
-    <form className="band-find" onSubmit={submit} role="search">
-      <span aria-hidden="true">⌕</span>
-      <input ref={box} value={q} onChange={(e) => setQ(e.target.value)}
-             placeholder="환자 이름 · 환자번호 · 생년월일" aria-label="환자 찾기"
-             disabled={!where}
-             title={where ? undefined : "이 과에는 환자 목록 화면이 없습니다"} />
-      <kbd aria-hidden="true">/</kbd>
-    </form>
   );
 }
 

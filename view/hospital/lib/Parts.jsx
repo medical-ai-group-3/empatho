@@ -223,17 +223,10 @@ export function Bar({ value = 0, label }) {
    **이 판에서 어두운 곳은 여기뿐이다.** 판독 영상은 주변이 밝으면
    눈이 계속 조절해야 해서 오래 못 본다.
 
-   공통 영상 Viewer 레이아웃 설계(2026-09-17) — 환자 정보 · 영상
-   Viewer · AI 소견 · 의사 소견 **넷을 서로 독립된 카드**로 다룬다.
-   AI 소견과 의사 소견은 한 사이드에 위아래로 쌓지 않는다 — 각자
-   자기 테두리·자기 접힘 상태를 가진 별개의 aside다. 하나를 접으면
-   그 칸의 width 자체가 손잡이(vtab) 폭으로 줄어들고, 가운데
-   Viewer(flex:1)가 남는 공간을 그대로 흡수한다 — visibility만
-   지우고 자리를 남겨 두는 방식이 아니다. */
-/* ⚠ 09-27 개편 — AI 소견과 의사 소견을 **한 칸(소견)에 위아래로** 넣고
-   각자 따로 접는다. 칸이 넷이면 가운데 영상이 좁아지고 의사 소견 칸이
-   화면 밖으로 잘렸다. 소견 칸 전체도 접을 수 있다(그때 영상이 가장 넓다).
-   의사 소견이 위다 — 쓰는 곳이 본체이고 AI 는 곁에서 보는 것이다. */
+   환자 정보 · 영상 Viewer · 소견 **세 칸**이다. AI 소견과 의사 소견은
+   한 칸 안에서 탭으로 오간다 — 둘을 따로 세우면 옆 칸이 늘어 영상이
+   작아졌다. 칸을 접으면 그 폭이 손잡이(vtab)로 줄고 가운데 Viewer
+   (flex:1)가 남는 공간을 그대로 흡수한다. */
 export function Viewer({
   infoName = "환자 정보", info,
   aiName = "AI 소견", ai, aiOpen = false,          /* AI 는 기본 접힘 */
@@ -241,9 +234,19 @@ export function Viewer({
   tools, below, children,
 }) {
   const [L, setL] = useState(true);
-  const [S, setS] = useState(true);
-  const [A, setA] = useState(aiOpen);
-  const [D, setD] = useState(doctorOpen);
+  /* 소견 칸은 **하나**다 — 둘을 따로 세우면 뷰어 옆으로 칸이 셋이 되어
+     정작 영상이 작아졌다.
+     ⚠ 09-27 — 머리의 두 단추는 탭(하나만)이 아니라 **각각 켜고 끄는
+       단추**다. 둘 다 켜면 위아래로 함께 보고(의사 소견을 쓰면서 AI 를
+       견줄 수 있다), 하나만 켜면 그것이 칸을 채운다. 둘 다 끄면 칸이
+       손잡이로 접힌다. 처음에는 펼쳐 두라고 한 쪽이 켜져 있다 */
+  const both = Boolean(ai && doctor);
+  const [showD, setShowD] = useState(Boolean(doctor && doctorOpen));
+  const [showA, setShowA] = useState(Boolean(ai && (aiOpen || !doctor)));
+  const open = (doctor && showD) || (ai && showA);
+  const sideName = both ? "소견" : (doctor ? doctorName : aiName);
+  const reopen = () => (doctor ? setShowD(true) : setShowA(true));
+  const shut = () => { setShowD(false); setShowA(false); };
 
   return (
     <div className="vwrap">
@@ -263,30 +266,31 @@ export function Viewer({
         {below && <div className="vunder">{below}</div>}
       </div>
 
-      {(ai || doctor) && (S
-        ? <aside className="vside vside-2">
-            <div className="vside-h"><b>소견</b>
-              <button className="x" onClick={() => setS(false)} aria-label="소견 칸 접기">›</button></div>
+      {(ai || doctor) && (open
+        ? <aside className="vside">
+            <div className="vside-h">
+              {both ? (
+                <span className="vside-tabs" role="group" aria-label="보일 소견">
+                  <button type="button" aria-pressed={showD} className={showD ? "on" : ""}
+                          onClick={() => setShowD((v) => !v)}>{doctorName}</button>
+                  <button type="button" aria-pressed={showA} className={showA ? "on" : ""}
+                          onClick={() => setShowA((v) => !v)}>{aiName}</button>
+                </span>
+              ) : <b>{sideName}</b>}
+              <button className="x" onClick={shut} aria-label="접기">›</button>
+            </div>
             <div className="vside-b">
-              {doctor && <Sec name={doctorName} open={D} onToggle={() => setD((v) => !v)}>{doctor}</Sec>}
-              {ai && <Sec name={aiName} open={A} onToggle={() => setA((v) => !v)}>{ai}</Sec>}
+              {/* 둘 다 켜져 있을 때만 이름을 단다 — 어디까지가 어느 소견인지 */}
+              {doctor && showD && (showA && ai
+                ? <section className="vsec"><b className="vsec-t">{doctorName}</b>{doctor}</section>
+                : doctor)}
+              {ai && showA && (showD && doctor
+                ? <section className="vsec"><b className="vsec-t">{aiName}</b>{ai}</section>
+                : ai)}
             </div>
           </aside>
-        : <button className="vtab" onClick={() => setS(true)}>소견</button>)}
+        : <button className="vtab" onClick={reopen}>{sideName}</button>)}
     </div>
-  );
-}
-
-/* 소견 칸 안의 한 묶음 — 머리를 누르면 접히고 펴진다 */
-function Sec({ name, open, onToggle, children }) {
-  return (
-    <section className={`vsec${open ? " on" : ""}`}>
-      <button type="button" className="vsec-h" aria-expanded={open} onClick={onToggle}>
-        <b>{name}</b>
-        <i aria-hidden="true">{open ? "▾" : "▸"}</i>
-      </button>
-      {open && <div className="vsec-b">{children}</div>}
-    </section>
   );
 }
 

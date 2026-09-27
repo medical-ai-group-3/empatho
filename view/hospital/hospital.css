@@ -69,24 +69,9 @@ input,select,textarea{font:inherit; color:inherit}
 .who em{font-style:normal; font-size:var(--who-k-fs); color:var(--v-warm)}
 .who em::before{content:"·"; margin-right:var(--gap-xs); color:var(--v-line)}
 
-/* 검색 — 이 시스템에서 제일 많이 하는 행동이라 가운데에 크고 길게 두고,
-   **누르면 넓어진다.** 눌렀다는 것이 화면에 보여야 한다 */
-.band-find{display:flex; align-items:center; gap:var(--gap-tight);
-  width:var(--search-w); max-width:100%; height:var(--search-h);
-  margin:0 auto; padding:0 var(--in-pad-x);
-  border-radius:var(--round); background:var(--v-card);
-  box-shadow:inset 0 0 0 var(--hair) var(--v-line);
-  transition:width var(--m-find) var(--ease-tab),
-             background var(--m-find) var(--ease-tab)}
-.band-find:focus-within{width:var(--search-w-on); background:var(--v-line)}
-.band-find span{color:var(--v-warm)}
-.band-find input{flex:1; min-width:0; border:none; background:none;
-  font-size:var(--search-fs); color:var(--v-ink)}
-.band-find input::placeholder{color:var(--v-warm)}
-.band-find input:disabled{cursor:not-allowed}
-.band-find kbd{font-family:var(--font-ui); font-size:var(--hint-fs);
-  color:var(--v-warm); border:var(--hair) solid var(--v-line);
-  border-radius:var(--radius-xs); padding:0 var(--gap-xs)}
+/* 가운데를 채워 오른쪽 묶음(시계 · 알림)을 끝으로 민다 — 예전엔 검색칸이
+   margin:auto 로 이 일을 했다 */
+.band-fill{flex:1 1 auto; min-width:0}
 
 .band-r{display:flex; align-items:center; gap:var(--gap-sm); flex:none}
 .when{font-size:var(--top-fs); color:var(--v-warm);
@@ -116,8 +101,6 @@ input,select,textarea{font:inherit; color:inherit}
   .band-hosp, .band-div{display:none}
   /* 시계 — 운영체제 시계와 겹친다. 좁을 때 양보할 것으로 첫 번째다 */
   .when{display:none}
-  /* 단축키 안내 — 이 폭에서 「/」를 누를 일이 드물다 */
-  .band-find kbd{display:none}
 }
 
 @media (max-width: 720px) {
@@ -125,9 +108,6 @@ input,select,textarea{font:inherit; color:inherit}
   .who em{display:none}
   .who{flex:0 1 auto; min-width:0}
   .who b{overflow:hidden; text-overflow:ellipsis}
-  /* 검색은 없애지 않고 자리를 양보한다 — 남은 폭을 채운다 */
-  .band-find{width:auto; flex:1 1 auto; min-width:0; margin:0}
-  .band-find:focus-within{width:auto}
 }
 
 /* ── 탭 두 줄 — 과 줄과 화면 줄 ───────────────────────────────
@@ -822,22 +802,41 @@ a.frow:hover .frow-k{color:var(--ink)}
 /* ── 4.4 히스토리 레일 (screens/Read.jsx) ────────────────────
    **판독은 이전과 견주는 일이다.** 왼쪽에 지난 기록, 가운데 뷰어,
    오른쪽에 쓰는 칸. 색을 안 쓴다 — 날짜만 진하고 나머지는 흐리다 */
-/* ⚠ 09-27 — 지난 기록은 왼쪽 칸이 아니라 뷰어 위 고르개(.past-pick)다.
-   칸이 영상 폭을 먹고 판독을 방해했다 */
 .read-cols{flex:1; min-height:0; display:grid; gap:var(--desk-gap);
   grid-template-columns:minmax(0, 1fr)}
-.past-pick{display:flex; align-items:center; flex-wrap:wrap; gap:var(--gap-sm);
-  margin-bottom:var(--gap-sm); font-size:var(--row-fs)}
-.past-pick label{display:flex; align-items:center; gap:var(--gap-xs)}
-.past-pick label span{font-weight:700}
-.past-pick select{min-width:320px; max-width:100%; padding:var(--gap-xxs) var(--gap-sm);
-  border-radius:var(--card-radius); box-shadow:inset 0 0 0 var(--hair) var(--border);
-  background:var(--card); font:inherit}
-.past-pick-d{color:var(--ink-2)}
-.past-pick-d a{margin-left:var(--gap-sm); color:var(--cyan); font-weight:600}
+/* 지난 기록 — 뷰어 위 단추 하나. 누르면 영상 위로 떠서 펼쳐진다(폭을
+   차지하지 않는다) */
+.read-workspace{position:relative}
+.prail-drop{position:relative; display:flex; justify-content:flex-start;
+  margin-bottom:var(--gap-sm)}
+.prail-drop .btn em{font-style:normal; font-weight:600; margin-left:var(--gap-xxs)}
+.prail-drop .prail{position:absolute; top:calc(100% + var(--gap-xs)); left:0;
+  z-index:20; width:var(--prail-w); max-height:60vh;
+  box-shadow:0 8px 24px rgba(0,0,0,.18)}
 /* 전체화면이면 레일이 없다 — 그때는 영상만 본다 */
 .read-cols.readfull{grid-template-columns:minmax(0, 1fr)}
 .read-cols > .read-workspace{min-width:0}
+
+.prail{display:flex; flex-direction:column; min-height:0;
+  background:var(--card); border:var(--hair) solid var(--border);
+  border-radius:var(--hcard-radius); overflow:hidden}
+.prail-h{flex:none; display:flex; align-items:center; gap:var(--chip-gap);
+  padding:var(--hcard-pad-y) var(--bcol-pad);
+  border-bottom:var(--hair) solid var(--line-2)}
+.prail-h b{font-size:var(--hcard-h-fs); font-weight:700}
+.prail-h em{font-style:normal; font-size:var(--hcard-n-fs); font-weight:600;
+  color:var(--ink-2); font-variant-numeric:tabular-nums}
+.prail-b{flex:1; min-height:0; overflow-y:auto}
+/* 맨 위 「지금」 — 돌아올 곳 */
+.prail-now{padding:var(--nside-pad-y) var(--bcol-pad); background:var(--soot);
+  color:var(--soot-ink); font-size:var(--qrow-meta-fs); font-weight:600}
+.prail-day{display:flex; flex-direction:column; gap:var(--gap-xxs);
+  padding:var(--nside-pad-y) var(--bcol-pad);
+  border-bottom:var(--hair) solid var(--line-2)}
+.prail-day time{font-size:var(--prail-d-fs); font-weight:600;
+  font-variant-numeric:tabular-nums}
+.prail-k{font-size:var(--stag-fs); color:var(--warm)}
+.prail-day b{font-size:var(--qrow-meta-fs); font-weight:600; color:var(--ink-2)}
 
 /* ── 업무 화면 네 단 — 유방외과 · 영상 · 병리가 같이 쓴다 ───────
    Surgery.html · Radiology.html · Pathology.html 세 목업이 **같은 껍데기**다.
@@ -1067,6 +1066,10 @@ a.frow:hover .frow-k{color:var(--ink)}
 .rev-flag.k1 .hcard-k{color:var(--v-warm)}
 
 .rev-see{padding:var(--ndet-pad); background:var(--canvas)}
+/* 뷰어는 제 높이를 부모에서 받는다(height:100%). 높이를 안 주면 영상이
+   몇 줄 높이로 눌려 보였다 */
+.rev-see > .breast{height:var(--list-viewer-h); display:flex}
+.rev-see > .breast > *{flex:1; min-width:0}
 
 /* ── 검사 종합 09-27 개편 (Review.jsx) ──────────────────────────
    위에 환자 한 줄 + 엇갈림 + [화상 보기], 아래 판독 두 칸, 팝업 뷰어 */
@@ -1575,12 +1578,18 @@ a.pevent:focus-visible{outline:var(--hair) solid var(--cyan); outline-offset:2px
    영상의학과 환자 목록(뷰어가 들어가는 상세)처럼 상세 쪽이 넓은 화면에서
    같이 넓어져야 하는 자리에 쓴다(2026-09-18) — .wide 의 고정 440px로는
    뷰어가 좁게 눌린다. */
-.split.third{grid-template-columns:minmax(0,1fr) minmax(0,2.5fr); align-items:stretch}
+/* 목록은 이름·번호만 읽히면 된다 — 폭을 고정 범위로 묶고 나머지를
+   전부 상세(뷰어)에 준다. 비율로 두면 넓은 화면에서 목록만 커졌다 */
+.split.third{grid-template-columns:minmax(300px, var(--list-w)) minmax(0,1fr);
+  align-items:stretch}
 
 /* 상세 안을 뷰어(가운데)·환자 상세정보(오른쪽)로 한 번 더 가른다 —
    목록·뷰어·상세 3단 설계(2026-09-18). 뷰어를 살짝 더 넓게 둔다. */
-.list-detail-cols{display:grid; grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);
+/* ⚠ 정보 칸은 **고정 폭**이다. 1.3 : 1 비율이면 뷰어가 상세의 절반
+   남짓밖에 못 받아 영상이 작고 답답했다 — 남는 폭은 전부 뷰어가 갖는다 */
+.list-detail-cols{display:grid; grid-template-columns:minmax(0,1fr) var(--list-info-w);
   gap:var(--gap); align-items:start}
+.list-detail-viewer{min-width:0}
 @media (max-width:900px){.list-detail-cols{grid-template-columns:1fr}}
 .list-detail-info{display:flex; flex-direction:column; gap:var(--gap-sm)}
 .split-l,.split-r{min-width:0; display:flex; flex-direction:column;
@@ -1718,6 +1727,12 @@ a.pevent:focus-visible{outline:var(--hair) solid var(--cyan); outline-offset:2px
   font-size:var(--v-fs)}
 .vside-h b{flex:1; min-width:0}
 .vside-h .x{color:var(--v-warm)}
+/* 한 칸 안의 두 소견 — AI · 의사를 탭으로 오간다 */
+.vside-tabs{flex:1; min-width:0; display:flex; gap:var(--gap-xs)}
+.vside-tabs button{padding:var(--gap-xxs) var(--gap-sm); border-radius:var(--radius-xs);
+  color:var(--v-warm); font-size:var(--v-fs)}
+.vside-tabs button:hover{color:var(--v-ink)}
+.vside-tabs button.on{background:var(--v-line); color:var(--v-ink); font-weight:600}
 .vside-b{flex:1; overflow-y:auto; padding:var(--v-pad);
   display:flex; flex-direction:column; gap:var(--gap-sm)}
 /* 검사 Series(Fold) — 환자 정보(.kv)와 같은 칸 안이지만 따로 떨어진
@@ -1726,16 +1741,11 @@ a.pevent:focus-visible{outline:var(--hair) solid var(--cyan); outline-offset:2px
 .vside-b > .kv{background:var(--v-bg); border:var(--hair) solid var(--v-line);
   border-radius:var(--v-radius); padding:var(--v-pad); margin:0}
 .vside-b > .fold{background:var(--v-bg); border-color:var(--v-line)}
-/* 소견 칸 — 의사 소견 · AI 소견이 위아래로 들어가 한 칸이 넓다(Parts.jsx Viewer) */
-.vside.vside-2{width:calc(var(--v-side) * 1.35)}
-.vsec{flex:none; display:flex; flex-direction:column;
-  border:var(--hair) solid var(--v-line); border-radius:var(--v-radius); background:var(--v-bg)}
-.vsec-h{display:flex; align-items:center; gap:var(--gap-sm); width:100%;
-  padding:var(--v-pad); color:var(--v-ink); font-size:var(--v-fs); text-align:left}
-.vsec-h b{flex:1}
-.vsec-h i{font-style:normal; color:var(--v-warm)}
-.vsec.on .vsec-h{border-bottom:var(--hair) solid var(--v-line)}
-.vsec-b{padding:var(--v-pad); display:flex; flex-direction:column; gap:var(--gap-sm)}
+/* 소견 칸에 의사 소견 · AI 소견을 둘 다 켜면 위아래 두 묶음(Parts.jsx Viewer).
+   묶음마다 이름을 달고 가는 선으로 가른다 */
+.vsec{display:flex; flex-direction:column; gap:var(--gap-sm)}
+.vsec + .vsec{border-top:var(--hair) solid var(--v-line); padding-top:var(--gap-sm)}
+.vsec-t{font-size:var(--v-fs); color:var(--v-warm); font-weight:600}
 /* 접었을 때 남는 손잡이 — 완전히 사라지면 다시 못 찾는다. 이것도
    독립 카드다(접힌 상태의 그 패널일 뿐, 다른 패널에 붙지 않는다) */
 .vtab{width:var(--v-tab-w); flex:none; background:var(--v-card);
@@ -2892,7 +2902,7 @@ code{padding:0 var(--gap-xs); border-radius:var(--radius-xs);
  *   고정 height를 680px로 줘서 셋 다 같은 칸 크기를 쓰게 만든다 —
  *   Stage·DicomStackViewer 둘 다 height:100%로 부모를 그대로 채우는
  *   구조라(각 컴포넌트 자체 CSS) 이 컨테이너 크기만 맞추면 셋이 맞는다. */
-.list-viewer{height:680px; display:flex; flex-direction:column; gap:8px;
+.list-viewer{height:var(--list-viewer-h); display:flex; flex-direction:column; gap:8px;
   border:var(--hair) solid var(--border); border-radius:var(--in-radius); overflow:hidden}
 .list-viewer .stage-box{height:100%}
 .list-viewer-slides{display:flex; gap:6px; flex-wrap:wrap; padding:8px}

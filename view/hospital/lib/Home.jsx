@@ -634,9 +634,13 @@ function dotClass(kindsHere, kinds) {
 function Todo({ dept }) {
   const [list, setList] = useState(() => notes.read("todo", dept));
   const [text, setText] = useState("");
+  const [composing, setComposing] = useState(false);
 
+  /* ⚠ 한글 조합 중 Enter 는 제출하지 않는다 — 조합을 끝내는 Enter 와 진짜
+     Enter 가 따로 와서 같은 할 일이 두 개(끝 글자 잘린 것까지) 생겼다 */
   function submit(e) {
     e.preventDefault();
+    if (composing || e.nativeEvent?.isComposing) return;
     setList(notes.add("todo", dept, text));
     setText("");
   }
@@ -661,6 +665,8 @@ function Todo({ dept }) {
       </div>
       <form className="todo-add" onSubmit={submit}>
         <input value={text} onChange={(e) => setText(e.target.value)}
+               onCompositionStart={() => setComposing(true)}
+               onCompositionEnd={() => setComposing(false)}
                placeholder="할 일 추가" aria-label="할 일 추가" />
         <button className="btn dark" type="submit" disabled={!text.trim()}>추가</button>
       </form>

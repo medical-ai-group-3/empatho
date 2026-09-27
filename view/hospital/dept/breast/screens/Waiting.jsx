@@ -340,7 +340,7 @@ function nextCareStep(p) {
   }
   return { progress, step: {
     kind: "decision", label: "치료 방침",
-    message: "필요한 검사 결과가 준비되었습니다. 검사 종합을 확인한 뒤 치료 방침을 결정해 주세요.",
+    message: "필요한 검사 결과가 준비되었습니다. 환자 상세에서 검사 결과를 확인한 뒤 치료 방침을 결정해 주세요.",
   } };
 }
 
