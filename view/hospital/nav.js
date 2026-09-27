@@ -167,7 +167,7 @@ const DEPTS = [
       { key: "patients/:id/review", use: "breast.review", menu: "검사 종합", title: "검사 종합",
         need: "breast.review.view", deep: true },
 
-      { key: "patients/:id/decision", use: "breast.decision", menu: "수술 결정", title: "수술 결정",
+      { key: "patients/:id/decision", use: "breast.decision", menu: "치료 방침", title: "치료 방침",
         need: "breast.decision.view", deep: true },
 
       { key: "discordances/:id", use: "breast.discordance", menu: "판정 불일치", title: "판정 불일치",
