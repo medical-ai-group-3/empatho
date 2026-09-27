@@ -25,7 +25,8 @@ class SignupIdentityTests(TestCase):
                            {"verify_token": token, "username": "kim1", "password": "pw123456"},
                            format="json")
 
-    def test_입력이_인증과_다르면_거절(self, _):
+    @mock.patch("core.api.signup.MATCH_CHECK", True)
+    def test_대조를_켜면_입력이_인증과_다를때_거절(self, _):
         r = self.c.post("/api/v1/signup/identity", {**FORM, "sex": "male"}, format="json")
         self.assertEqual(r.status_code, 400)
 
@@ -43,17 +44,20 @@ class SignupIdentityTests(TestCase):
         p.refresh_from_db()
         self.assertEqual(p.account.login_id, "kim1")
 
-    def test_휴대폰은_임시로_대조하지_않는다(self, _):
-        # PHONE_CHECK 를 되돌리면 이 테스트를 지운다
-        r = self.c.post("/api/v1/signup/identity", {**FORM, "phone": "01099998888"},
-                        format="json")
+    def test_임시로_대조없이_입력값으로_가입된다(self, _):
+        # MATCH_CHECK 를 True 로 되돌리면 이 테스트를 지운다
+        form = {**FORM, "name": "테스트이", "birth_date": "1970-05-06",
+                "sex": "male", "phone": "01099998888"}
+        r = self.c.post("/api/v1/signup/identity", form, format="json")
         self.assertEqual(r.status_code, 200)
         r = self.c.post("/api/v1/signup/link",
                         {"verify_token": r.json()["data"]["verify_token"],
                          "username": "kim2", "password": "pw123456"}, format="json")
         self.assertEqual(r.status_code, 201)
         a = models.Account.objects.get(login_id="kim2")
-        self.assertEqual((a.patient.pii.phone, a.phone_verified), ("01099998888", False))
+        p = a.patient
+        self.assertEqual((p.pii.name, str(p.pii.birth_date), p.sex, p.pii.phone, a.phone_verified),
+                         ("테스트이", "1970-05-06", "male", "01099998888", False))
 
     def test_이미_가입한_환자는_다시_못한다(self, _):
         self._link()

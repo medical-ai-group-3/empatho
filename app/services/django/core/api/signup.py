@@ -39,7 +39,7 @@ TOKEN_AGE_SEC = 10 * 60
 LOGIN_ID = re.compile(r"^[A-Za-z0-9]{4,50}$")
 SEX = ("female", "male")
 # ⚠ 임시로 False — signup_identity 의 「임시」 주석 참고. 운영 전에 True 로.
-PHONE_CHECK = False
+MATCH_CHECK = False
 
 
 def _digits(s):
@@ -96,17 +96,18 @@ def signup_identity(request):
         "sex": (who.get("gender") or "").lower(),
         "phone": _digits(who.get("phoneNumber")),
     }
-    # ⚠ 임시(2026-09-27) — 휴대폰은 대조하지 않는다. 테스트 때 가입은 아무
-    #   번호로, 인증만 본인 폰으로 하려고 풀었다. 되돌릴 때는 PHONE_CHECK 를
-    #   True 로 — 그러면 번호도 대조하고 인증된 번호를 저장한다.
-    #   푼 동안은 입력한 번호를 저장하고 phone_verified 를 False 로 남긴다.
-    wrong = [k for k in typed if (PHONE_CHECK or k != "phone") and typed[k] != got[k]]
-    if wrong:
-        raise ApiError("VALIDATION_ERROR",
-                       "입력하신 정보가 본인인증 결과와 다릅니다. 다시 입력해 주세요.",
-                       details={"fields": wrong})
-    who = {**got, "phone": typed["phone"],
-           "phone_verified": typed["phone"] == got["phone"]}
+    # ⚠ 임시(2026-09-27) — 입력값을 인증 결과와 대조하지 않는다. 인증에만
+    #   성공하면 통과하고 **입력한 값**을 저장한다. 테스트 환자를 아무 값으로
+    #   여럿 만들고, 인증만 본인 폰으로 하려고 풀었다.
+    #   되돌릴 때는 MATCH_CHECK 를 True 로 — 그러면 넷 다 대조하고 인증된
+    #   값을 저장한다. 푼 동안 번호가 인증과 다르면 phone_verified 는 False.
+    if MATCH_CHECK:
+        wrong = [k for k in typed if typed[k] != got[k]]
+        if wrong:
+            raise ApiError("VALIDATION_ERROR",
+                           "입력하신 정보가 본인인증 결과와 다릅니다. 다시 입력해 주세요.",
+                           details={"fields": wrong})
+    who = {**typed, "phone_verified": typed["phone"] == got["phone"]}
 
     # 아이디를 궁리하기 전에 알려 준다. link 에서도 다시 막는다.
     if models.Patient.objects.filter(
