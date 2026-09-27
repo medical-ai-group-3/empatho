@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Page, Card, Btn } from "../../lib/Page";
 import { Body, Empty } from "../../lib/Body";
 import { Chip, useCan } from "../../lib/Parts";
@@ -66,12 +67,18 @@ export default function Reservations({ cfg }) {
   const api = cfg.api;
   const today = ymd(new Date());
 
-  const [span, setSpan] = useState("week");      /* day · week · month */
-  const [anchor, setAnchor] = useState(today);   /* 보고 있는 날 */
+  /* 홈 달력에서 날을 눌러 오면 ?date= 가 붙는다 — 그 하루를 연다 */
+  const [params] = useSearchParams();
+  const asked = /^\d{4}-\d{2}-\d{2}$/.test(params.get("date") ?? "")
+    ? params.get("date") : null;
+
+  const [span, setSpan] = useState(asked ? "day" : "week"); /* day · week · month */
+  const [anchor, setAnchor] = useState(asked ?? today);      /* 보고 있는 날 */
   const [pick, setPick] = useState(null);        /* 오른쪽에 띄운 예약·환자 */
   const [tab, setTab] = useState("board");       /* board · requests */
 
   const range = useMemo(() => rangeOf(span, anchor), [span, anchor]);
+  const [ver, setVer] = useState(0);   /* 예약을 잡으면 작은 달력 점도 다시 */
 
   const board = useApi(
     () => api.schedule(range.from, range.to), [range.from, range.to]);
@@ -95,8 +102,10 @@ export default function Reservations({ cfg }) {
             </span>
           )}>
       <div className="resv">
-        <Side anchor={anchor} onPick={(d) => { setAnchor(d); setSpan("week"); }}
-              cfg={cfg} />
+        {/* 작은 달력은 **하루**를 고른다 — 주 전체가 칠해지면 어느 날을
+            골랐는지 안 보였다. 주·월로 넓히는 것은 가운데 머리의 단추다 */}
+        <Side anchor={anchor} onPick={(d) => { setAnchor(d); setSpan("day"); }}
+              cfg={cfg} ver={ver} />
 
         <div className="resv-mid">
           {tab === "board" ? (
@@ -114,6 +123,7 @@ export default function Reservations({ cfg }) {
         <Aside cfg={cfg} pick={pick} rows={rows} onDone={() => {
           board.reload(true);
           requests.reload(true);
+          setVer((n) => n + 1);
         }} onDate={(d) => setAnchor(d)} />
       </div>
     </Page>
@@ -140,12 +150,27 @@ function rangeOf(span, anchor) {
 }
 
 /* ── 왼쪽 220 — 무엇을 볼지 ───────────────────────────────────── */
-function Side({ anchor, onPick, cfg }) {
+function Side({ anchor, onPick, cfg, ver }) {
   const d = new Date(`${anchor}T00:00:00`);
   const months = [
     { y: d.getFullYear(), m: d.getMonth() },
     { y: d.getFullYear(), m: d.getMonth() + 1 },
   ];
+
+  /* 두 달 치 예약을 한 번에 받아 **날마다 몇 건인지**만 센다 — 점과
+     건수로 예약 있는 날이 보이게. 못 불러도 달력은 선다 */
+  const from = ymd(new Date(d.getFullYear(), d.getMonth(), 1));
+  const to = ymd(new Date(d.getFullYear(), d.getMonth() + 2, 0));
+  const booked = useApi(
+    () => cfg.api.schedule(from, to).catch(() => []), [from, to, ver]);
+  const counts = useMemo(() => {
+    const m = new Map();
+    for (const r of Array.isArray(booked.data) ? booked.data : []) {
+      const day = dayOf(r.scheduled_at);
+      if (day) m.set(day, (m.get(day) ?? 0) + 1);
+    }
+    return m;
+  }, [booked.data]);
   /* 「보는 사람」 목록은 부를 수 있다. 다만 예약을 그 사람에게 붙일 수가
      없어서 지금은 **거르지 못한다** — 체크를 만들어 두고 안 듣는 것보다
      못 한다고 적는 편이 낫다 */
@@ -155,7 +180,8 @@ function Side({ anchor, onPick, cfg }) {
   return (
     <div className="resv-side">
       {months.map(({ y, m }) => (
-        <Mini key={`${y}-${m}`} y={y} m={m} anchor={anchor} onPick={onPick} />
+        <Mini key={`${y}-${m}`} y={y} m={m} anchor={anchor} onPick={onPick}
+              counts={counts} />
       ))}
 
       <section className="resv-people">
@@ -175,7 +201,7 @@ function Side({ anchor, onPick, cfg }) {
   );
 }
 
-function Mini({ y, m, anchor, onPick }) {
+function Mini({ y, m, anchor, onPick, counts }) {
   const date = new Date(y, m, 1);
   const year = date.getFullYear();
   const mon = date.getMonth();
@@ -185,7 +211,6 @@ function Mini({ y, m, anchor, onPick }) {
   for (let i = 0; i < first; i += 1) cells.push(null);
   for (let n = 1; n <= last; n += 1) cells.push(`${year}-${pad(mon + 1)}-${pad(n)}`);
 
-  const week = startOfWeek(anchor);
   return (
     <section className="resv-mini">
       <h3>{year}. {pad(mon + 1)}</h3>
@@ -196,9 +221,13 @@ function Mini({ y, m, anchor, onPick }) {
           : (
             <button type="button" key={iso}
                     className={`hcal-d w${new Date(`${iso}T00:00:00`).getDay()}`
-                      + `${startOfWeek(iso) === week ? " now" : ""}`}
+                      + `${iso === anchor ? " now" : ""}`}
+                    aria-pressed={iso === anchor}
+                    title={counts.get(iso) ? `예약 ${counts.get(iso)}건` : undefined}
                     onClick={() => onPick(iso)}>
               {Number(iso.slice(8))}
+              {/* 빈 점도 자리를 지킨다 — 안 그러면 예약 있는 날만 숫자가 뜬다 */}
+              <s className={`hcal-dot${counts.get(iso) ? " k0" : ""}`} />
             </button>
           ))}
       </div>
@@ -380,6 +409,11 @@ function Aside({ cfg, pick, rows, onDone, onDate }) {
 
   return (
     <div className="resv-aside">
+      {/* 새 예약이 맨 위다 — 창구에서 제일 많이 누르는 것이 여기라 스크롤
+          아래에 두면 매번 내려가야 했다 */}
+      <New cfg={cfg} at={pick?.at} order={order} rows={rows}
+           onDone={onDone} onDate={onDate} />
+
       <Card title="예약 정보">
         {order ? (
           <>
@@ -424,8 +458,6 @@ function Aside({ cfg, pick, rows, onDone, onDate }) {
           )}
       </Card>
 
-      <New cfg={cfg} at={pick?.at} order={order} rows={rows}
-           onDone={onDone} onDate={onDate} />
     </div>
   );
 }

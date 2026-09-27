@@ -1,6 +1,7 @@
 import { nursing as nur, path, reception as rec } from "../api";
 import { go } from "../nav";
 import * as H from "./home";
+import { isSent } from "./nursing/sent";
 
 /* 간호과 설정 — **원무과를 없애고 그 일을 여기 넣었다** (6.1)
  * ════════════════════════════════════════════════════════════════
@@ -69,12 +70,13 @@ export const nursing = {
                need: "nursing.waiting.view" },
 
     queue: ({ arrived, today, booked, asks }) => ({
-      title: "지금 와 있는 환자",
+      title: "접수 대기 환자",
       hint: "접수 순 · 순서 고정",
       tabs: [
         { key: "waiting", name: "내원 대기",
           empty: "내원한 대기 환자가 없습니다",
-          rows: arrived.map((r) => ({
+          /* 유방외과로 보낸 사람은 뺀다(nursing/sent.js) */
+          rows: arrived.filter((r) => !isSent(r)).map((r) => ({
             id: r.exam_order_id ?? r.id,
             name: H.nameOf(r),
             no: H.noOf(r),
@@ -197,7 +199,7 @@ export const nursing = {
           count: follow.filter((r) => r.call_result === "부재").length,
           to: go.nursing.followups() },
         { tag: "문진", text: "접수 뒤 문진이 비어 있는 환자",
-          count: arrived.filter((r) => !r.questionnaire).length,
+          count: arrived.filter((r) => !isSent(r) && !r.questionnaire).length,
           to: go.nursing.intake() },
         /* ⚠ **「연락처 없는 환자」는 못 센다.** 그건 서버가 거르는 조건이
            아니라 **화면이 받아 놓고 거르는** 것이라, 한 쪽(20명)만 보고
@@ -211,8 +213,27 @@ export const nursing = {
       ];
     },
 
-    /* ⚠ 접수·배정·문진·콜을 오늘 몇 건 했는지 세어 주는 자리가 없다(8장 1번) */
-    done: () => ({ empty: "아직 없습니다" }),
+    /* ⚠ 「오늘 한 일」 칸은 **안 둔다.** 접수·배정·문진·콜을 오늘 몇 건
+       했는지 세어 주는 자리가 서버에 없어(8장 1번) 늘 비어 있었다.
+       done 이 없으면 홈이 그 자리에 할 일을 올린다(lib/Home.jsx) */
+
+    /* 달력 밑 — 오늘 올 사람. 아직 안 온 예약만(visited=none) 시각 순 */
+    side: ({ booked }) => ({
+      title: "오늘 예약 환자",
+      empty: "오늘 남은 예약이 없습니다",
+      to: go.nursing.reservations(),
+      rows: booked.map((r) => ({
+        id: r.exam_order_id ?? r.id,
+        name: H.nameOf(r),
+        meta: H.who(r),
+        sub: H.isPast(r.scheduled_at) ? "시각 지남" : r.visit_type,
+        at: H.at(r.scheduled_at),
+        to: r.patient != null ? go.patient(r.patient) : null,
+      })),
+    }),
+
+    /* 달력의 날을 누르면 그날 예약 판으로 */
+    calTo: (iso) => `${go.nursing.reservations()}?date=${iso}`,
 
     /* 달력 옆 숫자 둘 — 이번 주 · 내일. 봉투의 count 를 읽어서 스무 건이
        넘어도 정확하다(api.js 의 unwrapList) */

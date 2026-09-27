@@ -7,6 +7,7 @@ import { can } from "../../../perm";
 import { DESK, go } from "../../../nav";
 import SpecimenBindingModal from "../../../lib/SpecimenBindingModal";
 import * as H from "../../home";
+import { isSent, markSent } from "../sent";
 
 /* 내원 대기 · 유방외과 배정 — `docs/mockup/Nursing-내원대기.html`
  * ════════════════════════════════════════════════════════════════
@@ -64,7 +65,9 @@ function Inner({ cfg, embedded }) {
     return () => clearInterval(t);
   }, []);
 
-  const rows = H.rows(arrived.data);
+  /* ⚠ 유방외과로 보낸 오더는 뺀다. 배정은 오더 status 를 안 바꿔서 서버가
+     그 사람을 계속 다시 준다(../sent.js) */
+  const rows = H.rows(arrived.data).filter((r) => !isSent(r));
   const body = (
     <div className="nwait">
       <Queue state={arrived} rows={rows} pick={pick} onPick={setPick} />
@@ -113,7 +116,7 @@ function Queue({ state, rows, pick, onPick }) {
       <header className="bcol-h">
         <i className="hdot" aria-hidden="true" />
         <b>내원한 대기 환자</b>
-        <em>{rows.total ?? rows.length}</em>
+        <em>{rows.length}</em>
         <span className="home-fill" />
         <span className="hcard-k">접수 순 · 순서 고정</span>
       </header>
@@ -255,7 +258,7 @@ function Detail({ cfg, d, onDone }) {
           </div>
         </section>
 
-        <Assign cfg={cfg} patient={patient} picked={d.assigned_to}
+        <Assign cfg={cfg} orderId={id} patient={patient} picked={d.assigned_to}
                 may={mayAssign} onDone={onDone} />
       </div>
 
@@ -282,7 +285,7 @@ function Detail({ cfg, d, onDone }) {
  * ⚠ **「지금 대기 n명」은 못 적는다.** 목록 응답에 primary_staff 가 없어
  *   누가 누구 환자인지 모른다(8장 10번).
  */
-function Assign({ cfg, patient, picked, may, onDone }) {
+function Assign({ cfg, orderId, patient, picked, may, onDone }) {
   const staff = useApi(() => H.soft(cfg.api.surgeons()), []);
   const people = H.rows(staff.data);
   const [who, setWho] = useState(picked ?? null);
@@ -295,6 +298,7 @@ function Assign({ cfg, patient, picked, may, onDone }) {
     setErr(null);
     try {
       await cfg.api.assignSurgeon(patient.patient_id, who);
+      markSent(orderId, patient.patient_id, who);
       onDone?.();
     } catch (e) { setErr(e.detail || e.message); }
     finally { setBusy(false); }

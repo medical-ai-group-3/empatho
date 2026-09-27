@@ -31,7 +31,12 @@ const permitted = (key, integrated) => can(integrated ? [key, "nursing.waiting.v
  * 읽으면 고친 값이 되돌아간다. 첫 값으로만 쓴다.
  */
 
-export default function Patients({ integrated = false }) {
+export default function Patients({ cfg, integrated: asked = false }) {
+  /* ⚠ 간호과로 합친 뒤 이 화면은 main.jsx 가 cfg 만 주고 연다 — integrated 를
+     넘겨 주던 래퍼(NursingHub)를 안 쓰게 되면서 늘 false 였다. 그래서 간호
+     계정은 reception.* 열쇠가 없어 [저장]·[예약] 이 늘 잠겨 있었다.
+     간호과 안에서 열리면 합친 과로 본다 */
+  const integrated = asked || cfg?.key === "nursing";
   const [sp] = useSearchParams();
   const fromCalendar = sp.get("date") ?? "";
 
