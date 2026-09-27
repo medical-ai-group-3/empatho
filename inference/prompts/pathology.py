@@ -3,7 +3,11 @@
 소켓 1 로 부르든 2 로 부르든 같은 dict 가 나온다. 조직 분할 없이 세포만
 검출하면 sTIL 의 분모가 없어서, 두 소켓이 한 파이프라인을 공유한다.
 
-sTIL 은 이 이미지 한 장에서 계산한 값이다 (2026-09-10 확정)
+AI 계측 TIL 면적비 — 이 이미지 한 장에서 계산한 값이다 (2026-09-10 확정)
+
+  「sTIL」이라 부르지 않는다(09-28). 임상 sTIL 은 병리의사의 육안 점수이고
+  치료 기준값도 그 점수로 만들어졌다. 계측값은 핵 면적 기준이라 그보다
+  낮게 나와, 같은 이름이면 그 기준에 대어 틀리게 읽힌다.
 
   stil_percent = immune_nucleus_area_px × nc_ratio(1.5) / stroma_area_px × 100
 
@@ -24,7 +28,8 @@ from prompts import base
 # 2026-09-09.b  base.SYSTEM — 번호 붙은 항목은 항목마다 문장을 끊는다
 # 2026-09-10.a  sTIL 복원. 구간과 nc_ratio 는 뺀다
 # 2026-09-20.a  plain() — 환자용은 「나왔다」까지만 쓴다
-VERSION = "pathology-2026-09-20.a"
+# 2026-09-28.a  sTIL → 「AI 계측 TIL 면적비」 · PA-N02 척도 안내
+VERSION = "pathology-2026-09-28.a"
 
 SOCKET_IDS = {"1", "2"}
 
@@ -44,7 +49,7 @@ def values(r: dict) -> list[tuple[str, str]]:
                 ("평가", "간질이 없어 비율 산출 불가")]
 
     return [("간질 검출", "있음"),
-            ("sTIL", f"{r.get('stil_percent')} %"),
+            ("AI 계측 TIL 면적비", f"{r.get('stil_percent')} %"),
             ("종양 면적 비율", f"{r.get('tsr_tumor_percent')} %"),
             ("간질 면적 비율", f"{r.get('tsr_stroma_percent')} %"),
             ("전체 세포 수", f"{r.get('n_cells_total')}개"),
@@ -59,7 +64,7 @@ def facts(r: dict) -> list[str]:
         return ["간질이 검출되지 않았습니다.",
                 "간질 면적이 분모이므로 비율을 산출하지 못했습니다."]
 
-    return [f"간질 내 종양침윤림프구(sTIL)는 {r.get('stil_percent')}% 입니다.",
+    return [f"이 크롭의 AI 계측 TIL 면적비는 {r.get('stil_percent')}% 입니다.",
             f"종양 면적 비율 {r.get('tsr_tumor_percent')}%, "
             f"간질 면적 비율 {r.get('tsr_stroma_percent')}% 입니다.",
             f"전체 세포 {r.get('n_cells_total')}개 중 "
@@ -82,7 +87,7 @@ def plain(r: dict) -> list[str]:
 
 NOTES = {
     "PA-N01": "간질이 검출되지 않아 「평가 불가」입니다. 0% 가 아닙니다.",
-    "PA-N02": "sTIL 은 이 이미지 한 장에서 계산한 값입니다. 같은 조직도 잘라낸 자리에 따라 크게 달라지므로, 절대값보다 다른 검사와의 비교로 보십시오.",
+    "PA-N02": "AI 계측 TIL 면적비는 핵 면적 기준 계측값으로, 병리의사 육안 sTIL보다 낮게 나옵니다. 같은 조직도 잘라낸 자리에 따라 크게 달라집니다.",
     "PA-N03": "종양·간질 비율은 종양÷(종양+간질) 한 가지 정의를 두 관점으로 적은 값입니다. 합이 100% 가 됩니다.",
     "PA-N04": "최종 판정은 의사가 합니다.",
 }
