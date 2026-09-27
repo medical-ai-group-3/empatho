@@ -210,7 +210,8 @@ function Inner({ cfg, id, d }) {
               <Suspense fallback={<div className="mri-loading">MRI 뷰어 불러오는 중…</div>}>
                 <MRIReviewGrid
                   lesions={d.lesions}
-                  study={{ volume_manifest: view.volumeManifest, volume_base: view.volumeBase }}
+                  study={{ volume_manifest: view.volumeManifest, volume_base: view.volumeBase, anatomy_meshes: d.anatomy_meshes }}
+                  issue={cfg.api.ticket}
                   mode="diagnostic"
                   onAnnotation={setPendingMark}
                 />

@@ -280,3 +280,14 @@ export function useFile(spec, issue, scope) {
 
   return state;
 }
+
+/* JSON 파일 하나(MRI 메시 등)를 받아 객체로 돌려준다 — 규격은 useFile 과 같다 */
+export async function fetchJson(spec, issue, scope) {
+  if (spec?.url) return (await fetch(spec.url)).json();
+  const t = targetOf(spec, scope);
+  if (!t || !issue) return null;
+  const token = await getTicket(issue, t);
+  const res = await fetch(t.path, { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) throw Object.assign(new Error("메시를 불러오지 못했습니다"), { status: res.status });
+  return res.json();
+}

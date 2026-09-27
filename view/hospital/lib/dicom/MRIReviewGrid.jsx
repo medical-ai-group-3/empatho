@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { hasMesh, useMeshData } from "./meshData";
 import Anatomy3DViewer from "./Anatomy3DViewer";
 import Tumor3DViewer from "./Tumor3DViewer";
 import DicomMprPanel from "./DicomMprPanel";
@@ -21,6 +22,8 @@ export default function MRIReviewGrid({
   study,
   mode = "diagnostic",
   onAnnotation,
+  /* 파생물(메시 JSON) 티켓 발급 — rad.ticket. 없으면 메시를 안 받는다 */
+  issue,
 }) {
   const [localSelectedLesion, setLocalSelectedLesion] =
     useState(
@@ -32,14 +35,22 @@ export default function MRIReviewGrid({
   const selectedLesion =
     localSelectedLesion;
 
-  const validLesions = Array.isArray(lesions)
-    ? lesions.filter(
-        (lesion) =>
-          lesion &&
-          (lesion.mesh_url ||
-            lesion.mesh_image_id)
-      )
+  /* 서버는 병변마다 mesh 주소를, 검사에는 anatomy_meshes(몸 · 유방)를 준다.
+     받은 JSON 을 mesh_data 로 붙여 두 뷰어에 넘긴다 */
+  const list = Array.isArray(lesions) ? lesions.filter(Boolean) : [];
+  const anatomy = study?.anatomy_meshes;
+  const specs = issue
+    ? [anatomy?.body ?? anatomy?.breast ?? null, ...list.map((l) => l.mesh ?? null)]
     : [];
+  const data = useMeshData(specs, issue);
+  const bodyMesh = data[0] ?? null;
+  const validLesions = useMemo(
+    () => list
+      .map((l, i) => (data[i + 1] ? { ...l, mesh_data: data[i + 1] } : l))
+      .filter(hasMesh),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [data, lesions]
+  );
 
   const selectLesion = (index) => {
     const next =
@@ -60,6 +71,7 @@ export default function MRIReviewGrid({
           lesions={validLesions}
           selectedLesion={selectedLesion}
           showBody
+          bodyMesh={bodyMesh}
         />
       </section>
 
@@ -130,11 +142,8 @@ export default function MRIReviewGrid({
                       ][index % 4],
                   }}
                 />
-                병변{" "}
-                {String(index + 1).padStart(
-                  2,
-                  "0"
-                )}
+                {lesion.label ||
+                  `병변 ${String(index + 1).padStart(2, "0")}`}
               </button>
             )
           )}

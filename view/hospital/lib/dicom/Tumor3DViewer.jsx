@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { STLLoader } from "three/addons/loaders/STLLoader.js";
+import { hasMesh, loadGeometry } from "./meshData";
 
 const DEFAULT_COLORS = [
   "#C9828C",
@@ -14,15 +14,6 @@ const DEFAULT_COLORS = [
 
 function getLesionColor(lesion, index) {
   return lesion?.color || DEFAULT_COLORS[index % DEFAULT_COLORS.length];
-}
-
-function getMeshUrl(lesion) {
-  return (
-    lesion?.mesh_url ||
-    (lesion?.mesh_image_id?.endsWith(".stl")
-      ? `/models/duke/${lesion.mesh_image_id}`
-      : null)
-  );
 }
 
 export default function Tumor3DViewer({
@@ -106,7 +97,6 @@ export default function Tumor3DViewer({
     controls.minPolarAngle = Math.PI * 0.20;
     controls.maxPolarAngle = Math.PI * 0.80;
 
-    const loader = new STLLoader();
     const geometries = [];
     const materials = [];
 
@@ -121,9 +111,7 @@ export default function Tumor3DViewer({
     let loaded = 0;
 
     const validLesions =
-      visibleLesions.filter((x) =>
-        getMeshUrl(x)
-      );
+      visibleLesions.filter(hasMesh);
 
     if (!validLesions.length) {
       camera.position.set(0, 0, 3);
@@ -143,10 +131,8 @@ export default function Tumor3DViewer({
       const originalIndex =
         lesions.indexOf(lesion);
 
-      const url = getMeshUrl(lesion);
-
-      loader.load(
-        url,
+      loadGeometry(
+        lesion,
         (geometry) => {
           geometry.computeVertexNormals();
           geometries.push(geometry);
@@ -189,10 +175,9 @@ export default function Tumor3DViewer({
           root.add(mesh);
           finishLoad();
         },
-        undefined,
         (error) => {
           console.error(
-            `Tumor STL loading failed: ${url}`,
+            "Tumor mesh loading failed",
             error
           );
           finishLoad();

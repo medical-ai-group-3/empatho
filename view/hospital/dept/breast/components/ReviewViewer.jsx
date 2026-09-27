@@ -622,7 +622,7 @@ function StudyView({ study, lesions }) {
   return (
     <Body loading={read.loading} error={read.error} onRetry={read.reload}>
       {!d ? null : view.volumeManifest ? (
-        <MRIReviewGrid lesions={lesions} study={d} mode="review" />
+        <MRIReviewGrid lesions={lesions} study={d} mode="review" issue={rad.ticket} />
       ) : view.stackManifest ? (
         <DicomStackViewer manifestUrl={view.stackManifest}
                           baseUrl={view.stackBase} mode="review" />

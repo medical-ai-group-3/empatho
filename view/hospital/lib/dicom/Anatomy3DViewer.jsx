@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { STLLoader } from "three/addons/loaders/STLLoader.js";
+import { hasMesh, jsonGeometry, loadGeometry } from "./meshData";
 
 const BODY_URL =
   "/models/duke/DUKE_001_body_silhouette.stl";
@@ -26,17 +27,6 @@ function getLesionColor(lesion, index) {
   return lesion?.color || DEFAULT_COLORS[index % DEFAULT_COLORS.length];
 }
 
-function getMeshUrl(lesion) {
-  // 현재 mock에서는 mesh_url을 사용할 수 있고,
-  // 기존 canonical 데이터에서는 mesh_image_id가 있을 수 있다.
-  return (
-    lesion?.mesh_url ||
-    (lesion?.mesh_image_id?.endsWith(".stl")
-      ? `/models/duke/${lesion.mesh_image_id}`
-      : null)
-  );
-}
-
 export default function Anatomy3DViewer({
   /* ⚠ 기본값을 **빈 배열**로 둔다.
    *
@@ -52,6 +42,9 @@ export default function Anatomy3DViewer({
   lesions = [],
   selectedLesion = null,
   showBody = true,
+  /* 판독이 만든 몸 윤곽 메시(JSON). 있으면 DUKE STL 대신 이것을 쓰고,
+     DUKE 좌표에 맞춘 CROP 자르기 · 카메라 대신 메시 상자에 맞춘다 */
+  bodyMesh = null,
 }) {
   const containerRef = useRef(null);
   const controlsRef = useRef(null);
@@ -113,7 +106,8 @@ export default function Anatomy3DViewer({
     controls.minPolarAngle = Math.PI * 0.20;
     controls.maxPolarAngle = Math.PI * 0.80;
 
-    const clipPlanes = [
+    const json = Boolean(bodyMesh) || lesions.some((l) => l?.mesh_data);
+    const clipPlanes = json ? [] : [
       new THREE.Plane(
         new THREE.Vector3(0, 1, 0),
         -CROP.bottomY
@@ -208,18 +202,19 @@ export default function Anatomy3DViewer({
       materials.push(material);
     }
 
+    const validLesions = lesions.filter(hasMesh);
+    const stlBody = showBody && !json;
+    const expected = validLesions.length + (stlBody || bodyMesh ? 1 : 0);
+
     function loaded() {
       loadCount += 1;
-
-      if (loadCount >=
-        lesions.filter((x) => getMeshUrl(x)).length +
-        (showBody ? 1 : 0)
-      ) {
-        fitCamera();
-      }
+      if (loadCount >= expected) fitCamera();
     }
 
-    if (showBody) {
+    if (bodyMesh) {
+      addBody(jsonGeometry(bodyMesh));
+      loaded();
+    } else if (stlBody) {
       loader.load(
         BODY_URL,
         (geometry) => {
@@ -237,16 +232,10 @@ export default function Anatomy3DViewer({
       );
     }
 
-    const validLesions = lesions.filter((x) =>
-      getMeshUrl(x)
-    );
-
     validLesions.forEach((lesion) => {
       const index = lesions.indexOf(lesion);
-      const url = getMeshUrl(lesion);
-
-      loader.load(
-        url,
+      loadGeometry(
+        lesion,
         (geometry) => {
           if (!disposed) {
             addTumor(
@@ -257,10 +246,9 @@ export default function Anatomy3DViewer({
           }
           loaded();
         },
-        undefined,
         (error) => {
           console.error(
-            `Tumor STL loading failed: ${url}`,
+            "Tumor mesh loading failed",
             error
           );
           loaded();
@@ -269,6 +257,7 @@ export default function Anatomy3DViewer({
     });
 
     function fitCamera() {
+      if (json) return fitBox();
       const centerX =
         (CROP.leftX + CROP.rightX) / 2;
       const centerY =
@@ -319,6 +308,28 @@ export default function Anatomy3DViewer({
 
       controls.update();
 
+      lastPanXRef.current = panX;
+    }
+
+    /* JSON 메시는 판독 픽셀 좌표라 DUKE 용 CROP 이 안 맞는다 — 상자에 맞춘다 */
+    function fitBox() {
+      const box = new THREE.Box3().setFromObject(root);
+      if (box.isEmpty()) return;
+      const c = box.getCenter(new THREE.Vector3());
+      const size = box.getSize(new THREE.Vector3());
+      const aspect =
+        Math.max(container.clientWidth, 1) /
+        Math.max(container.clientHeight, 1);
+      const fov = THREE.MathUtils.degToRad(camera.fov);
+      const distance =
+        (Math.max(size.y, size.x / Math.max(aspect, 0.01)) * 0.62) /
+          Math.tan(fov / 2) +
+        size.z / 2;
+      camera.position.set(c.x, c.y, c.z + Math.max(distance, 1));
+      controls.target.copy(c);
+      controls.minDistance = distance * 0.4;
+      controls.maxDistance = distance * 3;
+      controls.update();
       lastPanXRef.current = panX;
     }
 
@@ -389,6 +400,7 @@ export default function Anatomy3DViewer({
     lesions,
     selectedLesion,
     showBody,
+    bodyMesh,
   ]);
 
   useEffect(() => {
