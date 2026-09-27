@@ -94,6 +94,11 @@ class ExamOrderSerializer(serializers.ModelSerializer):
     handed_to_name = serializers.CharField(
         source="handed_to.full_name", read_only=True, default=None
     )
+    # 촬영을 요청한 의사 — ordered_by 는 번호뿐이라 영상 큐가 「누가 낸
+    # 오더인지」를 못 적었다(09-27)
+    ordered_by_name = serializers.CharField(
+        source="ordered_by.full_name", read_only=True, default=None
+    )
 
     def get_age(self, obj) -> int | None:
         pii = getattr(obj.patient, "pii", None)
