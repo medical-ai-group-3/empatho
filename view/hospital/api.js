@@ -943,6 +943,14 @@ function normalizePatient(p) {
   };
 }
 
+/* 부가 자료가 실패해도 환자 기본 정보까지 숨기지 않되, 화면에는 실패를
+   '자료 없음'으로 오인하지 않도록 상태를 함께 전달한다. */
+function optionalResult(promise, fallback) {
+  return promise
+    .then((value) => ({ value, failed: false }))
+    .catch(() => ({ value: fallback, failed: true }));
+}
+
 /* 대기·목록은 가볍게 유지하되, 상세를 열었을 때만 환자 원본을 보완한다.
    ExamOrder/Study 응답에는 생년월일·연락처가 없기 때문이다. */
 async function radWithPatient(row) {
@@ -996,10 +1004,9 @@ export const breast = {
       const rows = raw?.results ?? raw?.items ?? (Array.isArray(raw) ? raw : []);
       return rows.map(normalizePatient);
     }),
-  /* 유방외과 전체 환자 목록은 병원 전체 명부가 아니라 내 과에 배정된
-     환자를 모두 본다. 대기 상태만 빼고 "all"로 가져와, 아래 뷰어의
-     patient_id와 유방외과 검사 이력이 같은 환자를 가리키게 한다. */
-  patients:     ()   => get(`/patients/${qs({ primary_staff: "me", status: "all" })}`)
+  /* 유방외과 전체 환자 목록은 현재 로그인한 의사에게 배정된 환자만이
+     아니라 과에서 관리하는 과거·현재 환자 전체를 보여 준다. */
+  patients:     ()   => get(`/patients/${qs({ status: "all" })}`)
     .then((raw) => {
       const rows = raw?.results ?? raw?.items ?? (Array.isArray(raw) ? raw : []);
       return rows.map(normalizePatient);
@@ -1008,31 +1015,39 @@ export const breast = {
      리포트를 함께 쓰므로 목록을 별도로 받아 최신 종합 리포트를 붙인다.
      아직 리포트가 없는 환자는 null로 두고 화면이 안내 상태를 보여 준다. */
   patient:      async (id) => {
-    const [rawPatient, reports, orders, readings, lesions, odds] = await Promise.all([
+    const [rawPatient, reportsR, ordersR, readingsR, lesionsR, oddsR] = await Promise.all([
       get(`/patients/${id}/`),
-      get(`/reports/${qs({ patient: id })}`).then(unwrapList).catch(() => []),
-      breast.ordersOf(id).catch(() => []),
+      optionalResult(get(`/reports/${qs({ patient: id })}`).then(unwrapList), []),
+      optionalResult(breast.ordersOf(id), []),
       /* 판독값 · 병변 — 환자 상세 응답에 둘 다 없다. 아래 주석 참고.
          곁가지라 실패해도 화면이 통째로 죽지 않게 빈 값으로 떨어뜨린다 */
-      breast.readings(id).catch(() => ({ radiology: [], pathology: [] })),
+      optionalResult(breast.readings(id), { radiology: [], pathology: [] }),
       /* ⚠ 받아서도 **한 번 더 거른다.** 서버가 ?patient= 을 조용히 무시하던
          적이 있었다(09-23에 고쳤다) — 그때 이 화면은 남의 병변을 이 환자
          것으로 그렸다. 같은 실수가 또 나면 화면에서 막는다 */
-      specimens.lesionsByPatient(id).then(unwrapList)
-        .then((rows) => rows.filter(
-          (l) => Number(l.patient_id ?? l.patient) === Number(id)))
-        .catch(() => []),
-      breast.openDiscordances(id).catch(() => []),
+      optionalResult(
+        specimens.lesionsByPatient(id).then(unwrapList)
+          .then((rows) => rows.filter(
+            (l) => Number(l.patient_id ?? l.patient) === Number(id))),
+        [],
+      ),
+      optionalResult(breast.openDiscordances(id), []),
     ]);
+    const reports = reportsR.value;
+    const orders = ordersR.value;
+    const readings = readingsR.value;
+    const lesions = lesionsR.value;
+    const odds = oddsR.value;
     const patient = normalizePatient(rawPatient);
     const currentOrder = orders.find((row) => row.visited_at && !["completed", "cancelled"].includes(row.order_status))
       ?? orders.find((row) => row.visited_at)
       ?? orders.at(-1)
       ?? null;
-    const report = patient?.report
-      ?? reports.find((row) => row.report_type === "final")
-      ?? reports.at(-1)
-      ?? null;
+    /* 단계 판독을 최종 리포트로 취급하면 치료 방침 화면이 최종 리포트
+       생성 단계를 건너뛴다. final 타입만 환자 대표 리포트로 사용한다. */
+    const report = patient?.report?.report_type === "final"
+      ? patient.report
+      : reports.find((row) => row.report_type === "final") ?? null;
     return {
       ...patient,
       report,
@@ -1065,6 +1080,13 @@ export const breast = {
          비어 있는 것보다 나쁘다. 목록 경로는 진작 있었다 */
       open_discordance: odds[0] ?? null,
       open_discordances: odds,
+      data_warnings: [
+        reportsR.failed && "판독 리포트",
+        ordersR.failed && "검사 오더",
+        readingsR.failed && "판독 결과",
+        lesionsR.failed && "병변",
+        oddsR.failed && "판정 불일치",
+      ].filter(Boolean),
       current_order: currentOrder,
       visit_type: currentOrder?.visit_type ?? null,
       visit_purpose: currentOrder?.exam_purpose ?? null,
@@ -1205,7 +1227,11 @@ export const nursing = {
   examOrder:      (id) => get(`/exam-orders/${id}`),
   patient:        (id) => get(`/patients/${id}/`),
   saveNote:       (examOrderId, note) => patch(`/exam-orders/${examOrderId}/note`, { note }),
-  surgeons:       () => get(`/staff${qs({ role: "surgery" })}`),
+  /* ⚠ 2026-09-27 — /staff 는 ListAPIView 라 **봉투({count,results})로 온다.**
+     예약 판 왼쪽 「보는 사람」은 배열인지만 보고 있어서 명단이 늘 「못
+     불렀습니다」로 떴다. 여기서 벗겨 배열로 준다(unwrapList 는 아래 함수
+     선언이라 호이스팅된다). 한 쪽 20명에서 잘리지 않게 page_size 도 단다 */
+  surgeons:       () => get(`/staff${qs({ role: "surgery", page_size: PAGE_ALL })}`).then(unwrapList),
   /* ⚠ 2026-09-19 확인 — PatientSerializer 가 내는 이름은 primary_staff_id
    * 가 아니라 모델 필드 그대로인 primary_staff 다(core/serializers/
    * reception.py, core/models.py Patient.primary_staff). DRF 는 모르는
@@ -1220,6 +1246,12 @@ export const nursing = {
   followups:      () => get(`/followups/${qs({ include_candidates: 1 })}`),
   createFollowup: (b) => post("/followups/new", b),
   logCall:        (id, b) => patch(`/followups/${id}/call`, b),
+  /* 회차 종결. ⚠ /call 은 call_result · call_note 만 적고 status 는
+     **안 건드린다**(FollowupCallView). 「연결」로 회차를 끝내려면 ViewSet
+     쪽 PATCH /followups/{id}/ 에 closed_reason 을 실어야 서버가
+     status · closed_at 을 채운다(FollowupViewSet.partial_update).
+     라우터 경로라 끝 슬래시가 붙는다 */
+  closeFollowup:  (id, b) => patch(`/followups/${id}/`, b),
 };
 
 /* 부서 key 로 골라 쓴다 — 공통 화면들이 이걸로 갈라 부른다 */
@@ -1296,7 +1328,10 @@ export const reception = {
    *   지금은 이 길뿐이다.
    *   → 다희님께 «목록 전체를 받는 공식 방법»을 요청해 두었다. 생기면
    *     아래 ALL 을 그것으로 바꾼다. */
-  list:   (p)      => get(`/patients/${qs(p)}`).then(unwrapList),
+  /* ⚠ 2026-09-27 — page_size 를 안 달아 **스무 명에서 잘렸다**(DefaultPagination).
+     환자 목록 화면이 전체를 받는 자리라 PAGE_ALL 을 기본으로 단다. 서버
+     max_page_size 가 200 이라 그보다 많으면 거기서 멈춘다 — 수는 .total */
+  list:   (p)      => get(`/patients/${qs({ page_size: PAGE_ALL, ...p })}`).then(unwrapList),
   detail: (id)     => get(`/patients/${id}/`),
   /* ⚠ 여기로는 **이름·생년월일·전화를 못 고친다.** 그 셋은 patient_pii 에
      있고 PatientSerializer 는 patient 표만 다룬다 (상세의 pii 는 읽기 전용).
@@ -1304,7 +1339,9 @@ export const reception = {
   update: (id, b)  => patch(`/patients/${id}/`, b),
 
   /* 같은 환자의 예약을 전부 본다 — 같은 날 중복 예약을 잡으려고 */
-  ordersOf: (id)   => get(`/exam-orders${qs({ patient: id, ordering: "scheduled_at" })}`).then(unwrapList),
+  /* ⚠ page_size 가 없어 스무 건에서 잘렸다 — 예약이 많은 환자는 뒤쪽(최근)
+     예약이 안 보여 같은 날 중복을 못 잡았다 */
+  ordersOf: (id)   => get(`/exam-orders${qs({ patient: id, ordering: "scheduled_at", page_size: PAGE_ALL })}`).then(unwrapList),
 
   /* [예약 완료]. **원무는 날짜만 정한다** — modality · exam_purpose ·
      ordered_by 는 안 보낸다. 서버도 그 셋을 안 받는다
@@ -1337,10 +1374,9 @@ reception.requests = () =>
 
 /* [예약 확인]. **날짜만 보낸다.**
  *
- * ⚠ 지금 서버는 modalities · exam_purpose · ordered_by 를 **필수로** 받고
- *   그게 없으면 VALIDATION_ERROR 를 낸다. 팀 결정은 「원무는 날짜만 확정」
- *   이라 반대다 — 명세가 반대로 적혀 그대로 구현된 것이고, scheduled_at 만
- *   받도록 바뀔 예정이다. 그때까지 이 호출은 **목업에서만** 돈다.
+ * ⚠ 2026-09-27 확인 — 서버가 바뀌어 이제 scheduled_at 하나만 받는다
+ *   (ExamOrderConfirmSerializer). 실서버에서 돈다. 예약 판(Reservations.jsx)
+ *   오른쪽 [신청 확정] 이 이것을 부른다.
  *
  * ⚠ 확정하면 order_status 가 **scheduled** 가 된다. ordered 가 아니다 —
  *   검사 종류가 정해져야 ordered 이고 그건 유방외과 몫이다. 값이 새로
@@ -1348,6 +1384,13 @@ reception.requests = () =>
  */
 reception.confirm = (id, scheduledAt) =>
   patch(`/exam-orders/${id}/confirm`, { scheduled_at: scheduledAt });
+
+/* 09-27 예약 변경 · 취소. 새로 만들지 않고 **있는 오더를 고친다.**
+   취소는 지우지 않고 cancelled 로 바꾼다(이력이 남는다). 이미 내원했거나
+   진행 중인 오더는 서버가 409 RESERVATION_LOCKED 로 막는다 */
+reception.reschedule = (id, scheduledAt) =>
+  patch(`/exam-orders/${id}/reschedule`, { scheduled_at: scheduledAt });
+reception.cancel = (id) => post(`/exam-orders/${id}/cancel`, {});
 
 export const byDept = { pathology: path, radiology: rad, breast, reception, nursing };
 

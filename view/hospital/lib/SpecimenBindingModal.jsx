@@ -44,7 +44,12 @@ function nowLocal() {
 export default function SpecimenBindingModal({ patient, onClose, onDone }) {
   const { loading, data, error, reload } =
     useApi(() => specimens.lesionsByPatient(patient.patient_id), [patient.patient_id]);
-  const lesions = (data?.items ?? []).filter((l) => l.patient_id === patient.patient_id);
+  /* ⚠ 2026-09-27 — /lesions/ 는 봉투({count,results})로 온다. items 만 읽어
+     목록이 늘 비었다. 환자 칸도 patient_id 가 아니라 patient(FK) 다 — 서버가
+     ?patient= 로 이미 거르지만, 한 번 더 거를 때 이름이 틀려 전부 빠졌다 */
+  const all = Array.isArray(data) ? data : (data?.results ?? data?.items ?? []);
+  const lesions = all.filter(
+    (l) => String(l.patient ?? l.patient_id) === String(patient.patient_id));
 
   const [lesionId, setLesionId] = useState("");
   /* codes.js의 label()을 가리지 않게 검체 라벨 상태는 별도 이름을 쓴다.
@@ -91,7 +96,10 @@ export default function SpecimenBindingModal({ patient, onClose, onDone }) {
         </div>
         <div className="modal-body">
           <Facts items={[
-            ["환자", `${patient.name} (${patient.age}세 · ${label(SEX, patient.sex)})`],
+            /* 나이·성별이 비어 오면 「null세」가 찍혔다 — 있는 것만 */
+            ["환자", [patient.name,
+              [patient.age != null && `${patient.age}세`, label(SEX, patient.sex)]
+                .filter(Boolean).join(" · ")].filter(Boolean).join(" ")],
             ["환자번호", patient.patient_number],
           ]} />
 
@@ -104,7 +112,9 @@ export default function SpecimenBindingModal({ patient, onClose, onDone }) {
               <datalist id="known-lesions">
                 {lesions.map((l) => (
                   <option key={l.lesion_id} value={l.lesion_id}>
-                    {`${l.site ?? "위치 미상"} · ${l.size_mm ?? "—"}mm`}
+                    {/* LesionSerializer 에 site · size_mm 은 없다 — 있는 칸으로 */}
+                    {[l.label, l.modality, l.lesion_index != null && `#${l.lesion_index}`]
+                      .filter(Boolean).join(" · ") || "병변"}
                   </option>
                 ))}
               </datalist>
@@ -146,7 +156,7 @@ export default function SpecimenBindingModal({ patient, onClose, onDone }) {
         </div>
         <div className="modal-foot">
           <button className="btn line" onClick={onClose}>취소</button>
-          <button className="btn fill" onClick={save} disabled={saving || !lesionId}>
+          <button className="btn fill" onClick={save} disabled={saving || !lesionId || !specimenLabel.trim()}>
             {saving ? "등록 중…" : "등록"}
           </button>
         </div>

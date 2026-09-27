@@ -61,12 +61,16 @@ function Inner({ cfg }) {
   const live = useMemo(() => rows.filter((r) => r.status !== "candidate"), [rows]);
   const cands = useMemo(() => rows.filter((r) => r.status === "candidate"), [rows]);
 
+  /* ⚠ 기한 칸(오늘·지난·이번 주)은 **아직 걸 회차만** 센다. 서버가 끝난
+     회차도 같이 줘서, 「연결」로 끝낸 회차가 「지난 기한」에 영영 남아 있었다.
+     「전체」는 끝난 것까지 보여 준다(줄은 흐리게) */
+  const open = useMemo(() => live.filter(H.openFollowup), [live]);
   const count = useMemo(() => ({
-    today: live.filter((r) => H.dueBucket(r.due_at) === "today").length,
-    over: live.filter((r) => H.dueBucket(r.due_at) === "over").length,
-    week: live.filter((r) => H.dueBucket(r.due_at) === "week").length,
+    today: open.filter((r) => H.dueBucket(r.due_at) === "today").length,
+    over: open.filter((r) => H.dueBucket(r.due_at) === "over").length,
+    week: open.filter((r) => H.dueBucket(r.due_at) === "week").length,
     all: live.length,
-  }), [live]);
+  }), [live, open]);
 
   /* 안 고른 상태면 일이 있는 첫 칸으로 — 지난 기한 → 오늘 → 이번 주 */
   const here = tab ?? (count.over > 0 ? "over"
@@ -75,11 +79,13 @@ function Inner({ cfg }) {
 
   const shown = useMemo(() => {
     const k = q.trim().toLowerCase();
-    return live
+    /* ⚠ FollowupSerializer 는 환자를 patient(FK) 로 준다 — patient_id 가
+       아니다. 예전 이름으로 찾아 번호 검색이 늘 빗나갔다 */
+    return (here === "all" ? live : open)
       .filter((r) => here === "all" || H.dueBucket(r.due_at) === here)
       .filter((r) => !k
-        || `${H.nameOf(r)} ${r.patient_id ?? ""}`.toLowerCase().includes(k));
-  }, [live, here, q]);
+        || `${H.nameOf(r)} ${r.patient ?? ""}`.toLowerCase().includes(k));
+  }, [live, open, here, q]);
 
   return (
     <Page crumb={[cfg.name, "추적 관리"]} title="추적 관리"
@@ -120,7 +126,9 @@ function Inner({ cfg }) {
               </tr>
             </thead>
             <tbody>
-              {shown.map((r) => <Row key={r.id} r={r} onCall={() => setCall(r)} />)}
+              {/* ⚠ 열쇠는 followup_id 다 — r.id 는 없는 칸이라 줄이 전부
+                  undefined 열쇠를 나눠 가졌다 */}
+              {shown.map((r) => <Row key={r.followup_id} r={r} onCall={() => setCall(r)} />)}
             </tbody>
           </table>
         </div>
@@ -147,14 +155,15 @@ function Inner({ cfg }) {
      회차 만들 때 +6 · +12 · +24 단추가 그 날짜를 잡는다. */
 function Row({ r, onCall }) {
   const bucket = H.dueBucket(r.due_at);
-  const done = r.status === "resolved";
+  const done = !H.openFollowup(r);
   return (
     <tr className={done ? "off" : ""}>
       <td><b>{H.nameOf(r)}</b></td>
       <td className="num">{r.birth_date ?? "—"}</td>
-      <td className="num">{r.patient_id ?? "—"}</td>
+      <td className="num">{r.patient ?? "—"}</td>
       <td>{r.round_no != null ? `${r.round_no}회차` : "—"}</td>
-      <td className="num">{r.due_at ?? "—"}</td>
+      {/* due_at 은 시각까지 붙은 ISO 로 온다 — 날짜만 적는다 */}
+      <td className="num">{r.due_at ? String(r.due_at).slice(0, 10) : "—"}</td>
       <td>
         {bucket
           ? <span className={`fup-due${bucket === "over" ? " k1" : ""}`}>{BUCKET[bucket]}</span>
@@ -164,7 +173,8 @@ function Row({ r, onCall }) {
         {r.call_result
           ? <Chip>{r.call_result}</Chip>
           : <span className="hcard-k">미연락</span>}
-        {r.call_at && <span className="hcard-k"> {r.call_at}</span>}
+        {/* 서버 칸 이름은 called_at 이다(call_at 은 없다) */}
+        {r.called_at && <span className="hcard-k"> {H.day(r.called_at)}</span>}
       </td>
       <td className="rowb">
         {done
@@ -193,10 +203,16 @@ function CallModal({ cfg, f, onClose, onDone }) {
     setBusy(true);
     setErr(null);
     try {
-      await cfg.api.logCall(f.id, {
-        call_result: pick, note,
-        status: pick === "연결" ? "resolved" : "open",
-      });
+      /* ⚠ 2026-09-27 — 세 군데가 틀려 있었다.
+           · f.id 는 없는 칸이다. /followups/undefined/call 로 나가 늘 404 였다
+           · 메모 칸 이름은 call_note 다(FollowupCallSerializer). note 는 버려졌다
+           · /call 은 status 를 안 받는다. 「연결」로 회차를 끝내려면 따로
+             closeFollowup 을 불러야 한다(api.js 참고) */
+      const id = f.followup_id;
+      await cfg.api.logCall(id, { call_result: pick, call_note: note });
+      if (pick === "연결") {
+        await cfg.api.closeFollowup(id, { status: "resolved", closed_reason: "안내 콜 연결" });
+      }
       onDone?.();
     } catch (e) { setErr(e.detail || e.message); }
     finally { setBusy(false); }
@@ -215,8 +231,8 @@ function CallModal({ cfg, f, onClose, onDone }) {
           <div className="fup-who">
             <b>{H.nameOf(f)}</b>
             <span className="hcard-k">
-              {[f.patient_id, f.round_no != null && `${f.round_no}회차`,
-                f.due_at && `예정일 ${f.due_at}`].filter(Boolean).join(" · ")}
+              {[f.patient, f.round_no != null && `${f.round_no}회차`,
+                f.due_at && `예정일 ${String(f.due_at).slice(0, 10)}`].filter(Boolean).join(" · ")}
             </span>
             <span className="home-fill" />
             {f.phone && <Chip>{f.phone}</Chip>}
@@ -285,7 +301,10 @@ function MakeModal({ cfg, cands, onClose, onDone }) {
     setBusy(true);
     setErr(null);
     try {
-      await cfg.api.createFollowup({ patient_id: who, round_no: round, due_at: due });
+      /* due_at 은 DateTimeField 다 — 날짜만 보내면 서버 파서에 따라 형식
+         오류가 난다. 병원 시간(KST) 오전 9시로 붙여 보낸다 */
+      await cfg.api.createFollowup({ patient_id: Number(who), round_no: round,
+                                     due_at: `${due}T09:00:00` });
       onDone?.();
     } catch (e) { setErr(e.detail || e.message); }
     finally { setBusy(false); }

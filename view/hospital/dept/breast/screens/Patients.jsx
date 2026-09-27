@@ -43,7 +43,7 @@ export default function Patients() {
   }, [patients, query, sort]);
 
   return (
-    <Page className="breast" crumb={["유방외과", "전체 환자 목록"]}
+    <Page className="breast breast-patients-page" crumb={["유방외과", "전체 환자 목록"]}
       title="전체 환자 목록">
       <div className="pane">
         <Body loading={loading} error={error} onRetry={reload}>
@@ -96,7 +96,7 @@ function PatientDetail({ id }) {
   const { loading, data: patient, error, reload } = useApi(() => api.patient(id), [id]);
 
   return (
-    <Card title="환자 상세">
+    <Card title="환자 상세" className="patients-detail-card">
       <Body loading={loading} error={error} onRetry={reload}>
         {patient && (
           <>

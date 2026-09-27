@@ -61,7 +61,10 @@ export const nursing = {
     ]).then(([arrived, today, booked, asks, follow, schedule,
               bound, thisWeek, tomorrow]) => ({
       arrived: H.rows(arrived), today: H.rows(today), booked: H.rows(booked),
-      asks: H.rows(asks), follow: H.rows(follow), schedule: H.rows(schedule),
+      /* ⚠ 추적은 **아직 걸 회차만** 남긴다 — 서버가 끝난 회차도 같이 줘서
+         「기한이 지난 추적 콜」·달력 점에 연결로 끝낸 사람이 계속 셌다 */
+      asks: H.rows(asks), follow: H.rows(follow).filter(H.openFollowup),
+      schedule: H.rows(schedule),
       bound: H.rows(bound),
       thisWeek: H.rows(thisWeek), tomorrow: H.rows(tomorrow),
     })),
@@ -85,7 +88,9 @@ export const nursing = {
             /* 문진은 오더에 실려 온다(questionnaire). 있으면 배정 차례다 */
             sub: r.questionnaire ? "문진 완료 · 배정 대기" : "문진 대기",
             at: H.at(r.visited_at),
-            to: r.patient != null ? go.patient(r.patient) : null,
+            /* 누르면 접수 화면에서 그 사람을 골라 둔 채로 연다 — 문진 확인 ·
+               유방외과 배정 · 검체 바인딩을 거기서 바로 한다 */
+            to: `${go.nursing.intake()}?order=${r.exam_order_id ?? r.id}`,
             /* ⚠ 위 id 는 **오더 번호**다 — 「최근 본 환자」는 환자 번호로
                담아야 한다(lib/recent.js) */
             pid: r.patient ?? null,
@@ -105,7 +110,8 @@ export const nursing = {
             chip: r.visit_type,
             sub: `예약 ${H.at(r.scheduled_at) ?? "시각 미정"} · 아직 안 오심`,
             at: H.at(r.scheduled_at),
-            to: r.patient != null ? go.patient(r.patient) : null,
+            /* 아직 안 온 사람 — 접수 화면에서 찾아 둔 채로 연다 */
+            to: `${go.nursing.intake()}?find=${encodeURIComponent(H.noOf(r) ?? H.nameOf(r))}`,
             /* ⚠ 위 id 는 **오더 번호**다 — 「최근 본 환자」는 환자 번호로
                담아야 한다(lib/recent.js) */
             pid: r.patient ?? null,
@@ -136,7 +142,8 @@ export const nursing = {
             chip: r.visit_type,
             sub: "아직 안 오셨습니다",
             at: H.at(r.scheduled_at),
-            to: r.patient != null ? go.patient(r.patient) : null,
+            /* 아직 안 온 사람 — 접수 화면에서 찾아 둔 채로 연다 */
+            to: `${go.nursing.intake()}?find=${encodeURIComponent(H.noOf(r) ?? H.nameOf(r))}`,
             /* ⚠ 위 id 는 **오더 번호**다 — 「최근 본 환자」는 환자 번호로
                담아야 한다(lib/recent.js) */
             pid: r.patient ?? null,
@@ -228,7 +235,7 @@ export const nursing = {
         meta: H.who(r),
         sub: H.isPast(r.scheduled_at) ? "시각 지남" : r.visit_type,
         at: H.at(r.scheduled_at),
-        to: r.patient != null ? go.patient(r.patient) : null,
+        to: `${go.nursing.intake()}?find=${encodeURIComponent(H.noOf(r) ?? H.nameOf(r))}`,
       })),
     }),
 

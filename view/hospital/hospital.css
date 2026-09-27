@@ -1263,6 +1263,16 @@ a.frow:hover .frow-k{color:var(--ink)}
   border-radius:var(--radius-xs); background:var(--canvas)}
 .resv-mev:hover{background:var(--wash)}
 
+/* 미확정 예약 — 색을 새로 만들지 않고 **채움 대신 점선 외곽**으로 가른다.
+   확정은 꽉 찬 덩어리, 미확정은 속이 빈 점선 상자 */
+.resv-ev.pending{background:var(--card); color:var(--ink);
+  box-shadow:none; outline:var(--hair) dashed var(--ink-2); outline-offset:-1px}
+.resv-ev.pending:hover{filter:none; background:var(--canvas)}
+.resv-tag{flex:none; font-style:normal; font-weight:600;
+  font-size:var(--stag-fs); color:var(--warm)}
+.resv-mev.pending{background:var(--card); color:var(--warm);
+  outline:var(--hair) dashed var(--faint); outline-offset:-1px}
+
 /* 예약 신청 탭 */
 .resv-asks{flex:1; min-height:0; overflow-y:auto;
   background:var(--card); border:var(--hair) solid var(--border);
@@ -1460,6 +1470,10 @@ a.pevent:focus-visible{outline:var(--hair) solid var(--cyan); outline-offset:2px
 .btn.fill:hover{filter:brightness(.95)}
 .btn:disabled{opacity:.45; cursor:not-allowed}
 .rowb{display:flex; gap:var(--btn-gap); justify-content:flex-end}
+/* ⚠ 좁은 칸(예약 판 오른쪽 단)에서 단추 셋이 한 줄에 안 들어가 왼쪽이
+   잘렸다(「환자 목록」이 「목록」으로). 넘치면 다음 줄로 내린다 */
+.rowb{flex-wrap:wrap}
+.rowb > .btn{white-space:nowrap}
 
 .pill{border-radius:var(--round); padding:var(--chip-pad-y) var(--chip-pad-x);
   font-size:var(--chip-fs); font-weight:600; color:var(--warm);

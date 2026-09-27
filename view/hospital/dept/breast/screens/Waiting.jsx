@@ -4,12 +4,13 @@ import { breast as api } from "../../../api";
 import { useApi } from "../../../lib/useApi";
 import { Page, Btn } from "../../../lib/Page";
 import { Body, Empty } from "../../../lib/Body";
-import { Chip, useCan } from "../../../lib/Parts";
+import { Chip } from "../../../lib/Parts";
 import { go } from "../../../nav";
 import * as H from "../../home";
 import "../breast.css";
 import ExamOrderModal from "../components/ExamOrderModal";
 import CloseVisitModal from "../components/CloseVisitModal";
+import CareGuideModal from "../components/CareGuideModal";
 import SpecimenBindingModal from "../../../lib/SpecimenBindingModal";
 
 /* 유방외과 · 내 환자 — `docs/mockup/Surgery.html`
@@ -39,6 +40,8 @@ export default function Waiting() {
   const [tab, setTab] = useState("all");
   const [pick, setPick] = useState(null);
   const [modal, setModal] = useState(null);
+  const [guide, setGuide] = useState(null);
+  const [examModality, setExamModality] = useState(null);
 
   const rows = H.rows(list.data);
   const odd = useMemo(() => rows.filter((r) => r.has_open_discordance), [rows]);
@@ -70,7 +73,7 @@ export default function Waiting() {
                     onRetry={detail.reload}>
                 {detail.data && (
                   <Mid p={detail.data} onNext={next} onOpen={setModal}
-                       onDone={() => { detail.reload(true); list.reload(true); }} />
+                       onGuide={() => setGuide(nextCareStep(detail.data))} />
                 )}
               </Body>
             )}
@@ -87,7 +90,8 @@ export default function Waiting() {
       {modal && detail.data && (
         <div className="breast">
           {modal === "exam" && (
-            <ExamOrderModal patient={detail.data} onClose={() => setModal(null)}
+            <ExamOrderModal patient={detail.data} initialModality={examModality}
+                            onClose={() => setModal(null)}
                             onDone={() => { setModal(null); detail.reload(true); }} />
           )}
           {modal === "specimen" && (
@@ -98,6 +102,25 @@ export default function Waiting() {
             <CloseVisitModal patient={detail.data} onClose={() => setModal(null)}
                              onDone={() => { setModal(null); next(); list.reload(true); }} />
           )}
+        </div>
+      )}
+      {guide && detail.data && (
+        <div className="breast">
+          <CareGuideModal
+            patient={detail.data}
+            step={guide.step}
+            progress={guide.progress}
+            onClose={() => setGuide(null)}
+            onAction={() => {
+              setGuide(null);
+              if (guide.step.kind === "request") {
+                setExamModality(guide.step.modality);
+                setModal("exam");
+              } else if (guide.step.kind === "specimen") {
+                setModal("specimen");
+              }
+            }}
+          />
         </div>
       )}
     </Page>
@@ -173,10 +196,10 @@ function Queue({ state, rows, all, odd, tab, onTab, pick, onPick }) {
 }
 
 /* ── 가운데 — 고른 환자 ───────────────────────────────────────── */
-function Mid({ p, onNext, onOpen, onDone }) {
+function Mid({ p, onNext, onOpen, onGuide }) {
   const d = p.open_discordance;
   const rep = p.other_reports ?? [];
-  const pick = (want) => rep.find((r) => (r.dept ?? "").includes(want)) ?? null;
+  const pick = (want) => rep.filter((r) => (r.dept ?? "").includes(want));
   /* 판정(BI-RADS · B 분류)은 소견문에 안 들어 있다 — 검사 종합 화면과 같은
      자리에서 같은 것을 읽는다(api.js 의 readings 주석) */
   const readings = p.readings ?? { radiology: [], pathology: [] };
@@ -185,6 +208,11 @@ function Mid({ p, onNext, onOpen, onDone }) {
 
   return (
     <>
+      {p.data_warnings?.length > 0 && (
+        <p className="warnline">
+          일부 자료를 불러오지 못했습니다: {p.data_warnings.join(", ")}. 새로고침 후 다시 확인해 주세요.
+        </p>
+      )}
       <header className="work-head">
         <span className="work-ava" aria-hidden="true">{H.nameOf(p)[0]}</span>
         <span className="work-who">
@@ -199,6 +227,7 @@ function Mid({ p, onNext, onOpen, onDone }) {
         <span className="home-fill" />
         {H.some(p.family_history) && <Chip>가족력 {H.some(p.family_history)}</Chip>}
         {H.some(p.allergy) && <span className="pb-warn"><i aria-hidden="true">⚠</i>{H.some(p.allergy)}</span>}
+        <Btn onClick={onGuide}>다음 단계 안내</Btn>
       </header>
 
       {/* ⚠ 되돌릴 수 없는 갈림길이라 맨 위에 둔다 — 영상과 병리가 엇갈린
@@ -219,18 +248,86 @@ function Mid({ p, onNext, onOpen, onDone }) {
               to={go.breast.review(p.patient_id)} />
       </div>
 
-      <Decide p={p} onDone={onDone} />
-
       <div className="work-foot">
         <Btn onClick={() => onOpen("exam")}>촬영 요청</Btn>
         <Btn onClick={() => onOpen("specimen")}>검체 등록</Btn>
         <Btn onClick={() => onOpen("close")}>이상 없음 · 종결</Btn>
         <span className="home-fill" />
         <Btn onClick={onNext}>다음 환자 →</Btn>
+        <Btn to={go.breast.decision(p.patient_id)}>치료 방침 결정</Btn>
         <Btn kind="fill" to={go.breast.review(p.patient_id)}>검사 종합</Btn>
       </div>
+
+      <section className="work-read">
+        <header>
+          <h3>진료 플로우</h3>
+          <span className="home-fill" />
+          <span className="hcard-k">{nextCareStep(p).step.label}</span>
+        </header>
+        <p className="work-read-b">{nextCareStep(p).step.message}</p>
+      </section>
     </>
   );
+}
+
+/* 환자별 다음 조치를 한 곳에서 계산한다.
+   접수·촬영·판독·검체·치료 결정의 순서를 화면마다 따로 판단하지 않도록
+   하여, 대기 화면과 안내 팝업이 같은 상태를 보여 준다. */
+function nextCareStep(p) {
+  const radiology = p.readings?.radiology ?? [];
+  const pathology = p.readings?.pathology ?? [];
+  const modalityOf = (v) => {
+    const value = String(v ?? "").toLowerCase();
+    if (value === "ultrasound" || value === "ultra") return "us";
+    if (value === "mammography") return "mammo";
+    return value;
+  };
+  const progress = { mammo: "todo", us: "todo", mri: "todo", specimen: "todo" };
+  radiology.forEach((r) => {
+    const key = modalityOf(r.modality);
+    if (key in progress) progress[key] = "done";
+  });
+  if (p.current_order?.modality) {
+    const key = modalityOf(p.current_order.modality);
+    if (key in progress && progress[key] !== "done") progress[key] = "waiting";
+  }
+  if (pathology.length > 0) progress.specimen = "done";
+
+  if (p.open_discordance) {
+    return { progress, step: {
+      kind: "discordance", label: "판정 불일치 처분",
+      message: "영상과 병리 결과가 일치하지 않습니다. 불일치 처분을 먼저 완료해 주세요.",
+    } };
+  }
+  const grade = String(radiology[0]?.grade ?? "");
+  if (!radiology.length) {
+    return { progress, step: {
+      kind: "request", modality: "mammo", label: "촬영 요청",
+      message: "확정된 영상 판독이 없습니다. 필요한 촬영을 요청해 주세요.",
+    } };
+  }
+  if (grade === "0") {
+    return { progress, step: {
+      kind: "request", modality: modalityOf(radiology[0].modality) || "us",
+      label: "추가 영상", message: "BI-RADS 0입니다. 보완 촬영 또는 추가 영상을 요청해 주세요.",
+    } };
+  }
+  if (grade === "3") {
+    return { progress, step: {
+      kind: "followup", label: "추적검사 등록",
+      message: "BI-RADS 3입니다. 추적검사 일정을 등록하고 환자에게 안내해 주세요.",
+    } };
+  }
+  if (/^4|^5/.test(grade) && pathology.length === 0) {
+    return { progress, step: {
+      kind: "specimen", label: "검체 등록",
+      message: `BI-RADS ${grade}입니다. 조직검사 검체를 등록해 병리과로 전달해 주세요.`,
+    } };
+  }
+  return { progress, step: {
+    kind: "decision", label: "치료 방침",
+    message: "필요한 검사 결과가 준비되었습니다. 검사 종합을 확인한 뒤 치료 방침을 결정해 주세요.",
+  } };
 }
 
 /* 영상·병리 한 칸씩.
@@ -241,7 +338,8 @@ function Read({ title, r, v = null, gradeLabel, to }) {
   /* ⚠ 판정이 있으면 소견문이 없어도 칸을 채운다. 전에는 소견문 하나만
      보고 있어서, BI-RADS 가 멀쩡히 붙은 환자도 「아직 없습니다」였다
      (09-23 확인) — 소견문은 LLM 이 나중에 써 넣는 글이다 */
-  const has = Boolean(r || v);
+  const reports = Array.isArray(r) ? r : (r ? [r] : []);
+  const has = reports.length > 0 || Boolean(v);
   return (
     <section className="work-read">
       <header>
@@ -252,112 +350,27 @@ function Read({ title, r, v = null, gradeLabel, to }) {
             {gradeLabel ? `${gradeLabel} ${v.grade}` : v.grade}
           </Chip>
         )}
-        {H.day(v?.at ?? r?.at) && <time>{H.day(v?.at ?? r.at)}</time>}
+        {H.day(v?.at ?? reports[0]?.at) && <time>{H.day(v?.at ?? reports[0].at)}</time>}
       </header>
       {!has
         ? <p className="hcard-k">아직 없습니다</p>
         : (
           <>
             {v?.note && <p className="work-read-b">{v.note}</p>}
-            {r?.summary && <p className="work-read-b">{r.summary}</p>}
+            {reports.map((row, index) => row.summary && (
+              <p className="work-read-b" key={`${row.report_id ?? row.dept}-summary-${index}`}>
+                {row.summary}
+              </p>
+            ))}
             <footer>
               {/* ⚠ 낸 사람 이름을 서버가 안 준다 — 판독 응답의 assessed_by 는
                   번호다. 번호를 사람 이름 자리에 찍지 않는다 */}
-              <span className="hcard-k">{r?.author ?? ""}</span>
+              <span className="hcard-k">{reports[0]?.author ?? ""}</span>
               <span className="home-fill" />
               <Btn to={to}>자세히</Btn>
             </footer>
           </>
         )}
-    </section>
-  );
-}
-
-/* ── 치료 방침 결정 ────────────────────────────────────────────
- * ⚠ **되돌릴 수 없다.** 결정은 지워지지 않고 새 결정으로만 덮는다.
- * ⚠ **어느 판독에 붙일지는 진료 이력이 안다.** `PATCH /assessments/{id}/
- *   decision` 이 assessment 하나를 집어야 하는데, 환자 응답에는 그 번호가
- *   없다. `/patients/{id}/timeline` 의 「판독」 줄이 `assessment_id` 를
- *   달고 온다 — 가장 최근 것에 붙인다.
- */
-/* ⚠ **보내는 값은 서버 코드다.** 화면 글자를 그대로 보내면 안 된다 —
-     서버 DECISION_TYPE 은 surgery·biopsy·imaging·rebiopsy 고
-     DECISION_VALUE 는 yes·no·defer 다(models.py:79-80). 전에는 한글을
-     `decision`·`reason` 이라는 없는 키로 보내서 **저장이 늘 실패했다**. */
-const KINDS = [
-  { v: "surgery",  label: "수술" },
-  { v: "biopsy",   label: "조직검사" },
-  { v: "imaging",  label: "추가 영상" },
-  { v: "rebiopsy", label: "재조직검사" },
-];
-const VALUES = [
-  { v: "yes",   label: "예" },
-  { v: "no",    label: "아니오" },
-  { v: "defer", label: "보류" },
-];
-
-function Decide({ p, onDone }) {
-  const line = useApi(() => H.soft(api.timeline(p.patient_id)), [p.patient_id]);
-  const aid = H.rows(line.data)
-    .filter((r) => r.assessment_id).at(-1)?.assessment_id ?? null;
-
-  const [kind, setKind] = useState(KINDS[0].v);
-  const [value, setValue] = useState(VALUES[0].v);
-  const [why, setWhy] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState(null);
-  const may = useCan("breast.decision.save");
-
-  async function save() {
-    setBusy(true);
-    setMsg(null);
-    try {
-      await api.decide(aid, {
-        decision_type: kind, decision_value: value, decision_reason: why,
-      });
-      setMsg("남겼습니다");
-      onDone?.();
-    } catch (e) { setMsg(e.detail || e.message); }
-    finally { setBusy(false); }
-  }
-
-  return (
-    <section className="work-dec">
-      <header>
-        <h3>치료 방침 결정</h3>
-        <span className="home-fill" />
-        {msg && <span className="hcard-k">{msg}</span>}
-      </header>
-
-      <div className="work-seg" role="radiogroup" aria-label="결정 종류">
-        {KINDS.map((k) => (
-          <button type="button" key={k.v} role="radio" aria-checked={k.v === kind}
-                  className={`work-opt${k.v === kind ? " on" : ""}`}
-                  onClick={() => setKind(k.v)}>{k.label}</button>
-        ))}
-      </div>
-
-      <div className="work-dec-b">
-        <div className="work-seg narrow" role="radiogroup" aria-label="결정">
-          {VALUES.map((v) => (
-            <button type="button" key={v.v} role="radio" aria-checked={v.v === value}
-                    className={`work-opt${v.v === value ? " on" : ""}`}
-                    onClick={() => setValue(v.v)}>{v.label}</button>
-          ))}
-        </div>
-        <textarea value={why} onChange={(e) => setWhy(e.target.value)}
-                  rows={2} placeholder="결정 사유" aria-label="결정 사유"
-                  disabled={!may.ok} />
-      </div>
-
-      <div className="rowb">
-        {/* ⚠ 붙일 판독이 없으면 저장할 데가 없다. 왜 못 누르는지 적는다 */}
-        {!aid && <span className="hcard-k">확정된 판독이 있어야 결정을 답니다</span>}
-        <Btn kind="fill" onClick={save} {...may.attrs}
-             disabled={busy || !aid || !may.ok}>
-          {busy ? "남기는 중…" : "결정 저장"}
-        </Btn>
-      </div>
     </section>
   );
 }

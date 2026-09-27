@@ -4,7 +4,7 @@ import { breast as api } from "../../../api";
 import { useApi } from "../../../lib/useApi";
 import { Page, Btn } from "../../../lib/Page";
 import { Body } from "../../../lib/Body";
-import { Chip, useCan } from "../../../lib/Parts";
+import { Chip } from "../../../lib/Parts";
 import { go } from "../../../nav";
 import * as H from "../../home";
 import "../breast.css";
@@ -44,20 +44,20 @@ export default function Review() {
           right={(
             <>
               <Btn to={go.patient(id)}>환자 상세</Btn>
+              <Btn to={go.breast.decision(id)}>치료 방침</Btn>
               <Btn to={go.breast.waiting()}>내 환자</Btn>
             </>
           )}>
       <Body loading={p.loading && !p.data} error={p.error} onRetry={p.reload}>
-        {p.data && <Inner p={p.data} onSaved={() => p.reload(true)} />}
+        {p.data && <Inner p={p.data} />}
       </Body>
     </Page>
   );
 }
-
-function Inner({ p, onSaved }) {
+function Inner({ p }) {
   const [seeing, setSeeing] = useState(false);
   const rep = p.other_reports ?? [];
-  const of = (want) => rep.find((r) => (r.dept ?? "").includes(want)) ?? null;
+  const of = (want) => rep.filter((r) => (r.dept ?? "").includes(want));
   const rad = of("영상");
   const pat = of("병리");
   /* ⚠ **판정 그 자체를 여기서 처음으로 쓴다.** 위 other_reports 는 LLM
@@ -72,6 +72,11 @@ function Inner({ p, onSaved }) {
 
   return (
     <div className="rev">
+      {p.data_warnings?.length > 0 && (
+        <p className="warnline">
+          일부 자료를 불러오지 못했습니다: {p.data_warnings.join(", ")}. 새로고침 후 다시 확인해 주세요.
+        </p>
+      )}
       <div className="rev-l">
         <section className="rev-box">
           <h3>환자</h3>
@@ -84,7 +89,7 @@ function Inner({ p, onSaved }) {
         </section>
 
         <Reading title="영상 판독" r={rad} v={radRead} gradeLabel="BI-RADS"
-                 lines={[["병변", lesionLine(p.lesions?.[0])]]}
+                 lines={[["병변", lesionLine(p.lesions)]]}
                  action={(
                    <Btn onClick={() => setSeeing((v) => !v)}>
                      {seeing ? "영상 접기" : "영상 보기"}
@@ -122,7 +127,6 @@ function Inner({ p, onSaved }) {
         </section>
       )}
 
-      <Decide p={p} onSaved={onSaved} />
     </div>
   );
 }
@@ -135,11 +139,15 @@ function Inner({ p, onSaved }) {
  * ⚠ 잰 값이 먼저다. AI 값은 사람이 확인하기 전의 값이라 뒤에 온다 —
  *   환자 상세(screens/Patient.jsx)가 쓰는 규칙과 같다.
  */
-function lesionLine(l) {
-  if (!l) return null;
-  const site = l.label ?? l.site ?? null;
-  const mm = l.measured_size_mm ?? l.ai_size_mm ?? null;
-  return [site, mm != null ? `${mm}mm` : null].filter(Boolean).join(" · ") || null;
+function lesionLine(lesions) {
+  return (Array.isArray(lesions) ? lesions : [lesions])
+    .filter(Boolean)
+    .map((l) => {
+      const site = l.label ?? l.site ?? null;
+      const mm = l.measured_size_mm ?? l.ai_size_mm ?? null;
+      return [site, mm != null ? `${mm}mm` : null].filter(Boolean).join(" · ");
+    })
+    .filter(Boolean).join(", ") || null;
 }
 
 /* 판독 한 칸 — 영상과 병리가 같은 모양을 쓴다.
@@ -152,7 +160,8 @@ function lesionLine(l) {
  *   안 돌면) 판정이 멀쩡히 있어도 「아직 없습니다」였다(09-23).
  */
 function Reading({ title, r, v = null, gradeLabel, lines = [], action }) {
-  const has = Boolean(r || v);
+  const reports = Array.isArray(r) ? r : (r ? [r] : []);
+  const has = reports.length > 0 || Boolean(v);
   return (
     <section className="rev-box">
       <header className="rev-box-h">
@@ -174,125 +183,22 @@ function Reading({ title, r, v = null, gradeLabel, lines = [], action }) {
             {/* 낸 사람·시각을 모르면 빈 줄을 그리지 않는다. 서버 리포트에
                 발행 시각 칸이 없어(created_at 은 응답에서 빠진다) 늘
                 빈 「판독 —」 이 남았다. 대신 어느 검사인지를 적는다 */}
-            {r?.dept && <div><dt>판독</dt><dd>{r.dept}</dd></div>}
+            {reports.map((row, index) => row.dept && (
+              <div key={`${row.report_id ?? row.dept}-${index}`}>
+                <dt>판독</dt><dd>{row.dept}</dd>
+              </div>
+            ))}
           </dl>
           {/* 판독의가 쓴 소견이 먼저다. 소견문은 그것을 풀어 쓴 글이다 */}
           {v?.note && <p className="rev-find">{v.note}</p>}
-          {r?.summary && <p className="rev-find muted">{r.summary}</p>}
+          {reports.map((row, index) => row.summary && (
+            <p className="rev-find muted" key={`${row.report_id ?? row.dept}-summary-${index}`}>
+              {row.summary}
+            </p>
+          ))}
         </>
       )}
       {action && <div className="rowb">{action}</div>}
-    </section>
-  );
-}
-
-/* ── 결정 입력 ────────────────────────────────────────────────
- * ⚠ **두 가지를 저장한다.** 결정 자체는 `PATCH /assessments/{id}/decision`,
- *   환자에게 여는 것은 `PATCH /reports/{id}/explain` 이다. 목업은 한
- *   단추지만 서버는 두 곳이라, 동의 칸을 켰을 때만 둘째를 부른다.
- * ⚠ **어느 판독에 붙일지는 진료 이력이 안다** — 환자 응답에 assessment
- *   번호가 없다. timeline 의 「판독」 줄이 달고 온다.
- */
-/* ⚠ **보내는 값은 서버 코드다.** 화면 글자를 그대로 보내면 안 된다 —
-     서버 DECISION_TYPE 은 surgery·biopsy·imaging·rebiopsy 고
-     DECISION_VALUE 는 yes·no·defer 다(models.py:79-80). 전에는 한글을
-     `decision`·`reason` 이라는 없는 키로 보내서 **저장이 늘 실패했다**
-     (서버가 받는 키는 decision_value·decision_reason 이다). */
-const KINDS = [
-  { v: "surgery",  label: "수술" },
-  { v: "imaging",  label: "추적 관찰" },
-  { v: "biopsy",   label: "추가 검사" },
-  { v: "rebiopsy", label: "재조직검사" },
-];
-const GOES = [
-  { v: "yes",   label: "진행" },
-  { v: "defer", label: "보류" },
-];
-
-function Decide({ p, onSaved }) {
-  const line = useApi(() => H.soft(api.timeline(p.patient_id)), [p.patient_id]);
-  const aid = H.rows(line.data).filter((r) => r.assessment_id).at(-1)?.assessment_id ?? null;
-  const rid = p.report?.report_id ?? null;
-
-  const [kind, setKind] = useState(KINDS[0].v);
-  const [goNo, setGoNo] = useState(GOES[0].v);
-  const [why, setWhy] = useState("");
-  const [open, setOpen] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState(null);
-  const may = useCan("breast.decision.save");
-
-  async function save() {
-    setBusy(true);
-    setMsg(null);
-    try {
-      await api.decide(aid, {
-        decision_type: kind, decision_value: goNo, decision_reason: why,
-      });
-      /* 환자에게 여는 것은 설명 **방법**과 확인 여부다 — 서버가 받는
-         것이 그 둘뿐이라(ReportExplainSerializer) 글은 여기로 안 간다.
-         근거는 바로 위 decision_reason 에 이미 남는다. */
-      if (open && rid) {
-        await api.explain(rid, { explain_method: "대면", patient_confirmed: true });
-      }
-      setMsg("확정했습니다");
-      onSaved?.();
-    } catch (e) { setMsg(e.detail || e.message); }
-    finally { setBusy(false); }
-  }
-
-  return (
-    <section className="rev-dec">
-      <header className="rev-box-h">
-        <h3>결정 입력</h3>
-        <span className="home-fill" />
-        {msg && <span className="hcard-k">{msg}</span>}
-      </header>
-
-      <div className="rev-dec-b">
-        <label className="rev-f">
-          <span>결정 종류</span>
-          <div className="work-seg" role="radiogroup" aria-label="결정 종류">
-            {KINDS.map((k) => (
-              <button type="button" key={k.v} role="radio" aria-checked={k.v === kind}
-                      className={`work-opt${k.v === kind ? " on" : ""}`}
-                      disabled={!may.ok} onClick={() => setKind(k.v)}>{k.label}</button>
-            ))}
-          </div>
-        </label>
-
-        <label className="rev-f narrow">
-          <span>가부</span>
-          <div className="work-seg narrow" role="radiogroup" aria-label="가부">
-            {GOES.map((g) => (
-              <button type="button" key={g.v} role="radio" aria-checked={g.v === goNo}
-                      className={`work-opt${g.v === goNo ? " on" : ""}`}
-                      disabled={!may.ok} onClick={() => setGoNo(g.v)}>{g.label}</button>
-            ))}
-          </div>
-        </label>
-      </div>
-
-      <label className="rev-f">
-        <span>근거 · 환자 설명</span>
-        <textarea value={why} onChange={(e) => setWhy(e.target.value)}
-                  rows={3} disabled={!may.ok} />
-      </label>
-
-      <div className="rev-f row">
-        <label className="rev-ck">
-          <input type="checkbox" checked={open} disabled={!may.ok || !rid}
-                 onChange={(e) => setOpen(e.target.checked)} />
-          <span>환자 앱에 결과를 엽니다</span>
-        </label>
-        <span className="home-fill" />
-        {!aid && <span className="hcard-k">확정된 판독이 있어야 결정을 답니다</span>}
-        {!rid && <span className="hcard-k">리포트가 없어 환자 앱은 못 엽니다</span>}
-        <Btn kind="fill" onClick={save} {...may.attrs}
-             disabled={busy || !aid || !may.ok}>
-          {busy ? "확정하는 중…" : "결정 확정"}
-        </Btn>
-      </div>
     </section>
   );
 }

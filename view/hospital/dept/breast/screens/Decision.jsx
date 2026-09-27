@@ -5,6 +5,7 @@ import { SEX, label } from "../../../codes";
 import { useApi } from "../../../lib/useApi";
 import { Page } from "../../../lib/Page";
 import { Body } from "../../../lib/Body";
+import { useCan } from "../../../lib/Parts";
 import { go } from "../../../nav";
 import "../breast.css";   /* 유방외과 전용 — .breast 안에 갇혀 있다. 네 화면이 각자
                              끌고 온다: 주소로 곧장 들어와도 스타일이 빠지면 안 된다 */
@@ -20,7 +21,7 @@ const DECISIONS = [
 ];
 const EXPLAIN_METHODS = ["대면", "유선", "영상"];
 
-/* 화면 3 · 수술 결정 및 환자 설명 ("/patients/:id/decision")
+/* 화면 3 · 치료 방침 결정 및 환자 설명 ("/patients/:id/decision")
  *
  * 3열 2행: (좌)AI·의사 종합 리포트 / (중)수술 여부·환자 처방 /
  * (우)환자 정보·의사 최종 소견. 환자 리포트 상태와 잠금 해제는 최종
@@ -36,8 +37,8 @@ export default function Decision() {
 
   return (
     /* 되돌릴 수 없는 결정을 저장하는 화면이다. **누구인지 안 보이면 안 된다** */
-    <Page className="breast" crumb={["유방외과", "수술 결정"]}
-            title="수술 결정" patient={patient}
+    <Page className="breast" crumb={["유방외과", "치료 방침"]}
+            title="치료 방침" patient={patient}
             back={() => nav(go.breast.waiting(), { state: { advance: true, from: id } })}>
       <div className="pane">
         <Body loading={loading} error={error} onRetry={reload}>
@@ -76,7 +77,13 @@ function Inner({ patient, onReload }) {
        종류·가부·근거 셋뿐이고 수술 일정 자원이 따로 없다(8장).
        지어내지 않고, 있는 저장 경로 일곱을 그대로 둔다. */
   return (
-    <div className="decision-grid">
+    <>
+      {patient.data_warnings?.length > 0 && (
+        <p className="warnline">
+          일부 자료를 불러오지 못했습니다: {patient.data_warnings.join(", ")}. 새로고침 후 다시 확인해 주세요.
+        </p>
+      )}
+      <div className="decision-grid">
       <div className="dec-col">
         <DecisionForm assessmentId={assessmentId} assessmentIdLoading={timeline.loading} />
         {report ? <AiSummaryCard report={report} /> : <FinalReportCard patient={patient} reports={reports} onCreated={onReload} />}
@@ -90,8 +97,10 @@ function Inner({ patient, onReload }) {
       <div className="dec-col">
         <PatientInfoCard patient={patient} />
         <DecisionLog />
+        <PatientReportCard report={report} reports={reports} unlock={unlock} />
       </div>
-    </div>
+      </div>
+    </>
   );
 }
 
@@ -108,6 +117,59 @@ function DecisionLog() {
         아직 못 불러옵니다 — 환자로 결정을 모으는 경로가 없습니다.
       </p>
       <p className="card-text">결정은 지워지지 않습니다. 바꾸려면 새 결정을 남기세요.</p>
+    </div>
+  );
+}
+
+/* 환자에게 공개되는 리포트를 결정 화면에서도 바로 확인한다. 기존에는
+   리포트가 왼쪽 작성 카드 안에만 있어, 결정 기록과 환자 정보 아래에서
+   최종 결과를 찾기 어려웠다. 최종 리포트가 없으면 확정된 검사별 리포트
+   목록을 보여 주고, 잠금 상태는 서버의 unlock-status를 그대로 표시한다. */
+function PatientReportCard({ report, reports }) {
+  const stageReports = (reports.data ?? []).filter((row) => row.report_type === "stage");
+  const content = report?.content_json ?? {};
+  const title = report ? "최종 환자 리포트" : "환자 리포트 열람";
+  const status = report ? (report.is_unlocked ? "열람 가능" : "잠금 상태") : "작성 대기";
+
+  return (
+    <div className="card patient-report-card">
+      <div className="card-head">
+        <h3>{title}</h3>
+        <span className={`pill ${report?.is_unlocked ? "ok" : report ? "wait" : "warn"}`}>{status}</span>
+      </div>
+      {reports.loading ? <p className="note">리포트를 불러오는 중입니다.</p>
+        : reports.error ? <p className="warnline">환자 리포트를 불러오지 못했습니다. 새로고침 후 다시 확인해 주세요.</p>
+        : report ? (
+          <div className="patient-report-body">
+            <div className="report-meta-row">
+              <span>리포트 번호</span><b>#{report.report_id}</b>
+            </div>
+            <div className="report-meta-row">
+              <span>작성일</span><b>{report.finalized_at ?? report.created_at ?? "—"}</b>
+            </div>
+            <p className="section-label">종합 요약</p>
+            <p className="card-text">{report.ai_summary || content.doctor_summary || "등록된 요약이 없습니다."}</p>
+            {report.ai_evidence?.length > 0 && (
+              <>
+                <p className="section-label">주요 근거</p>
+                <ul className="bullets compact">{report.ai_evidence.slice(0, 3).map((item) => <li key={item}>{item}</li>)}</ul>
+              </>
+            )}
+            <p className="note report-lock-note">잠금 해제 조건과 환자 공개 여부는 아래 환자 설명 카드에서 관리합니다.</p>
+          </div>
+        ) : stageReports.length ? (
+          <div className="patient-report-body">
+            <p className="card-text">최종 리포트 생성 전입니다. 현재 확인 가능한 검사별 판독문:</p>
+            <div className="report-stage-list">
+              {stageReports.map((row) => (
+                <div className="report-stage-row" key={row.report_id}>
+                  <b>{row.title ?? row.modality ?? "검사 판독문"}</b>
+                  <span>{row.narrative_text || row.ai_summary || "내용 없음"}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : <p className="note">확정된 리포트가 없습니다. 검사 판독 확정 후 열람할 수 있습니다.</p>}
     </div>
   );
 }
@@ -151,6 +213,7 @@ function FinalReportCard({ patient, reports, onCreated }) {
       <div className="card-head"><h3>AI 종합 리포트</h3></div>
       <p className="card-text">확정된 검사 판독문을 선택해 최종 종합 리포트를 생성합니다.</p>
       {reports.loading ? <p className="note">판독문을 불러오는 중입니다.</p>
+        : reports.error ? <p className="warnline">판독문을 불러오지 못했습니다. 새로고침 후 다시 시도해 주세요.</p>
         : sources.length === 0 ? <p className="note">생성할 확정 검사 판독문이 없습니다.</p>
         : <div className="stack">
             {sources.map((source) => (
@@ -210,9 +273,12 @@ function DoctorSummaryCard({ report }) {
 
   async function save() {
     setSaving(true);
+    setMsg(null);
     try {
       await api.saveReport(report.report_id, { content_json: { doctor_summary: text } });
       setMsg("저장되었습니다");
+    } catch (e) {
+      setMsg(e.detail || e.message || "리포트 저장에 실패했습니다.");
     } finally {
       setSaving(false);
     }
@@ -257,14 +323,18 @@ function DecisionForm({ assessmentId, assessmentIdLoading }) {
   const [reason, setReason] = useState("");
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState(null);
+  const may = useCan("breast.decision.save");
 
   async function save() {
     setSaving(true);
+    setMsg(null);
     try {
       await api.decide(assessmentId, {
         decision_type: "surgery", decision_value: decisionValue, decision_reason: reason,
       });
       setMsg("결정이 저장되었습니다");
+    } catch (e) {
+      setMsg(e.detail || e.message || "결정 저장에 실패했습니다.");
     } finally {
       setSaving(false);
     }
@@ -277,20 +347,23 @@ function DecisionForm({ assessmentId, assessmentIdLoading }) {
         {DECISIONS.map((d) => (
           <label className="radio-row" key={d.v}>
             <input type="radio" name="decision_value" value={d.v}
-              checked={decisionValue === d.v} onChange={() => setDecisionValue(d.v)} />
+              checked={decisionValue === d.v} disabled={!may.ok}
+              onChange={() => setDecisionValue(d.v)} />
             {d.label}
           </label>
         ))}
       </div>
       <div className="field">
         <label>수술 관련 결정 사유</label>
-        <textarea value={reason} onChange={(e) => setReason(e.target.value)} />
+        <textarea value={reason} disabled={!may.ok}
+          onChange={(e) => setReason(e.target.value)} />
       </div>
       <div className="card-foot split">
         <span className="note">
           {msg ?? (!assessmentIdLoading && !assessmentId ? "판독 기록이 아직 없어 저장할 수 없습니다" : null)}
         </span>
-        <button className="btn ghost" onClick={save} disabled={saving || !assessmentId}>
+        <button className="btn ghost" onClick={save} {...may.attrs}
+          disabled={saving || !assessmentId || !may.ok}>
           {saving ? "저장 중…" : "결정 저장"}
         </button>
       </div>
@@ -364,6 +437,7 @@ function PrescriptionDraft({ patient, report }) {
       </div>
 
       {saved.data?.length > 0 && <p className="meta">저장된 처방 {saved.data.length}건</p>}
+      {saved.error && <p className="warnline">저장된 처방을 불러오지 못했습니다.</p>}
       {!reportId && <p className="note">종합 리포트가 생성된 뒤 처방을 저장할 수 있습니다.</p>}
 
       {drugs.map((drug, index) => (
@@ -429,12 +503,15 @@ function ExplainForm({ report, onSaved, unlock }) {
 
   async function save() {
     setSaving(true);
+    setMsg(null);
     try {
       await api.explain(report.report_id, {
         explain_method: method, explain_content: content, patient_confirmed: confirmed,
       });
       setMsg("환자 설명이 기록되었습니다");
       onSaved?.();
+    } catch (e) {
+      setMsg(e.detail || e.message || "환자 설명 저장에 실패했습니다.");
     } finally {
       setSaving(false);
     }
@@ -485,9 +562,12 @@ function ExplainForm({ report, onSaved, unlock }) {
 }
 
 function PatientInfoCard({ patient }) {
+  const sex = label(SEX, patient.sex) || "—";
+  const age = patient.age != null ? `${patient.age}세` : "—";
+  const birth = patient.birth_date || "—";
   const rows = [
     { k: "이름", v: patient.name },
-    { k: "성별 / 나이", v: `${label(SEX, patient.sex)} / ${patient.age}세 (${patient.birth_date})` },
+    { k: "성별 / 나이", v: `${sex} / ${age} (${birth})` },
     { k: "등록번호", v: patient.patient_number },
     { k: "연락처", v: patient.phone },
     { k: "알레르기", v: patient.allergy },
@@ -516,14 +596,18 @@ function PatientInfoCard({ patient }) {
 }
 
 function LockPanel({ reportId, status, onUnlocked }) {
-  const c = status.conditions;
+  const c = status.conditions ?? {};
   const [unlocking, setUnlocking] = useState(false);
+  const [error, setError] = useState(null);
 
   async function unlock() {
     setUnlocking(true);
+    setError(null);
     try {
       await api.unlock(reportId);
       onUnlocked?.();
+    } catch (e) {
+      setError(e.detail || e.message || "잠금 해제에 실패했습니다.");
     } finally {
       setUnlocking(false);
     }
@@ -543,6 +627,7 @@ function LockPanel({ reportId, status, onUnlocked }) {
       <button className="btn" disabled={!status.can_unlock || unlocking} onClick={unlock}>
         {unlocking ? "해제 중…" : "환자 리포트 열람 잠금 해제"}
       </button>
+      {error && <p className="note err">{error}</p>}
       {!status.can_unlock && (
         <p className="hint">설명 기록 저장 후 환자 확인 체크 시 해제할 수 있습니다.</p>
       )}
