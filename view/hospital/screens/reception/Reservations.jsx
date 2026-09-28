@@ -1,4 +1,5 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useSearchParams } from "react-router-dom";
 import { Page, Card, Btn } from "../../lib/Page";
 import { Body, Empty } from "../../lib/Body";
@@ -576,36 +577,99 @@ function Row({ slot, days, byDay, today, onOrder, onSlot }) {
   );
 }
 
-/* 월 — 날짜 칸마다 그날 건수와 앞 몇 줄 */
+/* 월 — 날짜 칸마다 그날 건수와 앞 몇 줄
+ *
+ * ⚠ 09-28 — 칸 높이는 고정이다(달력 행이 들쭉날쭉하면 안 읽힌다). 3건부터
+ *   줄이 줄어들며 글자가 포개졌다. 이제 **두 줄까지만** 칸에 두고 나머지는
+ *   「+n건 더」 — 누르면 그 칸 위에 떠서 펼친다(행은 안 커진다) */
+const MONTH_SHOW = 2;
+
 function Month({ days, byDay, onOrder }) {
   const first = new Date(`${days[0]}T00:00:00`).getDay();
   const today = ymd(new Date());
+  const [more, setMore] = useState(null);   /* { day, rect } */
   return (
     <div className="resv-month">
       {WEEK.map((w, i) => <i key={w} className={`hcal-dow w${i}`}>{w}</i>)}
       {Array.from({ length: first }, (_, i) => <i className="resv-mcell off" key={`x${i}`} />)}
       {days.map((d) => {
         const here = byDay.get(d) ?? [];
+        const shown = here.length <= MONTH_SHOW ? here : here.slice(0, MONTH_SHOW);
         return (
           <div className={`resv-mcell${d === today ? " now" : ""}`} key={d}>
             <b>{Number(d.slice(8))}</b>
             {here.length > 0 && <em>{here.length}건</em>}
-            {here.slice(0, 3).map((r) => (
-              <button type="button" key={r.exam_order_id ?? r.id}
-                      className={`resv-mev${isPending(r) ? " pending" : ""}`}
-                      title={[timeOf(r.scheduled_at), r.patient_name, isPending(r) && "미확정 예약",
-                        r.primary_staff_name].filter(Boolean).join(" · ")}
-                      onClick={() => onOrder(r)}>
-                {/* 월 칸은 80px 남짓이다 — 「(미확정) 13:20 서 · 최유나」가 잘렸다.
-                    미확정은 점선 상자가, 주치의는 위 거르개 · 풍선 글이 말한다 */}
-                {timeOf(r.scheduled_at)} {r.patient_name ?? `#${r.patient}`}
+            {shown.map((r) => <MonthEv key={r.exam_order_id ?? r.id} r={r} onOrder={onOrder} />)}
+            {here.length > MONTH_SHOW && (
+              <button type="button" className="resv-mmore"
+                      aria-expanded={more?.day === d}
+                      onClick={(e) => setMore(more?.day === d ? null
+                        : { day: d, rect: e.currentTarget.closest(".resv-mcell").getBoundingClientRect() })}>
+                +{here.length - MONTH_SHOW}건 더
               </button>
-            ))}
-            {here.length > 3 && <span className="hcard-k">외 {here.length - 3}건</span>}
+            )}
           </div>
         );
       })}
+      {more && (
+        <MonthMore day={more.day} rect={more.rect} rows={byDay.get(more.day) ?? []}
+                   onOrder={(r) => { setMore(null); onOrder(r); }}
+                   onClose={() => setMore(null)} />
+      )}
     </div>
+  );
+}
+
+function MonthEv({ r, onOrder }) {
+  return (
+    <button type="button"
+            className={`resv-mev${isPending(r) ? " pending" : ""}`}
+            title={[timeOf(r.scheduled_at), r.patient_name, isPending(r) && "미확정 예약",
+              r.primary_staff_name].filter(Boolean).join(" · ")}
+            onClick={() => onOrder(r)}>
+      {/* 월 칸은 80px 남짓이다 — 「(미확정) 13:20 서 · 최유나」가 잘렸다.
+          미확정은 점선 상자가, 주치의는 위 거르개 · 풍선 글이 말한다 */}
+      {timeOf(r.scheduled_at)} {r.patient_name ?? `#${r.patient}`}
+    </button>
+  );
+}
+
+/* 「+n건 더」 — 그 날짜 칸 위에 뜨는 목록. 달력(굴리는 상자) 안에 두면 아래 줄
+   칸에서 잘리므로 body 에 띄운다. 바깥을 누르거나 Esc · 줄을 고르면 닫힌다 */
+function MonthMore({ day, rect, rows, onOrder, onClose }) {
+  const box = useRef(null);
+  useEffect(() => {
+    const down = (e) => { if (box.current && !box.current.contains(e.target)) onClose(); };
+    const key = (e) => { if (e.key === "Escape") onClose(); };
+    const away = () => onClose();
+    document.addEventListener("mousedown", down);
+    document.addEventListener("keydown", key);
+    window.addEventListener("resize", away);
+    document.addEventListener("scroll", away, true);
+    return () => {
+      document.removeEventListener("mousedown", down);
+      document.removeEventListener("keydown", key);
+      window.removeEventListener("resize", away);
+      document.removeEventListener("scroll", away, true);
+    };
+  }, [onClose]);
+  /* 칸 왼쪽 위에 맞추되 화면 밖으로 안 나가게 */
+  const width = Math.max(rect.width + 24, 220);
+  const left = Math.min(rect.left - 12, window.innerWidth - width - 12);
+  const top = Math.min(rect.top - 8, window.innerHeight - 60);
+  return createPortal(
+    <div ref={box} className="resv-mpop" role="dialog" aria-label={`${day} 예약`}
+         style={{ left: Math.max(12, left), top: Math.max(12, top), width }}>
+      <header>
+        <b>{Number(day.slice(5, 7))}월 {Number(day.slice(8))}일</b>
+        <em>{rows.length}건</em>
+        <button type="button" className="resv-mpop-x" aria-label="닫기" onClick={onClose}>×</button>
+      </header>
+      <div className="resv-mpop-b">
+        {rows.map((r) => <MonthEv key={r.exam_order_id ?? r.id} r={r} onOrder={onOrder} />)}
+      </div>
+    </div>,
+    document.body,
   );
 }
 

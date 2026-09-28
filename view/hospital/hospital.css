@@ -1743,6 +1743,25 @@ a.nside-row:hover{background:var(--canvas)}
   color:var(--ink-2); padding:1px var(--gap-xxs);
   border-radius:var(--radius-xs); background:var(--canvas)}
 .resv-mev:hover{background:var(--wash)}
+/* 칸 안 줄은 줄어들지 않는다 — 줄면 글자가 포개졌다(09-28) */
+.resv-mcell > .resv-mev, .resv-mcell > .resv-mmore{flex:none}
+.resv-mmore{align-self:flex-start; font-size:var(--stag-fs); font-weight:600; color:var(--ink-2);
+  padding:1px var(--gap-xxs); border-radius:var(--radius-xs)}
+.resv-mmore:hover, .resv-mmore[aria-expanded="true"]{background:var(--wash); color:var(--ink)}
+/* 「+n건 더」 펼침 — 날짜 칸 위에 뜬다(행은 안 커진다) */
+.resv-mpop{position:fixed; z-index:30; background:var(--card);
+  border:var(--hair) solid var(--border); border-radius:var(--in-radius);
+  box-shadow:0 12px 32px rgb(0 0 0 / .16); display:flex; flex-direction:column;
+  max-height:min(360px, 70vh)}
+.resv-mpop > header{display:flex; align-items:baseline; gap:var(--gap-xs);
+  padding:var(--gap-sm) calc(12px * var(--sp)); border-bottom:var(--hair) solid var(--line-2)}
+.resv-mpop > header b{font-size:var(--qrow-meta-fs)}
+.resv-mpop > header em{font-style:normal; font-size:var(--stag-fs); color:var(--warm)}
+.resv-mpop-x{margin-left:auto; color:var(--warm); font-size:16px; line-height:1}
+.resv-mpop-x:hover{color:var(--ink)}
+.resv-mpop-b{overflow-y:auto; padding:var(--gap-xs) calc(8px * var(--sp));
+  display:flex; flex-direction:column; gap:calc(4px * var(--sp))}
+.resv-mpop-b .resv-mev{padding:calc(4px * var(--sp)) var(--gap-xs); font-size:var(--qrow-meta-fs)}
 
 /* 미확정 예약 — 색을 새로 만들지 않고 **채움 대신 점선 외곽**으로 가른다.
    확정은 꽉 찬 덩어리, 미확정은 속이 빈 점선 상자 */
