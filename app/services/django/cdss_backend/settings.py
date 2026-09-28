@@ -275,6 +275,22 @@ DRUG_API_TIMEOUT_SEC = float(os.environ.get("DRUG_API_TIMEOUT_SEC", "8"))
 # 일일 호출 한도가 있고 약 정보는 연 단위로 바뀐다. 넉넉히 캐시한다.
 DRUG_API_CACHE_SEC = int(os.environ.get("DRUG_API_CACHE_SEC", str(60 * 60 * 24)))
 
+# ── 처방 DUR 성분 점검(식약처 DUR 성분정보 · data.go.kr) ────────────────
+#
+# 처방 화면의 「DUR 점검」이 부른다 (core/api/dur.py).
+#
+# ⚠ e약은요와 **같은 일반 인증키지만 활용신청은 따로다.** 칸을 나눠 두고,
+#   비우면 DRUG_API_KEY 를 쓴다 — 대개는 같은 키라 한 번만 적으면 된다.
+# ⚠ 서비스 이름은 …03 인데 **오퍼레이션 이름은 …02 로 끝난다**
+#   (getUsjntTabooInfoList02 등). 헷갈려서 03 을 붙이면 404 다.
+DUR_API_BASE = os.environ.get(
+    "DUR_API_BASE", "https://apis.data.go.kr/1471000/DURIrdntInfoService03")
+DUR_API_KEY = os.environ.get("DUR_API_KEY") or DRUG_API_KEY
+# 한 번 점검에 성분 수 × 오퍼레이션 수만큼 부른다. 하나가 느려도 전체가
+# 늘어지지 않게 짧게 잡는다 — 못 받은 것은 partial 로 알린다.
+DUR_API_TIMEOUT_SEC = float(os.environ.get("DUR_API_TIMEOUT_SEC", "6"))
+DUR_API_CACHE_SEC = int(os.environ.get("DUR_API_CACHE_SEC", str(60 * 60 * 24)))
+
 # ── 병원 찾기(국립중앙의료원 전국 병·의원 찾기 · data.go.kr) ────────────
 #
 # 환자 앱의 「병원 찾기」가 부른다 (core/api/hospitals.py).

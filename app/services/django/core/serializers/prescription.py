@@ -32,6 +32,15 @@ class PrescriptionDrugRowSerializer(serializers.Serializer):
     ingredient = serializers.CharField(max_length=200, required=False,
                                        allow_blank=True, default="")
     dose = serializers.CharField(max_length=50)
+    # 투여 경로 · 제형. 09-28 에 붙었다 — **둘 다 없어도 받는다.** 그 전의
+    # 화면이 보내던 처방이 갑자기 400 이 되면 안 된다.
+    # ⚠ route 는 목록 밖 값을 거절한다. 자유 문자열로 받으면 "경구" · "PO" ·
+    #   "oral" 이 섞여 들어와 화면이 경로로 가를 수 없게 된다.
+    route = serializers.ChoiceField(choices=models.as_choices(models.DRUG_ROUTE),
+                                    required=False, allow_blank=True,
+                                    allow_null=True, default=None)
+    form = serializers.CharField(max_length=50, required=False, allow_blank=True,
+                                 allow_null=True, default=None)
     # ["09:00", "19:00"]. 화면이 쉼표로 나눠 보낸다.
     times = serializers.ListField(child=serializers.CharField(max_length=5),
                                   allow_empty=False)
@@ -97,7 +106,8 @@ class PatientDrugSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = models.PrescriptionDrug
-        fields = ["drug_id", "name", "ingredient", "dose", "times", "per_day",
+        fields = ["drug_id", "name", "ingredient", "dose", "route", "form",
+                  "times", "per_day",
                   "days", "ends_on", "purpose", "how", "watch", "today"]
 
     def get_per_day(self, obj):

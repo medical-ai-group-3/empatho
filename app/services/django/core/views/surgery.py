@@ -873,6 +873,8 @@ class PrescriptionViewSet(AuditMixin, viewsets.ViewSet):
                     name=row["name"],
                     ingredient=row.get("ingredient") or None,
                     dose=row["dose"],
+                    route=row.get("route") or None,
+                    form=(row.get("form") or "").strip() or None,
                     times=row["times"],
                     days=row["days"],
                     purpose=row.get("purpose") or None,

@@ -54,6 +54,12 @@ urlpatterns.append(path("chat", ChatView.as_view(), name="chat"))
 # ⚠ 목록(`drugs`)을 상세(`drugs/<…>`)보다 **먼저** 둔다. 순서가 반대라도
 #   지금은 맞지만, 뒤에 `drugs/<str:…>` 같은 것이 늘면 목록을 가로챈다.
 urlpatterns.append(path("drugs", DrugSearchView.as_view(), name="drug-search"))
+# 처방 DUR 성분 점검 — core/api/dur.py 의 머리말 참고.
+# ⚠ 상세(`drugs/<str:item_seq>`)보다 **먼저** 둔다. 리졸버는 메서드를 안
+#   보고 경로만 본다 — 뒤에 두면 POST drugs/dur 가 item_seq="dur" 로 상세에
+#   잡혀 405 가 난다.
+from .dur import DurCheckView  # noqa: E402
+urlpatterns.append(path("drugs/dur", DurCheckView.as_view(), name="drug-dur-check"))
 urlpatterns.append(
     path("drugs/<str:item_seq>", DrugDetailView.as_view(), name="drug-detail"))
 # 병원 찾기. 심평원 공공데이터를 옮겨 주는 자리이고 **협력 병원 목록이

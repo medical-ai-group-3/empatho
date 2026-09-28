@@ -115,6 +115,11 @@ REF_TYPE = ["assessment", "discordance_flag", "report", "exam_order", "specimen"
 # handover — 인계 사항. todo · sticky 와 달리 **같은 과(역할) 전체가 본다**
 # (views/personal_note.py). 09-27 브라우저 저장에서 옮겼다
 NOTE_TYPE = ["todo", "sticky", "handover"]
+# 처방 약의 투여 경로. 경구 · 주사 · 외용 · 흡입 · 점안 · 기타.
+# ⚠ 제형(정제 · 캡슐제 …)과 섞지 않는다 — 제형은 PrescriptionDrug.form 의
+#   자유 문자열이다. 경로는 복약 화면이 「먹는 약인가」를 가르는 열쇠라
+#   값 집합을 닫아 둔다.
+DRUG_ROUTE = ["oral", "injection", "topical", "inhalation", "eye", "other"]
 
 
 class AuditBase(models.Model):
@@ -1016,6 +1021,11 @@ class PrescriptionDrug(models.Model):
     # 성분명. 같은 성분의 다른 제품으로 바뀌었을 때 환자가 알아보게 한다.
     ingredient = models.CharField(max_length=200, blank=True, null=True)
     dose = models.CharField(max_length=50)              # 1회 복용량 — "1정"
+    # 투여 경로(DRUG_ROUTE)와 제형. 둘 다 09-28 에 붙어 **비어 있을 수 있다** —
+    # 그 전에 저장된 처방에는 값이 없고, 없다고 경구로 넘겨짚지 않는다.
+    route = models.CharField(max_length=20, blank=True, null=True,
+                             choices=as_choices(DRUG_ROUTE))
+    form = models.CharField(max_length=50, blank=True, null=True)   # "정제" · "주사제"
     # 하루 중 언제 먹나. ["09:00", "19:00"] 다.
     #
     # ⚠ 개수(per_day)를 따로 두지 않는다. times 의 길이가 곧 그것이라
