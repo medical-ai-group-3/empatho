@@ -206,12 +206,10 @@ export const HOME = DEPTS[0];
    ⚠ key 는 화면 라우팅 키(breast)가 아니라 signup_staff 의 role
    값이다 (2026-09-16 백엔드 확인) — 유방외과가 "surgery" 다. */
 export const STAFF_DEPTS = [
-  /* ⚠ **원무과는 화면에선 없어졌지만 여기엔 남는다.** 이 목록은 가입
-     폼의 선택지이고 key 는 서버의 `account.role` 값이다 — 서버가 아직
-     `reception` 역할을 쓰고 `RECEPTION_PERMS` 를 그 역할에 준다.
-     여기서 빼면 원무 직원이 가입을 못 한다. 서버가 역할을 합치면
-     그때 같이 뺀다 */
-  { key: "reception", name: "원무과" },
+  /* ⚠ **원무과를 뺐다(2026-09-28).** 원무 일은 간호과가 한다 — 화면은
+     이미 옮겼고(아래 6.1) 권한도 간호가 원무 것을 전부 가진다. 남겨 두면
+     간호 화면을 못 보는 계정이 계속 생긴다. 서버도 같이 뺐다
+     (core/api/views.py 의 STAFF_SIGNUP_ROLES). */
   { key: "nursing",   name: "간호과" },
   { key: "radiology", name: "영상의학과" },
   { key: "surgery",   name: "유방외과" },
