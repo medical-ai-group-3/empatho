@@ -247,7 +247,7 @@ function Work({ cfg, id, d, reload }) {
         <div className="up-col">
           {/* ── 올리는 곳 — 맨 위 ─────────────────────────────── */}
           <Card title="파일 올리기"
-                right={<span className="muted small">업로드 {uploadedCount}</span>}>
+                right={<span className="muted small">올린 파일 {uploadedCount}</span>}>
             <div className={`drop ${dragging ? "dragging" : ""}`}
                  onDragEnter={(e) => { e.preventDefault(); setDragging(true); }}
                  onDragOver={(e) => e.preventDefault()}
@@ -332,7 +332,10 @@ function Work({ cfg, id, d, reload }) {
                 right={prog && <Chip tone={tone("run", prog.status)}>{label(RUN_STATUS, prog.status)}</Chip>}>
             {prog ? (
               <>
-                <Bar value={prog.pct ?? 0} label={label(RUN_STATUS, prog.status)} />
+                {/* 머리 칩이 이미 상태를 말한다 — 막대 옆은 진행률 · 다음 할 일만 */}
+                <Bar value={prog.pct ?? 0}
+                     label={prog.status === "done" ? "분석이 끝났습니다 — 판독으로 넘어가세요"
+                       : `${label(RUN_STATUS, prog.status)} · ${Math.round(prog.pct ?? 0)}%`} />
                 {prog.status === "failed" && (
                   <p className="hint">분석에 실패했습니다. 다시 시도해 보시고, 계속 실패하면 담당자에게 알려 주세요.</p>
                 )}
@@ -349,7 +352,7 @@ function Work({ cfg, id, d, reload }) {
               <Btn kind={done ? "line" : "fill"} onClick={analyze}
                    disabled={busy || running || uploadedCount === 0 || !gate || !run.ok}
                    title={run.attrs.title}>
-                {prog?.status === "failed" ? "다시 분석" : "AI 분석 시작"}
+                {prog?.status === "failed" || done ? "AI 다시 분석" : "AI 분석 시작"}
               </Btn>
             </div>
           </Card>

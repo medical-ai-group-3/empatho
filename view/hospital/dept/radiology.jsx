@@ -41,7 +41,7 @@ function allergyOf(v) {
 }
 const ageSex = (p) => {
   const bits = [p.age != null && p.age !== "" ? String(p.age) : null, label(SEX, p.sex) || null].filter(Boolean);
-  return bits.length ? ` (${bits.join("/")})` : "";
+  return bits.length ? ` (${bits.join(" · ")})` : "";
 };
 /* 의뢰 질문 — 유방외과가 적은 글(order_note)이 먼저, 없으면 검사 목적 */
 const askOf = (d) => d.order_note || d.order?.order_note || d.purpose
@@ -824,7 +824,7 @@ export const radiology = {
       const prev = priors.find((x) => x.birads);
       return [
         [null, `${p.name ?? ""}${ageSex(p)}`],
-        ["번호", p.no],
+        ["환자번호", p.no],
         al ? [al.label, al.note, true] : ["알레르기", "없음"],
         ["모달리티", label(MODALITY, asModality(d.unit?.modality))],
         ["의뢰 질문", askOf(d)],
@@ -846,8 +846,9 @@ export const radiology = {
             d.density_category && ["밀도", densityText(d)],
             fin.recommendation && ["권고", label(RECOMMENDATION, fin.recommendation)],
             fin.recommendation_reason && ["권고 사유", fin.recommendation_reason],
-            ["판독의", fin.assessed_by_name ?? (fin.assessed_by != null ? `직원 #${fin.assessed_by}` : "—")],
-            ["확정", fin.finalized_at],
+            /* 이름이 안 오는 옛 서버 — 「직원 #21」 같은 번호는 판독의가 읽을 말이 아니다 */
+            ["판독의", fin.assessed_by_name || "—"],
+            ["확정", fin.finalized_at ? String(fin.finalized_at).slice(0, 16).replace("T", " ") : "—"],
           ]} />
           <p className="vfin-k">판독 소견</p>
           <p className="quote">{fin.finding_note || "—"}</p>
@@ -897,7 +898,7 @@ export const radiology = {
       return (
         <>
           {/* 조영제일 때만 경고 띠 — 그 밖의 알레르기는 맨 위 띠에 있다 */}
-          {al?.contrast && <Warn>조영제 알레르기 — {al.note}</Warn>}
+          {al?.contrast && <Warn>조영제 알레르기 · {al.note}</Warn>}
           <Facts items={[
             ["검사명", d.unit.exam_name],
             ["모달리티", label(MODALITY, mod)],
@@ -1099,27 +1100,31 @@ export const radiology = {
                 ["환자", [H.nameOf(d), H.who(d)].filter(Boolean).join(" · ")],
                 ["환자번호", d.patient_no],
                 al && [al.label, al.note ?? "있음"],
-                ["의뢰", [label(PURPOSE, d.exam_purpose), d.purpose].filter(Boolean).join(" · ") || "—"],
+                (d.exam_purpose || d.purpose)
+                  && ["의뢰", [label(PURPOSE, d.exam_purpose), d.purpose].filter(Boolean).join(" · ")],
                 ["촬영", [d.performed_at && String(d.performed_at).slice(0, 16).replace("T", " "), d.device]
                   .filter(Boolean).join(" · ") || "—"],
-                ["담당 판독의", d.assigned_to_name ?? d.assigned_to ?? "—"],
+                /* 이름이 없으면 번호를 띄우지 않는다 — 읽을 수 없는 값이다 */
+                ["담당 판독의", d.assigned_to_name || "—"],
                 ["진행 상황", text(d, "read_status", READ_STATUS, "status_label")],
-                ["유방외과 열람", d.viewed_at ?? "미열람"],
+                ["유방외과 열람", d.viewed_at ? String(d.viewed_at).slice(0, 16).replace("T", " ") : "미열람"],
               ]} />
+
+              {/* 09-28 — 판독 결과를 이력 위로. 목록에서 고른 뒤 가장 먼저
+                  찾는 값인데 이력 아래라 화면 밖이었다 */}
+              <Fold title="판독 결과" open={Boolean(d.finalized)}>
+                {d.finalized ? (
+                  <>
+                    <Facts items={[["판정 등급", `BI-RADS ${d.category}`]]} />
+                    <p className="quote">{d.finding_note || "—"}</p>
+                  </>
+                ) : <p className="muted small">아직 확정된 판독이 없습니다.</p>}
+              </Fold>
 
               <p className="section-label">검사 이력</p>
               <Body loading={timeline.loading} error={timeline.error} onRetry={timeline.reload}>
                 {timeline.data && <ListTimeline events={timeline.data} />}
               </Body>
-
-              <Fold title="판독 결과" open={Boolean(d.finalized)}>
-                {d.finalized ? (
-                  <>
-                    <Facts items={[["판정 등급", `BI-RADS ${d.category}`]]} />
-                    <p className="quote">{d.finding_note}</p>
-                  </>
-                ) : <p className="muted">아직 확정된 판독이 없습니다.</p>}
-              </Fold>
             </div>
           </div>
         </>

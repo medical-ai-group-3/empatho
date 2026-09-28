@@ -44,14 +44,14 @@ export function PathologyAiSummary({ d, slide, onSlide }) {
     <div className="viz-chips">
       {rows.map((r, i) => (
         <button type="button" key={r.id ?? i} className="phr-b" aria-pressed={slide === i}
-                disabled={!onSlide} title="이 크롭을 뷰어에 표시합니다"
+                disabled={!onSlide} title="이 이미지를 뷰어에 표시합니다"
                 onClick={() => onSlide?.(i)}>
-          크롭 {i + 1} · {aiRunning(r) ? "분석 중" : aiFailure(r) ? "분석 실패" : r.abstained ? "판정 불가"
+          이미지 {i + 1} · {aiRunning(r) ? "분석 중" : aiFailure(r) ? "분석 실패" : r.abstained ? "AI 판정 없음"
             : r.stroma_status === "absent" ? "간질 없음"
             : `AI 계측 sTIL ${fmt1(r.stil_percent)}% · TSR ${r.tsr_percent ?? "—"}%`}
         </button>
       ))}
-      <span className="muted small">AI 계측 sTIL은 병리의 sTIL과 척도가 다릅니다.</span>
+      <span className="muted small">AI 계측 sTIL은 판독의가 입력하는 sTIL과 척도가 다릅니다.</span>
     </div>
   );
 }
@@ -66,7 +66,7 @@ export default function PathologyAi({ d, slide, onSlide }) {
   return (
     <div className="ai">
       <p className="muted small">
-        크롭 {rows.length}장. 자른 위치에 따라 값이 크게 달라지므로 평균을 내지 않고 크롭별로 표시합니다.
+        조직 이미지 {rows.length}장. 자른 위치에 따라 값이 크게 달라져 평균을 내지 않고 이미지마다 표시합니다.
       </p>
 
       {/* 크롭이 두 장 이상일 때만 — 한 점은 분포가 아니다. 평균을 내지
@@ -77,16 +77,16 @@ export default function PathologyAi({ d, slide, onSlide }) {
             값을 겹쳐 읽게 된다. 병리의 sTIL 과 분리해 덜 강조한다. */}
       <div className="muted">
         <StripPlot
-          label="크롭별 AI 계측 sTIL (참고용)"
+          label="이미지별 AI 계측 sTIL (참고용)"
           points={rows
             .filter((r) => !r.abstained && r.stroma_status !== "absent")
             .map((r, i) => ({ name: `${i + 1}`, value: r.stil_percent }))}
-          note="크롭별로 점으로 표시합니다. 평균은 모델 출력값이 아닙니다." />
+          note="이미지마다 점 하나로 표시합니다. 평균은 모델 출력값이 아닙니다." />
       </div>
 
       {/* 종양 비율은 보정 문제가 없다 — 크롭 사이 흔들림을 여기서 본다. */}
       <StripPlot
-        label="크롭별 종양 비율"
+        label="이미지별 종양 비율"
         points={rows
           .filter((r) => !r.abstained && r.stroma_status !== "absent")
           .map((r, i) => ({ name: `${i + 1}`, value: r.tsr_tumor_percent }))}
@@ -95,7 +95,7 @@ export default function PathologyAi({ d, slide, onSlide }) {
       {rows.map((r, i) => (
         <section className={slide === i ? "ai-card on" : "ai-card"} key={r.id ?? i}>
           <div className="ai-h">
-            <b>크롭 {i + 1}</b>
+            <b>이미지 {i + 1}</b>
             <span className="muted">{r.name}</span>
             {/* 카드와 뷰어를 잇는다 — 값을 보다가 그 자리를 바로 본다 */}
             {onSlide && (

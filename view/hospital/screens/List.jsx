@@ -88,6 +88,13 @@ function Inner({ cfg }) {
 
   const scope = reportScope();
 
+  /* 09-28 — 고른 줄이 없으면 **맨 윗줄을 연다.** 오른쪽이 「목록에서 항목을
+     선택하면…」 점선 상자 하나로 화면 절반 넘게 비어 있었다(PRODUCT.md
+     「오른쪽 단을 비워 두지 않는다」). 주소에는 안 적는다 — 사람이 고른
+     것만 적어야 뒤로가기가 그 사람의 선택을 되살린다 */
+  const rowsShown = shown.map((r) => c.row(r));
+  const open = pick ?? rowsShown[0]?.id ?? null;
+
   return (
     <Page crumb={[cfg.name, c.title]} title={c.title}
           right={scope && <Chip>{scope.label}</Chip>}>
@@ -113,8 +120,8 @@ function Inner({ cfg }) {
 
                   <Table
                     cols={c.cols}
-                    rows={shown.map((r) => c.row(r))}
-                    value={pick}
+                    rows={rowsShown}
+                    value={open}
                     onPick={setPick}
                     emptyText={c.filters ? "조건에 맞는 항목이 없습니다" : undefined}
                   />
@@ -138,7 +145,7 @@ function Inner({ cfg }) {
                 )}
               </>
             }
-            right={pick ? <Detail cfg={cfg} id={pick} /> : null}
+            right={open != null ? <Detail cfg={cfg} id={open} /> : null}
           />
         )}
       </Body>

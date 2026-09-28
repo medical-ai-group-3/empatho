@@ -19,10 +19,10 @@
 const KINDS = [
   { kind: "oom",
     re: /out\s*of\s*memory|outofmemory|cuda error/i,
-    title: "AI 서버 GPU 메모리가 부족해 분석하지 못했습니다(서버 과부하). 잠시 뒤 다시 실행해 주세요." },
+    title: "AI 서버가 바빠 분석하지 못했습니다. 잠시 뒤 다시 실행해 주세요." },
   { kind: "timeout",
     re: /soft_time_limit|time_?limit|timelimitexceeded|timed?\s*out|timeout/i,
-    title: "분석 시간이 초과됐습니다. 잠시 뒤 다시 실행해 주세요." },
+    title: "분석이 제한 시간 안에 끝나지 않았습니다. 잠시 뒤 다시 실행해 주세요." },
   { kind: "conn",
     re: /urlerror|httperror|connection|remotedisconnected|incompleteread|errno|refused|unreachable|getaddrinfo|name or service|broken\s*pipe|bad gateway|service unavailable/i,
     title: "AI 서버에 연결하지 못했습니다. 잠시 뒤 다시 실행해 주세요." },

@@ -7,7 +7,7 @@ export function AiFailNote({ f, rerun = null, compact = false }) {
   return (
     <div className={`ai-fail${compact ? " compact" : ""}`} role="status">
       <p className="ai-fail-t">
-        <b>{compact ? "판정 불가" : "AI 결과가 없습니다"}</b>
+        <b>{compact ? "AI 분석 실패" : "AI 결과가 없습니다"}</b>
         <span>{f.title}</span>
       </p>
       {!compact && (

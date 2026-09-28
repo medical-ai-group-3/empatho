@@ -67,8 +67,8 @@ function norm(h) {
   return {
     id: h.assessment_id ?? h.id ?? null,
     at: h.finalized_at ?? h.amended_at ?? null,
-    who: h.assessed_by_name ?? h.reported_by
-      ?? (h.assessed_by != null ? `직원 #${h.assessed_by}` : null),
+    /* 이름이 안 오면 비워 둔다 — 「직원 #21」 같은 번호는 읽을 말이 아니다 */
+    who: h.assessed_by_name || h.reported_by || null,
     why: h.decision_reason ?? h.amend_reason ?? null,
     category: h.category ?? null,
     note: h.finding_note ?? "",
@@ -112,7 +112,7 @@ function Inner({ cfg, id, d }) {
                   <div><h3>{c.categoryLabel}</h3><p>{c.categoryText ? c.categoryText(now.category) : now.category ?? "—"}</p></div>
                   {/* 병리처럼 진단 칸이 있는 과만 — 설정이 켠다 */}
                   {c.diagnosisRow && <div><h3>진단</h3><p>{d.doctor?.diagnosis_label ?? "—"}</p></div>}
-                  <div><h3>판독문</h3><p>{now.note || "—"}</p></div>
+                  <div><h3>판독 소견</h3><p>{now.note || "—"}</p></div>
                   <p className="muted small">
                     {[now.who, now.at && `확정 ${readable(now.at)}`].filter(Boolean).join(" · ") || "판독의 · 확정 시각 없음"}
                   </p>
@@ -196,9 +196,9 @@ function Form({ cfg, id, d, seed, assessmentId }) {
       </label>
 
       <label className="field">
-        <span>수정 후 판독문 <i className="req">*</i></span>
+        <span>정정 판독 소견 <i className="req">*</i></span>
         <textarea className="lg" value={f.finding_note} rows={7} maxLength={1000}
-                  placeholder="유방외과로 전달할 수정 판독문을 작성합니다"
+                  placeholder="유방외과로 전달할 판독 소견을 고쳐 씁니다"
                   onChange={(e) => set("finding_note", e.target.value)} />
         <span className="count">{f.finding_note.length} / 1000 · 유방외과로 전달됩니다</span>
       </label>
@@ -219,7 +219,7 @@ function Form({ cfg, id, d, seed, assessmentId }) {
         saveLabel="정정 저장"
       />
       {!assessmentId && <p className="muted small">정정할 확정 판독을 찾지 못해 저장할 수 없습니다.</p>}
-      {assessmentId && !ready && <p className="muted small">정정 사유 · {c.categoryLabel} · 판독문을 모두 채워야 저장할 수 있습니다. 「판독 화면으로」를 누르면 여기 작성한 내용은 저장되지 않습니다.</p>}
+      {assessmentId && !ready && <p className="muted small">정정 사유 · {c.categoryLabel} · 판독 소견을 모두 채워야 저장할 수 있습니다. 「판독 화면으로」를 누르면 여기 작성한 내용은 저장되지 않습니다.</p>}
     </>
   );
 }

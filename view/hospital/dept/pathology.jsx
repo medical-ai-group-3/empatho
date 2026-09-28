@@ -58,6 +58,9 @@ const PHRASES = [
 
 /* 「2026-09-28 09:10」 · 「3시간 전」 — 채취 뒤 얼마나 지났나(고정 시간) */
 const readableAt = (v) => String(v).replace("T", " ").slice(0, 16);
+/* 서버가 주는 진단 이름표는 「악성 (malignant)」처럼 영문 코드를 괄호로 단다 —
+   화면에는 한글만. 값(diagnosis)은 그대로 두고 보이는 글만 자른다 */
+const korOnly = (v) => (v == null ? v : String(v).replace(/\s*\([A-Za-z][^)]*\)\s*$/, ""));
 function ago(v) {
   const t = Date.parse(v);
   if (!Number.isFinite(t)) return "";
@@ -505,7 +508,7 @@ export const pathology = {
       const L = go.pathology.list();
       return {
         title: "오늘 흐름",
-        summary: tat ? `평균 TAT ${tat} (채취→확정)` : "평균 TAT —",
+        summary: tat ? `평균 소요 ${tat} (채취→확정)` : "평균 소요 —",
         items: [
           { name: "접수 대기", count: queue.length, to: go.pathology.queue() },
           { name: "내 판독 중", count: specimens.filter((r) => !r.finalized).length, to: `${L}?f=mine` },
@@ -563,7 +566,7 @@ export const pathology = {
         items: it.map((r) => ({
           id: r.id,
           at: H.at(r.finalized_at),
-          text: `${H.nameOf(r)} · ${r.specimen_no ?? "검체"} · ${text(r, "diagnosis", DIAGNOSIS, "diagnosis_label") || "진단"} 확정`,
+          text: `${H.nameOf(r)} · ${r.specimen_no ?? "검체"} · ${korOnly(text(r, "diagnosis", DIAGNOSIS, "diagnosis_label")) || "진단"} 확정`,
           to: go.pathology.read(r.id),
         })),
       };
@@ -651,8 +654,8 @@ export const pathology = {
     accept: "image/png,image/jpeg,image/tiff",
     /* 끌어 놓는 칸 아래 한 줄. ⚠ 여러 장을 권한다 — 같은 슬라이드라도
        자른 자리에 따라 AI 계측값이 크게 달라진다 */
-    hint: "WSI 전체가 아닌 잘라낸 조직 이미지(크롭)를 올립니다 — 이미지마다 AI 분석이 한 건씩 실행됩니다",
-    estimate: "AI 분석은 크롭 한 장에 약 2.2초 걸립니다.",
+    hint: "슬라이드 전체(WSI)가 아니라 잘라 낸 조직 이미지를 올립니다 — 이미지마다 AI 분석이 한 건씩 실행됩니다",
+    estimate: "AI 분석은 이미지 한 장에 약 2.2초 걸립니다.",
     need: {
       view: "pathology.upload.view",
       send: "pathology.upload.send",
@@ -709,7 +712,7 @@ export const pathology = {
     /* 맨 위 띠 — 병리의에게 필요한 것만. 연락처 · 생년월일 · 알레르기는 뺐다 */
     strip: (d) => [
       [null, patientText(d.patient)],
-      ["번호", d.patient.no],
+      ["환자번호", d.patient.no],
       ["검체", d.unit.no],
       ["종류", label(SPECIMEN_TYPE, d.unit.specimen_type) || d.unit.kind],
       ["상태", d.unit.status_label],
@@ -722,16 +725,16 @@ export const pathology = {
       return (
         <>
           <Facts items={[
-            ["진단", label(DIAGNOSIS, s.diagnosis) || "—"],
+            ["진단", korOnly(label(DIAGNOSIS, s.diagnosis)) || "—"],
             ["B 분류", label(B_CATEGORY_LABEL, s.b_category) || "—"],
             s.histologic_type && ["조직형", label(HISTOLOGIC_TYPE, s.histologic_type)],
             s.nottingham_grade !== "" && s.nottingham_grade != null && ["Nottingham", label(NOTTINGHAM, s.nottingham_grade)],
             (s.er_status || s.pr_status || s.her2_status) && ["ER · PR · HER2",
               [label(RECEPTOR, s.er_status) || "—", label(RECEPTOR, s.pr_status) || "—", label(HER2, s.her2_status) || "—"].join(" · ")],
             s.ki67_percent !== "" && s.ki67_percent != null && ["Ki-67", `${s.ki67_percent}%`],
-            s.stil_calibrated != null && ["sTIL (병리의)", `${s.stil_calibrated}%`],
+            s.stil_calibrated != null && ["sTIL (판독의)", `${s.stil_calibrated}%`],
             ["판독의", d.unit.reported_by ?? "—"],
-            ["확정", d.unit.finalized_at],
+            ["확정", d.unit.finalized_at ? readableAt(d.unit.finalized_at) : "—"],
           ]} />
           <p className="vfin-k">판독 소견</p>
           <p className="quote">{s.finding_note || "—"}</p>
@@ -783,7 +786,7 @@ export const pathology = {
            다른 과(초음파 등)는 이 prop 을 안 넘겨 기존 색을 그대로 쓴다. */
         maskColors: PATHOLOGY_MASK_COLORS,
         w: c?.w ?? 512, h: c?.h ?? 512,     /* 크롭은 512×512 */
-        alt: `크롭 ${i + 1}`,
+        alt: `조직 이미지 ${i + 1}`,
         shapes: [],            /* 병리는 도형이 없다 — 마스크가 그림이다 */
       };
     },
@@ -806,12 +809,12 @@ export const pathology = {
             <p className="quote">{d.unit.clinical_note}</p>
           </Fold>
         )}
-        <Fold title={`업로드한 크롭 ${(d.crops ?? []).length}장`}>
+        <Fold title={`올린 조직 이미지 ${(d.crops ?? []).length}장`}>
           <ul className="slides">
             {(d.crops ?? []).map((c, i) => (
               <li key={c.id} className={slide === i ? "on" : undefined}>
                 <button onClick={() => onSlide?.(i)}>
-                  크롭 {i + 1} · {c.name}
+                  이미지 {i + 1} · {c.name}
                   {!c.mask && <small> · 마스크 없음</small>}
                 </button>
               </li>
@@ -830,7 +833,7 @@ export const pathology = {
           <select value={f.diagnosis ?? ""} onChange={(e) => set("diagnosis", e.target.value)}>
             <option value="">선택하세요</option>
             {Object.entries(DIAGNOSIS).map(([v, t]) => (
-              <option key={v} value={v}>{t}</option>
+              <option key={v} value={v}>{korOnly(t)}</option>
             ))}
           </select>
         </label>
@@ -883,15 +886,15 @@ export const pathology = {
            입력한다. AI 계측값(PathologyAi.jsx)과는 다른 값이고 자동
            계산도 안 한다 — 저/중/고 같은 등급도 여기서 안 매긴다. */}
         <label className="field">
-          <span>sTIL (%) — 병리의 입력</span>
+          <span>sTIL (%) — 판독의 입력</span>
           <input type="number" min="0" max="100" step="0.1"
                  value={f.stil_calibrated ?? ""}
                  placeholder="0~100"
                  onChange={(e) => set("stil_calibrated", e.target.value)} />
           <span className="muted small">
             {f.stil_calibrated === "" || f.stil_calibrated == null
-              ? "병리의 입력 대기"
-              : `sTIL ${f.stil_calibrated}% · 병리의 입력`}
+              ? "아직 입력하지 않았습니다"
+              : `sTIL ${f.stil_calibrated}% · 판독의 입력`}
           </span>
         </label>
 
@@ -994,13 +997,13 @@ function PathologyListDetail({ d, cfg }) {
           ["채취", collectedText(d.collected_at) ?? "—"],
           ["담당 병리의", d.reported_by ?? d.assigned_to_name ?? "—"],
           ["진행 상황", STATE[d.read_state] ?? text(d, "accession_status", ACCESSION_STATUS, "status_label")],
-          ["유방외과 열람", d.viewed_at ?? "미열람"],
+          ["유방외과 열람", d.viewed_at ? readableAt(d.viewed_at) : "미열람"],
         ]} />
         <Fold title="판독 결과" open={Boolean(d.finalized)}>
           {d.finalized ? (
             <>
               <Facts items={[
-                ["진단", text(d, "diagnosis", DIAGNOSIS, "diagnosis_label")],
+                ["진단", korOnly(text(d, "diagnosis", DIAGNOSIS, "diagnosis_label"))],
                 ["등급", label(B_CATEGORY_LABEL, d.b_category)],
               ]} />
               <p className="quote">{d.finding_note}</p>
@@ -1066,7 +1069,7 @@ function ImagingCorrelation({ d }) {
 
           {A ? (
             <div className="corr-final">
-              <b>영상 최종 · BI-RADS {label(BIRADS_LABEL, A.category) || "—"}</b>
+              <b>영상 최종 판정 · BI-RADS {label(BIRADS_LABEL, A.category) || "—"}</b>
               {A.finding_note && <p className="quote">{A.finding_note}</p>}
             </div>
           ) : (

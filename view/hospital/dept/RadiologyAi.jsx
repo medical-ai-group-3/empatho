@@ -66,7 +66,7 @@ export default function RadiologyAi({ d, view, pick, onPick, summarized = false,
     return (
       <div className="ai-na">
         <b>판정하지 못했습니다</b>
-        <span>{ai.abstain_reason ?? "임계값을 넘는 검출이 없습니다"}</span>
+        <span>{ai.abstain_reason ?? "기준을 넘는 병변을 찾지 못했습니다"}</span>
         <span className="muted small">
           「정상」이라는 뜻이 아닙니다. 분석 실패도 아닙니다. 직접 판독하시면 됩니다.
         </span>
@@ -100,7 +100,7 @@ export function RadiologyAiSummary({ d, view, pick, onPick, rerun = null }) {
   const fail = aiFailure(ai);
   if (fail) return <AiFailNote f={fail} rerun={rerun} compact />;
   if (ai.abstained || ai.summary?.abstained || ai.lesion_found === false) {
-    return <p className="ai-sum-na"><b>판정 불가</b> · {ai.abstain_reason ?? "임계값을 넘는 검출이 없습니다"} — 「정상」이 아닙니다</p>;
+    return <p className="ai-sum-na"><b>AI 판정 없음</b> · {ai.abstain_reason ?? "기준을 넘는 병변을 찾지 못했습니다"} — 「정상」이라는 뜻이 아닙니다</p>;
   }
   const m = asModality(ai.modality);
   if (m === "us") {

@@ -732,6 +732,10 @@ a.lrow:hover{background:var(--canvas)}
   border-bottom:var(--hair) solid var(--line-2)}
 .brow-1{display:flex; align-items:baseline; gap:var(--chip-gap); min-width:0}
 .brow-1 b{font-size:var(--qrow-nm-fs); font-weight:600; white-space:nowrap}
+/* 방문 구분 칩이 길면(「예약 · 추적 관찰 12개월 결과 상담」) 오른쪽 시각을 덮었다 —
+   칩이 줄어들며 말줄임, 시각은 제 자리를 지킨다 */
+.brow-1 > .chip, .nrow-1 > .chip{flex:0 1 auto; min-width:0; overflow:hidden;
+  white-space:nowrap; text-overflow:ellipsis; display:inline-block}
 .brow-who{font-size:var(--qrow-meta-fs); color:var(--ink-2); white-space:nowrap}
 .brow-1 time{flex:none; font-size:var(--qrow-meta-fs); color:var(--warm);
   font-variant-numeric:tabular-nums}
@@ -751,7 +755,17 @@ a.lrow:hover{background:var(--canvas)}
 
 /* 홈 위의 오늘 현황판(간호과, lib/StageBoard.jsx) — 아래 격자와 한 칸 띄우고,
    줄을 누르면 그 사람을 연다 */
-.home .board{margin-bottom:var(--desk-gap); height:calc(260px * var(--sp))}
+/* 09-28(최종) 높이를 못 박지 않는다 — 줄 수만큼 서고(가장 긴 칸 기준) 최대
+   높이를 넘으면 칸 안에서 굴린다. 넘친 칸은 바닥에 「아래로 n명 더」가 선다
+   (StageBoard.jsx Lane). grid 는 최대 높이 안에서 줄을 못 줄여 flex 로 둔다 */
+.home .board{margin-bottom:var(--desk-gap); display:flex; height:auto;
+  min-height:calc(180px * var(--sp)); max-height:calc(340px * var(--sp))}
+.home .board > .bcol{flex:1 1 0}
+.bcol{position:relative}
+.bcol-more{flex:none; display:flex; align-items:center; justify-content:center; gap:var(--gap-xs);
+  padding:var(--gap-xs) var(--bcol-pad); border-top:var(--hair) solid var(--line-2);
+  background:var(--canvas); font-size:var(--qrow-meta-fs); font-weight:600; color:var(--ink-2)}
+.bcol-more:hover{color:var(--ink); background:var(--wash)}
 /* 현황판 칸 번호 — 환자가 거치는 순서. 점 대신 숫자라 왼쪽에서 오른쪽으로
    읽는 방향이 보인다 */
 .bcol-n{flex:none; display:inline-grid; place-items:center;
@@ -764,7 +778,11 @@ a.lrow:hover{background:var(--canvas)}
    높이에 맞추게 되어 있는데(.page.home), 현황판 밑에 두 칸씩 쌓으면
    900px 대 화면에서 아래 칸이 한 줄도 안 남을 만큼 눌렸다. 최소 높이를
    넘치면 쪽이 늘어 문서가 굴러간다 — 화면이 크면 여전히 화면 끝에 맞는다 */
-.page.home:has(.board) .desk{flex:1 0 auto; min-height:calc(560px * var(--sp))}
+.page.home:has(.board) .desk{flex:1 0 auto; min-height:calc(560px * var(--sp));
+  max-height:calc(680px * var(--sp)); grid-template-rows:minmax(0, 1fr)}
+/* ⚠ 09-28(최종) 위 최소 높이만 두면 추적 콜이 열여섯 줄일 때 격자가 줄 수만큼
+   늘어 옆 「확인 필요」 칸이 1000px 가까이 빈 상자로 섰다. 최대 높이를 두면
+   목록 칸(grow)이 줄어들며 제 안에서 굴린다 */
 .brow[role="button"]{cursor:pointer}
 .brow[role="button"]:hover{background:var(--canvas)}
 
@@ -1005,7 +1023,9 @@ a.nside-row:hover{background:var(--canvas)}
 .fup-tile b{flex:none; font-size:calc(22px * var(--ft)); line-height:1; font-weight:700;
   font-variant-numeric:tabular-nums}
 .fup-tile{align-items:center}
-.fup-tile span{min-width:0; line-height:1.35; font-size:var(--qrow-meta-fs); color:var(--ink-2)}
+.fup-tile span{min-width:0; line-height:1.35; font-size:var(--qrow-meta-fs); color:var(--ink-2);
+  word-break:keep-all}
+@media (max-width: 1439px){ .fup-find{width:calc(300px * var(--sp))} }
 .fup-tile.on{background:var(--soot); box-shadow:none}
 .fup-tile.on b, .fup-tile.on span{color:var(--soot-ink)}
 /* 기한 지남이 있으면 수만 채움 — 색이 아니라 채움으로 세운다(위 규칙) */
@@ -1148,9 +1168,14 @@ a.nside-row:hover{background:var(--canvas)}
 /* 맨 위 「지금」 — 돌아올 곳 */
 .prail-now{padding:var(--nside-pad-y) var(--bcol-pad); background:var(--soot);
   color:var(--soot-ink); font-size:var(--qrow-meta-fs); font-weight:600}
-.prail-day{display:flex; flex-direction:column; gap:var(--gap-xxs);
+/* 09-28 — 날짜 · 종류 · 내용 세 줄로 쌓여 한 건이 80px, 여덟 건이면 드롭다운이
+   굴러야 했다. 날짜 칸 옆에 종류와 내용을 붙여 두 줄로 줄인다 */
+.prail-day{display:grid; grid-template-columns:max-content minmax(0, 1fr);
+  column-gap:var(--gap-sm); row-gap:var(--gap-xxs); align-items:baseline;
   padding:var(--nside-pad-y) var(--bcol-pad);
   border-bottom:var(--hair) solid var(--line-2)}
+.prail-day > b{grid-column:2}
+.prail-b > p{margin:0}
 .prail-day time{font-size:var(--prail-d-fs); font-weight:600;
   font-variant-numeric:tabular-nums}
 .prail-k{font-size:var(--stag-fs); color:var(--warm)}
@@ -1453,17 +1478,17 @@ a.nside-row:hover{background:var(--canvas)}
   padding:0 0 var(--gap-sm) calc(1em + var(--gap-sm))}
 /* 진료 이력에서 골라 온 한 건 — 왼쪽 선 하나로 짚는다(.exam-history li.on
    과 같은 표시). 색 채움을 안 쓴다 */
-.rev-list li.here{box-shadow:inset 2px 0 0 var(--cyan)}
+.rev-list li.here{box-shadow:inset var(--row-mark) 0 0 var(--cyan)}
 .rev-list li.here > button{padding-left:var(--gap-sm)}
 /* 골라 온 건이 판독 줄에 없을 때의 한 줄 */
 .rev-miss{display:flex; align-items:center; flex-wrap:wrap; gap:var(--gap-sm);
   padding:var(--gap-sm); border-radius:var(--radius-sm);
   box-shadow:inset 0 0 0 var(--hair) var(--line-2)}
 .rev-miss .hcard-k{flex:1; min-width:0}
-/* 이력에서 고른 지난 판독 한 판(초안 · 정정으로 덮인 판) — 고른 줄과 같은
-   왼쪽 선으로 짚는다 */
+/* 이력에서 고른 지난 판독 한 판(초안 · 정정으로 덮인 판). 한쪽 띠를 쓰지
+   않는다(09-28) — 네 변 1px 시안 + 머리의 「이전 판독 · 임시저장」 칩이 말한다 */
 .rev-ver{flex-direction:column; align-items:stretch;
-  box-shadow:inset 2px 0 0 var(--cyan), inset 0 0 0 var(--hair) var(--line-2)}
+  box-shadow:inset 0 0 0 var(--hair) var(--cyan)}
 .rev-ver-h{display:flex; align-items:center; flex-wrap:wrap; gap:var(--chip-gap)}
 .rev-ver-h b{font-size:var(--row-fs); font-weight:700}
 .rev-ver-h time{margin-left:auto; color:var(--warm); font-size:var(--label-fs);
@@ -3384,15 +3409,17 @@ code{padding:0 var(--gap-xs); border-radius:var(--radius-xs);
    여기는 위젯 내용 자체의 생김새다. */
 .b-dash{display:flex; flex-direction:column}
 .b-dash .card-b{display:flex; flex-direction:column; flex:1; min-height:0}
-.b-dash-body{display:flex; flex-direction:column; gap:16px; padding:var(--card-pad)}
+.b-dash-body{display:flex; flex-direction:column; gap:var(--gap); padding:var(--card-pad)}
 
-.b-dash-summary{display:flex; gap:10px}
+.b-dash-summary{display:flex; gap:var(--gap-sm)}
 .b-dash-stat{flex:1; display:flex; flex-direction:column; align-items:center;
-  gap:2px; padding:10px 8px; border-radius:var(--in-radius); background:var(--canvas);
+  gap:var(--gap-xxs); padding:var(--gap-sm) var(--gap-xs); border-radius:var(--in-radius); background:var(--canvas);
   border:var(--hair) solid var(--border)}
-.b-dash-num{font-size:20px; font-weight:800; line-height:1; color:var(--ink)}
-.b-dash-num.warn{color:#b91c1c}
-.b-dash-label{font-size:11.5px; color:var(--warm)}
+.b-dash-num{font-size:var(--h1-fs); font-weight:800; line-height:1; color:var(--ink)}
+/* 상태 색을 따로 두지 않는다(tokens.css) — 시안 밑줄로 가른다 */
+.b-dash-num.warn{color:var(--ink); text-decoration:underline; text-decoration-color:var(--cyan);
+  text-decoration-thickness:var(--focus-w); text-underline-offset:var(--gap-xs)}
+.b-dash-label{font-size:var(--label-fs); color:var(--warm)}
 
 .b-cal{display:flex; flex-direction:column; gap:6px}
 .b-cal-head{display:flex; align-items:center; justify-content:center; gap:10px; font-size:13px}
@@ -3469,7 +3496,7 @@ a.exam-history-pick{text-decoration:none}
   color:var(--warm); text-decoration:none}
 .exam-history-go:hover{color:var(--ink); text-decoration:underline}
 .exam-history-go:focus-visible{outline:var(--hair) solid var(--cyan); outline-offset:2px}
-.exam-history li.on{box-shadow:inset 2px 0 0 var(--cyan)}
+.exam-history li.on{box-shadow:inset var(--row-mark) 0 0 var(--cyan)}
 .exam-history li.on .exam-history-type{color:var(--cyan)}
 
 /* 환자 목록 상세 안 뷰어 — 판독 화면(Read.jsx)보다 작게, 조회 전용으로.
@@ -3585,6 +3612,10 @@ a.exam-history-pick{text-decoration:none}
 .read-page .notice{margin:0}
 .read-strip{display:flex; align-items:center; flex-wrap:wrap; gap:var(--gap-xs) var(--gap);
   font-size:var(--pb-fs); min-width:0}
+/* 띠가 제목 바로 옆에서 시작하고 「지난 기록」만 오른쪽 끝에 선다 —
+   머리 오른쪽 칸이 끝에 붙이는 규칙(justify-content:flex-end)이라, 띠가
+   글자 폭만 차지하면 환자 이름이 화면 가운데로 밀려났다 */
+.read-page .read-strip{flex:1 1 auto}
 .rs-i{display:inline-flex; align-items:baseline; gap:var(--gap-xs); min-width:0; max-width:100%}
 .rs-i em{font-style:normal; font-size:var(--label-fs); color:var(--warm); flex:none}
 .rs-i b{font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:36ch}
@@ -3617,7 +3648,7 @@ a.exam-history-pick{text-decoration:none}
 .vside-foot .save{border-top:none; padding-top:0; gap:var(--gap-xs)}
 .vside-foot .hint{color:var(--v-warm)}
 .vfin-k{margin:var(--gap-xs) 0 0; font-size:var(--label-fs); color:var(--v-warm)}
-.vside .quote{background:var(--v-bg); border-left-color:var(--v-line); color:var(--v-ink)}
+.vside .quote{background:var(--v-bg); border-color:var(--v-line); color:var(--v-ink)}
 .ai-sum-na{margin:0; font-size:var(--v-fs); color:var(--v-warm)}
 .ai-sum-na b{color:var(--v-ink)}
 /* 09-28 — 오른쪽 칸이 옆으로 구르지 않게. 서버 예외 글(GPU 메모리 부족 등)이
