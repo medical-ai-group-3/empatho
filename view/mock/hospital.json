@@ -3167,5 +3167,16 @@
  },
  "GET /api/v1/hospital/patients/{id}/prescriptions": {
   "items": []
+ },
+ "GET /api/v1/hospital/drugs": {
+  "items": [
+   {"item_seq": "202106092", "name": "타이레놀정500밀리그람(아세트아미노펜)", "maker": "켄뷰코리아판매유한회사", "image": null},
+   {"item_seq": "202005623", "name": "어린이타이레놀산160밀리그램(아세트아미노펜)", "maker": "켄뷰코리아판매유한회사", "image": null}
+  ],
+  "count": 2,
+  "page": 1,
+  "page_size": 8,
+  "source": "식품의약품안전처 의약품개요정보(e약은요)",
+  "disclaimer": "식품의약품안전처가 공개한 의약품 정보입니다. 처방받으신 약의 복용법은 처방전과 담당 의료진의 안내를 따라 주세요."
  }
 }

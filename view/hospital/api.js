@@ -1229,6 +1229,12 @@ export const breast = {
   unlock:       (rid) => patch(`/reports/${rid}/unlock`, {}),
   prescriptions: (patientId) => get(`/patients/${patientId}/prescriptions`).then(unwrapList),
   prescribe:     (patientId, body) => post(`/patients/${patientId}/prescriptions`, body),
+  /* 처방 입력칸의 약 이름 자동완성. 환자 앱의 약 찾기와 같은 경로다
+   * (core/api/drugs.py — 식약처 e약은요). 키가 비면 서버가 503 을 준다.
+   * ⚠ 이름만 받아 쓴다. purpose·how·watch 를 여기서 채우지 않는다 —
+   *   drugs.py 머리말: 약전 문장을 처방 설명칸에 넣는 순간 우리가 하는
+   *   의학적 조언이 된다. */
+  drugs:         (q) => get(`/drugs${qs({ q, page_size: 8 })}`),
 
   /* 4장 · 판정 불일치 처분 */
   discordance:  (id) => get(`/discordances/${id}`),

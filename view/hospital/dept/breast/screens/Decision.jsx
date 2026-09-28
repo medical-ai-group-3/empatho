@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { breast as api } from "../../../api";
 import { SEX, label } from "../../../codes";
@@ -375,6 +375,116 @@ const emptyDrug = () => ({
   purpose: "", how: "", watch: "",
 });
 
+/* e약은요 품목명은 끝 괄호에 성분을 적는다 — 「타이레놀정500밀리그람(아세트아미노펜)」.
+ * 그 괄호만 꺼낸다. 수출명 같은 다른 괄호면 비워 둔다(틀린 성분보다 빈칸이 낫다). */
+function ingredientOf(name) {
+  const m = /\(([^()]+)\)\s*$/.exec(name ?? "");
+  return m && !m[1].includes("수출명") ? m[1].trim() : "";
+}
+
+/* 약 이름 칸 + 자동완성.
+ *
+ * ⚠ 목록에 없는 약도 그대로 적을 수 있어야 한다 — 원내 조제약·신약은
+ *   e약은요에 없다. 그래서 고르지 않아도 입력값이 곧 약 이름이다.
+ * ⚠ 늦게 온 응답이 새 응답을 덮지 않게 요청마다 번호를 매긴다. */
+function DrugNameInput({ value, onChange, onPick }) {
+  const listId = useId();
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(-1);
+  const [picked, setPicked] = useState(null);   /* 방금 고른 이름 — 그 값으로 다시 찾지 않는다 */
+  /* 마지막으로 받은 답. 어느 질의의 답인지(q)를 함께 둬서 「찾는 중」을 따로
+     들고 있지 않고 그 차이로 센다 */
+  const [result, setResult] = useState({ q: "", items: [], error: null });
+  const seq = useRef(0);
+
+  const q = value.trim();
+  const searching = q.length >= 2 && q !== picked;
+
+  useEffect(() => {
+    if (!searching) { seq.current += 1; return undefined; }
+    const n = ++seq.current;
+    const timer = setTimeout(async () => {
+      try {
+        const res = await api.drugs(q);
+        if (n === seq.current) setResult({ q, items: res?.items ?? [], error: null });
+      } catch (e) {
+        if (n !== seq.current) return;
+        setResult({ q, items: [], error: e.status === 503
+          ? "약 검색을 지금 쓸 수 없습니다. 이름을 직접 입력해 주세요."
+          : "약 검색에 실패했습니다. 이름을 직접 입력해 주세요." });
+      }
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [q, searching]);
+
+  /* 새 답이 오기 전까지는 앞 답을 그대로 보여 준다 — 한 글자마다 목록이
+     비었다 찼다 하면 읽을 수가 없다 */
+  const items = searching ? result.items : [];
+  const loading = searching && result.q !== q;
+  const error = searching && result.q === q ? result.error : null;
+
+  function choose(item) {
+    setPicked(item.name);
+    onPick(item);
+    setOpen(false); setActive(-1);
+  }
+
+  function onKeyDown(e) {
+    if (!open || !items.length) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault(); setActive((i) => (i + 1) % items.length);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault(); setActive((i) => (i <= 0 ? items.length : i) - 1);
+    } else if (e.key === "Enter" && active >= 0) {
+      e.preventDefault(); choose(items[active]);
+    } else if (e.key === "Escape") {
+      setOpen(false);
+    }
+  }
+
+  const showList = open && searching;
+
+  return (
+    <div className="drug-suggest">
+      <input
+        role="combobox"
+        aria-expanded={showList && items.length > 0}
+        aria-controls={listId}
+        aria-autocomplete="list"
+        aria-activedescendant={active >= 0 ? `${listId}-${active}` : undefined}
+        autoComplete="off"
+        value={value}
+        onChange={(e) => { setPicked(null); setOpen(true); setActive(-1); onChange(e.target.value); }}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setOpen(false)}
+        onKeyDown={onKeyDown}
+        placeholder="두 글자 이상 입력하면 약을 찾습니다"
+      />
+      {showList && (items.length > 0 || loading) && (
+        <ul className="drug-suggest-list" id={listId} role="listbox">
+          {items.map((item, i) => (
+            <li
+              key={item.item_seq}
+              id={`${listId}-${i}`}
+              role="option"
+              aria-selected={i === active}
+              className={i === active ? "on" : undefined}
+              /* blur 보다 먼저 잡아야 목록이 닫히기 전에 고른다 */
+              onMouseDown={(e) => { e.preventDefault(); choose(item); }}
+              onMouseEnter={() => setActive(i)}
+            >
+              <span className="drug-suggest-name">{item.name}</span>
+              {item.maker && <span className="drug-suggest-maker">{item.maker}</span>}
+            </li>
+          ))}
+          {loading && !items.length && <li className="drug-suggest-empty">찾는 중…</li>}
+        </ul>
+      )}
+      {error && <span className="err">{error}</span>}
+    </div>
+  );
+}
+
 function PrescriptionDraft({ patient, report }) {
   const [drugs, setDrugs] = useState([emptyDrug()]);
   const [saving, setSaving] = useState(false);
@@ -384,6 +494,16 @@ function PrescriptionDraft({ patient, report }) {
 
   function change(index, key, value) {
     setDrugs((rows) => rows.map((drug, i) => i === index ? { ...drug, [key]: value } : drug));
+  }
+
+  /* 자동완성에서 고른 약. 이름과, 비어 있으면 성분명까지만 채운다 —
+     설명칸(purpose·how·watch)은 처방한 사람이 쓰는 자리라 건드리지 않는다 */
+  function pick(index, item) {
+    setDrugs((rows) => rows.map((drug, i) => i !== index ? drug : {
+      ...drug,
+      name: item.name,
+      ingredient: drug.ingredient.trim() ? drug.ingredient : ingredientOf(item.name),
+    }));
   }
 
   function remove(index) {
@@ -440,7 +560,11 @@ function PrescriptionDraft({ patient, report }) {
           <div className="prescription-grid">
             <div className="field">
               <label>약 이름 <span className="req">*</span></label>
-              <input value={drug.name} onChange={(e) => change(index, "name", e.target.value)} placeholder="약 이름" />
+              <DrugNameInput
+                value={drug.name}
+                onChange={(value) => change(index, "name", value)}
+                onPick={(item) => pick(index, item)}
+              />
             </div>
             <div className="field">
               <label>성분명</label>
