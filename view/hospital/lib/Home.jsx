@@ -321,8 +321,12 @@ function Queue({ queue }) {
     ? queue.tabs
     : [{ key: "all", name: queue?.title, rows: queue?.rows, empty: queue?.empty }];
   /* 탭 순서(흐름 순)와 처음 여는 탭(지금 할 일)이 다를 수 있다 — queue.pick */
-  const [pick, setPick] = useState(queue?.pick ?? tabs[0].key);
-  const tab = tabs.find((t) => t.key === pick) ?? tabs[0];
+  /* 과가 정하지 않았으면 **줄이 있는 첫 탭**을 연다 — 빈 「추적 콜 0」을
+     펴 두고 옆 「예약 신청 4」는 눌러야 보였다(간호 홈 09-28). 사람이
+     고르기 전까지는 데이터가 늦게 와도 따라간다(pick 이 null) */
+  const [pick, setPick] = useState(null);
+  const auto = queue?.pick ?? (tabs.find((t) => (t.rows ?? []).length > 0) ?? tabs[0]).key;
+  const tab = tabs.find((t) => t.key === (pick ?? auto)) ?? tabs[0];
   /* 거르는 칩(queue.filters, lib/Filters) — 탭 안에서 한 번 더 거른다 */
   const [fv, setFv] = useState({});
   const rows = applyFilters(tab.rows ?? [], queue?.filters, fv);
@@ -363,7 +367,9 @@ function Queue({ queue }) {
   };
 
   return (
-    <Card title={queue?.title ?? "목록"} count={rows.length} grow
+    /* 어느 탭에도 줄이 없으면 칸을 늘리지 않는다 — 빈 상자만 커졌다 */
+    <Card title={queue?.title ?? "목록"} count={rows.length}
+          grow={tabs.some((t) => (t.rows ?? []).length > 0)}
           right={queue?.hint && <span className="hcard-k">{queue.hint}</span>}>
       {/* 탭은 둘 이상일 때만. 하나뿐이면 칸 머리가 이미 그 말을 했다 */}
       {tabs.length > 1 && (

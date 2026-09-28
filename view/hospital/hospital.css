@@ -2266,7 +2266,7 @@ a.pevent:focus-visible{outline:var(--hair) solid var(--cyan); outline-offset:2px
   border-bottom:var(--hair) solid var(--line-2)}
 .tbl tbody tr{cursor:pointer}
 /* 표 안 칩은 줄 높이를 정하지 않게 얇게 — 칩 하나 때문에 줄이 부풀었다(09-28) */
-.tbl td .chip{padding-block:calc(2px * var(--sp)); line-height:1.4}
+.tbl td .chip,.qrow .chip{padding-block:calc(2px * var(--sp)); line-height:1.4}
 .tbl tbody tr:hover{background:var(--canvas)}
 .tbl tbody tr.on{background:var(--canvas)}
 .tbl tbody tr.on td:first-child{box-shadow:inset var(--row-mark) 0 0 var(--cyan)}
