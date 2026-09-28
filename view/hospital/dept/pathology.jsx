@@ -526,17 +526,16 @@ export const pathology = {
       empty: "접수 대기 검체가 없습니다",
       /* 「구분」「상태」가 아니라 무엇을 적었는지 */
       cols: { chip: "채취 방식", sub: "검체번호" },
-      extra: [{ key: "wait", name: "경과" }],
+      /* 채취 시각 · 경과를 한 칸에(영상 홈과 같이). 오른쪽 끝은 환자번호만 */
+      extra: [{ key: "wait", name: "채취 · 경과" }],
       rows: queue.map((r) => ({
         id: r.id,
         name: H.nameOf(r),
         no: H.noOf(r),
         meta: H.who(r),
         chip: kindText(r.kind),
-        chipTone: "fill",
         sub: r.specimen_no ?? "",
-        at: H.at(r.collected_at),
-        wait: H.waited(r.collected_at),
+        wait: [H.at(r.collected_at), H.waited(r.collected_at)].filter(Boolean).join(" · "),
         /* 접수 대기 줄이다 — 누르면 그 검체가 열린 접수 화면으로 간다.
            환자 화면으로 보내면 거기서 접수·업로드로 가는 길이 없어
            막다른 길이 된다(09-23 확인, 영상의학과와 같은 자리). */
