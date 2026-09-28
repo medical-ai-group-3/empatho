@@ -42,6 +42,9 @@ const STEP = ["①", "②", "③", "④"];
    ⚠ 모양이 여럿이다 — 진행({status,pct}) · 결과 봉투({run_status}) ·
    병리 검체의 결과 배열. 배열이나 상태 없는 것을 그대로 쓰면 칩이 빈
    글자로 떴다 */
+/* 동시에 보내는 장수. 너무 크면 게이트웨이 · 브라우저 연결 수에 막힌다 */
+const UPLOAD_PARALLEL = 3;
+
 function firstProgress(ai) {
   if (Array.isArray(ai)) return ai.length ? { status: "done", pct: 100 } : null;
   if (!ai) return null;
@@ -109,6 +112,8 @@ function Work({ cfg, id, d, reload }) {
   const [prog, setProg] = useState(() => firstProgress(d.ai));   // { status, pct }
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState(null);
+  /* 이번 [업로드] 한 번의 진행 — 파일 수 기준(fetch 는 한 장 안의 바이트 진행을 못 준다) */
+  const [batch, setBatch] = useState(null);   // { total, done, failed }
   /* 품질 판정 — 영상만(upload.Quality). accepted · rejected · null */
   const [quality, setQuality] = useState(d.quality_status ?? null);
 
@@ -153,10 +158,21 @@ function Work({ cfg, id, d, reload }) {
      잘못 고른 촬영본을 전송 전에 [제외] 로 뺄 수 있어야 한다(서버 삭제
      경로가 없어, 올라간 뒤에는 못 되돌린다). */
   async function uploadAll() {
-    for (const item of picked.filter((f) => f.state === "staged")) await sendFile(item);
+    const queue = picked.filter((f) => f.state === "staged");
+    setBatch({ total: queue.length, done: 0, failed: 0 });
+    /* 09-28 — 한 장씩 차례로 보내던 것을 UPLOAD_PARALLEL 장씩 동시에.
+       목록은 끝나고 한 번만 다시 받는다(장마다 받으면 40장이면 40번) */
+    const worker = async () => {
+      for (let item = queue.shift(); item; item = queue.shift()) {
+        const ok = await sendFile(item, false);
+        setBatch((b) => b && { ...b, done: b.done + 1, failed: b.failed + (ok ? 0 : 1) });
+      }
+    };
+    await Promise.all(Array.from({ length: UPLOAD_PARALLEL }, worker));
+    reload(true);
   }
 
-  async function sendFile(item) {
+  async function sendFile(item, refresh = true) {
     setPicked((files) => files.map((file) => file.id === item.id
       ? { ...file, state: "uploading", error: null }
       : file));
@@ -168,11 +184,13 @@ function Work({ cfg, id, d, reload }) {
         cfg.scopeKind === "study" ? "dicom_upload" : "wsi_upload",
       );
       setPicked((files) => files.filter((file) => file.id !== item.id));
-      reload(true);
+      if (refresh) reload(true);
+      return true;
     } catch (e) {
       setPicked((files) => files.map((file) => file.id === item.id
         ? { ...file, state: "failed", error: e.message || "파일을 올리지 못했습니다." }
         : file));
+      return false;
     }
   }
 
@@ -247,7 +265,23 @@ function Work({ cfg, id, d, reload }) {
                    disabled={!send.ok} title={send.attrs.title}>파일 선택</Btn>
             </div>
 
-            <ul className="files">
+            {/* 09-28 — 버튼 · 진행을 목록 위로. 파일이 많으면 목록 끝까지 내려가야 보였다 */}
+            {(stagedCount > 0 || uploadBusy) && (
+              <div className="up-actions">
+                <Btn kind="fill" onClick={uploadAll} disabled={!send.ok || uploadBusy}>
+                  {uploadBusy ? "올리는 중…" : `업로드 (${stagedCount})`}
+                </Btn>
+              </div>
+            )}
+            {batch && (uploadBusy || batch.done < batch.total) && (
+              <div className="up-prog">
+                <progress value={batch.done} max={batch.total} />
+                <span>{batch.done} / {batch.total}장 · {Math.round((batch.done / batch.total) * 100)}%
+                  {batch.failed > 0 && ` · 실패 ${batch.failed}`}</span>
+              </div>
+            )}
+
+            <ul className="files up-files">
               {(d.files ?? []).map((f) => (
                 <li key={f.id}>
                   <b>{f.name}</b><span>{f.size}</span>
@@ -279,13 +313,6 @@ function Work({ cfg, id, d, reload }) {
               )}
             </ul>
 
-            {stagedCount > 0 && (
-              <div className="up-actions">
-                <Btn kind="fill" onClick={uploadAll} disabled={!send.ok || uploadBusy}>
-                  {uploadBusy ? "올리는 중…" : `업로드 (${stagedCount})`}
-                </Btn>
-              </div>
-            )}
           </Card>
 
           {c.Series && <c.Series d={d} />}

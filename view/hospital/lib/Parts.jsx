@@ -230,6 +230,8 @@ export function Bar({ value = 0, label }) {
    한 칸 안에서 탭으로 오간다 — 둘을 따로 세우면 옆 칸이 늘어 영상이
    작아졌다. 칸을 접으면 그 폭이 손잡이(vtab)로 줄고 가운데 Viewer
    (flex:1)가 남는 공간을 그대로 흡수한다. */
+const SIDE_W_KEY = "empatho.vside.w";
+
 export function Viewer({
   infoName = "환자 정보", info,
   aiName = "AI 소견", ai, aiOpen = false,          /* AI 는 기본 접힘 */
@@ -252,6 +254,25 @@ export function Viewer({
   const shown = which === "ai" && ai ? ai : doctor ?? ai;
   const sideName = both ? "소견" : (doctor ? doctorName : aiName);
   const tabs = both && !stack;
+  /* 09-28 — 소견 칸 폭을 왼쪽 경계를 끌어 바꾼다. 브라우저에 기억해 두고
+     다음에도 같은 폭으로 연다(사람마다 모니터가 달라 서버에 둘 일은 아니다) */
+  const [sideW, setSideW] = useState(() => {
+    try { return Number(localStorage.getItem(SIDE_W_KEY)) || null; } catch { return null; }
+  });
+  function dragSide(e) {
+    const aside = e.currentTarget.parentElement;
+    const x0 = e.clientX, w0 = aside.getBoundingClientRect().width;
+    let w = w0;
+    const move = (ev) => { w = Math.min(760, Math.max(260, w0 + (x0 - ev.clientX))); setSideW(w); };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      try { localStorage.setItem(SIDE_W_KEY, String(Math.round(w))); } catch { /* 기억 못 해도 된다 */ }
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    e.preventDefault();
+  }
 
   return (
     <div className="vwrap">
@@ -272,7 +293,12 @@ export function Viewer({
       </div>
 
       {(ai || doctor) && (open
-        ? <aside className={`vside${stack ? " vside-stack" : ""}`}>
+        ? <aside className={`vside${stack ? " vside-stack" : ""}`}
+                 style={sideW ? { width: sideW } : undefined}>
+            <div className="vside-grip" role="separator" aria-orientation="vertical"
+                 aria-label="소견 칸 폭 조절" title="끌어서 폭 조절 · 두 번 누르면 원래대로"
+                 onPointerDown={dragSide}
+                 onDoubleClick={() => { setSideW(null); try { localStorage.removeItem(SIDE_W_KEY); } catch { /* */ } }} />
             <div className="vside-h">
               {tabs ? (
                 <span className="vside-tabs" role="tablist">

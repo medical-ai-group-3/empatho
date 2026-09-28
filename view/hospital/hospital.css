@@ -3409,3 +3409,17 @@ a.exam-history-pick{text-decoration:none}
 /* 병리 — 크롭(512×512)이 정사각이라 칸도 정사각. 빈 검정 띠를 안 남긴다 */
 .list-detail-viewer .list-viewer.pathology-fixed-viewer{height:auto; aspect-ratio:1 / 1;
   width:min(100%, 560px)}
+
+/* 09-28 업로드 — 목록만 스크롤 · 전체 진행 */
+.up-files{max-height:min(48vh, 440px); overflow-y:auto}
+.up-actions{margin:var(--gap-sm) 0}
+.up-prog{display:flex; align-items:center; gap:var(--gap-sm); margin:var(--gap-sm) 0;
+  font-size:var(--hint-fs); color:var(--warm); font-variant-numeric:tabular-nums}
+.up-prog progress{flex:1; height:calc(10px * var(--sp)); accent-color:var(--cyan)}
+.ai-sub{display:block; margin-top:2px; white-space:normal}
+
+/* 09-28 소견 칸 폭 조절 손잡이 — 칸 왼쪽 경계 */
+.vside{position:relative}
+.vside-grip{position:absolute; left:0; top:0; bottom:0; width:8px; cursor:col-resize;
+  z-index:5; touch-action:none}
+.vside-grip:hover, .vside-grip:active{background:linear-gradient(to right, var(--cyan) 0, var(--cyan) 2px, transparent 2px)}

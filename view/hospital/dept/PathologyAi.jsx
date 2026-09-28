@@ -46,10 +46,10 @@ export function PathologyAiSummary({ d, slide, onSlide }) {
                 onClick={() => onSlide?.(i)}>
           크롭 {i + 1} · {r.abstained ? "판정 못 함"
             : r.stroma_status === "absent" ? "간질 없음"
-            : `AI 계측 ${fmt1(r.stil_percent)}% · TSR ${r.tsr_percent ?? "—"}%`}
+            : `AI 계측 sTIL ${fmt1(r.stil_percent)}% · TSR ${r.tsr_percent ?? "—"}%`}
         </button>
       ))}
-      <span className="muted small">AI 계측값은 병리의 sTIL 과 척도가 다릅니다.</span>
+      <span className="muted small">AI 계측 sTIL은 병리의 sTIL 과 척도가 다릅니다.</span>
     </div>
   );
 }
@@ -75,7 +75,7 @@ export default function PathologyAi({ d, slide, onSlide }) {
             값을 겹쳐 읽게 된다. 병리의 sTIL 과 분리해 덜 강조한다. */}
       <div className="muted">
         <StripPlot
-          label="크롭별 AI 계측값 (참고용)"
+          label="크롭별 AI 계측 sTIL (참고용)"
           points={rows
             .filter((r) => !r.abstained && r.stroma_status !== "absent")
             .map((r, i) => ({ name: `${i + 1}`, value: r.stil_percent }))}
@@ -116,14 +116,9 @@ export default function PathologyAi({ d, slide, onSlide }) {
                   섹션에 따로 있다. 여기는 모델 원시값이고 이름도 값도
                   그쪽과 섞이지 않게 둔다(작은 글씨·회색, 등급 라벨 없음). */}
               <div>
-                <dt>
-                  AI 계측값{" "}
-                  <span className="muted small">
-                    ({r.immune_region_area_px != null
-                      ? `간질 중 면역세포 주변 ${r.til_region_radius_um ?? 5}µm 영역 비율`
-                      : "간질 대비 면역세포 면적 비율"})
-                  </span>
-                </dt>
+                {/* 09-28 — 이름을 「AI 계측 sTIL」로(사용자 결정). 괄호 설명이 이름 칸에
+                    있을 때 값 칸이 몇 글자 폭으로 눌려 줄바꿈이 깨졌다 → 값 아래로 */}
+                <dt>AI 계측 sTIL</dt>
                 <dd className="muted">
                   {r.stroma_status === "absent" ? (
                     <span className="ai-na inline">평가 불가 — 간질 없음</span>
@@ -132,10 +127,11 @@ export default function PathologyAi({ d, slide, onSlide }) {
                   ) : (
                     <>
                       {fmt1(r.stil_percent)}<i>%</i>{band(r.stil_percent)}
-                      <p className="muted small">
-                        병리의사 sTIL과 척도가 달라 직접 비교할 수 없습니다.
-                        세포 검출 누락으로 실제와 다르게 나올 수 있습니다.
-                      </p>
+                      <small className="muted small ai-sub">
+                        {r.immune_region_area_px != null
+                          ? `간질 중 면역세포 주변 ${r.til_region_radius_um ?? 5}µm 영역 비율`
+                          : "간질 대비 면역세포 면적 비율"}
+                      </small>
                     </>
                   )}
                 </dd>
@@ -177,7 +173,7 @@ export default function PathologyAi({ d, slide, onSlide }) {
             <>
               {/* AI 계측값이 어떻게 나왔는지 — 분자 ÷ 분모를 그대로 보인다 */}
               <Gauge
-                label="AI 계측값 풀이"
+                label="AI 계측 sTIL 풀이"
                 percent={r.stil_percent}
                 note={`${r.immune_region_area_px != null ? "면역세포 영역" : "면역세포 면적"} ${fmt(r.immune_region_area_px ?? r.immune_cell_area_px)} px ÷ 간질 ${fmt(r.stroma_area_px)} px`} />
 
@@ -211,9 +207,6 @@ export default function PathologyAi({ d, slide, onSlide }) {
         </section>
       ))}
 
-      <p className="muted small">
-        TSR 에는 신뢰구간이 없습니다 — 모델에 dropout 이 없어 산출할 수 없습니다.
-      </p>
     </div>
   );
 }
