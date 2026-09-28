@@ -2283,6 +2283,23 @@ a.pevent:focus-visible{outline:var(--hair) solid var(--cyan); outline-offset:2px
 
 /* ── 표 ─────────────────────────────────────────────────────── */
 .tbl-wrap{overflow-x:auto}
+/* 목록 화면(screens/List.jsx) — 09-28 화면 높이에 맞춘다. 줄이 200 건까지
+   오면 왼쪽만 길게 늘어 오른쪽 상세와 높이가 어긋났다. 두 칸이 같은 높이를
+   쓰고 각자 제 안에서 굴린다(대기 큐 .wq-page 와 같은 틀). 표 머리는 붙는다 */
+.page.lst-page{flex:none; min-height:0; overflow:hidden;
+  height:calc(100vh - var(--top-total) - var(--foot-h))}
+.lst-page > .split{flex:1; min-height:0; align-items:stretch}
+.lst-page > .split > .split-l,.lst-page > .split > .split-r{min-height:0}
+.lst-page .split-l > .card{flex:1; min-height:0; display:flex; flex-direction:column}
+.lst-page .split-l > .card > .card-b{flex:1; min-height:0}
+.lst-page .split-l .tbl-wrap{flex:1; min-height:0; overflow:auto}
+.lst-page .split-l .tbl thead th{position:sticky; top:0; z-index:1; background:var(--card)}
+.lst-page .split-l > :not(.card){flex:none}
+.lst-page .split-r > .card{flex:1; min-height:0; overflow-y:auto}
+@media (max-width: 1180px){
+  .page.lst-page{height:auto; overflow:visible}
+  .lst-page .split-l .tbl-wrap{overflow:visible}
+}
 .tbl{width:100%; border-collapse:collapse}
 .tbl th{text-align:left; font-size:var(--th-fs); font-weight:600;
   color:var(--warm); padding:var(--row-pad-y) var(--row-pad-x);

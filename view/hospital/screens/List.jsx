@@ -8,6 +8,7 @@ import { useApi } from "../lib/useApi";
 import { can, reportScope } from "../perm";
 import SideDashboard from "../lib/SideDashboard";
 import { Filters, applyFilters, filterQuery, useFilterParams } from "../lib/Filters";
+import { koMatch, koPattern, koServerQuery } from "../lib/koSearch";
 
 /* ═══ 4장 · 전체 환자 목록 ═══════════════════════════════════════
  *
@@ -82,7 +83,7 @@ function Inner({ cfg }) {
     /* ⚠ 09-28 page_size 가 없어 서버 기본 한 쪽(20건)에서 잘렸다 — 스크롤도
        「더 보기」도 없이 늘 같은 스무 명만 보였다. 서버 상한(200)까지 받고,
        그보다 많으면 아래 「n건 중 m건」이 말한다(검색은 서버가 거른다) */
-    useApi(() => cfg.api.list({ ordering: sort, q: qq || undefined, page_size: 200, ...fq }), [sort, qq, fqKey]);
+    useApi(() => cfg.api.list({ ordering: sort, q: koServerQuery(qq), page_size: 200, ...fq }), [sort, qq, fqKey]);
   /* 거르기에 쓰는 곁자료(병리: 열린 불일치) — 한 번만 */
   const ctx = useApi(() => (c.context ? c.context() : Promise.resolve({})), []);
   const shown = data
@@ -99,7 +100,7 @@ function Inner({ cfg }) {
   const open = pick ?? rowsShown[0]?.id ?? null;
 
   return (
-    <Page crumb={[cfg.name, c.title]} title={c.title}
+    <Page className="lst-page" crumb={[cfg.name, c.title]} title={c.title}
           right={scope && <Chip>{scope.label}</Chip>}>
       {/* ⚠ 다시 부르는 동안(검색 · 정렬 · 칩) 이미 받은 목록은 그대로 둔다 —
           Body 가 뼈대 화면으로 갈아 끼우면 검색 칸까지 사라졌다 다시 생겨
@@ -183,10 +184,11 @@ function useDebounced(v, ms = 300) {
  * 과마다 찾을 칸이 다르면 dept/*.jsx 의 list.search 로 넘기면 된다. */
 const FIELDS = ["patient_name", "patient_no", "specimen_no", "accession_no"];
 
+/* 짓는 중인 한글(ㄱ · 기)과 초성도 맞춘다 — lib/koSearch */
 function match(r, q, fields = FIELDS) {
-  const k = q.trim().toLowerCase();
-  if (!k) return true;
-  return fields.some((f) => String(r[f] ?? "").toLowerCase().includes(k));
+  const re = koPattern(q);
+  if (!re) return true;
+  return fields.some((f) => koMatch(r[f], re));
 }
 
 /* ⚠ id 가 없으면 서버를 부르지 않는다 */
