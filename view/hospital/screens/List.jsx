@@ -101,7 +101,10 @@ function Inner({ cfg }) {
   return (
     <Page crumb={[cfg.name, c.title]} title={c.title}
           right={scope && <Chip>{scope.label}</Chip>}>
-      <Body loading={loading} error={error} onRetry={reload}>
+      {/* ⚠ 다시 부르는 동안(검색 · 정렬 · 칩) 이미 받은 목록은 그대로 둔다 —
+          Body 가 뼈대 화면으로 갈아 끼우면 검색 칸까지 사라졌다 다시 생겨
+          글자를 치다 커서가 튕겨 나갔다(병리 목록 09-28) */}
+      <Body loading={loading && !data} error={error} onRetry={reload}>
         {data && (
           <Split
             side={c.splitSide ?? "wide"}
