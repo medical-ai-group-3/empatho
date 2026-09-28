@@ -424,7 +424,9 @@ input,select,textarea{font:inherit; color:inherit}
   box-shadow:inset 0 calc(-1 * var(--qtab-mark)) 0 var(--ink)}
 
 /* ── 주 큐 — 한 줄짜리 ───────────────────────────────────────── */
-.qrows{flex:1; min-height:0; overflow-y:auto;
+/* align-content:start — 칸이 늘어날 때(단 맨 아래 칸은 남는 높이를 받는다)
+   줄이 따라 늘어 머리 줄이 칸 절반을 차지하던 것 */
+.qrows{flex:1; min-height:0; overflow-y:auto; align-content:start;
   display:grid; grid-template-columns: max-content auto auto auto auto 1fr auto;
   column-gap:calc(14px * var(--ft));}
 .qrow{display:grid; grid-template-columns: subgrid; grid-column: 1/-1; align-items: center;
@@ -662,6 +664,14 @@ a.frow:hover .frow-k{color:var(--ink)}
 /* 홈 위의 오늘 현황판(간호과, lib/StageBoard.jsx) — 아래 격자와 한 칸 띄우고,
    줄을 누르면 그 사람을 연다 */
 .home .board{margin-bottom:var(--desk-gap); height:calc(260px * var(--sp))}
+/* 현황판 칸 번호 — 환자가 거치는 순서. 점 대신 숫자라 왼쪽에서 오른쪽으로
+   읽는 방향이 보인다 */
+.bcol-n{flex:none; display:inline-grid; place-items:center;
+  width:calc(18px * var(--sp)); height:calc(18px * var(--sp)); border-radius:50%;
+  background:var(--soot); color:var(--soot-ink); font-style:normal;
+  font-size:var(--qrow-meta-fs); font-weight:700; font-variant-numeric:tabular-nums}
+/* 맨 위 찾아서 접수 — 현황판 바로 위 한 줄. 찾은 줄이 늘면 그만큼 밀린다 */
+.home-intake{flex:none; margin-bottom:var(--desk-gap)}
 /* ⚠ 현황판이 위를 쓰는 홈은 **격자에 최소 높이를 준다.** 홈은 화면
    높이에 맞추게 되어 있는데(.page.home), 현황판 밑에 두 칸씩 쌓으면
    900px 대 화면에서 아래 칸이 한 줄도 안 남을 만큼 눌렸다. 최소 높이를

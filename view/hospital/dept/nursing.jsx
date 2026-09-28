@@ -39,10 +39,10 @@ export const nursing = {
    *   나눌 수도 없다. 배정이 이 과의 주 업무라 제일 아쉬운 자리다.
    */
   home: {
-    intake: true,
+    intake: "top",
 
-    /* 주 큐의 앞 탭만 진짜다. 나머지는 옆 칸을 채우는 것이라 못 불러도
-       화면이 서야 한다 */
+    /* 내원 대기(현황판 2·3번 칸)만 진짜다. 나머지는 옆 칸을 채우는 것이라
+       못 불러도 화면이 서야 한다 */
     load: () => Promise.all([
       api.waitingArrived(),
       H.soft(api.todayStatus()),
@@ -73,57 +73,43 @@ export const nursing = {
     primary: { label: "문진 · 배정", to: go.nursing.intake(),
                need: "nursing.waiting.view" },
 
-    /* ── 맨 위 — 오늘 현황판(lib/StageBoard.jsx) ──────────────
-     * 09-28 접수 화면에서 홈으로 옮겼다. 「내원 대기」·「오늘 접수」 탭과
-     * 「오늘 흐름」 칸은 현황판과 같은 사람을 다시 세는 것이라 뺐다 */
-    board: ({ today, arrived }) => ({ today, arrived }),
+    /* ── 배치 — 환자가 오는 순서대로 위에서 아래로(09-28 재기획) ─────
+     *
+     *   ① 찾아서 접수 (맨 위 한 줄)
+     *   ② 오늘 현황판  1 도착 예정 → 2 접수 대기 → 3 간호·문진
+     *                   → 4 검사 진행 → 5 외래 진료
+     *   ③ 흐름 밖의 일  전화·예약 확인 | 확인이 필요한 것 · 할 일 | 달력 · 인계
+     *
+     * ⚠ 예전에는 「예약 · 신청」 탭 셋(안 오심 · 오늘 예약 · 예약 신청)과
+     *   현황판이 같은 사람을 두 번 보였다. 오늘 올 사람은 현황판 1번 칸이
+     *   맡고, 아래 칸은 **전화로 하는 일**(추적 콜 · 앱 신청 확정)만 남긴다.
+     */
+    board: ({ today, arrived, booked }) => ({ today, arrived, booked }),
 
-    /* 배치 — 현황판이 위를 가로로 쓰므로 아래 세 단은 한 칸씩 가볍게.
-       칸은 끌어서 옮길 수 있다(lib/Home.jsx) */
-    layout: [["intake", "queue"], ["stuck", "todo"], ["calendar", "handover"]],
+    layout: [["queue"], ["stuck", "todo"], ["calendar", "handover"]],
 
-    /* 주 큐 — 아직 안 온 사람과 앱 신청. 온 사람은 위 현황판에 있다 */
-    queue: ({ booked, asks }) => ({
-      title: "예약 · 신청",
-      hint: "누르면 접수 화면",
+    queue: ({ follow, asks }) => ({
+      title: "전화 · 예약 확인",
+      hint: "누르면 그 화면으로",
+      cols: { chip: "구분", sub: "할 일", r: "기한" },
       tabs: [
-        /* ⚠ **지금 전화할 사람.** 오늘 예약인데 그 시각이 이미 지났고 아직
-           안 왔다. 예약 시각과 지금 시각을 견주는 것이라 「몇 분 기다렸나」
-           와는 다르다 — 둘 다 서버가 주는 값이다 */
-        { key: "late", name: "안 오심",
-          empty: "예약 시각이 지난 분이 없습니다",
-          rows: booked.filter((r) => H.isPast(r.scheduled_at)).map((r) => ({
-            id: r.exam_order_id ?? r.id,
-            name: H.nameOf(r),
-            no: H.noOf(r),
-            meta: H.who(r),
-            chip: r.visit_type,
-            sub: `예약 ${H.at(r.scheduled_at) ?? "시각 미정"} · 아직 안 오심`,
-            at: H.at(r.scheduled_at),
-            /* 아직 안 온 사람 — 접수 화면에서 찾아 둔 채로 연다 */
-            to: `${go.nursing.intake()}?find=${encodeURIComponent(H.noOf(r) ?? H.nameOf(r))}`,
-            /* ⚠ 위 id 는 **오더 번호**다 — 「최근 본 환자」는 환자 번호로
-               담아야 한다(lib/recent.js) */
-            pid: r.patient ?? null,
-          })) },
-
-        /* 오늘 오기로 했는데 아직 안 온 사람 전부(시각이 안 지난 것도) */
-        { key: "booked", name: "오늘 예약",
-          empty: "오늘 남은 예약이 없습니다",
-          rows: booked.map((r) => ({
-            id: r.exam_order_id ?? r.id,
-            name: H.nameOf(r),
-            no: H.noOf(r),
-            meta: H.who(r),
-            chip: r.visit_type,
-            sub: "아직 안 오셨습니다",
-            at: H.at(r.scheduled_at),
-            /* 아직 안 온 사람 — 접수 화면에서 찾아 둔 채로 연다 */
-            to: `${go.nursing.intake()}?find=${encodeURIComponent(H.noOf(r) ?? H.nameOf(r))}`,
-            /* ⚠ 위 id 는 **오더 번호**다 — 「최근 본 환자」는 환자 번호로
-               담아야 한다(lib/recent.js) */
-            pid: r.patient ?? null,
-          })) },
+        /* 기한이 지났거나 이번 주 안인 회차만, 급한 순서로 */
+        { key: "calls", name: "추적 콜",
+          empty: "이번 주에 걸 추적 콜이 없습니다",
+          rows: follow
+            .filter((r) => H.dueBucket(r.due_at))
+            .sort((a, b) => String(a.due_at).localeCompare(String(b.due_at)))
+            .map((r) => ({
+              id: r.id ?? r.followup_id,
+              name: H.nameOf(r),
+              chip: { over: "기한 지남", today: "오늘", week: "이번 주" }[H.dueBucket(r.due_at)],
+              chipTone: H.dueBucket(r.due_at) === "over" ? "fill" : "line",
+              sub: [r.round_no ? `${r.round_no}차 추적 콜` : "추적 콜",
+                    r.call_result === "부재" ? "지난번 부재" : null].filter(Boolean).join(" · "),
+              at: H.day(r.due_at),
+              to: go.nursing.followups(),
+              pid: r.patient_id ?? null,
+            })) },
 
         /* 앱으로 들어온 신청 — 날짜·시간을 정해 줘야 한다 */
         { key: "asks", name: "예약 신청",

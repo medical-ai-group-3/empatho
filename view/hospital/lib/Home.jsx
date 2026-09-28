@@ -148,7 +148,8 @@ function Desk({ cfg, home, bag, again }) {
      useState 의 첫 읽기가 그 과 것으로 다시 돈다 — 효과 안에서 setList 하면
      렌더가 한 번 더 돌고, 그 사이 남의 과 메모가 한 판 보인다 */
   const cards = {
-    intake:   home.intake && <Intake api={cfg.api} onDone={again} />,
+    /* intake:"top" 이면 격자 칸이 아니라 맨 위 한 줄이다(아래 return) */
+    intake:   home.intake === true && <Intake api={cfg.api} onDone={again} />,
     queue:    <Queue queue={queue} />,
     stuck:    <Stuck items={stuck} />,
     flow:     home.flow && <Flow flow={home.flow(bag)} />,
@@ -172,8 +173,12 @@ function Desk({ cfg, home, bag, again }) {
 
   return (
     <>
-      {/* 과가 오늘 현황판을 주면 격자 위에 가로로 한 줄(간호과). 끌어 옮기는
-          칸이 아니다 — 흐름은 왼쪽에서 오른쪽으로 읽혀야 한다 */}
+      {/* 간호과는 위에서 아래로 **환자가 오는 순서**다 — 찾아서 접수 →
+          오늘 현황판(도착 예정 → … → 외래 진료) → 그 밖의 일. 둘 다 끌어
+          옮기는 칸이 아니다. 흐름은 한 방향으로 읽혀야 한다 */}
+      {home.intake === "top" && (
+        <div className="home-intake"><Intake api={cfg.api} onDone={again} /></div>
+      )}
       {home.board && bag && <StageBoard {...home.board(bag)} />}
       {lay.custom && (
         <p className="desk-reset">

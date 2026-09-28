@@ -28,14 +28,18 @@ import * as H from "../dept/home";
 const EXAM_STAGE = ["영상의학과 대기", "영상의학과 촬영중", "AI 분석중"];
 const CLOSED_STAGE = ["completed", "cancelled"];
 
+/* 칸 앞에 번호를 단다 — 환자가 거치는 순서 그대로 왼쪽에서 오른쪽으로
+   읽히게(09-28 「난잡하다 · 검진 순서대로」). 「도착 예정」은 부르는 쪽이
+   예약(booked)을 줄 때만 선다 */
 const LANES = [
+  { key: "booked", title: "도착 예정" },
   { key: "checkin", title: "접수 대기" },
   { key: "nurse", title: "간호 · 문진" },
   { key: "exam", title: "검사 진행" },
   { key: "clinic", title: "외래 진료" },
 ];
 
-export default function StageBoard({ today = [], arrived = [] }) {
+export default function StageBoard({ today = [], arrived = [], booked = null }) {
   const moved = (r) => EXAM_STAGE.includes(r.stage) || CLOSED_STAGE.includes(r.stage);
   /* 앞 두 칸은 누르면 접수 화면에서 그 오더를 골라 둔 채로 연다 — 문진 확인 ·
      배정을 거기서 한다. 뒤 두 칸은 환자 상세로 */
@@ -43,6 +47,18 @@ export default function StageBoard({ today = [], arrived = [] }) {
   const patient = (r) => (r.patient_id != null ? go.patient(r.patient_id) : null);
 
   const cols = {
+    /* 오늘 예약했고 아직 안 온 사람. 시각이 지난 사람은 칩을 달아 먼저
+       눈에 띄게 — 전화할 사람이다. 누르면 접수 화면에서 찾아 둔 채로 연다 */
+    booked: (booked ?? []).map((r) => {
+      const late = H.isPast(r.scheduled_at);
+      return {
+        ...r,
+        time: H.at(r.scheduled_at),
+        flag: late ? "시각 지남" : null,
+        stage: late ? "아직 안 오심 · 연락 필요" : `예약 ${H.at(r.scheduled_at) ?? "시각 미정"}`,
+        to: `${go.nursing.intake()}?find=${encodeURIComponent(H.noOf(r) ?? H.nameOf(r))}`,
+      };
+    }),
     /* 보낸 사람은 서버가 이미 뺐다(waitingArrived 의 handed=none) */
     checkin: arrived.filter((r) => !r.questionnaire)
       .map((r) => ({ ...r, stage: "문진 대기", to: intake(r) })),
@@ -57,20 +73,24 @@ export default function StageBoard({ today = [], arrived = [] }) {
       .map((r) => ({ ...r, stage: "유방외과 진료 대기", to: patient(r) })),
   };
 
+  const lanes = LANES.filter((l) => l.key !== "booked" || booked);
+
   return (
-    <div className="board" style={{ "--board-cols": LANES.length }}>
-      {LANES.map((col) => {
+    <div className="board" style={{ "--board-cols": lanes.length }}>
+      {lanes.map((col, i) => {
         const here = cols[col.key];
         return (
           <section className="bcol" key={col.key}>
             <header className="bcol-h">
-              <i className="hdot" aria-hidden="true" />
+              <i className="bcol-n" aria-hidden="true">{i + 1}</i>
               <b>{col.title}</b>
               <em>{here.length}</em>
             </header>
             <div className="bcol-b">
               {here.length === 0
-                ? <p className="hcard-k hpad">대기 중인 환자가 없습니다</p>
+                ? <p className="hcard-k hpad">
+                    {col.key === "booked" ? "오늘 남은 예약이 없습니다" : "대기 중인 환자가 없습니다"}
+                  </p>
                 : here.map((r) => <BRow key={r.exam_order_id ?? r.id ?? r.patient_id} row={r} />)}
             </div>
           </section>
@@ -103,8 +123,9 @@ function BRow({ row }) {
         <b>{H.nameOf(row)}</b>
         {H.who(row) && <span className="brow-who">{H.who(row)}</span>}
         {row.visit_type && <Chip>{row.visit_type}</Chip>}
+        {row.flag && <Chip tone="fill">{row.flag}</Chip>}
         <span className="home-fill" />
-        {H.at(row.visited_at) && <time>{H.at(row.visited_at)}</time>}
+        {(row.time ?? H.at(row.visited_at)) && <time>{row.time ?? H.at(row.visited_at)}</time>}
       </div>
       {(H.noOf(row) || row.stage) && (
         <p className="brow-2">
