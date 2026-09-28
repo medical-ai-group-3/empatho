@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Body, Empty } from "./Body";
 import { Chip } from "./Parts";
@@ -126,7 +126,16 @@ function Recent() {
   );
 }
 
-/* ══ 3단 격자 ═══════════════════════════════════════════════════ */
+/* ══ 3단 격자 ═══════════════════════════════════════════════════
+ *
+ * 칸마다 이름(id)을 붙이고, 어느 단 몇 번째에 둘지는 배치(layout)가 정한다.
+ * 기본 배치는 위 머리말 그림 그대로다. 칸 머리의 손잡이(⠿)를 끌거나,
+ * 손잡이에 초점을 두고 방향키로 옮긴다(↑↓ 같은 단 안, ←→ 옆 단).
+ *
+ * ⚠ 배치는 이 브라우저에 과별로 남긴다(localStorage). 「최근 본 환자」는
+ *   공용 PC 라 안 남기지만(아래 Recent) 배치에는 **환자 정보가 없다** —
+ *   칸 이름의 순서뿐이다.
+ */
 function Desk({ cfg, home, bag, again }) {
   const queue = bag && home.queue ? home.queue(bag) : null;
   const stuck = (bag && home.stuck ? home.stuck(bag) : []).filter((s) => s.count > 0);
@@ -134,44 +143,199 @@ function Desk({ cfg, home, bag, again }) {
   const marks = bag && home.marks ? home.marks(bag) : [];
   const side = bag && home.side ? home.side(bag) : null;
 
+  /* ⚠ Todo · Handover 는 key 로 과를 건다. 과를 옮기면 **다시 마운트**되어
+     useState 의 첫 읽기가 그 과 것으로 다시 돈다 — 효과 안에서 setList 하면
+     렌더가 한 번 더 돌고, 그 사이 남의 과 메모가 한 판 보인다 */
+  const cards = {
+    intake:   home.intake && <Intake api={cfg.api} onDone={again} />,
+    queue:    <Queue queue={queue} />,
+    stuck:    <Stuck items={stuck} />,
+    flow:     home.flow && <Flow flow={home.flow(bag)} />,
+    done:     home.done && <Done done={done} />,
+    todo:     <Todo key={cfg.key} dept={cfg.key} />,
+    handover: <Handover key={cfg.key} dept={cfg.key} />,
+    calendar: <Calendar marks={marks} note={bag && home.calNote ? home.calNote(bag) : null}
+                        to={home.calTo} />,
+    side:     home.side && <Side side={side} />,
+  };
+
+  /* 기본 배치. 「오늘 한 일」을 안 쓰는 과(home.done 이 없다)는 그 자리에
+     할 일이 올라온다 — 오른쪽 단은 달력과 오늘 예약이 쓴다 */
+  const base = [
+    ["intake", "queue", "stuck"],
+    ["flow", home.done ? "done" : "todo", "handover"],
+    ["calendar", "side", ...(home.done ? ["todo"] : [])],
+  ].map((pane) => pane.filter((id) => cards[id]));
+
+  const lay = useLayout(cfg.key, base);
+
   return (
-    <div className="desk">
-      <div className="pane">
-        {home.intake && <Intake api={cfg.api} onDone={again} />}
-        <Queue queue={queue} />
-        <Stuck items={stuck} />
+    <>
+      {lay.custom && (
+        <p className="desk-reset">
+          <button type="button" className="btn line sm" onClick={lay.reset}>
+            기본 배치로
+          </button>
+        </p>
+      )}
+      <div className="desk">
+        {lay.panes.map((ids, p) => (
+          <div className={`pane${lay.over?.pane === p && lay.over.id == null ? " drop-end" : ""}`}
+               key={p}
+               onDragOver={(e) => lay.dragging && (e.preventDefault(), lay.hover(p, null))}
+               onDrop={(e) => { e.preventDefault(); lay.drop(); }}>
+            {ids.map((id) => (
+              <Slot.Provider key={id} value={lay.slot(id)}>{cards[id]}</Slot.Provider>
+            ))}
+          </div>
+        ))}
       </div>
-
-      <div className="pane">
-        {home.flow && <Flow flow={home.flow(bag)} />}
-        {/* 「오늘 한 일」을 안 쓰는 과(home.done 이 없다)는 그 자리에 할 일이
-            올라온다 — 오른쪽 단은 달력과 오늘 예약이 쓴다 */}
-        {home.done
-          ? <Done done={done} />
-          : <Todo key={cfg.key} dept={cfg.key} />}
-        {/* ⚠ key 로 과를 건다. 과를 옮기면 **다시 마운트**되어 useState 의
-            첫 읽기가 그 과 것으로 다시 돈다 — 효과 안에서 setList 하면
-            렌더가 한 번 더 돌고, 그 사이 남의 과 메모가 한 판 보인다 */}
-        <Handover key={cfg.key} dept={cfg.key} />
-      </div>
-
-      <div className="pane">
-        <Calendar marks={marks} note={bag && home.calNote ? home.calNote(bag) : null}
-                  to={home.calTo} />
-        {home.side && <Side side={side} />}
-        {home.done && <Todo key={cfg.key} dept={cfg.key} />}
-      </div>
-    </div>
+    </>
   );
+}
+
+/* 칸이 자기 손잡이와 끌어 놓기 처리를 꺼내 쓰는 자리. Desk 밖에서 쓰인
+   Card(없다면) 는 손잡이 없이 그려진다 */
+const Slot = createContext(null);
+
+const LAYOUT_KEY = (dept) => `empatho.home.layout.${dept}`;
+
+function readLayout(dept) {
+  try { return JSON.parse(localStorage.getItem(LAYOUT_KEY(dept))); }
+  catch { return null; }
+}
+
+/* 저장된 배치를 지금 있는 칸에 맞춘다. 없어진 칸은 버리고, 새로 생긴
+   칸은 기본 자리 단의 끝에 붙인다 — 과 설정이 바뀌어도 칸이 사라지지 않게 */
+function fit(saved, base) {
+  if (!Array.isArray(saved) || saved.length !== base.length) return base;
+  const all = new Set(base.flat());
+  const used = new Set();
+  const out = saved.map((ids) => (Array.isArray(ids) ? ids : [])
+    .filter((id) => all.has(id) && !used.has(id) && used.add(id)));
+  base.forEach((ids, p) => ids.forEach((id) => { if (!used.has(id)) out[p].push(id); }));
+  return out;
+}
+
+function useLayout(dept, base) {
+  const baseKey = JSON.stringify(base);
+  const [saved, setSaved] = useState(() => readLayout(dept));
+  const [dragging, setDragging] = useState(null);
+  const [over, setOver] = useState(null);       /* { pane, id, after } */
+  const focusNext = useRef(null);
+  const panes = useMemo(() => fit(saved, JSON.parse(baseKey)), [saved, baseKey]);
+
+  useEffect(() => {
+    if (!focusNext.current) return;
+    document.querySelector(`[data-grip="${focusNext.current}"]`)?.focus();
+    focusNext.current = null;
+  }, [panes]);
+
+  function save(next) {
+    setSaved(next);
+    try { localStorage.setItem(LAYOUT_KEY(dept), JSON.stringify(next)); }
+    catch { /* 못 쓰면 이번 화면에서만 바뀐다 */ }
+  }
+
+  /* id 를 pane 의 at 자리로 옮긴다 */
+  function place(id, pane, at) {
+    const next = panes.map((ids) => ids.filter((x) => x !== id));
+    next[pane].splice(Math.max(0, Math.min(at, next[pane].length)), 0, id);
+    save(next);
+  }
+
+  function where(id) {
+    const p = panes.findIndex((ids) => ids.includes(id));
+    return [p, panes[p].indexOf(id)];
+  }
+
+  function drop() {
+    if (dragging && over) {
+      const { pane, id, after } = over;
+      if (id == null) place(dragging, pane, Infinity);
+      else if (id !== dragging) {
+        const rest = panes[pane].filter((x) => x !== dragging);
+        place(dragging, pane, rest.indexOf(id) + (after ? 1 : 0));
+      }
+    }
+    setDragging(null); setOver(null);
+  }
+
+  function key(id, e) {
+    const [p, i] = where(id);
+    const to = {
+      ArrowUp:    [p, i - 1],
+      ArrowDown:  [p, i + 1],
+      ArrowLeft:  [p - 1, i],
+      ArrowRight: [p + 1, i],
+    }[e.key];
+    if (!to || to[0] < 0 || to[0] >= panes.length) return;
+    e.preventDefault();
+    focusNext.current = id;
+    place(id, to[0], Math.max(0, to[1]));
+  }
+
+  const slot = (id) => ({
+    id,
+    dragging: dragging === id,
+    mark: over?.id === id && dragging !== id ? (over.after ? "after" : "before") : null,
+    start: (e, el) => {
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", id);   /* 파이어폭스는 이게 없으면 안 끈다 */
+      if (el) e.dataTransfer.setDragImage(el, 24, 20);
+      setDragging(id);
+    },
+    end: () => { setDragging(null); setOver(null); },
+    over: (e, el) => {
+      if (!dragging) return;
+      e.preventDefault(); e.stopPropagation();
+      const box = el.getBoundingClientRect();
+      const after = e.clientY > box.top + box.height / 2;
+      const [p] = where(id);
+      if (over?.id !== id || over.after !== after) setOver({ pane: p, id, after });
+    },
+    drop: (e) => { e.preventDefault(); e.stopPropagation(); drop(); },
+    key: (e) => key(id, e),
+  });
+
+  return {
+    panes, dragging, over, slot, drop,
+    hover: (pane, id) => { if (over?.pane !== pane || over.id !== id) setOver({ pane, id }); },
+    custom: saved != null && JSON.stringify(panes) !== baseKey,
+    reset: () => {
+      setSaved(null);
+      try { localStorage.removeItem(LAYOUT_KEY(dept)); } catch { /* 없음 */ }
+    },
+  };
 }
 
 /* 칸 하나의 틀 — 점 + 제목 + 건수, 오른쪽에 작은 글씨나 단추.
    ⚠ 목업은 칸마다 점 색이 다르지만(파랑·주황·초록·보라) 이 판은 **상태
      색을 새로 만들지 않는다**(tokens.css). 채움과 외곽선으로만 가른다 */
 function Card({ dot = "fill", title, count, right, grow, className = "", children }) {
+  const slot = useContext(Slot);
+  const self = useRef(null);
+  const cls = [
+    "hcard", grow && "grow", className,
+    slot?.dragging && "dragging", slot?.mark && `drop-${slot.mark}`,
+  ].filter(Boolean).join(" ");
   return (
-    <section className={`hcard${grow ? " grow" : ""} ${className}`.trim()}>
+    <section ref={self} className={cls}
+             {...(slot ? {
+               onDragOver: (e) => slot.over(e, self.current),
+               onDrop: slot.drop,
+             } : {})}>
       <div className="hcard-h">
+        {slot && (
+          /* ⚠ <button> 이 아니다 — 파이어폭스는 button 을 끌지 못한다 */
+          <span className="hcard-grip" role="button" tabIndex={0} draggable
+                data-grip={slot.id}
+                aria-label={`${title} 칸 옮기기 — 끌거나 방향키`}
+                title="끌어서 옮기기 · 방향키로도 옮깁니다"
+                onDragStart={(e) => slot.start(e, self.current)}
+                onDragEnd={slot.end}
+                onKeyDown={slot.key}>⠿</span>
+        )}
         {dot !== "none" && <i className={`hdot ${dot}`} aria-hidden="true" />}
         <h2>{title}</h2>
         {count != null && <b className="hcard-n">{count}</b>}
@@ -275,6 +439,11 @@ function Queue({ queue }) {
   const [pick, setPick] = useState(tabs[0].key);
   const tab = tabs.find((t) => t.key === pick) ?? tabs[0];
   const rows = tab.rows ?? [];
+  /* 열 이름은 과가 바꿀 수 있다. 그리고 **이 탭의 어느 줄에도 값이 없는
+     열은 이름을 안 단다** — 빈 열 위에 「상태」만 떠 있으면 무엇을 적는
+     칸인지 묻게 된다(유방외과 09-28). 셀 자리는 그대로 둔다(subgrid) */
+  const cols = { ...COLS, ...queue?.cols };
+  const has = (k) => rows.some((r) => r[k]);
 
   return (
     <Card title={queue?.title ?? "목록"} count={rows.length} grow
@@ -299,11 +468,11 @@ function Queue({ queue }) {
               <div className="qrow-head" aria-hidden="true">
                 <i className="qrow-n" />
                 <b>이름</b>
-                <span className="qrow-meta">나이·성별</span>
-                <span className="qrow-chip">구분</span>
-                <span className="qrow-sub">상태</span>
+                <span className="qrow-meta">{has("meta") ? cols.meta : null}</span>
+                <span className="qrow-chip">{has("chip") ? cols.chip : null}</span>
+                <span className="qrow-sub">{has("sub") ? cols.sub : null}</span>
                 <span aria-hidden="true" />
-                <span className="qrow-r">환자번호</span>
+                <span className="qrow-r">{cols.r}</span>
               </div>
               {rows.map((r, i) => <QRow key={r.id} row={r} n={i + 1} />)}
             </>}
@@ -311,6 +480,8 @@ function Queue({ queue }) {
     </Card>
   );
 }
+
+const COLS = { meta: "나이·성별", chip: "구분", sub: "상태", r: "환자번호" };
 
 /* ⚠ **환자번호는 오른쪽 끝이다.** 왼쪽에 몰아 두면 한 줄 요약이 짧은 과
  *   (유방외과처럼 요약이 아예 없는 과)에서 가운데가 통째로 빈다.

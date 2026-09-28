@@ -1842,6 +1842,39 @@
    "phone": "010-6333-0184"
   }
  ],
+ "GET /api/v1/hospital/patients/?primary_staff=me&page_size=500": [
+  {
+   "has_open_discordance": true,
+   "patient_id": "P-1001",
+   "name": "김민지",
+   "age": 47,
+   "sex": "F",
+   "patient_number": "20260001",
+   "status": "재진",
+   "first_visited_at": "2026-03-11T09:20:00+09:00",
+   "phone": "010-1234-5601"
+  },
+  {
+   "patient_id": "P-1002",
+   "name": "이서연",
+   "age": 52,
+   "sex": "F",
+   "patient_number": "20260002",
+   "status": "재진",
+   "first_visited_at": "2025-11-07T14:10:00+09:00",
+   "phone": "010-4377-1221"
+  },
+  {
+   "patient_id": "P-1003",
+   "name": "박지현",
+   "age": 39,
+   "sex": "F",
+   "patient_number": "20260003",
+   "status": "초진",
+   "first_visited_at": null,
+   "phone": "010-6333-0184"
+  }
+ ],
  "GET /api/v1/hospital/patients/?primary_staff=me&status=waiting": [
   {
    "patient_id": "P-1001",

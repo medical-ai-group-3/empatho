@@ -358,6 +358,19 @@ input,select,textarea{font:inherit; color:inherit}
   padding:var(--hcard-pad-y) var(--hcard-pad-x);
   border-bottom:var(--hair) solid var(--line-2)}
 .hcard-h h2{font-size:var(--hcard-h-fs); font-weight:700; flex:none}
+
+/* 칸 옮기기 — 손잡이 · 끄는 중 · 놓을 자리. 놓을 자리는 칸 위아래에
+   선 하나로만 보인다. 칸이 비켜서며 움직이면 놓기 직전에 목표가 달아난다 */
+.hcard-grip{flex:none; margin-left:calc(-4px * var(--sp)); padding:0 2px;
+  color:var(--faint); cursor:grab; user-select:none; line-height:1;
+  border-radius:var(--in-radius)}
+.hcard-grip:hover, .hcard-grip:focus-visible{color:var(--ink)}
+.hcard-grip:active{cursor:grabbing}
+.hcard.dragging{opacity:.4}
+.hcard.drop-before{box-shadow:0 calc(-3px * var(--sp)) 0 var(--cyan)}
+.hcard.drop-after{box-shadow:0 calc(3px * var(--sp)) 0 var(--cyan)}
+.pane.drop-end{box-shadow:inset 0 calc(-3px * var(--sp)) 0 var(--cyan)}
+.desk-reset{flex:none; margin:0 0 var(--gap-sm); display:flex; justify-content:flex-end}
 .hcard-n{font-size:var(--hcard-n-fs); font-weight:600; color:var(--ink-2);
   font-variant-numeric:tabular-nums; flex:none}
 .hcard-k{font-size:var(--hcard-k-fs); color:var(--ink-2); flex:none}
@@ -1033,6 +1046,13 @@ a.frow:hover .frow-k{color:var(--ink)}
   font-variant-numeric:tabular-nums}
 .work-ev p{font-size:var(--work-read-fs); line-height:var(--work-read-lh);
   color:var(--ink-2)}
+/* 이력 줄을 누르면 환자 상세가 그 건을 펴서 연다(dept/breast/history.js).
+   큐 줄(.qrow)과 같은 손짓이되, 이 칸 바탕이 이미 canvas 라 바탕 대신
+   테두리를 짙게 한다. 끝의 ›가 갈 곳을 말한다 */
+.work-ev[role="button"]{cursor:pointer}
+.work-ev[role="button"]:hover{border-color:var(--faint)}
+.work-ev[role="button"]:focus-visible{outline:var(--hair) solid var(--cyan); outline-offset:2px}
+.work-ev-go{font-style:normal; color:var(--faint)}
 
 /* 오른쪽 248px — 결정 사유 상용구 */
 .work-say{display:flex; flex-direction:column; min-height:0; min-width:0}
@@ -1121,6 +1141,15 @@ a.frow:hover .frow-k{color:var(--ink)}
 .rev-list button span{margin-left:auto; font-weight:700}
 .rev-list-b{display:flex; flex-direction:column; gap:var(--gap-xs);
   padding:0 0 var(--gap-sm) calc(1em + var(--gap-sm))}
+/* 진료 이력에서 골라 온 한 건 — 왼쪽 선 하나로 짚는다(.exam-history li.on
+   과 같은 표시). 색 채움을 안 쓴다 */
+.rev-list li.here{box-shadow:inset 2px 0 0 var(--cyan)}
+.rev-list li.here > button{padding-left:var(--gap-sm)}
+/* 골라 온 건이 판독 줄에 없을 때의 한 줄 */
+.rev-miss{display:flex; align-items:center; flex-wrap:wrap; gap:var(--gap-sm);
+  padding:var(--gap-sm); border-radius:var(--radius-sm);
+  box-shadow:inset 0 0 0 var(--hair) var(--line-2)}
+.rev-miss .hcard-k{flex:1; min-width:0}
 
 /* 화상 보기 팝업 */
 .rev-pop-back{position:fixed; inset:0; z-index:60; display:grid; place-items:center;
@@ -2908,6 +2937,13 @@ code{padding:0 var(--gap-xs); border-radius:var(--radius-xs);
 .exam-history-pick:hover .exam-history-type{text-decoration:underline}
 .exam-history-pick:focus-visible{outline:var(--hair) solid var(--cyan);
   outline-offset:2px}
+/* 검체 줄 등은 <a> 로 그린다 — 환자 상세로 간다(dept/breast/history.js) */
+a.exam-history-pick{text-decoration:none}
+/* 검사 줄의 둘째 길 — 뷰어는 영상만 연다. 판독 소견은 환자 상세에 있다 */
+.exam-history-go{display:inline-block; margin-top:2px; font-size:11.5px;
+  color:var(--warm); text-decoration:none}
+.exam-history-go:hover{color:var(--ink); text-decoration:underline}
+.exam-history-go:focus-visible{outline:var(--hair) solid var(--cyan); outline-offset:2px}
 .exam-history li.on{box-shadow:inset 2px 0 0 var(--cyan)}
 .exam-history li.on .exam-history-type{color:var(--cyan)}
 

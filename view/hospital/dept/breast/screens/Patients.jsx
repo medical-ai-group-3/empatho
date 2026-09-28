@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { breast as api } from "../../../api";
 import { SEX, label } from "../../../codes";
 import { Body } from "../../../lib/Body";
@@ -8,6 +9,7 @@ import { Facts, Search, Sort, Split, Table } from "../../../lib/Parts";
 import { useApi } from "../../../lib/useApi";
 import "../breast.css";
 import ReviewViewer from "../components/ReviewViewer";
+import { historyTo } from "../history";
 
 /* 유방외과 전체 환자 목록 ("/breast/patients")
  *
@@ -140,7 +142,8 @@ function PatientDetailBody({ patient }) {
         <p className="section-label">검사 이력</p>
         <Body loading={timeline.loading} error={timeline.error} onRetry={timeline.reload}>
           {timeline.data && (
-            <PatientTimeline events={timeline.data} pick={pick} onPick={setPick} />
+            <PatientTimeline pid={patient.patient_id} events={timeline.data}
+                             pick={pick} onPick={setPick} />
           )}
         </Body>
       </div>
@@ -150,10 +153,12 @@ function PatientDetailBody({ patient }) {
 
 /* 검사 이력.
  *
- * 검사 번호(study_id)가 실려 온 줄만 고를 수 있다 — 그 줄을 누르면 위
- * 뷰어가 그 검사를 연다. 검체 줄처럼 번호가 없거나 영상이 아닌 줄은
- * 그대로 글자로 둔다. 누를 수 없는 것을 누르게 만들지 않는다. */
-function PatientTimeline({ events, pick, onPick }) {
+ * 검사 번호(study_id)가 실려 온 줄은 누르면 위 뷰어가 그 검사를 연다.
+ * 그 밖의 줄(검체 채취 · 병리 확진 · 번호 없는 줄)은 환자 상세로 가서
+ * 그 건의 결과를 펴 본다(history.js). 전에는 이 줄들을 글자로만 두어
+ * 병리 결과를 이력에서 열 길이 없었다.
+ * 검사 줄도 판독 소견은 뷰어에 안 나온다 — 「판독 보기」로 따로 간다. */
+function PatientTimeline({ pid, events, pick, onPick }) {
   if (events.length === 0) return <p className="muted small">아직 검사 이력이 없습니다.</p>;
   return (
     <ul className="exam-history">
@@ -169,14 +174,20 @@ function PatientTimeline({ events, pick, onPick }) {
             {event.detail && <p className="exam-history-detail">{event.detail}</p>}
           </>
         );
+        const to = historyTo(pid, event);
         return (
           <li key={index} className={on ? "on" : undefined}>
-            {id == null ? body : (
-              <button type="button" className="exam-history-pick"
-                      aria-pressed={on} onClick={() => onPick?.(on ? null : id)}>
-                {body}
-              </button>
-            )}
+            {id == null
+              ? <Link className="exam-history-pick" to={to}>{body}</Link>
+              : (
+                <>
+                  <button type="button" className="exam-history-pick"
+                          aria-pressed={on} onClick={() => onPick?.(on ? null : id)}>
+                    {body}
+                  </button>
+                  <Link className="exam-history-go" to={to}>판독 보기 ›</Link>
+                </>
+              )}
           </li>
         );
       })}

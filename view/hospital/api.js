@@ -1006,6 +1006,14 @@ export const breast = {
       const rows = raw?.results ?? raw?.items ?? (Array.isArray(raw) ? raw : []);
       return rows.map(normalizePatient);
     }),
+  /* 내가 주치의인 환자 전부 — 오늘 왔는지와 상관없이. 홈의 「담당 전체」 탭.
+     09-27 부터 서버가 primary_staff 와 status 를 같이 보므로 status 를 빼면
+     담당 전체다(views/reception.py PatientViewSet.get_queryset) */
+  mine:         ()   => get(`/patients/${qs({ primary_staff: "me", page_size: PAGE_ALL })}`)
+    .then((raw) => {
+      const rows = raw?.results ?? raw?.items ?? (Array.isArray(raw) ? raw : []);
+      return rows.map(normalizePatient);
+    }),
   /* 유방외과 전체 환자 목록은 현재 로그인한 의사에게 배정된 환자만이
      아니라 과에서 관리하는 과거·현재 환자 전체를 보여 준다. */
   patients:     ()   => get(`/patients/${qs({ status: "all" })}`)

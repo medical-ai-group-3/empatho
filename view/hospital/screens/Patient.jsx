@@ -8,6 +8,7 @@ import { reception, breast, nursing, specimens } from "../api";
 import { go } from "../nav";
 import { can } from "../perm";
 import * as H from "../dept/home";
+import { historyTo } from "../dept/breast/history";
 
 /* 환자 상세 — 모든 과가 같은 화면을 본다 (6.5)
  * ════════════════════════════════════════════════════════════════
@@ -25,7 +26,8 @@ import * as H from "../dept/home";
  *
  * **타임라인 줄을 누르면 그것이 열린다.** 서버가 줄마다 study_id ·
  *   specimen_id 를 같이 주기로 해서(2026-09-23) 무엇의 몇 번인지 안다.
- *   영상은 판독 화면으로, 검체는 병리 판독 화면으로 간다.
+ *   영상은 판독 화면으로, 검체는 병리 판독 화면으로 간다. 그 권한이 없는
+ *   유방외과는 제 과의 환자 상세로 간다(dept/breast/history.js).
  *   ⚠ 번호가 없거나 그 화면을 볼 권한이 없으면 **누르는 자리로 만들지
  *     않는다.** 눌리는 것처럼 보이고 아무 일도 안 일어나는 쪽이 더 나쁘다.
  */
@@ -64,7 +66,7 @@ export default function Patient() {
             </div>
 
             <div className="pcol">
-              <History events={data.timeline} />
+              <History pid={id} events={data.timeline} />
             </div>
 
             <div className="pcol">
@@ -267,20 +269,25 @@ const MARK = {
 };
 
 /* 줄 하나가 어디로 가나. 갈 곳이 없으면 null 을 돌려주고, 부르는 쪽이
-   그냥 글자로 그린다 — 못 여는 것을 눌리게 만들지 않는다. */
-function eventTo(e, may) {
+   그냥 글자로 그린다 — 못 여는 것을 눌리게 만들지 않는다.
+   ⚠ 유방외과는 판독 화면 둘 다 권한이 없어서 이 히스토리가 **한 줄도 안
+     눌렸다**(09-28 사용자 지적). 제 과의 환자 상세가 같은 결과(확정 판독 ·
+     병리)를 다 들고 있으니 그리로 보낸다 — 그 건을 펴서 연다 */
+function eventTo(e, may, pid) {
   if (e.specimen_id != null && may.pathology) return go.pathology.read(e.specimen_id);
   if (e.study_id != null && may.radiology) return go.radiology.read(e.study_id);
+  if (may.breast) return historyTo(pid, e);
   return null;
 }
 
-function History({ events }) {
+function History({ pid, events }) {
   const [only, setOnly] = useState(null);
   /* 권한은 화면마다 다르다 — 유방외과는 판독 화면을 못 연다.
      못 여는 사람에게는 누르는 자리로 안 보이게 한다. */
   const may = {
     radiology: useCan("radiology.read.view").ok,
     pathology: useCan("pathology.read.view").ok,
+    breast: useCan("breast.review.view").ok,
   };
 
   const kinds = useMemo(
@@ -318,7 +325,7 @@ function History({ events }) {
           <section className="pday" key={day}>
             <h3>{day || "날짜 없음"}</h3>
             {list.map((e, i) => {
-              const to = eventTo(e, may);
+              const to = eventTo(e, may, pid);
               const body = (
                 <>
                   <i className="pevent-m" aria-hidden="true">{MARK[e.type] ?? "·"}</i>

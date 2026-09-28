@@ -340,7 +340,11 @@ export const go = {
     queue:       () => `${B}/waiting`,
     waiting:     () => `${B}/waiting`,
     patients:    () => `${B}/patients`,
-    review:      (id) => `${B}/patients/${id}/review`,
+    /* at — 진료 이력에서 고른 한 건({ study } · { specimen }). 주면 환자
+       상세가 그 검사 · 검체의 판독을 펴고 그 자리로 내려간다 */
+    review:      (id, at = null) => `${B}/patients/${id}/review${
+      at?.study != null ? `?study=${encodeURIComponent(at.study)}`
+      : at?.specimen != null ? `?specimen=${encodeURIComponent(at.specimen)}` : ""}`,
     decision:    (id) => `${B}/patients/${id}/decision`,
     discordance: (id) => `${B}/discordances/${id}`,
   },

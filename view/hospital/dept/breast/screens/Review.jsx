@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { useParams, useSearchParams } from "react-router-dom";
 import { breast as api } from "../../../api";
 import { useApi } from "../../../lib/useApi";
 import { Page, Btn } from "../../../lib/Page";
@@ -32,10 +32,19 @@ import ReviewViewer from "../components/ReviewViewer";
  *   판독 영상 위에서 초록/빨강이 병변 표시와 싸운다(tokens.css 색 규칙).
  * ⚠ 유방외과는 판독 화면 권한이 없다. 영상 · 병리 이미지를 보는 길이
  *   이 팝업뿐이라 끊으면 안 된다.
+ *
+ * 진료 이력에서 들어오면(?study= · ?specimen=, dept/breast/history.js)
+ * 그 건을 펴서 그 자리로 내려간다. 과거 기록을 보는 길이 이것이다 —
+ * 판독 화면으로 보내면 잠긴 화면만 뜬다.
  */
 export default function Review() {
   const { id } = useParams();
+  const [q] = useSearchParams();
   const p = useApi(() => api.patient(id), [id]);
+  /* 고른 한 건. 판독 줄 id(rows() 의 `${key}-${번호}`)와 같은 모양으로 둔다 */
+  const focus = q.get("study") != null ? { key: "study_id", id: q.get("study") }
+    : q.get("specimen") != null ? { key: "specimen_id", id: q.get("specimen") }
+    : null;
 
   return (
     <Page className="rev-page" crumb={["유방외과", "환자 상세"]}
@@ -49,13 +58,13 @@ export default function Review() {
             </>
           )}>
       <Body loading={p.loading && !p.data} error={p.error} onRetry={p.reload}>
-        {p.data && <Inner p={p.data} />}
+        {p.data && <Inner p={p.data} focus={focus} />}
       </Body>
     </Page>
   );
 }
 
-function Inner({ p }) {
+function Inner({ p, focus }) {
   const [seeing, setSeeing] = useState(false);
   const rep = p.other_reports ?? [];
   const of = (want) => rep.filter((r) => (r.dept ?? "").includes(want));
@@ -74,6 +83,25 @@ function Inner({ p }) {
   /* 영상 칸의 「병변」 줄처럼 병리 칸 머리에 검체 ID 를 모아 둔다 */
   const specimenLine = pat.map((r) => (r.label ? `${r.label} (#${r.specimen_id})` : `#${r.specimen_id}`))
     .join(", ") || null;
+
+  /* 이력에서 고른 건이 판독 줄에 없을 수 있다 — 찍기만 했거나 판독이 아직
+     임시저장이거나(서버 timeline 은 draft 도 「판독」으로 준다), 검체를
+     떼기만 하고 확진 전인 것. 그때는 없다고 적는다. 말없이 맨 위 건을
+     펴 두면 「고른 게 이것」으로 읽힌다 */
+  const want = focus ? `${focus.key}-${focus.id}` : null;
+  const studyAt = focus?.key === "study_id" ? focus.id : null;
+  const miss = (items, what) => (want && focus.key === what && !items.some((x) => x.id === want));
+  const radMiss = miss(radRows, "study_id") && (
+    <div className="rev-miss">
+      <p className="hcard-k">고른 검사(#{focus.id})는 아직 확정된 판독이 없습니다.</p>
+      <Btn onClick={() => setSeeing(true)}>이 검사 영상 보기</Btn>
+    </div>
+  );
+  const patMiss = miss(patRows, "specimen_id") && (
+    <div className="rev-miss">
+      <p className="hcard-k">고른 검체(#{focus.id})는 아직 병리 확진 전입니다.</p>
+    </div>
+  );
 
   return (
     <div className="rev2">
@@ -111,19 +139,23 @@ function Inner({ p }) {
 
       <div className="rev">
         <div className="rev-l">
-          <Readings title="영상 판독" gradeLabel="BI-RADS" items={radRows}
+          {/* key — 다른 건을 고르고 오면 접힘 상태를 새로 잡는다 */}
+          <Readings key={want ?? "top"} title="영상 판독" gradeLabel="BI-RADS" items={radRows}
+                    focus={want} miss={radMiss}
                     lines={[["병변", lesionLine(p.lesions)]]} />
         </div>
         <div className="rev-r">
-          <Readings title="병리 결과" gradeLabel="B" items={patRows}
+          <Readings key={want ?? "top"} title="병리 결과" gradeLabel="B" items={patRows}
+                    focus={want} miss={patMiss}
                     lines={[["검체", specimenLine]]} />
         </div>
       </div>
 
       {seeing && (
         <ImagePopup name={H.nameOf(p)} onClose={() => setSeeing(false)}>
+          {/* 이력에서 검사를 골라 왔으면 팝업도 그 검사로 연다 */}
           <ReviewViewer patientId={p.patient_id} lesions={p.lesions ?? []}
-                        specimenIds={specimenIds} />
+                        specimenIds={specimenIds} studyId={studyAt} />
         </ImagePopup>
       )}
     </div>
@@ -162,9 +194,15 @@ function lesionLine(lesions) {
 
 /* 판독 칸 — 영상과 병리가 같은 모양을 쓴다. 한 건씩 접히고, 맨 위(가장
    최근) 한 건만 펴 둔다. 머리의 등급은 가장 최근 판정이다.
+   이력에서 고른 건(focus)이 있으면 그것도 펴고 그 줄로 내려간다.
    ⚠ **칸을 없애지 않는다.** 한쪽이 아직 없어도 자리를 둔다. */
-function Readings({ title, gradeLabel, items, lines = [] }) {
-  const [open, setOpen] = useState(() => new Set(items[0] ? [items[0].id] : []));
+function Readings({ title, gradeLabel, items, lines = [], focus = null, miss = null }) {
+  const [open, setOpen] = useState(() => new Set(
+    [items[0]?.id, items.some((x) => x.id === focus) ? focus : null].filter(Boolean)));
+  const here = useRef(null);
+  useEffect(() => {
+    here.current?.scrollIntoView({ block: "center" });
+  }, [focus]);
   const top = items.find((x) => x.grade);
   const toggle = (id) => setOpen((s) => {
     const n = new Set(s);
@@ -187,11 +225,15 @@ function Readings({ title, gradeLabel, items, lines = [] }) {
           ))}
         </dl>
       )}
+      {miss}
       <ul className="rev-list">
         {items.map((x) => {
           const on = open.has(x.id);
+          const at = x.id === focus;
           return (
-            <li key={x.id} className={on ? "on" : undefined}>
+            <li key={x.id} ref={at ? here : undefined}
+                className={[on && "on", at && "here"].filter(Boolean).join(" ") || undefined}
+                aria-current={at || undefined}>
               <button type="button" aria-expanded={on} onClick={() => toggle(x.id)}>
                 <i aria-hidden="true">{on ? "▾" : "▸"}</i>
                 <time>{H.day(x.at) ?? "—"}</time>

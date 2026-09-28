@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { breast as api } from "../../../api";
 import { useApi } from "../../../lib/useApi";
 import { Page, Btn } from "../../../lib/Page";
@@ -13,6 +13,7 @@ import CloseVisitModal from "../components/CloseVisitModal";
 import CareGuideModal from "../components/CareGuideModal";
 import SpecimenBindingModal from "../../../lib/SpecimenBindingModal";
 import { isHandled, markHandled } from "../handled";
+import { historyTo } from "../history";
 
 /* 유방외과 · 내 환자 — `docs/mockup/Surgery.html`
  * ════════════════════════════════════════════════════════════════
@@ -390,8 +391,13 @@ function Read({ title, r, v = null, gradeLabel, to }) {
 }
 
 /* ── 330px — 진료 이력 ─────────────────────────────────────────
-   `/patients/{id}/timeline` 이 이 칸의 전부다. 최근 것이 위로 온다 */
+   `/patients/{id}/timeline` 이 이 칸의 전부다. 최근 것이 위로 온다.
+
+   ⚠ **줄마다 누르는 자리다.** 전에는 글자만 그려서 눌러도 아무 데도 안
+     갔다 — 서버는 줄마다 검사 · 검체 번호를 실어 주는데(history.js) 받는
+     쪽이 버리고 있었다. 누르면 환자 상세가 그 건의 판독을 펴서 연다 */
 function History({ id }) {
+  const nav = useNavigate();
   const line = useApi(
     () => (id ? H.soft(api.timeline(id)) : Promise.resolve([])), [id]);
   const rows = [...H.rows(line.data)].reverse();
@@ -406,15 +412,25 @@ function History({ id }) {
       <div className="work-hist-b">
         {rows.length === 0
           ? <p className="hcard-k hpad">아직 없습니다</p>
-          : rows.map((r, i) => (
-            <article className="work-ev" key={`${r.at}-${i}`}>
-              <div className="work-ev-h">
-                <time>{H.day(r.at)}</time>
-                <Chip>{r.type}</Chip>
-              </div>
-              {r.detail && <p>{r.detail}</p>}
-            </article>
-          ))}
+          : rows.map((r, i) => {
+            const to = historyTo(id, r);
+            const open = () => nav(to);
+            return (
+              <article className="work-ev" key={`${r.at}-${i}`}
+                       role="button" tabIndex={0}
+                       aria-label={`${H.day(r.at) ?? ""} ${r.type} 기록 보기`}
+                       onClick={open}
+                       onKeyDown={(e) => { if (e.key === "Enter") open(); }}>
+                <div className="work-ev-h">
+                  <time>{H.day(r.at)}</time>
+                  <Chip>{r.type}</Chip>
+                  <span className="home-fill" />
+                  <i className="work-ev-go" aria-hidden="true">›</i>
+                </div>
+                {r.detail && <p>{r.detail}</p>}
+              </article>
+            );
+          })}
       </div>
     </section>
   );

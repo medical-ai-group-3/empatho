@@ -32,64 +32,61 @@ export const breast = {
 
   /* ── 홈 (docs/mockup/SurgeryHome.html) ──────────────
    *
-   * 환자 목록과 예약 오더를 함께 받아, 내 환자 큐와 월간 예약 캘린더를
-   *   같은 홈에서 구성한다.
+   * 오늘 내 대기 환자 · 내 담당 전체 두 탭과 월간 예약 캘린더.
    *
-   * ⚠ waiting() 과 patients() 가 **같은 줄을 돌려준다.** 서버가
-   *   `?primary_staff=me` 면 status 를 안 보고 바로 돌아간다 —
+   * ⚠ 09-28 전까지 이 큐는 patients()(status=all) 를 불렀다 — **과 전체
+   *   목록**이라 유방외과 계정 누구로 들어가도 같은 줄이 「내 환자」로
+   *   떴다. 09-27 서버가 primary_staff=me 와 status 를 같이 보게 고쳐서
+   *   이제 「내 것」과 「오늘 온 것」을 따로 부를 수 있다.
    *
-   *     PatientViewSet.get_queryset()
-   *         if primary_staff_param == "me":
-   *             return qs.filter(primary_staff=staff)     ← 여기서 끝난다
-   *
-   *   그래서 목록을 한 번만 부른다(8장 10번).
+   * 줄의 접수 시각 · 진행 단계는 today-status 에서 붙인다. 환자 목록
+   * 응답에는 그 칸이 없고, 환자마다 오더를 따로 부르면 대기 인원만큼
+   * 요청이 난다. today-status 는 오늘 온 오더 전부를 한 번에 준다.
    */
   home: {
     load: () => Promise.all([
-      api.patients(),
+      api.waiting(),
+      H.soft(api.mine()),
+      H.soft(reception.todayStatus()),
       H.soft(reception.schedule(...monthBounds())),
-    ]).then(([all, schedule]) => ({
-      all: H.rows(all),
+    ]).then(([waiting, mine, status, schedule]) => ({
+      waiting: H.rows(waiting),
+      mine: H.rows(mine),
+      status: lastVisitByPatient(H.rows(status)),
       schedule: H.rows(schedule),
     })),
 
     primary: { label: "다음 환자 진료", to: go.breast.waiting(),
                need: "breast.waiting.view" },
 
-    queue: ({ all }) => ({
+    queue: ({ waiting, mine, status }) => ({
       title: "내 환자",
       hint: "누르면 환자 상세",
-      empty: "배정된 환자가 없습니다",
-      /* ⚠ **시각도, 초진/재진도, 한 줄 요약도 없다.** 환자 목록 응답
-         (PatientListSerializer)이 번호·이름·생년월일·성별·알레르기
-         다섯 칸뿐이다. 칩 자리에는 아는 것 하나만 — 알레르기 표시.
-         ⚠ 오더 쪽(/exam-orders)으로 바꿔 시각·검사 진행을 채우려 했는데
-           **주치의로 거르는 조건이 없다** — status·visited·scheduled_*·
-           patient·ordering 뿐이고 응답에 primary_staff 도 없다. 전부 받아
-           화면에서 가르면 한 쪽 20건이라 조용히 빠진다(8장 10번) */
-      rows: all.map((r) => ({
-        id: r.patient_id,
-        name: H.nameOf(r),
-        no: H.noOf(r),
-        meta: H.who(r),
-        chip: H.allergy(r) ? "알레르기" : null,
-        /* 줄에 「검사 종합」이라고 적어 놓고 **일반 환자 화면**으로 보내고
-           있었다(09-23 확인). 유방외과가 이 줄에서 할 일이 바로 검사 종합
-           확인이고, 그 화면이 이 과에 따로 있다 — 적힌 대로 보낸다.
-           권한이 없으면 그 화면이 Locked 로 알려 준다(main.jsx) */
-        to: go.breast.review(r.patient_id),
-        pid: r.patient_id,
-        why: "환자 상세",
-      })),
+      /* 열 이름. 공통 머리(「구분」·「상태」)로는 이 과 줄이 무엇인지
+         안 읽힌다는 말을 들었다(09-28) */
+      cols: { chip: "주의", sub: "진행", r: "환자번호 · 접수" },
+      tabs: [
+        { key: "waiting", name: "오늘 대기",
+          empty: "지금 기다리는 환자가 없습니다",
+          /* 먼저 온 사람이 위다 — 「다음 환자 진료」와 같은 순서 */
+          rows: [...waiting]
+            .sort((a, b) => visitKey(status, a).localeCompare(visitKey(status, b)))
+            .map((r) => row(r, status.get(String(r.patient_id)))) },
+        { key: "mine", name: "담당 전체",
+          empty: "배정된 환자가 없습니다",
+          rows: mine.map((r) => row(r, null)) },
+      ],
     }),
 
-    stuck: ({ all }) => [
-      { tag: "알레르기", text: "조영제 알레르기 표시가 있는 환자",
-        count: all.filter((r) => H.allergy(r)).length,
+    stuck: ({ mine }) => [
+      { tag: "불일치", text: "판정 불일치를 처분하지 않은 내 환자",
+        count: mine.filter((r) => r.has_open_discordance).length,
         to: go.breast.patients() },
-      /* ⚠ 목업의 「불일치」·「설명」·「동의」는 못 센다. 불일치는 서버에
-         GET /discordances 가 있지만 api.js 에 없고 새 경로는 8장에 적는
-         것이 규칙이다(8장 4번). 결과 설명 기록과 검사 동의는 표가 없다 */
+      { tag: "알레르기", text: "조영제 알레르기 표시가 있는 내 환자",
+        count: mine.filter((r) => H.allergy(r)).length,
+        to: go.breast.patients() },
+      /* ⚠ 목업의 「설명」·「동의」는 못 센다. 결과 설명 기록과 검사 동의는
+         표가 없다 */
     ],
 
     /* 오늘 한 일은 별도 목록으로 제공하지 않는다. 홈의 이 영역은
@@ -100,6 +97,39 @@ export const breast = {
       .map((row) => ({ date: row.scheduled_at, kind: "예약 있음" })),
   },
 };
+
+/* 큐 한 줄. visit 은 그 환자의 오늘 오더(today-status 한 줄) — 담당 전체
+   탭처럼 오늘 안 온 사람은 null 이라 시각·진행 칸이 빈다 */
+function row(r, visit) {
+  return {
+    id: r.patient_id,
+    name: H.nameOf(r),
+    no: H.noOf(r),
+    meta: H.who(r),
+    chip: H.allergy(r) ? "알레르기" : null,
+    sub: [visit ? (visit.stage_detail ?? visit.stage) : null,
+          r.has_open_discordance ? "판정 불일치" : null].filter(Boolean).join(" · "),
+    at: visit ? H.at(visit.visited_at) : null,
+    /* 유방외과가 이 줄에서 할 일이 검사 종합 확인이고, 그 화면이 이 과에
+       따로 있다(09-23). 권한이 없으면 그 화면이 Locked 로 알려 준다 */
+    to: go.breast.review(r.patient_id),
+    pid: r.patient_id,
+    why: "환자 상세",
+  };
+}
+
+/* 환자별 오늘 마지막 오더. 서버가 visited_at 순으로 주므로 뒤에 온 것이
+   남는다 — 하루에 두 번 접수된 환자는 지금 진행 중인 쪽을 본다 */
+function lastVisitByPatient(list) {
+  const out = new Map();
+  for (const r of list) if (r.patient_id != null) out.set(String(r.patient_id), r);
+  return out;
+}
+
+/* 정렬 열쇠 — 접수 시각이 없는 줄은 맨 뒤로 */
+function visitKey(status, r) {
+  return String(status.get(String(r.patient_id))?.visited_at ?? "~");
+}
 
 function monthBounds(now = new Date()) {
   const first = new Date(now.getFullYear(), now.getMonth(), 1);
