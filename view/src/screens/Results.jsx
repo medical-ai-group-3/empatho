@@ -30,7 +30,7 @@ export default function Results() {
 
   return (
     <>
-      <Head title="검사 결과" sub="리포트는 의료진 설명 후 공개돼요" />
+      <Head title="검사 결과" back={false} sub="리포트는 의료진 설명 후 공개돼요" />
       <Body loading={loading} error={error} onRetry={reload}>
         {data?.items?.length ? (
         <div className="list">
