@@ -447,7 +447,7 @@
   --qtab-mark:    2px;
 
   /* 주 큐 줄 — 한 줄짜리다 */
-  --qrow-pad-y:   calc(6px * var(--sp));   /* 09-28 9→6 — 홈 큐가 성겼다 */
+  --qrow-pad-y:   calc(8px * var(--sp));   /* 09-28 9→6 은 칩이 줄에 닿아 너무 빽빽했다 — 8 */
   --qrow-gap:     calc(10px * var(--sp));
   --qrow-n-w:     calc(16px * var(--sp));   /* 번호 칸 */
   --qrow-nm-fs:   calc(13.5px * var(--ft));
