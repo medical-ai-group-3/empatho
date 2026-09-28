@@ -373,8 +373,16 @@ class ExamOrder(AuditBase):
             # 이미 차 있어 느슨해지는 것이 없다.
             # API 계층이 아니라 DB 로 막는다 — Celery 나 admin 으로 들어오는 행은
             # API 검증을 거치지 않는다.
+            #
+            # 09-28 — **내원해서 진료만 보고 끝난 방문**도 completed 로 닫힌다
+            # (유방외과 「진료 완료」, PATCH /exam-orders/{id}/complete). 창구
+            # 접수 · 내원 처리된 예약은 세 칸이 빈 requested 인데, 이 제약이
+            # completed 를 막아서 진료 완료가 매번 IntegrityError → 500 이었다.
+            # visited_at 이 있는 행만 연다 — 안 온 예약이 빈 칸으로 completed
+            # 가 되는 길은 그대로 막힌다(0026).
             models.CheckConstraint(
                 condition=Q(order_status__in=['requested', 'scheduled', 'cancelled'])
+                | (Q(order_status='completed') & Q(visited_at__isnull=False))
                 | (Q(modality__isnull=False) & Q(exam_purpose__isnull=False)
                    & Q(ordered_by__isnull=False)),
                 name='exam_order_requested_fields_ck'),

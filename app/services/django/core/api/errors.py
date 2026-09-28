@@ -93,6 +93,9 @@ INFRA_ERRORS = [
     # 09-27 간호 → 유방외과 인계 — 취소 · 완료된 오더는 보낼 수 없다
     _spec("HANDOFF_NOT_ALLOWED", 409, "취소되었거나 끝난 오더는 유방외과로 보낼 수 없습니다."),
     _spec("ALREADY_ASSIGNED", 409, "다른 선생님이 이미 맡았습니다."),
+    # 09-28 오더 완료(PATCH /exam-orders/{id}/complete) — 취소된 오더나 아직
+    # 내원하지 않은 예약은 닫을 수 없다
+    _spec("COMPLETE_NOT_ALLOWED", 409, "취소되었거나 아직 내원하지 않은 오더는 완료 처리할 수 없습니다."),
     # 09-16 일운님 · 다희님 협의 — 수술 결정 기록(PATCH /assessments/{id}/decision)
     # 단독 권한. 명세 §1-4 25개엔 없어 여기 둔다.
     _spec("DECISION_ROLE_ONLY_SURGERY", 403, "수술 결정 기록은 유방외과만 할 수 있습니다."),

@@ -174,7 +174,23 @@ class ExamOrderCompleteView(AuditMixin, viewsets.ViewSet):
     permission_classes = [CanCompleteExamOrder]
 
     def partial_update(self, request, pk=None):
-        order = models.ExamOrder.objects.get(pk=pk)
+        # ⚠ .get() 이면 없는 번호가 DoesNotExist → 500 이었다
+        order = models.ExamOrder.objects.filter(pk=pk).first()
+        if order is None:
+            raise ApiError("NOT_FOUND", "오더를 찾을 수 없습니다.")
+        if order.order_status == "completed":
+            # 두 번 눌러도 같은 결과 — 연타 · 재시도가 오류로 떨어지지 않게
+            return Response(serializers.ExamOrderSerializer(order).data)
+        # 09-28 — 유방외과 「진료 완료」는 검사 칸(modality · exam_purpose ·
+        # ordered_by)이 빈 **방문 오더**를 닫는다. DB 제약
+        # (exam_order_requested_fields_ck)은 그런 행을 visited_at 이 있을 때만
+        # completed 로 받는다 — 예전에는 여기서 걸러 주지 않아 제약 위반이
+        # IntegrityError → 500 「서버에서 처리하지 못했습니다」로 떨어졌다.
+        # 취소된 오더 · 안 온 예약은 닫을 대상이 아니다.
+        confirmed = (order.modality and order.exam_purpose
+                     and order.ordered_by_id is not None)
+        if order.order_status == "cancelled" or (not confirmed and order.visited_at is None):
+            raise ApiError("COMPLETE_NOT_ALLOWED")
         order.order_status = "completed"
         order.updated_by = self._current_account()
         order.save()
