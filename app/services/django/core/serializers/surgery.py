@@ -235,6 +235,8 @@ class ReportExplainSerializer(serializers.Serializer):
 
     explain_method = serializers.ChoiceField(choices=models.as_choices(models.EXPLAIN_METHOD))
     patient_confirmed = serializers.BooleanField()
+    # 09-28 — 화면이 보내던 설명 내용. 모델 칸이 없어 content_json 에 둔다
+    explain_content = serializers.CharField(required=False, allow_blank=True, max_length=4000)
 
 
 class SpecimenBindSerializer(serializers.Serializer):

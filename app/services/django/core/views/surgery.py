@@ -290,27 +290,120 @@ class SurgeryDecisionView(AuditMixin, viewsets.ViewSet):
         return Response(out.data)
 
 
+def _report_pair(report):
+    """종합 소견서는 의사용 · 환자용 **두 벌이 한 짝**이다(reports.issue_final_report).
+
+    ⚠ 09-28 — 설명 · 잠금 해제가 한 벌에만 걸렸다. 치료 방침 화면은 의사용을
+      들고 있어서 설명을 의사용에 적고, 의사용의 unlock-status 를 보고, 의사용을
+      풀었다. 환자 앱은 **환자용만** 읽고(SurgeryReportViewSet.owned_queryset)
+      알림도 환자용에만 가므로, 「잠금 해제」를 눌러도 환자에게는 아무것도 안
+      열렸다. 반대로 환자용 번호로 부르면 설명 기록이 의사용에 있어 조건 ③이
+      끝내 안 켜졌다. 그래서 설명 · 해제는 짝 전체에 건다.
+
+    짝을 가리키는 FK 가 없다. 같은 환자 · 같은 묶음(source_ai_ids)의 다른
+    audience 종합 소견서 중 번호가 가장 가까운 것이 짝이다 — 두 벌은 한
+    호출에서 연달아 선다. 다시 만들면 새 짝이 또 서므로 번호로 가른다.
+    종합 소견서가 아니면(검사별 stage) 자기 한 벌뿐이다.
+    """
+    if report.report_type != "final" or report.audience not in ("clinician", "patient"):
+        return [report]
+    other = "patient" if report.audience == "clinician" else "clinician"
+
+    def src_of(r):
+        return r.content_json.get("source_ai_ids") if isinstance(r.content_json, dict) else None
+
+    src = src_of(report)
+    near = None
+    for r in models.Report.objects.filter(patient_id=report.patient_id, report_type="final",
+                                          audience=other):
+        if src_of(r) != src:
+            continue
+        if near is None or abs(r.pk - report.pk) < abs(near.pk - report.pk):
+            near = r
+    return [report, near] if near is not None else [report]
+
+
+def _get_report(pk):
+    report = models.Report.objects.filter(pk=pk).select_related("patient").first()
+    if report is None:
+        raise ApiError("NOT_FOUND", "리포트를 찾을 수 없습니다")
+    return report
+
+
 class ReportExplainView(AuditMixin, viewsets.ViewSet):
-    """§3 PATCH /reports/{id}/explain — 환자 설명 기록."""
+    """§3 PATCH /reports/{id}/explain — 환자 설명 기록. 종합 소견서면 짝에도 적는다."""
 
     resource = "report"
     permission_classes = [MatrixPermission]
 
     def partial_update(self, request, pk=None):
-        report = models.Report.objects.get(pk=pk)
+        report = _get_report(pk)
         serializer = serializers.ReportExplainSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
-        report.explain_method = data["explain_method"]
-        report.patient_confirmed = data["patient_confirmed"]
-        report.explained_by = getattr(request.user, "staff", None)
-        report.explained_at = timezone.now()
-        report.updated_by = self._current_account()
-        report.save()
+        now = timezone.now()
+        staff = getattr(request.user, "staff", None)
+        with transaction.atomic():
+            for r in _report_pair(report):
+                r.explain_method = data["explain_method"]
+                r.patient_confirmed = data["patient_confirmed"]
+                r.explained_by = staff
+                r.explained_at = now
+                # 설명 내용 — 받을 칸이 모델에 없어 화면이 보낸 글이 버려졌다.
+                # content_json 에 둔다(마이그레이션 없이). 안 보내면 그대로 둔다
+                if "explain_content" in data:
+                    cur = r.content_json if isinstance(r.content_json, dict) else {}
+                    r.content_json = {**cur, "explain_content": data["explain_content"]}
+                r.updated_by = self._current_account()
+                r.save()
 
+        report.refresh_from_db()
         out = serializers.ReportSerializer(report)
         return Response(out.data)
+
+
+def unlock_conditions(report):
+    """잠금 해제 세 조건. 조건마다 **무엇이 막고 있는지**(items)를 같이 싣는다 —
+    화면이 「대기」만 띄우지 않고 어느 검사 · 검체 · 불일치인지 짚게."""
+    patient = report.patient
+
+    studies = list(models.Study.objects.filter(patient=patient)
+                   .exclude(read_status="finalized")
+                   .values("study_id", "modality", "read_status"))
+    specimens = list(models.Specimen.objects.filter(patient=patient, finalized_at__isnull=True)
+                     .values("specimen_id", "specimen_label"))
+    records_final = not studies and not specimens
+
+    flags = list(models.DiscordanceFlag.objects.filter(
+        lesion__patient=patient, closed_at__isnull=True
+    ).values("discordance_flag_id", "violated_rule", "flag_status"))
+    discordance_closed = not flags
+
+    pair = _report_pair(report)
+    explained_at = max((r.explained_at for r in pair if r.explained_at), default=None)
+    explained = explained_at is not None
+
+    conditions = [
+        {"key": "records_final", "label": "전 레코드 확정", "met": records_final,
+         "items": ([{"kind": "study", "study_id": s["study_id"], "modality": s["modality"],
+                     "read_status": s["read_status"]} for s in studies]
+                   + [{"kind": "specimen", "specimen_id": s["specimen_id"],
+                       "specimen_label": s["specimen_label"]} for s in specimens])},
+        {"key": "discordance_closed", "label": "대조 종결", "met": discordance_closed,
+         "items": [{"kind": "discordance", "discordance_id": f["discordance_flag_id"],
+                    "violated_rule": f["violated_rule"], "flag_status": f["flag_status"]}
+                   for f in flags]},
+        {"key": "explained", "label": "대면 설명 완료", "met": explained,
+         "explained_at": explained_at},
+    ]
+    return {
+        "conditions": conditions,
+        "can_unlock": all(c["met"] for c in conditions),
+        # 이 호출이 가리키는 짝 — 어느 행들이 같이 풀리는지 화면이 안다
+        "report_ids": [r.pk for r in pair],
+        "unlocked": all(r.lock_status == "unlocked" for r in pair),
+    }
 
 
 class ReportUnlockStatusView(viewsets.ViewSet):
@@ -320,68 +413,59 @@ class ReportUnlockStatusView(viewsets.ViewSet):
     permission_classes = [MatrixPermission]
 
     def retrieve(self, request, pk=None):
-        report = models.Report.objects.get(pk=pk)
-        patient = report.patient
-
-        records_final = not models.Study.objects.filter(
-            patient=patient
-        ).exclude(read_status="finalized").exists() and not models.Specimen.objects.filter(
-            patient=patient, finalized_at__isnull=True
-        ).exists()
-
-        discordance_closed = not models.DiscordanceFlag.objects.filter(
-            lesion__patient=patient, closed_at__isnull=True
-        ).exists()
-
-        explained = report.explained_at is not None
-
-        conditions = [
-            {"key": "records_final", "label": "전 레코드 확정", "met": records_final},
-            {"key": "discordance_closed", "label": "대조 종결", "met": discordance_closed},
-            {"key": "explained", "label": "대면 설명 완료", "met": explained},
-        ]
-        can_unlock = all(c["met"] for c in conditions)
-
-        return Response({"conditions": conditions, "can_unlock": can_unlock})
+        return Response(unlock_conditions(_get_report(pk)))
 
 
 class ReportUnlockView(AuditMixin, viewsets.ViewSet):
-    """§3 PATCH /reports/{id}/unlock — 잠금 해제."""
+    """§3 PATCH /reports/{id}/unlock — 잠금 해제. 종합 소견서면 짝을 같이 푼다."""
 
     resource = "report"
     permission_classes = [MatrixPermission, CanUnlockReport]
 
     def partial_update(self, request, pk=None):
-        report = models.Report.objects.get(pk=pk)
+        report = _get_report(pk)
 
-        status_view = ReportUnlockStatusView()
-        status_check = status_view.retrieve(request, pk=pk).data
+        status_check = unlock_conditions(report)
         if not status_check["can_unlock"]:
             raise ApiError("VALIDATION_ERROR", "잠금 해제 조건이 충족되지 않았습니다.",
                            details=status_check["conditions"])
 
-        report.lock_status = "unlocked"
-        report.unlocked_by = getattr(request.user, "staff", None)
-        report.unlocked_at = timezone.now()
-        report.unlock_reason = request.data.get("unlock_reason", "")
-        report.updated_by = self._current_account()
-        report.save()
-        
+        now = timezone.now()
+        staff = getattr(request.user, "staff", None)
+        reason = request.data.get("unlock_reason", "")
+        released = []
+        with transaction.atomic():
+            for r in _report_pair(report):
+                # 이미 풀린 벌은 건드리지 않는다 — 풀린 시각 · 사람이 덮이면 안 된다
+                if r.lock_status == "unlocked":
+                    continue
+                r.lock_status = "unlocked"
+                r.unlocked_by = staff
+                r.unlocked_at = now
+                r.unlock_reason = reason
+                r.updated_by = self._current_account()
+                r.save()
+                released.append(r)
+
         # 환자에게는 환자용 한 벌만 알린다. 종합 소견서는 의사용·환자용 두 벌이
         # 같이 풀려서, 안 가리면 같은 결과로 알림이 두 번 간다.
-        if report.audience != "clinician":
-            from .. import notify
+        from .. import notify
+        for r in released:
+            if r.audience == "clinician":
+                continue
             notify.send(
-                patient=report.patient,
+                patient=r.patient,
                 type="report_ready",
                 message="검사 결과가 도착했습니다. 앱에서 확인해 주세요.",
                 ref_type="report",
-                ref_id=report.pk,
+                ref_id=r.pk,
                 severity="sev1",
             )
 
+        report.refresh_from_db()
         out = serializers.ReportSerializer(report)
         return Response(out.data)
+
 
 class FinalReportView(viewsets.ViewSet):
     """POST /reports/final — 고른 검사 판독문들을 종합 소견서 두 벌로 묶는다."""
