@@ -193,10 +193,11 @@ a {
 .tabs {
   display: flex;
   flex: none;
+  gap: 4px;
+  padding: 6px;
   background: var(--surface);
   /* env(safe-area-inset-bottom) — 아이폰 아래쪽 «홈 인디케이터» 막대 높이다.
-     안 빼면 하단바가 그 밑에 깔려서 탭이 안 눌린다. 그 막대가 없는 기기에서는
-     0 이라 아무 일도 안 일어난다 */
+     안 빼면 하단바가 그 밑에 깔려서 탭이 안 눌린다 */
   margin: 0 var(--nav-side)
     calc(var(--nav-bottom) + env(safe-area-inset-bottom, 0px));
   border-radius: var(--nav-radius);
@@ -217,8 +218,11 @@ a {
   gap: var(--tab-ic-gap);
 }
 .tabs a.on {
+  /* 09-28 — 아이콘 칸만 칠하던 것을 탭 전체 알약으로(시안) */
   color: var(--pink);
   font-weight: 700;
+  background: var(--blossom);
+  border-radius: calc(var(--nav-radius) - 6px);
 }
 .tabs .ic {
   display: flex;
@@ -232,7 +236,7 @@ a {
   transition: background var(--motion);
 }
 .tabs a.on .ic {
-  background: var(--blossom);
+  background: none;
 }
 .svg-icon {
   width: 1em;
@@ -2324,40 +2328,44 @@ a {
   gap: var(--hello-gap);
 }
 .hello-message {
+  /* 09-28 — 흰 카드 · 날짜 알약 · 이름 강조(시안). 분홍 테두리를 걷고 그림자로 띄운다 */
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  padding: 8px 10px;
-  border-radius: 14px;
-  background: light-dark(rgba(255, 255, 255, 0.84), rgba(28, 31, 36, 0.88));
-  border: 2px solid var(--pink-3);
-  box-shadow: 0 4px 14px light-dark(rgba(70, 35, 42, 0.08), rgba(0, 0, 0, 0.22));
-  backdrop-filter: blur(7px);
+  align-items: flex-start;
+  gap: 6px;
+  padding: 16px 18px;
+  border-radius: 22px;
+  background: var(--surface);
+  box-shadow: 0 6px 20px light-dark(rgba(70, 35, 42, 0.10), rgba(0, 0, 0, 0.28));
 }
 .hello-date {
-  font-size: var(--tiny-fs) !important;
-  color: var(--muted) !important;
-  font-weight: 600;
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: var(--pink-bg);
+  font-size: var(--card-s-fs) !important;
+  color: var(--pink) !important;
+  font-weight: 700;
 }
 .hello-visit {
+  margin-top: 4px;
   font-size: var(--card-v-fs) !important;
   color: var(--ink) !important;
   font-weight: 700;
-  white-space: pre-line;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.45;
+  word-break: keep-all;   /* 「방문예정이 / 에요」처럼 낱말 중간에서 끊지 않는다 */
 }
 .hello-health-label {
-  margin-top: 2px;
-  font-size: var(--tiny-fs) !important;
-  color: var(--pink) !important;
+  margin-top: 6px;
+  font-size: var(--card-s-fs) !important;
+  color: var(--pink-2) !important;
   font-weight: 700;
-  letter-spacing: 0.01em;
 }
 .hello-health-tip {
-  font-size: var(--tiny-fs) !important;
-  color: var(--ink-2) !important;
-  font-weight: 600;
+  font-size: var(--card-s-fs) !important;
+  color: var(--ink) !important;
+  opacity: 0.72;
+  font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2377,14 +2385,18 @@ a {
 
 .hello-tx b {
   font-size: var(--hello-b-fs);
-  font-weight: 700;
-  color: var(--ink);
+  font-weight: 800;
+  color: var(--pink);
   letter-spacing: -0.02em;
   line-height: 1.2;
 }
 .hello-tx span {
   font-size: var(--hello-s-fs);
   color: var(--muted);
+}
+.hello-visit em {
+  font-style: normal;
+  color: var(--pink);
 }
 
 /* ── 챗봇 제안 줄 ────────────────────────────────
@@ -2900,3 +2912,15 @@ a {
 }
 .search input:focus { outline: none; }
 .search .btn { flex: none; width: auto; padding: 8px 14px; }
+/* 09-28 — 인사 카드를 넓힌다. 틸리 옆에 끼어 폭이 좁아 방문 문장이 세 줄이
+   됐다. 카드를 한 줄에 들어갈 만큼 넓히고, 틸리는 카드 오른쪽 끝에 살짝 겹쳐 앉힌다 */
+.hello-message {
+  padding: 18px 20px;
+  /* 세로 flex 의 자식은 기본으로 부모 폭까지 늘어난다 — 그래서 글 오른쪽,
+     틸리 밑까지 빈 흰 칸이 이어졌다. 글 폭만큼만 차지하게 한다 */
+  align-self: flex-start;
+}
+.hello-tri {
+  margin-left: calc(-56px * var(--sp, 1));
+  z-index: 2;
+}
