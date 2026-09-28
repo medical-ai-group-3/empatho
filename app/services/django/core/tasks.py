@@ -84,11 +84,55 @@ SOCKET = {"us": "5", "mammo": "4b", "mri": "3", "pathology": "1"}
 #   없음(초음파 · 병리) Go 의 files 경로 — Garage 에서 꺼낸다
 DICOM = {"mammo": ("dicom/instances", "image.dcm"), "mri": ("dicom/series", "series.zip")}
 
+# ── 잠깐 못 받은 것만 다시 건다 (09-28) ─────────────────────────────────
+# 추론 서버 GPU 는 여러 모델이 나눠 쓴다. 다른 판독이 메모리를 잡고 있으면
+# 추론 서버가 200 에 abstained · reason="predict_failed: OutOfMemoryError: CUDA
+# out of memory…" 로 돌려준다. 모델이 판정을 거부한 것이 아니라 서버가 잠깐
+# 바빴던 것이라, 조금 기다려 다시 걸면 대개 된다. HTTP 5xx 도 같다.
+#
+# 몇 번 · 얼마나 기다리나 — 두 번 더, 20초 · 60초 뒤. 그 뒤에도 안 되면 지금까지처럼
+# 그 응답(사유 그대로)을 남긴다. 무한히 다시 걸면 GPU 를 그만큼 더 잡으므로
+# 횟수를 못 박는다. 기다리는 동안 워커를 붙잡지 않도록 sleep 이 아니라 Celery
+# retry(countdown) 로 다시 줄을 세운다 — soft_time_limit(1200초)도 시도마다
+# 새로 잰다.
+RETRY_COUNTDOWNS = (20, 60)
+
+# 사유 글에 이 중 하나가 있으면 GPU 메모리 부족이다(소문자로 견준다)
+_OOM_MARKS = ("outofmemoryerror", "out of memory")
+
+
+class InferenceBusy(Exception):
+    """추론 서버가 GPU 메모리 부족으로 판독을 못 했다 — 다시 걸 만한 실패."""
+
+
+def _oom_reason(out):
+    """응답이 GPU 메모리 부족 기권이면 그 사유 글을, 아니면 None 을 돌려준다.
+
+    사유는 봉투의 reason 에 온다. 이름이 바뀌어도 놓치지 않게 비슷한 칸을
+    같이 본다. 모델이 정상적으로 기권한 것(검출 없음 등)은 여기 걸리지 않는다.
+    """
+    if not isinstance(out, dict):
+        return None
+    for key in ("reason", "abstain_reason", "error", "detail"):
+        text = out.get(key)
+        if isinstance(text, str) and any(m in text.lower() for m in _OOM_MARKS):
+            return text
+    return None
+
+
+def _transient(exc):
+    """다시 걸 만한 실패인가 — GPU 메모리 부족 · 추론 서버 5xx."""
+    if isinstance(exc, InferenceBusy):
+        return True
+    return isinstance(exc, urllib.error.HTTPError) and (exc.code or 0) >= 500
+
+
 # ⑤ celery task로 등록 => core.tasks.run_inference
-# 워커는 뜰 때 각 앱의 tasks.py 를 자동으로 찾아 이름을 등록 
-@shared_task
-# redis로 가는 메세지는 행 번호 하나, 나머지는 DB에서 읽어옴 
-def run_inference(ai_result_id) :
+# 워커는 뜰 때 각 앱의 tasks.py 를 자동으로 찾아 이름을 등록
+# bind — 잠깐 못 받은 것(GPU 메모리 부족 · 5xx)을 self.retry 로 다시 세운다
+@shared_task(bind=True, max_retries=len(RETRY_COUNTDOWNS))
+# redis로 가는 메세지는 행 번호 하나, 나머지는 DB에서 읽어옴
+def run_inference(self, ai_result_id) :
     """ai_result 한 행을 판독하고 결과를 그 행에 쓴다.
 
     행 하나가 판독 한 번이다. 어느 파일을 어느 소켓으로 돌리는지는 행이 들고 있다.
@@ -119,8 +163,12 @@ def run_inference(ai_result_id) :
 
     실패
         어느 단계에서 터지든 행은 failed 로 남고 예외는 밖으로 나가지 않는다.
-        Celery 재시도를 쓰지 않는 이유는, 같은 실패가 반복되면 GPU 를 그만큼
-        더 점유해서다. 다시 돌릴지는 사람이 정한다.
+        Celery 재시도는 **잠깐 못 받은 것에만** 쓴다 — GPU 메모리 부족 기권과
+        추론 서버 5xx. RETRY_COUNTDOWNS 만큼(두 번, 20초 · 60초 뒤)만 다시 걸고,
+        그동안 행은 queued 로 두어 화면이 계속 기다린다. 마지막 시도도 안 되면
+        예전과 똑같이 남긴다 — 기권 응답이면 done + abstained + 서버 사유 그대로,
+        5xx 면 failed + 예외 글 그대로. 그 밖의 실패는 다시 걸지 않는다 — 같은
+        실패가 반복되면 GPU 를 그만큼 더 점유한다. 다시 돌릴지는 사람이 정한다.
     """
 
     # ① 행을 읽어 무엇을 할지 정한다.
@@ -140,14 +188,18 @@ def run_inference(ai_result_id) :
     t0 = time.monotonic()
     # 병변 메시는 병변 행이 생긴 뒤에 올린다(_store_lesion_meshes) — 그때까지 든다
     lesion_meshes = []
-    
+    # 몇 번째 시도인가. 남은 재시도가 있을 때만 GPU 메모리 부족을 예외로 올린다 —
+    # 마지막 시도에서는 그 응답을 예전처럼 기권으로 남긴다
+    retries = self.request.retries or 0
+    can_retry = retries < len(RETRY_COUNTDOWNS)
+
     try :
         # 맘모는 영상 넷이 한 검진이라 장마다 판독하고 합친다.
         # 나머지는 가리키는 것 하나를 그대로 보낸다.
         if modality == "mammo" :
-            out = _mammo(ai, socket)
+            out = _mammo(ai, socket, busy_raise=can_retry)
         else :
-            out = _analyze(modality, socket, _ref(ai, modality))
+            out = _analyze(modality, socket, _ref(ai, modality), busy_raise=can_retry)
             
         # 기권이면 파생물이 없다. 추론 서버는 실패도 200 에 abstained 로
         # 돌려주는 것이 규약이라 그때는 result 칸 자체가 안 온다. 그대로
@@ -178,6 +230,14 @@ def run_inference(ai_result_id) :
         ai.abstain_reason = "soft_time_limit"
     
     except Exception as e:
+        # 잠깐 못 받은 것이면 조금 뒤 다시 줄을 선다. 행은 queued 로 돌려 두어
+        # 화면이 「실패」 대신 계속 기다린다. 사유 칸은 건드리지 않는다.
+        if can_retry and _transient(e) :
+            wait = RETRY_COUNTDOWNS[retries]
+            logger.warning("[run_inference] 행 %s 추론 서버가 잠깐 못 받음 (%s) — %s초 뒤 다시 (%s/%s)",
+                           ai.pk, f"{type(e).__name__}: {e}"[:200], wait, retries + 1, len(RETRY_COUNTDOWNS))
+            AiResult.objects.filter(pk=ai_result_id).update(run_status="queued")
+            raise self.retry(exc=e, countdown=wait)
         # 실패해도 행에 남긴다. 로그만 남기면 화면이 queue 인채로 멈춘다
         logger.exception("[run_inference] 행 %s 실패", ai.pk)
         ai.run_status = "failed"
@@ -340,7 +400,10 @@ def request_narrative(self, report_id, ai_result_id=None) :
     logger.info("[narrative] 리포트 %s 보냄 / 소켓 %s / fallback=%s", report_id, report.socket_id, out.get("fallback"))
     return "sent"
 
-def _analyze(modality, socket, refs) :
+def _analyze(modality, socket, refs, busy_raise=False) :
+    # busy_raise  참이면 GPU 메모리 부족 기권을 InferenceBusy 로 올린다 —
+    #             run_inference 가 조금 뒤 다시 건다. 거짓(마지막 시도)이면
+    #             예전처럼 응답을 그대로 돌려준다
     # ⑥ [이미지 워커로 전송] == Go 에서 이미지 전달 받음. 워커는 저장소에 접근하지 않는다 ==
     # 티켓 접두사(scope_kind/scope_id)가 Go 가 여는 범위다.
     #   DICOM   dicom/instances/<UID> · dicom/series/<ID> — Go 가 경로와 정확히 같은지 본다
@@ -407,6 +470,10 @@ def _analyze(modality, socket, refs) :
                 raise 
             logger.warning("[run_inference] 연결 끊김 - 다시 건다 (%s)", type(exc).__name__)
             time.sleep(3)
+    if busy_raise :
+        reason = _oom_reason(out)
+        if reason :
+            raise InferenceBusy(reason)
     return out
 
 def _birads(value) :
@@ -427,11 +494,14 @@ def _birads_rank(value) :
     """
     return birads_rules.rank(value)
 
-def _mammo(ai, socket) :
+def _mammo(ai, socket, busy_raise=False) :
     """맘모는 영상 넷(좌우 × CC/MLO)이 한 검진이다.
 
     장마다 판독하고 결과를 합친다. 합친 모양은 한 장짜리와 같게 두어
     리포트 서버가 그대로 읽는다 — 병변에 어느 영상인지만 붙인다.
+
+    busy_raise 는 _analyze 로 그대로 넘긴다 — 한 장이라도 GPU 메모리 부족이면
+    넷을 통째로 다시 건다(한 장만 빠진 합본을 남기지 않는다).
     """
     rows = (StorageObject.objects.filter(study_id=ai.study_id, sop_instance_uid__isnull=False, deleted_at__isnull=True).order_by("storage_object_id"))
     if not rows :
@@ -440,7 +510,7 @@ def _mammo(ai, socket) :
     envelope, lesions = None, []
     n, top, biopsy, abstained = 0, None, False, True
     for row in rows :
-        out = _analyze("mammo", socket, [row.sop_instance_uid])
+        out = _analyze("mammo", socket, [row.sop_instance_uid], busy_raise=busy_raise)
         envelope = envelope or out 
         s = ((out.get("result") or {}).get("summary")) or {}
         img = {

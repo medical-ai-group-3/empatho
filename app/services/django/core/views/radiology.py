@@ -602,10 +602,23 @@ class AiResultListView(viewsets.ViewSet):
         if not results:
             return Response({"status": "queued", "pct": 0})
 
-        total = len(results)
-        done = sum(1 for r in results if r.run_status == "done")
-        failed = sum(1 for r in results if r.run_status == "failed")
-        running = sum(1 for r in results if r.run_status == "running")
+        # 상태는 **대상마다 가장 최근 행**으로만 센다(09-28). 다시 돌리면 행이
+        # 새로 생기는데, 전부 세면 지난번 failed 행 하나 때문에 새 판독이 돌고
+        # 있어도 늘 failed 로 보였다(판독 화면의 「AI 다시 실행」). 대상은
+        # source_object — 맘모 · MRI 는 비어 있어 검사 전체가 한 대상이다.
+        # results(아래 응답)는 예전처럼 전부 준다.
+        newest = {}
+        for r in results:
+            key = r.source_object_id
+            cur = newest.get(key)
+            if cur is None or (r.created_at, r.pk) > (cur.created_at, cur.pk):
+                newest[key] = r
+        latest = list(newest.values())
+
+        total = len(latest)
+        done = sum(1 for r in latest if r.run_status == "done")
+        failed = sum(1 for r in latest if r.run_status == "failed")
+        running = sum(1 for r in latest if r.run_status == "running")
 
         if failed > 0:
             overall = "failed"
