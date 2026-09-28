@@ -4,7 +4,7 @@ from rest_framework import viewsets, status, generics
 from rest_framework.response import Response
 
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.utils import timezone
 
 from .. import models, serializers, viewed
@@ -92,8 +92,72 @@ class PatientTimelineView(AuditMixin, viewsets.ViewSet):
                                "detail": specimen.diagnosis,
                                "specimen_id": specimen.specimen_id})
 
+        # ── 치료 결정 · 리포트 · 결과 설명 · 처방 (09-28 유방외과 요청) ──────
+        #
+        # ⚠ **의료진에게만** 싣는다. 이 문은 환자 본인도 연다(위 role 검사).
+        #   리포트는 대면 설명 전까지 잠겨 있고(lock_status), 팀 규칙은 「설명
+        #   전에 환자가 결과를 먼저 알면 안 된다」이다. 치료 결정(수술 yes 등)
+        #   과 리포트 발급 사실만으로도 결과가 새어 나간다 — 「수술 결정」 한
+        #   줄이면 소견문을 안 읽어도 다 안다. 환자용 응답은 전과 한 글자도
+        #   다르지 않게 둔다. 환자에게 보이려면 잠금 규칙부터 다시 정할 것.
+        #   (처방은 환자 앱에 즉시 보이지만 — models.py PrescriptionDrug 위
+        #   주석 — 거기는 약만 싣는 화면이다. 여기서는 report_id 로 리포트와
+        #   이어 주므로 같이 막는다.)
+        if request.user.role != "patient":
+            self._staff_events(patient, events)
+
+        # ⚠ at 이 비면 정렬이 None 비교로 터진다. 새 줄들은 만들 때 거른다.
         events.sort(key=lambda e: e["at"])
         return Response(events)
+
+    @staticmethod
+    def _staff_events(patient, events):
+        # 치료 결정 — 판독 행에 decision_* 로 붙는다(SurgeryDecisionView).
+        # decided_at 이 없으면 아직 결정 전이다.
+        # ⚠ 백엔드에는 decision_value 의 한글 이름표가 없다(as_choices 가
+        #   코드를 그대로 쓴다). 그래서 detail 에 코드를 그대로 싣고, 화면이
+        #   decision_type · decision_value 로 이름을 붙인다.
+        for a in (models.Assessment.objects
+                  .filter(study__patient=patient, decided_at__isnull=False)
+                  .only("assessment_id", "study_id", "decided_at",
+                        "decision_type", "decision_value")):
+            events.append({
+                "at": a.decided_at, "type": "치료 결정",
+                "detail": a.decision_value,
+                "assessment_id": a.assessment_id,
+                "study_id": a.study_id,
+                "decision_type": a.decision_type,
+                "decision_value": a.decision_value,
+            })
+
+        # 리포트 발급과 결과 설명. 한 행에서 두 줄이 나온다.
+        for r in (models.Report.objects.filter(patient=patient)
+                  .only("report_id", "created_at", "report_type", "audience",
+                        "explained_at", "explain_method")):
+            if r.created_at:
+                events.append({"at": r.created_at, "type": "리포트",
+                               "detail": r.report_type,
+                               "report_id": r.report_id,
+                               "report_type": r.report_type,
+                               "audience": r.audience})
+            if r.explained_at:
+                events.append({"at": r.explained_at, "type": "결과 설명",
+                               "detail": r.explain_method,
+                               "report_id": r.report_id})
+
+        # 처방. 약 개수는 annotate 로 한 번에 센다 — 처방마다 drugs 를 부르면
+        # 처방 수만큼 쿼리가 는다.
+        # ⚠ prescribed_at 이 비는 처방이 있어 created_at 으로 받친다.
+        for p in (models.Prescription.objects.filter(patient=patient)
+                  .annotate(drug_count=Count("drugs"))
+                  .only("prescription_id", "report_id", "prescribed_at", "created_at")):
+            at = p.prescribed_at or p.created_at
+            if at is None:
+                continue
+            events.append({"at": at, "type": "처방",
+                           "detail": f"약 {p.drug_count}종" if p.drug_count else None,
+                           "prescription_id": p.prescription_id,
+                           "report_id": p.report_id})
 
 
 class SurgeryReportViewSet(AuditMixin, OwnedOnlyMixin, viewsets.ModelViewSet):
