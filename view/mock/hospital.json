@@ -933,7 +933,9 @@
    {
     "ai_result_id": "a1",
     "result": {
-     "image": { "filename": "crop_01.png" },
+     "image": {
+      "filename": "crop_01.png"
+     },
      "socket_id": "1",
      "result": {
       "stil_percent": 2.13,
@@ -947,14 +949,20 @@
       "stroma_area_px": 110200,
       "immune_cell_area_px": 8400,
       "mpp": 0.25,
-      "tissue_mask_legend": { "0": "other", "1": "tumor", "2": "stroma" }
+      "tissue_mask_legend": {
+       "0": "other",
+       "1": "tumor",
+       "2": "stroma"
+      }
      }
     }
    },
    {
     "ai_result_id": "a2",
     "result": {
-     "image": { "filename": "crop_02.png" },
+     "image": {
+      "filename": "crop_02.png"
+     },
      "socket_id": "1",
      "result": {
       "stil_percent": 0.78,
@@ -968,14 +976,20 @@
       "stroma_area_px": 136400,
       "immune_cell_area_px": 2100,
       "mpp": 0.25,
-      "tissue_mask_legend": { "0": "other", "1": "tumor", "2": "stroma" }
+      "tissue_mask_legend": {
+       "0": "other",
+       "1": "tumor",
+       "2": "stroma"
+      }
      }
     }
    },
    {
     "ai_result_id": "a3",
     "result": {
-     "image": { "filename": "crop_03.png" },
+     "image": {
+      "filename": "crop_03.png"
+     },
      "socket_id": "1",
      "result": {
       "stil_percent": null,
@@ -985,7 +999,11 @@
       "n_cells_total": 5902,
       "n_cells_til": 0,
       "n_cells_til_stromal": 0,
-      "tissue_mask_legend": { "0": "other", "1": "tumor", "2": "stroma" }
+      "tissue_mask_legend": {
+       "0": "other",
+       "1": "tumor",
+       "2": "stroma"
+      }
      }
     }
    }
@@ -1553,8 +1571,12 @@
     "max_diameter": 96,
     "aspect_ratio": 1.4,
     "convexity": 0.91,
-    "roughness": 0.22,
-    "circularity": 0.72
+    "roughness": 1.12,
+    "circularity": 0.72,
+    "bbox_w_px": 96,
+    "bbox_h_px": 68,
+    "taller_than_wide": false,
+    "n_components": 1
    },
    "orientation": "비평행(non-parallel)",
    "polygon": {
@@ -1590,7 +1612,8 @@
     ],
     "holes": [],
     "n_components": 1
-   }
+   },
+   "score": 0.91
   },
   "doctor": {
    "finding_note": null
@@ -1659,9 +1682,50 @@
       "x": 118,
       "y": 96,
       "z": 188
-     }
+     },
+     "volume_cm3": 2.86
+    },
+    {
+     "id": "L-0044-B",
+     "volume_cm3": 0.74,
+     "max_diameter_mm": 9.2,
+     "nipple_distance_mm": 61,
+     "quadrant": "LIQ"
     }
-   ]
+   ],
+   "tumor": {
+    "location_note": "위치 값은 근사치입니다",
+    "evidence": [
+     {
+      "id": "MR-01",
+      "kind": "lesion",
+      "box": [
+       100,
+       80,
+       136,
+       112
+      ],
+      "image": {
+       "orientation": "axial",
+       "slice_index": 40
+      }
+     },
+     {
+      "id": "MR-02",
+      "kind": "lesion",
+      "box": [
+       60,
+       150,
+       80,
+       168
+      ],
+      "image": {
+       "orientation": "axial",
+       "slice_index": 62
+      }
+     }
+    ]
+   }
   },
   "doctor": {
    "finding_note": null
@@ -1743,7 +1807,9 @@
       415,
       439,
       517
-     ]
+     ],
+     "score": 0.82,
+     "confidence": "high"
     },
     {
      "id": "L2",
@@ -1777,7 +1843,9 @@
       106,
       668,
       269
-     ]
+     ],
+     "score": 0.47,
+     "confidence": "medium"
     }
    ],
    "limitations": [

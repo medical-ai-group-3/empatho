@@ -55,12 +55,20 @@ const TOOLS = [
   { key: "brush", label: "마스크", toolName: "Brush" },
 ];
 
-export default function DicomMprPanel({ manifestUrl, baseUrl, mode = "diagnostic", onAnnotation }) {
+export default function DicomMprPanel({ manifestUrl, baseUrl, mode = "diagnostic", onAnnotation, focusSlice = null }) {
   const isReview = mode === "review";
   const axialRef = useRef(null);
   const coronalRef = useRef(null);
   const sagittalRef = useRef(null);
   const [status, setStatus] = useState("loading"); // loading | ready | error | empty
+
+  /* AI 소견의 「근거 단면」 버튼 → 축상면을 그 장으로 옮긴다(09-28).
+     모델의 slice_index 는 볼륨 축상 순번이다. 볼륨이 다 올라온 뒤에만 옮긴다 */
+  useEffect(() => {
+    if (status !== "ready" || focusSlice == null || !axialRef.current) return;
+    cornerstone.utilities.jumpToSlice(axialRef.current, { imageIndex: focusSlice })
+      .catch((e) => console.warn("jumpToSlice", e));
+  }, [status, focusSlice]);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState(null);
   const [activeTool, setActiveTool] = useState("crosshairs");

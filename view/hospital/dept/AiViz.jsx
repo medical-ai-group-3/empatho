@@ -151,3 +151,117 @@ function pctOf(v, total) {
   if (!isNum(v) || !isNum(total) || total <= 0) return "";
   return ` ${((v / total) * 100).toFixed(0)}%`;
 }
+
+/* ── 09-28 추가: 그래프 셋 ─────────────────────────────────────────
+ * 막대로 안 되는 모양만 SVG 로 그린다. 색은 화면 토큰(var(--cyan) 등)을 쓴다. */
+
+/* 값 막대 — 이름 · 막대 · 값 글자. max 기준으로 길이를 잡는다.
+   맘모 병변별 점수 · 서술어 확신도, MRI 병변 부피가 이 모양이다. */
+export function Bars({ label, items, max, note, fmtVal = (v) => round(v, 2) }) {
+  const use = (items ?? []).filter((v) => isNum(v.value));
+  if (use.length === 0) return null;
+  const top = max ?? (Math.max(...use.map((v) => v.value)) || 1);
+  return (
+    <div className="viz viz-lg">
+      {label && <div className="viz-h">{label}</div>}
+      {use.map((v, i) => (
+        <div className="viz-row" key={i}>
+          <span className="viz-name" title={v.name}>{v.name}</span>
+          <span className="viz-track">
+            <i className={`viz-fill ${v.on ? "on" : "t0"}`}
+               style={{ width: `${Math.max(2, Math.min(100, (v.value / top) * 100))}%` }} />
+          </span>
+          <span className="viz-val">{v.text ?? fmtVal(v.value)}</span>
+        </div>
+      ))}
+      {note && <div className="viz-note">{note}</div>}
+    </div>
+  );
+}
+
+/* 방사형 — 축마다 [lo, hi] 범위를 받아 0~1 로 편다. 초음파 형태 지표.
+   축 값이 없으면 그 축은 중심(0)에 둔다 — 없는 값을 지어내지 않고, 글자로 「—」 */
+export function Radar({ label, axes, note }) {
+  const use = (axes ?? []);
+  if (use.filter((a) => isNum(a.value)).length < 3) return null;
+  const N = use.length, R = 90, C = 130;
+  const pt = (i, f) => {
+    const t = -Math.PI / 2 + (2 * Math.PI * i) / N;
+    return [C + Math.cos(t) * R * f, C + Math.sin(t) * R * f];
+  };
+  const norm = (a) => isNum(a.value) ? Math.max(0, Math.min(1, (a.value - a.lo) / (a.hi - a.lo))) : 0;
+  const poly = use.map((a, i) => pt(i, norm(a)).join(",")).join(" ");
+  return (
+    <div className="viz viz-lg">
+      {label && <div className="viz-h">{label}</div>}
+      <svg className="viz-svg" viewBox="0 0 260 260" role="img" aria-label={label}>
+        {[0.25, 0.5, 0.75, 1].map((f) => (
+          <polygon key={f} points={use.map((_, i) => pt(i, f).join(",")).join(" ")}
+                   fill="none" stroke="var(--line-2)" />
+        ))}
+        {use.map((_, i) => <line key={i} x1={C} y1={C} x2={pt(i, 1)[0]} y2={pt(i, 1)[1]} stroke="var(--line-2)" />)}
+        <polygon points={poly} fill="var(--cyan)" fillOpacity="0.28" stroke="var(--cyan)" strokeWidth="2" />
+        {use.map((a, i) => {
+          const [x, y] = pt(i, 1.22);
+          return (
+            <text key={a.name} x={x} y={y} textAnchor="middle" dominantBaseline="middle"
+                  fontSize="12" fill="var(--ink)">
+              {a.name}
+              <tspan x={x} dy="14" fontSize="11" fill="var(--warm)">{isNum(a.value) ? round(a.value, 2) : "—"}</tspan>
+            </text>
+          );
+        })}
+      </svg>
+      {note && <div className="viz-note">{note}</div>}
+    </div>
+  );
+}
+
+/* 유방 위치 도식 — 사분면 글자와 유두 거리로 병변을 점으로 찍는다.
+   quadrant 는 「상부(superior)-외측(lateral)」처럼 온다. 좌우(laterality)가
+   없어 한쪽 유방만 그리고, 내측·외측을 글자로 적는다.
+   ⚠ 거리는 병변끼리의 상대 위치다(가장 먼 병변을 가장자리로). 실측 도면이 아니다. */
+export function BreastMap({ label, lesions, note, pick, onPick }) {
+  const use = (lesions ?? []).map((l, i) => ({ ...l, i })).filter((l) => l.quadrant);
+  if (use.length === 0) return null;
+  const maxD = Math.max(...use.map((l) => (isNum(l.dist) ? l.dist : 0)), 1);
+  const C = 130, R = 100;
+  const pos = (l, k) => {
+    const q = String(l.quadrant);
+    const up = /상부|superior|upper|^U[OI]Q/i.test(q), down = /하부|inferior|lower|^L[OI]Q/i.test(q);
+    const med = /내측|medial|inner|^[UL]IQ/i.test(q), lat = /외측|lateral|outer|^[UL]OQ/i.test(q);
+    const dx = med ? -1 : lat ? 1 : 0, dy = up ? -1 : down ? 1 : 0;
+    const len = Math.hypot(dx, dy) || 1;
+    const f = isNum(l.dist) ? 0.25 + 0.7 * (l.dist / maxD) : 0.55;
+    const jitter = (k % 3) * 6;                    /* 같은 칸 병변이 겹치지 않게 */
+    return [C + (dx / len) * R * f + jitter, C + (dy / len) * R * f + jitter];
+  };
+  return (
+    <div className="viz viz-lg">
+      {label && <div className="viz-h">{label}</div>}
+      <svg className="viz-svg" viewBox="0 0 260 260" role="img" aria-label={label}>
+        <circle cx={C} cy={C} r={R} fill="var(--line-2)" fillOpacity="0.35" stroke="var(--faint)" />
+        <line x1={C - R} y1={C} x2={C + R} y2={C} stroke="var(--faint)" strokeDasharray="4 4" />
+        <line x1={C} y1={C - R} x2={C} y2={C + R} stroke="var(--faint)" strokeDasharray="4 4" />
+        <circle cx={C} cy={C} r="6" fill="var(--warm)" />
+        <text x={C} y={C + 20} textAnchor="middle" fontSize="11" fill="var(--warm)">유두</text>
+        <text x={C} y={18} textAnchor="middle" fontSize="12" fill="var(--warm)">상부</text>
+        <text x={C} y={252} textAnchor="middle" fontSize="12" fill="var(--warm)">하부</text>
+        <text x={12} y={C + 4} fontSize="12" fill="var(--warm)">내측</text>
+        <text x={248} y={C + 4} textAnchor="end" fontSize="12" fill="var(--warm)">외측</text>
+        {use.map((l, k) => {
+          const [x, y] = pos(l, k);
+          const on = pick != null && pick === l.i;
+          return (
+            <g key={l.i} style={{ cursor: onPick ? "pointer" : "default" }}
+               onClick={() => onPick?.(on ? null : l.i)}>
+              <circle cx={x} cy={y} r={on ? 13 : 10} fill={on ? "var(--ink)" : "var(--cyan)"} />
+              <text x={x} y={y + 4} textAnchor="middle" fontSize="11" fill="#fff">{l.i + 1}</text>
+            </g>
+          );
+        })}
+      </svg>
+      {note && <div className="viz-note">{note}</div>}
+    </div>
+  );
+}
