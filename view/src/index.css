@@ -2912,3 +2912,13 @@ a {
 }
 .search input:focus { outline: none; }
 .search .btn { flex: none; width: auto; padding: 8px 14px; }
+/* 09-28 — 인사 카드를 넓힌다. 틸리 옆에 끼어 폭이 좁아 방문 문장이 세 줄이
+   됐다. 카드를 한 줄에 들어갈 만큼 넓히고, 틸리는 카드 오른쪽 끝에 살짝 겹쳐 앉힌다 */
+.hello-message {
+  min-width: calc(232px * var(--sp, 1));
+  padding: 18px 20px;
+}
+.hello-tri {
+  margin-left: calc(-56px * var(--sp, 1));
+  z-index: 2;
+}
