@@ -44,14 +44,14 @@ export function PathologyAiSummary({ d, slide, onSlide }) {
     <div className="viz-chips">
       {rows.map((r, i) => (
         <button type="button" key={r.id ?? i} className="phr-b" aria-pressed={slide === i}
-                disabled={!onSlide} title="이 크롭을 뷰어에 띄웁니다"
+                disabled={!onSlide} title="이 크롭을 뷰어에 표시합니다"
                 onClick={() => onSlide?.(i)}>
-          크롭 {i + 1} · {aiRunning(r) ? "분석 중" : aiFailure(r) ? "분석 실패" : r.abstained ? "판정 못 함"
+          크롭 {i + 1} · {aiRunning(r) ? "분석 중" : aiFailure(r) ? "분석 실패" : r.abstained ? "판정 불가"
             : r.stroma_status === "absent" ? "간질 없음"
             : `AI 계측 sTIL ${fmt1(r.stil_percent)}% · TSR ${r.tsr_percent ?? "—"}%`}
         </button>
       ))}
-      <span className="muted small">AI 계측 sTIL은 병리의 sTIL 과 척도가 다릅니다.</span>
+      <span className="muted small">AI 계측 sTIL은 병리의 sTIL과 척도가 다릅니다.</span>
     </div>
   );
 }
@@ -66,7 +66,7 @@ export default function PathologyAi({ d, slide, onSlide }) {
   return (
     <div className="ai">
       <p className="muted small">
-        크롭 {rows.length}장. 자른 자리에 따라 값이 크게 달라지므로 평균을 내지 않고 장마다 보여 줍니다.
+        크롭 {rows.length}장. 자른 위치에 따라 값이 크게 달라지므로 평균을 내지 않고 크롭별로 표시합니다.
       </p>
 
       {/* 크롭이 두 장 이상일 때만 — 한 점은 분포가 아니다. 평균을 내지
@@ -81,7 +81,7 @@ export default function PathologyAi({ d, slide, onSlide }) {
           points={rows
             .filter((r) => !r.abstained && r.stroma_status !== "absent")
             .map((r, i) => ({ name: `${i + 1}`, value: r.stil_percent }))}
-          note="장마다 점으로 찍습니다. 평균은 모델이 낸 값이 아닙니다." />
+          note="크롭별로 점으로 표시합니다. 평균은 모델 출력값이 아닙니다." />
       </div>
 
       {/* 종양 비율은 보정 문제가 없다 — 크롭 사이 흔들림을 여기서 본다. */}
@@ -90,7 +90,7 @@ export default function PathologyAi({ d, slide, onSlide }) {
         points={rows
           .filter((r) => !r.abstained && r.stroma_status !== "absent")
           .map((r, i) => ({ name: `${i + 1}`, value: r.tsr_tumor_percent }))}
-        note="자른 자리에 따라 조직 구성이 달라집니다." />
+        note="자른 위치에 따라 조직 구성이 달라집니다." />
 
       {rows.map((r, i) => (
         <section className={slide === i ? "ai-card on" : "ai-card"} key={r.id ?? i}>
@@ -181,7 +181,7 @@ export default function PathologyAi({ d, slide, onSlide }) {
             <>
               {/* AI 계측값이 어떻게 나왔는지 — 분자 ÷ 분모를 그대로 보인다 */}
               <Gauge
-                label="AI 계측 sTIL 풀이"
+                label="AI 계측 sTIL 산출 근거"
                 percent={r.stil_percent}
                 note={`${r.immune_region_area_px != null ? "면역세포 영역" : "면역세포 면적"} ${fmt(r.immune_region_area_px ?? r.immune_cell_area_px)} px ÷ 간질 ${fmt(r.stroma_area_px)} px`} />
 
@@ -201,7 +201,7 @@ export default function PathologyAi({ d, slide, onSlide }) {
                 ]} />
 
               <PartBar
-                label={`면적 분해${r.mpp ? ` · ${mm2(r.tumor_area_px + r.stroma_area_px, r.mpp)}` : ""}`}
+                label={`면적 구성${r.mpp ? ` · ${mm2(r.tumor_area_px + r.stroma_area_px, r.mpp)}` : ""}`}
                 total={sum(r.tumor_area_px, r.stroma_area_px)}
                 unit=" px"
                 parts={[

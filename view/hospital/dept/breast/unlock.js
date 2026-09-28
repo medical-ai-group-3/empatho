@@ -3,7 +3,7 @@
 const KEYS = [
   { key: "records_final", label: "모든 결과 확정", old: ["all_finalized", "records_final"] },
   { key: "discordance_closed", label: "판정 불일치 종결", old: ["discordance_closed"] },
-  { key: "explained", label: "대면 설명 완료", old: ["explained"] },
+  { key: "explained", label: "환자 설명 완료", old: ["explained"] },
 ];
 
 /** 서버 응답 → 세 조건(늘 이 순서) */
@@ -12,7 +12,7 @@ export function unlockConds(status) {
   if (Array.isArray(c)) {
     const by = Object.fromEntries(c.filter(Boolean).map((row) => [row.key, row]));
     return KEYS.map(({ key, label: l }) => ({
-      key, label: by[key]?.label ?? l, met: by[key] ? Boolean(by[key].met) : null,
+      key, label: l, met: by[key] ? Boolean(by[key].met) : null,
       items: Array.isArray(by[key]?.items) ? by[key].items : null,
     }));
   }

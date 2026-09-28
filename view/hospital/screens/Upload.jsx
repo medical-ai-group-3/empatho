@@ -269,7 +269,7 @@ function Work({ cfg, id, d, reload }) {
             {(stagedCount > 0 || uploadBusy) && (
               <div className="up-actions">
                 <Btn kind="fill" onClick={uploadAll} disabled={!send.ok || uploadBusy}>
-                  {uploadBusy ? "올리는 중…" : `업로드 (${stagedCount})`}
+                  {uploadBusy ? "업로드 중…" : `업로드 (${stagedCount})`}
                 </Btn>
               </div>
             )}

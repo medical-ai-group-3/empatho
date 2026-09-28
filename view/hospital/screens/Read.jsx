@@ -166,7 +166,7 @@ function Inner({ cfg, id, d, onStale, onRefresh }) {
   /* 409 — 누가 먼저 확정했다. 읽기 전용으로 다시 연다 */
   function staleIf(e) {
     if (!FINALIZED.has(e?.code)) return false;
-    setMsg("이미 확정된 건입니다. 저장하지 않고 읽기 전용으로 다시 엽니다.");
+    setMsg("이미 확정된 판독입니다. 저장하지 않고 읽기 전용으로 다시 엽니다.");
     setBusy(false);
     onStale?.();
     return true;
@@ -243,7 +243,7 @@ function Inner({ cfg, id, d, onStale, onRefresh }) {
       await cfg.api.analyze(id);
       refresh.current?.();
     } catch (e) {
-      setRr({ busy: false, msg: e.detail || e.message || "AI 다시 실행을 시작하지 못했습니다.", at: null });
+      setRr({ busy: false, msg: e.detail || e.message || "AI를 다시 실행하지 못했습니다.", at: null });
     }
   }
   const rerun = canRun ? { run: rerunAi, busy: (rr.busy && rr.at === d) || running, msg: rr.msg } : null;
@@ -316,7 +316,7 @@ function Inner({ cfg, id, d, onStale, onRefresh }) {
                 <Slide label="대비" value={contrast} onChange={setContrast}
                        min={30} max={250} />
                 <span className="muted small">
-                  화면 보정입니다. 창값(window/level)이 아닙니다
+                  화면 표시용 보정입니다(W/L 조정 아님)
                   {view.window ? ` · 서버 변환 ${view.window}` : ""}
                 </span>
               </div>
@@ -338,7 +338,7 @@ function Inner({ cfg, id, d, onStale, onRefresh }) {
             </div>
           ) : isStack ? (
             <div className="mri-viewer-slot">
-              <Suspense fallback={<div className="mri-loading">맘모 뷰어 불러오는 중…</div>}>
+              <Suspense fallback={<div className="mri-loading">유방촬영 뷰어 불러오는 중…</div>}>
                 <DicomStackViewer
                   manifestUrl={stackManifest}
                   baseUrl={view.stackBase}

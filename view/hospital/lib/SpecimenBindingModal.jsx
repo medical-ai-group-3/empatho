@@ -107,7 +107,7 @@ export default function SpecimenBindingModal({ patient, onClose, onDone }) {
                 유방외과 · 간호과 어디서도 병변 번호를 알 길이 없었다 */}
             <select value={lesionId} onChange={(e) => setLesionId(e.target.value)}
                     disabled={loading || lesions.length === 0}>
-              <option value="">{loading ? "병변 목록을 불러오는 중…" : lesions.length ? "병변을 고르세요" : "등록된 병변이 없습니다"}</option>
+              <option value="">{loading ? "병변 목록을 불러오는 중…" : lesions.length ? "병변을 선택하세요" : "등록된 병변이 없습니다"}</option>
               {lesions.map((l) => (
                 <option key={l.lesion_id} value={l.lesion_id}>{lesionText(l)}</option>
               ))}
@@ -160,7 +160,7 @@ export default function SpecimenBindingModal({ patient, onClose, onDone }) {
 
 /* 목록 한 줄 — 이름 · 검사 · 검사일 · 크기 · 모델 등급 */
 function lesionText(l) {
-  const MOD = { mammo: "맘모", us: "초음파", mri: "MRI" };
+  const MOD = { mammo: "유방촬영", us: "초음파", mri: "MRI" };
   const size = l.measured_size_mm ?? l.ai_size_mm;
   return [
     l.label || `${MOD[l.modality] ?? l.modality ?? "병변"} 병변 ${l.lesion_index != null ? l.lesion_index + 1 : l.lesion_id}`,
@@ -175,7 +175,7 @@ function lesionText(l) {
 /* 서버가 만들 라벨을 미리 보인다(views/surgery.py specimen_label_for 와 같은 규칙).
    같은 날 같은 병변에 이미 검체가 있으면 서버가 -2, -3 을 붙인다 */
 function labelPreview(collectedAt, patient, l) {
-  if (!l) return "병변을 고르면 정해집니다";
+  if (!l) return "병변을 선택하면 자동으로 정해집니다";
   const day = String(collectedAt ?? "").slice(0, 10).replaceAll("-", "");
   const part = (l.label || (l.modality && l.lesion_index != null
     ? `${l.modality.toUpperCase()}-${l.lesion_index + 1}` : `L${l.lesion_id}`))

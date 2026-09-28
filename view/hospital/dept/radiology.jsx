@@ -779,8 +779,8 @@ export const radiology = {
     /* 환자는 맨 위 띠에 있다 — 왼쪽 칸은 검사 이야기만 */
     infoName: "검사 정보",
     unitName: "판독",
-    saveHint: "확정하면 유방외과로 전달됩니다. 이후 고치려면 판독 정정으로 새 판독을 만듭니다.",
-    finalNote: "고치려면 판독 정정으로 새 판독을 만듭니다. 옛 판독은 지워지지 않습니다.",
+    saveHint: "확정하면 유방외과로 전달됩니다. 이후 수정하려면 [판독 정정]으로 새 판독을 만듭니다.",
+    finalNote: "수정하려면 [판독 정정]으로 새 판독을 만듭니다. 이전 판독은 삭제되지 않습니다.",
     /* 왼쪽 칸에 이 환자의 다른 검사(새 탭) — screens/Read.jsx Priors */
     priors: true,
     phrases: PHRASES,
@@ -837,7 +837,7 @@ export const radiology = {
     /* ⚠ 확정된 검사 — Read.jsx 가 폼 대신 이것을 그린다. fin 은 현재 판독 행 */
     Final: ({ d, fin, failed }) => {
       if (!fin) {
-        return <p className="muted">{failed ? "확정 판독을 불러오지 못했습니다." : "현재 확정 판독 행을 찾지 못했습니다."}</p>;
+        return <p className="muted">{failed ? "확정 판독을 불러오지 못했습니다." : "현재 확정 판독을 찾지 못했습니다."}</p>;
       }
       return (
         <>
@@ -907,7 +907,7 @@ export const radiology = {
             askOf(d) && ["의뢰 질문", askOf(d)],
             d.density_category && ["밀도", densityText(d)],
             mod === "mri" && (d.series ?? []).length > 0
-              && ["촬영 Phase", d.series.map((s) => s.name).join(" · ")],
+              && ["촬영 시기(Phase)", d.series.map((s) => s.name).join(" · ")],
           ]} />
 
           {isCornerstone ? null : (
@@ -987,7 +987,7 @@ export const radiology = {
               {lesionBusy ? "등록 중…" : "병변 등록"}
             </button>
             <span className="muted small">
-              {pendingMark ? "뷰어에 그린 표시를 병변으로 등록할 수 있습니다." : "뷰어에서 박스 그리기 후 병변 등록을 누르세요."}
+              {pendingMark ? "뷰어에 그린 표시를 병변으로 등록할 수 있습니다." : "뷰어에서 박스를 그린 뒤 [병변 등록]을 누르세요."}
             </span>
             {lesionMsg && <span className="hint">{lesionMsg}</span>}
           </div>

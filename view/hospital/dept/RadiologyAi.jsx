@@ -100,7 +100,7 @@ export function RadiologyAiSummary({ d, view, pick, onPick, rerun = null }) {
   const fail = aiFailure(ai);
   if (fail) return <AiFailNote f={fail} rerun={rerun} compact />;
   if (ai.abstained || ai.summary?.abstained || ai.lesion_found === false) {
-    return <p className="ai-sum-na"><b>판정 못 함</b> · {ai.abstain_reason ?? "임계값을 넘는 검출이 없습니다"} — 「정상」이 아닙니다</p>;
+    return <p className="ai-sum-na"><b>판정 불가</b> · {ai.abstain_reason ?? "임계값을 넘는 검출이 없습니다"} — 「정상」이 아닙니다</p>;
   }
   const m = asModality(ai.modality);
   if (m === "us") {
@@ -125,7 +125,7 @@ export function RadiologyAiSummary({ d, view, pick, onPick, rerun = null }) {
           const at = view?.where ? view.where(sid) : null;
           return (
             <button type="button" key={sid} className="phr-b" aria-pressed={pick === sid}
-                    disabled={!onPick || Boolean(at && !at.sop)} title={at?.why ?? "영상에서 밝힙니다"}
+                    disabled={!onPick || Boolean(at && !at.sop)} title={at?.why ?? "영상에서 표시합니다"}
                     onClick={() => onPick?.(pick === sid ? null : sid)}>
               {l.id ?? `병변 ${i + 1}`} · {l.birads ?? "등급 없음"}
             </button>
@@ -163,7 +163,7 @@ function Ultrasound({ a }) {
         <div><dt>등급 확신도</dt><dd>{pct(a.category_confidence)}</dd></div>
         <div><dt>마스크 신뢰도</dt><dd>{pct(a.mask_confidence)}</dd></div>
       </dl>
-      <p className="muted small">두 확신도는 서로 다른 축입니다. 합치거나 평균 내지 않습니다.</p>
+      <p className="muted small">두 확신도는 서로 다른 지표이므로 합치거나 평균 내지 않습니다.</p>
 
       {/* 인접 등급 확률 — 「2인지 3인지」가 얼마나 애매한지 본다.
           CORAL 헤드가 경계마다 확률을 하나씩 낸다(boundary_p).
@@ -172,7 +172,7 @@ function Ultrasound({ a }) {
         label="등급 경계 확률"
         values={boundaries(a.grade)}
         note={a.grade?.ambiguity != null
-          ? `애매함 ${num(a.grade.ambiguity, 2)} — 값이 클수록 인접 등급과 갈린다`
+          ? `모호도 ${num(a.grade.ambiguity, 2)} — 값이 클수록 인접 등급과 구분이 어렵습니다`
           : null} />
 
       {/* 마스크 신뢰도는 바로 위 칸에 있다 — 칩으로 한 번 더 적지 않는다 */}
@@ -205,7 +205,7 @@ function Ultrasound({ a }) {
             {a.shape.taller_than_wide ? "세로로 긴 병변" : "세로로 길지 않음"}
           </Chip>
         )}
-        {a.shape?.n_components != null && <Chip tone="line">조각 {a.shape.n_components}개</Chip>}
+        {a.shape?.n_components != null && <Chip tone="line">영역 {a.shape.n_components}개</Chip>}
       </div>
 
       <Fold title="형태 지표">
@@ -218,7 +218,7 @@ function Ultrasound({ a }) {
           <div><dt>원형도</dt><dd>{num(a.shape?.circularity)}</dd></div>
         </dl>
         <p className="muted small">
-          서버가 계산한 값을 그대로 씁니다. 크기 단위는 px 뿐입니다 — pixel spacing 이 없어 mm 로 바꿀 수 없습니다.
+          서버가 계산한 값을 그대로 표시합니다. 픽셀 간격 정보가 없어 크기는 px로만 표시합니다(mm 환산 불가).
         </p>
       </Fold>
 
@@ -267,7 +267,7 @@ function Mammo({ a, pick, onPick, where }) {
             value: l.score,
             on: pick != null && pick === (l.id ?? `b${i}`),
           }))}
-          note="모델 검출 점수(0~100%). 등급과 다른 축입니다." />
+          note="모델 검출 점수(0~100%). 등급과는 다른 지표입니다." />
       )}
 
       {lesions.map((l, i) => {
@@ -306,7 +306,7 @@ function Mammo({ a, pick, onPick, where }) {
             </dl>
 
             <Bars
-              label="서술어 확신도"
+              label="소견 항목 확신도"
               max={1}
               fmtVal={(v) => pct(v)}
               items={dsc.map((x) => ({
@@ -316,9 +316,9 @@ function Mammo({ a, pick, onPick, where }) {
 
             {/* 서술어 5축 — 값 · 확신도 · 검증 여부를 그대로 낸다.
                 문장으로 바꾸지 않는다 */}
-            <Fold title="서술어" open={false}>
+            <Fold title="소견 항목" open={false}>
               <table className="ai-tbl">
-                <thead><tr><th>축</th><th>값</th><th>확신도</th><th>검증</th></tr></thead>
+                <thead><tr><th>항목</th><th>값</th><th>확신도</th><th>검증</th></tr></thead>
                 <tbody>
                   {dsc.map((x) => (
                     <tr key={x.axis}>
@@ -326,7 +326,7 @@ function Mammo({ a, pick, onPick, where }) {
                       <td>{x.value}</td>
                       <td>{pct(x.confidence)}</td>
                       {/* 값이 안 왔으면 「안 됨」이 아니라 모르는 것이다 */}
-                      <td>{x.validated == null ? "—" : x.validated ? "됨" : "안 됨"}</td>
+                      <td>{x.validated == null ? "—" : x.validated ? "확인" : "미확인"}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -346,7 +346,7 @@ function Mammo({ a, pick, onPick, where }) {
               {/* ⚠ 재어 주는 도구가 아직 없다. 눌러도 아무 일이 안 나면
                   고장으로 읽히므로 꺼 두고 이유를 붙인다 */}
               <button className="btn ghost" disabled
-                      title="길이 재는 도구가 아직 없습니다">
+                      title="길이 측정 도구는 아직 지원하지 않습니다">
                 캘리퍼 측정
               </button>
             </div>
@@ -382,7 +382,7 @@ function Mri({ a, pick, onPick }) {
     <>
       <p className="muted small">
         {graded
-          ? "병변 등급(BI-RADS)은 AI 참고값입니다 — 판정 등급은 직접 고릅니다. 위치 값은 근사치입니다."
+          ? "병변 등급(BI-RADS)은 AI 참고값입니다 — 판정 등급은 판독의가 직접 선택합니다. 위치 값은 근사치입니다."
           : "MRI 모델이 이 검사에 등급(BI-RADS)을 내지 않았습니다. 위치 값은 근사치입니다."}
       </p>
 
@@ -407,7 +407,7 @@ function Mri({ a, pick, onPick }) {
         <BreastMap
           label={`병변 위치 ${lesions.length}개`}
           lesions={lesions.map((l) => ({ quadrant: l.quadrant, dist: l.nipple_distance_mm }))}
-          note={`사분면과 유두 거리로 찍은 상대 위치입니다(가장 먼 병변을 가장자리로). 좌우 정보가 없어 한쪽만 그립니다.${a.tumor?.location_note ? ` · ${a.tumor.location_note}` : ""}`} />
+          note={`사분면과 유두 거리로 표시한 상대 위치입니다(가장 먼 병변을 가장자리에 둠). 좌우 정보가 없어 한쪽 유방만 그립니다.${a.tumor?.location_note ? ` · ${a.tumor.location_note}` : ""}`} />
       )}
 
       {lesions.length > 1 && (
@@ -419,7 +419,7 @@ function Mri({ a, pick, onPick }) {
 
       {evidence.length > 0 && (
         <div className="viz viz-lg">
-          <div className="viz-h">근거 단면 {evidence.length}장<b>누르면 축상면이 그 장으로 갑니다</b></div>
+          <div className="viz-h">근거 단면 {evidence.length}장<b>누르면 축상면이 해당 단면으로 이동합니다</b></div>
           <div className="viz-jump">
             {evidence.map((e) => {
               const s = e.image.slice_index;
@@ -427,7 +427,7 @@ function Mri({ a, pick, onPick }) {
                 <button key={e.id ?? s} className="btn ghost" aria-pressed={onSlice === s}
                         disabled={!onPick}
                         onClick={() => onPick?.(onSlice === s ? null : { slice: s, box: e.box })}>
-                  {e.id ?? "근거"} · 축상 {s + 1}번째 장
+                  {e.id ?? "근거"} · 축상면 {s + 1}번째 단면
                 </button>
               );
             })}
@@ -445,7 +445,7 @@ function Mri({ a, pick, onPick }) {
             <div className="wide"><dt>사분면</dt><dd>{l.quadrant ?? "—"}</dd></div>
             {l.centroid_z != null && (
               <div className="wide"><dt>중심 좌표</dt>
-                <dd>x {num(l.centroid_x, 0)} · y {num(l.centroid_y, 0)} · 장 {num(l.centroid_z, 0)}</dd></div>
+                <dd>x {num(l.centroid_x, 0)} · y {num(l.centroid_y, 0)} · 단면 {num(l.centroid_z, 0)}</dd></div>
             )}
             {l.birads != null && l.birads !== "" && (
               <div className="wide"><dt>AI 등급 (참고)</dt><dd>BI-RADS {String(l.birads)}</dd></div>

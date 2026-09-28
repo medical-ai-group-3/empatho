@@ -98,7 +98,7 @@ function Overlay({ xf, shapes, pick }) {
 }
 
 const TOOLS = [
-  { key: "wl", label: "창값", toolName: "WindowLevel" },
+  { key: "wl", label: "W/L", toolName: "WindowLevel" },
   { key: "pan", label: "이동", toolName: "Pan" },
   { key: "zoom", label: "확대", toolName: "Zoom" },
   { key: "length", label: "길이 측정", toolName: "Length" },
@@ -372,7 +372,7 @@ export default function DicomStackViewer({
          onPointerDownCapture={(e) => {
            if (multi && e.target.closest?.(".dicom-stack-cell")) wrapRef.current?.focus({ preventScroll: true });
          }}
-         aria-label={multi ? `DICOM 뷰어 — ${names[viewIndex] ?? ""}. ←/→ 로 뷰를 넘깁니다` : undefined}>
+         aria-label={multi ? `DICOM 뷰어 — ${names[viewIndex] ?? ""}. ←/→ 키로 뷰를 넘깁니다` : undefined}>
       {status === "ready" && (
         <div className="dicom-stack-toolbar">
           {visibleTools.map((t) => (
@@ -381,7 +381,7 @@ export default function DicomStackViewer({
               type="button"
               className={activeTool === t.key ? "on" : ""}
               disabled={grid}
-              title={grid ? "한 장 보기에서 씁니다" : undefined}
+              title={grid ? "한 장 보기에서 사용할 수 있습니다" : undefined}
               onClick={() => selectTool(t.key)}
             >
               {t.label}
@@ -416,7 +416,7 @@ export default function DicomStackViewer({
       )}
 
       <div className="dicom-stack-cell">
-        {status === "empty" && <div className="dicom-stack-message">DICOM Stack이 없습니다</div>}
+        {status === "empty" && <div className="dicom-stack-message">표시할 DICOM 영상이 없습니다</div>}
         {status === "loading" && <div className="dicom-stack-message">불러오는 중…</div>}
         {status === "error" && <div className="dicom-stack-message dicom-stack-error">{error}</div>}
         <div ref={elRef} style={{ width: "100%", height: "100%", display: status === "ready" ? "block" : "none" }} />
@@ -433,7 +433,7 @@ export default function DicomStackViewer({
 
       {/* 뷰 띠 — 지금 뷰가 밝다. 전체 보기에서 누르면 그 뷰를 크게 연다 */}
       {multi && viewCount <= STRIP_MAX && (
-        <div className="dicom-stack-strip" role="group" aria-label="뷰 고르기">
+        <div className="dicom-stack-strip" role="group" aria-label="뷰 선택">
           {names.map((n, i) => (
             <button key={sops[i] ?? i} type="button" className={!grid && i === viewIndex ? "on" : ""}
                     aria-current={!grid && i === viewIndex ? "true" : undefined}
@@ -441,7 +441,7 @@ export default function DicomStackViewer({
               {n}
             </button>
           ))}
-          <span className="dicom-stack-keys">← → 로 넘깁니다</span>
+          <span className="dicom-stack-keys">←/→ 키로 넘깁니다</span>
         </div>
       )}
 

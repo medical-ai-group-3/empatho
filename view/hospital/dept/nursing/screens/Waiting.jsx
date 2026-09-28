@@ -9,6 +9,7 @@ import { DESK, go } from "../../../nav";
 import { specimens as specApi } from "../../../api";
 import SpecimenBindingModal from "../../../lib/SpecimenBindingModal";
 import * as H from "../../home";
+import { ORDER_STATUS, label } from "../../../codes";
 
 /* 내원 대기 · 유방외과 배정 — `docs/mockup/Nursing-내원대기.html`
  * ════════════════════════════════════════════════════════════════
@@ -775,7 +776,7 @@ function Sent({ today }) {
                 <b>{H.nameOf(r)}</b>
                 <span className="nsent-to">→ {r.handed_to_name ?? r.primary_staff_name ?? "유방외과"}</span>
                 <span className="home-fill" />
-                {r.stage && <span>{r.stage}</span>}
+                {r.stage && <span>{label(ORDER_STATUS, r.stage)}</span>}
               </>
             );
             return pid != null
