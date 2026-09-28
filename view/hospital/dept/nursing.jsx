@@ -86,7 +86,10 @@ export const nursing = {
      */
     board: ({ today, arrived, booked }) => ({ today, arrived, booked }),
 
-    layout: [["queue"], ["stuck", "todo"], ["calendar", "handover"]],
+    /* 09-28 — 가장 넓은 왼쪽 단은 **지금 처리할 일(확인 필요)**. 「전화 · 예약
+       확인」은 비어 있는 날이 많아 넓은 자리를 차지하면 빈 상자만 커졌다 —
+       가운데 위로 옮겨 제 높이만 쓰게 한다 */
+    layout: [["stuck"], ["queue", "todo"], ["calendar", "handover"]],
 
     queue: ({ follow, asks }) => ({
       title: "전화 · 예약 확인",
