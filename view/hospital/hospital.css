@@ -932,7 +932,8 @@ a.nside-row:hover{background:var(--canvas)}
 .fup-find input{height:var(--todo-in-h); padding:0 var(--in-pad-x);
   border:var(--hair) solid var(--faint); border-radius:var(--in-radius);
   font-size:var(--in-fs)}
-.fup-tbl{flex:1; min-height:0}
+/* 표는 제 높이만 — 남는 높이는 아래 요약(.fup-more)이 받는다 */
+.fup-tbl{flex:0 1 auto; min-height:0}
 /* 기한 — 지난 것만 채워서 세운다 */
 .fup-due{font-size:var(--chip-fs); color:var(--ink-2)}
 .fup-due.k1{padding:var(--stag-pad-y) var(--stag-pad-x);
@@ -946,22 +947,31 @@ a.nside-row:hover{background:var(--canvas)}
   border-bottom:var(--hair) solid var(--line-2)}
 .fup-who b{font-size:var(--srow-fs); font-weight:700}
 /* 09-28 목록 + 오른쪽 420 칸. 칸은 상단바 아래에 붙어 따라 내려온다 */
-.fup-cols{display:grid; gap:var(--pane-gap); align-items:start;
-  grid-template-columns:minmax(0, 1fr) 420px}
+/* 09-28 — 두 칸이 **화면 높이를 같이 채운다.** 목록이 짧으면 왼쪽이 반만
+   서고 오른쪽 빈 상자와 높이가 어긋나 휑했다 */
+.fup-cols{display:grid; gap:var(--pane-gap); align-items:stretch;
+  grid-template-columns:minmax(0, 1fr) 420px;
+  min-height:calc(100vh - var(--top-total) - var(--foot-h, 0px) - 200px)}
 .fup-list{min-width:0; background:var(--card); border:var(--hair) solid var(--border);
-  border-radius:var(--hcard-radius); overflow:hidden}
+  border-radius:var(--hcard-radius); overflow:hidden; display:flex; flex-direction:column}
+.fup-list > .state{flex:none; margin:0; border:0; border-bottom:var(--hair) solid var(--line-2);
+  border-radius:0; box-shadow:none}
+/* 오른쪽 안내 상자도 왼쪽과 같은 높이로 */
+.fup-side > .slot.big{height:100%; min-height:calc(240px * var(--sp))}
+@media (max-width:1280px){ .fup-nums{grid-template-columns:repeat(3, minmax(0, 1fr))} }
 .fup-list .tbl tbody tr{cursor:pointer}
 /* 표 밑 — 칸별 수 · 다가오는 회차(표가 짧을 때만, Followups.jsx Ahead) */
-.fup-more{display:flex; flex-direction:column; gap:var(--gap-sm);
-  padding:var(--hcard-pad-y) var(--hcard-pad-x); border-top:var(--hair) solid var(--border);
+.fup-more{flex:1; display:flex; flex-direction:column; gap:var(--gap);
+  padding:calc(20px * var(--sp)) var(--hcard-pad-x); border-top:var(--hair) solid var(--border);
   background:var(--canvas)}
 .fup-more h3{font-size:var(--qrow-meta-fs); font-weight:600; color:var(--ink-2)}
-.fup-nums{display:grid; grid-template-columns:repeat(auto-fill, minmax(calc(96px * var(--sp)), 1fr)); gap:var(--gap-xs)}
-.fup-num{display:flex; flex-direction:column; align-items:flex-start; gap:var(--gap-xxs);
-  padding:var(--gap-sm) var(--in-pad-x); border-radius:var(--in-radius);
+/* 칸별 수 — 여섯 칸이 폭을 **고르게** 나눈다(예전엔 최소 폭으로 왼쪽에 몰렸다) */
+.fup-nums{display:grid; grid-template-columns:repeat(6, minmax(0, 1fr)); gap:var(--gap-sm)}
+.fup-num{display:flex; flex-direction:column; align-items:flex-start; gap:var(--gap-xs);
+  padding:calc(16px * var(--sp)) calc(18px * var(--sp)); border-radius:var(--in-radius);
   background:var(--card); box-shadow:inset 0 0 0 var(--hair) var(--border); text-align:left}
 .fup-num:hover{box-shadow:inset 0 0 0 var(--hair) var(--faint)}
-.fup-num b{font-size:var(--hcard-h-fs); font-weight:700; font-variant-numeric:tabular-nums}
+.fup-num b{font-size:calc(26px * var(--ft)); line-height:1; font-weight:700; font-variant-numeric:tabular-nums}
 .fup-num span{font-size:var(--qrow-meta-fs); color:var(--ink-2)}
 .fup-next{margin:0; padding:0; list-style:none; background:var(--card);
   border-radius:var(--in-radius); box-shadow:inset 0 0 0 var(--hair) var(--border)}
@@ -986,7 +996,9 @@ a.nside-row:hover{background:var(--canvas)}
 .fup-sec{display:flex; flex-direction:column; gap:var(--gap-sm);
   margin-top:var(--gap-sm); padding-top:var(--gap-sm); border-top:var(--hair) solid var(--line-2)}
 .fup-sec h3{font-size:var(--qrow-meta-fs); font-weight:600; color:var(--ink-2)}
-.fup-sec .rowb{align-items:center}
+.fup-sec .rowb{align-items:center; flex-wrap:nowrap}
+/* 안내 문장이 줄지 않아(flex:none) 오른쪽 정렬 줄에서 왼쪽 밖으로 삐져나갔다 */
+.fup-sec .rowb .hcard-k{flex:1 1 auto; min-width:0}
 .fup-note{width:100%; border:var(--hair) solid var(--faint); border-radius:var(--in-radius);
   padding:var(--gap-sm) var(--in-pad-x); font-size:var(--in-fs); resize:vertical}
 .fup-make{display:flex; align-items:center; gap:var(--gap-sm); flex-wrap:wrap}
