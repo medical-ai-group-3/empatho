@@ -48,14 +48,12 @@ export default function SpecimenBindingModal({ patient, onClose, onDone }) {
      목록이 늘 비었다. 환자 칸도 patient_id 가 아니라 patient(FK) 다 — 서버가
      ?patient= 로 이미 거르지만, 한 번 더 거를 때 이름이 틀려 전부 빠졌다 */
   const all = Array.isArray(data) ? data : (data?.results ?? data?.items ?? []);
+  /* 오진(위양성)으로 표시한 병변은 뺀다 — 거기에 검체를 달 일은 없다 */
   const lesions = all.filter(
-    (l) => String(l.patient ?? l.patient_id) === String(patient.patient_id));
+    (l) => String(l.patient ?? l.patient_id) === String(patient.patient_id)
+      && !l.is_false_positive);
 
   const [lesionId, setLesionId] = useState("");
-  /* codes.js의 label()을 가리지 않게 검체 라벨 상태는 별도 이름을 쓴다.
-     같은 이름이면 첫 렌더에서 성별 표기를 만들 때 문자열을 함수처럼
-     호출하게 되어 팝업 자체가 열리지 않는다. */
-  const [specimenLabel, setSpecimenLabel] = useState("");
   const [type, setType] = useState(TYPES[0].value);
   const [guide, setGuide] = useState(GUIDES[0].value);
   const [collectedAt, setCollectedAt] = useState(nowLocal());
@@ -74,7 +72,7 @@ export default function SpecimenBindingModal({ patient, onClose, onDone }) {
       await specimens.bind({
         patient_id: patient.patient_id,
         lesion_id: numericLesionId,
-        specimen_label: specimenLabel,
+        /* 라벨은 보내지 않는다 — 서버가 S-{채취일}-{환자번호}-{병변} 으로 만든다(09-28) */
         specimen_type: type,
         guidance_route: guide,
         collected_at: collectedAt,
@@ -104,35 +102,30 @@ export default function SpecimenBindingModal({ patient, onClose, onDone }) {
           ]} />
 
           <label className="field">
-            <span>표적 병변 번호 (필수)</span>
-            <input type="number" min="1" inputMode="numeric" list="known-lesions"
-              value={lesionId} onChange={(e) => setLesionId(e.target.value)}
-              placeholder="병변 번호를 직접 입력" />
-            {lesions.length > 0 && (
-              <datalist id="known-lesions">
-                {lesions.map((l) => (
-                  <option key={l.lesion_id} value={l.lesion_id}>
-                    {/* LesionSerializer 에 site · size_mm 은 없다 — 있는 칸으로 */}
-                    {[l.label, l.modality, l.lesion_index != null && `#${l.lesion_index}`]
-                      .filter(Boolean).join(" · ") || "병변"}
-                  </option>
-                ))}
-              </datalist>
-            )}
+            <span>표적 병변 (필수)</span>
+            {/* 09-28 — 번호를 직접 치게 하던 것을 이 환자의 검사에서 나온 병변 목록으로 바꿨다.
+                유방외과 · 간호과 어디서도 병변 번호를 알 길이 없었다 */}
+            <select value={lesionId} onChange={(e) => setLesionId(e.target.value)}
+                    disabled={loading || lesions.length === 0}>
+              <option value="">{loading ? "병변 목록을 불러오는 중…" : lesions.length ? "병변을 고르세요" : "등록된 병변이 없습니다"}</option>
+              {lesions.map((l) => (
+                <option key={l.lesion_id} value={l.lesion_id}>{lesionText(l)}</option>
+              ))}
+            </select>
             <small className="hint">
-              {loading
-                ? "등록된 병변을 불러오는 중입니다. 번호를 직접 입력해도 됩니다."
-                : error
-                  ? "병변 목록을 불러오지 못했습니다. 표적 병변 번호를 직접 입력해 등록하세요."
-                  : "병변 번호를 입력하면 해당 병변에 검체가 연결됩니다."}
+              {error
+                ? "병변 목록을 불러오지 못했습니다. 새로고침해 주세요."
+                : !loading && lesions.length === 0
+                  ? "이 환자의 검사에서 나온 병변이 없습니다. 영상 판독에서 병변이 등록돼야 검체를 연결할 수 있습니다."
+                  : "이 환자가 받은 검사에서 나온 병변입니다."}
             </small>
           </label>
 
           <div className="fields">
             <label className="field">
-              <span>검체 라벨</span>
-              <input value={specimenLabel} onChange={(e) => setSpecimenLabel(e.target.value)}
-                placeholder="예: S-20260915-001" />
+              <span>검체 라벨 (자동)</span>
+              <input value={labelPreview(collectedAt, patient, lesions.find((l) => String(l.lesion_id) === String(lesionId)))}
+                readOnly />
             </label>
             <label className="field">
               <span>검체 유형</span>
@@ -156,11 +149,36 @@ export default function SpecimenBindingModal({ patient, onClose, onDone }) {
         </div>
         <div className="modal-foot">
           <button className="btn line" onClick={onClose}>취소</button>
-          <button className="btn fill" onClick={save} disabled={saving || !lesionId || !specimenLabel.trim()}>
+          <button className="btn fill" onClick={save} disabled={saving || !lesionId}>
             {saving ? "등록 중…" : "등록"}
           </button>
         </div>
       </div>
     </div>
   );
+}
+
+/* 목록 한 줄 — 이름 · 검사 · 검사일 · 크기 · 모델 등급 */
+function lesionText(l) {
+  const MOD = { mammo: "맘모", us: "초음파", mri: "MRI" };
+  const size = l.measured_size_mm ?? l.ai_size_mm;
+  return [
+    l.label || `${MOD[l.modality] ?? l.modality ?? "병변"} 병변 ${l.lesion_index != null ? l.lesion_index + 1 : l.lesion_id}`,
+    MOD[l.modality] ?? l.modality,
+    l.study_date,
+    size != null && `${Number(size).toFixed(1)}mm`,
+    l.birads_model && `BI-RADS ${l.birads_model}`,
+    l.lesion_source === "manual" && "직접 등록",
+  ].filter(Boolean).join(" · ");
+}
+
+/* 서버가 만들 라벨을 미리 보인다(views/surgery.py specimen_label_for 와 같은 규칙).
+   같은 날 같은 병변에 이미 검체가 있으면 서버가 -2, -3 을 붙인다 */
+function labelPreview(collectedAt, patient, l) {
+  if (!l) return "병변을 고르면 정해집니다";
+  const day = String(collectedAt ?? "").slice(0, 10).replaceAll("-", "");
+  const part = (l.label || (l.modality && l.lesion_index != null
+    ? `${l.modality.toUpperCase()}-${l.lesion_index + 1}` : `L${l.lesion_id}`))
+    .replace(/[^A-Za-z0-9-]/g, "").slice(0, 16);
+  return `S-${day}-${patient.patient_number ?? ""}-${part}`;
 }
