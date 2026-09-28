@@ -1,0 +1,210 @@
+/* ════════════════════════════════════════════════════════════
+   직원 회원가입 — 로그인 무대 위에 얹는 차이만
+   ────────────────────────────────────────────────────────────
+   배경 사진 · 유리 패널 · 브랜드 머리 · 입력칸 · 흰 제출 버튼 ·
+   링크는 전부 EmpathoLogin.css 의 `.empatho-scene` 규칙을 그대로 쓴다.
+   여기는 가입에만 있는 것만 더한다 — 로그인 화면에는 이 파일의 어떤
+   규칙도 닿지 않는다(모두 `.signup-scene` 아래에 갇혀 있다).
+
+     · 칸이 여섯이라 패널을 조금 넓히고, 폭이 되면 두 단으로 놓는다
+     · 그래도 세로가 모자라면 패널 안에서 스크롤한다 (가운데 정렬 유지)
+     · 부서 선택 · 동의 체크 · 칸 아래 안내 · 서버 오류 상자
+   ════════════════════════════════════════════════════════════ */
+
+/* ── 패널: 넓이 · 스크롤 ───────────────────────────────────── */
+
+/* 로그인 패널(34%)과 같은 자리에서 시작하되, 두 단이 설 만큼은 넓힌다.
+   1280 폭에서 520px(≈41%) — 문틀을 물지 않는 데서 멈춘다 */
+.empatho-scene.signup-scene .panel {
+  width: max(34%, 520px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(206, 226, 248, .28) transparent;
+}
+
+/* margin-block:auto — 짧으면 가운데, 길면 위에서부터 스크롤.
+   (place-items:center 는 넘칠 때 머리가 위로 잘려 나간다) */
+.empatho-scene.signup-scene .panel__inner {
+  width: min(100%, 600px);
+  max-height: none;
+  flex: none;
+  margin-block: auto;
+  /* 좌우 여백을 조금 덜어 두 단 폭(440px)을 지킨다 */
+  padding: clamp(28px, 3.2vh, 48px) clamp(24px, 2.6vw, 48px);
+  gap: clamp(20px, 3.2vh, 36px);
+}
+
+/* ── 제목 줄 ──────────────────────────────────────────────── */
+
+.signup-scene .su-head { display: grid; gap: 6px; }
+
+.signup-scene .su-title {
+  margin: 0;
+  font-size: clamp(17px, 1.25vw, 20px);
+  font-weight: 400;
+  letter-spacing: .06em;
+  line-height: 1.4;
+  color: var(--text);
+}
+.signup-scene .su-lead {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #bccbdb;
+  word-break: keep-all;
+}
+
+/* ── 칸 배치 ──────────────────────────────────────────────── */
+
+.signup-scene .su-form { container-type: inline-size; gap: 18px; }
+
+.signup-scene .su-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+/* 두 단 — 직원번호|이름, 부서|아이디, 비밀번호|비밀번호 확인 */
+@container (min-width: 440px) {
+  .signup-scene .su-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 14px; }
+}
+
+/* 아이콘이 없는 칸은 오른쪽 여백을 되돌린다 */
+.signup-scene .su-form .control input { padding-right: 16px; }
+
+/* 부서 — 입력칸과 같은 유리 칸. 화살표는 .icon 자리를 빌린다 */
+.signup-scene .su-form .control select {
+  width: 100%;
+  min-width: 0;
+  padding: 16px 44px 16px 16px;
+  border: 0;
+  border-radius: 9px;
+  background: var(--field);
+  color: var(--text);
+  font: inherit;
+  outline: none;
+  cursor: pointer;
+  -webkit-appearance: none;
+          appearance: none;
+  box-shadow:
+    inset 0 1px 0 rgba(8, 16, 26, .65),
+    inset 0 -1px 0 rgba(206, 230, 255, .13),
+    inset 0 0 0 1px rgba(180, 203, 226, .16);
+  transition: background .22s ease, box-shadow .22s ease;
+}
+.signup-scene .su-form .control select[data-empty="true"] { color: #a8b6c5; }
+.signup-scene .su-form .control select:hover { background: rgba(244, 248, 255, .075); }
+.signup-scene .su-form .control select:focus-visible {
+  background: rgba(244, 248, 255, .085);
+  box-shadow:
+    inset 0 1px 0 rgba(8, 16, 26, .5),
+    inset 0 -1px 0 rgba(207, 230, 255, .5),
+    inset 0 0 0 1px rgba(207, 230, 255, .42),
+    0 0 22px -6px rgba(140, 195, 255, .45);
+}
+.signup-scene .su-form .control select option { background: #16222f; color: #eef5fc; }
+
+.signup-scene .su-form input:disabled,
+.signup-scene .su-form select:disabled { opacity: .6; cursor: progress; }
+
+/* 칸 아래 안내 · 불일치 */
+.signup-scene .su-hint {
+  margin: -2px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.signup-scene .su-hint--bad { color: #ffc9c7; }
+
+/* ── 동의 ─────────────────────────────────────────────────── */
+
+.signup-scene .su-agree {
+  position: relative;
+  align-items: flex-start;
+  margin-top: 2px;
+}
+.signup-scene .su-agree > span:last-child {
+  font-size: 13.5px;
+  line-height: 1.5;
+  word-break: keep-all;
+}
+.signup-scene .su-agree .box { flex: none; margin-top: 2px; }
+
+/* ── 서버 오류 ────────────────────────────────────────────── */
+
+.signup-scene .su-err {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 9px;
+  background: rgba(255, 128, 120, .10);
+  box-shadow: inset 0 0 0 1px rgba(255, 159, 156, .38);
+  color: #ffd9d7;
+  font-size: 13px;
+  line-height: 1.5;
+  word-break: keep-all;
+}
+.signup-scene .su-err b { font-weight: 500; }
+.signup-scene .su-err span { font-size: 11.5px; color: #d9a9a7; overflow-wrap: anywhere; }
+
+/* ── 제출 · 돌아가기 ──────────────────────────────────────── */
+
+/* 로그인은 누른 뒤에만 막혀서 progress 커서다. 여기는 다 채우기 전에도
+   막혀 있으므로 금지 커서가 맞다 */
+.signup-scene .submit:disabled { cursor: not-allowed; }
+
+.signup-scene .su-back { justify-content: center; margin: 0; font-size: 13.5px; }
+.signup-scene .su-back .link { display: inline-flex; align-items: center; gap: 8px; padding: 2px 0; }
+.signup-scene .su-back .link[aria-disabled="true"] { opacity: .5; pointer-events: none; }
+.signup-scene .su-back__arrow {
+  width: 16px; height: 16px;
+  fill: none; stroke: currentColor; stroke-width: 1.7;
+  stroke-linecap: round; stroke-linejoin: round;
+  transition: transform .22s;
+}
+.signup-scene .su-back .link:hover .su-back__arrow { transform: translateX(-3px); }
+
+/* ── 접수 완료 ────────────────────────────────────────────── */
+
+.signup-scene .su-done { display: grid; gap: 14px; }
+.signup-scene .su-done .su-lead { font-size: 14px; color: #dbe6f1; margin-bottom: 14px; }
+
+/* ── 반응형 ───────────────────────────────────────────────── */
+
+/* 태블릿 — 로그인처럼 카드로 띄우되, 카드가 넘치면 패널이 스크롤한다 */
+@media (max-width: 1080px) {
+  .empatho-scene.signup-scene .panel {
+    width: 100%;
+    align-items: flex-end;
+  }
+  .empatho-scene.signup-scene .panel__inner {
+    width: min(100%, 560px);
+    padding: clamp(28px, 4vw, 40px);
+  }
+}
+
+/* 모바일 — 로그인처럼 바텀 시트. 칸이 많아 사진을 덜 보이고 시트를
+   일찍 올린다. 스크롤은 페이지가 맡는다 */
+@media (max-width: 700px) {
+  .empatho-scene.signup-scene .stage { height: 34svh; }
+  .empatho-scene.signup-scene .panel {
+    margin-top: 24svh;
+    overflow: visible;
+    display: block;
+  }
+  .empatho-scene.signup-scene .panel__inner {
+    width: 100%;
+    min-height: 76svh;
+    margin: 0;
+    padding: 30px clamp(22px, 6.5vw, 34px) calc(24px + env(safe-area-inset-bottom));
+    gap: 22px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .signup-scene .su-back__arrow { transition: none; }
+}
