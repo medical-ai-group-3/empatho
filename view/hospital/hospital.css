@@ -2073,6 +2073,14 @@ a.pevent:focus-visible{outline:var(--hair) solid var(--cyan); outline-offset:2px
 .chip{display:inline-flex; align-items:center; gap:var(--chip-gap);
   border-radius:var(--round); padding:var(--chip-pad-y) var(--chip-pad-x);
   font-size:var(--chip-fs); font-weight:600; white-space:nowrap; flex:none}
+/* 칩 · 단추 · 탭은 글이 아니라 표시다 — 글자 위에서 I자 커서가 뜨고
+   끌면 글자가 선택됐다(09-28). 누르는 것은 손가락, 아닌 것은 기본 화살표 */
+.chip,.pill,.btn,.qtab,.work-tab,.lst-flag{user-select:none; -webkit-user-select:none; cursor:default}
+.pill,.btn,.qtab,.work-tab,button.chip,a.chip{cursor:pointer}
+/* 누르는 줄(표 · 큐 · 링크) 안의 칩은 그 줄을 따른다 */
+:is(a, button, [role="button"], .tbl tbody tr) .chip,
+:is(a, button, [role="button"], .tbl tbody tr) .lst-flag{cursor:inherit}
+.btn:disabled,.pill:disabled{cursor:not-allowed}
 .chip.fill{background:var(--soot); color:var(--soot-ink)}         /* 지금 하는 중 */
 .chip.line{box-shadow:inset 0 0 0 var(--hair) var(--border); color:var(--warm)}
 .chip.dot{box-shadow:inset 0 0 0 var(--hair) var(--border); color:var(--ink-2)}
