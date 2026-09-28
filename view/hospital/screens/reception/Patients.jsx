@@ -1,78 +1,72 @@
 import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { ALL_PATIENTS, reception as api } from "../../api";
+import { ALL_PATIENTS, reception as api, nursing as nur } from "../../api";
 import { Page, Card, Btn } from "../../lib/Page";
-import { Body } from "../../lib/Body";
-import { Chip, Search, Sort, Table, Warn } from "../../lib/Parts";
+import { Body, Empty } from "../../lib/Body";
+import { Chip, Search, Sort, Table } from "../../lib/Parts";
 import { useApi } from "../../lib/useApi";
 import { can } from "../../perm";
+import { go } from "../../nav";
 import { MODALITY, SEX, label, modality as asModality } from "../../codes";
+import * as H from "../../dept/home";
 
 const permitted = (key, integrated) => can(integrated ? [key, "nursing.waiting.view"] : key);
 
-/* 원무 3장 — 환자 목록 · 예약
+/* 환자 목록 — 찾고, 고르고, 그 사람의 정보 · 방문 · 추적을 한 자리에서
  * ════════════════════════════════════════════════════════════════
  *
- *   왼쪽        검색 + 필터 + 목록
- *   오른쪽 위   고른 환자 상세 (고칠 수 있다)
- *   오른쪽 아래 [예약] 을 누르면 열리는 자리
+ *   ┌ 목록 ─────────────────────────────┬ 고른 환자(따라 내려온다) ─┐
+ *   │ 검색 · [전체][알레르기][미배정][앱 미가입] │ [정보][방문·예약][추적]   │
+ *   │ 번호 이름 전화 주치의 앱 알레르기   │                          │
+ *   └───────────────────────────────────┴──────────────────────────┘
  *
- * **원무는 검사 종류를 정하지 않는다.**
- *   채우는 것   patient_id · scheduled_at
- *   안 채우는 것 modality · exam_purpose · ordered_by — 유방외과 몫이다.
- *   DB CHECK 도 그렇게 열려 있다 (requested · cancelled 일 때만 셋이 비어도 됨).
+ * ⚠ 09-28 **여기서 예약을 잡지 않는다.** 이 화면의 [예약] 카드는 예약 관리의
+ *   같은 날 중복 막이(서버 _refuse_same_day 와 같은 기준 · [그 예약 고치기])가
+ *   없는 두 번째 길이었다. 이제 [예약 잡기 →]가 예약 관리로 그 사람을 싣고 간다.
+ * ⚠ 오른쪽 칸은 **따라 내려온다(sticky).** 목록이 길어 아래 사람을 누르면
+ *   정보가 화면 위에 있어 다시 올라가야 했다.
  *
- * ── 캘린더에서 넘어오는 길 ──────────────────────────────────────
- * 1장 캘린더에서 날짜를 더블클릭하면 ?date=2026-09-13 을 달고 여기로 온다.
- * 그 값을 예약 날짜 칸의 **첫 값**으로 넣는다.
- *
- * 주소에 담는 이유는 붙여 넣은 주소로 같은 자리가 다시 열려야 해서다.
- * 다만 **주소를 계속 따라가지는 않는다** — 사람이 칸을 고친 뒤에도 주소를
- * 읽으면 고친 값이 되돌아간다. 첫 값으로만 쓴다.
+ * 주소 — ?patient= 로 그 사람을 골라 둔 채 열고, ?date= 는 [예약 잡기]로
+ * 그대로 넘긴다(홈 달력에서 온 날짜).
  */
-
 export default function Patients({ cfg, integrated: asked = false }) {
-  /* ⚠ 간호과로 합친 뒤 이 화면은 main.jsx 가 cfg 만 주고 연다 — integrated 를
-     넘겨 주던 래퍼(NursingHub)를 안 쓰게 되면서 늘 false 였다. 그래서 간호
-     계정은 reception.* 열쇠가 없어 [저장]·[예약] 이 늘 잠겨 있었다.
-     간호과 안에서 열리면 합친 과로 본다 */
+  /* ⚠ 간호과로 합친 뒤 이 화면은 main.jsx 가 cfg 만 주고 연다 — 간호과
+     안에서 열리면 합친 과로 본다(간호 열쇠로도 쓰는 단추가 열린다) */
   const integrated = asked || cfg?.key === "nursing";
   const [sp] = useSearchParams();
-  const fromCalendar = sp.get("date") ?? "";
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(sp.get("date") ?? "") ? sp.get("date") : "";
 
   const [q, setQ] = useState("");
   const [sent, setSent] = useState("");        // 실제로 서버에 보낸 검색어
   const [only, setOnly] = useState("all");     // 필터 — 서버가 아니라 화면이 건다
-  const [pick, setPick] = useState(null);      // 고른 patient_id
-  /* 예약 자리를 **누구 것으로** 열었나. true/false 로 두면 열어 둔 채 딴
-     사람을 고를 때 「누구 예약인지」가 어긋난 채로 [예약 완료] 를 누르게
-     된다. id 로 들고 있으면 고른 사람과 다를 때 저절로 닫힌다 */
-  const [reserveFor, setReserveFor] = useState(null);
-  /* 예약을 잡으면 「환자 예약 기록」도 다시 부른다 — 따로 부르는 목록이라
-     안 알려 주면 방금 잡은 예약이 옆 칸에 안 보였다 */
-  const [booked, setBooked] = useState(0);
+  const [pick, setPick] = useState(() => {     // 고른 patient_id
+    const n = Number(sp.get("patient"));
+    return Number.isFinite(n) && n > 0 ? n : sp.get("patient") || null;
+  });
 
   const list = useApi(
     () => api.list(sent ? { q: sent } : ALL_PATIENTS),
     [sent],
   );
 
-  const rows = useMemo(() => filter(list.data ?? [], only), [list.data, only]);
-  const chosen = rows.find((r) => r.patient_id === pick)
-    ?? (list.data ?? []).find((r) => r.patient_id === pick)
-    ?? null;
+  const all = useMemo(() => list.data ?? [], [list.data]);
+  const rows = useMemo(() => filter(all, only), [all, only]);
+  const chosen = all.find((r) => String(r.patient_id) === String(pick)) ?? null;
+
+  /* 거르개마다 몇 명인지 — 누르기 전에 보인다. ⚠ 서버가 그 칸을 안 주면
+     (has_account · primary_staff 가 목록에 없다) 그 거르개는 안 세운다 */
+  const filters = FILTERS
+    .filter((f) => !f.need || all.some((r) => f.need in r))
+    .map((f) => ({ ...f, label: `${f.label} ${filter(all, f.key).length}` }));
 
   return (
-    <Page
-      crumb={[integrated ? "간호과" : "원무과", "환자 목록"]}
-      title="환자 목록 · 예약"
-    >
-      <div className="split wide">
+    <Page crumb={[integrated ? "간호과" : "원무과", "환자 목록"]} title="환자 목록"
+          right={<Btn to={go.nursing.reservations()}>예약 관리</Btn>}>
+      <div className="split wide plist">
         <div className="split-l">
           <Card
             title="환자"
-            /* 서버가 한 번에 200명까지만 준다 — 더 있으면 총원을 같이 적어
-               「목록이 잘렸다」는 것을 알 수 있게 한다 */
+            /* 서버가 한 번에 200명까지만 준다 — 더 있으면 총원을 같이 적는다 */
             right={<Chip>{only === "all" && list.data?.total > rows.length
               ? `${rows.length} / ${list.data.total}명` : `${rows.length}명`}</Chip>}
             pad={false}
@@ -82,45 +76,26 @@ export default function Patients({ cfg, integrated: asked = false }) {
                 <Search placeholder="이름 · 전화 · 환자번호 · 생년월일"
                         value={q} onChange={setQ} />
               </form>
-              <Sort items={FILTERS} value={only} onChange={setOnly} />
+              <Sort items={filters} value={only} onChange={setOnly} />
             </div>
 
             <Body loading={list.loading} error={list.error} onRetry={list.reload}>
               {list.data && (
-                <>
-                  <Table
-                    cols={COLS}
-                    rows={rows.map((r) => row(r, {
-                      onReserve: () => { setPick(r.patient_id); setReserveFor(r.patient_id); },
-                      onOpen: () => setPick(r.patient_id),
-                    }, integrated))}
-                    value={pick}
-                    onPick={setPick}
-                  />
-                </>
+                <Table cols={COLS} rows={rows.map(row)} value={pick} onPick={setPick} />
               )}
             </Body>
           </Card>
         </div>
 
-        <aside className="split-r">
+        <aside className="split-r plist-side">
           {chosen ? (
-            <>
-              {/* key 를 주면 환자가 바뀔 때 상세가 새로 선다 — 앞사람의
-                  고치던 값이 다음 사람 칸에 남지 않는다 */}
-              <Detail key={chosen.patient_id} patient={chosen} onSaved={list.reload}
-                      onReserve={() => setReserveFor(chosen.patient_id)} integrated={integrated} />
-              <ReservationHistory key={`history-${chosen.patient_id}-${booked}`} patient={chosen} />
-              {reserveFor === chosen.patient_id && (
-                <Reserve key={chosen.patient_id} patient={chosen} firstDate={fromCalendar}
-                         onClose={() => setReserveFor(null)} integrated={integrated}
-                         onBooked={() => setBooked((n) => n + 1)} />
-              )}
-            </>
+            /* key — 환자가 바뀌면 칸이 새로 선다. 앞사람의 고치던 값이 안 남는다 */
+            <Panel key={chosen.patient_id} patient={chosen} date={date}
+                   integrated={integrated} onSaved={() => list.reload(true)} />
           ) : (
             <div className="slot big">
               <b>왼쪽에서 환자를 고르세요</b>
-              <span>고르면 정보를 보고 고치거나 예약을 잡을 수 있습니다.</span>
+              <span>정보를 고치고, 지난 방문 · 예약과 추적 회차를 봅니다.</span>
             </div>
           )}
         </aside>
@@ -131,36 +106,35 @@ export default function Patients({ cfg, integrated: asked = false }) {
 
 /* ── 목록 ────────────────────────────────────────────────────── */
 
+/* ⚠ 09-28 「상태」 칸을 뺐다 — 목록 응답에 그 값이 없어 늘 「—」였다.
+   대신 창구가 실제로 보는 전화 · 주치의 · 앱 연동을 둔다 */
 const COLS = [
-  { key: "no",      label: "환자번호", w: "18%" },
+  { key: "no",      label: "환자번호", w: "15%" },
   { key: "name",    label: "이름" },
-  { key: "sex",     label: "성별", w: "10%" },
-  { key: "age",     label: "나이", w: "10%" },
-  { key: "allergy", label: "알레르기", w: "14%" },
-  { key: "state",   label: "상태", w: "14%" },
-  { key: "act",     label: "", w: "16%" },
+  { key: "phone",   label: "전화", w: "17%" },
+  { key: "staff",   label: "주치의", w: "13%" },
+  { key: "app",     label: "앱", w: "9%" },
+  { key: "allergy", label: "알레르기", w: "11%" },
 ];
 
-/* 필터는 **화면이 건다.** 서버 목록에 거를 칸이 없어서다 — 아래 Missing 참고.
-   자료가 오면 그대로 서버 질의로 옮긴다 */
-/* ⚠ 2026-09-27 — 「초진」 거르개를 뺐다. 목록 응답(PatientListSerializer)에
-   first_visited_at 이 없어서 늘 **전원이 초진**으로 걸렸다 — 거르는 척만
-   하는 단추였다. 서버가 그 칸을 목록에 실어 주면 다시 넣는다 */
+/* 필터는 **화면이 건다.** 서버 목록에 거를 칸이 없어서다.
+   need — 그 칸이 목록에 실려 와야 세울 수 있는 거르개 */
 const FILTERS = [
   { key: "all",     label: "전체" },
   { key: "allergy", label: "알레르기" },
+  { key: "none",    label: "미배정", need: "primary_staff" },
+  { key: "noapp",   label: "앱 미가입", need: "has_account" },
 ];
 
 function filter(rows, only) {
   if (only === "allergy") return rows.filter((r) => r.has_allergy === true);
-  if (only === "first")   return rows.filter((r) => !r.first_visited_at);
+  if (only === "none") return rows.filter((r) => "primary_staff" in r && r.primary_staff == null);
+  /* ⚠ has_account 가 없는(옛 서버) 줄은 「미가입」으로 세지 않는다 — 모르는 것이다 */
+  if (only === "noapp") return rows.filter((r) => r.has_account === false);
   return rows;
 }
 
-
-/* 생년월일이 있으면 기준일에 맞춘 만 나이를, 없으면 기존 출생연도
-   정보로 계산한 연 나이를 쓴다. 예약 목록과 상세의 나이가 어긋나지
-   않도록 한 곳에서 계산한다. */
+/* 생년월일이 있으면 만 나이를, 없으면 출생연도로 연 나이를 쓴다 */
 function ageOf(r) {
   if (r.age != null) return r.age;
   const birthDate = r.pii?.birth_date ?? r.birth_date ?? null;
@@ -168,7 +142,7 @@ function ageOf(r) {
     const birth = new Date(`${String(birthDate).slice(0, 10)}T00:00:00`);
     if (!Number.isNaN(birth.getTime())) {
       const today = new Date();
-      let age = today.getFullYear() - birth.getFullYear();
+      const age = today.getFullYear() - birth.getFullYear();
       const beforeBirthday = today.getMonth() < birth.getMonth()
         || (today.getMonth() === birth.getMonth() && today.getDate() < birth.getDate());
       return age - Number(beforeBirthday);
@@ -178,39 +152,68 @@ function ageOf(r) {
   return new Date().getFullYear() - r.birth_year;
 }
 
-function row(r, { onReserve, onOpen }, integrated) {
+function row(r) {
   const age = ageOf(r);
+  const who = [age, label(SEX, r.sex)].filter((v) => v != null && v !== "").join(" · ");
   return {
     id: r.patient_id,
     no: <span className="num dim">{r.patient_number ?? "—"}</span>,
-    name: <b>{r.name ?? "—"}</b>,
-    sex: label(SEX, r.sex) || "—",
-    age: age == null ? "—" : <span className="num">{age}</span>,
+    name: <span className="plist-nm"><b>{r.name ?? "—"}</b>{who && <span>{who}</span>}</span>,
+    phone: <span className="num">{r.phone ?? "—"}</span>,
+    staff: r.primary_staff_name ?? (r.primary_staff != null ? `#${r.primary_staff}` : <span className="dim">미배정</span>),
+    app: r.has_account == null ? "—" : r.has_account ? "연동" : <span className="dim">미가입</span>,
     allergy: r.has_allergy == null
       ? "—"
       : (r.has_allergy ? <Chip tone="fill">있음</Chip> : "없음"),
-    state: r.status ?? (r.first_visited_at ? "재진" : "—"),
-    act: (
-      <span className="rowacts">
-        <Btn onClick={(e) => { e.stopPropagation(); onOpen(); }}>상세보기</Btn>
-        <Btn kind="fill" onClick={(e) => { e.stopPropagation(); onReserve(); }}
-             disabled={!permitted("reception.reserve", integrated)}>예약</Btn>
-      </span>
-    ),
   };
 }
 
-/* ── 상세 ────────────────────────────────────────────────────── */
+/* ── 오른쪽 — 고른 환자 한 사람 ───────────────────────────────── */
 
-/* 고칠 수 있는 것만 칸으로 둔다.
-   ⚠ **이름 · 생년월일 · 전화는 못 고친다.** 그 셋은 patient_pii 에 있고
-     PATCH /patients/{id} 가 쓰는 PatientSerializer 는 patient 표만 다룬다
-     (상세의 pii 는 읽기 전용). 칸을 만들어 두면 저장해도 조용히 안 바뀐다 —
-     그래서 아예 «읽기»로 보여준다. */
-function Detail({ patient, onSaved, onReserve, integrated }) {
-  /* **고친 칸만 들고 있는다.** 서버 값을 통째로 state 에 복사해 두면 그것을
-     언제 다시 세울지(효과·의존성)를 계속 맞춰야 하고, 저장 후 새로 받은
-     값과 어긋나기 쉽다. 그리는 순간에 «서버 값 + 내가 고친 것»을 겹친다 */
+const TABS = [
+  { key: "info", label: "정보" },
+  { key: "visits", label: "방문 · 예약" },
+  { key: "follow", label: "추적" },
+];
+
+function Panel({ patient, date, integrated, onSaved }) {
+  const [tab, setTab] = useState("info");
+  const pid = patient.patient_id;
+  const age = ageOf(patient);
+  const reserveTo = `${go.nursing.reservations()}?patient=${pid}${date ? `&date=${date}` : ""}`;
+
+  return (
+    <Card className="plist-card" pad={false}
+          title={(
+            <span className="plist-who">
+              <b>{patient.name ?? "—"}</b>
+              <span>{[patient.patient_number, age != null && `${age}세`, label(SEX, patient.sex)]
+                .filter(Boolean).join(" · ")}</span>
+            </span>
+          )}
+          right={<Btn to={go.patient(pid)}>환자 상세 열기</Btn>}>
+      <nav className="qtabs" aria-label="환자 정보 구분">
+        {TABS.map((t) => (
+          <button type="button" key={t.key} className={`qtab${t.key === tab ? " on" : ""}`}
+                  aria-pressed={t.key === tab} onClick={() => setTab(t.key)}>{t.label}</button>
+        ))}
+      </nav>
+      <div className="plist-b">
+        {tab === "info" && <Info patient={patient} integrated={integrated} onSaved={onSaved} />}
+        {tab === "visits" && <Visits pid={pid} reserveTo={reserveTo} integrated={integrated} />}
+        {tab === "follow" && <Follow pid={pid} />}
+      </div>
+    </Card>
+  );
+}
+
+/* ── 정보 ────────────────────────────────────────────────────────
+ * 두 덩이다 — 진료 정보(성별 · 알레르기, PATCH /patients/{id}/)와 인적 사항
+ * 정정(이름 · 전화 · 생년월일, PATCH /patients/{id}/pii).
+ * ⚠ 둘은 **다른 표**다. 인적 사항은 patient_pii 에 있어 위 PATCH 로는 조용히
+ *   안 바뀐다 — 그래서 저장 단추도 따로 둔다.
+ */
+function Info({ patient, integrated, onSaved }) {
   const [edited, setEdited] = useState({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -218,15 +221,15 @@ function Detail({ patient, onSaved, onReserve, integrated }) {
 
   const full = useApi(() => api.detail(patient.patient_id), [patient.patient_id]);
 
-  /* 목록 행이 아니라 **상세**로 칸을 세운다. 목록에는 알레르기 메모가 없어서
-     목록 값으로 세우면 저장할 때 메모를 빈 값으로 덮어쓴다 */
+  /* **고친 칸만 들고 있는다.** 그리는 순간에 «서버 값 + 내가 고친 것»을 겹친다.
+     목록 행이 아니라 **상세**로 세운다 — 목록엔 알레르기 메모가 없어 저장할 때
+     메모를 빈 값으로 덮어썼다 */
   const form = full.data && {
     sex: full.data.sex ?? "",
     has_allergy: full.data.has_allergy === true,
     allergy_note: full.data.allergy_note ?? "",
     ...edited,
   };
-
   const set = (k, v) => { setEdited((f) => ({ ...f, [k]: v })); setSaved(false); };
 
   async function save() {
@@ -238,233 +241,206 @@ function Detail({ patient, onSaved, onReserve, integrated }) {
         has_allergy: form.has_allergy,
         allergy_note: form.has_allergy ? form.allergy_note : "",
       });
-      /* 고친 것을 비운다 — 이제 서버 값이 곧 내 값이다. 안 비우면 겹침이
-         남아서, 다른 곳에서 바뀐 값이 화면에 안 보인다 */
       setEdited({});
       setSaved(true);
-      full.reload();
+      full.reload(true);
       onSaved?.();
-    } catch (e) {
-      setError(e);
-    } finally {
-      setBusy(false);
-    }
+    } catch (e) { setError(e); }
+    finally { setBusy(false); }
   }
 
   return (
-    <Card
-      title="환자 정보"
-      right={<Btn kind="fill" onClick={onReserve}
-                  disabled={!permitted("reception.reserve", integrated)}>예약</Btn>}
-    >
-      <Body loading={full.loading} error={full.error} onRetry={full.reload}>
-        {full.data && form && (
-          <>
-            <dl className="kv patient-facts">
-              <dt>환자번호</dt><dd className="num">{full.data.patient_number ?? patient.patient_number ?? "—"}</dd>
-              <dt>이름</dt><dd>{full.data.pii?.name ?? full.data.name ?? patient.name ?? "—"}</dd>
-              <dt>생년월일</dt><dd className="num">{full.data.pii?.birth_date ?? full.data.birth_date ?? "—"}</dd>
-              <dt>전화번호</dt><dd className="num">{full.data.pii?.phone ?? full.data.phone ?? "—"}</dd>
-              <dt>내원 구분</dt><dd>{full.data.first_visited_at ? "재진" : "초진"}</dd>
-            </dl>
-            <div className="fields one">
-              <label className="field">
-                <span>성별</span>
-                <select value={form.sex} onChange={(e) => set("sex", e.target.value)}
-                        disabled={busy}>
-                  <option value="">—</option>
-                  <option value="female">여</option>
-                  <option value="male">남</option>
-                </select>
-              </label>
-            </div>
+    <Body loading={full.loading} error={full.error} onRetry={full.reload}>
+      {full.data && form && (
+        <>
+          <dl className="kv patient-facts">
+            <div><dt>환자번호</dt><dd className="num">{full.data.patient_number ?? patient.patient_number ?? "—"}</dd></div>
+            <div><dt>주치의</dt><dd>{full.data.primary_staff_name ?? patient.primary_staff_name ?? "미배정"}</dd></div>
+            <div><dt>앱 연동</dt><dd>{patient.has_account == null ? "—" : patient.has_account ? "연동" : "미가입"}</dd></div>
+            <div><dt>내원 구분</dt><dd>{full.data.first_visited_at ? "재진" : "초진"}</dd></div>
+          </dl>
 
-            <label className="check">
-              <input type="checkbox" checked={form.has_allergy} disabled={busy}
-                     onChange={(e) => set("has_allergy", e.target.checked)} />
-              <span>조영제 알레르기 있음</span>
+          <h3 className="plist-h">진료 정보</h3>
+          <div className="fields one">
+            <label className="field">
+              <span>성별</span>
+              <select value={form.sex} onChange={(e) => set("sex", e.target.value)} disabled={busy}>
+                <option value="">—</option>
+                <option value="female">여</option>
+                <option value="male">남</option>
+              </select>
             </label>
-            {form.has_allergy && (
-              <label className="field">
-                <span>알레르기 메모</span>
-                <textarea value={form.allergy_note} disabled={busy} maxLength={250}
-                          onChange={(e) => set("allergy_note", e.target.value)} />
-              </label>
-            )}
+          </div>
+          <label className="check">
+            <input type="checkbox" checked={form.has_allergy} disabled={busy}
+                   onChange={(e) => set("has_allergy", e.target.checked)} />
+            <span>조영제 알레르기 있음</span>
+          </label>
+          {form.has_allergy && (
+            <label className="field">
+              <span>알레르기 메모</span>
+              <textarea value={form.allergy_note} disabled={busy} maxLength={250}
+                        onChange={(e) => set("allergy_note", e.target.value)} />
+            </label>
+          )}
+          <div className="save-b">
+            {saved && <span className="hcard-k" role="status">저장했습니다</span>}
+            <Btn kind="fill" onClick={save}
+                 disabled={busy || !permitted("reception.patient.edit", integrated)}>
+              {busy ? "저장하는 중…" : "저장"}
+            </Btn>
+          </div>
+          {error && <Failed error={error} />}
 
-            <div className="save-b">
-              <Btn kind="fill" onClick={save}
-                   disabled={busy || !permitted("reception.patient.edit", integrated)}>
-                {busy ? "저장하는 중…" : "저장"}
-              </Btn>
-            </div>
-
-            {saved && <div className="slot ok" role="status"><b>저장했습니다</b></div>}
-            {error && <Failed error={error} />}
-          </>
-        )}
-      </Body>
-    </Card>
+          <Pii key={full.data.patient_id ?? patient.patient_id} pid={patient.patient_id}
+               now={full.data.pii ?? {}} integrated={integrated}
+               onDone={() => { full.reload(true); onSaved?.(); }} />
+        </>
+      )}
+    </Body>
   );
 }
 
-/* 예약을 새로 잡기 전에도 이 환자에게 이미 확정된 약속을 한눈에 본다.
-   예약 입력 카드와 분리해야 담당자가 기존 일정을 확인한 뒤 새 예약을
-   판단할 수 있다. */
-function ReservationHistory({ patient }) {
-  const orders = useApi(() => api.ordersOf(patient.patient_id), [patient.patient_id]);
-  const rows = (orders.data ?? []).filter((order) => order.order_status !== "cancelled");
+/* 인적 사항 정정 — 창구에서 이름 오타 · 번호 바뀜 · 생년월일 잘못 적힘을 고친다.
+   **바뀐 칸만** 보낸다. 전화가 다른 환자와 겹치면 서버가 400 을 준다.
+   ⚠ 서버에 경로가 없으면(404 · 405) 그렇다고 적는다 — 저장된 척하지 않는다 */
+function Pii({ pid, now, integrated, onDone }) {
+  const [f, setF] = useState({
+    name: now.name ?? "", phone: now.phone ?? "", birth_date: now.birth_date ?? "",
+  });
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+  const [ok, setOk] = useState(null);
+  const changed = Object.fromEntries(
+    Object.entries(f).filter(([k, v]) => v.trim() !== "" && v.trim() !== (now[k] ?? "")));
+  const may = permitted("reception.patient.edit", integrated);
+
+  async function save() {
+    if (busy || Object.keys(changed).length === 0) return;
+    setBusy(true); setErr(null); setOk(null);
+    try {
+      await api.correctPii(pid, changed);
+      setOk("고쳤습니다");
+      onDone?.();
+    } catch (e) {
+      setErr([404, 405].includes(e?.status)
+        ? { ...e, detail: "서버에 인적 사항 정정 경로가 아직 없습니다 — 고치지 않았습니다" } : e);
+    } finally { setBusy(false); }
+  }
 
   return (
-    <Card title="환자 예약 기록">
-      <Body loading={orders.loading} error={orders.error} onRetry={orders.reload}>
-        {orders.data && (rows.length ? (
-          <Table
-            cols={[
-              { key: "when", label: "예약 일시" },
-              { key: "status", label: "상태", w: "28%" },
-            ]}
-            rows={rows.map((order) => ({
-              id: order.exam_order_id,
-              when: order.scheduled_at
-                ? <span className="num">{dayOf(order.scheduled_at)} {timeOf(order.scheduled_at)}</span>
-                : "일시 미정",
-              status: statusOf(order),
-            }))}
-          />
-        ) : <p className="hint">확정된 예약 기록이 없습니다.</p>)}
-      </Body>
-    </Card>
+    <>
+      <h3 className="plist-h">인적 사항 정정</h3>
+      <div className="fields plist-pii">
+        <label className="field"><span>이름</span>
+          <input value={f.name} disabled={busy || !may}
+                 onChange={(e) => setF((x) => ({ ...x, name: e.target.value }))} /></label>
+        <label className="field"><span>전화</span>
+          <input value={f.phone} disabled={busy || !may} inputMode="tel"
+                 onChange={(e) => setF((x) => ({ ...x, phone: e.target.value }))} /></label>
+        <label className="field"><span>생년월일</span>
+          <input type="date" value={f.birth_date} disabled={busy || !may}
+                 onChange={(e) => setF((x) => ({ ...x, birth_date: e.target.value }))} /></label>
+      </div>
+      <div className="save-b">
+        {ok && <span className="hcard-k" role="status">{ok}</span>}
+        <Btn onClick={save} disabled={busy || !may || Object.keys(changed).length === 0}>
+          {busy ? "고치는 중…" : "정정 저장"}
+        </Btn>
+      </div>
+      {err && <Failed error={err} />}
+    </>
   );
 }
 
-/* ── 예약 ────────────────────────────────────────────────────── */
-
-const dayOf = (s) => (s ? s.slice(0, 10) : "");
-
-/* 오더 상태를 창구 말로. requested 같은 영어 코드가 그대로 찍혔다.
-   ⚠ 모르는 값은 코드 그대로 둔다 — 서버가 상태를 늘려도 줄이 안 빈다 */
+/* ── 방문 · 예약 ─────────────────────────────────────────────────
+ * 이 사람의 오더 전부 — 다가오는 것이 위, 지난 것이 아래.
+ * 안 오신 적 — 지난 예약인데 내원 기록이 없는 것.
+ * ⚠ **「부도」라고 쓰지 않는다.** 창구에서 내원을 안 찍었을 수도 있다.
+ */
 const STATUS = {
-  /* requested · 안 옴 = 앱 신청(미확정). 예약 판(Reservations.jsx)과 같은 말 */
   requested: "미확정", scheduled: "예약 확정", ordered: "검사 지시",
   accepted: "접수됨", in_progress: "검사 중", completed: "완료", cancelled: "취소",
 };
-function statusOf(o) {
+const dayOf = (s) => (s ? String(s).slice(0, 10) : "");
+const timeOf = (s) => (s ? String(s).slice(11, 16) : "");
+const missedOf = (o, today) => dayOf(o.scheduled_at) && dayOf(o.scheduled_at) < today
+  && !o.visited_at && o.order_status !== "cancelled";
+
+function statusOf(o, today) {
+  if (missedOf(o, today)) return "안 옴";
   if (o.visited_at && o.order_status === "requested") return "내원";
   return STATUS[o.order_status] ?? o.order_status ?? "—";
 }
-const timeOf = (s) => (s ? s.slice(11, 16) : "");
 
-/* [예약] 을 누르면 열리는 자리.
- *
- * **중복은 막지 않고 보여준다.** 같은 날 예약이 이미 있어도 못 잡게 하면
- * 오전 유방촬영 · 오후 초음파처럼 하루에 둘을 잡는 정상 경우가 막힌다.
- * 원무가 목록을 보고 판단한다.
- *
- * ⚠ **시간대 정원은 보지 않는다.** 검사마다 걸리는 시간이 달라서 «몇 건»으로
- *   자리를 세면 틀린 답이 나온다.
- */
-function Reserve({ patient, firstDate, onClose, integrated, onBooked }) {
-  const [date, setDate] = useState(firstDate || "");
-  const [time, setTime] = useState("09:00");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState(null);
-  const [done, setDone] = useState(null);
-
-  const orders = useApi(() => api.ordersOf(patient.patient_id), [patient.patient_id]);
-
-  /* 고른 날에 이미 잡힌 것 */
-  const sameDay = (orders.data ?? [])
-    .filter((o) => o.scheduled_at && dayOf(o.scheduled_at) === date
-                   && o.order_status !== "cancelled");
-
-  async function submit(e) {
-    e.preventDefault();
-    if (!date || !time || busy) return;
-    setBusy(true); setError(null);
-    try {
-      /* 서버가 DateTimeField 로 받는다. 시간대를 안 붙이면 서버가 KST 로
-         읽는다 (settings 의 TIME_ZONE) — 화면과 같은 뜻이라 그대로 보낸다 */
-      const order = await api.reserve({
-        patient_id: patient.patient_id,
-        scheduled_at: `${date}T${time}:00`,
-      });
-      setDone(order);
-      orders.reload();
-      onBooked?.();
-    } catch (e2) {
-      setError(e2);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  if (done) {
-    return (
-      <Card title="예약" right={<Btn onClick={onClose}>닫기</Btn>}>
-        <div className="slot ok" role="status">
-          <b>{date} {time} 예약했습니다</b>
-          <span>
-            오더 {done.exam_order_id} · 검사 종류는 유방외과가 정합니다
-          </span>
-        </div>
-      </Card>
-    );
-  }
+function Visits({ pid, reserveTo, integrated }) {
+  const orders = useApi(() => api.ordersOf(pid), [pid]);
+  const today = H.iso(new Date());
+  const list = (orders.data ?? []).slice()
+    .sort((a, b) => String(b.scheduled_at ?? b.visited_at ?? "").localeCompare(String(a.scheduled_at ?? a.visited_at ?? "")));
+  const ahead = list.filter((o) => dayOf(o.scheduled_at) >= today && !o.visited_at
+    && o.order_status !== "cancelled");
+  const missed = list.filter((o) => missedOf(o, today));
 
   return (
-    <Card title="예약" right={<Btn onClick={onClose} disabled={busy}>닫기</Btn>}>
-      <form onSubmit={submit}>
-        <dl className="kv">
-          <dt>환자</dt>
-          <dd>{patient.name ?? "—"} · <span className="num">{patient.patient_number}</span></dd>
-        </dl>
-
-        <div className="fields appointment-fields">
-          <label className="field">
-            <span>날짜</span>
-            <input type="date" value={date} disabled={busy}
-                   onChange={(e) => setDate(e.target.value)} />
-          </label>
-          <label className="field">
-            <span>시간</span>
-            <input type="time" value={time} step={600} disabled={busy}
-                   onChange={(e) => setTime(e.target.value)} />
-          </label>
+    <>
+      <div className="plist-act">
+        <span className="hcard-k">
+          다가오는 예약 {ahead.length}건{missed.length > 0 && ` · 안 오신 적 ${missed.length}번`}
+        </span>
+        <span className="home-fill" />
+        {/* 예약은 예약 관리에서만 잡는다 — 같은 날 중복 막이가 거기 있다 */}
+        {permitted("reception.reserve", integrated)
+          ? <Btn kind="fill" to={reserveTo}>예약 잡기 →</Btn>
+          : <Btn kind="fill" disabled title="권한이 없습니다. 관리자에게 문의하세요">예약 잡기 →</Btn>}
+      </div>
+      <Body loading={orders.loading} error={orders.error} onRetry={orders.reload}
+            empty={orders.data && list.length === 0 && <Empty title="방문 · 예약 기록이 없습니다" />}>
+        <div className="resv-past plist-visits">
+          {list.map((o) => (
+            <p key={o.exam_order_id} className={o.order_status === "cancelled" ? "off" : undefined}>
+              <i>{statusOf(o, today)}</i>
+              <time>{dayOf(o.scheduled_at ?? o.visited_at) || "일시 미정"} {timeOf(o.scheduled_at ?? o.visited_at)}</time>
+              <span>{label(MODALITY, asModality(o.modality)) || "검사 미정"}</span>
+              <em>{o.primary_staff_name ?? o.handed_to_name ?? ""}</em>
+            </p>
+          ))}
         </div>
-
-        <Body loading={orders.loading} error={orders.error} onRetry={orders.reload}>
-          {orders.data && date && (
-            sameDay.length > 0 ? (
-              <div className="slot bad" role="alert">
-                <b>이 환자는 {date} 에 이미 예약이 있습니다</b>
-                <ul className="dup">
-                  {sameDay.map((o) => (
-                    <li key={o.exam_order_id}>
-                      <b>{timeOf(o.scheduled_at)}</b>
-                      <span>{label(MODALITY, asModality(o.modality)) || "검사 미정"}</span>
-                      <em>{statusOf(o)}</em>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : null
-          )}
-        </Body>
-
-        <div className="save-b">
-          <Btn kind="fill" type="submit"
-               disabled={!date || !time || busy || !permitted("reception.reserve", integrated)}>
-            {busy ? "예약하는 중…" : "예약 완료"}
-          </Btn>
-        </div>
-
-        {error && <Failed error={error} />}
-      </form>
-    </Card>
+      </Body>
+    </>
   );
 }
 
+/* ── 추적 ────────────────────────────────────────────────────────
+ * BI-RADS 3 추적 회차. 전화 · 회차 결과는 추적 관리에서 한다 — 여기는 본다 */
+const ROUND = { stable: "변화 없음", changed: "변화 있음", no_show: "안 오심" };
+
+function Follow({ pid }) {
+  const list = useApi(() => nur.followupsOf(pid), [pid]);
+  const rows = H.rows(list.data);
+  return (
+    <>
+      <div className="plist-act">
+        <span className="hcard-k">{rows.length === 0 ? "추적 회차가 없습니다" : `회차 ${rows.filter((r) => r.status !== "candidate").length}`}</span>
+        <span className="home-fill" />
+        <Btn to={`${go.nursing.followups()}?patient=${pid}`}>추적 관리에서 열기</Btn>
+      </div>
+      <Body loading={list.loading} error={list.error} onRetry={list.reload}
+            empty={list.data && rows.length === 0 && <Empty title="추적 중인 회차가 없습니다" hint="BI-RADS 3 으로 확정되면 여기에 후보로 뜹니다" />}>
+        <div className="resv-past plist-visits">
+          {rows.map((r, i) => (
+            <p key={r.followup_id ?? `c${i}`}>
+              <i>{r.status === "candidate" ? "후보" : H.openFollowup(r) ? "진행" : "종결"}</i>
+              <time>{r.due_at ? dayOf(r.due_at) : "예정일 없음"}</time>
+              <span>{r.status === "candidate" ? "회차 없음 · BI-RADS 3" : `${r.round_no}회차`}</span>
+              <em>{ROUND[r.round_result] ?? r.call_result ?? ""}</em>
+            </p>
+          ))}
+        </div>
+      </Body>
+    </>
+  );
+}
 
 function Failed({ error }) {
   return (

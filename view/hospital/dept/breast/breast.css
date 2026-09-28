@@ -586,3 +586,215 @@
   .breast-patients-page .split.third {grid-template-columns:minmax(410px,1fr) minmax(0,2fr)}
 }
 .breast-patients-page .split-l .card-h-r .search {min-width:15em}
+
+/* ══ 진료 흐름 (dept/breast/flow.js) ════════════════════════════
+ * 여기부터는 **.breast 에 가두지 않는다.** 대기 환자 · 환자 상세는 .breast
+ * 밖(hospital 토큰)이고, 치료 방침 · 팝업은 .breast 안이다 — 두 판에서
+ * 같은 단계 줄이 떠야 해서 이름을 bf- 로 따로 두고 hospital 토큰만 쓴다.
+ * ⚠ .breast 안에서는 --ink · --line-2 가 그쪽 값으로 바뀐다. 뜻은 같다. */
+
+/* 단계 줄 — 열두 칸. 윗선 굵기 · 모양으로 가른다(색은 지금 단계 cyan 하나) */
+.bf-steps{margin:0; padding:0; list-style:none; display:grid;
+  grid-template-columns:repeat(12, minmax(0, 1fr)); gap:var(--gap-xxs)}
+.bf-step{display:flex; flex-direction:column; gap:1px; min-width:0;
+  padding:var(--gap-xs) var(--gap-xxs) 0; border-top:3px solid var(--border);
+  color:var(--warm); font-size:var(--label-fs)}
+.bf-step i{font-style:normal; line-height:1.2}
+.bf-step b{font-weight:600; color:var(--ink-2); white-space:nowrap;
+  overflow:hidden; text-overflow:ellipsis}
+.bf-step small{font-size:var(--stag-fs); color:var(--warm); white-space:nowrap;
+  overflow:hidden; text-overflow:ellipsis}
+.bf-step.done{border-top-color:var(--soot)}
+.bf-step.done b{color:var(--ink)}
+.bf-step.now{border-top-color:var(--cyan)}
+.bf-step.now i{color:var(--cyan)}
+.bf-step.now b{color:var(--ink); font-weight:700}
+.bf-step.wait{border-top-style:dashed; border-top-color:var(--warm)}
+.bf-step.todo b{font-weight:500}
+.bf-step.opt{border-top-style:dotted}
+.bf-step.skip{opacity:.5}
+.bf-step.skip b{font-weight:400}
+/* 세로 — 오른쪽 레일(치료 방침). 점 + 2px 줄의 타임라인이다.
+   ⚠ 한쪽만 굵은 선(카드 옆 띠)은 쓰지 않는다 — 판의 디자인 검사가 막는다 */
+.bf-steps.col{grid-template-columns:minmax(0, 1fr); gap:0}
+.bf-steps.col .bf-step{position:relative; flex-direction:row; align-items:baseline;
+  gap:var(--gap-sm); border-top:none; padding:var(--gap-xs) 0 var(--gap-xs) 22px}
+.bf-steps.col .bf-step::before{content:""; position:absolute; left:6px; top:0; bottom:0;
+  width:2px; background:var(--border)}
+.bf-steps.col .bf-step:first-child::before{top:12px}
+.bf-steps.col .bf-step:last-child::before{bottom:auto; height:12px}
+.bf-steps.col .bf-step i{position:absolute; left:0; top:7px; z-index:1; width:14px; height:14px;
+  border-radius:50%; display:flex; align-items:center; justify-content:center;
+  font-size:8px; line-height:1; background:var(--card); color:var(--warm);
+  box-shadow:inset 0 0 0 2px var(--border)}
+.bf-steps.col .bf-step small{margin-left:auto}
+.bf-steps.col .bf-step.done::before{background:var(--soot)}
+.bf-steps.col .bf-step.done i{background:var(--soot); color:var(--soot-ink); box-shadow:none}
+.bf-steps.col .bf-step.now i{background:var(--cyan); color:var(--cyan-ink); box-shadow:none}
+.bf-steps.col .bf-step.wait i{box-shadow:inset 0 0 0 2px var(--warm)}
+/* 가운데 단이 좁으면(1280 이하) 열두 칸이 글자를 못 담는다 — 두 줄로 */
+@container work-mid (max-width: 640px){
+  .bf-steps{grid-template-columns:repeat(6, minmax(0, 1fr)); row-gap:var(--gap-sm)}
+}
+
+/* 단계 줄 + 다음 할 일 한 칸 */
+.bf-flow{flex:none; display:flex; flex-direction:column; gap:var(--gap-sm);
+  padding:var(--hcard-pad-y) var(--bcol-pad); background:var(--card);
+  border:var(--hair) solid var(--border); border-radius:var(--hcard-radius)}
+.bf-next{display:flex; align-items:center; flex-wrap:wrap; gap:var(--gap-xs) var(--gap-sm)}
+.bf-next-k{font-size:var(--label-fs); color:var(--warm)}
+.bf-next b{font-size:var(--hcard-h-fs); font-weight:700; color:var(--ink)}
+.bf-next p{margin:0; font-size:var(--work-read-fs); line-height:var(--work-read-lh);
+  color:var(--ink-2)}
+.bf-flow.col .bf-next{flex-direction:column; align-items:stretch}
+
+/* 대기 환자 — 세 단(상용구 단을 뺐다) */
+.work.bf-work{grid-template-columns:var(--work-q) minmax(0, 1fr) var(--work-hist)}
+.bf-q-none{margin:0; padding:var(--hcard-pad-y) var(--work-q-pad);
+  font-size:var(--qrow-meta-fs); color:var(--v-warm)}
+.bf-q-flag{flex:none; font-style:normal; font-size:var(--stag-fs);
+  padding:0 var(--gap-xs); border-radius:var(--radius-sm);
+  box-shadow:inset 0 0 0 var(--hair) var(--v-warm); color:var(--v-ink)}
+.work-row.bf-dim{opacity:.72}
+/* 결과 대기 묶음 — 접혀 있어도 머리는 늘 보인다(handled.js) */
+.bf-park{border-top:var(--hair) solid var(--v-line)}
+.bf-park-h{width:100%; display:flex; align-items:baseline; gap:var(--chip-gap);
+  padding:var(--gap-sm) var(--work-q-pad); color:var(--v-warm);
+  font-size:var(--qrow-meta-fs); text-align:left}
+.bf-park-h:hover{color:var(--v-ink)}
+.bf-park-h i{font-style:normal; width:1em}
+.bf-park-h em{font-style:normal; color:var(--v-ink); font-weight:600}
+.bf-park-h small{font-size:var(--stag-fs)}
+.bf-want{display:flex; align-items:center; gap:var(--gap-sm);
+  font-size:var(--qrow-meta-fs)}
+.bf-want span{flex:1; min-width:0}
+
+/* 결과 줄 — 영상 · 병리 */
+.bf-pend{display:flex; flex-wrap:wrap; gap:var(--chip-gap); margin:0}
+.bf-res{margin:0; padding:0; list-style:none; display:flex; flex-direction:column}
+.bf-res li{display:flex; flex-direction:column; gap:var(--gap-xs);
+  padding:var(--gap-sm) 0; border-top:var(--hair) solid var(--line-2)}
+.bf-res li:first-child{border-top:none; padding-top:0}
+.bf-res-h{display:flex; align-items:center; flex-wrap:wrap; gap:var(--chip-gap);
+  font-size:var(--row-fs)}
+.bf-res-h b{font-weight:600}
+.bf-res li.on .bf-res-h b{font-weight:700}
+.bf-res-h time{color:var(--warm); font-size:var(--label-fs);
+  font-variant-numeric:tabular-nums}
+.bf-res-b{font-size:var(--work-read-fs); line-height:var(--work-read-lh); color:var(--ink-2)}
+.bf-rcp{display:flex; flex-wrap:wrap; gap:var(--chip-gap)}
+
+/* 재진 예약 */
+.bf-book{display:flex; flex-direction:column; gap:var(--gap-sm)}
+.bf-book-q{display:flex; flex-wrap:wrap; gap:var(--gap-xs)}
+/* button. 을 붙인다 — .breast 안의 `.breast button{padding:0; background:none}`
+   와 같은 무게여야 뒤에 실린 이쪽이 이긴다 */
+button.bf-chip{padding:var(--gap-xxs) var(--chip-pad-x); border-radius:999px;
+  font-size:var(--chip-fs); background:var(--card); color:var(--ink-2);
+  box-shadow:inset 0 0 0 var(--hair) var(--border); cursor:pointer}
+button.bf-chip:hover{background:var(--canvas)}
+button.bf-chip.on{box-shadow:inset 0 0 0 var(--focus-w) var(--cyan); color:var(--ink);
+  font-weight:600}
+.bf-book-f{display:flex; align-items:flex-end; flex-wrap:wrap; gap:var(--gap-sm)}
+.bf-book-f label{display:flex; flex-direction:column; gap:var(--gap-xxs);
+  font-size:var(--label-fs); color:var(--ink-2)}
+.bf-book-f input{height:34px; padding:0 var(--in-pad-x); border:var(--hair) solid var(--faint);
+  border-radius:var(--in-radius); font-size:var(--in-fs); background:var(--card); color:var(--ink)}
+.bf-lead{margin:0 0 var(--gap-sm); font-size:var(--row-fs); line-height:1.6; color:var(--ink-2)}
+.bf-lead b{color:var(--ink)}
+.modal .bf-steps{margin-top:var(--gap-sm)}
+
+/* 환자 상세 — soot 띠 위 [처분하기]. line 단추는 흰 바탕에 글자가 soot-ink
+   (흰색)라 흰 위에 흰 글씨였다(09-28) */
+.rev-odd.k1 .btn.line{background:transparent; color:var(--soot-ink);
+  box-shadow:inset 0 0 0 var(--hair) var(--v-warm)}
+.rev-odd.k1 .btn.line:hover{background:var(--v-line)}
+
+/* 환자 상세 둘째 줄 · 발 — 두 단 격자(.rev)를 가로질러 선다 */
+.bf-run{grid-column:1 / -1; border-top:var(--hair) solid var(--border)}
+.bf-run-b{display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:var(--desk-gap)}
+.bf-run-b > div{display:flex; flex-direction:column; gap:var(--gap-xs); min-width:0}
+.bf-run-k{font-size:var(--label-fs); font-weight:600; color:var(--warm)}
+.bf-rev-f{grid-column:1 / -1; display:flex; align-items:center; flex-wrap:wrap;
+  gap:var(--gap-sm); padding:var(--hcard-pad-y) var(--bcol-pad);
+  border-top:var(--hair) solid var(--border); background:var(--canvas)}
+
+/* ── 치료 방침 — 한 줄 단계 카드 + 오른쪽 붙박이 320 (Decision.jsx) ── */
+.breast .bf-dec{display:grid; grid-template-columns:minmax(0, 1fr) 320px; gap:var(--gap);
+  align-items:start}
+.breast .bf-dec-main{display:flex; flex-direction:column; gap:12px; min-width:0}
+.breast .bf-dec-main > .card + .card{margin-top:0}
+.breast .bf-rail{position:sticky; top:12px; align-self:start; display:flex; flex-direction:column;
+  gap:12px; max-height:calc(100vh - 24px); overflow-y:auto}
+.breast .bf-rail > .card + .card{margin-top:0}
+@media (max-width:1080px){
+  .breast .bf-dec{grid-template-columns:1fr}
+  .breast .bf-rail{position:static; order:-1; max-height:none}
+}
+.breast .bf-sc{scroll-margin-top:12px}
+.breast .bf-sc > .card-head{align-items:center}
+/* 단계 번호 — 동그라미 배지. 지금 단계는 배지를 cyan 으로 채우고 카드
+   네 변을 1px cyan 으로 두른다(한쪽 띠는 쓰지 않는다) */
+.breast .bf-sc-n{flex:none; width:22px; height:22px; border-radius:50%;
+  display:inline-flex; align-items:center; justify-content:center;
+  font-size:12px; font-weight:700; color:var(--muted);
+  box-shadow:inset 0 0 0 1px var(--line)}
+.breast .bf-sc.done .bf-sc-n{background:var(--ink); color:var(--surface); box-shadow:none}
+.breast .bf-sc.now{border-color:var(--cyan)}
+.breast .bf-sc.now .bf-sc-n{background:var(--cyan); color:var(--cyan-ink); box-shadow:none}
+.breast .bf-sc.now h3{color:var(--ink)}
+.breast .bf-sc.lock{background:var(--surface-2)}
+.breast .bf-sc.lock .bf-sc-n,.breast .bf-sc.todo .bf-sc-n,.breast .bf-sc.opt .bf-sc-n,
+.breast .bf-sc.wait .bf-sc-n,.breast .bf-sc.skip .bf-sc-n{color:var(--muted)}
+/* 카드 안 덩어리 — 첫 덩어리만 선을 안 긋는다 */
+.breast .bf-block{margin-top:12px; padding-top:12px; border-top:1px solid var(--line-2)}
+.breast .bf-sc > .card-head + .bf-block,
+.breast .bf-sc > .card-head + div > .bf-block{margin-top:0; padding-top:0; border-top:none}
+.breast .bf-block .edit-btn{font-size:12.5px; font-weight:600; color:var(--accent)}
+.breast .bf-block .edit-btn:hover{text-decoration:underline}
+.breast .bf-sum{display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:var(--gap)}
+.breast .bf-sum > div{display:flex; flex-direction:column; gap:8px; min-width:0}
+.breast .bf-sum .section-label{margin:0}
+@media (max-width:760px){.breast .bf-sum{grid-template-columns:1fr}}
+.breast .bf-gate{display:flex; flex-direction:column; gap:8px}
+.breast .bf-close{display:flex; flex-direction:column; gap:12px}
+.breast .bf-seg{flex-direction:row; flex-wrap:wrap}
+.breast .bf-seg .radio-row{flex:1; min-width:9em}
+.breast .bf-phr{display:flex; flex-wrap:wrap; gap:6px 14px}
+.breast .bf-phr-g{display:flex; flex-wrap:wrap; align-items:center; gap:4px}
+.breast .bf-phr-g small{font-size:11px; font-weight:600; color:var(--muted); margin-right:2px}
+.breast .bf-rx{list-style:none; margin:10px 0; padding:0; display:flex; flex-direction:column; gap:8px}
+.breast .bf-rx li{display:flex; flex-direction:column; gap:3px; padding:8px 10px;
+  border:1px solid var(--line); border-radius:var(--radius-sm)}
+.breast .bf-rx-h{display:flex; align-items:baseline; gap:8px; font-size:12.5px}
+.breast .bf-rx-d{font-size:13px; color:var(--ink-2)}
+.breast .bf-rx-d b{color:var(--ink); margin-right:6px}
+.breast .bf-rail-facts{display:flex; flex-wrap:wrap; gap:6px; margin-top:12px}
+.breast .bf-rail-next{display:flex; flex-direction:column; gap:6px; margin-top:12px;
+  padding-top:10px; border-top:1px solid var(--line-2)}
+.breast .bf-rail-next .section-label{margin:0}
+.breast .bf-rail .cond-list{display:flex; flex-direction:column; gap:10px}
+
+/* ── 판정 불일치 — 왼쪽 아래 「처분 기다리는 불일치」 (Discordance.jsx) ──
+   비어 있던 아래 칸을 목록이 받는다. 남는 높이를 다 쓰고 안에서 굴린다 */
+.bf-odds{flex:1; min-height:0; display:flex; flex-direction:column;
+  border-top:var(--hair) solid var(--border)}
+.bf-odds-l{margin:0; padding:0; list-style:none; overflow-y:auto}
+.bf-odds-l a{display:grid; grid-template-columns:7em minmax(0, 1fr) auto auto;
+  align-items:baseline; gap:var(--gap-sm); padding:var(--gap-sm) var(--bcol-pad);
+  border-bottom:var(--hair) solid var(--line-2); font-size:var(--row-fs); color:var(--ink)}
+.bf-odds-l a:hover{background:var(--canvas)}
+.bf-odds-l a.on{background:var(--canvas); font-weight:600}
+.bf-odds-l a span{overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--ink-2)}
+.bf-odds-l a time{color:var(--warm); font-size:var(--label-fs); font-variant-numeric:tabular-nums}
+.bf-odds-l a i{font-style:normal; color:var(--faint); font-size:var(--label-fs)}
+
+/* ── 전체 환자 — 오른쪽 요약(Patients.jsx). 단계 줄 + 결과 한 줄 ── */
+.breast .bf-pl-h{display:flex; align-items:baseline; flex-wrap:wrap; gap:6px 10px}
+.breast .bf-pl-h b{font-size:16px; font-weight:700}
+.breast .bf-pl-brief{margin:8px 0 10px; font-size:13px; line-height:1.5; color:var(--ink-2)}
+.breast .bf-pl-next{display:flex; align-items:center; gap:8px; margin:10px 0 14px;
+  padding:8px 10px; border:1px solid var(--line); border-radius:var(--radius-sm)}
+/* 쪽을 뷰포트에 가둔다 — 오른쪽 요약에 단계 줄이 들어오며 길어져서, 안
+   가두면 쪽 전체가 굴렀다. 요약 칸(.list-detail-info)이 안에서 굴린다 */
+.page.breast-patients-page{flex:none; height:calc(100vh - var(--top-total) - var(--foot-h))}

@@ -1,17 +1,25 @@
-import { useEffect, useRef, useState } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { breast as api, currentAssessment } from "../../../api";
 import { useApi } from "../../../lib/useApi";
 import { Page, Btn } from "../../../lib/Page";
 import { Body } from "../../../lib/Body";
 import { Chip } from "../../../lib/Parts";
-import { MODALITY, BIRADS_LABEL, label, modality as asModality } from "../../../codes";
+import { MODALITY, BIRADS_LABEL, EXAM_PURPOSE, label, modality as asModality } from "../../../codes";
 import { go } from "../../../nav";
 import * as H from "../../home";
 import "../breast.css";
 import ReviewViewer from "../components/ReviewViewer";
+import ImagePopup from "../components/ImagePopup";
+import ExamOrderModal from "../components/ExamOrderModal";
+import SpecimenBindingModal from "../../../lib/SpecimenBindingModal";
+import { FlowBar } from "../components/Stepper";
+import { PendingLine } from "../components/Results";
+import { lesionText, pathExtras, receptors } from "../results";
+import { markHandled } from "../handled";
+import { flowOf } from "../flow";
 
-/* 유방외과 · 환자 상세(옛 「검사 종합」) — 09-27 개편
+/* 유방외과 · 환자 상세(옛 「검사 종합」) — 09-27 개편 · 09-28 흐름 붙임
  * ════════════════════════════════════════════════════════════════
  *
  * **영상과 병리를 나란히 놓고 한 번에 읽는 자리다.** 두 과가 각자 확정한
@@ -19,25 +27,27 @@ import ReviewViewer from "../components/ReviewViewer";
  *
  *   ┌──────────────────────────────────────────────────────────────┐
  *   │ 환자 · 나이/성별 · 번호 · 내원 · 의뢰 · 주치의   [엇갈림] [영상 확인] │
+ *   │ ✓접수 ✓오더 ✓촬영 ✓판독 ●병리 …  다음 할 일 · 종합 리포트 [→]      │
  *   ├─────────────────────────────┬────────────────────────────────┤
- *   │ 영상 판독  BI-RADS 4a        │ 병리 결과  B2                   │
- *   │  ▾ 09-23 유방촬영 · 4a       │  ▾ 09-27 검체 51 · B5           │
- *   │  ▸ 09-22 초음파 · 3          │  ▸ 09-23 검체 44 · B2           │
- *   └─────────────────────────────┴────────────────────────────────┘
- *   [영상 확인] → 팝업 뷰어. 탭 초음파 · 유방촬영 · MRI · 병리
+ *   │ 영상 판독  BI-RADS 4a        │ 병리 결과  B5                   │
+ *   │  ▾ 09-23 유방촬영 · 4a · 밀도 C│  ▾ 09-27 검체 51 · B5 · ER+ …  │
+ *   ├─────────────────────────────┴────────────────────────────────┤
+ *   │ 진행 중 오더 · AI 상태                                           │
+ *   ├──────────────────────────────────────────────────────────────┤
+ *   │ [추가 촬영] [검체 등록]                    [리포트 · 방침으로 →] │
+ *   └──────────────────────────────────────────────────────────────┘
  *
- * ⚠ 판독은 **한 건씩 접는다.** 전에는 소견문이 전부 펼쳐져 있어 화면이
- *   길었고, 병리 쪽은 펼치고 접을 방법이 없었다. 가장 최근 한 건만 편다.
- * ⚠ **일치·불일치를 색으로 말하지 않는다.** 글자와 soot 채움으로 가른다 —
- *   판독 영상 위에서 초록/빨강이 병변 표시와 싸운다(tokens.css 색 규칙).
+ * ⚠ 판독은 **한 건씩 접는다.** 가장 최근 한 건만 편다.
+ * ⚠ **일치·불일치를 색으로 말하지 않는다.** 글자와 soot 채움으로 가른다.
  * ⚠ 유방외과는 판독 화면 권한이 없다. 영상 · 병리 이미지를 보는 길이
- *   이 팝업뿐이라 끊으면 안 된다.
+ *   이 팝업뿐이라 끊으면 안 된다. 팝업은 **가장 최근 판독의 검사**로 연다 —
+ *   전에는 뷰어가 촬영 시각만 보고 골라서, 판독이 없는 MRI 가 먼저 떴다.
+ * ⚠ AI 악성 확률(malignancy_p)은 **안 싣는다** — 서버도 일부러 안 준다.
+ *   병변 줄의 AI 값은 크기와 등급(birads_model)뿐이다.
  *
  * 진료 이력에서 들어오면(?study= · ?specimen=, dept/breast/history.js)
- * 그 건을 펴서 그 자리로 내려간다. 과거 기록을 보는 길이 이것이다 —
- * 판독 화면으로 보내면 잠긴 화면만 뜬다.
- * 판독 줄에서 오면 ?assessment= 도 붙는다. 그 판이 지금 판독이 아니면
- * (정정으로 덮인 판 · 초안) 영상 칸 위에 따로 보여 준다 — Version.
+ * 그 건을 펴서 그 자리로 내려간다. 판독 줄에서 오면 ?assessment= 도 붙는다.
+ * 그 판이 지금 판독이 아니면 영상 칸 위에 따로 보여 준다 — Version.
  */
 export default function Review() {
   const { id } = useParams();
@@ -56,19 +66,26 @@ export default function Review() {
             <>
               {/* 제목이 「환자 상세」라 공용 환자 페이지는 그 중심인 히스토리 이름으로 */}
               <Btn to={go.patient(id)}>전체 히스토리</Btn>
-              <Btn to={go.breast.decision(id)}>치료 방침</Btn>
-              <Btn to={go.breast.waiting()}>내 환자</Btn>
+              <Btn to={go.breast.waiting()}>대기 환자</Btn>
             </>
           )}>
       <Body loading={p.loading && !p.data} error={p.error} onRetry={p.reload}>
-        {p.data && <Inner pid={id} p={p.data} focus={focus} />}
+        {p.data && <Inner key={p.data.patient_id} pid={id} p={p.data} focus={focus} onReload={() => p.reload(true)} />}
       </Body>
     </Page>
   );
 }
 
-function Inner({ pid, p, focus }) {
+function Inner({ pid, p, focus, onReload }) {
+  const nav = useNavigate();
   const [seeing, setSeeing] = useState(false);
+  const [modal, setModal] = useState(null);
+  const [examModality, setExamModality] = useState(null);
+  const line = useApi(() => H.soft(api.timeline(pid)), [pid]);
+  const rx = useApi(() => api.prescriptions(pid).catch(() => undefined), [pid]);
+  const flow = useMemo(() => flowOf({ p, timeline: H.rows(line.data), rx: rx.data }),
+    [p, line.data, rx.data]);
+
   const rep = p.other_reports ?? [];
   const of = (want) => rep.filter((r) => (r.dept ?? "").includes(want));
   /* 판정은 Assessment · Specimen 표에서 온다(api.js 의 readings, 최신순).
@@ -80,9 +97,13 @@ function Inner({ pid, p, focus }) {
   const specimenIds = pat.map((r) => r.specimen_id).filter((x) => x != null);
 
   const radRows = rows(rad, of("영상"), "study_id",
-    (r) => label(MODALITY, r.modality) || "영상");
+    (r) => label(MODALITY, asModality(r.modality)) || "영상",
+    (r) => [r.density ? `밀도 ${r.density}` : null].filter(Boolean));
   const specimenName = (r) => r.label ?? `검체 ${r.specimen_id}`;
-  const patRows = rows(pat, of("병리"), "specimen_id", specimenName);
+  /* B 분류는 서버가 b2 로 준다 — 읽는 글자는 B2 */
+  const patRows = rows(pat.map((r) => ({ ...r, grade: r.grade && String(r.grade).toUpperCase() })),
+    of("병리"), "specimen_id", specimenName,
+    (r) => [...pathExtras(r), ...receptors(r)]);
   /* 영상 칸의 「병변」 줄처럼 병리 칸 머리에 검체 ID 를 모아 둔다 */
   const specimenLine = pat.map((r) => (r.label ? `${r.label} (#${r.specimen_id})` : `#${r.specimen_id}`))
     .join(", ") || null;
@@ -92,7 +113,8 @@ function Inner({ pid, p, focus }) {
      떼기만 하고 확진 전인 것. 그때는 없다고 적는다. 말없이 맨 위 건을
      펴 두면 「고른 게 이것」으로 읽힌다 */
   const want = focus ? `${focus.key}-${focus.id}` : null;
-  const studyAt = focus?.key === "study_id" ? focus.id : null;
+  /* 팝업이 열 검사 — 이력에서 고른 것, 없으면 가장 최근 판독의 검사 */
+  const studyAt = focus?.key === "study_id" ? focus.id : (rad[0]?.study_id ?? null);
   const miss = (items, what) => (want && focus.key === what && !items.some((x) => x.id === want));
   const radMiss = miss(radRows, "study_id") && (
     <div className="rev-miss">
@@ -112,6 +134,16 @@ function Inner({ pid, p, focus }) {
     </div>
   );
 
+  function run(n) {
+    if (n?.act === "exam") { setExamModality(n.modality); setModal("exam"); }
+    else if (n?.act === "specimen") setModal("specimen");
+    else if (n?.to) nav(n.to);
+    else if (n?.act) nav(go.breast.waiting());   /* 진료 완료 · 재진은 대기 환자에서 */
+  }
+  const sent = () => { markHandled(p.patient_id); setModal(null); onReload(); line.reload(true); };
+  const key = flow.next?.key;
+  const toDecision = ["report", "decision", "explain", "prescription"].includes(key) ? key : null;
+
   return (
     <div className="rev2">
       {p.data_warnings?.length > 0 && (
@@ -127,7 +159,8 @@ function Inner({ pid, p, focus }) {
             ["나이/성별", H.who(p)],
             ["환자번호", H.noOf(p)],
             ["내원", p.visit_type],
-            ["의뢰", p.visit_purpose],
+            /* 서버 코드(screening · diagnostic)를 그대로 찍던 자리 */
+            ["의뢰", label(EXAM_PURPOSE, p.visit_purpose) || null],
             ["주치의", p.primary_staff_name],
           ].map(([k, v]) => (
             <div key={k}><dt>{k}</dt><dd>{v ?? "—"}</dd></div>
@@ -143,39 +176,126 @@ function Inner({ pid, p, focus }) {
           </span>
           {odd && <Btn to={go.breast.discordance(odd.discordance_id)}>처분하기</Btn>}
         </div>
-        <Btn kind="fill" onClick={() => setSeeing(true)}>영상 확인</Btn>
+        <Btn onClick={() => setSeeing(true)}>영상 확인</Btn>
       </section>
+
+      <FlowBar flow={flow} run={run} />
 
       <div className="rev">
         <div className="rev-l">
-          {/* key — 다른 건을 고르고 오면 접힘 상태를 새로 잡는다 */}
-          {/* 판(assessment)도 key 에 넣는다 — 지난 판에서 「현재 판독 보기」로
+          {/* key — 다른 건을 고르고 오면 접힘 상태를 새로 잡는다.
+              판(assessment)도 key 에 넣는다 — 지난 판에서 「현재 판독 보기」로
               오면 같은 검사라도 새로 펴고 그 줄로 내려가야 한다 */}
           <Readings key={`${want ?? "top"}-${focus?.assessment ?? ""}`} title="영상 판독" gradeLabel="BI-RADS" items={radRows}
                     focus={want} miss={radTop}
                     lines={[["병변", lesionLine(p.lesions)]]} />
         </div>
         <div className="rev-r">
-          <Readings key={want ?? "top"} title="병리 결과" gradeLabel="B" items={patRows}
+          <Readings key={want ?? "top"} title="병리 결과" gradeLabel="" items={patRows}
                     focus={want} miss={patMiss}
                     lines={[["검체", specimenLine]]} />
         </div>
+        <Running p={p} events={H.rows(line.data)} />
+        <footer className="bf-rev-f">
+          <Btn kind={key === "exam" && flow.next.act === "exam" ? "fill" : "line"}
+               onClick={() => run({ act: "exam", modality: flow.next?.modality })}>추가 촬영</Btn>
+          <Btn kind={key === "exam" && flow.next.act === "specimen" ? "fill" : "line"}
+               onClick={() => setModal("specimen")}>검체 등록</Btn>
+          <span className="home-fill" />
+          <span className="hcard-k">
+            {toDecision ? `다음 할 일 · ${flow.next.label}` : "결과를 다 읽었으면"}
+          </span>
+          <Btn kind={toDecision ? "fill" : "line"} to={go.breast.decision(pid, toDecision)}>
+            리포트 · 방침으로 →
+          </Btn>
+        </footer>
       </div>
 
       {seeing && (
         <ImagePopup name={H.nameOf(p)} onClose={() => setSeeing(false)}>
-          {/* 이력에서 검사를 골라 왔으면 팝업도 그 검사로 연다 */}
+          {/* 이력에서 검사를 골라 왔으면 그 검사로, 아니면 가장 최근 판독의 검사로 연다 */}
           <ReviewViewer patientId={p.patient_id} lesions={p.lesions ?? []}
                         specimenIds={specimenIds} studyId={studyAt} />
         </ImagePopup>
+      )}
+
+      {/* 팝업만 .breast 안에 — Waiting.jsx 와 같은 이유 */}
+      {modal && (
+        <div className="breast">
+          {modal === "exam" && (
+            <ExamOrderModal patient={p} initialModality={examModality}
+                            onClose={() => setModal(null)} onDone={sent} />
+          )}
+          {modal === "specimen" && (
+            <SpecimenBindingModal patient={p} onClose={() => setModal(null)} onDone={sent} />
+          )}
+        </div>
       )}
     </div>
   );
 }
 
+/* 둘째 줄 — 진행 중 오더 · AI 상태.
+ * 결과가 **아직 안 온 것**을 모은다. 판독 칸은 확정된 것만 싣기 때문에,
+ * 여기가 없으면 「요청해 둔 초음파가 어디 갔나」를 물을 자리가 없다.
+ * AI 상태는 진료 이력의 「촬영」 · 「AI 분석 완료」 줄을 검사마다 맞춘다 —
+ * 서버가 따로 주는 칸이 없다 */
+function Running({ p, events }) {
+  const shots = events.filter((e) => e.type === "촬영" && e.study_id != null);
+  const aiDone = new Set(events.filter((e) => e.type === "AI 분석 완료")
+    .map((e) => String(e.study_id ?? e.specimen_id)));
+  const read = new Set((p.readings?.radiology ?? []).map((r) => String(r.study_id)));
+  const confirmed = new Set([
+    ...(p.readings?.pathology ?? []).map((r) => String(r.specimen_id)),
+    ...events.filter((e) => e.type === "병리 확진").map((e) => String(e.specimen_id)),
+  ]);
+  const taken = events.filter((e) => e.type === "검체 채취" && !confirmed.has(String(e.specimen_id)));
+
+  return (
+    <section className="rev-box bf-run">
+      <header className="rev-box-h">
+        <h3>진행 중 오더 · AI 상태</h3>
+      </header>
+      <div className="bf-run-b">
+        <div>
+          <span className="bf-run-k">오더</span>
+          <PendingLine orders={p.orders}
+                       empty={taken.length ? null : <p className="hcard-k">결과를 기다리는 오더가 없습니다</p>} />
+          {taken.length > 0 && (
+            <p className="bf-pend">
+              {taken.map((e) => (
+                <Chip key={e.specimen_id} tone="dot">
+                  검체 {e.detail ?? `#${e.specimen_id}`} · 병리 확진 대기
+                </Chip>
+              ))}
+            </p>
+          )}
+        </div>
+        <div>
+          <span className="bf-run-k">AI</span>
+          {shots.length === 0
+            ? <p className="hcard-k">촬영 기록이 없습니다</p>
+            : (
+              <p className="bf-pend">
+                {shots.map((e) => (
+                  <Chip key={e.study_id} tone={aiDone.has(String(e.study_id)) ? "line" : "dot"}>
+                    {label(MODALITY, asModality(e.modality ?? e.detail)) || "영상"} {H.day(e.at)}
+                    {" · "}{aiDone.has(String(e.study_id)) ? "AI 완료" : "AI 분석 중"}
+                    {read.has(String(e.study_id)) ? " · 판독 확정" : " · 판독 전"}
+                  </Chip>
+                ))}
+              </p>
+            )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 /* 판정과 소견문을 한 줄로 묶는다. 판정(v)이 본체이고, 같은 검사 · 검체의
-   소견문(r)을 그 아래에 붙인다. 판정이 아직 없는 소견문도 버리지 않는다 */
-function rows(readings, reports, key, what) {
+   소견문(r)을 그 아래에 붙인다. 판정이 아직 없는 소견문도 버리지 않는다.
+   extra — 줄 아래 칩(밀도 · 조직형 · 수용체) */
+function rows(readings, reports, key, what, extra = () => []) {
   /* 리포트 응답은 FK 를 study · specimen 으로 준다(ModelSerializer) */
   const ref = (x) => x[key] ?? x[key.replace(/_id$/, "")];
   const used = new Set();
@@ -183,32 +303,23 @@ function rows(readings, reports, key, what) {
     const r = reports.filter((x) => ref(x) != null && String(ref(x)) === String(v[key]));
     r.forEach((x) => used.add(x));
     return { id: `${key}-${v[key]}`, at: v.at, what: what(v), grade: v.grade, note: v.note,
-             summaries: r.map((x) => x.summary).filter(Boolean) };
+             extra: extra(v), summaries: r.map((x) => x.summary).filter(Boolean) };
   });
   reports.filter((x) => !used.has(x)).forEach((x, i) => out.push({
     id: `r-${x.report_id ?? i}`, at: null, what: x.dept ?? "판독", grade: null, note: null,
-    summaries: [x.summary].filter(Boolean),
+    extra: [], summaries: [x.summary].filter(Boolean),
   }));
   return out;
 }
 
-/* ⚠ 크기는 DecimalField 라 「18.70」 같은 글로 온다 — 숫자로 바꿔 끝의 0 을
-     지운다(18.7 mm). 판독의가 오탐으로 뺀 병변(is_false_positive)은 안 싣는다.
-     p.lesions 는 환자 전체라 여러 검사 것이 섞인다 — 모달리티가 둘 이상이면
-     어느 검사에서 나온 병변인지 앞에 붙인다 */
+/* 판독의가 오탐으로 뺀 병변(is_false_positive)은 안 싣는다.
+   p.lesions 는 환자 전체라 여러 검사 것이 섞인다 — 모달리티가 둘 이상이면
+   어느 검사에서 나온 병변인지 앞에 붙인다. 글자는 Results.jsx lesionText */
 function lesionLine(lesions) {
   const list = (Array.isArray(lesions) ? lesions : [lesions])
     .filter((l) => l && !l.is_false_positive);
   const mods = new Set(list.map((l) => asModality(l.modality)).filter(Boolean));
-  return list
-    .map((l) => {
-      const site = l.label ?? l.site ?? null;
-      const raw = l.measured_size_mm ?? l.ai_size_mm ?? l.size_mm ?? null;
-      const mm = raw != null && raw !== "" && Number.isFinite(Number(raw)) ? `${Number(raw)} mm` : null;
-      const mod = mods.size > 1 ? label(MODALITY, asModality(l.modality)) : null;
-      return [mod, site, mm].filter(Boolean).join(" · ");
-    })
-    .filter(Boolean).join(", ") || null;
+  return list.map((l) => lesionText(l, mods.size > 1)).filter(Boolean).join(", ") || null;
 }
 
 /* 판독 칸 — 영상과 병리가 같은 모양을 쓴다. 한 건씩 접히고, 맨 위(가장
@@ -234,8 +345,8 @@ function Readings({ title, gradeLabel, items, lines = [], focus = null, miss = n
       <header className="rev-box-h">
         <h3>{title}</h3>
         <span className="home-fill" />
-        {top && <Chip tone="fill">{`${gradeLabel} ${top.grade}`}</Chip>}
-        {items.length > 0 ? <Chip>확정</Chip> : <span className="hcard-k">아직 없습니다</span>}
+        {top && <Chip tone="fill">{gradeLabel ? `${gradeLabel} ${top.grade}` : top.grade}</Chip>}
+        {items.length > 0 ? <Chip>확정 {items.length}건</Chip> : <span className="hcard-k">아직 없습니다</span>}
       </header>
       {lines.some(([, x]) => x) && (
         <dl className="kv">
@@ -261,6 +372,9 @@ function Readings({ title, gradeLabel, items, lines = [], focus = null, miss = n
               </button>
               {on && (
                 <div className="rev-list-b">
+                  {x.extra?.length > 0 && (
+                    <span className="bf-rcp">{x.extra.map((c) => <Chip key={c}>{c}</Chip>)}</span>
+                  )}
                   {/* 판독의가 쓴 소견이 먼저다. 소견문은 그것을 풀어 쓴 글이다 */}
                   {x.note && <p className="rev-find">{x.note}</p>}
                   {x.summaries.map((s, i) => <p className="rev-find muted" key={i}>{s}</p>)}
@@ -340,28 +454,6 @@ function Version({ pid, studyId, assessmentId, fallback, onSee }) {
         {now
           ? <Btn to={go.breast.review(pid, { study: studyId })}>현재 판독 보기</Btn>
           : <Btn onClick={onSee}>이 검사 영상 보기</Btn>}
-      </div>
-    </div>
-  );
-}
-
-/* 영상 확인 팝업 — 화면 위에 띄운다. Esc · 바깥 누르기 · ×로 닫는다 */
-function ImagePopup({ name, onClose, children }) {
-  useEffect(() => {
-    const esc = (e) => { if (e.key === "Escape") onClose(); };
-    document.addEventListener("keydown", esc);
-    return () => document.removeEventListener("keydown", esc);
-  }, [onClose]);
-
-  return (
-    <div className="rev-pop-back" onClick={onClose}>
-      <div className="rev-pop" role="dialog" aria-label={`영상 확인 · ${name}`}
-           onClick={(e) => e.stopPropagation()}>
-        <header>
-          <b>영상 확인 · {name}</b>
-          <button type="button" onClick={onClose} aria-label="닫기">×</button>
-        </header>
-        <div className="rev-pop-b breast">{children}</div>
       </div>
     </div>
   );

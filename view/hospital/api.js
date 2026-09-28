@@ -310,6 +310,22 @@ export const notifications = () => get("/notifications/").then(unwrapList);
 export const acknowledgeNotification = (id) =>
   patch(`/notifications/${id}/`, { acknowledged: true });
 
+/* 알림이 가리키는 것(ref_type · ref_id)을 풀어 환자·검사 번호를 얻는다 —
+   종에서 누른 알림을 제 화면으로 보내려고(lib/Top.jsx 의 noticeTo).
+   ⚠ 직원 알림에는 patient 칸이 비어 온다(Notification 의 수신자 CHECK —
+     환자 아니면 직원, 하나만). 그래서 가리키는 행을 한 번 더 읽는다.
+   ⚠ report 는 **상세(retrieve)** 로 읽는다. 목록(?patient=)은 유방외과가
+     부르면 「유방외과 열람」을 남긴다(views/surgery.py list → viewed.mark).
+   ⚠ assessment 는 상세 경로가 없다 — 최근 판독 목록에서 번호로 찾는다.
+     방금 확정된 알림이라 맨 앞 쪽에 있다 */
+export const noticeRef = {
+  report:   (id) => get(`/reports/${id}/`),
+  specimen: (id) => get(`/specimens/${id}/`),
+  study:    (id) => get(`/studies/${id}/`),
+  assessment: (id) => get(`/assessments${qs({ page_size: 100 })}`)
+    .then((raw) => unwrapList(raw).find((a) => String(a.assessment_id) === String(id)) ?? null),
+};
+
 /* 로그인한 사람만 보는 개인 메모. 할 일과 스티키 메모는 저장 방식만
    다를 뿐 같은 API를 쓰므로 여기 하나로 모은다. */
 export const notes = {
@@ -395,10 +411,23 @@ export async function logout() {
  * viewed_at 은 Specimen·Lesion 모델 어디에도 없다 — 실제로 있는지
  * 아직 확인 못 했다. 없는 조인을 지어내지 않고 그대로 비워 둔다
  * (있으면 화면이 알아서 숨긴다, 다섯 장 다 ?? 로 방어돼 있다). */
-async function pathSpecimenRow(raw = {}) {
+/* ⚠ 09-28 — **줄마다 환자를 부르지 않는다.** 목록 20줄이면 /patients/{id}/
+   가 스무 번 나갔다(홈이 30초마다 다시 부르니 분당 수십 번). 서버가 이름 ·
+   나이 · 성별(+ 새 서버는 patient_number)을 싣고 있으면 그대로 쓰고, **빠진
+   것이 있을 때만** 부른다. 같은 환자는 한 번만(want.cache).
+     목록  이름이 없을 때만
+     상세  늘 (한 건이라 싸다) — 판독 화면이 생년월일 · 알레르기를 쓴다 */
+async function pathSpecimenRow(raw = {}, want = {}) {
   const patientId = raw.patient;
-  const patient = patientId == null ? null
-    : await get(`/patients/${patientId}/`).then(normalizePatient).catch(() => null);
+  const missing = !raw.patient_name || want.full;
+  const fetchPatient = () => get(`/patients/${patientId}/`).then(normalizePatient).catch(() => null);
+  let patient = null;
+  if (patientId != null && missing) {
+    const key = String(patientId);
+    if (want.cache && !want.cache.has(key)) want.cache.set(key, fetchPatient());
+    patient = await (want.cache ? want.cache.get(key) : fetchPatient());
+  }
+  const finalized = raw.finalized ?? Boolean(raw.finalized_at);
   return {
     ...raw,
     id: raw.specimen_id ?? raw.id,
@@ -408,15 +437,26 @@ async function pathSpecimenRow(raw = {}) {
     patient_name: raw.patient_name || patient?.name || (patientId == null ? "" : `환자 #${patientId}`),
     age: raw.age ?? patient?.age ?? null,
     sex: raw.sex || patient?.sex || "",
-    patient_no: patient?.patient_number ?? "",
-    birth: patient?.birth_date ?? null,
-    phone: patient?.phone ?? null,
-    allergy: patient?.has_allergy ? (patient.allergy_note || "있음") : "없음",
+    patient_no: raw.patient_number ?? raw.patient_no ?? patient?.patient_number ?? "",
+    birth: raw.birth ?? patient?.birth_date ?? null,
+    phone: raw.phone ?? patient?.phone ?? null,
+    /* ⚠ 환자를 안 불렀으면 모른다 — 「없음」으로 찍지 않는다 */
+    allergy: raw.allergy ?? (patient ? (patient.has_allergy ? (patient.allergy_note || "있음") : "없음") : null),
     specimen_no: raw.specimen_label ?? raw.specimen_no,
     kind: raw.specimen_type ?? raw.kind,
     method: raw.guidance_route ?? raw.method,
-    finalized: raw.finalized ?? Boolean(raw.finalized_at),
+    finalized,
+    /* 판독 단계 — ⚠ accession_status 로는 못 가른다. 서버 enum 이
+       unbound · bound · accessioned 셋뿐이라 「판독 완료」를 말할 칸이 없다.
+       누가 집었는지(assigned_to)와 확정 시각으로 센다 */
+    read_state: finalized ? "final" : raw.assigned_to != null ? "reading" : "waiting",
   };
+}
+
+/* 목록 줄 여럿 — 같은 환자는 한 번만 부른다 */
+function pathRows(rows) {
+  const cache = new Map();
+  return Promise.all(rows.map((r) => pathSpecimenRow(r, { cache })));
 }
 
 function pathUploadFile(raw = {}) {
@@ -444,7 +484,7 @@ export const path = {
   queue:      ()       => get(`/specimens/queue${qs({ status: "bound", assigned: "none" })}`)
     .then(async (raw) => {
       const rows = raw?.results ?? raw?.items ?? (Array.isArray(raw) ? raw : []);
-      const items = await Promise.all(rows.map(pathSpecimenRow));
+      const items = await pathRows(rows);
       return { ...raw, items, total: raw?.count ?? raw?.total ?? items.length };
     }),
   /* ⚠ 상세에도 슬래시가 붙는다 (2026-09-16 다희님이 직접 요청을 넣어
@@ -460,8 +500,32 @@ export const path = {
        명시 path() 라서 **슬래시가 없다.** 끝 슬래시가 붙는 것은 router 에
        등록된 것들뿐이다 (patients · studies · lesions · reports ·
        followups · reservations · visits/today · me/reservation-requests). */
-  specimen:   (id)     => get(`/specimens/${id}/`).then(pathSpecimenRow),
+  specimen:   (id)     => get(`/specimens/${id}/`).then((s) => pathSpecimenRow(s, { full: true })),
   assign:     (id)     => patch(`/specimens/${id}/assign`),
+
+  /* 영상 대조 — 이 검체가 겨눈 병변(Specimen.lesion)과 그 검사의 최신 확정
+     BI-RADS. 큐에서 한 건을 고를 때만 부른다(두 번).
+     ⚠ 병리 계정이 /lesions · /assessments 를 못 읽는 배포도 있다 — 그때는
+       null 이고, 화면이 target_snapshot · radiology_summary 로 물러난다 */
+  correlation: async (s) => {
+    const lid = s?.lesion ?? s?.lesion_id;
+    if (lid == null || typeof lid === "object") return null;
+    const lesion = await get(`/lesions/${lid}/`).catch(() => null);
+    if (!lesion) return null;
+    const sid = lesion.study ?? lesion.study_id;
+    const a = sid == null ? null
+      : await rad.history(sid).then(currentAssessment).catch(() => null);
+    return {
+      lesion, study: sid ?? null,
+      modality: lesion.modality ?? null,
+      category: a?.category ?? null,
+      finalized_at: a?.finalized_at ?? null,
+    };
+  },
+
+  /* 열린 판정 불일치. ⚠ 목록 경로에 끝 슬래시가 없다(breast 와 같은 자리).
+     병리 권한으로 못 읽으면 빈 목록 — 홈 · 목록의 「불일치」가 0 으로 보인다 */
+  openDiscordances: () => get(`/discordances${qs({ status: "open" })}`).then(unwrapList),
 
   /* 업로드 화면은 파일 목록 응답만으로는 환자·검체 정보를 채울 수
      없다. 영상 업로드 화면처럼 상세 응답과 업로드 응답을 합쳐서
@@ -471,7 +535,7 @@ export const path = {
      어긋났다. */
   uploadInfo: async (id) => {
     const [specimen, raw] = await Promise.all([
-      get(`/specimens/${id}/`).then(pathSpecimenRow),
+      get(`/specimens/${id}/`).then((s) => pathSpecimenRow(s)),
       get(`/specimens/${id}/upload`),
     ]);
     const uploads = raw?.uploads ?? raw?.files ?? [];
@@ -504,11 +568,19 @@ export const path = {
      본문이 날아가므로, 붙는 자리는 처음부터 붙여 둔다 */
   /* ⚠ 봉투 언랩 — List.jsx 가 data.items/data.total 을 기대한다(위 queue
    * 와 같은 자리). */
+  /* 거르기 — assigned=me · finalized=yes|no (새 서버). 옛 서버는 모르는
+     질의를 그냥 무시하고 전부 준다 — 화면이 한 번 더 거른다(lib/Filters) */
   list:       (o = {}) => get(`/specimens/${qs(o)}`).then(async (raw) => {
     const rows = raw?.results ?? raw?.items ?? (Array.isArray(raw) ? raw : []);
-    const items = await Promise.all(rows.map(pathSpecimenRow));
+    const items = await pathRows(rows);
     return { ...raw, items, total: raw?.count ?? raw?.total ?? items.length };
   }),
+  /* 판독 화면(3장)의 「영상 대조」 칸 — 검체가 매달린 병변과 그 검사의 판정.
+     병리 권한으로 못 읽으면 부르는 쪽이 target_snapshot 으로 버틴다 */
+  lesion:      (id)     => get(`/lesions/${id}/`),
+  assessments: (study)  => get(`/assessments${qs({ study })}`).then(unwrapList),
+  /* 「확정 → 다음 건」용 가벼운 목록 — 행마다 환자를 더 부르지 않는다 */
+  rows:        (o = {}) => get(`/specimens/${qs(o)}`).then(unwrapList),
   /* ⚠ POST /specimens/{id}/amend 는 서버에 없다 (확정 사양서 §8-2 —
      병리 결과 정정 경로를 두지 않기로 함. views/pathology.py 상단
      docstring 참고). 예전엔 여기 amend() 가 있었는데 지웠다 — 부르면
@@ -699,8 +771,13 @@ function radStudyRow(raw = {}, order = {}, assessment = null) {
     age: patient.age,
     sex: patient.sex,
     contrast_allergy: patient.contrast_allergy,
-    exam_name: order.exam_name ?? (examName(order.exam_purpose, order.modality ?? raw.modality) || (raw.exam_name ?? "")),
-    purpose: order.purpose ?? order.order_note ?? raw.purpose ?? "",
+    /* 목적 · 의뢰 문구 — 새 서버는 검사 행에 바로 싣는다(order_note ·
+       exam_purpose). 옛 서버는 오더를 따로 불러 order 로 넘겨 준다 */
+    exam_name: order.exam_name ?? (examName(order.exam_purpose ?? raw.exam_purpose,
+      order.modality ?? raw.modality) || (raw.exam_name ?? "")),
+    exam_purpose: raw.exam_purpose ?? order.exam_purpose ?? null,
+    purpose: order.purpose ?? order.order_note ?? raw.purpose ?? raw.order_note ?? "",
+    ordered_at: raw.ordered_at ?? order.ordered_at ?? null,
     device: raw.device ?? raw.device_name ?? "",
     exam_order_id: raw.exam_order_id ?? raw.exam_order ?? order.exam_order_id,
     finalized: raw.finalized ?? raw.read_status === "finalized",
@@ -729,6 +806,11 @@ function radUpload(raw = {}, order = {}) {
   return {
     ...raw,
     ...row,
+    /* ⚠ 빈 글자가 이미 있는 값을 덮지 않게 — study 가 안 접혀 온 응답(목업)은
+       row 의 목적 · 검사명이 ""라 위에서 raw 값을 지웠다 */
+    purpose: row.purpose || raw.purpose || raw.order_note || "",
+    exam_name: row.exam_name || raw.exam_name || "",
+    exam_purpose: row.exam_purpose ?? raw.exam_purpose ?? null,
     study,
     files,
     series: raw.series ?? radSeries(files),
@@ -892,8 +974,11 @@ export const rad = {
      (최신, 정정으로 덮이지 않은) 판독을 찾아 radStudyRow 에 얹는다. */
   study:      async (id) => {
     const raw = await get(`/studies/${id}/`);
+    /* 오더는 목적 · 의뢰 문구가 행에 없을 때만, 환자 조회 없이(아래
+       radWithPatient 가 한 번 한다) */
+    const needOrder = raw?.exam_order && !("order_note" in raw || "exam_purpose" in raw);
     const [order, current] = await Promise.all([
-      raw?.exam_order ? rad.order(raw.exam_order).catch(() => ({})) : Promise.resolve({}),
+      needOrder ? get(`/exam-orders/${raw.exam_order}`).then(radOrderRow).catch(() => ({})) : Promise.resolve({}),
       radCurrentAssessment(id),
     ]);
     return radWithPatient(radStudyRow(raw, order, current));
@@ -903,21 +988,46 @@ export const rad = {
      큐가 이미 하던 언랩과 같은 자리다. 행마다 exam_order 를 더 불러
      radStudyRow 로 patient_name 등을 채운다(목록 행엔 category 를 안
      보여줘서 assessment 는 여기선 안 붙인다 — 상세를 열 때 study()가 한다). */
-  list:       async (o = {}) => {
+  /* ⚠ 09-28 — **줄마다 오더 · 환자를 부르지 않는다.** 전에는 줄마다
+     rad.order(오더 + 환자 = 두 번)를 불러, 홈이 검사 200건을 받으면 30초마다
+     400번이 나갔다. 새 서버는 검사 행에 patient_name · order_note ·
+     exam_purpose 를 싣는다 — 있으면 그대로 쓴다.
+     옛 서버(칸이 없음)만 오더를 **맨 것으로 한 번씩**(환자 조회 없이, 같은
+     오더는 한 번) 부른다. want.need(row) 가 false 인 줄은 그마저 안 부른다 —
+     홈은 확정된 검사의 목적을 안 쓴다.
+     거르기 — assigned=me · read_status= · modality= (새 서버). */
+  list:       async (o = {}, want = {}) => {
     const raw = await get(`/studies/${qs(o)}`);
     const rows = raw?.results ?? raw?.items ?? (Array.isArray(raw) ? raw : []);
+    const orders = new Map();
+    const orderOf = (id) => {
+      if (!orders.has(id)) orders.set(id, get(`/exam-orders/${id}`).then(radOrderRow).catch(() => ({})));
+      return orders.get(id);
+    };
+    const has = (r) => r.patient_name && ("order_note" in r || "exam_purpose" in r);
     const items = await Promise.all(rows.map(async (row) => {
       const orderId = row.exam_order_id ?? row.exam_order;
-      const order = orderId ? await rad.order(orderId).catch(() => ({})) : {};
-      return radStudyRow(row, order);
+      const skip = has(row) || !orderId || (want.need && !want.need(row));
+      return radStudyRow(row, skip ? {} : await orderOf(orderId));
     }));
     return { ...raw, items, total: raw?.count ?? raw?.total ?? rows.length };
   },
+
+  /* 오늘 내가 확정한 판독 — 홈 「오늘 한 일」.
+     ⚠ 옛 서버는 두 질의를 몰라 전부 준다. 화면이 오늘 · 확정 · 안 덮인 것만
+       다시 거르지만 「내 것」은 못 가린다(assessed_by 가 번호라 /me 와 못 맞춘다) */
+  myReads:    ()       => get(`/assessments${qs({ assessed_by: "me", finalized_on: "today" })}`)
+    .then((raw) => (Array.isArray(raw) ? raw : raw?.results ?? raw?.items ?? [])),
+
+  /* 품질 판정 — accepted · rejected. 반려여야 재촬영(retake)이 받아진다 */
+  quality:    (id, status) => patch(`${RAD}/studies/${id}/upload`, { quality_status: status }),
   history:    (id)     => get(`/assessments${qs({ study: id })}`).then((raw) => {
     if (Array.isArray(raw)) return raw;
     return raw?.results ?? raw?.items ?? [];
   }),
   amend:      (id, b)  => post(`/assessments/${id}/amend`, b),
+  /* 「확정 → 다음 건」용 가벼운 목록 — list() 처럼 행마다 오더를 더 부르지 않는다 */
+  rows:       (o = {}) => get(`/studies/${qs(o)}`).then(unwrapList),
 
   /* ⚠ 2026-09-18 — 환자 목록(screens/List.jsx) 상세에 검사 이력을
    * 붙이면서 추가했다. 유방외과 timeline과 같은 서버 경로다
@@ -1149,6 +1259,8 @@ export const breast = {
         oddsR.failed && "판정 불일치",
       ].filter(Boolean),
       current_order: currentOrder,
+      /* 오더 전부 — 진행 중 검사(결과 대기)를 세려고. dept/breast/flow.js */
+      orders,
       visit_type: currentOrder?.visit_type ?? null,
       visit_purpose: currentOrder?.exam_purpose ?? null,
       intake_note: currentOrder?.order_note ?? null,
@@ -1192,6 +1304,17 @@ export const breast = {
      ⚠ 목록 경로에는 끝 슬래시가 없다(core/urls.py 의 "discordances") */
   openDiscordances: (pid) =>
     get(`/discordances${qs({ patient: pid, status: "open" })}`).then(unwrapList),
+  /* 내 담당 환자의 열린 불일치 전부. primary_staff 를 모르는 옛 서버는
+     400/무시 — 그때는 과 전체 열린 것으로 물러난다 */
+  myDiscordances: () =>
+    get(`/discordances${qs({ status: "open", primary_staff: "me" })}`).then(unwrapList)
+      .catch(() => get(`/discordances${qs({ status: "open" })}`).then(unwrapList)),
+
+  /* 09-28 서버 worklist — 환자마다 다음 할 일(next_step)과 건수를 서버가 센다.
+     { items:[…], counts:{…} }. ⚠ 없는 서버(404)면 부르는 쪽이 환자별
+     상세로 되짚는다(dept/breast/flow.js) — 여기서 삼키지 않는다 */
+  worklist: (scope = "me") =>
+    get(`/surgery/worklist${qs(scope === "all" ? { scope: "all" } : { primary_staff: "me" })}`),
 
   /* 판독값 — **소견문이 아니라 판정이다.**
    *
@@ -1220,6 +1343,8 @@ export const breast = {
           grade: a.category ?? null,
           note: a.finding_note ?? null,
           at: a.finalized_at ?? a.created_at ?? null,
+          /* 유방 밀도(A~D) — 서버 09-28~. 옛 서버는 칸이 없어 null */
+          density: s.density_category ?? null,
         };
       })
       .filter(Boolean);
@@ -1237,6 +1362,15 @@ export const breast = {
         grade: row.b_category ?? null,
         note: row.diagnosis ?? null,
         at: row.finalized_at ?? null,
+        /* 수용체 · 조직형 · 등급 · sTIL(병리의 입력) — SpecimenSerializer 에
+           있다. 옛 서버 · 목업 일부는 없어서 null 로 둔다 */
+        histologic_type: row.histologic_type ?? null,
+        nottingham_grade: row.nottingham_grade ?? null,
+        er: row.er_status ?? null,
+        pr: row.pr_status ?? null,
+        her2: row.her2_status ?? null,
+        ki67: row.ki67_percent ?? null,
+        stil: row.stil_calibrated ?? null,
       }));
 
     /* ⚠ 최신순으로 세운다. 화면(Review.jsx)이 맨 앞을 「이번 판정」으로
@@ -1354,6 +1488,20 @@ export const nursing = {
      status · closed_at 을 채운다(FollowupViewSet.partial_update).
      라우터 경로라 끝 슬래시가 붙는다 */
   closeFollowup:  (id, b) => patch(`/followups/${id}/`, b),
+  /* 09-28 한 환자의 회차만(?patient=). 후보(BI-RADS 3 · 회차 없음)도 같이 받는다.
+     ⚠ 서버가 ?patient= 를 모르면 **전체가 온다** — 화면이 한 번 더 거른다 */
+  followupsOf:    (pid) => get(`/followups/${qs({ patient: pid, include_candidates: 1 })}`)
+    .then((raw) => unwrapList(raw).filter((r) => String(r.patient ?? r.patient_id) === String(pid))),
+  /* 회차 결과 — stable · changed · no_show. 혼자 보내면 결과만 적는다(서버) */
+  roundResult:    (id, result) => patch(`/followups/${id}/`, { round_result: result }),
+
+  /* 1장 문진 — 문항 정의(말)와 종이 문진 옮겨 적기.
+     ⚠ 정의는 {form_version, questions:[{code, text, options:[{id, text}]}]}.
+       못 부르면 화면이 코드 그대로 적는다(Waiting.jsx 의 qaRows) */
+  questionnaireForm: () => get("/questionnaire/form"),
+  /* 본문은 **답 그대로**({코드: 선택지 id}) — form_version 은 서버가 찍는다.
+     서버가 환자 캐시와 오늘 방문 오더 둘 다에 쓴다 */
+  saveQuestionnaire: (pid, answers) => patch(`/patients/${pid}/questionnaire/`, answers),
 };
 
 /* 부서 key 로 골라 쓴다 — 공통 화면들이 이걸로 갈라 부른다 */
@@ -1458,8 +1606,13 @@ export const reception = {
 
   /* [예약 완료]. **원무는 날짜만 정한다** — modality · exam_purpose ·
      ordered_by 는 안 보낸다. 서버도 그 셋을 안 받는다
-     (ExamOrderScheduleSerializer 는 patient_id · scheduled_at 둘뿐) */
+     (ExamOrderScheduleSerializer 는 patient_id · scheduled_at · followup_id).
+     09-28 followup_id 는 추적 회차에서 잡는 예약일 때만 — 오더에 회차를 잇는다 */
   reserve: (b)     => post("/exam-orders/schedule", b),
+
+  /* 09-28 창구 인적 사항 정정 — 이름 · 전화 · 생년월일(patient_pii). 보낸 칸만
+     고친다. ⚠ 위 update 로는 이 셋이 조용히 안 바뀐다 */
+  correctPii: (id, b) => patch(`/patients/${id}/pii`, b),
 };
 
 /* 검색어 없이 목록 전체를 받는 열쇠 — 위 list 의 ⚠ 참고 */
@@ -1477,8 +1630,8 @@ export const ALL_PATIENTS = { status: "all" };
  *                      환자라 예약 확인이 아니라 간호 큐로 간다
  */
 /* ⚠ 2026-09-19 확인 — 위 reception 본체의 다섯 함수와 같은 봉투 문제가
- * 여기도 있었다. Requests.jsx 는 list.data 를 배열로 바로 쓴다
- * (rows = list.data ?? []). */
+ * 여기도 있었다. 예약 관리 왼쪽 「앱 신청」 줄(Reservations.jsx)이 배열로
+ * 바로 쓴다. (옛 Requests.jsx · Calendar.jsx 는 09-28 지웠다) */
 reception.requests = () =>
   get(`/exam-orders${qs({
     status: "requested", visited: "none", ordering: "scheduled_at",

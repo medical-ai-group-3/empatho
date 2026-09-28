@@ -110,7 +110,11 @@ function deptFromPath(pathname) {
 
 function Shell() {
   const { pathname } = useLocation();
-  const d = deptFromPath(pathname);
+  /* ⚠ 환자 상세(/hospital/patients/:id)는 과 바깥 주소라 과를 못 읽어
+     화면 줄이 통째로 비었다(09-28 점검) — 거기서는 **내 과**의 줄을 띄운다.
+     내 정보(/me)는 전처럼 비운다 */
+  const d = deptFromPath(pathname)
+    ?? (pathname.startsWith(`${ROOT}/patients/`) ? homeDept() : null);
   const [now, setNow] = useState(stamp);
 
   useEffect(() => {

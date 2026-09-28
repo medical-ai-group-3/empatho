@@ -234,6 +234,11 @@ export function Viewer({
   infoName = "환자 정보", info,
   aiName = "AI 소견", ai, aiOpen = false,          /* AI 는 기본 접힘 */
   doctorName = "의사 소견", doctor, doctorOpen = true,  /* 의사는 기본 펼침 */
+  /* stack — 탭 대신 한 칸에 위아래로: AI 요약(늘 보임) · AI 자세히(접힘) ·
+     의사 소견. 판독 화면(09-28)이 켠다 — 탭 뒤에 숨은 AI 는 안 열어 보고
+     지나갔다. 끄면 예전 탭 그대로다(목록 · 다른 화면)
+     foot — 오른쪽 칸 맨 아래 붙박이(저장 줄). 칸 안에서 굴러도 안 움직인다 */
+  stack = false, aiSummary, foot,
   tools, below, children,
 }) {
   const [L, setL] = useState(true);
@@ -243,8 +248,10 @@ export function Viewer({
   const both = Boolean(ai && doctor);
   const [open, setOpen] = useState(Boolean(doctor ? doctorOpen : aiOpen));
   const [which, setWhich] = useState(doctor && doctorOpen ? "doctor" : ai ? "ai" : "doctor");
+  const [aiMore, setAiMore] = useState(aiOpen);
   const shown = which === "ai" && ai ? ai : doctor ?? ai;
   const sideName = both ? "소견" : (doctor ? doctorName : aiName);
+  const tabs = both && !stack;
 
   return (
     <div className="vwrap">
@@ -265,9 +272,9 @@ export function Viewer({
       </div>
 
       {(ai || doctor) && (open
-        ? <aside className="vside">
+        ? <aside className={`vside${stack ? " vside-stack" : ""}`}>
             <div className="vside-h">
-              {both ? (
+              {tabs ? (
                 <span className="vside-tabs" role="tablist">
                   <button type="button" role="tab" aria-selected={which === "doctor"}
                           className={which === "doctor" ? "on" : ""}
@@ -279,10 +286,54 @@ export function Viewer({
               ) : <b>{sideName}</b>}
               <button className="x" onClick={() => setOpen(false)} aria-label="접기">›</button>
             </div>
-            <div className="vside-b">{shown}</div>
+            {stack ? (
+              <div className="vside-b">
+                {ai && (
+                  <section className="vai">
+                    <button type="button" className="vai-h" aria-expanded={aiMore}
+                            onClick={() => setAiMore((v) => !v)}>
+                      <b>{aiName}</b>
+                      <span>{aiMore ? "접기 ▴" : "자세히 ▾"}</span>
+                    </button>
+                    {/* 요약은 접어도 남는다 — 결론 한 줄은 늘 보여야 견준다 */}
+                    {aiSummary && <div className="vai-sum">{aiSummary}</div>}
+                    {aiMore && <div className="vai-b">{ai}</div>}
+                  </section>
+                )}
+                {doctor && (
+                  <section className="vdoc">
+                    {ai && <h3 className="vdoc-h">{doctorName}</h3>}
+                    {doctor}
+                  </section>
+                )}
+              </div>
+            ) : <div className="vside-b">{shown}</div>}
+            {foot && <div className="vside-foot">{foot}</div>}
           </aside>
         : <button className="vtab" onClick={() => setOpen(true)}>{sideName}</button>)}
     </div>
+  );
+}
+
+/* ── 상용구 ───────────────────────────────────────────────────
+   누르면 판독 소견 끝에 한 줄로 붙는다. 소견 칸 **아래**에 접어 둔다 —
+   펼친 채 위에 두면 소견 칸이 저장 줄 밑으로 밀려 안 보였다.
+   ⚠ 서버에 저장 자리가 없어 과별 설정(cfg.read.phrases)에 박혀 있다 */
+export function Phrases({ groups = [], onPick, disabled = false }) {
+  if (!groups.length) return null;
+  return (
+    <details className="phr">
+      <summary>상용구 {groups.reduce((n, [, l]) => n + l.length, 0)}</summary>
+      {groups.map(([group, list]) => (
+        <div className="phr-g" key={group}>
+          <span className="phr-k">{group}</span>
+          {list.map((t) => (
+            <button type="button" key={t} className="phr-b" disabled={disabled}
+                    title="판독 소견에 붙입니다" onClick={() => onPick?.(t)}>{t}</button>
+          ))}
+        </div>
+      ))}
+    </details>
   );
 }
 

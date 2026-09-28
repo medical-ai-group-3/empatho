@@ -70,6 +70,63 @@ export default function RadiologyAi({ d, view, pick, onPick }) {
   );
 }
 
+/* ── 요약 한 줄 — 판독 화면 오른쪽 맨 위, 접어도 남는다 ──────────
+ * 판정 문장을 만들지 않는다(지킬 것 2) — 모델이 낸 값만 칩으로.
+ * 맘모 병변 칩은 누르면 뷰어에서 밝힌다(자세히의 「영상에서 보기」와 같은 손잡이) */
+export function RadiologyAiSummary({ d, view, pick, onPick }) {
+  const ai = view && "ai" in view ? view.ai : d.ai;
+  if (!ai) {
+    return <p className="muted small">{view?.aiMissing ? "이 영상에는 AI 결과가 없습니다." : "AI 결과가 없습니다."}</p>;
+  }
+  if (ai.abstained || ai.summary?.abstained || ai.lesion_found === false) {
+    return <p className="ai-sum-na"><b>판정 못 함</b> · {ai.abstain_reason ?? "임계값을 넘는 검출이 없습니다"} — 「정상」이 아닙니다</p>;
+  }
+  const m = asModality(ai.modality);
+  if (m === "us") {
+    return (
+      <div className="viz-chips">
+        <Chip tone="fill">등급 {ai.category ?? "—"}</Chip>
+        <Chip tone="line">등급 확신도 {pct(ai.category_confidence)}</Chip>
+        <Chip tone="line">마스크 {pct(ai.mask_confidence)}</Chip>
+      </div>
+    );
+  }
+  if (m === "mammo") {
+    const s = ai.summary ?? ai;
+    const lesions = ai.lesions ?? [];
+    return (
+      <div className="viz-chips">
+        <Chip tone="line">병변 {s.n_lesions ?? lesions.length}</Chip>
+        <Chip tone="fill">최고 BI-RADS {s.max_birads ?? "—"}</Chip>
+        <Chip tone={s.biopsy ? "fill" : "line"}>생검 {s.biopsy ? "권고" : "해당 없음"}</Chip>
+        {lesions.map((l, i) => {
+          const sid = l.id ?? `b${i}`;
+          const at = view?.where ? view.where(sid) : null;
+          return (
+            <button type="button" key={sid} className="phr-b" aria-pressed={pick === sid}
+                    disabled={!onPick || Boolean(at && !at.sop)} title={at?.why ?? "영상에서 밝힙니다"}
+                    onClick={() => onPick?.(pick === sid ? null : sid)}>
+              {l.id ?? `병변 ${i + 1}`} · {l.birads ?? "등급 없음"}
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
+  if (m === "mri") {
+    const ls = ai.lesions ?? [];
+    const big = ls.reduce((a, l) => Math.max(a, Number(l.max_diameter_mm) || 0), 0);
+    return (
+      <div className="viz-chips">
+        <Chip tone="line">병변 {ls.length}</Chip>
+        {big > 0 && <Chip tone="fill">최대 직경 {num(big)} mm</Chip>}
+        {ai.density?.percent != null && <Chip tone="line">치밀 조직 {pctOf(ai.density.percent, 1)}</Chip>}
+      </div>
+    );
+  }
+  return null;
+}
+
 /* ── 초음파 ──────────────────────────────────────────────────── */
 function Ultrasound({ a }) {
   return (
@@ -99,7 +156,7 @@ function Ultrasound({ a }) {
 
       {/* 마스크 신뢰도는 바로 위 칸에 있다 — 칩으로 한 번 더 적지 않는다 */}
       {(a.n_detections != null || a.shape?.area != null) && (
-        <div className="chips">
+        <div className="viz-chips">
           {a.n_detections != null && <Chip tone="line">검출 {a.n_detections}건</Chip>}
           {a.shape?.area != null && <Chip tone="line">면적 {num(a.shape.area, 0)} px²</Chip>}
         </div>

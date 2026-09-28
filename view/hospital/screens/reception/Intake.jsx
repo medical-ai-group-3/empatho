@@ -5,6 +5,7 @@ import { useCan } from "../../lib/Parts";
 import { go, DESK } from "../../nav";
 import NursingWaiting from "../../dept/nursing/screens/Waiting";
 import Register from "./Register";
+import * as H from "../../dept/home";
 
 /* 접수 — 찾기 위, 내원 대기 아래
  * ════════════════════════════════════════════════════════════════
@@ -18,15 +19,23 @@ import Register from "./Register";
  * ⚠ 09-28 **오늘 현황판(접수 대기 · 간호·문진 · 검사 진행 · 외래 진료)을
  *   홈으로 옮겼다**(lib/StageBoard.jsx). 「지금 누가 어디 있나」는 홈에서
  *   한눈에 보고, 이 화면은 찾고 · 문진 보고 · 배정하는 자리로 남긴다.
- *   현황판 줄을 누르면 ?order= 를 달고 이리 온다.
+ *   현황판 줄을 누르면 ?order= 를, 홈 「검체」 줄은 ?tab=specimen 을 달고
+ *   이리 온다 — 둘 다 아래 내원 대기(Waiting.jsx)가 읽는다.
  */
 export default function Intake({ cfg }) {
   const api = cfg.api;
+  /* 창구에서 예약을 볼 때는 거의 「오늘 누가 오나」다 — 오늘 하루로 연다.
+     ⚠ 예전 「환자 목록 · 예약」은 환자 목록으로 갔는데 거기엔 이제 예약을
+       잡는 자리가 없다(중복 막이가 없는 두 번째 길이라 뺐다) */
+  const today = H.iso(new Date());
 
   return (
     <Page crumb={[cfg.name, "접수"]} title="접수" className="intake-page"
           right={(
-            <Btn to={go.nursing.patients()}>환자 목록 · 예약</Btn>
+            <span className="rowb">
+              <Btn to={go.nursing.patients()}>환자 목록</Btn>
+              <Btn to={`${go.nursing.reservations()}?date=${today}`}>예약 관리</Btn>
+            </span>
           )}>
       {/* 접수하면 아래 내원 대기가 7초 박자로 스스로 다시 불러 올린다 —
           여기서 다시 마운트하면 고르던 사람이 풀린다 */}

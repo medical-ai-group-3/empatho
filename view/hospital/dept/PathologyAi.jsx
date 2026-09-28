@@ -32,7 +32,29 @@ import { Gauge, PartBar, SplitBar, StripPlot } from "./AiViz";
  *      아니다. 장마다 나란히 놓고 판독의가 분포를 본다.
  */
 
-export default function PathologyAi({ d }) {
+/* ── 요약 — 판독 화면 오른쪽 맨 위, sTIL 입력칸 바로 위에 늘 보인다 ──
+ * 크롭마다 한 칩. 누르면 뷰어가 그 크롭으로 바뀐다(slide).
+ * ⚠ 여기서도 평균을 내지 않는다(지킬 것 3) · 이름은 「AI 계측값」(09-28) */
+export function PathologyAiSummary({ d, slide, onSlide }) {
+  const rows = d.ai ?? [];
+  if (rows.length === 0) return <p className="muted small">AI 결과가 없습니다.</p>;
+  return (
+    <div className="viz-chips">
+      {rows.map((r, i) => (
+        <button type="button" key={r.id ?? i} className="phr-b" aria-pressed={slide === i}
+                disabled={!onSlide} title="이 크롭을 뷰어에 띄웁니다"
+                onClick={() => onSlide?.(i)}>
+          크롭 {i + 1} · {r.abstained ? "판정 못 함"
+            : r.stroma_status === "absent" ? "간질 없음"
+            : `AI 계측 ${fmt1(r.stil_percent)}% · TSR ${r.tsr_percent ?? "—"}%`}
+        </button>
+      ))}
+      <span className="muted small">AI 계측값은 병리의 sTIL 과 척도가 다릅니다.</span>
+    </div>
+  );
+}
+
+export default function PathologyAi({ d, slide, onSlide }) {
   const rows = d.ai ?? [];
 
   if (rows.length === 0) {
@@ -69,10 +91,17 @@ export default function PathologyAi({ d }) {
         note="자른 자리에 따라 조직 구성이 달라집니다." />
 
       {rows.map((r, i) => (
-        <section className="ai-card" key={r.id ?? i}>
+        <section className={slide === i ? "ai-card on" : "ai-card"} key={r.id ?? i}>
           <div className="ai-h">
             <b>크롭 {i + 1}</b>
             <span className="muted">{r.name}</span>
+            {/* 카드와 뷰어를 잇는다 — 값을 보다가 그 자리를 바로 본다 */}
+            {onSlide && (
+              <button type="button" className="btn ghost sm" aria-pressed={slide === i}
+                      onClick={() => onSlide(i)}>
+                {slide === i ? "보는 중" : "영상에서 보기"}
+              </button>
+            )}
           </div>
 
           {r.abstained ? (

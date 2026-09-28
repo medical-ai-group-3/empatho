@@ -45,6 +45,11 @@ export const ROOT = "/hospital";
  *   sub    한 줄 설명 — **이 화면이 무엇을 하는 자리인지**
  *   need   이 화면을 열 수 있는 권한. 없으면 메뉴에서 감춘다
  *   deep   주소에 :id 가 들어가는 화면이라 메뉴에 안 띄운다
+ *   parent deep 화면일 때 **화면 줄에서 불을 켤 메뉴**(key). 여럿이면 방금
+ *          거쳐 온 메뉴를 고르고, 거쳐 온 게 없으면 첫째다 (Top.jsx)
+ *          ⚠ 없으면 주소 앞머리로 맞춰서 엉뚱한 탭이 켜졌다 — 유방외과
+ *            patients/:id/review 가 「전체 환자」, 병리 specimens/:id/upload
+ *            가 「환자 목록」에 불이 들어왔다(09-28 점검)
  */
 /* 간호과 사람의 열쇠. 원무 열쇠든 간호 열쇠든 **하나만 있어도 이 과
    사람**이다 — 원무는 과가 아니라 간호과가 하는 일 중 하나다.
@@ -115,13 +120,13 @@ const DEPTS = [
         need: "radiology.list.view" },
 
       { key: "studies/:id/upload", use: "upload", menu: "업로드", title: "업로드",
-        need: "radiology.upload.view", deep: true },
+        need: "radiology.upload.view", deep: true, parent: ["queue", "patients"] },
 
       { key: "read/:id", use: "read", menu: "판독", title: "판독",
-        need: "radiology.read.view", deep: true },
+        need: "radiology.read.view", deep: true, parent: ["queue", "patients"] },
 
       { key: "read/:id/amend", use: "amend", menu: "판독 정정", title: "판독 정정",
-        need: "radiology.amend.view", deep: true },
+        need: "radiology.amend.view", deep: true, parent: ["patients", "queue"] },
     ],
   },
 
@@ -140,10 +145,10 @@ const DEPTS = [
         need: "pathology.list.view" },
 
       { key: "specimens/:id/upload", use: "upload", menu: "업로드", title: "업로드",
-        need: "pathology.upload.view", deep: true },
+        need: "pathology.upload.view", deep: true, parent: ["queue", "specimens"] },
 
       { key: "read/:id", use: "read", menu: "판독", title: "판독",
-        need: "pathology.read.view", deep: true },
+        need: "pathology.read.view", deep: true, parent: ["queue", "specimens"] },
 
       /* 판독 정정(5장) 없음 — 확정 사양서 §8-2, 병리는 정정 경로를
          두지 않는다. 서버에 route 자체가 없다 */
@@ -164,14 +169,15 @@ const DEPTS = [
       { key: "patients", use: "breast.patients", menu: "전체 환자", title: "전체 환자",
         need: "breast.waiting.view" },
 
+      /* 대기 환자에서 왔으면 「대기 환자」, 전체 환자에서 왔으면 「전체 환자」 */
       { key: "patients/:id/review", use: "breast.review", menu: "환자 상세", title: "환자 상세",
-        need: "breast.review.view", deep: true },
+        need: "breast.review.view", deep: true, parent: ["waiting", "patients"] },
 
       { key: "patients/:id/decision", use: "breast.decision", menu: "치료 방침", title: "치료 방침",
-        need: "breast.decision.view", deep: true },
+        need: "breast.decision.view", deep: true, parent: ["waiting", "patients"] },
 
       { key: "discordances/:id", use: "breast.discordance", menu: "판정 불일치", title: "판정 불일치",
-        need: "breast.discordance.view", deep: true },
+        need: "breast.discordance.view", deep: true, parent: ["waiting", "patients"] },
     ],
   },
 
@@ -227,6 +233,18 @@ export function screenPath(d, s) {
 /* 상단 메뉴에 띄울 화면만 — :id 가 들어가는 화면은 뺀다 */
 export function menuScreens(d) {
   return d.screens.filter((s) => !s.deep);
+}
+
+/* 지금 주소가 과의 어느 화면인가 — "read/:id" 같은 틀을 조각으로 맞춘다.
+   못 찾으면 null (과 바깥 주소 · 모르는 주소) */
+export function screenAt(d, pathname) {
+  if (!d) return null;
+  const rest = pathname.slice(deptPath(d).length).split("/").filter(Boolean);
+  return d.screens.find((s) => {
+    const parts = s.key ? s.key.split("/") : [];
+    return parts.length === rest.length
+      && parts.every((seg, i) => seg.startsWith(":") || seg === rest[i]);
+  }) ?? null;
 }
 
 /* ── 내가 갈 수 있는 곳 ────────────────────────────────────────
@@ -370,7 +388,9 @@ export const go = {
     home:      () => N,
     intake:    () => `${N}/intake`,
     patients:  () => `${N}/patients`,
-    reservations: () => `${N}/reservations`,
-    followups: () => `${N}/followups`,
+    /* pid — 환자 상세의 단추에서 올 때. 받는 화면이 그 환자를 골라 둔다
+       (안 읽는 화면이면 그냥 무시된다 — 주소만 길어진다) */
+    reservations: (pid = null) => `${N}/reservations${query({ patient: pid })}`,
+    followups: (pid = null) => `${N}/followups${query({ patient: pid })}`,
   },
 };

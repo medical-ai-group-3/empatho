@@ -13,8 +13,8 @@
  * ⚠ **없는 값은 만들지 않는다.** 서버가 안 주면 그 조각을 빼고, 「—」나
  *   0 으로 채워 있는 것처럼 보이게 하지 않는다.
  *
- * ⚠ **「몇 분 기다렸는지」는 없다.** 목업에 「평균 대기 23분」 「(38′)」 이
- *   있지만 서버가 그 값을 주지 않는다. 요청 시각만 적는다.
+ * ⚠ **「몇 분 기다렸는지」는 서버가 주지 않는다.** 요청·채취 시각(서버 값)과
+ *   지금을 견줘 화면이 센다 — 아래 waited().
  */
 
 /* 「2026-09-21T14:27:31+09:00」 → 「14:27」. 없으면 안 그린다 */
@@ -73,6 +73,29 @@ export function allergy(r) {
     ?? (r.has_allergy === true ? (r.allergy_note || true) : null);
   if (!it) return null;
   return it === true ? "조영제 알레르기" : String(it);
+}
+
+/* 알레르기 칩 — 「알레르기」가 기본이고, 적힌 글에 조영제가 있을 때만
+   「조영제 알레르기」다. ⚠ 서버의 has_allergy 는 조영제만 뜻하지 않는다 —
+   페니실린 알레르기를 「조영제 알레르기」로 띄우면 촬영실이 엉뚱하게 멈춘다.
+   { label, note } · 없으면 null. note 는 「있음」처럼 뜻 없는 글이면 null */
+export function allergyTag(v) {
+  const t = v === true ? "있음" : some(v);
+  if (!t || t === "false") return null;
+  const note = t === "있음" || t === "true" ? null : t;
+  return { label: /조영제/.test(t) ? "조영제 알레르기" : "알레르기", note };
+}
+
+/* 기다린 시간 — 「41분」 「3시간」 「2일」. 서버가 준 시각(요청 · 채취)과
+   지금을 견준다. 못 읽는 값 · 앞날이면 안 그린다 */
+export function waited(from, now = Date.now()) {
+  if (!from) return null;
+  const t = new Date(String(from).replace(" ", "T")).getTime();
+  if (Number.isNaN(t) || t > now) return null;
+  const min = Math.floor((now - t) / 60000);
+  if (min < 60) return `${min}분`;
+  const h = Math.floor(min / 60);
+  return h < 24 ? `${h}시간` : `${Math.floor(h / 24)}일`;
 }
 
 /* 목록 응답이 세 모양으로 온다 — 배열 · {items} · {results}.

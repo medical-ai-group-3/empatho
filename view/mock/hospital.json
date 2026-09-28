@@ -212,7 +212,20 @@
   "cancel_reason": null,
   "cancelled_by": null
  },
+ "__note_today_status_0928": "간호 F3 — 오늘 내원 줄. handed_to · stage_code 로 선생님별 배정 현황과 검체 확인 탭을 센다. 옛 줄은 _legacy 로 비켜 둔다(질의가 붙어야 맞으므로 안 걸린다)",
  "GET /api/v1/hospital/patients/today-status": [
+  {"exam_order_id": 711, "patient_id": "P-1001", "patient_name": "김민지", "age": 47, "sex": "female", "patient_number": "20260001", "stage": "영상의학과 대기", "stage_code": "radiology_wait", "stage_detail": "영상의학과 대기", "order_status": "ordered", "visited_at": "2026-09-28T09:10:00+09:00", "primary_staff": "S-2001", "primary_staff_name": "서나영", "handed_at": "2026-09-28T09:20:00+09:00", "handed_to": "S-2001"},
+  {"exam_order_id": "eo-w1", "patient_id": 61, "patient_name": "박서연", "stage": "접수 대기", "stage_code": "nursing", "stage_detail": "간호·문진", "order_status": "requested", "visited_at": "2026-09-28T09:05:00+09:00", "primary_staff": null, "primary_staff_name": null, "handed_at": null, "handed_to": null},
+  {"exam_order_id": "eo-w2", "patient_id": 62, "patient_name": "김도윤", "stage": "접수 대기", "stage_code": "nursing", "stage_detail": "간호·문진", "order_status": "requested", "visited_at": "2026-09-28T09:26:00+09:00", "primary_staff": null, "primary_staff_name": null, "handed_at": null, "handed_to": null},
+  {"exam_order_id": 7101, "patient_id": 71, "patient_name": "정수아", "age": 44, "sex": "female", "patient_number": "P-2026-00414", "stage": "접수 대기", "stage_code": "outpatient", "stage_detail": "외래 진료", "order_status": "requested", "visited_at": "2026-09-28T08:40:00+09:00", "primary_staff": "S-2001", "primary_staff_name": "서나영", "handed_at": "2026-09-28T09:10:00+09:00", "handed_to": "S-2001"},
+  {"exam_order_id": 7102, "patient_id": 72, "patient_name": "강민서", "age": 36, "sex": "female", "patient_number": "P-2026-00405", "stage": "접수 대기", "stage_code": "outpatient", "stage_detail": "외래 진료", "order_status": "requested", "visited_at": "2026-09-28T08:52:00+09:00", "primary_staff": "S-2001", "primary_staff_name": "서나영", "handed_at": "2026-09-28T09:31:00+09:00", "handed_to": "S-2001"},
+  {"exam_order_id": 7103, "patient_id": 73, "patient_name": "이지은", "age": 52, "sex": "female", "patient_number": "P-2026-00420", "stage": "접수 대기", "stage_code": "outpatient", "stage_detail": "외래 진료", "order_status": "requested", "visited_at": "2026-09-28T09:02:00+09:00", "primary_staff": "S-2002", "primary_staff_name": "최민수", "handed_at": "2026-09-28T09:44:00+09:00", "handed_to": "S-2002"},
+  {"exam_order_id": 7104, "patient_id": 42, "patient_name": "윤서현", "age": 54, "sex": "female", "patient_number": "E_1029311", "stage": "영상의학과 대기", "stage_code": "radiology_wait", "stage_detail": "영상의학과 대기", "order_status": "ordered", "visited_at": "2026-09-28T08:31:00+09:00", "primary_staff": "S-2002", "primary_staff_name": "최민수", "handed_at": "2026-09-28T08:50:00+09:00", "handed_to": "S-2002"},
+  {"exam_order_id": 7105, "patient_id": 43, "patient_name": "이정민", "age": 62, "sex": "male", "patient_number": "E_1029355", "stage": "영상의학과 촬영중", "stage_code": "radiology_in_progress", "stage_detail": "영상의학과 촬영중", "order_status": "ordered", "visited_at": "2026-09-28T08:20:00+09:00", "primary_staff": "S-2003", "primary_staff_name": "이수정", "handed_at": "2026-09-28T08:35:00+09:00", "handed_to": "S-2003"},
+  {"exam_order_id": 7106, "patient_id": 76, "patient_name": "한수민", "age": 48, "sex": "female", "patient_number": "P-2026-00398", "stage": "completed", "stage_code": "completed", "stage_detail": "completed", "order_status": "completed", "visited_at": "2026-09-28T08:05:00+09:00", "primary_staff": "S-2001", "primary_staff_name": "서나영", "handed_at": "2026-09-28T08:15:00+09:00", "handed_to": "S-2001"},
+  {"exam_order_id": 7107, "patient_id": 77, "patient_name": "문가영", "age": 57, "sex": "female", "patient_number": "P-2026-00377", "stage": "AI 분석중", "stage_code": "ai_analysis", "stage_detail": "AI 분석중", "order_status": "ordered", "visited_at": "2026-09-28T08:10:00+09:00", "primary_staff": "S-2003", "primary_staff_name": "이수정", "handed_at": "2026-09-28T08:22:00+09:00", "handed_to": "S-2003"}
+ ],
+ "GET /api/v1/hospital/patients/today-status?_legacy=1": [
   {
    "exam_order_id": 501,
    "patient_id": 41,
@@ -258,7 +271,7 @@
   "  돌려주고 order_status 를 **scheduled** 로 만든다. 같은 건을 두 번",
   "  확정하면 409 ALREADY_CONFIRMED 가 온다."
  ],
- "GET /api/v1/hospital/exam-orders?status={s}&visited={v}": [
+ "GET /api/v1/hospital/exam-orders?status={s}&visited=none": [
   {
    "exam_order_id": 801,
    "patient": 44,
@@ -357,6 +370,31 @@
   "  걸러지지 않은 전체가 온다(읽기만 하고 필터에 안 쓴다). 화면이 그 길로",
   "  목록을 받는다 — api.js 의 ALL_PATIENTS."
  ],
+ "__note_patient_list_0928": "간호 F3 — 환자 목록 화면(page_size 를 다는 전체 목록)만 받는 열쇠. PatientListSerializer 모양 + primary_staff_name · has_account. 유방외과 목록(?status= 만)은 아래 옛 열쇠로 그대로 간다",
+ "GET /api/v1/hospital/patients/?status=all&page_size={n}": [
+  {"patient_id": 61, "patient_number": "P-2026-00418", "name": "박서연", "phone": "010-2481-5530", "birth_date": "1979-03-11", "birth_year": 1979, "sex": "female", "has_allergy": true, "primary_staff": null, "primary_staff_name": null, "has_account": true},
+  {"patient_id": 62, "patient_number": "P-2026-00415", "name": "김도윤", "phone": "010-7720-1184", "birth_date": "1965-01-20", "birth_year": 1965, "sex": "male", "has_allergy": false, "primary_staff": null, "primary_staff_name": null, "has_account": false},
+  {"patient_id": 63, "patient_number": "P-2026-00413", "name": "한지우", "phone": "010-5555-6666", "birth_date": "1993-11-08", "birth_year": 1993, "sex": "female", "has_allergy": false, "primary_staff": null, "primary_staff_name": null, "has_account": true},
+  {"patient_id": 64, "patient_number": "P-2026-00416", "name": "최은영", "phone": "010-3391-4402", "birth_date": "1987-02-20", "birth_year": 1987, "sex": "female", "has_allergy": false, "primary_staff": "S-2002", "primary_staff_name": "최민수", "has_account": true},
+  {"patient_id": 65, "patient_number": "P-2026-00412", "name": "오세라", "phone": "010-7777-8888", "birth_date": "1968-04-02", "birth_year": 1968, "sex": "female", "has_allergy": false, "primary_staff": null, "primary_staff_name": null, "has_account": false},
+  {"patient_id": 66, "patient_number": "P-2026-00411", "name": "윤채원", "phone": "010-4410-8812", "birth_date": "1997-05-30", "birth_year": 1997, "sex": "female", "has_allergy": false, "primary_staff": "S-2003", "primary_staff_name": "이수정", "has_account": true},
+  {"patient_id": 71, "patient_number": "P-2026-00414", "name": "정수아", "phone": "010-6666-7777", "birth_date": "1982-01-15", "birth_year": 1982, "sex": "female", "has_allergy": false, "primary_staff": "S-2001", "primary_staff_name": "서나영", "has_account": true},
+  {"patient_id": 72, "patient_number": "P-2026-00405", "name": "강민서", "phone": "010-8888-9999", "birth_date": "1990-09-12", "birth_year": 1990, "sex": "female", "has_allergy": true, "primary_staff": "S-2001", "primary_staff_name": "서나영", "has_account": false},
+  {"patient_id": 73, "patient_number": "P-2026-00420", "name": "이지은", "phone": "010-2020-3131", "birth_date": "1974-06-18", "birth_year": 1974, "sex": "female", "has_allergy": false, "primary_staff": "S-2002", "primary_staff_name": "최민수", "has_account": true},
+  {"patient_id": 74, "patient_number": "P-2026-00401", "name": "박하은", "phone": "010-9090-1212", "birth_date": "1985-12-02", "birth_year": 1985, "sex": "female", "has_allergy": false, "primary_staff": "S-2001", "primary_staff_name": "서나영", "has_account": true},
+  {"patient_id": 75, "patient_number": "P-2026-00399", "name": "서지민", "phone": "010-4545-6767", "birth_date": "1971-08-25", "birth_year": 1971, "sex": "female", "has_allergy": false, "primary_staff": "S-2002", "primary_staff_name": "최민수", "has_account": false},
+  {"patient_id": 76, "patient_number": "P-2026-00398", "name": "한수민", "phone": "010-3232-5454", "birth_date": "1978-02-14", "birth_year": 1978, "sex": "female", "has_allergy": false, "primary_staff": "S-2001", "primary_staff_name": "서나영", "has_account": true},
+  {"patient_id": 77, "patient_number": "P-2026-00377", "name": "문가영", "phone": "010-1100-2200", "birth_date": "1969-10-09", "birth_year": 1969, "sex": "female", "has_allergy": true, "primary_staff": "S-2003", "primary_staff_name": "이수정", "has_account": false},
+  {"patient_id": 41, "patient_number": "E_1029304", "name": "김영희", "phone": "010-1234-5678", "birth_date": "1985-07-02", "birth_year": 1985, "sex": "female", "has_allergy": true, "primary_staff": null, "primary_staff_name": null, "has_account": true},
+  {"patient_id": 42, "patient_number": "E_1029311", "name": "윤서현", "phone": "010-0000-0000", "birth_date": "1971-11-30", "birth_year": 1971, "sex": "female", "has_allergy": false, "primary_staff": "S-2002", "primary_staff_name": "최민수", "has_account": true},
+  {"patient_id": 43, "patient_number": "E_1029355", "name": "이정민", "phone": "010-7777-1234", "birth_date": "1964-04-08", "birth_year": 1964, "sex": "male", "has_allergy": false, "primary_staff": "S-2003", "primary_staff_name": "이수정", "has_account": false},
+  {"patient_id": 44, "patient_number": "E_1029362", "name": "한지우B", "phone": "010-3333-9090", "birth_date": "1990-03-14", "birth_year": 1990, "sex": "female", "has_allergy": true, "primary_staff": null, "primary_staff_name": null, "has_account": true},
+  {"patient_id": 45, "patient_number": "E_1029370", "name": "최유나", "phone": "010-5151-2323", "birth_date": "1978-09-27", "birth_year": 1978, "sex": "female", "has_allergy": false, "primary_staff": null, "primary_staff_name": null, "has_account": false},
+  {"patient_id": 46, "patient_number": "E_1029381", "name": "장하윤", "phone": "010-6161-7272", "birth_date": "1983-05-05", "birth_year": 1983, "sex": "female", "has_allergy": false, "primary_staff": "S-2001", "primary_staff_name": "서나영", "has_account": true},
+  {"patient_id": 47, "patient_number": "E_1029390", "name": "오세림", "phone": "010-8282-9393", "birth_date": "1976-07-21", "birth_year": 1976, "sex": "female", "has_allergy": false, "primary_staff": "S-2003", "primary_staff_name": "이수정", "has_account": false},
+  {"patient_id": 48, "patient_number": "E_1029402", "name": "배수진", "phone": "010-1414-2525", "birth_date": "1989-01-30", "birth_year": 1989, "sex": "female", "has_allergy": false, "primary_staff": null, "primary_staff_name": null, "has_account": true},
+  {"patient_id": 49, "patient_number": "E_1029415", "name": "신다은", "phone": "010-3636-4747", "birth_date": "1992-11-11", "birth_year": 1992, "sex": "female", "has_allergy": true, "primary_staff": "S-2002", "primary_staff_name": "최민수", "has_account": true}
+ ],
  "GET /api/v1/hospital/patients/?status={s}": [
   {
    "patient_id": 41,
@@ -451,6 +489,46 @@
   "primary_staff": null,
   "primary_staff_name": null
  },
+ "GET /api/v1/hospital/exam-orders?patient=P-1001&ordering={o}": [
+  {
+   "exam_order_id": 712, "patient": "P-1001", "patient_name": "김민지",
+   "exam_purpose": "diagnostic", "modality": "us", "order_status": "scheduled",
+   "scheduled_at": "2026-10-12T10:00:00+09:00", "visited_at": null, "ordered_at": "2026-09-28T09:40:00+09:00"
+  },
+  {
+   "exam_order_id": 711, "patient": "P-1001", "patient_name": "김민지",
+   "exam_purpose": "diagnostic", "modality": "mri", "order_status": "ordered",
+   "scheduled_at": "2026-09-28T09:00:00+09:00", "visited_at": "2026-09-28T09:10:00+09:00", "ordered_at": "2026-09-12T14:00:00+09:00"
+  },
+  {
+   "exam_order_id": 705, "patient": "P-1001", "patient_name": "김민지",
+   "exam_purpose": "diagnostic", "modality": "us", "order_status": "scheduled",
+   "scheduled_at": "2026-09-19T11:00:00+09:00", "visited_at": null, "ordered_at": "2026-09-12T14:05:00+09:00"
+  },
+  {
+   "exam_order_id": 701, "patient": "P-1001", "patient_name": "김민지",
+   "exam_purpose": "screening", "modality": "mammo", "order_status": "completed",
+   "scheduled_at": "2026-09-08T09:00:00+09:00", "visited_at": "2026-09-08T08:52:00+09:00", "ordered_at": "2026-09-01T10:00:00+09:00"
+  },
+  {
+   "exam_order_id": 698, "patient": "P-1001", "patient_name": "김민지",
+   "exam_purpose": "screening", "modality": null, "order_status": "cancelled",
+   "scheduled_at": "2026-08-20T10:30:00+09:00", "visited_at": null, "ordered_at": null
+  }
+ ],
+ "GET /api/v1/hospital/exam-orders?patient=P-1002&ordering={o}": [{"exam_order_id": 7201, "patient": "P-1002", "patient_name": "이서연", "exam_purpose": "diagnostic", "modality": null, "order_status": "requested", "visit_type": "재진", "scheduled_at": "2026-09-28T09:30:00+09:00", "visited_at": "2026-09-28T09:24:00+09:00", "ordered_at": null}, {"exam_order_id": 7202, "patient": "P-1002", "patient_name": "이서연", "exam_purpose": "diagnostic", "modality": "us", "order_status": "completed", "scheduled_at": "2026-09-08T14:00:00+09:00", "visited_at": "2026-09-08T13:55:00+09:00", "ordered_at": "2026-09-03T10:00:00+09:00"}],
+ "GET /api/v1/hospital/exam-orders?patient=P-1003&ordering={o}": [{"exam_order_id": 7301, "patient": "P-1003", "patient_name": "박지현", "exam_purpose": "diagnostic", "modality": null, "order_status": "requested", "visit_type": "재진", "scheduled_at": "2026-09-28T10:00:00+09:00", "visited_at": "2026-09-28T09:48:00+09:00", "ordered_at": null}, {"exam_order_id": 7302, "patient": "P-1003", "patient_name": "박지현", "exam_purpose": "diagnostic", "modality": "mri", "order_status": "completed", "scheduled_at": "2026-09-10T08:30:00+09:00", "visited_at": "2026-09-10T08:25:00+09:00", "ordered_at": "2026-09-02T11:00:00+09:00"}],
+ "GET /api/v1/hospital/exam-orders?patient=P-1005&ordering={o}": [{"exam_order_id": 7501, "patient": "P-1005", "patient_name": "정하은", "exam_purpose": "screening", "modality": null, "order_status": "requested", "visit_type": "초진", "scheduled_at": null, "visited_at": "2026-09-28T09:05:00+09:00", "ordered_at": null}, {"exam_order_id": 7502, "patient": "P-1005", "patient_name": "정하은", "exam_purpose": "screening", "modality": "mammo", "order_status": "completed", "scheduled_at": null, "visited_at": "2026-09-28T09:05:00+09:00", "ordered_at": "2026-09-28T09:12:00+09:00"}, {"exam_order_id": 7503, "patient": "P-1005", "patient_name": "정하은", "exam_purpose": "diagnostic", "modality": "us", "order_status": "ordered", "scheduled_at": null, "visited_at": "2026-09-28T09:05:00+09:00", "ordered_at": "2026-09-28T10:02:00+09:00"}],
+ "__note_orders_of_0928": "간호 F3 — 한 환자의 오더(ordersOf). 박서연(61) · 박하은(74)만 제 것이고 나머지는 아래 옛 열쇠(김영희)로 간다. ⚠ 값이 박힌 열쇠가 {id} 열쇠보다 앞에 와야 이긴다",
+ "GET /api/v1/hospital/exam-orders?patient=61&ordering={o}": [
+  {"exam_order_id": 5901, "patient": 61, "patient_name": "박서연", "patient_number": "P-2026-00418", "modality": "mammo", "order_status": "completed", "scheduled_at": "2026-03-02T10:00:00+09:00", "visited_at": "2026-03-02T09:52:00+09:00", "primary_staff_name": "서나영"},
+  {"exam_order_id": 5902, "patient": 61, "patient_name": "박서연", "patient_number": "P-2026-00418", "modality": null, "order_status": "scheduled", "scheduled_at": "2026-09-10T10:30:00+09:00", "visited_at": null, "primary_staff_name": null},
+  {"exam_order_id": 7001, "patient": 61, "patient_name": "박서연", "patient_number": "P-2026-00418", "modality": null, "order_status": "requested", "scheduled_at": "2026-09-28T09:00:00+09:00", "visited_at": "2026-09-28T09:05:00+09:00", "primary_staff_name": null}
+ ],
+ "GET /api/v1/hospital/exam-orders?patient=74&ordering={o}": [
+  {"exam_order_id": 5801, "patient": 74, "patient_name": "박하은", "patient_number": "P-2026-00401", "modality": "us", "order_status": "completed", "scheduled_at": "2026-03-27T09:30:00+09:00", "visited_at": "2026-03-27T09:21:00+09:00", "primary_staff_name": "서나영"},
+  {"exam_order_id": 620, "patient": 74, "patient_name": "박하은", "patient_number": "P-2026-00401", "modality": "mammo", "order_status": "completed", "scheduled_at": "2026-09-27T09:30:00+09:00", "visited_at": "2026-09-27T09:24:00+09:00", "primary_staff_name": "서나영"}
+ ],
  "GET /api/v1/hospital/exam-orders?patient={id}&ordering={o}": [
   {
    "exam_order_id": 601,
@@ -541,6 +619,15 @@
   "  오늘이 2026-09-16 이라 첫 화면은 9월이고, 아래 자료도 9월로 맞춰 뒀다."
  ],
  "GET /api/v1/hospital/exam-orders?scheduled_from={from}&scheduled_to={to}": [
+  {"exam_order_id": 620, "patient": 74, "patient_name": "박하은", "patient_number": "P-2026-00401", "exam_purpose": "screening", "modality": "mammo", "order_status": "completed", "scheduled_at": "2026-09-27T09:30:00+09:00", "visited_at": "2026-09-27T09:24:00+09:00", "followup": null, "primary_staff": "S-2001", "primary_staff_name": "서나영", "questionnaire": null, "cancel_reason": null},
+  {"exam_order_id": 621, "patient": 62, "patient_name": "김도윤", "patient_number": "P-2026-00415", "exam_purpose": null, "modality": null, "order_status": "scheduled", "scheduled_at": "2026-09-24T10:00:00+09:00", "visited_at": null, "followup": null, "primary_staff": null, "primary_staff_name": null, "questionnaire": null, "cancel_reason": null},
+  {"exam_order_id": 622, "patient": 45, "patient_name": "최유나", "patient_number": "E_1029370", "exam_purpose": null, "modality": null, "order_status": "scheduled", "scheduled_at": "2026-09-25T14:00:00+09:00", "visited_at": null, "followup": null, "primary_staff": null, "primary_staff_name": null, "questionnaire": null, "cancel_reason": null},
+  {"exam_order_id": 623, "patient": 75, "patient_name": "서지민", "patient_number": "P-2026-00399", "exam_purpose": null, "modality": null, "order_status": "scheduled", "scheduled_at": "2026-09-29T10:00:00+09:00", "visited_at": null, "followup": null, "primary_staff": "S-2002", "primary_staff_name": "최민수", "questionnaire": null, "cancel_reason": null},
+  {"exam_order_id": 624, "patient": 66, "patient_name": "윤채원", "patient_number": "P-2026-00411", "exam_purpose": null, "modality": null, "order_status": "scheduled", "scheduled_at": "2026-10-01T11:00:00+09:00", "visited_at": null, "followup": 3004, "primary_staff": "S-2003", "primary_staff_name": "이수정", "questionnaire": null, "cancel_reason": null},
+  {"exam_order_id": 625, "patient": 46, "patient_name": "장하윤", "patient_number": "E_1029381", "exam_purpose": null, "modality": null, "order_status": "scheduled", "scheduled_at": "2026-09-28T14:00:00+09:00", "visited_at": null, "followup": null, "primary_staff": "S-2001", "primary_staff_name": "서나영", "questionnaire": null, "cancel_reason": null},
+  {"exam_order_id": 626, "patient": 48, "patient_name": "배수진", "patient_number": "E_1029402", "exam_purpose": null, "modality": null, "order_status": "requested", "scheduled_at": "2026-09-30T09:30:00+09:00", "visited_at": null, "followup": null, "primary_staff": null, "primary_staff_name": null, "questionnaire": null, "cancel_reason": null},
+  {"exam_order_id": 627, "patient": 76, "patient_name": "한수민", "patient_number": "P-2026-00398", "exam_purpose": "diagnostic", "modality": "us", "order_status": "completed", "scheduled_at": "2026-09-28T08:00:00+09:00", "visited_at": "2026-09-28T08:05:00+09:00", "followup": null, "primary_staff": "S-2001", "primary_staff_name": "서나영", "questionnaire": null, "cancel_reason": null},
+  {"exam_order_id": 628, "patient": 42, "patient_name": "윤서현", "patient_number": "E_1029311", "exam_purpose": "diagnostic", "modality": "us", "order_status": "ordered", "scheduled_at": "2026-09-28T08:30:00+09:00", "visited_at": "2026-09-28T08:31:00+09:00", "followup": null, "primary_staff": "S-2002", "primary_staff_name": "최민수", "questionnaire": null, "cancel_reason": null},
   {
    "exam_order_id": 601,
    "patient": 41,
@@ -832,48 +919,64 @@
  "GET /api/v1/hospital/specimens/queue": {
   "items": [
    {
-    "id": "sp-101",
-    "patient_name": "이정민",
-    "age": 52,
-    "sex": "여",
-    "specimen_no": "S-2026-0142",
-    "kind": "Core Needle Biopsy",
-    "site": "좌측 상외측",
-    "method": "총생검",
-    "patient": "P-1001"
-   },
-   {
-    "id": "sp-102",
-    "patient_name": "윤서현",
-    "age": 47,
-    "sex": "여",
-    "specimen_no": "S-2026-0143",
-    "kind": "Vacuum Assisted Biopsy",
-    "site": "우측 하내측",
-    "method": "진공보조생검",
-    "patient": "P-1002"
-   },
-   {
     "id": "sp-103",
+    "specimen_id": "sp-103",
+    "patient": "P-1003",
     "patient_name": "한지우",
     "age": 61,
     "sex": "여",
+    "patient_number": "P-2026-0061",
     "specimen_no": "S-2026-0144",
-    "kind": "Core Needle Biopsy",
-    "site": "좌측 하외측",
-    "method": "총생검",
-    "patient": "P-1003"
+    "specimen_label": "S-2026-0144",
+    "kind": "core_needle",
+    "method": "ultrasound",
+    "collected_at": "2026-09-28T07:40:00+09:00",
+    "bound_by_name": "최은비",
+    "clinical_note": "좌측 하외측 종괴 — 조직 확인",
+    "target_snapshot": "US-1 · 좌측 LOQ · 9.8mm · BI-RADS 4A · 초음파",
+    "lesion": null,
+    "accession_status": "bound",
+    "assigned_to": null
    },
    {
-    "id": "sp-104",
-    "patient_name": "조은별",
-    "age": 38,
+    "id": "sp-105",
+    "specimen_id": "sp-105",
+    "patient": "P-1005",
+    "patient_name": "문가은",
+    "age": 45,
     "sex": "여",
-    "specimen_no": "S-2026-0145",
-    "kind": "Excisional Biopsy",
-    "site": "우측 상외측",
-    "method": "절제생검",
-    "patient": "P-1001"
+    "patient_number": "P-2026-0065",
+    "specimen_no": "S-2026-0146",
+    "specimen_label": "S-2026-0146",
+    "kind": "core_needle",
+    "method": "stereotactic",
+    "collected_at": "2026-09-28T09:25:00+09:00",
+    "bound_by_name": "정다은",
+    "clinical_note": "미세석회 군집 — 정위 생검",
+    "target_snapshot": "MAMMO-1 · 좌측 UOQ · 12.3mm · BI-RADS 4B · 맘모그래피",
+    "lesion": 501,
+    "accession_status": "bound",
+    "assigned_to": null
+   },
+   {
+    "id": "sp-106",
+    "specimen_id": "sp-106",
+    "patient": "P-1006",
+    "patient_name": "배수아",
+    "age": 52,
+    "sex": "여",
+    "patient_number": "P-2026-0066",
+    "specimen_no": "S-2026-0147",
+    "specimen_label": "S-2026-0147",
+    "kind": "surgical",
+    "method": "localization",
+    "collected_at": "2026-09-28T10:10:00+09:00",
+    "bound_by_name": "최은비",
+    "clinical_note": "절제 생검 — 병변 전체",
+    "target_snapshot": null,
+    "lesion": null,
+    "accession_status": "bound",
+    "assigned_to": null
    }
   ]
  },
@@ -883,9 +986,9 @@
   "age": 52,
   "sex": "여",
   "specimen_no": "S-2026-0142",
-  "kind": "Core Needle Biopsy",
-  "method": "총생검",
-  "collected_at": "2026-09-15 09:20",
+  "kind": "core_needle",
+  "method": "ultrasound",
+  "collected_at": "2026-09-28T08:20:00+09:00",
   "site": "좌측 상외측",
   "clinical_note": "좌측 상외측 유방에 만져지는 종괴로 조직검사 의뢰합니다. 2주 전부터 크기 증가 소견 있었습니다.",
   "radiology_summary": {
@@ -1015,7 +1118,14 @@
    "diagnosis_label": "악성 (malignant)",
    "category_label": "B5 — 악성"
   },
-  "patient": "P-1001"
+  "patient": "P-1001",
+  "patient_number": "P-2026-0031",
+  "bound_by_name": "최은비",
+  "lesion": 501,
+  "target_snapshot": "MAMMO-1 · 좌측 UOQ · 12.3mm · BI-RADS 4B · 맘모그래피",
+  "specimen_type": "core_needle",
+  "guidance_route": "ultrasound",
+  "assigned_to": "박민재 교수"
  },
  "GET /api/v1/hospital/specimens/{id}/upload": {
   "patient_name": "이정민",
@@ -1027,7 +1137,7 @@
   "radiology_summary": {
    "note": "좌측 상외측 1시 방향 불규칙 경계 종괴, 최대직경 18mm."
   },
-  "files": [
+  "uploads": [
    {
     "id": "f1",
     "name": "crop_01.png",
@@ -1069,57 +1179,134 @@
   "ai": null
  },
  "GET /api/v1/hospital/specimens/": {
-  "total": 5,
+  "_주의": "09-28 F2b — 확정 · 판독중(초안 포함) · 미접수가 섞이게. assigned_to 는 이름(목업)",
+  "total": 6,
   "items": [
    {
     "id": "sp-101",
+    "specimen_id": "sp-101",
+    "patient": "P-1001",
     "patient_name": "이정민",
     "age": 52,
     "sex": "여",
+    "patient_number": "P-2026-0031",
     "specimen_no": "S-2026-0142",
-    "collected_at": "2026-09-15",
-    "status_label": "판독 완료",
-    "viewed_at": "2026-09-15 14:02"
+    "specimen_label": "S-2026-0142",
+    "collected_at": "2026-09-28T08:20:00+09:00",
+    "kind": "core_needle",
+    "method": "ultrasound",
+    "accession_status": "accessioned",
+    "assigned_to": "박민재 교수",
+    "finalized_at": "2026-09-28T11:05:00+09:00",
+    "b_category": "b5",
+    "diagnosis": "malignant",
+    "viewed_at": "2026-09-28 11:30",
+    "bound_by_name": "최은비"
    },
    {
     "id": "sp-102",
+    "specimen_id": "sp-102",
+    "patient": "P-1002",
     "patient_name": "윤서현",
     "age": 47,
     "sex": "여",
+    "patient_number": "P-2026-0047",
     "specimen_no": "S-2026-0143",
-    "collected_at": "2026-09-15",
-    "status_label": "판독 대기",
-    "viewed_at": null
-   },
-   {
-    "id": "sp-103",
-    "patient_name": "한지우",
-    "age": 61,
-    "sex": "여",
-    "specimen_no": "S-2026-0144",
-    "collected_at": "2026-09-14",
-    "status_label": "접수 대기",
-    "viewed_at": null
+    "specimen_label": "S-2026-0143",
+    "collected_at": "2026-09-28T09:10:00+09:00",
+    "kind": "core_needle",
+    "method": "ultrasound",
+    "accession_status": "accessioned",
+    "assigned_to": "박민재 교수",
+    "finalized_at": null,
+    "b_category": "b3",
+    "diagnosis": null,
+    "viewed_at": null,
+    "bound_by_name": "최은비"
    },
    {
     "id": "sp-104",
+    "specimen_id": "sp-104",
+    "patient": "P-1004",
     "patient_name": "조은별",
     "age": 38,
     "sex": "여",
+    "patient_number": "P-2026-0058",
     "specimen_no": "S-2026-0145",
-    "collected_at": "2026-09-14",
-    "status_label": "판독 완료",
-    "viewed_at": null
+    "specimen_label": "S-2026-0145",
+    "collected_at": "2026-09-28T07:05:00+09:00",
+    "kind": "surgical",
+    "method": "localization",
+    "accession_status": "accessioned",
+    "assigned_to": "박민재 교수",
+    "finalized_at": null,
+    "b_category": null,
+    "diagnosis": null,
+    "viewed_at": null,
+    "bound_by_name": "최은비"
+   },
+   {
+    "id": "sp-103",
+    "specimen_id": "sp-103",
+    "patient": "P-1003",
+    "patient_name": "한지우",
+    "age": 61,
+    "sex": "여",
+    "patient_number": "P-2026-0061",
+    "specimen_no": "S-2026-0144",
+    "specimen_label": "S-2026-0144",
+    "collected_at": "2026-09-28T07:40:00+09:00",
+    "kind": "core_needle",
+    "method": "ultrasound",
+    "accession_status": "bound",
+    "assigned_to": null,
+    "finalized_at": null,
+    "b_category": null,
+    "diagnosis": null,
+    "viewed_at": null,
+    "bound_by_name": "최은비"
+   },
+   {
+    "id": "sp-100",
+    "specimen_id": "sp-100",
+    "patient": "P-1007",
+    "patient_name": "권나래",
+    "age": 58,
+    "sex": "여",
+    "patient_number": "P-2026-0055",
+    "specimen_no": "S-2026-0139",
+    "specimen_label": "S-2026-0139",
+    "collected_at": "2026-09-27T14:00:00+09:00",
+    "kind": "core_needle",
+    "method": "ultrasound",
+    "accession_status": "accessioned",
+    "assigned_to": "이서준 교수",
+    "finalized_at": "2026-09-27T18:20:00+09:00",
+    "b_category": "b2",
+    "diagnosis": "benign",
+    "viewed_at": null,
+    "bound_by_name": "최은비"
    },
    {
     "id": "sp-090",
+    "specimen_id": "sp-090",
+    "patient": "P-1001",
     "patient_name": "이정민",
     "age": 52,
     "sex": "여",
+    "patient_number": "P-2026-0031",
     "specimen_no": "S-2026-0101",
-    "collected_at": "2026-08-28",
-    "status_label": "판독 완료",
-    "viewed_at": "2026-08-29 10:11"
+    "specimen_label": "S-2026-0101",
+    "collected_at": "2026-08-28T10:00:00+09:00",
+    "kind": "core_needle",
+    "method": "ultrasound",
+    "accession_status": "accessioned",
+    "assigned_to": "박민재 교수",
+    "finalized_at": "2026-08-29T10:11:00+09:00",
+    "b_category": "b2",
+    "diagnosis": "benign",
+    "viewed_at": "2026-08-29 10:11",
+    "bound_by_name": "최은비"
    }
   ]
  },
@@ -1138,8 +1325,23 @@
   ]
  },
  "GET /api/v1/hospital/ai-results?specimen={id}": {
+  "_주의": "status·pct 는 업로드 화면 진행 막대, count·results 는 실서버 /ai-results 목록 모양(판독 화면이 읽는다)",
   "status": "done",
-  "pct": 100
+  "pct": 100,
+  "count": 2,
+  "results": [
+   {"ai_result_id": 301, "specimen": 8001, "source_object": "f1", "run_status": "done", "abstained": false, "abstain_reason": null,
+    "result": {"model": "path-tissue", "version": "1.1.0", "image": {"filename": "crop_01.png"}, "socket_id": "1",
+     "result": {"stil_percent": 12.4, "stroma_status": "ok", "tsr_tumor_percent": 58, "tsr_stroma_percent": 42,
+      "n_cells_total": 8421, "n_cells_til": 1204, "n_cells_til_stromal": 986, "tumor_area_px": 152300, "stroma_area_px": 110200,
+      "immune_cell_area_px": 8400, "immune_region_area_px": 13650, "stil_nucleus_percent": 11.4, "til_region_radius_um": 5, "mpp": 0.5,
+      "tissue_mask_legend": {"0": "other", "1": "tumor", "2": "stroma"}}}},
+   {"ai_result_id": 302, "specimen": 8001, "source_object": "f2", "run_status": "done", "abstained": false, "abstain_reason": null,
+    "result": {"model": "path-tissue", "version": "1.1.0", "image": {"filename": "crop_02.png"}, "socket_id": "1",
+     "result": {"stil_percent": null, "stroma_status": "absent", "tsr_tumor_percent": null, "tsr_stroma_percent": null,
+      "n_cells_total": 5902, "n_cells_til": 0, "n_cells_til_stromal": 0, "tumor_area_px": 201000, "stroma_area_px": 0, "mpp": 0.5,
+      "tissue_mask_legend": {"0": "other", "1": "tumor", "2": "stroma"}}}}
+  ]
  },
  "PATCH /api/v1/hospital/specimens/{id}/assign": {
   "ok": true
@@ -1197,10 +1399,13 @@
   "modality": "mammo",
   "device": "Hologic Selenia",
   "exam_name": "유방촬영술 (양측 4뷰)",
-  "ordered_at": "2026-09-15 08:40",
+  "ordered_at": "2026-09-28T08:40:00+09:00",
   "ordered_by": "최민수 교수(유방외과)",
   "purpose": "검진에서 좌측 미세석회 군집 발견. 확대 촬영 포함 재평가 요청.",
-  "contrast_allergy": null
+  "contrast_allergy": null,
+  "exam_purpose": "diagnostic",
+  "ordered_by_name": "최민수 교수",
+  "patient": 501
  },
  "POST /api/v1/hospital/radiology/queue/{id}/start-study": {
   "study_id": "st-1",
@@ -1216,7 +1421,7 @@
   "exam_order_id": "eo-1",
   "exam_name": "유방촬영술 (양측 4뷰)",
   "purpose": "좌측 미세석회 군집 재평가",
-  "performed_at": "2026-09-15 10:05",
+  "performed_at": "2026-09-28T08:05:00+09:00",
   "modality": "mammo",
   "contrast_allergy": null,
   "series": [
@@ -1286,7 +1491,18 @@
   "ai": null,
   "study": {
    "exam_order": "eo-w1"
-  }
+  },
+  "quality_status": null,
+  "exam_purpose": "diagnostic"
+ },
+ "POST /api/v1/hospital/exam-orders/{id}/retake": {
+  "exam_order_id": 931,
+  "parent_order_id": "eo-1",
+  "order_status": "ordered"
+ },
+ "PATCH /api/v1/hospital/radiology/studies/{id}/upload": {
+  "study_id": "st-301",
+  "quality_status": "accepted"
  },
  "GET /api/v1/hospital/studies/{id}/": {
   "id": "st-301",
@@ -1360,67 +1576,134 @@
   "finding_note": null
  },
  "GET /api/v1/hospital/studies/": {
+  "_주의": "09-28 F2b — 홈 탭(업로드 대기 · AI 분석 중 · 소견 대기 · 초안)이 한 줄씩은 차게",
   "total": 6,
   "items": [
    {
     "id": "st-301",
+    "study_id": "st-301",
+    "patient": 501,
     "patient_name": "김하늘",
     "age": 44,
     "sex": "여",
+    "patient_number": "P-2026-0044",
     "modality": "mammo",
-    "performed_at": "2026-09-15",
-    "status_label": "판독 완료",
-    "viewed_at": "2026-09-15 15:30"
+    "read_status": "finalized",
+    "image_count": 4,
+    "ai_status": "done",
+    "performed_at": "2026-09-28T08:05:00+09:00",
+    "exam_purpose": "diagnostic",
+    "order_note": "좌측 미세석회 군집 재평가",
+    "ordered_at": null,
+    "quality_status": "accepted",
+    "assigned_to": "서지훈",
+    "viewed_at": "2026-09-28 10:30",
+    "device": "Hologic Selenia"
    },
    {
     "id": "st-305",
+    "study_id": "st-305",
+    "patient": 501,
     "patient_name": "김하늘",
     "age": 44,
     "sex": "여",
-    "modality": "ultrasound",
-    "performed_at": "2026-09-15",
-    "status_label": "판독 완료",
-    "viewed_at": "2026-09-15 16:00"
+    "patient_number": "P-2026-0044",
+    "modality": "us",
+    "read_status": "pending",
+    "image_count": 3,
+    "ai_status": "done",
+    "performed_at": "2026-09-28T08:40:00+09:00",
+    "exam_purpose": "diagnostic",
+    "order_note": "좌측 1시 종괴 크기 확인",
+    "ordered_at": null,
+    "quality_status": "accepted",
+    "assigned_to": "서지훈",
+    "viewed_at": null,
+    "device": "GE LOGIQ E10"
    },
    {
     "id": "st-306",
+    "study_id": "st-306",
+    "patient": 501,
     "patient_name": "김하늘",
     "age": 44,
     "sex": "여",
+    "patient_number": "P-2026-0044",
     "modality": "mri",
-    "performed_at": "2026-09-15",
-    "status_label": "판독 완료",
-    "viewed_at": "2026-09-15 16:05"
+    "read_status": "pending",
+    "image_count": 1,
+    "ai_status": "running",
+    "performed_at": "2026-09-28T09:50:00+09:00",
+    "exam_purpose": "diagnostic",
+    "order_note": "병기 설정 — 반대측 포함",
+    "ordered_at": null,
+    "quality_status": "accepted",
+    "assigned_to": "서지훈",
+    "viewed_at": null,
+    "device": "Siemens Vida 3T"
    },
    {
     "id": "st-302",
+    "study_id": "st-302",
+    "patient": 502,
     "patient_name": "정유진",
     "age": 56,
     "sex": "여",
+    "patient_number": "P-2026-0051",
     "modality": "mri",
-    "performed_at": "2026-09-15",
-    "status_label": "작성 중",
-    "viewed_at": null
+    "read_status": "draft",
+    "image_count": 1,
+    "ai_status": "done",
+    "performed_at": "2026-09-28T07:20:00+09:00",
+    "exam_purpose": "diagnostic",
+    "order_note": "수술 전 범위 평가",
+    "ordered_at": null,
+    "quality_status": "accepted",
+    "assigned_to": "서지훈",
+    "viewed_at": null,
+    "device": "Siemens Vida 3T"
    },
    {
     "id": "st-303",
+    "study_id": "st-303",
+    "patient": 503,
     "patient_name": "박서연",
     "age": 39,
     "sex": "여",
+    "patient_number": "P-2026-0052",
     "modality": "us",
-    "performed_at": "2026-09-14",
-    "status_label": "판독 대기",
-    "viewed_at": null
+    "read_status": "pending",
+    "image_count": 0,
+    "ai_status": null,
+    "performed_at": "2026-09-28T10:05:00+09:00",
+    "exam_purpose": "screening",
+    "order_note": "정기 검진 — 치밀유방",
+    "ordered_at": null,
+    "quality_status": null,
+    "assigned_to": "서지훈",
+    "viewed_at": null,
+    "device": "GE LOGIQ E10"
    },
    {
     "id": "st-304",
+    "study_id": "st-304",
+    "patient": 504,
     "patient_name": "오세라",
     "age": 50,
     "sex": "여",
+    "patient_number": "P-2026-0060",
     "modality": "mammo",
-    "performed_at": "2026-09-13",
-    "status_label": "판독 완료",
-    "viewed_at": "2026-09-14 09:05"
+    "read_status": "pending",
+    "image_count": 4,
+    "ai_status": "failed",
+    "performed_at": "2026-09-28T07:55:00+09:00",
+    "exam_purpose": "screening",
+    "order_note": "검진 맘모",
+    "ordered_at": null,
+    "quality_status": "accepted",
+    "assigned_to": "서지훈",
+    "viewed_at": null,
+    "device": "Hologic Selenia"
    }
   ]
  },
@@ -1448,14 +1731,100 @@
   "ok": true
  },
  "GET /api/v1/hospital/assessments?study={id}": {
-  "items": [
+  "_주의": "실서버 AssessmentSerializer 모양 — 정정 사슬(4a → 4b, superseded_by). 판독 확정 화면 · 정정 화면이 읽는다",
+  "count": 2,
+  "next": null,
+  "previous": null,
+  "results": [
+   {"assessment_id": 9031, "study": "st-304", "lesion": null, "read_stage": "final", "category": "4a",
+    "finding_note": "좌측 미세석회 군집, 경계 불명확.", "recommendation": "additional_imaging", "recommendation_reason": null,
+    "assessed_by": 7, "finalized_at": "2026-09-12T10:20:00+09:00", "superseded_by": 9032, "decision_reason": null},
+   {"assessment_id": 9032, "study": "st-304", "lesion": null, "read_stage": "final", "category": "4b",
+    "finding_note": "좌측 미세석회 군집, 다형성. 조직검사 권고.", "recommendation": "biopsy", "recommendation_reason": "다형성 미세석회",
+    "assessed_by": 7, "finalized_at": "2026-09-12T11:20:00+09:00", "superseded_by": null, "decision_reason": "확대 촬영 추가 판독"}
+  ]
+ },
+ "GET /api/v1/hospital/assessments?study=st-304": {
+  "count": 1,
+  "next": null,
+  "previous": null,
+  "results": [
    {
-    "amended_at": "2026-09-12 11:20",
-    "reported_by": "김지현 교수",
-    "amend_reason": "확대 촬영 추가 판독",
-    "finding_note": "좌측 미세석회, 추가 확대 촬영 권고."
+    "assessment_id": 2090,
+    "study": "st-304",
+    "read_stage": "final",
+    "category": "4b",
+    "finalized_at": "2026-09-20T15:10:00+09:00",
+    "superseded_by": null,
+    "assessed_by": 21
    }
   ]
+ },
+ "GET /api/v1/hospital/assessments?assessed_by=me": {
+  "count": 2,
+  "next": null,
+  "previous": null,
+  "results": [
+   {
+    "assessment_id": 2101,
+    "study": "st-301",
+    "read_stage": "final",
+    "category": "4b",
+    "finalized_at": "2026-09-28T10:12:00+09:00",
+    "superseded_by": null,
+    "assessed_by": 21,
+    "patient_id": 501,
+    "patient_name": "김하늘",
+    "patient_number": "P-2026-0044",
+    "modality": "mammo"
+   },
+   {
+    "assessment_id": 2102,
+    "study": "st-298",
+    "read_stage": "final",
+    "category": "2",
+    "finalized_at": "2026-09-28T09:05:00+09:00",
+    "superseded_by": null,
+    "assessed_by": 21,
+    "patient_id": 507,
+    "patient_name": "이수민",
+    "patient_number": "P-2026-0071",
+    "modality": "us"
+   }
+  ]
+ },
+ "GET /api/v1/hospital/radiology/studies/st-304/read": {
+  "_주의": "확정된 검사 예시 — 판독 화면이 읽기 전용으로 열린다(finalized)",
+  "patient": {"id": 501, "name": "오세라", "age": 50, "sex": "여", "no": "P-2026-0050", "contrast_allergy": "페니실린"},
+  "unit": {"exam_name": "유방촬영술 (양측 4뷰)", "modality": "mammo", "read_status": "finalized", "status_label": "판독 완료",
+   "performed_at": "2026-09-13 09:40", "assigned_to": "김지현 교수"},
+  "finalized": true,
+  "order_note": "좌측 미세석회 재평가",
+  "stack_manifest": "/dicom/breast-mri-018/mammo-stack-placeholder.json",
+  "stack_base": "/dicom/breast-mri-018",
+  "series": [{"id": "s1", "name": "R-CC"}, {"id": "s2", "name": "R-MLO"}, {"id": "s3", "name": "L-CC"}, {"id": "s4", "name": "L-MLO"}],
+  "ai": {"modality": "mammo", "abstained": false,
+   "summary": {"n_lesions": 1, "biopsy": true, "max_birads": "4b", "abstained": false},
+   "lesions": [{"id": "L1", "kind": "calcification", "birads": "4b", "size_mm": 8.4, "confidence": 0.71, "score": 0.82, "biopsy": true,
+    "descriptors": [{"axis": "calctype", "value": "다형성", "confidence": 0.68, "validated": true}], "box": [335, 415, 439, 517]}]},
+  "doctor": {}
+ },
+ "GET /api/v1/hospital/specimens/sp-102/": {
+  "_주의": "확정 전 검체 예시 — 판독 폼이 열린다. {id} 쪽(sp-101)은 확정된 검체라 읽기 전용",
+  "specimen_id": "sp-102", "patient": "P-1001", "lesion": 501, "specimen_label": "S-2026-0143",
+  "specimen_type": "core_needle", "guidance_route": "ultrasound",
+  "target_snapshot": "MAMMO-1 · 좌측 UOQ · 12.3mm · BI-RADS 4B · 맘모그래피",
+  "accession_status": "accessioned", "bound_by": 12, "bound_by_name": "최은비", "assigned_to": "S-20250117",
+  "clinical_note": "좌측 상외측 촉지 종괴 — 악성 감별 부탁드립니다.",
+  "collected_at": "2026-09-28T09:10:00+09:00", "diagnosis": null, "b_category": null,
+  "histologic_type": null, "nottingham_grade": null, "er_status": null, "pr_status": null, "her2_status": null,
+  "ki67_percent": null, "stil_calibrated": null, "finalized_at": null, "finding_note": null,
+  "patient_name": "윤서현", "age": 47, "sex": "여", "patient_number": "P-2026-0047"
+ },
+ "GET /api/v1/hospital/lesions/{id}/": {
+  "lesion_id": 501, "study": "st-304", "patient": 501, "modality": "mammo", "lesion_kind": "calcification",
+  "label": "MAMMO-1", "lesion_source": "ai", "birads_model": "4b", "ai_size_mm": "12.30", "measured_size_mm": null,
+  "is_false_positive": false, "detail": {"image": {"laterality": "left", "view": "CC"}, "quadrant": "UOQ"}
  },
  "GET /api/v1/hospital/assessments?study=7101": {
   "count": 2,
@@ -1720,7 +2089,10 @@
  },
  "_주의_전모달리티_환자": "김하늘(P-2026-0044)이 맘모(st-301)·초음파(st-305)·MRI(st-306) 세 검사를 전부 진행한 환자다. exam-orders/queue의 맨 앞(or-201)도 김하늘이라 '다음 환자 받기'를 누르면 바로 이 환자로 들어간다.",
  "GET /api/v1/hospital/radiology/studies/st-305/read": {
+  "_주의_finalized": "확정된 검사 — 판독 화면이 읽기 전용, 정정 화면은 assessments?study={id} 의 정정 사슬(4a → 4b)을 읽는다",
+  "finalized": true,
   "patient": {
+   "id": 501,
    "name": "김하늘",
    "age": 44,
    "sex": "여",
@@ -1919,7 +2291,9 @@
   }
  },
  "GET /api/v1/hospital/radiology/studies/{id}/read": {
+  "order_note": "좌측 미세석회 군집 재평가 — 이전 대비 변화 여부",
   "patient": {
+   "id": 501,
    "name": "김하늘",
    "age": 44,
    "sex": "여",
@@ -2157,8 +2531,28 @@
    "patient_number": "20260003",
    "status": "대기중",
    "has_open_discordance": false
-  }
+  },
+  {"patient_id": "P-1005", "name": "정하은", "age": 45, "sex": "F", "patient_number": "20260005", "status": "대기중", "has_open_discordance": false}
  ],
+ "GET /api/v1/hospital/patients/{id}/studies": {"count": 0, "results": []},
+ "GET /api/v1/hospital/patients/{id}/timeline": [],
+ "__note_breast_flow_0928": "유방외과 흐름(dept/breast/flow.js) — worklist · 불일치 목록 · 환자별 리포트/검체/오더. 정하은(P-1005)은 결과 대기, 최은비(P-1004)는 오늘 완료 줄에만 있다",
+ "GET /api/v1/hospital/surgery/worklist?primary_staff=me": {"items": [{"patient_id": "P-1001", "patient_name": "김민지", "patient_number": "20260001", "age": 47, "sex": "F", "has_allergy": false, "last_visit_at": "2026-09-28T09:10:00+09:00", "today_stage": "진료 중", "pending_orders": 0, "unseen_results": 0, "open_discordance": "D-2001", "final_report_id": "R-9001", "report_explained": true, "decision": "yes", "prescription_count": 1, "next_step": "discordance"}, {"patient_id": "P-1002", "patient_name": "이서연", "patient_number": "20260002", "age": 52, "sex": "F", "has_allergy": true, "last_visit_at": "2026-09-28T09:24:00+09:00", "today_stage": "진료 중", "pending_orders": 0, "unseen_results": 1, "open_discordance": null, "final_report_id": null, "report_explained": false, "decision": null, "prescription_count": 0, "next_step": "report"}, {"patient_id": "P-1003", "patient_name": "박지현", "patient_number": "20260003", "age": 39, "sex": "F", "has_allergy": true, "last_visit_at": "2026-09-28T09:48:00+09:00", "today_stage": "진료 중", "pending_orders": 0, "unseen_results": 0, "open_discordance": null, "final_report_id": "R-9101", "report_explained": true, "decision": null, "prescription_count": 0, "next_step": "decision"}, {"patient_id": "P-1005", "patient_name": "정하은", "patient_number": "20260005", "age": 45, "sex": "F", "has_allergy": false, "last_visit_at": "2026-09-28T09:05:00+09:00", "today_stage": "영상의학과 대기", "pending_orders": 1, "unseen_results": 0, "open_discordance": null, "final_report_id": null, "report_explained": false, "decision": null, "prescription_count": 0, "next_step": "wait_results"}, {"patient_id": "P-1004", "patient_name": "최은비", "patient_number": "20260004", "age": 58, "sex": "F", "has_allergy": false, "last_visit_at": "2026-09-28T08:40:00+09:00", "today_stage": "진료 완료", "pending_orders": 0, "unseen_results": 0, "open_discordance": null, "final_report_id": "R-9201", "report_explained": true, "decision": "no", "prescription_count": 0, "next_step": "followup"}], "counts": {"exam": 0, "wait_results": 1, "review": 1, "discordance": 1, "report": 1, "decision": 1, "explain": 0, "prescription": 0, "close": 0, "followup": 1}},
+ "GET /api/v1/hospital/surgery/worklist?scope=all": {"items": [{"patient_id": "P-1001", "patient_name": "김민지", "patient_number": "20260001", "age": 47, "sex": "F", "has_allergy": false, "last_visit_at": "2026-09-28T09:10:00+09:00", "today_stage": "진료 중", "pending_orders": 0, "unseen_results": 0, "open_discordance": "D-2001", "final_report_id": "R-9001", "report_explained": true, "decision": "yes", "prescription_count": 1, "next_step": "discordance"}, {"patient_id": "P-1002", "patient_name": "이서연", "patient_number": "20260002", "age": 52, "sex": "F", "has_allergy": true, "last_visit_at": "2026-09-28T09:24:00+09:00", "today_stage": "진료 중", "pending_orders": 0, "unseen_results": 1, "open_discordance": null, "final_report_id": null, "report_explained": false, "decision": null, "prescription_count": 0, "next_step": "report"}, {"patient_id": "P-1003", "patient_name": "박지현", "patient_number": "20260003", "age": 39, "sex": "F", "has_allergy": true, "last_visit_at": "2026-09-28T09:48:00+09:00", "today_stage": "진료 중", "pending_orders": 0, "unseen_results": 0, "open_discordance": null, "final_report_id": "R-9101", "report_explained": true, "decision": null, "prescription_count": 0, "next_step": "decision"}, {"patient_id": "P-1005", "patient_name": "정하은", "patient_number": "20260005", "age": 45, "sex": "F", "has_allergy": false, "last_visit_at": "2026-09-28T09:05:00+09:00", "today_stage": "영상의학과 대기", "pending_orders": 1, "unseen_results": 0, "open_discordance": null, "final_report_id": null, "report_explained": false, "decision": null, "prescription_count": 0, "next_step": "wait_results"}, {"patient_id": "P-1004", "patient_name": "최은비", "patient_number": "20260004", "age": 58, "sex": "F", "has_allergy": false, "last_visit_at": "2026-09-28T08:40:00+09:00", "today_stage": "진료 완료", "pending_orders": 0, "unseen_results": 0, "open_discordance": null, "final_report_id": "R-9201", "report_explained": true, "decision": "no", "prescription_count": 0, "next_step": "followup"}], "counts": {"exam": 0, "wait_results": 1, "review": 1, "discordance": 1, "report": 1, "decision": 1, "explain": 0, "prescription": 0, "close": 0, "followup": 1}},
+ "GET /api/v1/hospital/discordances?status=open&primary_staff=me": {"count": 2, "results": [{"discordance_id": "D-2001", "patient_id": "P-1001", "status": "open", "violated_rule": "BI-RADS 4(악성 의심) 판정에 병리 결과가 양성 — 영상·병리 불일치 규칙 위반", "created_at": "2026-09-11T16:10:00+09:00", "closed_at": null, "patient_name": "김민지", "patient_number": "20260001", "radiology_reading": {"assessment": "BI-RADS 4c"}, "pathology_reading": {"assessment": "B2 · 섬유선종"}}, {"discordance_id": "D-2014", "patient_id": "P-0988", "patient_name": "오세라", "patient_number": "20250988", "status": "open", "violated_rule": "BI-RADS 5 판정에 병리 B3 — 표적 미포함 의심", "created_at": "2026-09-26T11:20:00+09:00", "closed_at": null, "radiology_reading": {"assessment": "BI-RADS 5"}, "pathology_reading": {"assessment": "B3"}}]},
+ "GET /api/v1/hospital/discordances?patient=P-1001&status=open": {"count": 1, "results": [{"discordance_id": "D-2001", "patient_id": "P-1001", "status": "open", "violated_rule": "BI-RADS 4(악성 의심) 판정에 병리 결과가 양성 — 영상·병리 불일치 규칙 위반", "created_at": "2026-09-11T16:10:00+09:00", "closed_at": null}]},
+ "GET /api/v1/hospital/discordances?patient={p}&status=open": {"count": 0, "results": []},
+ "GET /api/v1/hospital/reports/?patient=P-1001": {"count": 4, "results": [{"report_id": "R-9001", "report_type": "final", "audience": "clinician", "socket_id": "7", "patient": "P-1001", "lock_status": "locked", "narrative_text": "우측 유방 상외측 14mm 종괴. 맘모 BI-RADS 4c 에 병리 B2(섬유선종) — 영상·병리 불일치.", "content_json": {"doctor_summary": "", "source_ai_ids": [1, 2, 3]}, "explain_method": "대면", "explain_content": "불일치 사실과 재조직검사 가능성 설명", "patient_confirmed": true, "explained_at": "2026-09-12T15:30:00+09:00"}, {"report_id": "R-9003", "report_type": "final", "audience": "patient", "socket_id": "7", "patient": "P-1001", "lock_status": "locked", "narrative_text": "검사 결과 영상과 조직 결과가 서로 달라 추가 확인이 필요합니다."}, {"report_id": 8801, "report_type": "stage", "audience": "clinician", "socket_id": "4b", "patient": "P-1001", "study": 7101, "lock_status": "unlocked", "narrative_text": "좌측 상외측 14mm 불규칙 종괴, 미세석회 동반. BI-RADS 4c."}, {"report_id": 8802, "report_type": "stage", "audience": "clinician", "socket_id": "1", "patient": "P-1001", "specimen": 3001, "lock_status": "unlocked", "narrative_text": "코어니들생검 — 섬유선종, 악성 소견 없음(B2)."}]},
+ "GET /api/v1/hospital/reports/?patient=P-1002": {"count": 2, "results": [{"report_id": 8811, "report_type": "stage", "audience": "clinician", "socket_id": "5", "patient": "P-1002", "study": 7202, "lock_status": "unlocked", "narrative_text": "우측 9시 8mm 타원형 종괴, 경계 명확. BI-RADS 3 — 6개월 추적."}, {"report_id": 8812, "report_type": "stage", "audience": "clinician", "socket_id": "1", "patient": "P-1002", "specimen": 3002, "lock_status": "unlocked", "narrative_text": "섬유낭포성 변화, 악성 소견 없음(B2)."}]},
+ "GET /api/v1/hospital/reports/?patient=P-1003": {"count": 3, "results": [{"report_id": "R-9101", "report_type": "final", "audience": "clinician", "socket_id": "7", "patient": "P-1003", "lock_status": "locked", "narrative_text": "우측 상외측 18mm 종괴 BI-RADS 5, 병리 침윤성 유관암(IDC) G2 · ER+ PR+ HER2−. 영상·병리 일치.", "content_json": {"doctor_summary": "영상·병리 모두 악성 소견 일치. 수술적 절제 권고.", "source_ai_ids": [11, 12, 13, 14]}, "explain_method": "대면", "explain_content": "진단 결과, 수술 범위(전절제+감시림프절), 예상 회복 기간, 재건 옵션 설명.", "patient_confirmed": true, "explained_at": "2026-09-14T15:30:00+09:00"}, {"report_id": 8821, "report_type": "stage", "audience": "clinician", "socket_id": "4b", "patient": "P-1003", "study": 7301, "lock_status": "unlocked", "narrative_text": "좌측 2시 22mm 침상 종괴. BI-RADS 5."}, {"report_id": 8823, "report_type": "stage", "audience": "clinician", "socket_id": "1", "patient": "P-1003", "specimen": 3003, "lock_status": "unlocked", "narrative_text": "침윤성 유관암, Nottingham G2, ER+ PR+ HER2− Ki-67 25%."}]},
+ "GET /api/v1/hospital/reports/?patient=P-1005": {"count": 0, "results": []},
+ "GET /api/v1/hospital/specimens/?patient=P-1002": {"count": 1, "results": [{"specimen_id": 3002, "patient": "P-1002", "specimen_label": "SP-3002", "b_category": "b2", "diagnosis": "양성 — 섬유낭포성 변화", "collected_at": "2026-09-09T09:10:00+09:00", "finalized_at": "2026-09-10T11:00:00+09:00"}]},
+ "GET /api/v1/hospital/specimens/?patient=P-1003": {"count": 1, "results": [{"specimen_id": 3003, "patient": "P-1003", "specimen_label": "SP-3003", "b_category": "b5", "diagnosis": "침윤성 유관암", "histologic_type": "IDC", "nottingham_grade": 2, "er_status": "positive", "pr_status": "positive", "her2_status": "negative", "ki67_percent": "25", "stil_calibrated": "10", "collected_at": "2026-09-11T11:00:00+09:00", "finalized_at": "2026-09-12T09:40:00+09:00"}]},
+ "GET /api/v1/hospital/patients/P-1005/": {"patient_id": "P-1005", "sex": "female", "birth_year": 1981, "patient_number": "20260005", "pii": {"patient_id": "P-1005", "name": "정하은", "birth_date": "1981-05-02", "phone": "010-5555-0105"}, "primary_staff_name": "서냐냥", "has_allergy": false, "allergy_note": null},
+ "GET /api/v1/hospital/patients/P-1005/studies": [{"study_id": 7501, "modality": "mammo", "performed_at": "2026-09-28T09:40:00+09:00", "density_category": "D", "slices": [], "annotations": []}],
+ "GET /api/v1/hospital/patients/P-1005/timeline": [{"at": "2026-09-28T09:40:00+09:00", "type": "촬영", "detail": "mammo", "study_id": 7501, "modality": "mammo"}, {"at": "2026-09-28T09:52:00+09:00", "type": "AI 분석 완료", "detail": null, "study_id": 7501, "specimen_id": null}, {"at": "2026-09-28T10:00:00+09:00", "type": "판독", "detail": "0", "assessment_id": 1501, "study_id": 7501, "modality": "mammo", "read_stage": "final"}],
+ "GET /api/v1/hospital/assessments?study=7501": {"count": 1, "next": null, "previous": null, "results": [{"assessment_id": 1501, "study": 7501, "read_stage": "final", "category": "0", "finalized_at": "2026-09-28T10:00:00+09:00", "superseded_by": null, "finding_note": "극치밀유방(D) — 병변 평가 불충분, 보조 초음파 필요.", "decision_type": null, "decision_value": null, "decision_reason": null}]},
+ "GET /api/v1/hospital/lesions/?patient={p}": {"count": 0, "results": []},
  "GET /api/v1/hospital/patients/P-1001/": {
   "patient_id": "P-1001",
   "sex": "female",
@@ -2745,34 +3139,61 @@
  ],
  "GET /api/v1/hospital/patients/501/timeline": [
   {
+   "at": "2026-09-13T09:40:00+09:00",
+   "type": "촬영",
+   "detail": "mammo",
+   "study_id": "st-304",
+   "modality": "mammo"
+  },
+  {
+   "at": "2026-09-13T11:20:00+09:00",
+   "type": "판독",
+   "detail": "4b",
+   "study_id": "st-304",
+   "modality": "mammo",
+   "read_stage": "final",
+   "assessment_id": 9032
+  },
+  {
    "at": "2026-09-15T10:05:00+09:00",
    "type": "촬영",
-   "detail": "mammo"
+   "detail": "mammo",
+   "study_id": "st-301",
+   "modality": "mammo"
   },
   {
    "at": "2026-09-15T10:20:00+09:00",
    "type": "AI 분석 완료",
-   "detail": null
+   "detail": null,
+   "study_id": "st-301"
   },
   {
    "at": "2026-09-15T10:40:00+09:00",
    "type": "촬영",
-   "detail": "us"
+   "detail": "us",
+   "study_id": "st-305",
+   "modality": "us"
   },
   {
    "at": "2026-09-15T10:55:00+09:00",
    "type": "AI 분석 완료",
-   "detail": null
+   "detail": null,
+   "study_id": "st-305"
   },
   {
    "at": "2026-09-15T11:50:00+09:00",
    "type": "촬영",
-   "detail": "mri"
+   "detail": "mri",
+   "study_id": "st-306",
+   "modality": "mri"
   },
   {
    "at": "2026-09-15T15:30:00+09:00",
    "type": "판독",
    "detail": "BI-RADS 4b",
+   "study_id": "st-301",
+   "modality": "mammo",
+   "read_stage": "final",
    "assessment_id": 501
   }
  ],
@@ -2975,6 +3396,7 @@
   {
    "study_id": 7301,
    "modality": "mammo",
+   "density_category": "C",
    "performed_at": "2026-09-10T09:20:00+09:00",
    "device": "Mammomat",
    "stack_manifest": "/dicom/breast-mri-018/mammo-stack-placeholder.json",
@@ -3037,7 +3459,8 @@
     "patient_id": "P-1001",
     "patient_name": "김민지",
     "status": "open",
-    "summary": "영상 BI-RADS 4C · 병리 B2 — 판정이 갈립니다"
+    "summary": "영상 BI-RADS 4C · 병리 B2 — 판정이 갈립니다",
+    "specimen_id": "sp-101"
    }
   ]
  },
@@ -3080,7 +3503,36 @@
    }
   ]
  },
- "GET /api/v1/hospital/exam-orders?status=requested&visited=yes&ordering=visited_at": {
+ "__note_waiting_0928": "간호 F3 — 내원 대기(waitingArrived). ExamOrderSerializer 모양 · 문진은 {form_version, answers}. 문진 없는 줄은 「문진 대기」, 있는 줄은 「배정 대기」 탭으로 간다. 옛 줄은 _legacy 로 비켜 둔다",
+ "GET /api/v1/hospital/exam-orders?status=requested&visited=yes&visited_on=today": [
+  {"exam_order_id": 7001, "patient": 61, "patient_name": "박서연", "age": 47, "sex": "female", "patient_number": "P-2026-00418", "visit_type": "예약 · 결과 상담", "order_status": "requested", "visited_at": "2026-09-28T09:05:00+09:00", "scheduled_at": "2026-09-28T09:00:00+09:00", "followup": null, "order_note": null, "primary_staff": null, "primary_staff_name": null, "handed_at": null, "questionnaire": {"form_version": "v1", "answers": {"has_symptom": "yes", "family_history": "yes", "past_history": "no", "menopause_status": "pre"}}},
+  {"exam_order_id": 7002, "patient": 62, "patient_name": "김도윤", "age": 61, "sex": "male", "patient_number": "P-2026-00415", "visit_type": "예약 · 초진", "order_status": "requested", "visited_at": "2026-09-28T09:26:00+09:00", "scheduled_at": "2026-09-28T09:30:00+09:00", "followup": null, "order_note": null, "primary_staff": null, "primary_staff_name": null, "handed_at": null, "questionnaire": null},
+  {"exam_order_id": 7003, "patient": 63, "patient_name": "한지우", "age": 33, "sex": "female", "patient_number": "P-2026-00413", "visit_type": "당일 접수 · 초진", "order_status": "requested", "visited_at": "2026-09-28T09:33:00+09:00", "scheduled_at": null, "followup": null, "order_note": null, "primary_staff": null, "primary_staff_name": null, "handed_at": null, "questionnaire": {"form_version": "v1", "answers": {"has_symptom": "no", "family_history": "unknown", "past_history": "no", "menopause_status": "pre"}}},
+  {"exam_order_id": 7004, "patient": 64, "patient_name": "최은영", "age": 39, "sex": "female", "patient_number": "P-2026-00416", "visit_type": "추적 관찰 6개월", "order_status": "requested", "visited_at": "2026-09-28T09:41:00+09:00", "scheduled_at": "2026-09-28T09:40:00+09:00", "followup": 3003, "order_note": "지난 회차 초음파 CD 지참", "primary_staff": "S-2002", "primary_staff_name": "최민수", "handed_at": null, "questionnaire": {"form_version": "v1", "answers": {"has_symptom": "no", "family_history": "no", "past_history": "yes", "menopause_status": "peri"}}},
+  {"exam_order_id": 7005, "patient": 65, "patient_name": "오세라", "age": 58, "sex": "female", "patient_number": "P-2026-00412", "visit_type": "예약 · 수술 상담", "order_status": "requested", "visited_at": "2026-09-28T09:48:00+09:00", "scheduled_at": "2026-09-28T10:00:00+09:00", "followup": null, "order_note": null, "primary_staff": null, "primary_staff_name": null, "handed_at": null, "questionnaire": null},
+  {"exam_order_id": 7006, "patient": 66, "patient_name": "윤채원", "age": 29, "sex": "female", "patient_number": "P-2026-00411", "visit_type": "추적 관찰", "order_status": "requested", "visited_at": "2026-09-28T09:55:00+09:00", "scheduled_at": "2026-09-28T10:00:00+09:00", "followup": 3004, "order_note": null, "primary_staff": null, "primary_staff_name": null, "handed_at": null, "questionnaire": {"form_version": "v1", "answers": {"has_symptom": "no", "family_history": "no", "past_history": "no", "menopause_status": "pre"}}}
+ ],
+ "GET /api/v1/hospital/exam-orders/7001": {"exam_order_id": 7001, "patient": 61, "patient_name": "박서연", "age": 47, "sex": "female", "patient_number": "P-2026-00418", "visit_type": "예약 · 결과 상담", "order_status": "requested", "visited_at": "2026-09-28T09:05:00+09:00", "followup": null, "order_note": "초음파 CD 지참 확인", "primary_staff": null, "questionnaire": {"form_version": "v1", "answers": {"has_symptom": "yes", "family_history": "yes", "past_history": "no", "menopause_status": "pre"}}},
+ "GET /api/v1/hospital/exam-orders/7002": {"exam_order_id": 7002, "patient": 62, "patient_name": "김도윤", "age": 61, "sex": "male", "patient_number": "P-2026-00415", "visit_type": "예약 · 초진", "order_status": "requested", "visited_at": "2026-09-28T09:26:00+09:00", "followup": null, "order_note": null, "primary_staff": null, "questionnaire": null},
+ "GET /api/v1/hospital/exam-orders/7003": {"exam_order_id": 7003, "patient": 63, "patient_name": "한지우", "age": 33, "sex": "female", "patient_number": "P-2026-00413", "visit_type": "당일 접수 · 초진", "order_status": "requested", "visited_at": "2026-09-28T09:33:00+09:00", "followup": null, "order_note": null, "primary_staff": null, "questionnaire": {"form_version": "v1", "answers": {"has_symptom": "no", "family_history": "unknown", "past_history": "no", "menopause_status": "pre"}}},
+ "GET /api/v1/hospital/exam-orders/7004": {"exam_order_id": 7004, "patient": 64, "patient_name": "최은영", "age": 39, "sex": "female", "patient_number": "P-2026-00416", "visit_type": "추적 관찰 6개월", "order_status": "requested", "visited_at": "2026-09-28T09:41:00+09:00", "followup": 3003, "order_note": "지난 회차 초음파 CD 지참", "primary_staff": "S-2002", "questionnaire": {"form_version": "v1", "answers": {"has_symptom": "no", "family_history": "no", "past_history": "yes", "menopause_status": "peri"}}},
+ "GET /api/v1/hospital/exam-orders/7005": {"exam_order_id": 7005, "patient": 65, "patient_name": "오세라", "age": 58, "sex": "female", "patient_number": "P-2026-00412", "visit_type": "예약 · 수술 상담", "order_status": "requested", "visited_at": "2026-09-28T09:48:00+09:00", "followup": null, "order_note": null, "primary_staff": null, "questionnaire": null},
+ "GET /api/v1/hospital/exam-orders/7006": {"exam_order_id": 7006, "patient": 66, "patient_name": "윤채원", "age": 29, "sex": "female", "patient_number": "P-2026-00411", "visit_type": "추적 관찰", "order_status": "requested", "visited_at": "2026-09-28T09:55:00+09:00", "followup": 3004, "order_note": null, "primary_staff": null, "questionnaire": {"form_version": "v1", "answers": {"has_symptom": "no", "family_history": "no", "past_history": "no", "menopause_status": "pre"}}},
+ "GET /api/v1/hospital/patients/61/": {"patient_id": 61, "patient_number": "P-2026-00418", "sex": "female", "birth_year": 1979, "has_allergy": true, "allergy_note": "조영제 — 경증 두드러기", "first_visited_at": "2026-03-02T10:00:00+09:00", "primary_staff": null, "primary_staff_name": null, "pii": {"patient_id": 61, "name": "박서연", "birth_date": "1979-03-11", "phone": "010-2481-5530"}},
+ "GET /api/v1/hospital/patients/62/": {"patient_id": 62, "patient_number": "P-2026-00415", "sex": "male", "birth_year": 1965, "has_allergy": false, "allergy_note": "", "first_visited_at": null, "primary_staff": null, "primary_staff_name": null, "pii": {"patient_id": 62, "name": "김도윤", "birth_date": "1965-01-20", "phone": "010-7720-1184"}},
+ "GET /api/v1/hospital/patients/64/": {"patient_id": 64, "patient_number": "P-2026-00416", "sex": "female", "birth_year": 1987, "has_allergy": false, "allergy_note": "", "first_visited_at": "2026-03-20T09:00:00+09:00", "primary_staff": "S-2002", "primary_staff_name": "최민수", "pii": {"patient_id": 64, "name": "최은영", "birth_date": "1987-02-20", "phone": "010-3391-4402"}},
+ "GET /api/v1/hospital/questionnaire/form": {"form_version": "v1", "questions": [
+  {"code": "has_symptom", "text": "지금 느껴지는 증상이 있습니까?", "options": [{"id": "yes", "text": "있다"}, {"id": "no", "text": "없다"}]},
+  {"code": "family_history", "text": "직계 가족 중 유방암 병력이 있습니까?", "options": [{"id": "yes", "text": "있다"}, {"id": "no", "text": "없다"}, {"id": "unknown", "text": "모른다"}]},
+  {"code": "past_history", "text": "유방 관련 수술이나 시술을 받은 적이 있습니까?", "options": [{"id": "yes", "text": "있다"}, {"id": "no", "text": "없다"}]},
+  {"code": "menopause_status", "text": "폐경 상태를 골라 주세요.", "options": [{"id": "pre", "text": "폐경 전"}, {"id": "peri", "text": "폐경 이행기"}, {"id": "post", "text": "폐경 후"}]}
+ ]},
+ "PATCH /api/v1/hospital/patients/{id}/questionnaire/": {"patient_id": 62, "questionnaire": {"form_version": "v1", "answers": {}}, "questionnaire_exam_order_id": 7002},
+ "PATCH /api/v1/hospital/patients/{id}/pii": {"patient_id": 61, "name": "박서연", "birth_date": "1979-03-11", "phone": "010-2481-5530"},
+ "PATCH /api/v1/hospital/exam-orders/{id}/handoff": {"exam_order_id": 7001, "handed_at": "2026-09-28T10:05:00+09:00", "handed_to": "S-2001", "handed_to_name": "서나영"},
+ "GET /api/v1/hospital/specimens/?patient={p}": {"count": 0, "results": []},
+ "PATCH /api/v1/hospital/followups/{id}/": {"followup_id": 3001, "status": "resolved", "round_result": "stable"},
+ "GET /api/v1/hospital/exam-orders?status=requested&visited=yes&ordering=visited_at&_legacy=1": {
   "items": [
    {
     "id": "eo-w1",
@@ -3353,7 +3805,58 @@
  "PATCH /api/v1/hospital/exam-orders/{id}/note": {
   "ok": true
  },
- "GET /api/v1/hospital/followups/?include_candidates=1": {
+ "GET /api/v1/hospital/followups/?patient=P-1001": {
+  "items": [
+   {
+    "followup_id": 3101, "patient": "P-1001", "patient_name": "김민지",
+    "round_no": 1, "status": "resolved", "due_at": "2026-03-10",
+    "call_at": "2026-03-02", "call_result": "연결", "closed_at": "2026-03-11"
+   },
+   {
+    "followup_id": 3102, "patient": "P-1001", "patient_name": "김민지",
+    "round_no": 2, "status": "open", "due_at": "2026-10-12",
+    "call_at": "2026-09-26", "call_result": "부재", "closed_at": null
+   }
+  ]
+ },
+ "GET /api/v1/hospital/reports/?patient={id}": {
+  "count": 4,
+  "results": [
+   { "report_id": 9001, "patient": "P-1001", "study": 7101, "specimen": null,
+     "report_type": "final", "audience": "clinician", "socket_id": "7",
+     "lock_status": "unlocked", "issued_at": "2026-09-12T15:00:00+09:00" },
+   { "report_id": 9003, "patient": "P-1001", "study": 7101, "specimen": null,
+     "report_type": "final", "audience": "patient", "socket_id": "7",
+     "lock_status": "locked", "issued_at": "2026-09-12T15:00:00+09:00" },
+   { "report_id": 8802, "patient": "P-1001", "study": null, "specimen": 3001,
+     "report_type": "stage", "audience": "clinician", "socket_id": "1",
+     "lock_status": "unlocked", "issued_at": "2026-09-11T16:10:00+09:00" },
+   { "report_id": 8801, "patient": "P-1001", "study": 7101, "specimen": null,
+     "report_type": "stage", "audience": "clinician", "socket_id": "4b",
+     "lock_status": "unlocked", "issued_at": "2026-09-08T09:20:00+09:00" }
+  ]
+ },
+ "GET /api/v1/hospital/reports/{id}/": {
+  "report_id": 9001, "patient": "P-1001", "study": 7101, "specimen": null,
+  "report_type": "final", "audience": "clinician", "socket_id": "7"
+ },
+ "__note_followups_0928": "간호 F3 — FollowupSerializer 모양(followup_id · patient · patient_number · phone · birth_date · called_at · round_result). 후보는 서버처럼 followup_id null · status candidate. ?patient= 는 한 사람(61)만 — 거를 줄 없이 화면이 한 번 더 거른다. 옛 줄은 _legacy",
+ "GET /api/v1/hospital/followups/?patient={p}&include_candidates=1": [
+  {"followup_id": 3001, "patient": 61, "patient_name": "박서연", "patient_number": "P-2026-00418", "phone": "010-2481-5530", "birth_date": "1979-03-11", "round_no": 1, "status": "open", "due_at": "2026-09-21T09:00:00+09:00", "called_at": null, "call_result": null, "call_note": null, "closed_at": null, "round_result": null}
+ ],
+ "GET /api/v1/hospital/followups/?include_candidates=1": [
+  {"followup_id": 3001, "patient": 61, "patient_name": "박서연", "patient_number": "P-2026-00418", "phone": "010-2481-5530", "birth_date": "1979-03-11", "round_no": 1, "status": "open", "due_at": "2026-09-21T09:00:00+09:00", "called_at": null, "call_result": null, "call_note": null, "closed_at": null, "round_result": null},
+  {"followup_id": 3002, "patient": 43, "patient_name": "이정민", "patient_number": "E_1029355", "phone": "010-7777-1234", "birth_date": "1964-04-08", "round_no": 2, "status": "open", "due_at": "2026-09-28T09:00:00+09:00", "called_at": "2026-09-26T14:10:00+09:00", "call_result": "부재", "call_note": "오후에 다시", "closed_at": null, "round_result": null},
+  {"followup_id": 3003, "patient": 64, "patient_name": "최은영", "patient_number": "P-2026-00416", "phone": "010-3391-4402", "birth_date": "1987-02-20", "round_no": 1, "status": "open", "due_at": "2026-09-30T09:00:00+09:00", "called_at": null, "call_result": null, "call_note": null, "closed_at": null, "round_result": null},
+  {"followup_id": 3004, "patient": 66, "patient_name": "윤채원", "patient_number": "P-2026-00411", "phone": "010-4410-8812", "birth_date": "1997-05-30", "round_no": 3, "status": "open", "due_at": "2026-10-02T09:00:00+09:00", "called_at": "2026-09-22T10:00:00+09:00", "call_result": "부재", "call_note": null, "closed_at": null, "round_result": null},
+  {"followup_id": 3005, "patient": 63, "patient_name": "한지우", "patient_number": "P-2026-00413", "phone": "010-5555-6666", "birth_date": "1993-11-08", "round_no": 1, "status": "open", "due_at": "2026-10-20T09:00:00+09:00", "called_at": null, "call_result": null, "call_note": null, "closed_at": null, "round_result": null},
+  {"followup_id": 3006, "patient": 71, "patient_name": "정수아", "patient_number": "P-2026-00414", "phone": "010-6666-7777", "birth_date": "1982-01-15", "round_no": 2, "status": "resolved", "due_at": "2026-09-15T09:00:00+09:00", "called_at": "2026-09-12T11:00:00+09:00", "call_result": "연결", "call_note": "9/29 예약 원함", "closed_at": "2026-09-12T11:02:00+09:00", "closed_reason": "안내 콜 연결", "round_result": null},
+  {"followup_id": 3009, "patient": 71, "patient_name": "정수아", "patient_number": "P-2026-00414", "phone": "010-6666-7777", "birth_date": "1982-01-15", "round_no": 1, "status": "resolved", "due_at": "2026-03-15T09:00:00+09:00", "called_at": "2026-03-10T11:00:00+09:00", "call_result": "연결", "call_note": null, "closed_at": "2026-03-10T11:02:00+09:00", "closed_reason": "안내 콜 연결", "round_result": "stable"},
+  {"followup_id": 3008, "patient": 72, "patient_name": "강민서", "patient_number": "P-2026-00405", "phone": "010-8888-9999", "birth_date": "1990-09-12", "round_no": 2, "status": "declined", "due_at": "2026-09-20T09:00:00+09:00", "called_at": "2026-09-05T15:00:00+09:00", "call_result": "거부", "call_note": "타 병원 추적", "closed_at": "2026-09-05T15:01:00+09:00", "round_result": null},
+  {"followup_id": null, "patient": 65, "patient_name": "오세라", "status": "candidate", "round_no": 0},
+  {"followup_id": null, "patient": 77, "patient_name": "문가영", "status": "candidate", "round_no": 0}
+ ],
+ "GET /api/v1/hospital/followups/?include_candidates=1&_legacy=1": {
   "items": [
    {
     "id": "F-3001",
@@ -3459,10 +3962,32 @@
  "PATCH /api/v1/hospital/followups/{id}/call": {
   "ok": true
  },
+ "GET /api/v1/hospital/assessments?page_size={n}": {
+  "count": 1,
+  "results": [
+   { "assessment_id": 1001, "study": 7101, "patient_id": "P-1001", "patient_name": "김민지",
+     "modality": "mammo", "category": "4c", "read_stage": "final",
+     "finalized_at": "2026-09-12T11:20:00+09:00" }
+  ]
+ },
  "GET /api/v1/hospital/notifications/": {
   "items": [
    {
+    "notification_id": 7104,
+    "notification_type": "report_ready",
+    "ref_type": "assessment",
+    "ref_id": 1001,
+    "patient": null,
+    "message": "김민지 환자 맘모그래피 판독이 확정되었습니다.",
+    "sent_at": "2026-09-28T10:40:00+09:00",
+    "acknowledged_at": null
+   },
+   {
     "notification_id": 7103,
+    "notification_type": "report_ready",
+    "ref_type": "report",
+    "ref_id": 9001,
+    "patient": null,
     "message": "김민지 환자의 검사 결과가 확정되었습니다.",
     "sent_at": "2026-09-21T10:25:00+09:00",
     "acknowledged_at": null
@@ -3501,33 +4026,48 @@
   "items": [
    {
     "id": "or-201",
+    "patient": 501,
     "patient_name": "김하늘",
     "age": 44,
     "sex": "여",
     "patient_no": "P-2026-0044",
     "modality": "mammo",
     "device": "Hologic Selenia",
-    "contrast_allergy": null
+    "contrast_allergy": null,
+    "exam_purpose": "diagnostic",
+    "order_note": "검진에서 좌측 미세석회 군집 발견. 확대 촬영 포함 재평가 요청.",
+    "ordered_at": "2026-09-28T08:40:00+09:00",
+    "ordered_by_name": "최민수 교수"
    },
    {
     "id": "or-202",
+    "patient": 502,
     "patient_name": "정유진",
     "age": 56,
     "sex": "여",
     "patient_no": "P-2026-0051",
     "modality": "mri",
     "device": "Siemens Vida 3T",
-    "contrast_allergy": "가돌리늄 조영제 두드러기 병력"
+    "contrast_allergy": "가돌리늄 조영제 두드러기 병력",
+    "exam_purpose": "diagnostic",
+    "order_note": "수술 전 병기 — 반대측 포함",
+    "ordered_at": "2026-09-28T07:30:00+09:00",
+    "ordered_by_name": "서나영 교수"
    },
    {
     "id": "or-203",
+    "patient": 503,
     "patient_name": "박서연",
     "age": 39,
     "sex": "여",
     "patient_no": "P-2026-0052",
     "modality": "us",
     "device": "GE LOGIQ E10",
-    "contrast_allergy": null
+    "contrast_allergy": "페니실린",
+    "exam_purpose": "screening",
+    "order_note": "치밀유방 — 보조 초음파",
+    "ordered_at": "2026-09-28T09:55:00+09:00",
+    "ordered_by_name": "최민수 교수"
    }
   ]
  },

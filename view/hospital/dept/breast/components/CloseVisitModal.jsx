@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { breast as api } from "../../../api";
+import { BookForm } from "./BookVisit";
 
 /* "진료 완료" 확인 팝업 — 촬영 없이 방문을 닫는다.
  *
@@ -12,10 +13,15 @@ import { breast as api } from "../../../api";
  * 기능이 필요해지면 서버에 먼저 자리가 생겨야 한다.
  *
  * 종결할 오더는 patient_id 로 못 찾는다 — 이 환자의 exam-orders 목록에서
- * 아직 끝나지 않은 것 중 가장 최근 것을 고른다. */
-export default function CloseVisitModal({ patient, onClose, onDone }) {
+ * 아직 끝나지 않은 것 중 가장 최근 것을 고른다.
+ *
+ * ⚠ 09-28 — 닫고 나서 **막다른 길이었다.** 진료 흐름의 끝은 추적 · 재진이라
+ *   닫은 자리에서 바로 다음 방문을 잡게 한다(둘째 걸음). 안 잡고 넘어가도
+ *   된다 — 그때 [다음 환자]. suggest 는 권하는 간격(일). */
+export default function CloseVisitModal({ patient, suggest = 14, onClose, onDone }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const [closed, setClosed] = useState(false);
 
   async function confirm() {
     setSaving(true);
@@ -35,7 +41,7 @@ export default function CloseVisitModal({ patient, onClose, onDone }) {
       /* 접수된 채 안 닫힌 방문을 모두 닫는다 — 전에 안 닫힌 것까지 남으면
          환자 앱에 계속 뜬다. 백엔드는 exam_order_id 또는 id 를 돌려준다. */
       for (const o of open) await api.completeExamOrder(o.exam_order_id ?? o.id);
-      onDone?.();
+      setClosed(true);
     } catch (e) {
       setError(e.detail || e.message);
     } finally {
@@ -43,26 +49,39 @@ export default function CloseVisitModal({ patient, onClose, onDone }) {
     }
   }
 
+  /* 닫은 뒤에는 바깥(목록)이 이미 바뀌었다 — 팝업을 닫는 길이 곧 onDone */
+  const finish = () => (closed ? onDone?.() : onClose?.());
+
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <div className="modal-backdrop" onClick={finish}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
-          <h2>진료 완료 — {patient.name}</h2>
-          <button aria-label="닫기" onClick={onClose}>×</button>
+          <h2>{closed ? "진료를 마쳤습니다" : "진료 완료"} — {patient.name}</h2>
+          <button aria-label="닫기" onClick={finish}>×</button>
         </div>
-        <div className="modal-body">
-          <p style={{ fontSize: 13.5 }}>
-            이번 방문을 마칩니다. 대기 목록과 환자 앱 예약에서 빠지고
-            다음 환자로 넘어갑니다. 촬영을 요청한 건은 판독이 끝나면 따로 닫힙니다.
-          </p>
-          {error && <p className="field err">{error}</p>}
-        </div>
-        <div className="modal-foot">
-          <button className="btn ghost" onClick={onClose}>취소</button>
-          <button className="btn" onClick={confirm} disabled={saving}>
-            {saving ? "처리 중…" : "진료 완료"}
-          </button>
-        </div>
+        {!closed ? (
+          <>
+            <div className="modal-body">
+              <p className="bf-lead">
+                이번 방문을 마칩니다. 대기 목록과 환자 앱 예약에서 빠집니다.
+                촬영을 요청한 건은 판독이 끝나면 따로 닫힙니다.
+              </p>
+              {error && <p className="field err">{error}</p>}
+            </div>
+            <div className="modal-foot">
+              <button className="btn ghost" onClick={onClose}>취소</button>
+              <button className="btn" onClick={confirm} disabled={saving}>
+                {saving ? "처리 중…" : "진료 완료"}
+              </button>
+            </div>
+          </>
+        ) : (
+          <div className="modal-body">
+            <p className="bf-lead">다음 방문을 지금 잡아 둘까요? 원무 예약판에 그대로 뜹니다.</p>
+            <BookForm patient={patient} suggest={suggest}
+                      onSkip={() => onDone?.()} skipLabel="다음 환자 →" />
+          </div>
+        )}
       </div>
     </div>
   );

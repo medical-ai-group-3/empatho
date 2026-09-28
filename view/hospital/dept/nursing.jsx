@@ -34,9 +34,9 @@ export const nursing = {
    * 왼쪽 주 큐가 **탭 둘**이 된 것뿐이다 — 내원 대기와 오늘 접수.
    * 접수 카드는 원무 목업의 showIntake 자리 그대로 맨 위에 둔다.
    *
-   * ⚠ **선생님별 배정 현황은 아직 못 그린다.** `?primary_staff=` 가
-   *   "me" 만 받고, 목록 응답에 primary_staff 가 없어 화면에서
-   *   나눌 수도 없다. 배정이 이 과의 주 업무라 제일 아쉬운 자리다.
+   * 선생님별 배정 현황은 **접수 화면 오른쪽**(Waiting.jsx 의 Load)이 그린다 —
+   * today-status 줄마다 handed_to · stage_code 가 실려 와서 센다. 홈에 또
+   * 그리면 같은 수가 두 군데라 여기는 「배정 대기 n」 한 줄만 둔다(stuck).
    */
   home: {
     intake: "top",
@@ -107,7 +107,8 @@ export const nursing = {
               sub: [r.round_no ? `${r.round_no}차 추적 콜` : "추적 콜",
                     r.call_result === "부재" ? "지난번 부재" : null].filter(Boolean).join(" · "),
               at: H.day(r.due_at),
-              to: go.nursing.followups(),
+              /* 그 회차를 오른쪽에 펴 둔 채로 연다(Followups.jsx 가 ?followup= 을 읽는다) */
+              to: `${go.nursing.followups()}?followup=${r.followup_id ?? r.id}`,
               pid: r.patient_id ?? null,
             })) },
 
@@ -122,7 +123,9 @@ export const nursing = {
             chip: r.visit_type,
             sub: "앱 신청 · 날짜를 정해야 합니다",
             at: H.at(r.scheduled_at),
-            to: go.nursing.reservations(),
+            /* ⚠ 예약 판이 아니라 왼쪽 「앱 신청」 줄을 펴서 연다 — 판만 열리면
+               어느 신청인지 다시 찾아야 했다 */
+            to: `${go.nursing.reservations()}?tab=requests`,
             pid: r.patient ?? r.patient_id ?? null,
           })) },
       ],
@@ -138,9 +141,9 @@ export const nursing = {
           count: booked.filter((r) => H.isPast(r.scheduled_at)).length,
           to: go.nursing.intake() },
         { tag: "검체", text: "병리가 아직 집지 않은 검체 — 라벨 확인이 남았습니다",
-          count: bound.total, to: go.nursing.intake() },
+          count: bound.total, to: `${go.nursing.intake()}?tab=specimen` },
         { tag: "예약 확인", text: "앱으로 들어온 신청 — 날짜·시간을 정해야 합니다",
-          count: asks.total, to: go.nursing.reservations() },
+          count: asks.total, to: `${go.nursing.reservations()}?tab=requests` },
         { tag: "추적 오늘", text: "오늘 걸어야 하는 추적 콜",
           count: due("today"), to: go.nursing.followups() },
         { tag: "추적 이번 주", text: "이번 주 안에 걸어야 하는 추적 콜",
@@ -150,16 +153,17 @@ export const nursing = {
           to: go.nursing.followups() },
         { tag: "문진", text: "접수 뒤 문진이 비어 있는 환자",
           count: arrived.filter((r) => !r.questionnaire).length,
-          to: go.nursing.intake() },
+          to: `${go.nursing.intake()}?tab=q` },
+        /* 09-28 문진은 끝났는데 아직 유방외과로 안 보낸 사람. 선생님별 수는
+           접수 화면 오른쪽 「배정 현황(오늘)」이 센다 */
+        { tag: "배정", text: "문진을 마치고 유방외과 배정을 기다리는 환자",
+          count: arrived.filter((r) => r.questionnaire).length,
+          to: `${go.nursing.intake()}?tab=assign` },
         /* ⚠ **「연락처 없는 환자」는 못 센다.** 그건 서버가 거르는 조건이
            아니라 **화면이 받아 놓고 거르는** 것이라, 한 쪽(20명)만 보고
            세게 된다. 봉투의 count 는 명부 총원이지 전화번호 빈 사람 수가
            아니다 — 틀린 수를 적느니 줄을 안 세운다.
            서버에 `?has_phone=none` 같은 거르개가 생기면 그때 넣는다 */
-        /* ⚠ **선생님별 오늘 배정 수는 못 낸다.** 환자 목록 응답
-           (PatientListSerializer)에 `primary_staff` 가 없어서 누가 누구
-           환자인지 모른다 — 「미배정 n」조차 못 센다. 배정이 이 과의 주
-           업무라 제일 아쉬운 자리다(8장 10번) */
       ];
     },
 

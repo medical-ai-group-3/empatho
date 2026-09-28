@@ -26,7 +26,6 @@
 # 2026-09-21 기준 — 클래스 51개 · 토큰 0개
 
 # hospital/dept/  (1개)
-pathology-fixed-viewer    hospital/dept/pathology.jsx:421
 
 # hospital/dept/breast/components/  (26개)
 nifti-viewer              hospital/dept/breast/components/NiftiSliceViewer.jsx:77
@@ -56,7 +55,6 @@ slice-wrap                hospital/dept/breast/components/ReviewViewer.jsx:543
 slice-count               hospital/dept/breast/components/ReviewViewer.jsx:550
 
 # hospital/dept/breast/screens/  (1개)
-list-detail-viewer        hospital/dept/breast/screens/Patients.jsx:113
 
 # hospital/lib/dicom/  (23개)
 dicom-mpr-wrap            hospital/lib/dicom/DicomMprPanel.jsx:199
@@ -75,7 +73,6 @@ dicom-stack-cell          hospital/lib/dicom/DicomStackViewer.jsx:183
 dicom-stack-message       hospital/lib/dicom/DicomStackViewer.jsx:184
 dicom-stack-error         hospital/lib/dicom/DicomStackViewer.jsx:186
 dicom-stack-overlay       hospital/lib/dicom/DicomStackViewer.jsx:294
-mri-review-grid           hospital/lib/dicom/MRIReviewGrid.jsx:44
 mri-review-panel          hospital/lib/dicom/MRIReviewGrid.jsx:45
 anatomy-panel             hospital/lib/dicom/MRIReviewGrid.jsx:45
 tumor-panel               hospital/lib/dicom/MRIReviewGrid.jsx:55
@@ -88,8 +85,6 @@ mri-panel-title           hospital/lib/dicom/MRIReviewGrid.jsx:358
 file-remove               hospital/screens/Upload.jsx:136
 
 # 2026-09-21 머지로 들어온 것 (origin/main · 정은님)  (3개)
-care-steps                hospital/dept/breast/components/CareGuideModal.jsx:24
-care-step                 hospital/dept/breast/components/CareGuideModal.jsx:28
 file-retry                hospital/screens/Upload.jsx:185
 
 # 로그인 장면 (바탕화면 「로그인페이지」에서 들여온 것)  (1개)

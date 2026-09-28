@@ -7,8 +7,19 @@ import { useApi } from "../lib/useApi";
 import { useFile } from "../lib/files";
 import Stage, { MaskKeys, PATHOLOGY_MASK_COLORS } from "../lib/Stage";
 import PathologyAi from "./PathologyAi";
+/* 판독(3장) 전용 — 09-28 재배치 */
+import { PathologyAiSummary } from "./PathologyAi";
+import { Phrases } from "../lib/Parts";
+import { currentAssessment } from "../api";
+import { getMe } from "../perm";
+import { BIRADS_LABEL, GUIDANCE_ROUTE, HER2, HISTOLOGIC_TYPE, MODALITY, NOTTINGHAM, RECEPTOR,
+         SPECIMEN_TYPE, modality as asModality } from "../codes";
 import { ACCESSION_STATUS, B_CATEGORY, B_CATEGORY_LABEL, DIAGNOSIS, SEX,
-         label, text, tone } from "../codes";
+         label, text } from "../codes";
+/* 홈 · 큐 · 업로드 · 목록(0·1·2·4장) 전용 — 09-28 재배치 */
+import { BIRADS_LABEL as BR_LABEL, GUIDANCE_ROUTE as GUIDE, MODALITY as MOD,
+         SPECIMEN_TYPE as SP_TYPE, modality as modCode } from "../codes";
+import { getMe as whoAmI } from "../perm";
 
 /* 병리과 설정 — 공통 화면 다섯 장에 끼워 넣는 «다른 점»만 모은 파일
  * ════════════════════════════════════════════════════════════════
@@ -32,6 +43,27 @@ import { ACCESSION_STATUS, B_CATEGORY, B_CATEGORY_LABEL, DIAGNOSIS, SEX,
  *   마이그레이션 없인 못 바꾼다) 뜻은 "AI가 보정한 값"이 아니라
  *   "병리의가 입력한 sTIL"이다.
  */
+
+/* ── 판독(3장) 보조 ───────────────────────────────────────────
+   상용구 — ⚠ 서버가 주는 값이 아니다. 저장 경로가 없어 여기 박았다.
+   판독 소견 칸 위 칩으로 뜬다(lib/Parts Phrases) */
+const PHRASES = [
+  ["조직", ["침윤성 유관암 (IDC)", "관상피내암 (DCIS), 저등급"]],
+  ["양성", ["섬유선종", "섬유낭종성 변화"]],
+  ["검체", ["표적 병변 미포함 가능성", "검체량 부족 — 재채취 권고"]],
+  ["결론", ["악성 소견 없음", "추가 면역조직화학 검사 시행"]],
+];
+
+/* 「2026-09-28 09:10」 · 「3시간 전」 — 채취 뒤 얼마나 지났나(고정 시간) */
+const readableAt = (v) => String(v).replace("T", " ").slice(0, 16);
+function ago(v) {
+  const t = Date.parse(v);
+  if (!Number.isFinite(t)) return "";
+  const m = Math.max(0, Math.round((Date.now() - t) / 60000));
+  if (m < 60) return `${m}분 전`;
+  if (m < 60 * 48) return `${Math.round(m / 60)}시간 전`;
+  return `${Math.round(m / 1440)}일 전`;
+}
 
 /* 「김환자 (51/여)」. ⚠ 이름 · 나이 · 성별이 비어 오는 줄이 있다 — 그대로
    이으면 「null (null/)」이 찍힌다. 이름은 H.nameOf 로(없으면 「환자 #id」),
@@ -81,6 +113,10 @@ const api = {
   draft:      (id, b) => path.draft(id, b),
   finalize:   (id, b) => path.finalize(id, b),
   list:       (o)     => path.list(o),
+  /* 1장 영상 대조 — 겨눈 병변 + 그 검사의 최신 확정 BI-RADS */
+  correlation: (s)    => path.correlation(s),
+  /* 홈 · 목록 「불일치」 */
+  openDiscordances: () => path.openDiscordances(),
   /* 09-26 추가 — 큐(1장)의 「이 환자의 이력」 칸이 병리는 timeline이
      없다고 믿고 「이 과에는 이력을 부르는 경로가 없습니다」를 띄우고
      있었다(Queue.jsx의 Past()가 typeof cfg.api.timeline === "function"
@@ -246,13 +282,25 @@ function toRead(s, up, aiRows = []) {
   const files = (up.uploads ?? []).map(pathFile);
   const cropFiles = files.filter((file) => !isMaskFile(file));
   return {
+    /* ⚠ id 가 빠져 있어 판독 화면의 「지난 기록」이 늘 0 이었다(09-28) —
+       이력은 환자 번호로 부른다. s.patient 가 FK 번호다 */
     patient: {
+      id: s.patient ?? s.patient_id ?? null,
       name: s.patient_name, age: s.age, sex: s.sex,
-      no: s.patient_no, birth: s.birth, phone: s.phone, allergy: s.allergy,
+      no: s.patient_number || s.patient_no, birth: s.birth, phone: s.phone, allergy: s.allergy,
     },
     unit: {
       id: s.id, no: s.specimen_no, kind: s.kind, method: s.method,
       collected_at: s.collected_at, site: s.site,
+      /* 판독 화면 왼쪽 「검체」 칸 · 영상 대조 칸이 쓴다 (09-28) */
+      specimen_type: s.specimen_type ?? null,
+      guidance_route: s.guidance_route ?? null,
+      bound_by_name: s.bound_by_name ?? null,
+      clinical_note: s.clinical_note ?? null,
+      target_snapshot: s.target_snapshot ?? null,
+      lesion: s.lesion ?? null,
+      finalized_at: s.finalized_at ?? null,
+      finalized: Boolean(s.finalized_at) || s.finalized === true,
       /* ⚠ 서버는 코드(accession_status)만 준다 — 4장 목록(list.row)과
          같은 방식으로 여기서도 라벨을 입힌다. s.status_label 을 그대로
          읽던 전 코드는 그런 필드가 서버에 없어 항상 빈칸이었다. */
@@ -296,8 +344,119 @@ function toRead(s, up, aiRows = []) {
       stil_calibrated: s.stil_calibrated != null
         ? Number(s.stil_calibrated).toFixed(1)
         : null,
+      /* 09-28 — 조직형 · 등급 · 수용체 · Ki-67 (서버 값은 codes.js) */
+      histologic_type: s.histologic_type ?? "",
+      nottingham_grade: s.nottingham_grade ?? "",
+      er_status: s.er_status ?? "",
+      pr_status: s.pr_status ?? "",
+      her2_status: s.her2_status ?? "",
+      ki67_percent: s.ki67_percent != null ? String(Number(s.ki67_percent)) : "",
     },
   };
+}
+
+/* ── 홈 · 큐 · 업로드 · 목록이 같이 쓰는 것 (09-28) ─────────────── */
+
+/* 검체 종류 · 유도 — 서버 코드면 한글로, 모르는 글이면 그대로(codes.label) */
+const kindText = (v) => label(SP_TYPE, v);
+const guideText = (v) => label(GUIDE, v);
+
+/* 「09-28 08:20 · 3시간 전」 — 채취 시각과 지난 시간 */
+function collectedText(at) {
+  if (!at) return null;
+  const w = H.waited(at);
+  return `${String(at).slice(5, 16).replace("T", " ")}${w ? ` · ${w} 전` : ""}`;
+}
+
+/* 내가 맡은 검체인가. 서버가 assigned=me 를 알면 이미 걸러 온다 — 화면은
+   이름이 적혀 오는 경우(목업 · assigned_to_name)만 /me 이름과 맞춘다.
+   번호로만 오면 못 맞춰 «누군가 맡은 것»까지만 거른다 */
+function mine(r) {
+  /* 09-28 — /me 가 staff_id 를 준다. 번호끼리 견주는 것이 먼저다 */
+  const myId = whoAmI()?.staff_id;
+  if (myId != null && typeof r.assigned_to === "number") return r.assigned_to === myId;
+  const who = r.assigned_to_name ?? (typeof r.assigned_to === "string" ? r.assigned_to : null)
+    ?? r.reported_by ?? null;
+  const me = whoAmI()?.name;
+  if (who && me) return who.includes(me);
+  return r.assigned_to != null;
+}
+
+/* 열린 불일치 → 걸린 검체 · 환자. 불일치 행이 검체를 가리키면 검체로,
+   못 가리키면(목록 행은 환자만 싣는다) 그 환자의 검체 전부로 본다 */
+function discSets(rows = []) {
+  const spec = new Set();
+  const pat = new Set();
+  rows.forEach((d) => {
+    const sid = d.specimen_id ?? d.specimen ?? d.lesion?.specimen_id;
+    if (sid != null) spec.add(String(sid));
+    else {
+      const pid = d.patient_id ?? d.patient?.patient_id ?? d.patient;
+      if (pid != null && typeof pid !== "object") pat.add(String(pid));
+    }
+  });
+  return { spec, pat };
+}
+const isDisc = (r, ctx) => Boolean(ctx?.disc) && (ctx.disc.spec.has(String(r.id))
+  || ctx.disc.pat.has(String(r.patient ?? r.patient_id)));
+
+/* 판독 단계 — api.js 의 read_state(assigned_to · finalized_at 로 센 것) */
+const STATE = { waiting: "미접수", reading: "판독중", final: "확정" };
+const STATE_TONE = { waiting: "line", reading: "fill", final: "dot" };
+
+/* 목록 칩 한 묶음 — 주소 ?f= 로 온다(홈 흐름 줄 · 「초안」 줄이 여기로) */
+const LIST_FILTERS = [
+  { key: "f", label: "보기",
+    items: [
+      { key: "all", name: "전체" },
+      { key: "mine", name: "내 판독중", query: { assigned: "me", finalized: "no" },
+        test: (r) => !r.finalized && mine(r) },
+      { key: "open", name: "미확정", query: { finalized: "no" }, test: (r) => !r.finalized },
+      { key: "final", name: "확정", query: { finalized: "yes" }, test: (r) => r.finalized },
+      /* 서버에 불일치 필터가 없다 — 열린 불일치 목록(list.context)과 맞춘다 */
+      { key: "disc", name: "불일치", test: isDisc },
+    ] },
+];
+
+/* 병변 크기 — 서버가 「12.30」처럼 소수 둘째 자리 글자로 준다 */
+function sizeMm(l) {
+  const v = l?.size_mm ?? l?.measured_size_mm ?? l?.ai_size_mm;
+  return v == null || v === "" ? null : `${Number(v)}mm`;
+}
+
+/* 영상 대조 — 1장 가운데.
+   ① 겨눈 병변(Specimen.lesion) → 그 검사의 최신 확정 BI-RADS (서버 두 번)
+   ② 없으면 바인딩 때 찍어 둔 표적 한 줄(target_snapshot)
+   ③ 그도 없으면 옛 목업의 radiology_summary
+   ⚠ 영상 판정이다 — 병리 등급(B 분류)과 다른 체계라 그 말을 붙인다 */
+function Correlate({ d, cfg }) {
+  const hasLesion = d.lesion != null && typeof d.lesion !== "object";
+  const cor = useApi(() => (hasLesion ? cfg.api.correlation(d) : Promise.resolve(null)), [d.id, hasLesion]);
+  const c = cor.data;
+  const snap = typeof d.target_snapshot === "string" ? d.target_snapshot
+    : d.target_snapshot ? Object.values(d.target_snapshot).filter((v) => v != null && typeof v !== "object").join(" · ")
+      : null;
+  const rs = d.radiology_summary;
+  const lesion = c?.lesion;
+  const lines = [
+    c?.category && ["최신 확정", `BI-RADS ${label(BR_LABEL, c.category)}${c.finalized_at ? ` · ${String(c.finalized_at).slice(5, 10)}` : ""}`],
+    lesion && ["병변", [lesion.label ?? (lesion.lesion_id != null ? `#${lesion.lesion_id}` : null),
+      c.modality && label(MOD, modCode(c.modality)), lesion.site,
+      sizeMm(lesion)]
+      .filter(Boolean).join(" · ")],
+    snap && ["표적", snap],
+    !c?.category && rs?.birads && ["BI-RADS", rs.birads],
+    !c && rs?.note && ["영상 소견", rs.note],
+  ].filter(Boolean);
+  return (
+    <div className="work-ask-q">
+      <span className="section-label">영상 대조</span>
+      {cor.loading && hasLesion ? <p className="muted small">불러오는 중…</p>
+        : lines.length ? <Facts items={lines} />
+          : <p className="muted small">겨눈 병변 · 영상 판정이 검체에 안 이어져 있습니다</p>}
+      {lines.length > 0 && <p className="muted small">영상 판정입니다 — 병리 등급(B 분류)과 다른 체계입니다.</p>}
+    </div>
+  );
 }
 
 export const pathology = {
@@ -311,27 +470,66 @@ export const pathology = {
    * 영상과 같은 틀이다. 다른 것은 판독 단위가 검체라는 것뿐이다.
    */
   home: {
-    load: () => Promise.all([api.queue(), H.soft(api.list({}))])
-      .then(([queue, list]) => ({ queue: H.rows(queue), specimens: H.rows(list) })),
+    /* 내 검체만 받는다(assigned=me) — 「내 판독중 · 오늘 확정」은 내 일이다.
+       ⚠ 옛 서버는 assigned 를 몰라 전부 준다 — 아래 mine() 이 다시 거른다.
+       ⚠ 줄마다 환자를 부르지 않는다(api.js pathRows) */
+    load: () => Promise.all([
+      api.queue(),
+      H.soft(api.list({ assigned: "me", page_size: 200 })),
+      H.soft(api.openDiscordances()),
+    ]).then(([queue, list, disc]) => {
+      const specimens = H.rows(list).filter(mine);
+      return { queue: H.rows(queue), specimens, disc: discSets(H.rows(disc)) };
+    }),
 
     primary: { label: "다음 검체 받기", to: go.pathology.queue(),
                need: "pathology.queue.view" },
+
+    /* 달력은 뺀다 — 찍을 점이 없어 늘 빈 달이었다. 맨 위는 흐름 한 줄 */
+    layout: [["flow", "queue", "stuck"], ["done", "handover"], ["todo"]],
+
+    /* 흐름 — 접수 대기 → 내 판독중 → 오늘 확정 → 불일치. 줄을 누르면
+       걸러진 목록(?f=)으로 간다 */
+    flow: (bag) => {
+      if (!bag) return null;
+      const { queue, specimens, disc } = bag;
+      const today = specimens.filter((r) => r.finalized && H.isToday(r.finalized_at));
+      /* 평균 TAT — 채취 → 확정. 두 시각이 다 있는 것만 */
+      const spans = today.map((r) => new Date(String(r.finalized_at).replace(" ", "T"))
+        - new Date(String(r.collected_at ?? "").replace(" ", "T"))).filter((ms) => ms > 0);
+      const avg = spans.length ? spans.reduce((a, b) => a + b, 0) / spans.length : null;
+      const tat = avg == null ? null
+        : avg >= 86400000 ? `${(avg / 86400000).toFixed(1)}일` : `${Math.round(avg / 3600000 * 10) / 10}시간`;
+      const L = go.pathology.list();
+      return {
+        title: "오늘 흐름",
+        summary: tat ? `평균 TAT ${tat} (채취→확정)` : "평균 TAT —",
+        items: [
+          { name: "접수 대기", count: queue.length, to: go.pathology.queue() },
+          { name: "내 판독중", count: specimens.filter((r) => !r.finalized).length, to: `${L}?f=mine` },
+          { name: "오늘 확정", count: today.length, to: `${L}?f=final` },
+          { name: "불일치", count: specimens.filter((r) => isDisc(r, { disc })).length, to: `${L}?f=disc` },
+        ],
+      };
+    },
 
     queue: ({ queue }) => ({
       title: "검체 대기",
       hint: "바인딩 순서대로",
       empty: "접수 대기 검체가 없습니다",
+      /* 「구분」「상태」가 아니라 무엇을 적었는지 */
+      cols: { chip: "채취 방식", sub: "검체번호" },
+      extra: [{ key: "wait", name: "경과" }],
       rows: queue.map((r) => ({
         id: r.id,
         name: H.nameOf(r),
         no: H.noOf(r),
         meta: H.who(r),
-        chip: r.kind,
+        chip: kindText(r.kind),
         chipTone: "fill",
-        /* ⚠ 목업은 「· 영상 4C · 마스크 완료」까지 적는다. 영상 판정도 AI
-           마스크 상태도 검체 목록에 없다 — 검체번호만 적는다 */
         sub: r.specimen_no ?? "",
         at: H.at(r.collected_at),
+        wait: H.waited(r.collected_at),
         /* 접수 대기 줄이다 — 누르면 그 검체가 열린 접수 화면으로 간다.
            환자 화면으로 보내면 거기서 접수·업로드로 가는 길이 없어
            막다른 길이 된다(09-23 확인, 영상의학과와 같은 자리). */
@@ -343,30 +541,31 @@ export const pathology = {
       })),
     }),
 
+    /* 초안 — 써 두고(판정 · 소견 중 하나라도) 확정 안 한 내 검체.
+       ⚠ 전에는 걸러지지 않은 목록으로 가서 어느 것이 초안인지 다시 찾아야
+       했다 — 「내 판독중」으로 걸러 보낸다 */
     stuck: ({ specimens }) => [
-      { tag: "초안", text: "집었는데 아직 확정 안 한 검체",
-        count: specimens.filter(
-          (r) => r.assigned_to && !(r.finalized_at || r.finalized)).length,
-        to: go.pathology.list() },
-      /* ⚠ 목업의 「마스크 확인」·「영상 대조」는 못 센다. AI 마스크를 봤는지,
-         영상 판정과 맞춰 봤는지를 남기는 칸이 서버에 없다 */
+      { tag: "초안", text: "써 두고 확정 안 한 내 검체",
+        count: specimens.filter((r) => !r.finalized
+          && (r.b_category || r.diagnosis || r.finding_note)).length,
+        to: `${go.pathology.list()}?f=mine` },
+      /* ⚠ 목업의 「마스크 확인」은 못 센다. AI 마스크를 봤는지 남기는 칸이
+         서버에 없다 */
     ],
 
     done: ({ specimens }) => {
-      const it = specimens.filter((r) => H.isToday(r.finalized_at));
+      const it = specimens.filter((r) => r.finalized && H.isToday(r.finalized_at));
       return {
         summary: `확정 ${it.length}`,
+        empty: "오늘 확정한 검체가 아직 없습니다",
         items: it.map((r) => ({
           id: r.id,
           at: H.at(r.finalized_at),
-          text: `${H.nameOf(r)} · ${r.diagnosis ?? "진단"} 확정`,
+          text: `${H.nameOf(r)} · ${r.specimen_no ?? "검체"} · ${text(r, "diagnosis", DIAGNOSIS, "diagnosis_label") || "진단"} 확정`,
           to: go.pathology.read(r.id),
         })),
       };
     },
-
-    /* ⚠ 목업의 「판독 당번 · 다학제 회의」는 서버에 표가 없다 */
-    marks: () => [],
   },
 
   /* 티켓이 여는 범위의 단위. 서버가 `scope_kind` 로 받는 넷
@@ -389,58 +588,49 @@ export const pathology = {
       ["검체", ["표적 병변 미포함 가능성", "검체량 부족 — 재채취 권고"]],
       ["결론", ["악성 소견 없음", "추가 면역조직화학 검사 시행"]],
     ],
+    /* ⚠ 09-28 — 상용구 칸은 큐에서 안 그린다(phrasesCol 을 안 켠다) */
     searchHint: "환자 · 검체번호",
     emptyText: "접수 대기 중인 검체가 없습니다",
+    takeLabel: "이 검체 집기",
     need: { view: "pathology.queue.view", assign: "pathology.queue.assign" },
+    /* 이력은 영상 · 병리 · 불일치만 — 처방 · 결과 설명 · 리포트 · 치료 결정은
+       검체를 받는 데 안 쓴다 */
+    pastKeep: (e) => /촬영|판독|AI|검체|병리|불일치/.test(e.type ?? ""),
+    /* 지난 검체 → 그 판독(새 탭). 영상 줄은 병리 권한 밖이라 안 건다 */
+    pastLink: (e) => (e.specimen_id != null ? go.pathology.read(e.specimen_id) : null),
 
     row: (it) => ({
       id: it.id,
       /* 이 환자의 이력 칸이 이 번호로 부른다 */
       patientId: it.patient_id ?? it.patient ?? null,
       title: patientText(it),
-      sub: `${it.specimen_no} · ${it.site}`,
-      chip: it.method,
+      sub: [it.specimen_no, kindText(it.kind)].filter(Boolean).join(" · "),
+      wait: H.waited(it.collected_at),
+      chip: guideText(it.method) || null,
       chipTone: "line",
     }),
 
-    Detail: ({ d }) => (
+    /* 맨 위는 **유방외과가 묻는 것**(의뢰 문구) — 그다음 검체, 그다음 영상.
+       ⚠ 생년월일 · 연락처 · 알레르기는 뺐다 — 검체를 받는 데 안 쓴다.
+         환자 확인은 머리의 이름 · 환자번호로 한다 */
+    Detail: ({ d, cfg }) => (
       <>
+        <div className="work-ask-q">
+          <span className="section-label">의뢰</span>
+          {d.clinical_note
+            ? <p className="quote">{d.clinical_note}</p>
+            : <p className="muted small">의뢰 문구가 없습니다</p>}
+        </div>
+
         <Facts items={[
-          ["환자", patientText(d)],
-          ["생년월일", d.birth],
-          ["연락처", d.phone],
-          ["알레르기", d.allergy || "없음"],
           ["검체번호", d.specimen_no],
-          ["종류", d.kind],
-          ["채취 방식", d.method],
-          ["채취일시", d.collected_at],
-          ["요청 부위", d.site],
+          ["종류 · 유도", [kindText(d.kind), guideText(d.method)].filter(Boolean).join(" · ") || "—"],
+          ["채취", collectedText(d.collected_at) ?? "—"],
+          d.site && ["부위", d.site],
+          ["바인딩", d.bound_by_name ?? "—"],
         ]} />
 
-        {d.clinical_note && (
-          <Fold title="유방외과 의뢰 문구">
-            <p className="quote">{d.clinical_note}</p>
-          </Fold>
-        )}
-
-        {d.radiology_summary && (
-          <Fold title="영상의학과 판독 요약">
-            <Facts items={[
-              ["BI-RADS", d.radiology_summary.birads],
-              ["소견", d.radiology_summary.note],
-            ]} />
-            <p className="muted small">영상 판정입니다. 병리 등급(B 분류)과 다른 체계입니다.</p>
-          </Fold>
-        )}
-
-        <Fold title="유도 영상" open={false}>
-          <ul className="thumbs">
-            {(d.guide_images ?? []).map((im) => (
-              <li key={im.id}><span className="thumb" aria-hidden="true" />{im.name}</li>
-            ))}
-            {(d.guide_images ?? []).length === 0 && <li className="none">유도 영상이 없습니다</li>}
-          </ul>
-        </Fold>
+        <Correlate d={d} cfg={cfg} />
 
         {(d.other_specimens ?? []).length > 0 && (
           <p className="muted small">이 환자의 다른 검체 {d.other_specimens.length}건</p>
@@ -455,35 +645,30 @@ export const pathology = {
     infoTitle: "검체 정보",
     dropText: "조직 이미지를 드래그하세요 (여러 장 가능)",
     accept: "image/png,image/jpeg,image/tiff",
+    /* 끌어 놓는 칸 아래 한 줄. ⚠ 여러 장을 권한다 — 같은 슬라이드라도
+       자른 자리에 따라 AI 계측값이 크게 달라진다 */
+    hint: "WSI 전체가 아니라 잘라낸 조직 이미지 — 여러 장 올리면 장마다 분석이 한 건씩 생깁니다",
     estimate: "크롭 한 장에 약 2.2초 걸립니다.",
     need: {
       view: "pathology.upload.view",
       send: "pathology.upload.send",
       run: "pathology.ai.run",
     },
-    notes: [
-      "WSI 전체가 아니라 잘라낸 조직 이미지를 올립니다.",
-      "한 검체에 여러 장을 올릴 수 있습니다. 같은 슬라이드라도 자른 자리에 따라 AI 계측값이 크게 달라져, 여러 장을 돌려 분포를 보는 쪽이 맞습니다.",
-      "장마다 분석 결과가 한 건씩 생깁니다.",
-      "파일은 Django 를 거치지 않고 Go 관문으로 곧장 올라갑니다.",
-    ],
+    /* 품질 칸(Quality) 없음 — 병리에는 반려 · 재채취 경로가 없다 */
 
+    /* 누구의 무엇 — **한 줄**(screens/Upload.jsx 의 .up-strip) */
     Info: ({ d }) => (
       <>
-        <Facts items={[
-          ["환자", patientText(d)],
-          ["생년월일", d.birth],
-          ["연락처", d.phone],
-          ["알레르기", d.allergy || "없음"],
-          ["검체번호", d.specimen_no],
-          ["종류", d.kind],
-          ["병변 위치", d.site],
-        ]} />
-        {d.radiology_summary && (
-          <Fold title="영상 판독 요약" open={false}>
-            <p>{d.radiology_summary.note}</p>
-          </Fold>
-        )}
+        <b>{H.nameOf(d)}</b>
+        {H.who(d) && <span>{H.who(d)}</span>}
+        {H.noOf(d) && <span>{H.noOf(d)}</span>}
+        <Chip tone="fill">{d.specimen_no ?? "검체"}</Chip>
+        {[kindText(d.kind), guideText(d.method)].filter(Boolean).length > 0
+          && <span>{[kindText(d.kind), guideText(d.method)].filter(Boolean).join(" · ")}</span>}
+        {d.site && <span>{d.site}</span>}
+        {d.collected_at && <span>채취 {collectedText(d.collected_at)}</span>}
+        {d.target_snapshot && typeof d.target_snapshot === "string"
+          && <span className="up-strip-q" title={d.target_snapshot}>{d.target_snapshot}</span>}
       </>
     ),
   },
@@ -492,11 +677,63 @@ export const pathology = {
   read: {
     title: "판독",
     infoName: "검체 정보",
+    unitName: "검체",
     /* ⚠ **병리는 정정 경로가 없다**(확정 사양서 §8-2). 영상은 정정
        화면이 있지만 여기는 없다 — 그 사실을 저장 줄에 적는다. 「되돌릴
        수 없다」만으로는 «나중에 고칠 수 있나»가 안 읽힌다 */
     saveHint: "확정은 한 번뿐입니다. 병리는 정정 경로가 없어, 확정한 뒤 "
       + "오류가 나면 새 검체로 다시 받아야 합니다.",
+    finalNote: "병리는 정정 경로가 없습니다. 오류가 있으면 새 검체로 다시 받습니다.",
+    phrases: PHRASES,
+
+    /* 확정된 검체는 읽기 전용 — 서버도 409 SPECIMEN_ALREADY_FINALIZED 로 막는다 */
+    isFinal: (d) => Boolean(d.unit?.finalized),
+
+    /* 확정 → 다음 건. 내가 집은 · 아직 확정 안 한 검체 중 가장 먼저 채취한 것.
+       ⚠ ?assigned=me&finalized=no 를 서버가 거른다(09-28 B1). 옛 서버를 위해
+         여기서도 한 번 더 — 담당자가 비었거나 확정된 것은 뺀다 */
+    after: async (id) => {
+      const rows = await path.rows({ assigned: "me", finalized: "no",
+                                     ordering: "collected_at", page_size: 50 });
+      const me = getMe()?.staff_id ?? null;
+      const next = rows.find((r) => String(r.specimen_id ?? r.id) !== String(id)
+        && !r.finalized_at && r.assigned_to != null
+        && (me == null || String(r.assigned_to) === String(me)));
+      return next ? (next.specimen_id ?? next.id) : null;
+    },
+
+    /* 맨 위 띠 — 병리의에게 필요한 것만. 연락처 · 생년월일 · 알레르기는 뺐다 */
+    strip: (d) => [
+      [null, patientText(d.patient)],
+      ["번호", d.patient.no],
+      ["검체", d.unit.no],
+      ["종류", label(SPECIMEN_TYPE, d.unit.specimen_type) || d.unit.kind],
+      ["상태", d.unit.status_label],
+    ],
+    AiSummary: PathologyAiSummary,
+
+    /* 확정된 검체 — 폼 대신 값만 */
+    Final: ({ d }) => {
+      const s = d.doctor ?? {};
+      return (
+        <>
+          <Facts items={[
+            ["진단", label(DIAGNOSIS, s.diagnosis) || "—"],
+            ["B 분류", label(B_CATEGORY_LABEL, s.b_category) || "—"],
+            s.histologic_type && ["조직형", label(HISTOLOGIC_TYPE, s.histologic_type)],
+            s.nottingham_grade !== "" && s.nottingham_grade != null && ["Nottingham", label(NOTTINGHAM, s.nottingham_grade)],
+            (s.er_status || s.pr_status || s.her2_status) && ["ER · PR · HER2",
+              [label(RECEPTOR, s.er_status) || "—", label(RECEPTOR, s.pr_status) || "—", label(HER2, s.her2_status) || "—"].join(" · ")],
+            s.ki67_percent !== "" && s.ki67_percent != null && ["Ki-67", `${s.ki67_percent}%`],
+            s.stil_calibrated != null && ["sTIL (병리의)", `${s.stil_calibrated}%`],
+            ["판독의", d.unit.reported_by ?? "—"],
+            ["확정", d.unit.finalized_at],
+          ]} />
+          <p className="vfin-k">판독 소견</p>
+          <p className="quote">{s.finding_note || "—"}</p>
+        </>
+      );
+    },
     need: {
       view: "pathology.read.view",
       ai: "pathology.ai.view",
@@ -516,6 +753,13 @@ export const pathology = {
       diagnosis: f.diagnosis ?? null,
       finding_note: f.finding_note ?? "",
       stil_calibrated: f.stil_calibrated === "" ? null : f.stil_calibrated ?? null,
+      /* 09-28 — 빈 칸은 null(지운다). 숫자 칸은 글자로 두면 서버 검증에 걸린다 */
+      histologic_type: f.histologic_type || null,
+      nottingham_grade: f.nottingham_grade === "" || f.nottingham_grade == null ? null : Number(f.nottingham_grade),
+      er_status: f.er_status || null,
+      pr_status: f.pr_status || null,
+      her2_status: f.her2_status || null,
+      ki67_percent: f.ki67_percent === "" || f.ki67_percent == null ? null : Number(f.ki67_percent),
     }),
 
     /* 뷰어에 무엇을 얹나 — 병리는 **PNG 마스크** 한 장이다.
@@ -540,22 +784,22 @@ export const pathology = {
       };
     },
 
+    /* 왼쪽 — 영상 대조(맨 위, 펼침) · 검체 · 의뢰 문구 · 크롭.
+       ⚠ 연락처 · 생년월일 · 알레르기는 뺐다(09-28) — 병리의가 쓸 일이 없다 */
     Info: ({ d, slide, onSlide }) => (
       <>
+        <ImagingCorrelation d={d} />
         <Facts items={[
-          ["환자", patientText(d.patient)],
-          ["생년월일", d.patient.birth],
-          ["연락처", d.patient.phone],
-          ["알레르기", d.patient.allergy || "없음"],
           ["검체번호", d.unit.no],
-          ["종류", d.unit.kind],
-          ["채취 방식", d.unit.method],
-          ["채취일시", d.unit.collected_at],
-          ["병변 위치", d.unit.site],
+          ["종류", label(SPECIMEN_TYPE, d.unit.specimen_type) || d.unit.kind],
+          ["유도 방식", label(GUIDANCE_ROUTE, d.unit.guidance_route) || d.unit.method],
+          ["채취", d.unit.collected_at ? `${readableAt(d.unit.collected_at)} (${ago(d.unit.collected_at)})` : null],
+          ["바인딩", d.unit.bound_by_name],
+          d.unit.site && ["병변 위치", d.unit.site],
         ]} />
-        {d.radiology_summary && (
-          <Fold title="영상의학과 판독 요약" open={false}>
-            <p>{d.radiology_summary.note}</p>
+        {d.unit.clinical_note && (
+          <Fold title="의뢰 문구">
+            <p className="quote">{d.unit.clinical_note}</p>
           </Fold>
         )}
         <Fold title={`올린 크롭 ${(d.crops ?? []).length}장`}>
@@ -575,7 +819,7 @@ export const pathology = {
 
     Ai: PathologyAi,
 
-    Doctor: ({ f, set }) => (
+    Doctor: ({ f, set, phrases, insert }) => (
       <>
         <label className="field">
           <span>악성 / 양성 여부</span>
@@ -596,6 +840,41 @@ export const pathology = {
           </select>
         </label>
 
+        {/* 09-28 — 조직형 · 등급 · 수용체 · Ki-67. 전부 선택이다(양성이면 비워 둔다).
+            값은 서버가 정한 코드(codes.js) — 빈 칸은 null 로 나가 지운다 */}
+        <label className="field">
+          <span>조직형</span>
+          <select value={f.histologic_type ?? ""} onChange={(e) => set("histologic_type", e.target.value)}>
+            <option value="">—</option>
+            {Object.entries(HISTOLOGIC_TYPE).map(([v, t]) => <option key={v} value={v}>{t}</option>)}
+          </select>
+        </label>
+        <div className="field-row">
+          <label className="field">
+            <span>Nottingham</span>
+            <select value={f.nottingham_grade ?? ""} onChange={(e) => set("nottingham_grade", e.target.value)}>
+              <option value="">—</option>
+              {Object.entries(NOTTINGHAM).map(([v, t]) => <option key={v} value={v}>{t}</option>)}
+            </select>
+          </label>
+          <label className="field">
+            <span>Ki-67 (%)</span>
+            <input type="number" min="0" max="100" step="0.1" value={f.ki67_percent ?? ""}
+                   onChange={(e) => set("ki67_percent", e.target.value)} />
+          </label>
+        </div>
+        <div className="field-row three">
+          {[["er_status", "ER", RECEPTOR], ["pr_status", "PR", RECEPTOR], ["her2_status", "HER2", HER2]].map(([k, name, table]) => (
+            <label className="field" key={k}>
+              <span>{name}</span>
+              <select value={f[k] ?? ""} onChange={(e) => set(k, e.target.value)}>
+                <option value="">—</option>
+                {Object.entries(table).map(([v, t]) => <option key={v} value={v}>{t}</option>)}
+              </select>
+            </label>
+          ))}
+        </div>
+
         {/* 09-28 결정 — sTIL(임상 수치)은 병리의가 검체 단위로 직접
            입력한다. AI 계측값(PathologyAi.jsx)과는 다른 값이고 자동
            계산도 안 한다 — 저/중/고 같은 등급도 여기서 안 매긴다. */}
@@ -614,10 +893,12 @@ export const pathology = {
 
         <label className="field">
           <span>판독 소견</span>
-          <textarea className="lg" rows={10} value={f.finding_note ?? ""}
+          <textarea className="lg" rows={7} value={f.finding_note ?? ""}
                     placeholder="소견"
                     onChange={(e) => set("finding_note", e.target.value)} />
         </label>
+        {/* 상용구 — ⚠ label 밖(label 안 단추는 그 label 의 대상이 된다) */}
+        <Phrases groups={phrases} onPick={insert} />
       </>
     ),
   },
@@ -636,12 +917,20 @@ export const pathology = {
        모른다 */
     search: ["patient_name", "specimen_no"],
     need: { view: "pathology.list.view" },
+    /* 전체 · 내 판독중 · 미확정 · 확정 · 불일치 — 주소 ?f= (홈이 여기로 보낸다) */
+    filters: LIST_FILTERS,
+    /* 불일치 칩이 맞춰 볼 열린 불일치 — 한 번 받는다. 권한이 없으면 빈 것 */
+    context: () => api.openDiscordances().catch(() => [])
+      .then((rows) => ({ disc: discSets(H.rows(rows)) })),
+    detailTitle: (d) => [H.nameOf(d), d.specimen_no].filter(Boolean).join(" · "),
 
+    /* ⚠ report__last_viewed_at · finalized_at 정렬은 09-28 서버부터 받는다
+       (빈 값은 뒤로) */
     sorts: [
       { key: "patient__name", label: "이름" },
       { key: "collected_at", label: "채취 순" },
       { key: "accessioned_at", label: "접수 순" },
-      { key: "accession_status", label: "진행상황" },
+      { key: "finalized_at", label: "확정 순" },
       { key: "report__last_viewed_at", label: "유방외과 열람" },
     ],
 
@@ -653,15 +942,17 @@ export const pathology = {
       { key: "viewed", label: "유방외과", w: "14%" },
     ],
 
-    /* 진행상황은 accession_status 와 finalized_at 을 합쳐 한글로 낸다.
-       unbound 는 이 목록에 안 뜬다 — 바인딩 전 검체다 */
+    /* 진행상황 — ⚠ accession_status 로는 「판독 완료」를 못 말한다(서버 enum
+       이 bound · accessioned 까지뿐). 누가 집었는지 · 확정했는지로 센다:
+       미접수 → 판독중 → 확정 (api.js 의 read_state) */
     row: (r) => ({
       id: r.id,
       patient: patientText(r),
       specimen: r.specimen_no,
-      collected: r.collected_at,
-      status: <Chip tone={tone("accession", r.accession_status)}>
-        {text(r, "accession_status", ACCESSION_STATUS, "status_label")}
+      /* 「09-28 08:20」 — 목록 칸이 좁아 해를 뺀다 */
+      collected: r.collected_at ? String(r.collected_at).slice(5, 16).replace("T", " ") : "—",
+      status: <Chip tone={STATE_TONE[r.read_state] ?? "line"}>
+        {STATE[r.read_state] ?? text(r, "accession_status", ACCESSION_STATUS, "status_label")}
       </Chip>,
       /* 「확인」이 아니라 「열람」이다 — 자동 기록이라 의도적 확인이 아니다 */
       viewed: r.viewed_at
@@ -693,14 +984,12 @@ function PathologyListDetail({ d, cfg }) {
       <div className="list-detail-info">
         <Facts items={[
           ["환자", patientText(d)],
-          ["생년월일", d.birth],
-          ["연락처", d.phone],
-          ["알레르기", d.allergy || "없음"],
+          ["환자번호", H.noOf(d) || "—"],
           ["검체번호", d.specimen_no],
-          ["종류", d.kind],
-          ["채취일시", d.collected_at],
-          ["담당 병리의", d.reported_by],
-          ["진행상황", text(d, "accession_status", ACCESSION_STATUS, "status_label")],
+          ["종류 · 유도", [kindText(d.kind), guideText(d.method)].filter(Boolean).join(" · ") || "—"],
+          ["채취", collectedText(d.collected_at) ?? "—"],
+          ["담당 병리의", d.reported_by ?? d.assigned_to_name ?? "—"],
+          ["진행상황", STATE[d.read_state] ?? text(d, "accession_status", ACCESSION_STATUS, "status_label")],
           ["유방외과 열람", d.viewed_at ?? "미열람"],
         ]} />
         <Fold title="판독 결과" open={Boolean(d.finalized)}>
@@ -735,3 +1024,75 @@ function FixedTissueViewer({ read, cfg }) {
   );
 }
 
+
+/* ── 판독 화면 왼쪽 맨 위 · 영상 대조 (09-28) ─────────────────────
+ * 이 검체가 겨냥한 병변(Specimen.lesion → GET /lesions/{id}/)과 그 검사의
+ * 지금 유효한 영상 판정(GET /assessments?study=). 병리 결과를 영상과
+ * 맞춰 보는 것이 판독의 첫 일이라 **펼친 채** 맨 위에 둔다.
+ * ⚠ 병리 권한으로 못 읽으면(403 · 404) 바인딩 때 찍어 둔 target_snapshot
+ *   한 줄로 버틴다. 판정이 없으면 「영상 최종 판정 없음」이라고 **말한다** —
+ *   빈칸은 「양성」으로 읽힌다 */
+function ImagingCorrelation({ d }) {
+  const lid = d.unit?.lesion ?? null;
+  const q = useApi(async () => {
+    if (lid == null) return null;
+    const lesion = await path.lesion(lid);
+    const sid = lesion?.study ?? lesion?.study_id ?? null;
+    const rows = sid != null ? await path.assessments(sid).catch(() => []) : [];
+    return { lesion, final: currentAssessment(rows) };
+  }, [lid]);
+  const L = q.data?.lesion ?? null;
+  const A = q.data?.final ?? null;
+  const snap = d.unit?.target_snapshot;
+  const rs = d.radiology_summary;
+
+  return (
+    <section className="corr" aria-label="영상 대조">
+      <h3>영상 대조</h3>
+      {lid != null && q.loading ? <p className="muted small">영상 판정을 불러오는 중…</p> : (
+        <>
+          {L ? (
+            <Facts items={[
+              ["병변", L.label ?? `#${L.lesion_id ?? lid}`],
+              ["모달리티", label(MODALITY, asModality(L.modality))],
+              ["위치", lesionWhere(L)],
+              ["크기", lesionSize(L)],
+            ]} />
+          ) : snap ? <p className="corr-snap">{snap}</p> : null}
+
+          {A ? (
+            <div className="corr-final">
+              <b>영상 최종 · BI-RADS {label(BIRADS_LABEL, A.category) || "—"}</b>
+              {A.finding_note && <p className="quote">{A.finding_note}</p>}
+            </div>
+          ) : (
+            <p className="corr-none">
+              {q.error ? "영상 판정을 불러오지 못했습니다" : "영상 최종 판정 없음"}
+            </p>
+          )}
+          {!A && rs && (
+            <p className="muted small">영상 요약 — BI-RADS {rs.birads ?? "—"}{rs.note ? ` · ${rs.note}` : ""}</p>
+          )}
+        </>
+      )}
+      <p className="muted small">영상 판정(BI-RADS)과 병리 등급(B 분류)은 다른 체계입니다.</p>
+    </section>
+  );
+}
+
+/* 병변 위치 — Lesion 에 좌우 칸이 없다. AI 결과에서 옮겨 온 detail 을 본다 */
+function lesionWhere(L) {
+  const dt = L.detail ?? {};
+  const lat = { left: "좌측", right: "우측", l: "좌측", r: "우측" }[
+    String(L.laterality ?? dt.laterality ?? dt.image?.laterality ?? "").toLowerCase()] ?? null;
+  const at = dt.quadrant ?? dt.location ?? dt.clock ?? null;
+  return [lat, at].filter(Boolean).join(" ") || null;
+}
+
+/* 크기 — 판독의 측정값이 AI 값보다 먼저. 초음파는 mm 가 없어 px 로만 */
+function lesionSize(L) {
+  const mm = L.measured_size_mm ?? L.ai_size_mm;
+  if (mm != null && mm !== "") return `${Number(mm).toFixed(1)} mm${L.measured_size_mm != null ? "" : " (AI)"}`;
+  const px = L.measured_size_px ?? L.ai_size_px;
+  return px != null && px !== "" ? `${Number(px).toFixed(0)} px (AI)` : null;
+}

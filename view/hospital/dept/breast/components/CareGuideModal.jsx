@@ -1,62 +1,49 @@
-import { MODALITY, label } from "../../../codes";
+import { Link } from "react-router-dom";
+import { go } from "../../../nav";
+import Stepper from "./Stepper";
 
-const STEPS = [
-  { id: "mammo", label: "맘모그래피" },
-  { id: "us", label: "초음파" },
-  { id: "mri", label: "MRI" },
-  { id: "specimen", label: "조직검사" },
-];
-
-/* 유방외과에서 진료 화면을 열기 전에 보여 주는 다음 단계 안내.
-   "기록 없음"을 단순 오류로 끝내지 않고, 지금 할 수 있는 요청/등록 버튼을
-   바로 준다. 단계 판단은 Waiting.jsx의 nextCareStep 한 곳에만 둔다. */
-export default function CareGuideModal({ patient, step, progress, onClose, onAction }) {
-  const current = step.modality ?? (step.kind === "specimen" || step.kind === "pathology-wait" ? "specimen" : null);
-  const isActionable = step.kind === "request" || step.kind === "specimen";
+/* 다음 진료 안내 — 이 환자의 진료 흐름 전체와 다음 할 일.
+ *
+ * 단계 판단은 flow.js 한 곳이다(여기서 다시 세지 않는다).
+ *
+ * ⚠ 09-28 — 전에는 검사 네 칸(맘모 · 초음파 · MRI · 조직검사)만 보였고,
+ *   불일치 · 추적 · 치료 방침일 때는 **「확인」 하나로 막혔다.** 안내만
+ *   하고 갈 곳을 안 주는 팝업이었다. 이제 다음 할 일이 곧 주 단추이고
+ *   (처분하기 · 치료 방침 · 재진 예약 …), 결과를 기다리는 중일 때만
+ *   주 단추가 없다 — 할 일이 남의 차례라서다. */
+export default function CareGuideModal({ patient, flow, onClose, onRun }) {
+  const next = flow?.next;
+  const pid = patient.patient_id;
+  const can = next && (next.to || next.act);
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal wide" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
           <h2>다음 진료 안내 — {patient.name}</h2>
           <button aria-label="닫기" onClick={onClose}>×</button>
         </div>
         <div className="modal-body">
-          <p style={{ marginTop: 0, lineHeight: 1.6 }}>{step.message}</p>
-          <div className="care-steps" aria-label="검사 진행 순서">
-            {STEPS.map((item) => {
-              const status = progress[item.id] ?? "todo";
-              return (
-                <div className={`care-step ${status}`} key={item.id}>
-                  <span aria-hidden="true">{status === "done" ? "✓" : status === "waiting" ? "…" : "○"}</span>
-                  <b>{item.label}</b>
-                  <small>{status === "done" ? "완료" : status === "waiting" ? "진행 중" : "대기"}</small>
-                </div>
-              );
-            })}
-          </div>
-          {step.kind === "pathology-wait" && (
-            <p className="hint">검체는 병리과에서 접수·판독 후 결과가 반영됩니다.</p>
-          )}
+          <p className="bf-lead">
+            <b>{next?.label ?? "—"}</b>
+            {next?.why && <> — {next.why}</>}
+          </p>
+          <Stepper steps={flow?.steps ?? []} />
         </div>
         <div className="modal-foot">
-          <button className="btn ghost" onClick={onClose}>{isActionable ? "나중에" : "확인"}</button>
-          {isActionable && (
-            <button className="btn fill" onClick={onAction}>
-              {step.kind === "request" ? `${label(MODALITY, current)} 촬영 요청` : "검체 등록"}
-            </button>
+          {/* 보조 길 — 흐름 순서대로. 다음 할 일과 같은 곳이면 안 겹쳐 둔다 */}
+          <Link className="btn ghost" to={go.breast.review(pid)} onClick={onClose}>환자 상세</Link>
+          {next?.key !== "decision" && (
+            <Link className="btn ghost" to={go.breast.decision(pid)} onClick={onClose}>치료 방침</Link>
+          )}
+          <button className="btn ghost" onClick={onClose}>닫기</button>
+          {can && (
+            next.to && !next.act
+              ? <Link className="btn" to={next.to} onClick={onClose}>{next.label} →</Link>
+              : <button className="btn" onClick={() => onRun(next)}>{next.label}</button>
           )}
         </div>
       </div>
-      <style>{`
-        .care-steps { display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:6px; margin-top:18px; }
-        .care-step { display:flex; min-width:0; flex-direction:column; gap:3px; padding:10px 7px; border:1px solid var(--line); border-radius:8px; color:var(--muted); font-size:12px; text-align:center; }
-        .care-step > span { font-size:16px; font-weight:700; }
-        .care-step b { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:inherit; }
-        .care-step small { font-size:11px; }
-        .care-step.done { border-color:var(--accent); color:var(--accent); background:color-mix(in srgb, var(--accent) 8%, transparent); }
-        .care-step.waiting { border-color:var(--accent); color:var(--accent); }
-      `}</style>
     </div>
   );
 }

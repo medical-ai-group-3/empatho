@@ -10,6 +10,7 @@ import { notes as notesApi } from "../api";
 import { useApi } from "./useApi";
 import Register from "../screens/reception/Register";
 import StageBoard from "./StageBoard";
+import { Filters, applyFilters } from "./Filters";
 
 /* 과 홈 — 배치는 `docs/mockup/*Home.html` 이 정한다
  * ════════════════════════════════════════════════════════════════
@@ -445,9 +446,12 @@ function Queue({ queue }) {
   const tabs = queue?.tabs?.length
     ? queue.tabs
     : [{ key: "all", name: queue?.title, rows: queue?.rows, empty: queue?.empty }];
-  const [pick, setPick] = useState(tabs[0].key);
+  /* 탭 순서(흐름 순)와 처음 여는 탭(지금 할 일)이 다를 수 있다 — queue.pick */
+  const [pick, setPick] = useState(queue?.pick ?? tabs[0].key);
   const tab = tabs.find((t) => t.key === pick) ?? tabs[0];
-  const rows = tab.rows ?? [];
+  /* 거르는 칩(queue.filters, lib/Filters) — 탭 안에서 한 번 더 거른다 */
+  const [fv, setFv] = useState({});
+  const rows = applyFilters(tab.rows ?? [], queue?.filters, fv);
   /* 열 이름은 과가 바꿀 수 있다. 그리고 **이 탭의 어느 줄에도 값이 없는
      열은 이름을 안 단다** — 빈 열 위에 「상태」만 떠 있으면 무엇을 적는
      칸인지 묻게 된다(유방외과 09-28). 셀 자리는 그대로 둔다(subgrid) */
@@ -476,6 +480,7 @@ function Queue({ queue }) {
           ))}
         </nav>
       )}
+      <Filters groups={queue?.filters} value={fv} onChange={setFv} />
       <div className="qrows" style={grid}>
         {rows.length === 0
           ? <p className="hcard-k hpad">{tab.empty ?? "없습니다"}</p>

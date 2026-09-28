@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Page, Btn } from "../../../lib/Page";
 import { Body, Empty } from "../../../lib/Body";
@@ -6,6 +6,7 @@ import { Chip, Locked } from "../../../lib/Parts";
 import { useApi } from "../../../lib/useApi";
 import { can } from "../../../perm";
 import { DESK, go } from "../../../nav";
+import { specimens as specApi } from "../../../api";
 import SpecimenBindingModal from "../../../lib/SpecimenBindingModal";
 import * as H from "../../home";
 
@@ -15,20 +16,21 @@ import * as H from "../../home";
  * **접수 화면의 아래 절반이다.** 화면 줄에서 뺐고(6.1) 접수 화면이 이걸
  * 통째로 끼워 쓴다 — 이 과에서 제일 많이 보이는 자리다.
  *
- *   ┌ 330px ───────┬ 1fr ─────────────────────┬ 380px ────────┐
- *   │ 내원한 대기   │ 고른 환자                 │ 금일 내원 예정 │
- *   │ 환자          │  방문 정보 │ 문진          ├───────────────┤
- *   │  1 …          │  ─────────────────────   │ 오늘 추적 콜   │
- *   │  2 …          │  유방외과 의사 배정        ├───────────────┤
- *   │               │  [검체 바인딩]  [보내기]   │ 검체 바인딩    │
- *   └───────────────┴──────────────────────────┴───────────────┘
+ *   ┌ 330px ─────────────┬ 1fr ─────────────────────┬ 380px ─────────┐
+ *   │ [문진][배정][검체]  │ 고른 환자                 │ 배정 현황(오늘) │
+ *   │  1 …               │  방문 정보 │ 문진          │  서나영 대기 2  │
+ *   │  2 …               │  간호 메모                │  최민수 대기 1  │
+ *   │                    ├──────────────────────────┤  …             │
+ *   │                    │ 의사 칩(대기 n) [보내기]   │  미배정 4       │
+ *   └────────────────────┴──────────────────────────┴────────────────┘
  *
- * **왼쪽 줄을 누르면 가운데가 그 환자로 바뀐다.** 화면을 옮기지 않는다 —
- * 배정이 이 과의 주 업무라 고르고 보내는 것이 한 자리에서 끝나야 한다.
+ * 탭은 환자가 거치는 순서다 — 문진 대기 → 배정 대기 → (보낸 뒤) 검체 확인.
+ * **왼쪽 줄을 누르면 가운데가 그 환자로 바뀐다.** 화면을 옮기지 않는다.
  *
- * ⚠ **순번은 표시 전용이다.** 원무가 접수한 순서 그대로고 끌어서 못 바꾼다.
- * ⚠ **경과 시간을 안 쓴다.** 목업 줄 끝의 `(61′)` 은 서버가 주지 않는다 —
- *   접수 시각만 적는다.
+ * ⚠ 09-28 **[보내기]를 바닥 줄에 못 박았다.** 배정 칸이 가운데 안쪽 스크롤
+ *   맨 아래라 문진이 길면 화면 밖이었다 — 이 과의 주 업무 단추가 안 보였다.
+ * ⚠ **순번은 표시 전용이다.** 접수한 순서 그대로고 끌어서 못 바꾼다.
+ * ⚠ **경과 시간을 안 쓴다.** 서버가 주지 않는다 — 접수 시각만 적는다.
  * ⚠ **칸을 카드로 띄우지 않는다.** 상자 하나를 1px 선으로 가른다(4.5).
  * ⚠ **쪽 머리가 없다.** 접수 화면 안에 들어가므로 제목을 또 달지 않는다.
  */
@@ -36,8 +38,6 @@ export default function NursingWaiting({ cfg, embedded = false }) {
   /* 간호과는 원무 일까지 하는 한 과다 — **보는 것**은 과 열쇠 하나면 된다.
      쓰는 동작은 아래에서 제 열쇠로 그대로 잠근다 */
   if (!can(DESK)) {
-    /* 끼워 넣은 자리에서는 쪽 머리를 또 달지 않는다 — 접수 화면이 이미
-       제 머리를 그렸다. 잠긴 사정만 그 자리에 적는다 */
     const locked = <Locked what="내원 대기" need="nursing.waiting.view" />;
     return embedded ? locked : (
       <Page crumb={[cfg.name, "내원 대기"]} title="내원 대기">{locked}</Page>
@@ -49,28 +49,47 @@ export default function NursingWaiting({ cfg, embedded = false }) {
 /* 몇 초마다 조용히 다시 불러온다. 깜빡이면 고른 환자가 사라진다 */
 const POLL_MS = 7000;
 
+const TABS = [
+  { key: "q", label: "문진 대기" },
+  { key: "assign", label: "배정 대기" },
+  { key: "specimen", label: "검체 확인" },
+];
+/* 주소의 ?tab= — 홈 「검체」 줄은 specimen 으로 온다 */
+const TAB_ALIAS = { q: "q", questionnaire: "q", assign: "assign", specimen: "specimen" };
+
+const idOf = (r) => r.exam_order_id ?? r.id;
+const staffId = (s) => s.staff_id ?? s.id;
+const staffName = (s) => s.full_name ?? s.name ?? `직원 ${staffId(s)}`;
+
+/* 보낸 오더 — today-status 의 handed_at 이 찬 줄. 취소는 뺀다 */
+const handed = (r) => r.handed_at != null && r.stage_code !== "cancelled"
+  && r.order_status !== "cancelled";
+
 function Inner({ cfg, embedded }) {
   const api = cfg.api;
-  /* 홈의 「접수 대기 환자」 줄을 누르면 ?order= 를 달고 온다 — 그 사람을
-     골라 둔 채로 연다. 환자 상세로 보내면 볼 것만 있고 할 것이 없었다 */
+  /* 홈 현황판 줄은 ?order= 를, 홈 「검체」 줄은 ?tab=specimen 을 달고 온다.
+     ⚠ 목업 번호는 글자(eo-w1)라 숫자로만 읽지 않는다 */
   const [params] = useSearchParams();
-  const [pick, setPick] = useState(() => {
-    const n = Number(params.get("order"));
-    return Number.isFinite(n) && n > 0 ? n : null;
-  });
+  const [pick, setPick] = useState(() => params.get("order") || null);
+  const [tab, setTab] = useState(() => TAB_ALIAS[params.get("tab")] ?? null);
+  const [spick, setSpick] = useState(null);   /* 검체 탭에서 고른 오더 */
   const [tick, setTick] = useState(0);
+  /* ⚠ 이 화면을 보는 중에 같은 주소로 또 오면(홈 → 접수 → 홈 줄) 다시 서지
+     않는다 — 주소가 바뀐 것을 보고 한 번 따라간다 */
+  const asked = `${params.get("tab") ?? ""}|${params.get("order") ?? ""}`;
+  const [seenAsk, setSeenAsk] = useState(asked);
+  if (asked !== seenAsk) {
+    setSeenAsk(asked);
+    if (TAB_ALIAS[params.get("tab")]) setTab(TAB_ALIAS[params.get("tab")]);
+    if (params.get("order")) setPick(params.get("order"));
+  }
 
   const arrived = useApi(() => api.waitingArrived(), [tick]);
-  /* ⚠ 예전엔 처음 한 번만 불렀다 — 예약 환자가 와도 「금일 내원 예정」에
-     그대로 남아 있었다. 다른 칸과 같은 박자로 다시 부른다 */
-  const booked = useApi(() => H.soft(api.scheduledToday()), [tick]);
-  const calls = useApi(() => H.soft(api.followups()), [tick]);
-  /* 오늘 온 사람 전부 — 유방외과로 보낸 사람은 내원 대기(arrived)에서
-     빠지므로, 그 사람의 예약까지 거르려면 이것도 봐야 한다 */
+  /* 오늘 온 사람 전부 — 보낸 사람(handed_at)과 선생님별 부하가 여기서 나온다 */
   const came = useApi(() => H.soft(api.todayStatus()), [tick]);
-  const detail = useApi(
-    () => (pick ? api.examOrder(pick) : Promise.resolve(null)), [pick, tick]);
-
+  const staff = useApi(() => H.soft(api.surgeons()), []);
+  /* 문항 말 — 못 부르면 null 이고 화면은 코드 그대로 적는다 */
+  const form = useApi(() => api.questionnaireForm().catch(() => null), []);
   useEffect(() => {
     const t = setInterval(() => setTick((n) => n + 1), POLL_MS);
     return () => clearInterval(t);
@@ -78,12 +97,69 @@ function Inner({ cfg, embedded }) {
 
   /* 유방외과로 보낸 오더는 서버가 뺀다(waitingArrived 의 handed=none) */
   const rows = H.rows(arrived.data);
+  const today = H.rows(came.data);
+  const people = H.rows(staff.data);
+  const lists = useMemo(() => ({
+    q: rows.filter((r) => !hasAnswers(r.questionnaire)),
+    assign: rows.filter((r) => hasAnswers(r.questionnaire)),
+    specimen: today.filter(handed),
+  }), [rows, today]);
+
+  /* 안 고른 탭이면 — 고른 오더가 든 칸, 없으면 일이 있는 첫 칸 */
+  const here = tab
+    ?? (pick && lists.assign.some((r) => String(idOf(r)) === String(pick)) ? "assign"
+      : pick ? "q"
+        : lists.q.length ? "q" : lists.assign.length ? "assign" : "q");
+  const shown = lists[here];
+  /* 아무도 안 골랐으면 **그 탭의 첫 사람**을 편다 — 가운데가 빈 채로 서 있으면
+     창구가 매번 한 번 더 눌러야 했다 */
+  const cur = pick ?? (here !== "specimen" && shown[0] ? idOf(shown[0]) : null);
+  const scur = spick ?? (lists.specimen[0] ? idOf(lists.specimen[0]) : null);
+  const detail = useApi(
+    () => (cur ? api.examOrder(cur) : Promise.resolve(null)), [cur, tick]);
+
+  /* 선생님별 오늘 부하 — 보낸 뒤 아직 외래 차례(stage_code outpatient)인 사람과
+     오늘 보낸 사람 전부. 칩 · 오른쪽 현황판이 같은 수를 쓴다 */
+  const load = useMemo(() => {
+    const m = new Map();
+    for (const r of today.filter(handed)) {
+      const k = String(r.handed_to ?? r.primary_staff ?? "");
+      if (!k) continue;
+      const it = m.get(k) ?? { wait: [], sent: 0, name: r.handed_to_name ?? r.primary_staff_name };
+      it.sent += 1;
+      if (r.stage_code === "outpatient") it.wait.push(r);
+      m.set(k, it);
+    }
+    return m;
+  }, [today]);
+
+  /* 보내고 나면 **다음 사람을 골라 둔다** — 창구가 줄을 다시 누르는 한 걸음을
+     던다. 방금 보낸 사람 자리의 다음, 없으면 앞사람 */
+  function sent(id) {
+    const ids = shown.map(idOf).filter((x) => String(x) !== String(id));
+    const at = shown.findIndex((r) => String(idOf(r)) === String(id));
+    setPick(ids[at] ?? ids[at - 1] ?? null);
+    setTick((n) => n + 1);
+  }
+
+  const srow = here === "specimen"
+    ? lists.specimen.find((r) => String(idOf(r)) === String(scur)) ?? null : null;
+
   const body = (
     <div className="nwait">
-      <Queue state={arrived} rows={rows} pick={pick} onPick={setPick} />
+      {/* 탭을 바꾸면 고른 사람을 놓는다 — 다른 탭 사람이 가운데 남아 있으면 헷갈린다 */}
+      <Queue state={arrived} tab={here} setTab={(t) => { setTab(t); setPick(null); }}
+             lists={lists} people={people}
+             pick={here === "specimen" ? scur : cur}
+             onPick={here === "specimen" ? setSpick : setPick} />
 
       <div className="nwait-mid">
-        {!pick
+        {here === "specimen" ? (
+          srow
+            ? <Specimen key={idOf(srow)} r={srow} people={people} />
+            : <Empty title="왼쪽에서 보낸 환자를 고르세요"
+                     hint="유방외과로 보낸 뒤 검체를 채취하면 여기서 라벨을 확인하고 바인딩합니다" />
+        ) : !cur
           ? <Empty title="왼쪽에서 한 사람을 고르세요" />
           : (
             <Body loading={detail.loading && !detail.data} error={detail.error}
@@ -93,15 +169,16 @@ function Inner({ cfg, embedded }) {
                   사람 칸에 남았다** — 그대로 [적어 두기]를 누르면 남의 메모가
                   이 사람 오더에 들어간다 */}
               {detail.data && (
-                <Detail key={detail.data.exam_order_id ?? detail.data.id}
-                        cfg={cfg} d={detail.data}
-                        onDone={() => { setPick(null); setTick((n) => n + 1); }} />
+                <Detail key={idOf(detail.data)}
+                        cfg={cfg} d={detail.data} form={form.data} people={people}
+                        load={load}
+                        onSent={sent} onSaved={() => setTick((n) => n + 1)} />
               )}
             </Body>
           )}
       </div>
 
-      <Side booked={booked} arrived={arrived} came={came} calls={calls} />
+      <Load people={people} load={load} lists={lists} />
     </div>
   );
 
@@ -110,39 +187,45 @@ function Inner({ cfg, embedded }) {
   );
 }
 
-/* ── 왼쪽 330px — 내원한 대기 환자 ─────────────────────────────
+/* ── 왼쪽 330px — 탭 셋 ────────────────────────────────────────
  * 환자 줄은 세 줄이다(5.2).
  *
  *   박서연  47 · 여  [예약 · 결과 상담]
  *   P-2026-00418 · 09:05 접수
- *   문진 중                                    ← 어디까지 왔나
+ *   문진 완료 · 배정 대기                        ← 어디까지 왔나
  *
- * ⚠ **셋째 줄에 검사 진행 점(`MG ● US ○ …`)을 못 찍는다.** 5.2 가 거기
- *   네 모달리티를 찍으라고 하지만 이 목록 응답에 그 값이 없다 — 열쇠가
- *   status · visit_type · visited_at · followup_id 넷뿐이다. 게다가 이
- *   큐는 **촬영 전 환자만** 모으므로 넷이 다 ○ 로 똑같아져서 줄끼리
- *   구분도 안 된다. 그래서 그 자리에 **서버가 준 status 를 그대로** 둔다.
- * ⚠ **status 를 옮겨 부르지 않는다.** 「문진 중」을 「문진 대기」로 바꿔
- *   적으면 서버가 단계를 하나 늘렸을 때 그 줄이 거짓말을 한다.
+ * ⚠ **셋째 줄에 검사 진행 점을 못 찍는다.** 이 큐는 촬영 전 환자만 모아서
+ *   네 모달리티가 다 ○ 로 같아진다 — 문진 유무를 적는다(홈 현황판과 같은 기준).
  */
-function Queue({ state, rows, pick, onPick }) {
+function Queue({ state, tab, setTab, lists, people, pick, onPick }) {
+  const rows = lists[tab];
+  const nameOf = (id) => {
+    const s = people.find((p) => String(staffId(p)) === String(id));
+    return s ? staffName(s) : null;
+  };
   return (
     <section className="nwait-q">
-      <header className="bcol-h">
-        <i className="hdot" aria-hidden="true" />
-        <b>내원한 대기 환자</b>
-        <em>{rows.length}</em>
-        <span className="home-fill" />
-        <span className="hcard-k">접수 순 · 순서 고정</span>
-      </header>
+      <nav className="qtabs" aria-label="대기 구분">
+        {TABS.map((t) => (
+          <button type="button" key={t.key} className={`qtab${t.key === tab ? " on" : ""}`}
+                  aria-pressed={t.key === tab} onClick={() => setTab(t.key)}>
+            {t.label} <i>{lists[t.key].length}</i>
+          </button>
+        ))}
+      </nav>
       <Body loading={state.loading && !state.data} error={state.error}
             onRetry={state.reload}
-            empty={rows.length === 0 && <Empty title="내원한 대기 환자가 없습니다" />}>
+            empty={rows.length === 0 && (
+              <Empty title={{ q: "문진을 기다리는 환자가 없습니다",
+                              assign: "배정을 기다리는 환자가 없습니다",
+                              specimen: "오늘 유방외과로 보낸 환자가 없습니다" }[tab]} />
+            )}>
         <div className="nwait-q-b">
           {rows.map((r, i) => {
-            const id = r.exam_order_id ?? r.id;
+            const id = idOf(r);
+            const on = String(id) === String(pick);
             return (
-              <article key={id} className={`nrow${id === pick ? " on" : ""}`}
+              <article key={id} className={`nrow${on ? " on" : ""}`}
                        role="button" tabIndex={0}
                        onClick={() => onPick(id)}
                        onKeyDown={(e) => { if (e.key === "Enter") onPick(id); }}>
@@ -155,17 +238,23 @@ function Queue({ state, rows, pick, onPick }) {
                   </span>
                   <span className="nrow-2">
                     {H.noOf(r) && <i>{H.noOf(r)}</i>}
-                    {/* ⚠ 경과 시간이 아니라 접수 시각이다 */}
-                    {H.at(r.visited_at) && <time>{H.at(r.visited_at)} 접수</time>}
+                    {/* ⚠ 경과 시간이 아니라 접수 · 보낸 시각이다 */}
+                    {tab === "specimen"
+                      ? H.at(r.handed_at) && <time>{H.at(r.handed_at)} 보냄</time>
+                      : H.at(r.visited_at) && <time>{H.at(r.visited_at)} 접수</time>}
                   </span>
-                  {/* ⚠ 2026-09-27 — ExamOrderSerializer 에 status · followup_id 는
-                      없다. 모델 필드 그대로 order_status · followup 이다. 예전
-                      이름으로 읽어 이 줄이 늘 「단계를 못 받았습니다」였다.
-                      order_status 는 이 큐에서 늘 requested 라 가르는 힘이
-                      없어서, 홈·접수 현황판과 같은 기준(문진 유무)으로 적는다 */}
                   <span className="nrow-3">
-                    <span>{r.questionnaire ? "문진 완료 · 배정 대기" : "문진 대기"}</span>
-                    {r.followup && <span>추적 관찰 건</span>}
+                    {tab === "specimen" ? (
+                      <>
+                        <span>→ {r.handed_to_name ?? nameOf(r.handed_to) ?? r.primary_staff_name ?? "유방외과"}</span>
+                        {r.stage_detail && <span>{r.stage_detail}</span>}
+                      </>
+                    ) : (
+                      <>
+                        <span>{hasAnswers(r.questionnaire) ? "문진 완료 · 배정 대기" : "문진 대기"}</span>
+                        {r.followup && <span>추적 관찰 건</span>}
+                      </>
+                    )}
                   </span>
                 </span>
               </article>
@@ -177,15 +266,45 @@ function Queue({ state, rows, pick, onPick }) {
   );
 }
 
-/* ── 가운데 — 고른 환자 ────────────────────────────────────────
- * 머리(누구인가) · 방문 정보 · 문진 · 유방외과 의사 배정 · 바닥 줄.
+/* ── 문진 ────────────────────────────────────────────────────────
+ * 저장 모양은 {form_version, answers:{코드: 선택지 id}} 다(서버 questionnaire.py).
+ * 옛 자료는 {문항: 값} 을 통째로 들고 있다 — 둘 다 읽는다.
  *
- * ⚠ **문진은 읽기 전용이다.** 환자가 앱에서 낸 것을 그대로 본다 —
- *   항목이 환자마다 달라서 고정 입력칸으로 안 만든다.
+ * ⚠ **⚠ 표시 기준 — 답이 「yes」(있다)인 문항.** v1 의 예 문항(증상 · 가족력 ·
+ *   수술 이력)은 다 「있다」가 주의할 쪽이다. 정의가 `warn` 을 주면 그것을
+ *   먼저 본다 — 문항이 늘어 「있다」가 괜찮은 쪽인 문항이 생기면 거기서 가른다.
  */
-function Detail({ cfg, d, onDone }) {
+function answersOf(q) {
+  if (!q || typeof q !== "object") return null;
+  const a = q.answers && typeof q.answers === "object" ? q.answers : q;
+  const out = Object.fromEntries(Object.entries(a).filter(([k]) => k !== "form_version"));
+  return Object.keys(out).length ? out : null;
+}
+const hasAnswers = (q) => answersOf(q) != null;
+
+function questionsOf(form) {
+  const list = Array.isArray(form) ? form : form?.questions ?? form?.items ?? [];
+  return Array.isArray(list) ? list : [];
+}
+
+function qaRows(answers, form) {
+  const defs = new Map(questionsOf(form).map((q) => [q.code, q]));
+  return Object.entries(answers ?? {}).map(([code, val]) => {
+    const q = defs.get(code);
+    const opt = (q?.options ?? []).find((o) => String(o.id) === String(val));
+    const warn = q?.warn != null
+      ? [].concat(q.warn).map(String).includes(String(val))
+      : String(val) === "yes";
+    return { code, label: q?.text ?? code, value: opt?.text ?? String(val), warn };
+  }).sort((a, b) => Number(b.warn) - Number(a.warn));
+}
+
+/* ── 가운데 — 고른 환자 ────────────────────────────────────────
+ * 머리(누구인가) · 방문 정보 · 문진 · 간호 메모 · **바닥 줄 = 배정과 보내기**.
+ */
+function Detail({ cfg, d, form, people, load, onSent, onSaved }) {
   const api = cfg.api;
-  const id = d.exam_order_id ?? d.id;
+  const id = idOf(d);
   const patientId = d.patient ?? d.patient_id;
 
   const full = useApi(
@@ -198,12 +317,13 @@ function Detail({ cfg, d, onDone }) {
   const [msg, setMsg] = useState(null);
   const [modal, setModal] = useState(null);
   const [bound, setBound] = useState(null);
+  const [paper, setPaper] = useState(false);
 
   const mayNote = can("nursing.waiting.assign");
   const mayAssign = can("nursing.waiting.assign");
   const allergy = H.allergy(p ?? d);
-  const answers = d.questionnaire?.answers ?? d.questionnaire ?? null;
-  const qs = answers && typeof answers === "object" ? Object.entries(answers) : [];
+  const answers = answersOf(d.questionnaire);
+  const qs = qaRows(answers, form);
 
   async function save() {
     setSaving(true);
@@ -248,23 +368,46 @@ function Detail({ cfg, d, onDone }) {
             <div><dt>방문 구분</dt><dd>{d.visit_type ?? "—"}</dd></div>
             <div><dt>연락처</dt><dd>{p?.pii?.phone ?? "—"}</dd></div>
             <div><dt>알레르기</dt><dd>{allergy ?? "표시 없음"}</dd></div>
-            {/* ⚠ 「지난 검사」는 이 응답에 없다. 환자 상세가 그 자리다 */}
             <div><dt>접수 메모</dt><dd>{d.order_note || "—"}</dd></div>
           </dl>
-          <Btn to={go.patient(patientId)}>환자 상세</Btn>
+          <div className="rowb">
+            {/* 검체는 보통 보낸 뒤(검체 확인 탭)다. 채취를 먼저 한 날을 위해 둔다 */}
+            <Btn onClick={() => { setBound(null); setModal("specimen"); }}>검체 바인딩</Btn>
+            <Btn to={go.patient(patientId)}>환자 상세</Btn>
+          </div>
+          {bound && <span className="hcard-k" role="status">{bound}</span>}
         </section>
 
         <section className="ndet-box">
-          <h3>문진{qs.length > 0 && <Chip>작성 완료</Chip>}</h3>
-          {qs.length === 0
-            ? <Empty title="받은 문진이 없습니다" />
-            : (
-              <dl className="kv">
-                {qs.map(([k, v]) => (
-                  <div key={k}><dt>{k}</dt><dd>{String(v)}</dd></div>
-                ))}
-              </dl>
-            )}
+          <h3>
+            문진
+            {answers ? <Chip>{d.questionnaire?.form_version ? "앱 · 창구 문진" : "작성 완료"}</Chip>
+              : <Chip>없음</Chip>}
+          </h3>
+          {paper ? (
+            <Paper cfg={cfg} pid={patientId} form={form}
+                   onClose={() => setPaper(false)}
+                   onDone={() => { setPaper(false); onSaved(); }} />
+          ) : qs.length === 0 ? (
+            <>
+              <p className="hcard-k">앱으로 낸 문진이 없습니다 — 종이 문진을 받았다면 옮겨 적습니다.</p>
+              <Btn onClick={() => setPaper(true)} disabled={!can(["nursing.waiting.assign", "reception.intake.view"])}>
+                종이 문진 입력
+              </Btn>
+            </>
+          ) : (
+            <dl className="kv nqa">
+              {qs.map((r) => (
+                <div key={r.code} className={r.warn ? "warn" : undefined}>
+                  <dt>{r.warn && <i aria-hidden="true">⚠ </i>}{r.label}</dt>
+                  <dd>{r.value}</dd>
+                </div>
+              ))}
+            </dl>
+          )}
+          {!paper && qs.length > 0 && !form && (
+            <span className="hcard-k">문항 정의를 못 불러 코드로 적었습니다</span>
+          )}
         </section>
 
         <section className="ndet-box wide">
@@ -278,23 +421,13 @@ function Detail({ cfg, d, onDone }) {
             </Btn>
           </div>
         </section>
-
-        {/* ⚠ picked 는 **환자의 주치의(primary_staff)** 다. 예전엔 오더의
-            assigned_to 를 넘겼는데 그건 영상의학과 의사 칸이라 유방외과 명단과
-            맞을 일이 없었다. 상세가 늦게 오므로 key 로 다시 세운다 */}
-        <Assign key={`${id}-${p?.primary_staff ?? ""}`}
-                cfg={cfg} orderId={id} patient={patient} picked={p?.primary_staff}
-                may={mayAssign} onDone={onDone} />
       </div>
 
-      <footer className="ndet-f">
-        <Btn onClick={() => { setBound(null); setModal("specimen"); }}>검체 바인딩</Btn>
-        {/* 등록하고 팝업만 닫히면 됐는지 안 됐는지 모른다 — 한 줄 남긴다 */}
-        {bound && <span className="hcard-k" role="status">{bound}</span>}
-        <span className="home-fill" />
-        {/* ⚠ 되돌릴 수 없다 — 9장이 남기라고 한 두 문구 중 하나다 */}
-        <span className="hcard-k">보내면 그 의사의 「내 환자」에만 뜹니다</span>
-      </footer>
+      {/* ⚠ picked 는 **환자의 주치의(primary_staff)** 다 — 재진이면 미리 골라
+          둔다. 상세가 늦게 오므로 key 로 다시 세운다 */}
+      <Assign key={`${id}-${p?.primary_staff ?? ""}`}
+              cfg={cfg} orderId={id} picked={p?.primary_staff} people={people}
+              load={load} may={mayAssign} onSent={() => onSent(id)} />
 
       {modal === "specimen" && (
         <SpecimenBindingModal patient={patient} onClose={() => setModal(null)}
@@ -304,133 +437,245 @@ function Detail({ cfg, d, onDone }) {
   );
 }
 
-/* ── 유방외과 의사 배정 ────────────────────────────────────────
- * 목업은 라디오 카드다 — 고르면 그 자리에서 보낸다. 팝업을 띄우지 않는다.
- *
- * ⚠ **되돌릴 수 없다.** 고른 사람이 주치의가 되고 그 뒤로는 그 의사의
- *   화면에만 뜬다. 그래서 고르는 것과 보내는 것을 두 걸음으로 나눈다.
- * ⚠ **「지금 대기 n명」은 못 적는다.** 목록 응답에 primary_staff 가 없어
- *   누가 누구 환자인지 모른다(8장 10번).
+/* ── 종이 문진 옮겨 적기 ─────────────────────────────────────────
+ * 앱을 안 쓰는 분이 종이에 적어 온 것을 창구가 옮긴다. 서버가 환자 캐시와
+ * **오늘 방문 오더** 둘 다에 쓴다 — 그래서 접수 줄이 「배정 대기」로 넘어간다.
+ * ⚠ 문항 정의가 없으면 칸을 못 세운다. 코드를 손으로 치게 하지 않는다.
+ * ⚠ 덜 채워도 저장된다(서버 validate) — 모르는 칸은 비워 둔다.
  */
-function Assign({ cfg, orderId, patient, picked, may, onDone }) {
-  const staff = useApi(() => H.soft(cfg.api.surgeons()), []);
-  const people = H.rows(staff.data);
-  const [who, setWho] = useState(picked ?? null);
+function Paper({ cfg, pid, form, onClose, onDone }) {
+  const qs = questionsOf(form).filter((q) => q.active !== false);
+  const [ans, setAns] = useState({});
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
 
-  async function send() {
-    if (!who) return;
-    setBusy(true);
-    setErr(null);
+  if (qs.length === 0) {
+    return (
+      <>
+        <p className="note err">문항 정의를 못 불러 입력 칸을 세울 수 없습니다.</p>
+        <Btn onClick={onClose}>닫기</Btn>
+      </>
+    );
+  }
+
+  async function save() {
+    setBusy(true); setErr(null);
     try {
-      /* ⚠ 오더 번호로 보낸다 — 서버가 오더에 인계를 남기고 주치의도 바꾼다 */
-      await cfg.api.handoff(orderId, who);
-      onDone?.();
+      await cfg.api.saveQuestionnaire(pid, ans);
+      onDone();
     } catch (e) { setErr(e.detail || e.message); }
     finally { setBusy(false); }
   }
 
   return (
-    <section className="ndet-box wide">
-      <h3>유방외과 의사 배정</h3>
+    <div className="npaper">
+      {qs.map((q) => (
+        <div className="npaper-q" key={q.code}>
+          <span>{q.text ?? q.code}</span>
+          <div className="work-seg narrow" role="radiogroup" aria-label={q.text ?? q.code}>
+            {(q.options ?? []).map((o) => (
+              <button type="button" key={o.id} role="radio"
+                      aria-checked={ans[q.code] === o.id}
+                      className={`work-opt${ans[q.code] === o.id ? " on" : ""}`}
+                      onClick={() => setAns((a) => ({ ...a, [q.code]: o.id }))}>
+                {o.text ?? o.id}
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+      {err && <p className="note err">{err}</p>}
+      <div className="rowb">
+        <Btn onClick={onClose} disabled={busy}>그만</Btn>
+        <Btn kind="fill" onClick={save} disabled={busy || Object.keys(ans).length === 0}>
+          {busy ? "저장하는 중…" : "문진 저장"}
+        </Btn>
+      </div>
+    </div>
+  );
+}
+
+/* ── 바닥 줄 — 유방외과 의사 배정 ────────────────────────────────
+ * 칩을 고르고 [보내기]. 팝업을 띄우지 않는다.
+ *
+ * ⚠ **되돌릴 수 없다.** 고른 사람이 주치의가 되고 그 뒤로는 그 의사의
+ *   화면에만 뜬다. 그래서 고르는 것과 보내는 것을 두 걸음으로 나눈다.
+ * 칩의 「대기 n」은 today-status 의 handed_to 로 센 **보낸 뒤 아직 외래
+ * 차례인 사람** 수다 — 한쪽으로 몰리는지 보고 고른다.
+ */
+function Assign({ cfg, orderId, picked, people, load, may, onSent }) {
+  const [who, setWho] = useState(picked ?? null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+
+  async function send() {
+    if (!who || busy) return;
+    setBusy(true);
+    setErr(null);
+    try {
+      /* ⚠ 오더 번호로 보낸다 — 서버가 오더에 인계를 남기고 주치의도 바꾼다 */
+      await cfg.api.handoff(orderId, who);
+      onSent?.();
+    } catch (e) { setErr(e.detail || e.message); setBusy(false); }
+  }
+
+  return (
+    <footer className="ndet-f nassign">
+      {/* 칸 이름을 단다 — 칩만 늘어서 있으면 「무엇을 고르는 줄」인지 안 읽힌다(09-28) */}
+      <div className="nassign-h">
+        <b>담당 의사 배정</b>
+        <span className="hcard-k">선생님을 고른 뒤 보냅니다 · 숫자는 그 선생님 앞에 지금 기다리는 환자 수</span>
+      </div>
       {people.length === 0
-        ? <Empty title="의사 명단을 못 불렀습니다" />
+        ? <span className="hcard-k">유방외과 의사 명단을 못 불렀습니다</span>
         : (
-          <div className="ndocs">
+          <div className="ndocs" role="radiogroup" aria-label="유방외과 의사">
             {people.map((s) => {
-              const id = s.staff_id ?? s.id;
+              const id = staffId(s);
+              const on = String(id) === String(who);
+              const l = load.get(String(id));
               return (
-                <button type="button" key={id} disabled={!may}
-                        className={`ndoc${id === who ? " on" : ""}`}
-                        aria-pressed={id === who}
+                <button type="button" key={id} disabled={!may} role="radio"
+                        className={`ndoc${on ? " on" : ""}`} aria-checked={on}
                         onClick={() => setWho(id)}>
                   <i aria-hidden="true" />
-                  <b>{s.full_name ?? s.name ?? `직원 ${id}`}</b>
+                  <b>{staffName(s)}</b>
+                  <em>대기 {l?.wait.length ?? 0}</em>
                 </button>
               );
             })}
           </div>
         )}
-      {err && <p className="note err">{err}</p>}
-      <div className="rowb">
+      <div className="nassign-go">
+        {err ? <p className="note err">{err}</p>
+          /* ⚠ 되돌릴 수 없다 — 9장이 남기라고 한 두 문구 중 하나다 */
+          : <span className="hcard-k">보내면 되돌릴 수 없습니다 — 그 의사의 「내 환자」에만 뜹니다</span>}
+        <span className="home-fill" />
         <Btn kind="fill" onClick={send} disabled={!who || busy || !may}>
           {busy ? "보내는 중…" : "유방외과 큐로 보내기"}
         </Btn>
       </div>
-    </section>
+    </footer>
   );
 }
 
-/* ── 오른쪽 380px — 곁에 두고 보는 것 셋 ───────────────────────
- * 금일 내원 예정 · 오늘 추적 콜 · 검체 바인딩 필요.
+/* ── 가운데(검체 확인 탭) — 보낸 환자의 검체 ─────────────────────
+ * ⚠ **누가 검체가 필요한지는 모른다.** 채취는 유방외과 진료 뒤에 정해지고
+ *   「채취했는데 안 이은 것」을 거르는 경로가 서버에 없다. 그래서 오늘 보낸
+ *   사람을 전부 두고, 이 환자에게 이미 이은 검체를 같이 보여 판단하게 한다.
  */
-function Side({ booked, arrived, came, calls }) {
-  /* 이미 접수한 사람은 「금일 내원 예정」에서 뺀다(H.notYetCame) */
-  const waiting = H.notYetCame(H.rows(booked.data), H.rows(arrived.data), H.rows(came.data));
-  /* 끝난 회차는 뺀다(H.openFollowup) */
-  const due = H.rows(calls.data)
-    .filter((r) => H.openFollowup(r) && H.dueBucket(r.due_at) === "today");
+function Specimen({ r, people }) {
+  const pid = r.patient_id ?? r.patient;
+  const list = useApi(() => (pid != null ? H.soft(specApi.list(pid)) : Promise.resolve([])), [pid]);
+  const [modal, setModal] = useState(false);
+  const [msg, setMsg] = useState(null);
+  const items = H.rows(list.data);
+  const to = r.handed_to_name
+    ?? people.map((s) => (String(staffId(s)) === String(r.handed_to) ? staffName(s) : null)).find(Boolean)
+    ?? r.primary_staff_name;
+  const patient = { patient_id: pid, name: H.nameOf(r), age: r.age, sex: r.sex,
+                    patient_number: H.noOf(r) };
+
+  return (
+    <>
+      <header className="ndet-h">
+        <span className="ndet-ava" aria-hidden="true">{H.nameOf(r)[0]}</span>
+        <span className="ndet-who">
+          <span className="ndet-1"><b>{H.nameOf(r)}</b>{H.who(r) && <span>{H.who(r)}</span>}</span>
+          <span className="ndet-2">
+            {[H.noOf(r), to && `→ ${to}`, H.at(r.handed_at) && `${H.at(r.handed_at)} 보냄`]
+              .filter(Boolean).join(" · ")}
+          </span>
+        </span>
+        <span className="home-fill" />
+        {r.stage_detail && <Chip>{r.stage_detail}</Chip>}
+      </header>
+      <div className="ndet-b one">
+        <section className="ndet-box wide">
+          <h3>이 환자에게 이은 검체 <Chip>{items.length}</Chip></h3>
+          <Body loading={list.loading && !list.data} error={list.error} onRetry={list.reload}
+                empty={items.length === 0 && <p className="hcard-k">아직 이은 검체가 없습니다</p>}>
+            <dl className="kv">
+              {items.map((s, i) => (
+                <div key={s.specimen_id ?? s.id ?? i}>
+                  <dt>{s.specimen_label ?? s.label ?? `검체 ${i + 1}`}</dt>
+                  <dd>{[s.specimen_type, s.status, H.day(s.collected_at)].filter(Boolean).join(" · ")}</dd>
+                </div>
+              ))}
+            </dl>
+          </Body>
+          <p className="hcard-k">
+            채취 여부는 유방외과 진료에서 정해집니다 — 라벨을 확인하고 이어야 병리 큐로 넘어갑니다.
+          </p>
+        </section>
+      </div>
+      <footer className="ndet-f">
+        {msg && <span className="hcard-k" role="status">{msg}</span>}
+        <span className="home-fill" />
+        <Btn to={go.patient(pid)}>환자 상세</Btn>
+        <Btn kind="fill" onClick={() => { setMsg(null); setModal(true); }}
+             disabled={!can(["nursing.waiting.assign", "nursing.waiting.view"])}>검체 바인딩</Btn>
+      </footer>
+      {modal && (
+        <SpecimenBindingModal patient={patient} onClose={() => setModal(false)}
+                              onDone={() => { setModal(false); setMsg("검체를 등록했습니다"); list.reload(true); }} />
+      )}
+    </>
+  );
+}
+
+/* ── 오른쪽 380px — 배정 현황(오늘) ─────────────────────────────
+ * 선생님마다 **지금 외래 차례로 기다리는 사람**과 오늘 보낸 수. 맨 아래는
+ * 아직 안 보낸 사람(미배정 — 왼쪽 두 탭).
+ * ⚠ 09-28 전에는 「금일 내원 예정 · 오늘 추적 콜」을 두었다 — 홈과 같은 줄이라
+ *   뺐다. 「검체 바인딩 필요」 칸은 늘 비어 있어서 왼쪽 검체 확인 탭이 됐다.
+ */
+function Load({ people, load, lists }) {
+  const known = new Set(people.map((s) => String(staffId(s))));
+  /* 명단에 없는데 보낸 기록이 있는 사람(퇴사 · 다른 과 등)도 줄을 세운다 */
+  const extra = [...load.entries()].filter(([k]) => !known.has(k));
+  const rows = [
+    ...people.map((s) => ({ key: String(staffId(s)), name: staffName(s), l: load.get(String(staffId(s))) })),
+    ...extra.map(([k, l]) => ({ key: k, name: l.name ?? `직원 ${k}`, l })),
+  ];
+  const none = lists.q.length + lists.assign.length;
 
   return (
     <div className="nwait-side">
       <section className="nside">
         <header className="bcol-h">
           <i className="hdot ring" aria-hidden="true" />
-          <b>금일 내원 예정</b>
-          <em>{waiting.total ?? waiting.length}</em>
+          <b>배정 현황(오늘)</b>
           <span className="home-fill" />
-          <span className="hcard-k">아직 안 온 사람</span>
+          <span className="hcard-k">외래 대기 · 오늘 보냄</span>
         </header>
         <div className="nside-b">
-          {waiting.length === 0
-            ? <p className="hcard-k hpad">남은 예약이 없습니다</p>
-            : waiting.map((r) => (
-              <p className="nside-row" key={r.exam_order_id ?? r.id}>
-                <time>{H.at(r.scheduled_at)}</time>
-                <b>{H.nameOf(r)}</b>
-                {H.who(r) && <span>{H.who(r)}</span>}
+          {rows.length === 0 && <p className="hcard-k hpad">의사 명단을 못 불렀습니다</p>}
+          {rows.map(({ key, name, l }) => (
+            <div className="nload" key={key}>
+              <p className="nside-row">
+                <b>{name}</b>
                 <span className="home-fill" />
-                {r.visit_type && <Chip>{r.visit_type}</Chip>}
+                <span>대기 <em>{l?.wait.length ?? 0}</em></span>
+                <span>오늘 <em>{l?.sent ?? 0}</em></span>
               </p>
-            ))}
+              {l?.wait.length > 0 && (
+                <p className="nload-who">{l.wait.map((r) => H.nameOf(r)).join(" · ")}</p>
+              )}
+            </div>
+          ))}
+          <div className="nload none">
+            <p className="nside-row">
+              <b>미배정</b>
+              <span className="home-fill" />
+              <span>문진 <em>{lists.q.length}</em></span>
+              <span>배정 <em>{lists.assign.length}</em></span>
+            </p>
+            <p className="nload-who">
+              {none === 0 ? "보낼 사람이 없습니다" : "왼쪽 문진 · 배정 탭의 환자입니다"}
+            </p>
+          </div>
         </div>
-      </section>
-
-      <section className="nside">
-        <header className="bcol-h">
-          <i className="hdot ring" aria-hidden="true" />
-          <b>오늘 추적 콜</b>
-          <em>{due.length}</em>
-          <span className="home-fill" />
-          <Btn to={go.nursing.followups()}>추적 관리</Btn>
-        </header>
-        <div className="nside-b">
-          {due.length === 0
-            ? <p className="hcard-k hpad">오늘 걸 콜이 없습니다</p>
-            : due.map((r) => (
-              <p className="nside-row" key={r.followup_id ?? `c-${r.patient}`}>
-                <b>{H.nameOf(r)}</b>
-                <span>{r.round_no}회차</span>
-                <span className="home-fill" />
-                {r.call_result && <Chip>{r.call_result}</Chip>}
-              </p>
-            ))}
-        </div>
-      </section>
-
-      <section className="nside">
-        <header className="bcol-h">
-          <i className="hdot ring" aria-hidden="true" />
-          <b>검체 바인딩 필요</b>
-        </header>
-        {/* ⚠ **셀 수가 없다.** 「채취는 끝났는데 병변에 연결 안 된 검체」를
-            거르는 경로가 서버에 없다 — 병리 큐는 이미 바인딩된 것만 준다
-            (status=bound). 칸은 두고 무엇이 없어서 비었는지 적는다 */}
-        <p className="hcard-k hpad">
-          아직 못 셉니다 — 연결 안 된 검체를 거르는 경로가 없습니다.
-          바인딩은 환자를 고른 뒤 아래 [검체 바인딩] 으로 합니다.
-        </p>
       </section>
     </div>
   );

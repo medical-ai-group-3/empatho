@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { breast as api } from "../../../api";
 import { useApi } from "../../../lib/useApi";
 import { Page, Btn } from "../../../lib/Page";
@@ -7,26 +7,35 @@ import { Body, Empty } from "../../../lib/Body";
 import { Chip, useCan } from "../../../lib/Parts";
 import { go } from "../../../nav";
 import * as H from "../../home";
+import "../breast.css";
+import ReviewViewer from "../components/ReviewViewer";
+import ImagePopup from "../components/ImagePopup";
 
 /* 유방외과 · 불일치 처분 — `docs/mockup/SurgeryDiscordance.html`
  * ════════════════════════════════════════════════════════════════
  *
- * 영상과 병리가 엇갈린 건만 모인다. 왼쪽에 엇갈린 목록, 오른쪽에 처분.
+ * 영상과 병리가 엇갈린 건만 모인다. 왼쪽에 엇갈린 것, 오른쪽에 처분.
  *
  *   ┌ 1fr ─────────────────────────┬ 380px ─────────┐
- *   │ 환자 │번호│영상 │병리 │ [처분]│ 김민지 · 처분  │
- *   │ ──────────────────────────── │ ○ 재생검       │
- *   │ 김민지 … 4(악성 의심) 양성    │ ○ 절제         │
- *   │                              │ ○ 관찰         │
- *   │                              │ [처분 확정]    │
+ *   │ 김민지 47·여   [영상 확인][상세]│ 처분            │
+ *   │ 규칙 한 줄                    │ ○ 재조직검사    │
+ *   │ ┌영상 판독────┬병리 판독────┐  │ ○ 수술적 절제   │
+ *   │ └─────────────┴─────────────┘  │ ○ 종결          │
+ *   │ 처분 기다리는 불일치 (내 담당)  │ 판단 근거       │
+ *   │  · 김민지 …   보는 중          │                 │
+ *   │  · 오세라 …   ›                │ [처분 확정]     │
  *   └──────────────────────────────┴────────────────┘
  *
  * ⚠ **「판독 후 3일」을 안 쓴다.** 목업 표의 그 칸은 경과 시간이다.
  *   대신 판독 날짜를 적는다 — 언제 났는지는 서버가 준다.
- * ⚠ **목록은 이 건 하나다.** 서버에 `GET /discordances`(전체 목록)가
- *   있지만 api.js 에 없고 새 경로는 안 판다. 대신 주소로 들어온 한 건을
- *   펴 놓고, 나머지는 「내 환자」의 불일치 탭이 센다 — 거기가 목록이다.
+ * 왼쪽 아래에 **내 담당의 열린 불일치 목록**을 둔다(09-28). 전에는 주소로
+ *   들어온 한 건뿐이라 그 아래가 통째로 비었고, 다음 건을 찾으려면 대기
+ *   환자로 돌아가야 했다. GET /discordances?status=open&primary_staff=me —
+ *   옛 서버가 primary_staff 를 모르면 과 전체 열린 것으로 물러난다(api.js).
+ *   ⚠ 주소 없이 여는 목록 화면은 없다 — 경로(nav.js)가 한 건짜리뿐이다.
  * ⚠ **되돌릴 수 없다.** 처분하면 flag 가 닫히고 치료 방침 결정이 열린다.
+ *   그래서 처분하면 **같은 환자의 치료 방침(수술 여부 칸)** 으로 간다 —
+ *   전에는 대기 환자로 돌아가서, 방금 열린 결정을 다시 찾아 들어가야 했다.
  */
 /* ⚠ **서버가 받는 값만 둔다** — DISPOSITION_TYPE 은 셋이다
      (rebiopsy · excision · no_action, models.py).
@@ -47,17 +56,21 @@ export default function Discordance() {
   return (
     <Page className="disc-page" crumb={["유방외과", "불일치 처분"]}
           title="불일치 처분"
-          right={<Btn to={go.breast.waiting()}>내 환자</Btn>}>
+          right={<Btn to={go.breast.waiting()}>대기 환자</Btn>}>
       <Body loading={one.loading && !one.data} error={one.error} onRetry={one.reload}>
         {one.data && (
           <div className="disc">
-            <Compare d={one.data} />
+            <Compare key={one.data.discordance_id} d={one.data} />
             {/* ⚠ **처분 여부는 closed_at 이다.** flag_status 에는 "open" 이란
                 값이 아예 없어서(pass·sev1·sev2·review·unbindable) 이 판단이
                 늘 참이었다 — 어느 건을 열어도 「이미 처분된 건입니다」였다
                 (09-23 확인). 서버가 열린 것을 고르는 기준도 closed_at 이다 */}
-            <Dispose d={one.data} done={Boolean(one.data.closed_at)}
-                     onDone={() => nav(go.breast.waiting())} />
+            <Dispose key={`d-${one.data.discordance_id}`} d={one.data}
+                     done={Boolean(one.data.closed_at)}
+                     onDone={() => {
+                       const pid = one.data.patient?.patient_id ?? one.data.patient_id;
+                       nav(pid != null ? go.breast.decision(pid, "decision") : go.breast.waiting());
+                     }} />
           </div>
         )}
       </Body>
@@ -68,8 +81,10 @@ export default function Discordance() {
 /* 왼쪽 — 무엇이 엇갈렸나. 두 판독을 나란히 놓는다 */
 function Compare({ d }) {
   const p = d.patient ?? {};
+  const pid = p.patient_id ?? d.patient_id;
   const rad = d.radiology_reading ?? {};
   const pat = d.pathology_reading ?? {};
+  const [seeing, setSeeing] = useState(false);
 
   return (
     <div className="disc-l">
@@ -85,6 +100,9 @@ function Compare({ d }) {
               && ` · ${d.lesion.measured_size_mm ?? d.lesion.ai_size_mm ?? d.lesion.size_mm}mm`}
           </Chip>
         )}
+        {/* 유방외과는 판독 화면 권한이 없다 — 영상 · 병리를 보는 길은 이 팝업 */}
+        {pid != null && <Btn onClick={() => setSeeing(true)}>영상 확인</Btn>}
+        {pid != null && <Btn to={go.breast.review(pid)}>환자 상세</Btn>}
       </header>
 
       {/* 규칙이 무엇을 걸었는지 — 사람이 읽는 한 줄이다 */}
@@ -94,6 +112,15 @@ function Compare({ d }) {
         <Side title="영상 판독" r={rad} big={rad.assessment} />
         <Side title="병리 판독" r={pat} big={pat.assessment} />
       </div>
+
+      <MyOpen here={d.discordance_id} />
+
+      {seeing && (
+        <ImagePopup name={H.nameOf(p)} onClose={() => setSeeing(false)}>
+          <ReviewViewer patientId={pid}
+                        specimenIds={[d.lesion?.specimen_id].filter((x) => x != null)} />
+        </ImagePopup>
+      )}
     </div>
   );
 }
@@ -109,6 +136,43 @@ function Side({ title, r, big }) {
       <b className="disc-big">{big ?? "아직 없습니다"}</b>
       {r.finding && <p className="disc-find">{r.finding}</p>}
       {r.assessor && <span className="hcard-k">{r.assessor}</span>}
+    </section>
+  );
+}
+
+/* 내 담당의 열린 불일치 — 다음 건으로 바로 간다. 지금 보는 건은 표시만 */
+function MyOpen({ here }) {
+  const list = useApi(() => api.myDiscordances(), []);
+  const rows = list.data ?? [];
+  return (
+    <section className="bf-odds">
+      <header className="bcol-h">
+        <i className="hdot ring" aria-hidden="true" />
+        <b>처분 기다리는 불일치</b>
+        <em>{rows.length}</em>
+      </header>
+      <Body loading={list.loading && !list.data} error={list.error} onRetry={list.reload}>
+        {rows.length === 0
+          ? <p className="hcard-k hpad">열린 불일치가 없습니다</p>
+          : (
+            <ul className="bf-odds-l">
+              {rows.map((r) => {
+                const on = String(r.discordance_id) === String(here);
+                return (
+                  <li key={r.discordance_id}>
+                    <Link to={go.breast.discordance(r.discordance_id)}
+                          className={on ? "on" : undefined} aria-current={on || undefined}>
+                      <b>{r.patient_name ?? r.patient?.name ?? H.nameOf(r)}</b>
+                      <span>{r.violated_rule ?? r.summary ?? "—"}</span>
+                      <time>{H.day(r.created_at) ?? ""}</time>
+                      <i aria-hidden="true">{on ? "보는 중" : "›"}</i>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+      </Body>
     </section>
   );
 }
@@ -139,10 +203,17 @@ function Dispose({ d, done, onDone }) {
   }
 
   if (done) {
+    const pid = d.patient?.patient_id ?? d.patient_id;
     return (
       <aside className="disc-r">
         <header className="bcol-h"><i className="hdot" aria-hidden="true" /><b>처분</b></header>
         <Empty title="이미 처분된 건입니다" />
+        {pid != null && (
+          <footer className="disc-f">
+            <span className="home-fill" />
+            <Btn kind="fill" to={go.breast.decision(pid, "decision")}>치료 방침으로 →</Btn>
+          </footer>
+        )}
       </aside>
     );
   }

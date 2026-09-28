@@ -3,38 +3,38 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { Body, Empty } from "../lib/Body";
 import { Btn, Page } from "../lib/Page";
 import { Chip, Locked, useCan } from "../lib/Parts";
+import { Filters, applyFilters, useFilterParams } from "../lib/Filters";
 import { useApi } from "../lib/useApi";
 import { can } from "../perm";
 import { go } from "../nav";
 import { ERR } from "../api";
+import { eventDetail } from "../codes";
 import * as H from "../dept/home";
 
 /* 1장 · 대기 큐 — `docs/mockup/Radiology.html` · `Pathology.html`
  * ════════════════════════════════════════════════════════════════
  *
- * **두 목업이 유방외과 「내 환자」와 같은 껍데기다.**
- *
- *   ┌ 300px ──┬ 1fr ──────────────────┬ 330px ──┬ 248px ─┐
- *   │ 대기 큐  │ 환자 머리              │ 지난 검사│ 상용구 │
- *   │  1 …     │ 이번 검사 / 이 검체    │ 이 환자의│        │
- *   │  2 …     │ AI 참고 소견           │   이력   │        │
- *   │ [집기]   │ [판독 화면으로]        │         │        │
- *   └──────────┴────────────────────────┴─────────┴────────┘
+ *   ┌ 300px ──┬ 1fr ──────────────────┬ 330px ──┐
+ *   │ 대기 큐  │ 환자 머리 · [집기]      │ 지난 검사│
+ *   │  거르기  │ 이번 검사 / 이 검체    │ 이 환자의│
+ *   │  1 …     │  (의뢰 질문이 맨 위)   │   이력   │
+ *   │ [다음 건]│                        │  (누르면 │
+ *   │          │                        │   새 탭) │
+ *   └──────────┴────────────────────────┴─────────┘
  *
  * 가운데만 과마다 다르고 나머지는 제목만 바뀐다. 그래서 껍데기 이름이
  * `work-` 다(hospital.css) — 유방외과·영상·병리 셋이 나눠 쓴다.
  *
+ * ⚠ 09-28 — **상용구 칸과 「AI 참고 소견」 칸을 뺐다**(과 설정으로 켠다:
+ *   queue.phrasesCol · queue.aiNote). 상용구는 소견을 쓰는 판독 화면의
+ *   일이고, AI 칸은 큐에서는 늘 「아직 없습니다」였다 — 촬영 전이라 AI 가
+ *   돌 수가 없다. 늘 빈 칸은 읽을 것 없이 자리만 먹는다.
+ *
  * **여기서 하지 않는 일**
  *   · 순서 바꾸기 — 순번은 표시 전용이다. 여럿이 보는 큐라 내가 끌어
- *     옮기면 나만 다른 화면을 보게 된다
+ *     옮기면 나만 다른 화면을 보게 된다. 거르기(모달리티 · 목적)는 한다 —
+ *     순서는 그대로 두고 안 볼 것만 가린다
  *   · 반려 — 검체나 오더가 이상한지 시스템이 판단할 수 없다
- *
- * ⚠ **경과 시간을 안 쓴다.** 목업 큐 줄 끝의 `41′` 은 서버가 안 준다.
- * ⚠ **탭이 없다.** 목업은 「대기 n / 내 것 n」 둘인데 「내 것」을 부를
- *   경로가 없다 — 큐는 `assigned=none` 으로 박혀 있고, `list()` 에
- *   `assigned=me` 를 얹어도 서버가 그 조건을 보는지 확인할 길이 없다.
- *   **탭이 거짓말하느니 한 목록만 둔다.** 내가 집은 것은 판독 목록
- *   화면이 보여 준다 — 쪽 머리에 그리로 가는 단추를 뒀다(8장).
  */
 const POLL_MS = 7000;
 
@@ -68,6 +68,7 @@ function Inner({ cfg }) {
     else next.set("pick", String(id));
     return next;
   }, { replace: true });
+  const [fv, setFv] = useFilterParams(c.filters);
 
   /* 남이 집어 가면 줄어든다. 가만히 두면 화면이 거짓말을 한다.
      ⚠ **reload(true) 다** — 그냥 reload() 면 7초마다 화면이 「불러오는
@@ -77,7 +78,8 @@ function Inner({ cfg }) {
     return () => clearInterval(t);
   }, [again]);
 
-  const rows = H.rows(list.data);
+  const all = H.rows(list.data);
+  const rows = applyFilters(all, c.filters, fv);
   const picked = rows.some((r) => cfg.queue.row(r).id === pick)
     ? pick : (rows[0] ? cfg.queue.row(rows[0]).id : null);
   const cur = rows.find((r) => cfg.queue.row(r).id === picked) ?? null;
@@ -86,38 +88,40 @@ function Inner({ cfg }) {
     nav(cfg.go.upload(goId), orderId ? { state: { orderId } } : undefined);
   }
 
+  const say = c.phrasesCol === true;
   return (
     <Page className="wq-page" crumb={[cfg.name, c.title]} title={c.title}
           right={<Btn to={cfg.go.list()}>판독 목록</Btn>}>
-      <div className="work">
-        <Side c={c} state={list} rows={rows} pick={picked} onPick={setPick}
-              cfg={cfg} onTook={took} />
+      <div className={`work${say ? "" : " no-say"}`}>
+        <Side c={c} state={list} rows={rows} total={all.length} pick={picked} onPick={setPick}
+              cfg={cfg} onTook={took} fv={fv} setFv={setFv} />
 
         <div className="work-mid">
           {!cur
-            ? <Empty title={c.emptyText} />
+            ? <Empty title={all.length ? "거른 조건에 맞는 건이 없습니다" : c.emptyText} />
             : <Mid cfg={cfg} row={cur} onTook={took} />}
         </div>
 
         <Past cfg={cfg} row={cur} />
-        <Phrases items={c.phrases} />
+        {say && <Phrases items={c.phrases} />}
       </div>
     </Page>
   );
 }
 
 /* ── 왼쪽 300px — 대기 큐 ────────────────────────────────────── */
-function Side({ c, state, rows, pick, onPick, cfg, onTook }) {
+function Side({ c, state, rows, total, pick, onPick, cfg, onTook, fv, setFv }) {
   const next = rows[0] ? c.row(rows[0]) : null;
   return (
     <aside className="work-q">
       <header className="work-q-h">
-        <h2>{c.listTitle}</h2>
+        <h2>{c.listTitle} <em className="work-q-n">{rows.length === total ? total : `${rows.length} / ${total}`}</em></h2>
         <span className="hcard-k">도착한 순서 · 순서 고정</span>
+        <Filters groups={c.filters} value={fv} onChange={setFv} />
       </header>
       <Body loading={state.loading && !state.data} error={state.error}
             onRetry={state.reload}
-            empty={rows.length === 0 && <Empty title={c.emptyText} />}>
+            empty={rows.length === 0 && <Empty title={total ? "거른 조건에 맞는 건이 없습니다" : c.emptyText} />}>
         <div className="work-q-b">
           {rows.map((raw, i) => {
             const r = c.row(raw);
@@ -131,6 +135,8 @@ function Side({ c, state, rows, pick, onPick, cfg, onTook }) {
                 </span>
                 <span className="work-row-2">
                   <span>{r.sub}</span>
+                  {/* 기다린 시간 — 요청 · 채취 시각에서 센다(dept/home.js waited) */}
+                  {r.wait && <i title="기다린 시간">{r.wait}</i>}
                 </span>
               </button>
             );
@@ -212,6 +218,9 @@ function Mid({ cfg, row, onTook }) {
   const r = c.row(row);
   const one = useApi(() => cfg.api.detail(r.id), [r.id]);
   const d = one.data;
+  /* 알레르기는 **머리에 한 번만** 띄운다 — 전에는 머리 · 경고줄 · 정보칸
+     세 곳에 같은 말이 있었다 */
+  const al = d ? H.allergyTag(d.contrast_allergy) : null;
 
   return (
     <Body loading={one.loading && !one.data} error={one.error} onRetry={one.reload}>
@@ -228,44 +237,43 @@ function Mid({ cfg, row, onTook }) {
                 {[H.noOf(d), d.birth_date].filter(Boolean).join(" · ")}
               </span>
             </span>
-            <span className="home-fill" />
-            {H.some(d.contrast_allergy) && (
-              <span className="pb-warn">
-                <i aria-hidden="true">⚠</i>{H.some(d.contrast_allergy)}
+            {al && (
+              <span className="pb-warn" title={al.note ?? undefined}>
+                <i aria-hidden="true">⚠</i><b>{al.label}</b>{al.note && ` · ${al.note}`}
               </span>
             )}
+            <span className="home-fill" />
             {/* ⚠ 주소를 직접 적지 않는다 — 주소가 바뀌면 nav.js 만 고치면
-                되게 해 둔 자리다. 이 한 줄만 규칙을 벗어나 있었다(09-23) */}
+                되게 해 둔 자리다 */}
             {d.patient_id && <Btn to={go.patient(d.patient_id)}>환자 상세</Btn>}
+            {/* 집기는 머리에 둔다 — 아래에 두면 긴 검체 정보에 밀려 화면
+                밖으로 나갔다(병리 1600×950 에서 스크롤해야 보였다) */}
+            <Take key={r.id} cfg={cfg} id={r.id} onTook={onTook} kind="fill"
+                  label={c.takeLabel ?? "집기"} />
           </header>
 
           <section className="work-box">
             <header className="work-box-h">
               <h3>{c.detailTitle}</h3>
               <span className="home-fill" />
-              {r.chip && <Chip>{r.chip}</Chip>}
+              {r.chip && <Chip tone={r.chipTone}>{r.chip}</Chip>}
             </header>
             {/* key — 사람을 바꾸면 접힘 상태도 새로 시작한다 */}
             <c.Detail key={r.id} d={d} cfg={cfg} />
           </section>
 
-          {/* AI 참고 소견 — ⚠ **이 자리에서는 못 채운다.** AI 는 영상이
-              올라간 뒤에 돈다(`POST /studies/{id}/ai-results`). 큐에 있는
-              것은 아직 촬영 전이라 결과가 없다. **칸은 둔다** — 없애면
-              「이 건은 AI 를 안 돌린다」로 읽힌다 */}
-          <section className="work-box">
-            <header className="work-box-h">
-              <h3>AI 참고 소견</h3>
-              <span className="home-fill" />
-              <span className="hcard-k">판정은 판독의가 합니다</span>
-            </header>
-            <p className="hcard-k">아직 없습니다 — 올린 뒤에 돕니다</p>
-          </section>
-
-          <div className="work-foot">
-            <Take cfg={cfg} id={r.id} onTook={onTook} kind="fill"
-                  label="환자 선택" />
-          </div>
+          {/* AI 칸은 과가 켤 때만(queue.aiNote) — 큐에서는 촬영 전이라
+              늘 비어 있었다 */}
+          {c.aiNote && (
+            <section className="work-box">
+              <header className="work-box-h">
+                <h3>AI 참고 소견</h3>
+                <span className="home-fill" />
+                <span className="hcard-k">판정은 판독의가 합니다</span>
+              </header>
+              <p className="hcard-k">{c.aiNote}</p>
+            </section>
+          )}
         </>
       )}
     </Body>
@@ -274,18 +282,25 @@ function Mid({ cfg, row, onTook }) {
 
 /* ── 330px — 지난 검사 / 이 환자의 이력 ───────────────────────
    같은 환자가 전에 무엇을 했는지. 판독은 늘 이전과 견주는 일이다(4.4).
+   · 줄 아래 글은 codes.js eventDetail 로 — 「us」「4b」 같은 코드가 날것으로
+     안 뜬다
+   · 과가 거를 수 있다(queue.pastKeep) — 병리는 영상 · 병리 · 불일치만
+   · 과가 갈 곳을 주면(queue.pastLink) 누른다 — **새 탭**으로 연다. 큐에서
+     보던 줄과 고른 건을 잃지 않게
    ⚠ 환자 번호를 모르면 못 부른다 — 그때는 칸을 비워 둔다 */
 function Past({ cfg, row }) {
   const c = cfg.queue;
   const pid = row ? c.row(row).patientId : null;
-  /* ⚠ **병리에는 timeline 이 없다.** api.js 의 path 에 그 줄이 안 열려
-     있다(영상·유방외과만 있다). 새 경로는 안 파므로 그 과에서는 칸을
-     비우고 무엇이 없어서 비었는지 적는다(8장) */
   const has = typeof cfg.api.timeline === "function";
   const line = useApi(
     () => (has && pid ? H.soft(cfg.api.timeline(pid)) : Promise.resolve([])),
     [has, pid]);
-  const rows = [...H.rows(line.data)].reverse();
+  const rows = [...H.rows(line.data)].filter(c.pastKeep ?? (() => true)).reverse();
+
+  /* ⚠ opener 를 끊지 않는다(noopener 금지) — 로그인 토큰이 sessionStorage
+     에 있어서, 여는 쪽과 이어진 탭이어야 복사되어 새 탭이 로그인 화면으로
+     안 떨어진다 */
+  const open = (to) => window.open(to, "_blank");
 
   return (
     <section className="work-hist">
@@ -301,21 +316,31 @@ function Past({ cfg, row }) {
               {has ? "아직 없습니다" : "이 과에는 이력을 부르는 경로가 없습니다"}
             </p>
           )
-          : rows.map((r, i) => (
-            <article className="work-ev" key={`${r.at}-${i}`}>
-              <div className="work-ev-h">
-                <time>{H.day(r.at)}</time>
-                <Chip>{r.type}</Chip>
-              </div>
-              {r.detail && <p>{r.detail}</p>}
-            </article>
-          ))}
+          : rows.map((e, i) => {
+            const to = c.pastLink?.(e) ?? null;
+            const tx = eventDetail(e);
+            return (
+              <article className="work-ev" key={`${e.at}-${i}`}
+                       {...(to ? {
+                         role: "button", tabIndex: 0, title: "새 탭에서 판독 열기",
+                         onClick: () => open(to),
+                         onKeyDown: (ev) => { if (ev.key === "Enter") open(to); },
+                       } : {})}>
+                <div className="work-ev-h">
+                  <time>{H.day(e.at)}</time>
+                  <Chip>{e.type}</Chip>
+                  {to && <><span className="home-fill" /><i className="work-ev-go" aria-hidden="true">↗</i></>}
+                </div>
+                {tx && <p>{tx}</p>}
+              </article>
+            );
+          })}
       </div>
     </section>
   );
 }
 
-/* ── 248px — 상용구 ──────────────────────────────────────────
+/* ── 248px — 상용구 (queue.phrasesCol 을 켠 과만) ─────────────
    ⚠ **서버가 주는 값이 아니다.** 상용구를 저장하는 경로가 없다 — 과마다
      다른 글이라 dept 설정에 박아 뒀다(8장에 적는다) */
 function Phrases({ items = [] }) {

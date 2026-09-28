@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, NavLink } from "react-router-dom";
-import { HOSPITAL, PRODUCT, deptPath, go, homeDept, menuScreens, myDepts } from "../nav";
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
+import { HOSPITAL, PRODUCT, deptPath, go, homeDept, menuScreens, myDepts, screenAt } from "../nav";
 import { can } from "../perm";
-import { acknowledgeNotification, apiInfo, notifications, path } from "../api";
+import { acknowledgeNotification, apiInfo, noticeRef, notifications, path } from "../api";
 import * as H from "../dept/home";
 import { openNotifications } from "./live";
 import { useMe } from "./useMe";
@@ -33,10 +33,31 @@ import { useMe } from "./useMe";
  *   없으면 뱃지를 안 단다 — 0 을 찍으면 「0건」인지 「모른다」인지
  *   구분이 안 된다.
  */
+/* 과마다 마지막으로 누른 메뉴 — deep 화면이 「어디서 왔나」를 고를 때 쓴다.
+   모듈 변수라 새로고침하면 비고, 그때는 parent 의 첫째로 켜진다 */
+const lastMenu = new Map();
+
+/* 화면 줄에서 불을 켤 메뉴 key. NavLink 의 앞머리 맞춤에 맡기면
+   patients/:id/review 가 「전체 환자(patients)」로 켜진다 — 주소 틀로 화면을
+   찾고, deep 이면 nav.js 의 parent 로 올라간다. 과 바깥(환자 상세)은 null */
+function activeMenu(dept, pathname) {
+  const s = screenAt(dept, pathname);
+  if (!s) return null;
+  if (!s.deep) return s.key;
+  const parents = [s.parent ?? []].flat();
+  const last = lastMenu.get(dept.key);
+  return parents.includes(last) ? last : (parents[0] ?? null);
+}
+
 export default function Top({ dept, now, counts, summary }) {
   const me = useMe();
+  const { pathname } = useLocation();
   const depts = myDepts();
   const screens = dept ? menuScreens(dept).filter((s) => can(s.need)) : [];
+  const onKey = activeMenu(dept, pathname);
+  if (dept && screenAt(dept, pathname) && !screenAt(dept, pathname).deep) {
+    lastMenu.set(dept.key, onKey);
+  }
 
   return (
     <header className="top">
@@ -54,7 +75,7 @@ export default function Top({ dept, now, counts, summary }) {
               items={screens.map((s) => ({
                 key: s.key || "_",
                 to: `${deptPath(dept)}${s.key ? `/${s.key}` : ""}`,
-                label: s.menu, end: !s.key,
+                label: s.menu, on: s.key === onKey,
               }))}
               right={<Summary items={summary} />} />
     </header>
@@ -125,23 +146,92 @@ export default function Top({ dept, now, counts, summary }) {
  * ⚠ 병리는 크롭마다 분석해서 같은 알림이 연달아 둘 온다(같은 리포트).
  *   띄우는 것만 하나로 줄인다. 목록에는 서버가 준 대로 둔다.
  * ⚠ 목업 모드는 허브가 없어서 열지 않는다.
+ *
+ * **누르면 그 건으로 간다**(noticeTo). 전에는 확인만 되고 아무 데도 안
+ * 갔다 — 「판독이 확정됐다」를 보고도 그 환자를 다시 찾아 들어가야 했다.
  */
+
+/* 알림 한 줄 → 갈 주소. 못 정하면 null(확인만 하고 그 자리에 둔다).
+ *
+ *   discordance · discordance_flag   유방외과 불일치 처분 화면
+ *   report (AI 끝 · 판독 확정)        리포트를 읽어 환자 · 검사 · 검체를 얻는다
+ *   assessment (영상 판독 확정)       판독 → 검사 → 환자
+ *   specimen                          검체 → 환자 (지금 서버는 안 보낸다)
+ *   ref 없음 (병리 확정, 09-28)       환자가 실려 있으면 검사 종합, 아니면 확인만
+ *
+ * 받는 사람 권한으로 고른다 — 유방외과(주치의)는 검사 종합에서 그 건을
+ * 펴서(go.breast.review 의 ?study= · ?specimen=), 영상 · 병리는 제 판독
+ * 화면으로. 둘 다 아니면 공용 환자 상세.
+ * ⚠ 직원 알림은 patient 가 비어 온다 — api.js noticeRef 참고 */
+async function noticeTo(n) {
+  const type = n.notification_type ?? n.type;
+  const ref = n.ref_type;
+  const id = n.ref_id;
+  if (type === "discordance" || ref === "discordance_flag") {
+    return id != null && can("breast.discordance.view") ? go.breast.discordance(id) : null;
+  }
+  /* 병리 확정 알림은 ref 가 비어 온다(REF_TYPE 에 specimen 이 없다 —
+     views/pathology.py _notify_finalized). 환자도 안 실린다 → 확인만 한다 */
+  let pid = n.patient ?? null;
+  if (id == null) {
+    return pid != null && can("breast.review.view") ? go.breast.review(pid) : null;
+  }
+
+  let study = null;
+  let specimen = null;
+  let assessment = null;
+  if (ref === "report") {
+    const r = await noticeRef.report(id);
+    pid = r?.patient ?? pid;
+    study = r?.study ?? null;
+    specimen = r?.specimen ?? null;
+  } else if (ref === "assessment") {
+    /* 영상 판독 확정(views/radiology.py _notify_study_finalized). 판독 줄이
+       patient_id · study 를 같이 싣는다 */
+    const a = await noticeRef.assessment(id);
+    assessment = id;
+    study = a?.study ?? null;
+    pid = a?.patient_id ?? pid;
+  } else if (ref === "specimen") {
+    specimen = id;
+  } else if (ref === "study") {
+    study = id;
+  }
+  if (pid == null && specimen != null) pid = (await noticeRef.specimen(specimen))?.patient ?? null;
+  if (pid == null && study != null) pid = (await noticeRef.study(study))?.patient ?? null;
+
+  if (pid != null && can("breast.review.view")) {
+    return go.breast.review(pid, study != null ? { study, assessment }
+      : specimen != null ? { specimen } : null);
+  }
+  if (specimen != null && can("pathology.read.view")) return go.pathology.read(specimen);
+  if (study != null && can("radiology.read.view")) return go.radiology.read(study);
+  return pid != null ? go.patient(pid) : null;
+}
+
 function Bell({ on }) {
+  const nav = useNavigate();
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState(null);
   const [toast, setToast] = useState(null);
   const load = () => notifications().then(setItems).catch(() => setItems([]));
 
   useEffect(() => {
-    if (!on || apiInfo.mock) return;
+    if (!on) return;
     load();
+    /* 목업은 목록(GET /notifications/)만 있고 허브가 없다 — SSE 는 안 연다 */
+    if (apiInfo.mock) return;
     let last = "";
     return openNotifications({
       issue: path.ticket,
       onEvent: (ev) => {
         const p = ev.payload ?? {};
         const key = `${ev.type}:${p.ref_type}:${p.ref_id}`;
-        if (key !== last) setToast(p.message || "새 알림이 왔습니다");
+        /* 띄운 것도 누르면 그 건으로 간다 — 알림 줄과 같은 모양으로 들고 있는다 */
+        if (key !== last) {
+          setToast({ text: p.message || "새 알림이 왔습니다",
+            n: { notification_type: ev.type, ref_type: p.ref_type, ref_id: p.ref_id } });
+        }
         last = key;
         load();
       },
@@ -166,6 +256,16 @@ function Bell({ on }) {
     acknowledgeNotification(n.notification_id).catch(load);
   }
 
+  /* 확인하고 그 건으로 간다. 못 풀면(권한 · 지워진 행) 확인만 된다 */
+  async function follow(n) {
+    setOpen(false);
+    setToast(null);
+    try {
+      const to = await noticeTo(n);
+      if (to) nav(to);
+    } catch { /* 못 푼 알림은 확인만 하고 그 자리에 둔다 */ }
+  }
+
   return (
     <div className="bell-wrap">
       <button className="bell" aria-label={`알림${unread ? ` ${unread}건` : ""}`}
@@ -185,8 +285,9 @@ function Bell({ on }) {
               <ul>
                 {unreadList.map((n) => (
                   <li key={n.notification_id}>
-                    <button type="button" className="new" onClick={() => read(n)}
-                            title="누르면 확인 처리되고 목록에서 빠집니다">
+                    <button type="button" className="new"
+                            onClick={() => { read(n); follow(n); }}
+                            title="누르면 확인 처리되고 그 건의 화면으로 갑니다">
                       <b>{n.message}</b>
                       <span>{H.at(n.sent_at || n.created_at)}</span>
                       <em>확인</em>
@@ -198,7 +299,7 @@ function Bell({ on }) {
         </div>
       )}
       {toast && (
-        <p className="live-toast" role="status" onClick={() => setToast(null)}>{toast}</p>
+        <p className="live-toast" role="status" onClick={() => follow(toast.n)}>{toast.text}</p>
       )}
     </div>
   );
@@ -247,14 +348,16 @@ function TabRow({ className, label, items, right }) {
   return (
     <nav className={className} aria-label={label} ref={box}>
       {items.map((it) => (
-        <NavLink key={it.key} to={it.to} end={it.end}
-                 className={({ isActive }) => `tab${isActive ? " on" : ""}`}
-                 aria-current={it.on ? "page" : undefined}>
+        /* ⚠ 불은 it.on 으로만 켠다. NavLink 의 isActive 는 앞머리 맞춤이라
+           deep 주소에서 엉뚱한 탭을 켠다(activeMenu 참고) */
+        <Link key={it.key} to={it.to}
+              className={`tab${it.on ? " on" : ""}`}
+              aria-current={it.on ? "page" : undefined}>
           {it.label}
           {/* 0 이면 안 붙인다 — 「0건」인지 「아직 모른다」인지
               구분이 안 되는 숫자는 없느니만 못하다 */}
           {it.badge > 0 && <i className="tab-n">{it.badge}</i>}
-        </NavLink>
+        </Link>
       ))}
       {mark && (
         <span className="tab-mark" aria-hidden="true"

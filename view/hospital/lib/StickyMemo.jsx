@@ -15,7 +15,13 @@ import { useApi } from "./useApi";
  *
  * 접었다 펼 수 있다 — 늘 펴져 있으면 화면을 가린다. 위치·크기·펼침
  * 상태·글 내용을 전부 localStorage에 따로 저장해 다음에 열 때 그대로
- * 돌아온다. */
+ * 돌아온다.
+ *
+ * ⚠ **처음엔 접힌 알약으로, 왼쪽 아래에 뜬다**(09-28 점검). 펼친 채
+ *   오른쪽 아래에 두었더니 1600×950 에서 거의 모든 화면의 주 단추
+ *   (목록 [판독 화면] · 판독 입력칸 · [처분 확정] · 정정 [저장] · 접수)를
+ *   덮었다. 화면들은 주 단추를 오른쪽 아래에 모은다 — 그 자리를 비운다.
+ *   사람이 한 번이라도 펴거나 옮기면(picked) 그 뒤로는 그 선택을 따른다. */
 const KEY = "hospital.stickyMemo.v1";
 const EDGE = 12;
 
@@ -41,7 +47,8 @@ function keepInView(v, seen) {
 
   const maxX = Math.max(EDGE, window.innerWidth - fitW - EDGE);
   const maxY = Math.max(EDGE, window.innerHeight - fitH - EDGE);
-  const x = v.x == null ? maxX : Math.min(maxX, Math.max(EDGE, v.x));
+  /* 기본 자리는 왼쪽 아래 — 오른쪽 아래는 화면들의 주 단추 자리다 */
+  const x = v.x == null ? EDGE : Math.min(maxX, Math.max(EDGE, v.x));
   const y = v.y == null ? maxY : Math.min(maxY, Math.max(EDGE, v.y));
   return { ...v, x, y, w: width, h: height };
 }
@@ -52,6 +59,10 @@ function loadState() {
     if (!raw) return null;
     const s = JSON.parse(raw);
     if (typeof s !== "object" || s === null) return null;
+    /* ⚠ 예전 기본값은 «펼친 채 오른쪽 아래»였다. 사람이 고른 적 없는
+       저장값(picked 없음)은 그 기본값이 저장된 것뿐이라 자리·펼침을
+       버리고 새 기본(접힘 · 왼쪽 아래)으로 뜬다. 글과 크기는 남긴다 */
+    if (!s.picked) return { ...s, open: false, x: null, y: null };
     return s;
   } catch {
     return null;
@@ -62,7 +73,8 @@ function saveState(s) {
   try { localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* 못 쓰면 그냥 이번 세션만 산다 */ }
 }
 
-const DEFAULT = { text: "", open: true, x: null, y: null, w: 260, h: 220 };
+/* picked — 사람이 펴거나 접거나 옮긴 적이 있다. 있으면 그 자리·펼침을 믿는다 */
+const DEFAULT = { text: "", open: false, x: null, y: null, w: 260, h: 220, picked: false };
 
 export default function StickyMemo() {
   const [s, setS] = useState(() => ({ ...DEFAULT, ...loadState() }));
@@ -111,12 +123,21 @@ export default function StickyMemo() {
     return keepInView(v, el ? { w: el.offsetWidth, h: el.offsetHeight } : null);
   }
 
-  /* 첫 렌더엔 위치가 없다(x·y null) — 오른쪽 아래 기본 자리를
+  /* 첫 렌더엔 위치가 없다(x·y null) — 왼쪽 아래 기본 자리를
      뷰포트 기준으로 한 번 잡아 둔다. */
   useEffect(() => {
     setS((v) => keepInView(v));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /* ⚠ 위 첫 자리는 펼친 창 크기(260×220)로 잡힌다 — 접힌 알약이면 바닥에서
+     200px 넘게 떠 있었다. 알약이 그려진 뒤 제 크기로 한 번 더 가둔다 */
+  const placed = s.x != null;
+  useEffect(() => {
+    if (!placed) return;
+    setS((v) => (v.picked ? v : fit({ ...v, y: null })));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [placed]);
 
   /* 접었다 펼 때 크기가 확 달라진다 — 그때마다 다시 가둔다. 탭을 오른쪽
      끝까지 끌어 두고 펼치면 창이 화면 밖으로 나가기 때문이다. */
@@ -153,7 +174,8 @@ export default function StickyMemo() {
     const dx = e.clientX - d.startX;
     const dy = e.clientY - d.startY;
     if (Math.abs(dx) > 3 || Math.abs(dy) > 3) d.moved = true;
-    setS((v) => fit({ ...v, x: d.origX + dx, y: d.origY + dy }));
+    if (!d.moved) return;
+    setS((v) => fit({ ...v, x: d.origX + dx, y: d.origY + dy, picked: true }));
   }
   function stopDrag() {
     const d = dragRef.current;
@@ -169,7 +191,8 @@ export default function StickyMemo() {
   function onResizeEnd() {
     const el = boxRef.current;
     if (!el) return;
-    setS((v) => fit({ ...v, w: el.offsetWidth, h: el.offsetHeight }));
+    if (el.offsetWidth === s.w && el.offsetHeight === s.h) return; // 안 바뀐 클릭까지 picked 로 치지 않는다
+    setS((v) => fit({ ...v, w: el.offsetWidth, h: el.offsetHeight, picked: true }));
   }
 
   if (s.x == null) return null; // 첫 위치 계산 전 프레임엔 안 그린다(깜빡임 방지)
@@ -178,7 +201,7 @@ export default function StickyMemo() {
     return (
       <button type="button" ref={boxRef} className="sticky-memo-tab"
         style={{ left: s.x, top: s.y }}
-        onPointerDown={(e) => startDrag(e, () => setS((v) => ({ ...v, open: true })))}>
+        onPointerDown={(e) => startDrag(e, () => setS((v) => ({ ...v, open: true, picked: true })))}>
         📝 메모
       </button>
     );
@@ -190,7 +213,7 @@ export default function StickyMemo() {
       onMouseUp={onResizeEnd}>
       <div className="sticky-memo-head" onPointerDown={(e) => startDrag(e)}>
         <span>📝 메모</span>
-        <button type="button" aria-label="접기" onClick={() => setS((v) => ({ ...v, open: false }))}>
+        <button type="button" aria-label="접기" onClick={() => setS((v) => ({ ...v, open: false, picked: true }))}>
           −
         </button>
       </div>

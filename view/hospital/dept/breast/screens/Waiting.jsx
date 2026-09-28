@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { breast as api } from "../../../api";
 import { useApi } from "../../../lib/useApi";
 import { Page, Btn } from "../../../lib/Page";
@@ -11,215 +11,291 @@ import "../breast.css";
 import ExamOrderModal from "../components/ExamOrderModal";
 import CloseVisitModal from "../components/CloseVisitModal";
 import CareGuideModal from "../components/CareGuideModal";
+import BookVisitModal from "../components/BookVisit";
+import { FlowBar } from "../components/Stepper";
+import { PathRows, PendingLine, RadRows } from "../components/Results";
 import SpecimenBindingModal from "../../../lib/SpecimenBindingModal";
-import { isHandled, markHandled } from "../handled";
+import { isHandled, markHandled, unmarkHandled } from "../handled";
 import { historyDetail, historyTo } from "../history";
+import { NEXT, flowOf } from "../flow";
 
-/* 유방외과 · 내 환자 — `docs/mockup/Surgery.html`
+/* 유방외과 · 대기 환자 — `docs/mockup/Surgery.html`
  * ════════════════════════════════════════════════════════════════
  *
  * **이 과의 본진이다.** 집는 절차가 없다 — 주치의로 배정된 환자가 곧
- * 큐다. 그래서 고르고 · 읽고 · 정하는 것이 한 화면에서 끝난다.
+ * 큐다. 고르고 · 읽고 · 다음 할 일로 넘기는 것이 한 화면에서 끝난다.
  *
- *   ┌ 300px ──┬ 1fr ───────────────────┬ 330px ──┬ 248px ─┐
- *   │ 내 환자  │ 김민지  47 · 여          │ 진료 이력│ 상용구 │
- *   │ [탭]     │ ⚠ 판정 불일치 · 처분하기 │  09-21  │        │
- *   │  · 김민지│ ┌영상 판독─┬병리 판독─┐  │  09-11  │ 수술   │
- *   │  · 이서준│ └──────────┴──────────┘  │  09-09  │ 추가…  │
- *   │          │ 치료 방침 결정            │         │        │
- *   │          │ [촬영][검체][종결] [저장] │         │        │
- *   └──────────┴──────────────────────────┴─────────┴────────┘
+ *   ┌ 300px ──┬ 1fr ─────────────────────────┬ 330px ──┐
+ *   │ 대기     │ 김민지  47 · 여                │ 진료 이력│
+ *   │ [탭]     │ ✓접수 ✓오더 ✓촬영 ✓판독 ● 불일치…│  09-21  │
+ *   │  · 김민지│ 다음 할 일 · 불일치 처분         │  09-11  │
+ *   │  · 이서준│ [촬영][검체][상세][방침][완료]   │         │
+ *   │ ▸ 결과대기│ ┌영상 판독─┬병리 판독─┐        │         │
+ *   └──────────┴───────────────────────────────┴─────────┘
  *
+ * 다음 할 일은 flow.js 가 센다. 서버 worklist 가 있으면 그 next_step,
+ * 없으면 고른 환자의 상세 · 이력 · 처방으로 되짚는다.
+ *
+ * ⚠ **주 단추는 하나다** — 다음 할 일. 단추 줄은 진료 순서대로 늘어놓고
+ *   그중 다음 할 일만 채운다. 불일치가 열린 동안 「진료 완료」는 주 단추가
+ *   아니다(09-28).
  * ⚠ **경과 시간을 안 쓴다.** 목업 줄 끝의 `1h52m` `27′` 은 서버가 주지
- *   않는다. 환자 목록 응답에는 시각 자체가 없다.
- * ⚠ **칸을 카드로 띄우지 않는다.** 네 단을 1px 선으로 가른다(4.5).
- * ⚠ **색으로 뜻을 나르지 않는다.** 목업은 BI-RADS 를 빨강·노랑·초록으로
- *   칠하지만 우리는 글자로 적는다. 판독 등급은 색 여섯 단계가 아니라
- *   읽어야 하는 값이다.
+ *   않는다.
+ * ⚠ **칸을 카드로 띄우지 않는다.** 단을 1px 선으로 가른다(4.5).
+ * ⚠ **색으로 뜻을 나르지 않는다.** BI-RADS 는 글자로 적는다.
+ * ⚠ 09-28 — 오른쪽 「결정 사유 상용구」 단을 뺐다. 누르면 아무 데도 안
+ *   붙는 글이었다. 상용구는 치료 방침의 결정 사유 칸 위 칩으로 옮겼다 —
+ *   누르면 그 칸에 들어간다.
  */
 export default function Waiting() {
+  const nav = useNavigate();
+  const [q, setQ] = useSearchParams();
+  const want = q.get("next");               /* 홈 「진료 흐름」에서 온 거르개 */
   const list = useApi(() => api.waiting(), []);
+  /* 서버 worklist — 없으면(404 · 옛 서버) null 로 두고 되짚는다 */
+  const wl = useApi(() => api.worklist().catch(() => null), []);
   const [tab, setTab] = useState("all");
   const [pick, setPick] = useState(null);
   const [modal, setModal] = useState(null);
-  const [guide, setGuide] = useState(null);
   const [examModality, setExamModality] = useState(null);
+  const [openWait, setOpenWait] = useState(false);
+  const [, bump] = useState(0);              /* handled.js 가 바뀌면 다시 그린다 */
 
-  const rows = useMemo(() => {
-    const all = H.rows(list.data);
-    const filtered = all.filter((row) => !isHandled(row.patient_id));
-    Object.defineProperty(filtered, "total", { value: filtered.length });
-    return filtered;
-  }, [list.data]);
-  const odd = useMemo(() => rows.filter((r) => r.has_open_discordance), [rows]);
-  const shown = tab === "odd" ? odd : rows;
-  const picked = shown.some((r) => r.patient_id === pick)
-    ? pick : (shown[0]?.patient_id ?? null);
+  const items = useMemo(() => {
+    const m = new Map();
+    for (const it of H.rows(wl.data)) m.set(String(it.patient_id), it);
+    return m;
+  }, [wl.data]);
+  const hasWl = wl.data != null && Array.isArray(H.rows(wl.data));
+
+  const rows = H.rows(list.data);
+  const itemOf = (r) => items.get(String(r.patient_id)) ?? null;
+  /* 결과 대기 — 서버가 세면 그것, 없으면 오늘 다른 과로 넘긴 기록(handled.js) */
+  const waitingOn = (r) => (hasWl && itemOf(r)
+    ? itemOf(r).next_step === "wait_results"
+    : isHandled(r.patient_id));
+  const active = rows.filter((r) => !waitingOn(r));
+  const parked = rows.filter(waitingOn);
+  const odd = active.filter((r) => r.has_open_discordance || itemOf(r)?.open_discordance);
+  const byNext = want ? rows.filter((r) => itemOf(r)?.next_step === want) : null;
+  const shown = byNext ?? (tab === "odd" ? odd : active);
+  const pool = [...shown, ...(byNext ? [] : parked)];
+  const picked = pool.some((r) => r.patient_id === pick)
+    ? pick : (shown[0]?.patient_id ?? parked[0]?.patient_id ?? null);
 
   const detail = useApi(
     () => (picked ? api.patient(picked) : Promise.resolve(null)), [picked]);
+  const line = useApi(
+    () => (picked ? H.soft(api.timeline(picked)) : Promise.resolve([])), [picked]);
+  const rx = useApi(
+    () => (picked ? api.prescriptions(picked).catch(() => undefined) : Promise.resolve(undefined)), [picked]);
+
+  const p = detail.data;
+  const flow = useMemo(() => (p ? flowOf({
+    p, item: itemOf({ patient_id: p.patient_id }), timeline: H.rows(line.data), rx: rx.data,
+  }) : null), [p, line.data, rx.data, items]);   // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* 결과가 돌아왔다 — 되짚은 흐름이 대기를 벗어나면 묶음에서 올린다 */
+  useEffect(() => {
+    if (!hasWl && p && flow?.next && flow.next.key !== "wait_results" && isHandled(p.patient_id)) {
+      unmarkHandled(p.patient_id);
+      bump((n) => n + 1);
+    }
+  }, [hasWl, p, flow]);
+
+  /* 치료 방침에서 「다음 환자」로 왔다(state.advance) — 방금 본 사람 다음 줄을 편다 */
+  const loc = useLocation();
+  const from = loc.state?.advance ? String(loc.state.from ?? "") : null;
+  useEffect(() => {
+    if (!from || pick != null || !shown.length) return;
+    const i = shown.findIndex((r) => String(r.patient_id) === from);
+    if (i >= 0 && shown.length > 1) setPick(shown[(i + 1) % shown.length].patient_id);
+  }, [from, shown.length]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   function next() {
     const i = shown.findIndex((r) => r.patient_id === picked);
-    if (i >= 0 && shown.length > 0) setPick(shown[(i + 1) % shown.length].patient_id);
+    if (shown.length > 0) setPick(shown[(i + 1) % shown.length].patient_id);
   }
 
+  /* 다음 할 일 실행 — 팝업이면 열고, 화면이면 간다 */
+  function run(n) {
+    if (!n) return;
+    if (n.act === "exam") { setExamModality(n.modality); setModal("exam"); }
+    else if (n.act) setModal(n.act);
+    else if (n.to) nav(n.to);
+  }
+
+  const sent = () => {
+    markHandled(p.patient_id);
+    setModal(null); setPick(null);
+    detail.reload(true); list.reload(true); wl.reload(true);
+  };
+
   return (
-    <Page className="surgery-page" crumb={["유방외과", "내 환자"]}
-          title="내 환자"
-          right={<Btn to={go.breast.patients()}>환자 목록</Btn>}>
-      <div className="work">
-        <Queue state={list} rows={shown} all={rows} odd={odd}
-               tab={tab} onTab={setTab} pick={picked} onPick={setPick} />
+    <Page className="surgery-page" crumb={["유방외과", "대기 환자"]}
+          title="대기 환자"
+          right={<Btn to={go.breast.patients()}>전체 환자</Btn>}>
+      <div className="work bf-work">
+        <Queue state={list} rows={shown} parked={byNext ? [] : parked} odd={odd} all={active}
+               tab={tab} onTab={setTab} pick={picked} onPick={setPick}
+               itemOf={itemOf} openWait={openWait} onOpenWait={setOpenWait}
+               want={want} onClearWant={() => { q.delete("next"); setQ(q, { replace: true }); }} />
 
         <div className="work-mid">
           {!picked
-            ? <Empty title="배정된 환자가 없습니다" />
+            ? <Empty title="지금 기다리는 환자가 없습니다" />
             : (
               <Body loading={detail.loading && !detail.data} error={detail.error}
                     onRetry={detail.reload}>
-                {detail.data && (
-                  <Mid p={detail.data} onNext={next} onOpen={setModal}
-                       onGuide={() => setGuide(nextCareStep(detail.data))} />
+                {p && (
+                  <Mid p={p} flow={flow} onNext={next} onRun={run} onOpen={setModal}
+                       waiting={waitingOn(p)} />
                 )}
               </Body>
             )}
         </div>
 
-        <History id={picked} />
-        <Phrases />
+        <History id={picked} line={line} />
       </div>
 
       {/* ⚠ **팝업만 .breast 안에 넣는다.** breast.css 는 --ink · --line-2 ·
           --gap 을 제 값으로 덮어쓴다(그 파일 머리에 적혀 있다). 쪽 전체를
           .breast 로 열면 새로 짠 이 화면이 hospital 토큰 대신 저쪽 팔레트를
-          조용히 집어 간다 — 팝업 셋은 아직 저 규칙으로 그려져서 그것만 싼다 */}
-      {modal && detail.data && (
+          조용히 집어 간다 — 팝업만 저 규칙으로 그려져서 그것만 싼다 */}
+      {modal && p && (
         <div className="breast">
           {modal === "exam" && (
-            <ExamOrderModal patient={detail.data} initialModality={examModality}
-                            onClose={() => setModal(null)}
-                            onDone={() => {
-                              markHandled(detail.data.patient_id);
-                              setModal(null); setPick(null);
-                              detail.reload(true); list.reload(true);
-                            }} />
+            <ExamOrderModal patient={p} initialModality={examModality}
+                            onClose={() => setModal(null)} onDone={sent} />
           )}
           {modal === "specimen" && (
-            <SpecimenBindingModal patient={detail.data} onClose={() => setModal(null)}
-                                  onDone={() => {
-                                    markHandled(detail.data.patient_id);
-                                    setModal(null); setPick(null);
-                                    detail.reload(true); list.reload(true);
-                                  }} />
+            <SpecimenBindingModal patient={p} onClose={() => setModal(null)} onDone={sent} />
           )}
           {modal === "close" && (
-            <CloseVisitModal patient={detail.data} onClose={() => setModal(null)}
-                             onDone={() => { setModal(null); next(); list.reload(true); }} />
+            <CloseVisitModal patient={p} suggest={suggestDays(flow)}
+                             onClose={() => setModal(null)}
+                             onDone={() => { setModal(null); next(); list.reload(true); wl.reload(true); }} />
           )}
-        </div>
-      )}
-      {guide && detail.data && (
-        <div className="breast">
-          <CareGuideModal
-            patient={detail.data}
-            step={guide.step}
-            progress={guide.progress}
-            onClose={() => setGuide(null)}
-            onAction={() => {
-              setGuide(null);
-              if (guide.step.kind === "request") {
-                setExamModality(guide.step.modality);
-                setModal("exam");
-              } else if (guide.step.kind === "specimen") {
-                setModal("specimen");
-              }
-            }}
-          />
+          {modal === "book" && (
+            <BookVisitModal patient={p} suggest={suggestDays(flow)}
+                            onClose={() => setModal(null)} />
+          )}
+          {modal === "guide" && (
+            <CareGuideModal patient={p} flow={flow} onClose={() => setModal(null)}
+                            onRun={(n) => { setModal(null); run(n); }} />
+          )}
         </div>
       )}
     </Page>
   );
 }
 
-/* ── 왼쪽 300px — 내 환자 ──────────────────────────────────────
- * 목업의 탭은 「대기 / 결정 대기 / 불일치」 셋인데 둘만 만들었다.
+/* 재진 권하는 간격 — BI-RADS 3 은 6개월 추적, 그 밖은 2주 */
+function suggestDays(flow) {
+  return flow?.facts?.grade === "3" ? 182 : 14;
+}
+
+/* ── 왼쪽 300px — 대기 ─────────────────────────────────────────
+ * 탭 둘(대기 · 불일치) + 아래 접힌 「결과 대기」 묶음.
  *
- * ⚠ **「대기」와 「결정 대기」를 가를 수가 없다.** 서버는 `?primary_staff=me`
- *   를 보면 status 를 **안 보고 바로 돌려준다** —
- *
- *       PatientViewSet.get_queryset()
- *           if primary_staff_param == "me":
- *               return qs.filter(primary_staff=staff)   ← 여기서 끝
- *
- *   그래서 `waiting()` 과 `patients()` 가 **같은 줄**을 준다. 탭 둘을
- *   만들어 놓고 같은 목록을 보여 주면 거짓말이라 하나로 합쳤다.
- *   「결정 대기」는 영상·병리가 다 끝났는지 알아야 하는데 그건 환자마다
- *   workflow 를 따로 불러야 나온다 — 목록 한 장에 못 담는다(8장 10번).
- *
- * ⚠ **`patients()` 가 아니라 `waiting()` 을 부른다.** 둘이 같은 줄을
- *   주는데 `has_open_discordance` 는 `status=waiting` 쪽에만 붙어 온다.
- *   `patients()` 로 받으면 불일치 탭이 **말없이 늘 0** 이 된다.
+ * ⚠ **`patients()` 가 아니라 `waiting()` 을 부른다.** `has_open_discordance`
+ *   는 `status=waiting` 쪽에만 붙어 온다. `patients()` 로 받으면 불일치
+ *   탭이 **말없이 늘 0** 이 된다.
+ * ⚠ 결과 대기 묶음은 **숨기지 않는다**(handled.js 머리말). 같은 날 결과가
+ *   돌아오면 위로 다시 올라온다.
  */
 const TABS = [
-  { key: "all", label: "내 환자" },
+  { key: "all", label: "대기" },
   { key: "odd", label: "불일치" },
 ];
 
-function Queue({ state, rows, all, odd, tab, onTab, pick, onPick }) {
-  const count = { all: all.total ?? all.length, odd: odd.length };
+function Queue({ state, rows, parked, all, odd, tab, onTab, pick, onPick, itemOf,
+                 openWait, onOpenWait, want, onClearWant }) {
+  const count = { all: all.length, odd: odd.length };
+  const onParked = parked.some((r) => r.patient_id === pick);
   return (
     <aside className="work-q">
       <header className="work-q-h">
-        <h2>내 환자</h2>
-        <div className="work-tabs" role="tablist">
-          {TABS.map((t) => (
-            <button key={t.key} type="button" role="tab"
-                    aria-selected={t.key === tab}
-                    className={`work-tab${t.key === tab ? " on" : ""}`}
-                    onClick={() => onTab(t.key)}>
-              {t.label} <i>{count[t.key]}</i>
-            </button>
-          ))}
-        </div>
+        <h2>대기 환자</h2>
+        {want ? (
+          <div className="bf-want">
+            <span>{NEXT[want]?.name ?? want} · {rows.length}명</span>
+            <button type="button" className="btn line sm" onClick={onClearWant}>전체 보기</button>
+          </div>
+        ) : (
+          <div className="work-tabs" role="tablist">
+            {TABS.map((t) => (
+              <button key={t.key} type="button" role="tab"
+                      aria-selected={t.key === tab}
+                      className={`work-tab${t.key === tab ? " on" : ""}`}
+                      onClick={() => onTab(t.key)}>
+                {t.label} <i>{count[t.key]}</i>
+              </button>
+            ))}
+          </div>
+        )}
       </header>
       <Body loading={state.loading && !state.data} error={state.error}
-            onRetry={state.reload}
-            empty={rows.length === 0
-              && <Empty title={tab === "odd" ? "엇갈린 건이 없습니다" : "배정된 환자가 없습니다"} />}>
+            onRetry={state.reload}>
         <div className="work-q-b">
+          {rows.length === 0 && (
+            <p className="bf-q-none">
+              {want ? "해당하는 환자가 없습니다" : tab === "odd" ? "엇갈린 건이 없습니다" : "지금 기다리는 환자가 없습니다"}
+            </p>
+          )}
           {rows.map((r) => (
-            <button type="button" key={r.patient_id}
-                    className={`work-row${r.patient_id === pick ? " on" : ""}`}
-                    onClick={() => onPick(r.patient_id)}>
-              <span className="work-row-1">
-                <i className={`work-dot${r.has_open_discordance ? " k1" : ""}`}
-                   aria-hidden="true" />
-                <b>{H.nameOf(r)}</b>
-                {H.who(r) && <span>{H.who(r)}</span>}
-              </span>
-              <span className="work-row-2">
-                {H.noOf(r) && <i>{H.noOf(r)}</i>}
-                <span>{r.has_open_discordance ? "판정 불일치" : (r.status ?? "")}</span>
-              </span>
-            </button>
+            <QRow key={r.patient_id} r={r} it={itemOf(r)} on={r.patient_id === pick} onPick={onPick} />
           ))}
+          {parked.length > 0 && (
+            <div className="bf-park">
+              <button type="button" className="bf-park-h" aria-expanded={openWait || onParked}
+                      onClick={() => onOpenWait(!(openWait || onParked))}>
+                <i aria-hidden="true">{openWait || onParked ? "▾" : "▸"}</i>
+                결과 대기 <em>{parked.length}</em>
+                <span className="home-fill" />
+                <small>영상 · 병리로 넘긴 환자</small>
+              </button>
+              {(openWait || onParked) && parked.map((r) => (
+                <QRow key={r.patient_id} r={r} it={itemOf(r)} on={r.patient_id === pick}
+                      onPick={onPick} dim />
+              ))}
+            </div>
+          )}
         </div>
       </Body>
     </aside>
   );
 }
 
+function QRow({ r, it, on, onPick, dim = false }) {
+  const odd = r.has_open_discordance || it?.open_discordance;
+  const say = it?.next_step ? NEXT[it.next_step]?.name : odd ? "판정 불일치" : (r.status ?? "");
+  return (
+    <button type="button"
+            className={`work-row${on ? " on" : ""}${dim ? " bf-dim" : ""}`}
+            onClick={() => onPick(r.patient_id)}>
+      <span className="work-row-1">
+        <i className={`work-dot${odd ? " k1" : ""}`} aria-hidden="true" />
+        <b>{H.nameOf(r)}</b>
+        {H.who(r) && <span>{H.who(r)}</span>}
+        {(H.allergy(r) || it?.has_allergy) && <em className="bf-q-flag">알레르기</em>}
+      </span>
+      <span className="work-row-2">
+        {H.noOf(r) && <i>{H.noOf(r)}</i>}
+        <span>{say}</span>
+      </span>
+    </button>
+  );
+}
+
 /* ── 가운데 — 고른 환자 ───────────────────────────────────────── */
-function Mid({ p, onNext, onOpen, onGuide }) {
+function Mid({ p, flow, onNext, onRun, onOpen, waiting }) {
   const d = p.open_discordance;
-  const rep = p.other_reports ?? [];
-  const pick = (want) => rep.filter((r) => (r.dept ?? "").includes(want));
-  /* 판정(BI-RADS · B 분류)은 소견문에 안 들어 있다 — 검사 종합 화면과 같은
-     자리에서 같은 것을 읽는다(api.js 의 readings 주석) */
   const readings = p.readings ?? { radiology: [], pathology: [] };
-  const radRead = readings.radiology?.[0] ?? null;
-  const patRead = readings.pathology?.[0] ?? null;
+  const key = flow?.next?.key;
+  /* 단추 줄 — 진료 순서대로. 다음 할 일과 맞는 것 하나만 채운다 */
+  const primary = (k) => (k === key ? "fill" : "line");
+  const exam = key === "exam" ? (flow.next.act === "specimen" ? "specimen" : "exam") : null;
 
   return (
     <>
@@ -236,13 +312,13 @@ function Mid({ p, onNext, onOpen, onGuide }) {
             {H.who(p) && <span>{H.who(p)}</span>}
           </span>
           <span className="work-2">
-            {[H.noOf(p), p.visit_type].filter(Boolean).join(" · ")}
+            {[H.noOf(p), p.visit_type, waiting ? "결과 대기" : null].filter(Boolean).join(" · ")}
           </span>
         </span>
         <span className="home-fill" />
         {H.some(p.family_history) && <Chip>가족력 {H.some(p.family_history)}</Chip>}
         {H.some(p.allergy) && <span className="pb-warn"><i aria-hidden="true">⚠</i>{H.some(p.allergy)}</span>}
-        <Btn onClick={onGuide}>다음 단계 안내</Btn>
+        <Btn onClick={() => onOpen("guide")}>다음 단계 안내</Btn>
       </header>
 
       {/* ⚠ 되돌릴 수 없는 갈림길이라 맨 위에 둔다 — 영상과 병리가 엇갈린
@@ -256,151 +332,54 @@ function Mid({ p, onNext, onOpen, onGuide }) {
         </Link>
       )}
 
-      <div className="work-reads">
-        <Read title="영상 판독" r={pick("영상")} v={radRead} gradeLabel="BI-RADS"
-              to={go.breast.review(p.patient_id)} />
-        <Read title="병리 판독" r={pick("병리")} v={patRead} gradeLabel="B"
-              to={go.breast.review(p.patient_id)} />
-      </div>
+      <FlowBar flow={flow} run={onRun} button={false} />
 
       <div className="work-foot">
-        <Btn onClick={() => onOpen("exam")}>촬영 요청</Btn>
-        <Btn onClick={() => onOpen("specimen")}>검체 등록</Btn>
-        <Btn kind="fill" onClick={() => onOpen("close")}>진료 완료</Btn>
+        <Btn kind={exam === "exam" ? "fill" : "line"} onClick={() => onRun({ act: "exam", modality: flow?.next?.modality })}>촬영 요청</Btn>
+        <Btn kind={exam === "specimen" ? "fill" : "line"} onClick={() => onOpen("specimen")}>검체 등록</Btn>
+        <Btn kind={primary("review")} to={go.breast.review(p.patient_id)}>환자 상세</Btn>
+        {d && <Btn kind={primary("discordance")} to={go.breast.discordance(d.discordance_id)}>불일치 처분</Btn>}
+        <Btn kind={["report", "decision", "explain", "prescription"].includes(key) ? "fill" : "line"}
+             to={go.breast.decision(p.patient_id, ["report", "decision", "explain", "prescription"].includes(key) ? key : null)}>
+          {["report", "explain", "prescription"].includes(key) ? flow.next.label : "치료 방침"}
+        </Btn>
+        <Btn kind={primary("close")} onClick={() => onOpen("close")}>진료 완료</Btn>
+        <Btn kind={primary("followup")} onClick={() => onOpen("book")}>재진 예약</Btn>
         <span className="home-fill" />
-        <Btn onClick={onNext}>다음 환자 →</Btn>
-        <Btn to={go.breast.decision(p.patient_id)}>치료 방침 결정</Btn>
-        <Btn kind="fill" to={go.breast.review(p.patient_id)}>환자 상세</Btn>
+        <Btn kind={key === "wait_results" ? "fill" : "line"} onClick={onNext}>다음 환자 →</Btn>
       </div>
 
-      <section className="work-read">
-        <header>
-          <h3>진료 플로우</h3>
-          <span className="home-fill" />
-          <span className="hcard-k">{nextCareStep(p).step.label}</span>
-        </header>
-        <p className="work-read-b">{nextCareStep(p).step.message}</p>
-      </section>
+      <div className="work-reads">
+        <section className="work-read">
+          <header>
+            <h3>영상 판독</h3>
+            <span className="home-fill" />
+            <span className="hcard-k">{readings.radiology.length}건 확정</span>
+          </header>
+          <PendingLine orders={p.orders} />
+          <RadRows rows={readings.radiology} />
+        </section>
+        <section className="work-read">
+          <header>
+            <h3>병리 판독</h3>
+            <span className="home-fill" />
+            <span className="hcard-k">{readings.pathology.length}건 확진</span>
+          </header>
+          <PathRows rows={readings.pathology} />
+        </section>
+      </div>
     </>
-  );
-}
-
-/* 환자별 다음 조치를 한 곳에서 계산한다.
-   접수·촬영·판독·검체·치료 결정의 순서를 화면마다 따로 판단하지 않도록
-   하여, 대기 화면과 안내 팝업이 같은 상태를 보여 준다. */
-function nextCareStep(p) {
-  const radiology = p.readings?.radiology ?? [];
-  const pathology = p.readings?.pathology ?? [];
-  const modalityOf = (v) => {
-    const value = String(v ?? "").toLowerCase();
-    if (value === "ultrasound" || value === "ultra") return "us";
-    if (value === "mammography") return "mammo";
-    return value;
-  };
-  const progress = { mammo: "todo", us: "todo", mri: "todo", specimen: "todo" };
-  radiology.forEach((r) => {
-    const key = modalityOf(r.modality);
-    if (key in progress) progress[key] = "done";
-  });
-  if (p.current_order?.modality) {
-    const key = modalityOf(p.current_order.modality);
-    if (key in progress && progress[key] !== "done") progress[key] = "waiting";
-  }
-  if (pathology.length > 0) progress.specimen = "done";
-
-  if (p.open_discordance) {
-    return { progress, step: {
-      kind: "discordance", label: "판정 불일치 처분",
-      message: "영상과 병리 결과가 일치하지 않습니다. 불일치 처분을 먼저 완료해 주세요.",
-    } };
-  }
-  const grade = String(radiology[0]?.grade ?? "");
-  if (!radiology.length) {
-    return { progress, step: {
-      kind: "request", modality: "mammo", label: "촬영 요청",
-      message: "확정된 영상 판독이 없습니다. 필요한 촬영을 요청해 주세요.",
-    } };
-  }
-  if (grade === "0") {
-    return { progress, step: {
-      kind: "request", modality: modalityOf(radiology[0].modality) || "us",
-      label: "추가 영상", message: "BI-RADS 0입니다. 보완 촬영 또는 추가 영상을 요청해 주세요.",
-    } };
-  }
-  if (grade === "3") {
-    return { progress, step: {
-      kind: "followup", label: "추적검사 등록",
-      message: "BI-RADS 3입니다. 추적검사 일정을 등록하고 환자에게 안내해 주세요.",
-    } };
-  }
-  if (/^4|^5/.test(grade) && pathology.length === 0) {
-    return { progress, step: {
-      kind: "specimen", label: "검체 등록",
-      message: `BI-RADS ${grade}입니다. 조직검사 검체를 등록해 병리과로 전달해 주세요.`,
-    } };
-  }
-  return { progress, step: {
-    kind: "decision", label: "치료 방침",
-    message: "필요한 검사 결과가 준비되었습니다. 환자 상세에서 검사 결과를 확인한 뒤 치료 방침을 결정해 주세요.",
-  } };
-}
-
-/* 영상·병리 한 칸씩.
-   ⚠ **칸을 없애지 않는다.** 한쪽이 아직 없어도 자리를 둔다 — 없어진
-     칸을 보면 「이 환자는 병리를 안 했다」가 아니라 「화면이 깨졌다」로
-     읽힌다 */
-function Read({ title, r, v = null, gradeLabel, to }) {
-  /* ⚠ 판정이 있으면 소견문이 없어도 칸을 채운다. 전에는 소견문 하나만
-     보고 있어서, BI-RADS 가 멀쩡히 붙은 환자도 「아직 없습니다」였다
-     (09-23 확인) — 소견문은 LLM 이 나중에 써 넣는 글이다 */
-  const reports = Array.isArray(r) ? r : (r ? [r] : []);
-  const has = reports.length > 0 || Boolean(v);
-  return (
-    <section className="work-read">
-      <header>
-        <h3>{title}</h3>
-        <span className="home-fill" />
-        {v?.grade && (
-          <Chip tone="fill">
-            {gradeLabel ? `${gradeLabel} ${v.grade}` : v.grade}
-          </Chip>
-        )}
-        {H.day(v?.at ?? reports[0]?.at) && <time>{H.day(v?.at ?? reports[0].at)}</time>}
-      </header>
-      {!has
-        ? <p className="hcard-k">아직 없습니다</p>
-        : (
-          <>
-            {v?.note && <p className="work-read-b">{v.note}</p>}
-            {reports.map((row, index) => row.summary && (
-              <p className="work-read-b" key={`${row.report_id ?? row.dept}-summary-${index}`}>
-                {row.summary}
-              </p>
-            ))}
-            <footer>
-              {/* ⚠ 낸 사람 이름을 서버가 안 준다 — 판독 응답의 assessed_by 는
-                  번호다. 번호를 사람 이름 자리에 찍지 않는다 */}
-              <span className="hcard-k">{reports[0]?.author ?? ""}</span>
-              <span className="home-fill" />
-              <Btn to={to}>자세히</Btn>
-            </footer>
-          </>
-        )}
-    </section>
   );
 }
 
 /* ── 330px — 진료 이력 ─────────────────────────────────────────
    `/patients/{id}/timeline` 이 이 칸의 전부다. 최근 것이 위로 온다.
+   흐름(flow.js)도 같은 이력을 읽어서 부르는 쪽(Waiting)에서 받아 온다.
 
-   ⚠ **줄마다 누르는 자리다.** 전에는 글자만 그려서 눌러도 아무 데도 안
-     갔다 — 서버는 줄마다 검사 · 검체 번호를 실어 주는데(history.js) 받는
-     쪽이 버리고 있었다. 누르면 환자 상세가 그 건의 판독을 펴서 연다.
-     치료 결정 · 리포트 · 결과 설명 · 처방은 치료 방침의 그 칸으로 간다 */
-function History({ id }) {
+   ⚠ **줄마다 누르는 자리다.** 누르면 환자 상세가 그 건의 판독을 펴서
+     연다. 치료 결정 · 리포트 · 결과 설명 · 처방은 치료 방침의 그 칸으로 간다 */
+function History({ id, line }) {
   const nav = useNavigate();
-  const line = useApi(
-    () => (id ? H.soft(api.timeline(id)) : Promise.resolve([])), [id]);
   const rows = [...H.rows(line.data)].reverse();
 
   return (
@@ -412,7 +391,7 @@ function History({ id }) {
       </header>
       <div className="work-hist-b">
         {rows.length === 0
-          ? <p className="hcard-k hpad">아직 없습니다</p>
+          ? <p className="hcard-k hpad">{line.loading ? "불러오는 중…" : "아직 없습니다"}</p>
           : rows.map((r, i) => {
             const to = historyTo(id, r);
             const open = () => nav(to);
@@ -433,39 +412,6 @@ function History({ id }) {
               </article>
             );
           })}
-      </div>
-    </section>
-  );
-}
-
-/* ── 248px — 결정 사유 상용구 ──────────────────────────────────
- * ⚠ **서버가 주는 값이 아니다.** 상용구를 저장하는 경로가 없다 — 화면에
- *   박아 둔 글이고, 누르면 사유 칸에 **붙는 게 아니라** 글자를 고르는
- *   수고를 던다. 사람마다 다르게 쓰고 싶으면 서버에 자리가 있어야 한다
- *   (8장). 목업의 세 묶음을 그대로 옮겼다.
- */
-const PHRASES = [
-  ["수술", ["단일 병변, 유방보존술 가능", "다발성 병변으로 전절제 고려"]],
-  ["추가 검사", ["병변 범위 평가 위해 MRI 시행", "표적 미포함 의심, 재조직검사"]],
-  ["보류 · 추적", ["환자 상의 후 재내원", "6개월 추적 관찰"]],
-];
-
-function Phrases() {
-  return (
-    <section className="work-say">
-      <header className="bcol-h">
-        <i className="hdot ring" aria-hidden="true" />
-        <b>결정 사유 상용구</b>
-      </header>
-      <div className="work-say-b">
-        {PHRASES.map(([group, items]) => (
-          <div className="work-grp" key={group}>
-            <span className="work-grp-k">{group}</span>
-            {items.map((it) => (
-              <p className="work-p" key={it}>{it}</p>
-            ))}
-          </div>
-        ))}
       </div>
     </section>
   );

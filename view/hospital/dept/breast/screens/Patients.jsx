@@ -1,32 +1,46 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { breast as api } from "../../../api";
 import { SEX, label } from "../../../codes";
 import { Body } from "../../../lib/Body";
 import { Btn, Card, Page } from "../../../lib/Page";
 import { go } from "../../../nav";
-import { Facts, Search, Sort, Split, Table } from "../../../lib/Parts";
+import { Chip, Search, Sort, Split, Table } from "../../../lib/Parts";
 import { useApi } from "../../../lib/useApi";
 import "../breast.css";
 import ReviewViewer from "../components/ReviewViewer";
+import Stepper from "../components/Stepper";
+import * as H from "../../home";
 import { historyDetail, historyTo, toDecision } from "../history";
+import { NEXT, PENDING_KEYS, flowOf } from "../flow";
+import { briefOf } from "../results";
 
 /* 유방외과 전체 환자 목록 ("/breast/patients")
  *
  * 영상의학과 전체 환자 목록과 같은 «왼쪽 목록 · 오른쪽 상세» 구조다.
  * 단, 유방외과에서는 판독을 쓰거나 정정하지 않으므로 그 두 행동은 두지
- * 않고 검사 종합 확인과 수술 결정으로만 이어진다. */
+ * 않고 검사 종합 확인과 수술 결정으로만 이어진다.
+ *
+ * 09-28 — 목록 칸을 진료 쪽으로 바꿨다(최근 내원 · 최근 BI-RADS · B ·
+ * 다음 할 일 · 불일치). 서버 worklist(scope=all)가 주는 값이다. 그 경로가
+ * 없거나 칸이 없으면 「—」로 둔다 — 환자마다 상세를 부르면 목록 길이만큼
+ * 요청이 나서 되짚지 않는다(고른 한 명만 오른쪽에서 되짚는다).
+ * ⚠ 첫 줄을 저절로 고른다 — 오른쪽이 「고르면 보입니다」로 비어 있었다.
+ * ⚠ 오른쪽의 환자 정보 아홉 줄(연락처 · 간호 메모 …)을 뺐다. 고른 사람이
+ *   지금 어디까지 왔는지(단계 줄)와 결과 한 줄이 그 자리에 더 쓸모 있다. */
 const SORTS = [
   { key: "name", label: "이름" },
   { key: "visited", label: "내원 순서" },
-  { key: "status", label: "진료 구분" },
+  { key: "status", label: "다음 할 일" },
 ];
 
 const COLS = [
-  { key: "patient", label: "환자", w: "28%" },
-  { key: "visit", label: "방문 구분", w: "18%" },
-  { key: "visited", label: "첫 방문일", w: "20%" },
-  { key: "status", label: "진료 구분", w: "18%" },
+  { key: "patient", label: "환자", w: "30%" },
+  { key: "visited", label: "최근 내원", w: "15%" },
+  { key: "birads", label: "BI-RADS", w: "11%" },
+  { key: "b", label: "B", w: "7%" },
+  { key: "next", label: "다음 할 일", w: "22%" },
+  { key: "odd", label: "불일치", w: "10%" },
 ];
 
 export default function Patients() {
@@ -34,6 +48,10 @@ export default function Patients() {
   const [query, setQuery] = useState("");
   const [pickedId, setPickedId] = useState(null);
   const { loading, data: patients, error, reload } = useApi(() => api.patients());
+  /* 서버 worklist — 없으면 null 이고 진료 칸이 「—」로 빈다 */
+  const wl = useApi(() => api.worklist("all").catch(() => null), []);
+  const items = useMemo(() => new Map(H.rows(wl.data).map((it) => [String(it.patient_id), it])),
+    [wl.data]);
 
   const visible = useMemo(() => {
     const keyword = query.trim().toLowerCase();
@@ -42,8 +60,9 @@ export default function Patients() {
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(keyword)),
     );
-    return [...filtered].sort((a, b) => sortPatients(a, b, sort));
-  }, [patients, query, sort]);
+    return [...filtered].sort((a, b) => sortPatients(a, b, sort, items));
+  }, [patients, query, sort, items]);
+  const picked = pickedId ?? visible[0]?.patient_id ?? null;
 
   return (
     <Page className="breast breast-patients-page" crumb={["유방외과", "전체 환자 목록"]}
@@ -61,15 +80,15 @@ export default function Patients() {
                   <div className="tbl-top">
                     <Sort items={SORTS} value={sort} onChange={setSort} />
                   </div>
-                  <Table cols={COLS} value={pickedId} onPick={setPickedId}
-                    rows={visible.map(toRow)} />
+                  <Table cols={COLS} value={picked} onPick={setPickedId}
+                    rows={visible.map((p) => toRow(p, items.get(String(p.patient_id))))} />
                   <div className="tbl-foot">
                     <span>{patients.length}건 중 {visible.length}건 표시</span>
                     <span className="muted">대기 여부와 관계없이 등록된 환자입니다</span>
                   </div>
                 </Card>
               }
-              right={pickedId && <PatientDetail id={pickedId} />}
+              right={picked && <PatientDetail id={picked} item={items.get(String(picked))} />}
             />
           )}
         </Body>
@@ -78,42 +97,72 @@ export default function Patients() {
   );
 }
 
-function toRow(patient) {
+function toRow(patient, it) {
+  const next = it?.next_step ? NEXT[it.next_step] : null;
+  const odd = it ? it.open_discordance : patient.has_open_discordance;
+  const bcat = it?.latest_b_category ?? it?.b_category ?? null;
   return {
     id: patient.patient_id,
-    patient: `${patient.name || "이름 미등록"} (${patient.age ?? "—"}/${patient.sex ? label(SEX, patient.sex) : "—"})`,
-    visit: patient.first_visited_at ? "방문 이력 있음" : "첫 방문 예정",
-    visited: formatDate(patient.first_visited_at),
-    status: <span className="pill wait">{patient.status || "—"}</span>,
+    patient: (
+      <>
+        {`${patient.name || "이름 미등록"} (${patient.age ?? "—"}/${patient.sex ? label(SEX, patient.sex) : "—"})`}
+        {(H.allergy(patient) || it?.has_allergy) && <> <Chip>알레르기</Chip></>}
+      </>
+    ),
+    visited: formatDate(it?.last_visit_at ?? patient.last_visit_at ?? patient.first_visited_at),
+    /* 서버 worklist 가 싣는 최근 판정 — 칸 이름이 정해지기 전이라 둘 다 본다 */
+    birads: it?.latest_birads ?? it?.birads ?? "—",
+    b: bcat ? String(bcat).toUpperCase() : "—",
+    next: next
+      ? <Chip tone={PENDING_KEYS.includes(it.next_step) ? "fill" : "line"}>{next.name}</Chip>
+      : "—",
+    odd: odd ? <Chip tone="fill">열림</Chip> : odd === undefined ? "—" : "없음",
   };
 }
 
-function sortPatients(a, b, sort) {
+function sortPatients(a, b, sort, items) {
   if (sort === "name") return String(a.name ?? "").localeCompare(String(b.name ?? ""), "ko");
-  if (sort === "status") return String(a.status ?? "").localeCompare(String(b.status ?? ""), "ko");
-  if (sort === "visited") return String(b.first_visited_at ?? "").localeCompare(String(a.first_visited_at ?? ""));
+  if (sort === "status") {
+    /* 다음 할 일 — 흐름 순서. 모르는 사람은 뒤로 */
+    const at = (p) => {
+      const i = Object.keys(NEXT).indexOf(items?.get(String(p.patient_id))?.next_step);
+      return i < 0 ? 99 : i;
+    };
+    return at(a) - at(b);
+  }
+  if (sort === "visited") {
+    const v = (p) => items?.get(String(p.patient_id))?.last_visit_at ?? p.last_visit_at ?? p.first_visited_at ?? "";
+    return String(v(b)).localeCompare(String(v(a)));
+  }
   return String(a.patient_number ?? "").localeCompare(String(b.patient_number ?? ""));
 }
 
-function PatientDetail({ id }) {
+function PatientDetail({ id, item }) {
   const { loading, data: patient, error, reload } = useApi(() => api.patient(id), [id]);
 
   return (
     <Card title="환자 요약" className="patients-detail-card"
-          right={<Btn kind="fill" to={go.breast.review(id)}>환자 상세</Btn>}>
-      <Body loading={loading} error={error} onRetry={reload}>
-        {patient && (
-          <>
-            <PatientDetailBody patient={patient} />
-          </>
+          right={(
+            <>
+              <Btn to={go.breast.decision(id)}>치료 방침</Btn>
+              <Btn kind="fill" to={go.breast.review(id)}>환자 상세</Btn>
+            </>
+          )}>
+      <Body loading={loading && !patient} error={error} onRetry={reload}>
+        {patient && String(patient.patient_id) === String(id) && (
+          <PatientDetailBody key={id} patient={patient} item={item} />
         )}
       </Body>
     </Card>
   );
 }
 
-function PatientDetailBody({ patient }) {
+function PatientDetailBody({ patient, item }) {
+  const nav = useNavigate();
   const timeline = useApi(() => api.timeline(patient.patient_id), [patient.patient_id]);
+  const flow = useMemo(() => flowOf({ p: patient, item, timeline: H.rows(timeline.data) }),
+    [patient, item, timeline.data]);
+  const brief = briefOf(patient);
   /* 검사 이력에서 고른 줄. 뷰어가 이 검사를 연다 — 고르기 전에는 null
      이고, 그때는 뷰어가 가장 최근 검사를 스스로 고른다. */
   const [pick, setPick] = useState(null);
@@ -128,17 +177,28 @@ function PatientDetailBody({ patient }) {
                       studyId={pick} />
       </div>
       <div className="list-detail-info">
-        <Facts items={[
-          ["환자", `${patient.name || "—"} (${patient.age ?? "—"}/${patient.sex ? label(SEX, patient.sex) : "—"})`],
-          ["등록번호", patient.patient_number || "—"],
-          ["생년월일", patient.birth_date || "—"],
-          ["연락처", patient.phone || "—"],
-          ["알레르기", patient.allergy || "없음"],
-          ["주치의", patient.primary_staff_name ? `${patient.primary_staff_name} 선생님` : "—"],
-          ["내원 구분", patient.visit_type || "—"],
-          ["검사 목적", patient.visit_purpose || "—"],
-          ["간호 메모", patient.intake_note || "—"],
-        ]} />
+        <div className="bf-pl-h">
+          <b>{patient.name || "—"}</b>
+          <span className="muted">
+            {[patient.age != null ? `${patient.age}세` : null, patient.sex ? label(SEX, patient.sex) : null,
+              patient.patient_number, patient.primary_staff_name ? `주치의 ${patient.primary_staff_name}` : null]
+              .filter(Boolean).join(" · ")}
+          </span>
+          {H.some(patient.allergy) && <Chip tone="fill">알레르기 · {H.some(patient.allergy)}</Chip>}
+        </div>
+        <p className="bf-pl-brief">{brief ?? "확정된 판독 · 병리 결과가 아직 없습니다"}</p>
+        <Stepper steps={flow.steps} col />
+        {flow.next && (
+          <div className="bf-pl-next">
+            <span className="muted small">다음 할 일</span>
+            <b>{flow.next.label}</b>
+            <span className="home-fill" />
+            {/* 팝업으로 하는 일(촬영 요청 · 진료 완료 · 재진)은 대기 환자에서 한다 */}
+            <Btn kind="fill" onClick={() => nav(flow.next.to ?? go.breast.waiting())}>
+              {flow.next.to ? "열기 →" : "대기 환자에서 →"}
+            </Btn>
+          </div>
+        )}
         <p className="section-label">검사 이력</p>
         <Body loading={timeline.loading} error={timeline.error} onRetry={timeline.reload}>
           {timeline.data && (

@@ -202,6 +202,54 @@ export const DESCRIPTOR_AXIS = {
  *  글자는 유방외과 오더 창(ExamOrderModal)의 선택지와 같게 둔다 */
 export const EXAM_PURPOSE = { screening: "정기 검진", diagnostic: "이상 소견 확인" };
 
+/* ── 판독 폼 보조 칸 (09-28) ─────────────────────────────────── */
+
+/** 유방 밀도 범주. 서버 enum: ["a","b","c","d"] (Study.density_category) */
+export const DENSITY_CATEGORY = [
+  { value: "a", label: "a — 거의 지방" },
+  { value: "b", label: "b — 산재성 섬유선" },
+  { value: "c", label: "c — 불균질 치밀" },
+  { value: "d", label: "d — 극도 치밀" },
+];
+
+/** 권고. 서버가 정한 값(Assessment.recommendation · 09-28 B1) */
+export const RECOMMENDATION = {
+  routine_screening: "정기 검진",
+  short_interval_followup: "단기 추적(6개월)",
+  additional_imaging: "추가 영상",
+  biopsy: "조직검사",
+  surgical_excision: "수술적 절제",
+};
+
+/** 검체 종류 · 유도 방식. 서버 enum 그대로 (Specimen.specimen_type · guidance_route) */
+export const SPECIMEN_TYPE = { core_needle: "중심 침 생검", surgical: "수술적 생검" };
+export const GUIDANCE_ROUTE = {
+  ultrasound: "초음파 유도", stereotactic: "정위 유도", mri: "MRI 유도", localization: "촉지 유도",
+};
+
+/** 조직형. 서버가 정한 값(Specimen.histologic_type · 09-28 B1) */
+export const HISTOLOGIC_TYPE = {
+  idc_nst: "침윤성 유관암 (IDC, NST)",
+  ilc: "침윤성 소엽암 (ILC)",
+  dcis: "관상피내암 (DCIS)",
+  lcis: "소엽상피내암 (LCIS)",
+  mucinous: "점액암",
+  tubular: "관상암",
+  papillary: "유두상암",
+  metaplastic: "화생암",
+  fibroadenoma: "섬유선종",
+  phyllodes: "엽상종양",
+  fibrocystic: "섬유낭종성 변화",
+  other: "기타",
+};
+
+/** ER · PR. 서버 값: positive · negative · low_positive */
+export const RECEPTOR = { positive: "양성", low_positive: "약양성 (1–10%)", negative: "음성" };
+/** HER2. 서버 값: negative · low · equivocal · positive */
+export const HER2 = { negative: "음성 (0)", low: "저발현 (1+ · 2+/ISH−)", equivocal: "경계 (2+)", positive: "양성 (3+ · ISH+)" };
+/** Nottingham 등급 1~3 */
+export const NOTTINGHAM = { 1: "1 — 고분화", 2: "2 — 중분화", 3: "3 — 저분화" };
+
 /* 리포트를 낸 소켓 → 어느 과가 낸 판독인가. 서버 models.py 의
    REPORT_SOCKET_ID 주석 그대로다 — 1 병리 · 3 MRI · 4b 맘모 · 5 초음파 ·
    7 종합. 유방외과 화면은 이 글자에 「영상」·「병리」가 들어 있는지로
@@ -333,6 +381,10 @@ const TABLES = {
   decision_value: DECISION_VALUE,
   report_type: REPORT_TYPE,
   audience: AUDIENCE,
+  specimen_type: SPECIMEN_TYPE,
+  guidance_route: GUIDANCE_ROUTE,
+  recommendation: RECOMMENDATION,
+  histologic_type: HISTOLOGIC_TYPE,
 };
 
 export function adopt(payload = {}) {

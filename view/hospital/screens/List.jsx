@@ -6,6 +6,7 @@ import { Chip, Locked, Search, Sort, Split, Table, useCan } from "../lib/Parts";
 import { useApi } from "../lib/useApi";
 import { can, reportScope } from "../perm";
 import SideDashboard from "../lib/SideDashboard";
+import { Filters, applyFilters, filterQuery, useFilterParams } from "../lib/Filters";
 
 /* ═══ 4장 · 전체 환자 목록 ═══════════════════════════════════════
  *
@@ -70,8 +71,19 @@ function Inner({ cfg }) {
      손이 멈추면 부른다 — 글자마다 부르지 않는다. 그 사이는 아래 match 가
      화면에 온 것을 즉시 걸러 메운다. */
   const qq = useDebounced(q, 300);
+  /* 거르는 칩(list.filters) — 주소에 적는다. 홈의 「초안 n」 같은 줄이
+     걸러진 목록으로 바로 온다. query 는 서버로, test 는 화면이 한 번 더
+     (서버가 그 질의를 몰라도 맞게 보이도록 — lib/Filters) */
+  const [fv, setFv] = useFilterParams(c.filters);
+  const fq = filterQuery(c.filters, fv);
+  const fqKey = JSON.stringify(fq);
   const { loading, data, error, reload } =
-    useApi(() => cfg.api.list({ ordering: sort, q: qq || undefined }), [sort, qq]);
+    useApi(() => cfg.api.list({ ordering: sort, q: qq || undefined, ...fq }), [sort, qq, fqKey]);
+  /* 거르기에 쓰는 곁자료(병리: 열린 불일치) — 한 번만 */
+  const ctx = useApi(() => (c.context ? c.context() : Promise.resolve({})), []);
+  const shown = data
+    ? applyFilters(data.items.filter((r) => match(r, q, c.search)), c.filters, fv, ctx.data ?? {})
+    : [];
 
   const scope = reportScope();
 
@@ -91,20 +103,20 @@ function Inner({ cfg }) {
                   pad={false}
                 >
                   <div className="tbl-top">
+                    <Filters groups={c.filters} value={fv} onChange={setFv} />
                     <Sort items={c.sorts} value={sort} onChange={setSort} />
                   </div>
 
                   <Table
                     cols={c.cols}
-                    rows={data.items
-                      .filter((r) => match(r, q, c.search))
-                      .map((r) => c.row(r))}
+                    rows={shown.map((r) => c.row(r))}
                     value={pick}
                     onPick={setPick}
+                    emptyText={c.filters ? "거른 조건에 맞는 것이 없습니다" : undefined}
                   />
 
                   <div className="tbl-foot">
-                    <span>{data.total}건 중 {data.items.length}건 표시</span>
+                    <span>{data.total}건 중 {shown.length}건 표시</span>
                     {scope?.key === "own" && (
                       <span className="muted">내가 맡은 환자만 보입니다</span>
                     )}
@@ -117,7 +129,7 @@ function Inner({ cfg }) {
                 {!c.hideDashboard && (
                   <SideDashboard stats={[
                     { label: "전체", value: data.total },
-                    { label: "현재 표시", value: data.items.length },
+                    { label: "현재 표시", value: shown.length },
                   ]} />
                 )}
               </>
@@ -174,32 +186,29 @@ function Detail({ cfg, id }) {
 
   if (!id) return null;
 
+  /* ⚠ 09-28 — **단추를 머리로 올렸다.** 전에는 뷰어(820px) 아래라 화면
+     밖이었다 — 목록에서 고르고 판독으로 가려면 늘 스크롤해야 했다 */
+  const acts = data && (
+    <span className="stack">
+      {cfg.amend && !data.finalized && (
+        <span className="muted small">확정된 판독이 있어야 정정할 수 있습니다</span>
+      )}
+      <Btn kind={cfg.amend && data.finalized ? "line" : "fill"}
+           onClick={() => nav(cfg.go.read(id))}>판독 화면</Btn>
+      {cfg.amend && (
+        <Btn kind="fill" onClick={() => nav(cfg.go.amend(id))}
+             disabled={!amend.ok || !data.finalized}
+             title={amend.attrs.title}>판독 정정</Btn>
+      )}
+    </span>
+  );
+
   return (
-    <Card title="상세">
+    <Card title={data ? (c.detailTitle?.(data) ?? "상세") : "상세"} right={acts}>
       <Body loading={loading} error={error} onRetry={reload}>
-        {data && (
-          <>
-            {/* ⚠ key 를 준다. 안 주면 환자를 바꿔도 같은 부품이 그대로
-                남아서, 접었다 편 상태(Fold)가 앞 환자 것으로 이어진다 —
-                「판독 결과」가 확정 여부에 따라 펼쳐져야 하는데 앞
-                사람의 상태를 물려받아 엉뚱하게 접혀 있거나 펼쳐진다 */}
-            <c.Detail key={id} d={data} cfg={cfg} />
-            {/* ⚠ 목록·뷰어·상세 3단(list-detail-cols) 아래에 오다 보니
-                구분선(.stack.top의 border-top)에 걸친 것처럼 보였다 —
-                오른쪽 끝으로 붙인다(2026-09-19). */}
-            <div className="stack top" style={{ justifyContent: "flex-end" }}>
-              <Btn kind="line" onClick={() => nav(cfg.go.read(id))}>판독 화면</Btn>
-              {cfg.amend && (
-                <Btn kind="fill" onClick={() => nav(cfg.go.amend(id))}
-                     disabled={!amend.ok || !data.finalized}
-                     title={amend.attrs.title}>판독 정정</Btn>
-              )}
-            </div>
-            {cfg.amend && !data.finalized && (
-              <p className="muted small">확정된 판독이 있어야 정정할 수 있습니다.</p>
-            )}
-          </>
-        )}
+        {/* ⚠ key 를 준다. 안 주면 환자를 바꿔도 같은 부품이 그대로
+            남아서, 접었다 편 상태(Fold)가 앞 환자 것으로 이어진다 */}
+        {data && <c.Detail key={id} d={data} cfg={cfg} />}
       </Body>
     </Card>
   );
