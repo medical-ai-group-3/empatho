@@ -306,9 +306,12 @@
 .breast .side-toggle.right {left:-10px}
 
 .breast .timeline {display:flex; flex-direction:column}
-.breast .timeline .row {position:relative; padding:0 0 16px 18px; border-left:2px solid var(--line)}
-.breast .timeline .row:last-child {border-color:transparent; padding-bottom:0}
-.breast .timeline .row .dot {position:absolute; left:-5px; top:2px; width:8px; height:8px;
+/* 세로선은 테두리가 아니라 ::before 로 긋는다 — 위치·굵기는 전과 같다 */
+.breast .timeline .row {position:relative; padding:0 0 16px 20px}
+.breast .timeline .row::before {content:""; position:absolute; left:0; top:0; bottom:0; width:2px; background:var(--line)}
+.breast .timeline .row:last-child {padding-bottom:0}
+.breast .timeline .row:last-child::before {display:none}
+.breast .timeline .row .dot {position:absolute; left:-3px; top:2px; width:8px; height:8px;
   border-radius:50%; background:var(--accent)}
 .breast .timeline .row .label {font-size:13px; font-weight:600}
 .breast .timeline .row .at {font-size:11.5px; color:var(--muted); margin-top:1px; font-variant-numeric:tabular-nums}
