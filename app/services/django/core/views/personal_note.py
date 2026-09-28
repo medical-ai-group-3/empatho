@@ -76,5 +76,14 @@ class PersonalNoteViewSet(viewsets.ViewSet):
 
     def destroy(self, request, pk=None):
         note = self._get_object(request, pk)
+        # ⚠ **지우는 것은 쓴 사람만.** 완료 처리(PATCH)는 같은 과가 한다 —
+        #   교대할 때 남이 넘긴 일을 처리하고 표시하는 것이 인계의 요점이다.
+        #   삭제는 다르다. 되돌릴 수 없고, 남의 인계가 사라지면 다음 교대가
+        #   그 일이 있었다는 것조차 모른다. 잘못 쓴 사람이 지우면 된다.
+        #
+        #   404 가 아니라 403 이다 — 같은 과에게는 보이는 메모라, 없다고
+        #   하면 거짓말이 된다(todo · sticky 는 애초에 안 보여서 404 다).
+        if note.owner_id != request.user.pk:
+            raise ApiError("ROLE_FORBIDDEN", "인계는 쓴 사람만 지울 수 있습니다.")
         note.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)

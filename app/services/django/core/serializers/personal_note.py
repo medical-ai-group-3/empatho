@@ -9,10 +9,17 @@ from .. import models
 class PersonalNoteSerializer(serializers.ModelSerializer):
     # 인계는 같은 과가 같이 본다 — 누가 남겼는지가 있어야 읽힌다
     owner_name = serializers.SerializerMethodField()
+    # 화면이 「내가 쓴 것」을 가를 열쇠. 이름으로 견주면 동명이인에서 틀린다
+    # (GET /me 의 staff_id 와 같은 값이다 — serializers/reception.py)
+    owner_staff_id = serializers.SerializerMethodField()
 
     def get_owner_name(self, note):
         staff = getattr(note.owner, "staff", None)
         return getattr(staff, "full_name", None) or note.owner.login_id
+
+    def get_owner_staff_id(self, note):
+        staff = getattr(note.owner, "staff", None)
+        return getattr(staff, "staff_id", None)
 
     class Meta:
         model = models.PersonalNote
