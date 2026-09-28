@@ -172,7 +172,8 @@ function BRow({ row }) {
       {(H.noOf(row) || row.stage) && (
         <p className="brow-2">
           {H.noOf(row) && <i>{H.noOf(row)}</i>}
-          <span>{row.stage}</span>
+          {/* 표시는 서버의 stage_detail(띄어쓰기 된 말)을 먼저 — stage 는 칸을 가르는 열쇠 */}
+          <span>{H.dots(row.stage_detail ?? row.stage)}</span>
         </p>
       )}
       {steps && <Steps steps={steps} />}

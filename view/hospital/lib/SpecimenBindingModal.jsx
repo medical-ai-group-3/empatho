@@ -31,7 +31,7 @@ const GUIDES = [
   { value: "ultrasound", label: "초음파 유도" },
   { value: "stereotactic", label: "정위 유도 (유방촬영 유도)" },
   { value: "mri", label: "MRI 유도" },
-  { value: "localization", label: "촉지 유도" },
+  { value: "localization", label: "위치 표지 유도" },
 ];
 
 function nowLocal() {

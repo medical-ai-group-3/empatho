@@ -228,7 +228,7 @@ export const RECOMMENDATION = {
 /** 검체 종류 · 유도 방식. 서버 enum 그대로 (Specimen.specimen_type · guidance_route) */
 export const SPECIMEN_TYPE = { core_needle: "중심 침 생검", surgical: "수술적 생검" };
 export const GUIDANCE_ROUTE = {
-  ultrasound: "초음파 유도", stereotactic: "정위 유도", mri: "MRI 유도", localization: "촉지 유도",
+  ultrasound: "초음파 유도", stereotactic: "정위 유도", mri: "MRI 유도", localization: "위치 표지 유도",
 };
 
 /** 조직형. 서버가 정한 값(Specimen.histologic_type · 09-28 B1) */
