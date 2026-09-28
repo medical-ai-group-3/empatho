@@ -391,6 +391,9 @@ class ExamOrderHandoffSerializer(serializers.Serializer):
 class MeSerializer(serializers.Serializer):
     """GET /me — 로그인한 계정 정보 + 권한 배열."""
     name = serializers.SerializerMethodField()
+    # 09-28 — 화면이 「내 것」을 가를 열쇠. 목록 응답의 assigned_to ·
+    # assessed_by · primary_staff 가 전부 staff 번호라 이름으로는 못 견준다
+    staff_id = serializers.SerializerMethodField()
     role = serializers.CharField()
     dept = serializers.CharField(source="role")
     dept_name = serializers.SerializerMethodField()
@@ -405,6 +408,10 @@ class MeSerializer(serializers.Serializer):
     def get_name(self, account):
         staff = getattr(account, "staff", None)
         return staff.full_name if staff else None
+
+    def get_staff_id(self, account):
+        staff = getattr(account, "staff", None)
+        return staff.staff_id if staff else None
 
     def get_dept_name(self, account):
         return self.DEPT_NAMES.get(account.role, account.role)
