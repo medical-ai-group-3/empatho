@@ -1,5 +1,7 @@
 import { Chip } from "../lib/Parts";
 import { Gauge, PartBar, SplitBar, StripPlot } from "./AiViz";
+import { AiFailNote } from "./AiFail";
+import { aiFailure, aiRunning } from "./aiFailure";
 
 /* 병리 AI 소견 — 등급이 아니라 정량 지표다
  * ────────────────────────────────────────────────────────────────
@@ -44,7 +46,7 @@ export function PathologyAiSummary({ d, slide, onSlide }) {
         <button type="button" key={r.id ?? i} className="phr-b" aria-pressed={slide === i}
                 disabled={!onSlide} title="이 크롭을 뷰어에 띄웁니다"
                 onClick={() => onSlide?.(i)}>
-          크롭 {i + 1} · {r.abstained ? "판정 못 함"
+          크롭 {i + 1} · {aiRunning(r) ? "분석 중" : aiFailure(r) ? "분석 실패" : r.abstained ? "판정 못 함"
             : r.stroma_status === "absent" ? "간질 없음"
             : `AI 계측 sTIL ${fmt1(r.stil_percent)}% · TSR ${r.tsr_percent ?? "—"}%`}
         </button>
@@ -104,7 +106,13 @@ export default function PathologyAi({ d, slide, onSlide }) {
             )}
           </div>
 
-          {r.abstained ? (
+          {/* 서버가 잠깐 못 받은 것(GPU 메모리 · 시간 · 연결)은 「판정 못 함」이
+              아니다 — 뜻만 적고 원문은 접는다(dept/aiFailure.js) */}
+          {aiRunning(r) ? (
+            <p className="ai-run" role="status"><b>AI 분석 중…</b></p>
+          ) : aiFailure(r) ? (
+            <AiFailNote f={aiFailure(r)} />
+          ) : r.abstained ? (
             <div className="ai-na">
               <b>판정하지 못했습니다</b>
               <span>{r.abstain_reason}</span>

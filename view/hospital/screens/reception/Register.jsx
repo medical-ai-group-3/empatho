@@ -145,8 +145,8 @@ export default function Register({ onClose, onDone }) {
               {clash.birth_year && <> · {clash.birth_year}년생</>}
             </span>
             <Warn>
-              전화번호가 같으면 새로 만들 수 없습니다. 같은 분이면 팝업을 닫고
-              전화번호로 검색해 고르시고, 다른 분이면 전화번호를 확인해 주세요.
+              전화번호가 같으면 새로 등록할 수 없습니다. 같은 환자라면 창을 닫고
+              전화번호로 검색해 선택하시고, 다른 환자라면 전화번호를 확인해 주세요.
             </Warn>
           </div>
         )}

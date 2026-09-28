@@ -221,7 +221,7 @@ export default function StickyMemo() {
         value={s.text}
         onChange={(e) => setS((v) => ({ ...v, text: e.target.value }))}
         onBlur={saveRemote}
-        placeholder="여기에 적어 두면 다른 화면으로 옮겨도 그대로 있습니다"
+        placeholder="여기에 적은 메모는 다른 화면으로 이동해도 유지됩니다"
       />
     </div>
   );

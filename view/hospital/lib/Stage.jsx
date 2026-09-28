@@ -517,7 +517,7 @@ export function polygonsFromAi(ai) {
     y: Number.isFinite(y) ? y : 0,
     label: [
       ai.category ? `등급 ${ai.category}` : null,
-      n > 1 ? `덩어리 ${n}` : null,
+      n > 1 ? `영역 ${n}개` : null,
     ].filter(Boolean).join(" · ") || null,
   }];
 }

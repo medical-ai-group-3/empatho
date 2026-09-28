@@ -51,18 +51,18 @@ export default class Boom extends Component {
     const stale = isStaleChunk(this.state.err);
     return (
       <div className="boot">
-        <b>화면을 그리다가 멈췄습니다</b>
+        <b>화면을 표시하는 중 오류가 발생했습니다</b>
         <span>{stale
-          ? "새로 배포되어 이 화면의 파일이 바뀌었습니다. 새로고침하면 열립니다."
+          ? "새 버전이 배포되었습니다. 새로고침하면 화면이 열립니다."
           : String(this.state.err?.message ?? this.state.err)}</span>
         <button className="btn line"
                 onClick={() => (stale
                   ? window.location.reload()
                   : this.setState({ err: null }))}>
-          {stale ? "새로 받기" : "다시 그리기"}
+          {stale ? "새로고침" : "다시 시도"}
         </button>
         <span className="muted small">
-          같은 자리에서 반복되면 이 메시지를 그대로 알려 주세요.
+          같은 화면에서 반복되면 이 메시지를 담당자에게 알려 주세요.
         </span>
       </div>
     );

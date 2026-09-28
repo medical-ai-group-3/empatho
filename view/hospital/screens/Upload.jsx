@@ -210,7 +210,7 @@ function Work({ cfg, id, d, reload }) {
 
   async function analyze() {
     if (stagedCount > 0) {
-      setMsg("올리기 전 파일이 있습니다 — 먼저 업로드하세요.");
+      setMsg("아직 업로드하지 않은 파일이 있습니다 — 먼저 업로드하세요.");
       return;
     }
     setBusy(true);
@@ -235,7 +235,7 @@ function Work({ cfg, id, d, reload }) {
   const step = (t) => `${STEP[n++]} ${t}`;
   const why = !done && (uploadedCount === 0
     ? "파일을 올려야 분석을 시작할 수 있습니다"
-    : !gate ? (quality === "rejected" ? "반려한 촬영본은 분석하지 않습니다" : "품질을 먼저 승인하세요")
+    : !gate ? (quality === "rejected" ? "반려한 영상은 분석할 수 없습니다" : "먼저 품질을 승인하세요")
       : running ? "분석이 끝나면 판독으로 넘어갈 수 있습니다" : null);
 
   return (
@@ -247,7 +247,7 @@ function Work({ cfg, id, d, reload }) {
         <div className="up-col">
           {/* ── 올리는 곳 — 맨 위 ─────────────────────────────── */}
           <Card title="파일 올리기"
-                right={<span className="muted small">올림 {uploadedCount}</span>}>
+                right={<span className="muted small">업로드 {uploadedCount}</span>}>
             <div className={`drop ${dragging ? "dragging" : ""}`}
                  onDragEnter={(e) => { e.preventDefault(); setDragging(true); }}
                  onDragOver={(e) => e.preventDefault()}
@@ -292,7 +292,7 @@ function Work({ cfg, id, d, reload }) {
                 <li key={f.id}>
                   <b>{f.name}</b><span>{f.size}</span>
                   <Chip tone={f.state === "failed" ? "fill" : f.state === "uploading" ? "dot" : "line"}>
-                    {f.state === "failed" ? "전송 실패" : f.state === "uploading" ? "전송 중" : "올리기 전"}
+                    {f.state === "failed" ? "전송 실패" : f.state === "uploading" ? "전송 중" : "업로드 전"}
                   </Chip>
                   {f.state !== "uploading" && (
                     <button className="btn ghost file-remove" type="button"
@@ -309,7 +309,7 @@ function Work({ cfg, id, d, reload }) {
                 </li>
               ))}
               {(d.files ?? []).length === 0 && picked.length === 0 && (
-                <li className="none">아직 올린 파일이 없습니다</li>
+                <li className="none">아직 업로드한 파일이 없습니다</li>
               )}
             </ul>
 
@@ -334,7 +334,7 @@ function Work({ cfg, id, d, reload }) {
               <>
                 <Bar value={prog.pct ?? 0} label={label(RUN_STATUS, prog.status)} />
                 {prog.status === "failed" && (
-                  <p className="hint">분석에 실패했습니다. 다시 걸어 보시고, 계속 실패하면 담당자에게 알려 주세요.</p>
+                  <p className="hint">분석에 실패했습니다. 다시 시도해 보시고, 계속 실패하면 담당자에게 알려 주세요.</p>
                 )}
                 {prog.abstained && (
                   <p className="hint">

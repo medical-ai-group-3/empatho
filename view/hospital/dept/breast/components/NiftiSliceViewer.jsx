@@ -91,7 +91,7 @@ export default function NiftiSliceViewer({
       </div>
 
       <div className="nifti-canvas-wrap">
-        {loading && <div className="nifti-message">MRI 불러오는 중...</div>}
+        {loading && <div className="nifti-message">MRI 불러오는 중…</div>}
         {!loading && error && <div className="nifti-message nifti-error">{error}</div>}
         {!loading && !error && (
           <canvas
@@ -103,7 +103,7 @@ export default function NiftiSliceViewer({
             onPointerLeave={handlePointerUp}
           />
         )}
-        {maskLoading && <div className="nifti-mask-loading">AI MASK 불러오는 중...</div>}
+        {maskLoading && <div className="nifti-mask-loading">AI 마스크 불러오는 중…</div>}
       </div>
 
       <div className="nifti-slice-control">

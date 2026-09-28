@@ -156,8 +156,8 @@ export default function Top({ dept, now, counts, summary }) {
  *   discordance · discordance_flag   유방외과 불일치 처분 화면
  *   report (AI 끝 · 판독 확정)        리포트를 읽어 환자 · 검사 · 검체를 얻는다
  *   assessment (영상 판독 확정)       판독 → 검사 → 환자
- *   specimen                          검체 → 환자 (지금 서버는 안 보낸다)
- *   ref 없음 (병리 확정, 09-28)       환자가 실려 있으면 검사 종합, 아니면 확인만
+ *   specimen (병리 확정, 09-28~)      유방외과 검사 종합(그 검체) · 병리 판독 · 그 밖 환자 상세
+ *   ref 없음 (옛 병리 확정)           환자가 실려 있으면 검사 종합, 아니면 확인만
  *
  * 받는 사람 권한으로 고른다 — 유방외과(주치의)는 검사 종합에서 그 건을
  * 펴서(go.breast.review 의 ?study= · ?specimen=), 영상 · 병리는 제 판독
@@ -170,11 +170,29 @@ async function noticeTo(n) {
   if (type === "discordance" || ref === "discordance_flag") {
     return id != null && can("breast.discordance.view") ? go.breast.discordance(id) : null;
   }
-  /* 병리 확정 알림은 ref 가 비어 온다(REF_TYPE 에 specimen 이 없다 —
-     views/pathology.py _notify_finalized). 환자도 안 실린다 → 확인만 한다 */
+  /* 옛 서버의 병리 확정 알림은 ref 가 비어 온다(REF_TYPE 에 specimen 이
+     없었다 — views/pathology.py _notify_finalized). 환자도 안 실린다 → 확인만 한다 */
   let pid = n.patient ?? null;
   if (id == null) {
     return pid != null && can("breast.review.view") ? go.breast.review(pid) : null;
+  }
+
+  /* 09-28 병리 확정 알림이 ref_type "specimen" · ref_id 검체 번호를 싣는다.
+     받는 사람마다 갈 곳이 다르다 —
+       유방외과   검사 종합에서 그 검체를 펴서(환자 번호는 검체를 읽어 얻는다)
+       병리       제 판독 화면 — 환자를 몰라도 되니 검체를 안 읽는다
+       그 밖      공용 환자 상세
+     ⚠ 권한 순서가 곧 우선순위다. 유방외과 열쇠가 있으면 병리 열쇠가 같이
+       있어도 검사 종합으로 간다(주치의에게 온 알림이다) */
+  if (ref === "specimen") {
+    const review = can("breast.review.view");
+    if (!review && can("pathology.read.view")) return go.pathology.read(id);
+    if (pid == null) {
+      const s = await noticeRef.specimen(id).catch(() => null);
+      pid = s?.patient ?? s?.patient_id ?? null;
+    }
+    if (pid == null) return null;
+    return review ? go.breast.review(pid, { specimen: id }) : go.patient(pid);
   }
 
   let study = null;
@@ -192,8 +210,6 @@ async function noticeTo(n) {
     assessment = id;
     study = a?.study ?? null;
     pid = a?.patient_id ?? pid;
-  } else if (ref === "specimen") {
-    specimen = id;
   } else if (ref === "study") {
     study = id;
   }
@@ -229,7 +245,7 @@ function Bell({ on }) {
         const key = `${ev.type}:${p.ref_type}:${p.ref_id}`;
         /* 띄운 것도 누르면 그 건으로 간다 — 알림 줄과 같은 모양으로 들고 있는다 */
         if (key !== last) {
-          setToast({ text: p.message || "새 알림이 왔습니다",
+          setToast({ text: p.message || "새 알림이 있습니다",
             n: { notification_type: ev.type, ref_type: p.ref_type, ref_id: p.ref_id } });
         }
         last = key;
@@ -270,7 +286,11 @@ function Bell({ on }) {
     <div className="bell-wrap">
       <button className="bell" aria-label={`알림${unread ? ` ${unread}건` : ""}`}
               aria-expanded={open} onClick={() => setOpen((v) => !v)}>
-        <span aria-hidden="true">◍</span>
+        {/* 09-28 — 「◍」 점이라 알림인지 몰랐다. 종 모양으로 */}
+        <svg className="bell-ico" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M6 16.5V11a6 6 0 1 1 12 0v5.5l1.6 1.6a.6.6 0 0 1-.42 1.02H4.82a.6.6 0 0 1-.42-1.02L6 16.5Z" />
+          <path d="M9.8 20.6a2.3 2.3 0 0 0 4.4 0" />
+        </svg>
         {unread > 0 && <i>{unread}</i>}
       </button>
       {open && (
@@ -287,7 +307,7 @@ function Bell({ on }) {
                   <li key={n.notification_id}>
                     <button type="button" className="new"
                             onClick={() => { read(n); follow(n); }}
-                            title="누르면 확인 처리되고 그 건의 화면으로 갑니다">
+                            title="누르면 읽음으로 표시되고 해당 화면으로 이동합니다">
                       <b>{n.message}</b>
                       <span>{H.at(n.sent_at || n.created_at)}</span>
                       <em>확인</em>

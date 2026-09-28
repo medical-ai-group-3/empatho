@@ -5,6 +5,7 @@ import { Body, Empty } from "../lib/Body";
 import { Chip, useCan } from "../lib/Parts";
 import { useApi } from "../lib/useApi";
 import SpecimenBindingModal from "../lib/SpecimenBindingModal";
+import { ArrangeBar, Panes, useArrange } from "../lib/Arrange";
 import { reception, breast, nursing, specimens } from "../api";
 import { DESK, go, homeDept } from "../nav";
 import {
@@ -29,9 +30,11 @@ import { historyDetail, historyTo, toDecision } from "../dept/breast/history";
  *
  * ⚠ **영상 뷰어는 두지 않는다**(09-23 결정). 영상 티켓(tile)을 간호과가
  *   못 받아 빈 뷰어 · 403 이 된다 — 영상은 유방외과 화면에서 본다.
- * ⚠ 「동의」 칸은 뺐다(09-28). 직원에게는 동의를 읽는 권한도 경로도 없어
- *   영영 빈 칸이었다. 「이전 담당의 소견」도 채울 값(소견 문장 · 쓴 사람)이
- *   안 와서 「최근 확정 판독」(타임라인의 판정)으로 바꿨다.
+ * ⚠ 「동의」 칸은 **간호 · 원무에게만** 선다(09-28 GET /patients/{id}/consents,
+ *   읽기 전용). 다른 역할에게는 서버가 403 이라 부르지도 않고, 경로가 없는
+ *   서버(404)나 403 이 오면 칸을 통째로 감춘다 — 전에 영영 빈 칸이던 것.
+ *   「이전 담당의 소견」은 채울 값(소견 문장 · 쓴 사람)이 안 와서
+ *   「최근 확정 판독」(타임라인의 판정)으로 바꿨다.
  *
  * ⚠ **4.4 의 「왼쪽 레일」과 다르다.** 4.4 표는 이 화면의 왼쪽을 전체
  *   히스토리로 적었지만 6.5 는 가운데로 적었다. 화면별 절인 6.5 를 따른다 —
@@ -53,6 +56,8 @@ export default function Patient() {
      「열람」이 찍힌다. 유방외과에게는 타임라인의 리포트 줄만 보이고 읽는
      것은 [검사 종합]에서 한다(ReportCard) */
   const surgery = homeDept()?.key === "breast";
+  /* 동의 기록은 간호 · 원무만 읽는다(원무 계정도 간호과로 들어온다 — nav.js) */
+  const desk = homeDept()?.key === "nursing";
 
   const { loading, error, data, reload } = useApi(() => Promise.all([
     reception.detail(id),
@@ -81,31 +86,34 @@ export default function Patient() {
 
   const p = data?.p;
   const pii = p?.pii ?? {};
+  /* 세 단 — 칸은 「배치 편집」으로 옮길 수 있다(lib/Arrange.jsx). 가운데
+     히스토리가 이 화면의 본체라 기본은 가운데 한 칸 */
+  const lay = useArrange("patient", PATIENT_BASE);
+  const cards = data ? {
+    visit:    <Visit today={data.today} studies={data.studies} timeline={data.timeline} />,
+    lesions:  <Lesions lesions={data.lesions} studies={data.studies} />,
+    survey:   <Survey patient={p} />,
+    consents: desk ? <Consents pid={id} /> : null,
+    history:  <History pid={id} events={data.timeline} />,
+    readings: <Readings pid={id} events={data.timeline} />,
+    reports:  <ReportCard pid={id} reports={data.reports} events={data.timeline} />,
+    follow:   <Followups pid={id} items={data.follow} />,
+    orders:   <Orders items={data.orders} />,
+  } : {};
 
   return (
     <Page crumb={["환자"]} title={pii.name ?? p?.patient_number ?? "환자"}
           patient={p}
-          right={data && <Actions pid={id} data={data} onBind={() => setBinding(true)} />}>
+          right={data && (
+            <>
+              <ArrangeBar lay={lay} />
+              <Actions pid={id} data={data} onBind={() => setBinding(true)} />
+            </>
+          )}>
       <Body loading={loading} error={error} onRetry={reload}>
         {data && (
-          <div className="pcols">
-            <div className="pcol">
-              <Visit today={data.today} studies={data.studies} timeline={data.timeline} />
-              <Lesions lesions={data.lesions} studies={data.studies} />
-              <Survey patient={p} />
-            </div>
-
-            <div className="pcol">
-              <History pid={id} events={data.timeline} />
-            </div>
-
-            <div className="pcol">
-              <Readings pid={id} events={data.timeline} />
-              <ReportCard pid={id} reports={data.reports} events={data.timeline} />
-              <Followups pid={id} items={data.follow} />
-              <Orders items={data.orders} />
-            </div>
-          </div>
+          <Panes lay={lay} cards={cards} className="pcols" paneClass="pcol"
+                 cols={["var(--pd-side)", "minmax(0, 1fr)", "var(--pd-side)"]} />
         )}
       </Body>
       {binding && p && (
@@ -115,6 +123,12 @@ export default function Patient() {
     </Page>
   );
 }
+
+const PATIENT_BASE = [
+  ["visit", "lesions", "survey", "consents"],
+  ["history"],
+  ["readings", "reports", "follow", "orders"],
+];
 
 /* 번호 비교 — 숫자 · 글자로 섞여 온다. 없는 쪽은 안 맞는 것으로 본다
    (「undefined」 === 「undefined」 로 남의 줄이 붙지 않게) */
@@ -176,7 +190,7 @@ function Actions({ pid, data, onBind }) {
     acts.push(["예약 잡기", go.nursing.reservations(pid)]);
     acts.push(["추적 콜", go.nursing.followups(pid)]);
   }
-  if (review) acts.push(["검사 종합", go.breast.review(pid)]);
+  if (review) acts.push(["환자 상세", go.breast.review(pid)]);
   if (decide) acts.push(["치료 방침", go.breast.decision(pid)]);
 
   /* 영상 — 최근 검사. 아직 안 올라왔으면 업로드, 올라왔으면 판독 */
@@ -196,7 +210,7 @@ function Actions({ pid, data, onBind }) {
       {acts.map(([name, to], i) => (
         <Btn key={`${name}-${i}`} kind={i === 0 ? "fill" : "line"} to={to}>{name}</Btn>
       ))}
-      {bind && <Btn kind="line" type="button" onClick={onBind}>검체 바인딩</Btn>}
+      {bind && <Btn kind="line" type="button" onClick={onBind}>검체 등록</Btn>}
     </div>
   );
 }
@@ -368,6 +382,52 @@ function Survey({ patient }) {
   );
 }
 
+/* ── 왼쪽 맨 아래 — 동의 (간호 · 원무만, 읽기 전용) ─────────────
+ * GET /patients/{id}/consents — 종류 · 판 · 동의/철회 · 날짜.
+ * ⚠ **고치는 자리가 아니다.** 동의는 환자 앱에서 환자가 하고 철회도 거기서
+ *   한다 — 여기서는 창구가 「이 분이 무엇에 동의했나」를 확인만 한다.
+ * ⚠ 403 · 404 면 칸을 안 세운다(부르는 쪽 권한이 없거나 경로가 없는 서버).
+ *   그 밖의 실패는 칸을 두고 못 불렀다고 적는다 */
+/* 서버 DOC_TYPE(models.py) 그대로 — terms · privacy · sensitive_health · marketing */
+const CONSENT = { terms: "서비스 이용약관", privacy: "개인정보 수집 · 이용",
+                  sensitive_health: "민감정보(건강) 처리", marketing: "안내 · 알림 수신" };
+
+function Consents({ pid }) {
+  const list = useApi(() => reception.consentsOf(pid), [pid]);
+  if (list.error && (list.error.status === 403 || list.error.status === 404)) return null;
+  const rows = H.rows(list.data);
+  const withdrawn = (c) => Boolean(c.withdrawn_at) || c.agreed === false || c.status === "withdrawn";
+  return (
+    <Card title="동의" right={<span className="src">읽기 전용</span>}>
+      {list.error
+        ? <Empty title="동의 기록을 불러오지 못했습니다" />
+        : !list.data
+          ? <p className="src">불러오는 중…</p>
+          : rows.length === 0
+            ? <Empty title="동의 기록이 없습니다" />
+            : (
+              <ul className="pfollow">
+                {rows.map((c, i) => {
+                  const type = c.consent_type_display || label(CONSENT, c.doc_type ?? c.consent_type ?? c.type) || "동의";
+                  const ver = c.doc_version ?? c.version ?? c.consent_version;
+                  const off = withdrawn(c);
+                  const when = off ? (c.withdrawn_at ?? c.updated_at) : (c.agreed_at ?? c.created_at);
+                  return (
+                    <li key={c.consent_id ?? c.id ?? i} className="prow">
+                      <span>
+                        {type}{ver && ` · ${ver}`}
+                        {when && ` · ${String(when).slice(0, 10)}`}
+                      </span>
+                      <Chip tone={off ? "line" : "fill"}>{off ? "철회" : "동의"}</Chip>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+    </Card>
+  );
+}
+
 /* ── 가운데 — 전체 히스토리 ───────────────────────────────────
  * 날짜별로 묶고 종류로 거른다. 기호는 글자 한 자다(4.4) — 색을 안 쓴다.
  */
@@ -442,7 +502,7 @@ function History({ pid, events }) {
   }, [events, only]);
 
   return (
-    <Card title="전체 히스토리" className="phistory"
+    <Card title="전체 이력" className="phistory"
           right={(
             <span className="sorts">
               <button type="button" className={`pill${only ? "" : " on"}`}
@@ -455,7 +515,7 @@ function History({ pid, events }) {
             </span>
           )}>
       {days.length === 0
-        ? <Empty title="남은 기록이 없습니다" />
+        ? <Empty title="기록이 없습니다" />
         : days.map(([day, list]) => (
           <section className="pday" key={day}>
             <h3>{day || "날짜 없음"}</h3>
@@ -502,7 +562,7 @@ function ReportCard({ pid, reports, events }) {
           ? <Empty title="발급된 리포트가 없습니다" />
           : list.slice(0, 4).map((e, i) => <EventRow key={i} e={e} withDay />)}
         <div className="stack top">
-          <Btn kind="line" to={go.breast.review(pid)}>검사 종합에서 보기</Btn>
+          <Btn kind="line" to={go.breast.review(pid)}>환자 상세에서 보기</Btn>
         </div>
       </Card>
     );
@@ -551,13 +611,13 @@ function Followups({ pid, items }) {
     <Card title="추적 일정"
           right={rounds.length > 0 && <span className="src">{rounds.length}회차</span>}>
       {items.length === 0
-        ? <Empty title="잡힌 추적이 없습니다" />
+        ? <Empty title="예정된 추적이 없습니다" />
         : (
           <ul className="pfollow">
             {items.map((f, i) => (
               <li key={f.followup_id ?? f.id ?? i}>
                 <span>
-                  {f.status === "candidate" ? "추적 후보 · 회차 없음" : `${f.round_no ?? "?"}회차`}
+                  {f.status === "candidate" ? "추적 대상 · 회차 없음" : `${f.round_no ?? "?"}회차`}
                   {f.due_at && ` · ${String(f.due_at).slice(0, 10)}`}
                   {f.call_result && ` · ${f.call_result}`}
                 </span>
@@ -591,7 +651,7 @@ function Orders({ items }) {
   return (
     <Card title="예약 · 방문 이력"
           right={list.length > 0 && (
-            <span className="src">{list.length}건{miss > 0 && ` · 안 옴 ${miss}`}</span>
+            <span className="src">{list.length}건{miss > 0 && ` · 미내원 ${miss}`}</span>
           )}>
       {list.length === 0
         ? <Empty title="예약 기록이 없습니다" />
@@ -607,7 +667,7 @@ function Orders({ items }) {
                     {String(o.scheduled_at ?? o.ordered_at ?? "").slice(0, 10) || "날짜 없음"}
                     {` · ${what}`}{state && ` · ${state}`}
                   </span>
-                  {noShow(o) && <Chip tone="line">안 옴</Chip>}
+                  {noShow(o) && <Chip tone="line">미내원</Chip>}
                 </li>
               );
             })}

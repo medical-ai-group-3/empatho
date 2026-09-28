@@ -700,6 +700,16 @@ button.bf-chip.on{box-shadow:inset 0 0 0 var(--focus-w) var(--cyan); color:var(-
   font-size:var(--label-fs); color:var(--ink-2)}
 .bf-book-f input{height:34px; padding:0 var(--in-pad-x); border:var(--hair) solid var(--faint);
   border-radius:var(--in-radius); font-size:var(--in-fs); background:var(--card); color:var(--ink)}
+/* 추적 회차(FollowupRounds) — 재진 예약 밑에 선 하나로 가른다 */
+.bf-fup{display:flex; flex-direction:column; gap:var(--gap-sm);
+  padding-top:var(--gap-sm); margin-top:var(--gap-xs); border-top:var(--hair) solid var(--line-2)}
+.bf-fup-h{margin:0; display:flex; align-items:baseline; gap:var(--gap-sm)}
+.bf-fup-h b{font-size:var(--row-fs); font-weight:700; color:var(--ink)}
+.bf-fup-list{margin:0; padding:0; list-style:none; display:flex; flex-direction:column}
+.bf-fup-list li{display:flex; align-items:baseline; gap:var(--gap-sm); padding:var(--gap-xxs) 0;
+  font-size:var(--row-fs); font-variant-numeric:tabular-nums;
+  border-bottom:var(--hair) solid var(--line-2)}
+.bf-fup-list li b{flex:none; min-width:4em; font-weight:600}
 .bf-lead{margin:0 0 var(--gap-sm); font-size:var(--row-fs); line-height:1.6; color:var(--ink-2)}
 .bf-lead b{color:var(--ink)}
 .modal .bf-steps{margin-top:var(--gap-sm)}
@@ -774,6 +784,96 @@ button.bf-chip.on{box-shadow:inset 0 0 0 var(--focus-w) var(--cyan); color:var(-
   padding-top:10px; border-top:1px solid var(--line-2)}
 .breast .bf-rail-next .section-label{margin:0}
 .breast .bf-rail .cond-list{display:flex; flex-direction:column; gap:10px}
+
+/* ── 치료 방침 한 쪽 흐름 (09-28) ─────────────────────────────
+ * 카드 머리 = 번호 · 제목 · 한 줄 요약 · 상태 칩. 머리 단추가 펴고 접는다.
+ * 오른쪽 목차(.bf-idx)가 같은 번호 · 요약을 쓴다.
+ * ⚠ 한쪽만 굵은 띠를 쓰지 않는다 — 지금 · 고른 카드는 네 변 1px cyan */
+.breast .bf-sc{scroll-margin-top:calc(var(--top-total) + var(--pb-h) + var(--gap))}
+.breast .bf-sc.here{box-shadow:inset 0 0 0 1px var(--cyan)}
+.breast .bf-sc-head{align-items:center; margin-bottom:12px}
+.breast .bf-sc.shut .bf-sc-head{margin-bottom:0}
+.breast .bf-sc-head h3{flex:1; min-width:0; margin:0}
+.breast .bf-sc-t{display:flex; flex-direction:column; align-items:flex-start; gap:2px; width:100%;
+  padding:0; border:0; background:none; text-align:left; color:inherit; font:inherit; cursor:pointer}
+.breast .bf-sc-title{font-size:14px; font-weight:700; color:var(--ink)}
+.breast .bf-sc-sum{max-width:100%; font-size:12.5px; font-weight:500; color:var(--muted);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.breast .bf-sc-t:hover .bf-sc-title{text-decoration:underline}
+.breast .bf-sc-t:focus-visible{outline:2px solid var(--cyan); outline-offset:3px; border-radius:4px}
+.breast .bf-sc-head > .edit-btn{margin-left:0}
+.breast .bf-sc-fold{flex:none; font-size:11.5px; color:var(--muted); min-width:2.5em; text-align:right}
+.breast .bf-sc-body[hidden]{display:none}
+/* 레일이 상단바 · 환자 띠(sticky) 밑으로 들어가 목차 첫 줄이 가렸다 */
+@media (min-width:1081px){
+  .breast .bf-rail{top:calc(var(--top-total) + var(--pb-h) + 12px);
+    max-height:calc(100vh - var(--top-total) - var(--pb-h) - 24px)}
+}
+/* 카드 발의 .split 이 아래 두 단 격자(.breast .split — 목록 · 상세)에 걸려
+   단추가 2/3 폭으로 늘어났다. 발은 한 줄 flex 다 */
+.breast .card-foot.split{display:flex; flex-wrap:wrap; gap:8px}
+/* 몸통 안 덩어리 — 첫 것만 선을 안 긋는다(몸통 div 가 한 겹 더 생겨서 위의
+   「.card-head + div > .bf-block」이 모든 덩어리의 선을 지웠다) */
+.breast .bf-sc > .bf-sc-body > .bf-block:not(:first-child){margin-top:12px; padding-top:12px;
+  border-top:1px solid var(--line-2)}
+.breast .bf-sc > .bf-sc-body > :first-child > .bf-block:first-child{margin-top:0; padding-top:0; border-top:none}
+.breast .bf-gate-row{display:flex; align-items:center; gap:12px; justify-content:space-between;
+  padding:10px 12px; border:1px solid var(--line); border-radius:var(--radius-sm)}
+.breast .bf-gate-row .card-text{margin:0}
+
+/* 오른쪽 목차 — 한 줄이 단추 하나. 번호 배지 · 제목 + 요약 · 상태 칩 */
+.breast .bf-idx ol{margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:4px}
+.breast .bf-idx-i{display:grid; grid-template-columns:22px minmax(0, 1fr) auto; align-items:center;
+  gap:10px; width:100%; padding:7px 8px; border:1px solid transparent; border-radius:var(--radius-sm);
+  background:none; text-align:left; color:inherit; font:inherit; cursor:pointer}
+.breast .bf-idx-i:hover{background:var(--surface-2)}
+.breast .bf-idx-i:focus-visible{outline:2px solid var(--cyan); outline-offset:1px}
+.breast .bf-idx-i.now{border-color:var(--cyan)}
+.breast .bf-idx-i.done .bf-sc-n{background:var(--ink); color:var(--surface); box-shadow:none}
+.breast .bf-idx-i.now .bf-sc-n{background:var(--cyan); color:var(--cyan-ink); box-shadow:none}
+.breast .bf-idx-t{display:flex; flex-direction:column; gap:1px; min-width:0}
+.breast .bf-idx-t b{font-size:13px; font-weight:600; color:var(--ink);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.breast .bf-idx-t small{font-size:11.5px; color:var(--muted); line-height:1.35;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden}
+.breast .bf-idx-i .pill{height:20px; padding:0 7px; font-size:11px}
+.breast .bf-idx-i.lock .bf-idx-t b,.breast .bf-idx-i.todo .bf-idx-t b{color:var(--ink-2); font-weight:500}
+
+/* 잠금 조건 — 조건 한 줄 + 안 채운 까닭 · 할 일 */
+.breast ul.cond-list{margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:8px}
+.breast .cond-list .cond-row{display:flex; flex-direction:column; align-items:stretch; gap:4px;
+  padding:8px 10px; border:1px solid var(--line); border-radius:var(--radius-sm)}
+.breast .cond-list .cond-row.met{background:var(--surface-2)}
+.breast .cond-h{display:flex; align-items:center; justify-content:space-between; gap:8px;
+  font-size:13px; font-weight:600}
+.breast .cond-why{display:flex; align-items:baseline; justify-content:space-between; gap:8px;
+  font-size:12px; color:var(--ink-2); line-height:1.45}
+.breast .cond-why .edit-btn{flex:none; font-size:12px; font-weight:600; color:var(--accent);
+  background:none; border:0; padding:0; cursor:pointer}
+.breast .cond-why .edit-btn:hover{text-decoration:underline}
+.breast .cond-list.compact .cond-row{padding:6px 8px}
+.breast .bf-rail-lock .cond-list{gap:6px}
+.breast .lock-panel .lock-h{display:flex; align-items:center; gap:10px; margin-bottom:12px; align-self:stretch}
+.breast .lock-panel .lock-h .lock-icon{margin-bottom:0; flex:none}
+.breast .lock-panel .lock-h .status{margin:0; text-align:left}
+.breast .lock-panel.ready .lock-icon{background:var(--warn-weak); color:var(--warn)}
+
+/* 처방 — 복용 횟수 칩 + 시각 칸들 */
+.breast .rx-times-field{display:flex; flex-direction:column; gap:8px}
+.breast .rx-freq{display:flex; flex-wrap:wrap; align-items:center; gap:6px}
+.breast .rx-freq .bf-chip small{font-size:10.5px; font-weight:700; color:var(--muted); margin-left:2px}
+.breast .rx-freq-own{font-size:12px; color:var(--muted)}
+.breast .rx-times{margin:0; padding:0; list-style:none; display:flex; flex-wrap:wrap; align-items:center; gap:8px}
+.breast .rx-time{display:inline-flex; align-items:center; gap:6px; padding:4px 6px 4px 10px;
+  border:1px solid var(--line); border-radius:var(--radius-sm)}
+.breast .rx-time label{font-size:12px; font-weight:600; color:var(--muted)}
+.breast .field .rx-time input{border:0; padding:2px 0; font-variant-numeric:tabular-nums; background:none}
+.breast .field .rx-time input[aria-invalid="true"]{color:var(--danger)}
+.breast .rx-time-x{width:22px; height:22px; border:0; border-radius:50%; background:none;
+  color:var(--muted); font-size:15px; line-height:1; cursor:pointer}
+.breast .rx-time-x:hover{background:var(--surface-2); color:var(--danger)}
+.breast .rx-times .edit-btn{font-size:12.5px; font-weight:600; color:var(--accent); background:none; border:0; cursor:pointer}
+.breast .rx-times-field .err{color:var(--danger); font-size:12px}
 
 /* ── 판정 불일치 — 왼쪽 아래 「처분 기다리는 불일치」 (Discordance.jsx) ──
    비어 있던 아래 칸을 목록이 받는다. 남는 높이를 다 쓰고 안에서 굴린다 */

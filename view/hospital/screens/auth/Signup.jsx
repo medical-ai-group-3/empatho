@@ -115,14 +115,14 @@ export default function Signup({ onBack }) {
               <span>비밀번호</span>
               <input className="input" type="password" value={f.password} onChange={set("password")}
                      autoComplete="new-password" disabled={busy} />
-              <em>여덟 자 이상</em>
+              <em>8자 이상</em>
             </label>
 
             <label className="field">
               <span>비밀번호 확인</span>
               <input className="input" type="password" value={f.password2} onChange={set("password2")}
                      autoComplete="new-password" disabled={busy} />
-              {f.password2 && f.password !== f.password2 && <em>두 번 넣으신 값이 다릅니다</em>}
+              {f.password2 && f.password !== f.password2 && <em>비밀번호가 일치하지 않습니다</em>}
             </label>
 
             <label className="field">

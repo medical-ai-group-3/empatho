@@ -9,12 +9,36 @@ import dicomImageLoader from "@cornerstonejs/dicom-image-loader";
  * 아니라서 hospital/lib/ 로 옮겨 왔다(원래 dept/breast/components/에
  * 있었다). */
 let initPromise = null;
+
+/* ⚠ VOI LUT 함수 바로잡기 (09-28)
+ *   dicom-image-loader 5.x 의 createImage 가 VOILUTFunction(0028,1056)을
+ *   배열로 여기고 [0] 을 꺼낸다. 그런데 wadouri 메타데이터는 문자열이라
+ *   "SIGMOID" 가 "S" 가 된다. StackViewport 는 「Invalid VOI LUT function」을
+ *   던지고 그 장을 안 그린다 — 오류는 IMAGE_LOAD_ERROR 이벤트로만 나가
+ *   화면에는 아무 표시가 없다. 맘모 장비(GE · Hologic)는 SIGMOID 를 흔히
+ *   적는다(CMMD 샘플도 그렇다). 그래서 맘모 네 장 중 **첫 장만 뜨고 ‹ › ·
+ *   휠로 넘겨도 「뷰 1 / 4」에서 안 움직였다.**
+ *   불러온 직후(IMAGE_LOADED — 뷰포트가 쓰기 전에 먼저 불린다) 원래 값으로
+ *   되돌린다. 모르는 값이면 LINEAR. 캐시에 든 image 를 고치므로 한 번이면 된다 */
+function fixVoiLutFunction(evt) {
+  const image = evt?.detail?.image;
+  const T = cornerstone.Enums.VOILUTFunctionType;
+  const valid = Object.values(T);
+  if (!image || image.voiLUTFunction == null || valid.includes(image.voiLUTFunction)) return;
+  let v = null;
+  try { v = cornerstone.metaData.get("voiLutModule", image.imageId)?.voiLUTFunction; }
+  catch { /* 메타데이터가 없으면 LINEAR */ }
+  v = String((Array.isArray(v) ? v[0] : v) ?? "").trim().toUpperCase();
+  image.voiLUTFunction = valid.includes(v) ? v : T.LINEAR;
+}
+
 export function ensureCornerstoneInit() {
   if (!initPromise) {
     initPromise = (async () => {
       await cornerstone.init();
       dicomImageLoader.init();
       cornerstoneTools.init();
+      cornerstone.eventTarget.addEventListener(cornerstone.Enums.Events.IMAGE_LOADED, fixVoiLutFunction);
       cornerstone.volumeLoader.registerVolumeLoader(
         "cornerstoneStreamingImageVolume",
         cornerstone.cornerstoneStreamingImageVolumeLoader

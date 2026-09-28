@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Body } from "../lib/Body";
 import { Btn, Card, Page } from "../lib/Page";
-import { Chip, Locked, Search, Sort, Split, Table, useCan } from "../lib/Parts";
+import { Chip, Locked, Search, Split, Table, useCan } from "../lib/Parts";
+import { SortSelect } from "../lib/ListCells";
 import { useApi } from "../lib/useApi";
 import { can, reportScope } from "../perm";
 import SideDashboard from "../lib/SideDashboard";
@@ -94,7 +95,7 @@ function Inner({ cfg }) {
         {data && (
           <Split
             side={c.splitSide ?? "wide"}
-            empty="목록에서 한 사람을 고르면 여기에 상세가 보입니다"
+            empty="목록에서 항목을 선택하면 상세 정보가 표시됩니다"
             left={
               <>
                 <Card
@@ -102,9 +103,12 @@ function Inner({ cfg }) {
                   right={<Search placeholder={c.searchHint} value={q} onChange={setQ} />}
                   pad={false}
                 >
-                  <div className="tbl-top">
+                  {/* 09-28 — 거르는 칩 · 정렬이 세 줄을 먹어 표가 한참 아래서
+                      시작했다. 칩 묶음을 한 흐름으로 이어 접고, 정렬은 고르개
+                      하나로 줄인다(.lst-top) */}
+                  <div className="tbl-top lst-top">
                     <Filters groups={c.filters} value={fv} onChange={setFv} />
-                    <Sort items={c.sorts} value={sort} onChange={setSort} />
+                    <SortSelect items={c.sorts} value={sort} onChange={setSort} />
                   </div>
 
                   <Table
@@ -112,13 +116,13 @@ function Inner({ cfg }) {
                     rows={shown.map((r) => c.row(r))}
                     value={pick}
                     onPick={setPick}
-                    emptyText={c.filters ? "거른 조건에 맞는 것이 없습니다" : undefined}
+                    emptyText={c.filters ? "조건에 맞는 항목이 없습니다" : undefined}
                   />
 
                   <div className="tbl-foot">
                     <span>{data.total}건 중 {shown.length}건 표시</span>
                     {scope?.key === "own" && (
-                      <span className="muted">내가 맡은 환자만 보입니다</span>
+                      <span className="muted">내 담당 환자만 표시됩니다</span>
                     )}
                   </div>
                 </Card>

@@ -65,7 +65,7 @@ export default function Review() {
           right={(
             <>
               {/* 제목이 「환자 상세」라 공용 환자 페이지는 그 중심인 히스토리 이름으로 */}
-              <Btn to={go.patient(id)}>전체 히스토리</Btn>
+              <Btn to={go.patient(id)}>환자 기록</Btn>
               <Btn to={go.breast.waiting()}>대기 환자</Btn>
             </>
           )}>
@@ -118,7 +118,7 @@ function Inner({ pid, p, focus, onReload }) {
   const miss = (items, what) => (want && focus.key === what && !items.some((x) => x.id === want));
   const radMiss = miss(radRows, "study_id") && (
     <div className="rev-miss">
-      <p className="hcard-k">고른 검사(#{focus.id})는 아직 확정된 판독이 없습니다.</p>
+      <p className="hcard-k">선택한 검사(#{focus.id})는 아직 확정된 판독이 없습니다.</p>
       <Btn onClick={() => setSeeing(true)}>이 검사 영상 보기</Btn>
     </div>
   );
@@ -130,7 +130,7 @@ function Inner({ pid, p, focus, onReload }) {
     : radMiss;
   const patMiss = miss(patRows, "specimen_id") && (
     <div className="rev-miss">
-      <p className="hcard-k">고른 검체(#{focus.id})는 아직 병리 확진 전입니다.</p>
+      <p className="hcard-k">선택한 검체(#{focus.id})는 아직 병리 확진 전입니다.</p>
     </div>
   );
 
@@ -171,7 +171,7 @@ function Inner({ pid, p, focus, onReload }) {
         <div className={`rev-odd${odd ? " k1" : ""}`}>
           <i aria-hidden="true">{odd ? "⚠" : "✓"}</i>
           <span>
-            <b>{odd ? "영상과 병리가 엇갈립니다" : "엇갈린 것이 없습니다"}</b>
+            <b>{odd ? "영상과 병리 판정이 엇갈립니다" : "판정 불일치가 없습니다"}</b>
             {odd && <em>{odd.violated_rule}</em>}
           </span>
           {odd && <Btn to={go.breast.discordance(odd.discordance_id)}>처분하기</Btn>}
@@ -203,10 +203,10 @@ function Inner({ pid, p, focus, onReload }) {
                onClick={() => setModal("specimen")}>검체 등록</Btn>
           <span className="home-fill" />
           <span className="hcard-k">
-            {toDecision ? `다음 할 일 · ${flow.next.label}` : "결과를 다 읽었으면"}
+            {toDecision ? `다음 할 일 · ${flow.next.label}` : "결과 확인을 마쳤다면"}
           </span>
           <Btn kind={toDecision ? "fill" : "line"} to={go.breast.decision(pid, toDecision)}>
-            리포트 · 방침으로 →
+            리포트 · 치료 방침으로 →
           </Btn>
         </footer>
       </div>
@@ -413,9 +413,9 @@ function Version({ pid, studyId, assessmentId, fallback, onSee }) {
     return (
       <div className="rev-miss">
         <p className="hcard-k">
-          {list.loading ? `고른 판독(#${assessmentId})을 불러오는 중입니다.`
-            : list.error ? "고른 판독을 불러오지 못했습니다."
-            : `고른 판독(#${assessmentId})을 이 검사에서 찾지 못했습니다.`}
+          {list.loading ? `선택한 판독(#${assessmentId})을 불러오는 중입니다.`
+            : list.error ? "선택한 판독을 불러오지 못했습니다."
+            : `선택한 판독(#${assessmentId})을 이 검사에서 찾지 못했습니다.`}
         </p>
         {list.error && <Btn onClick={list.reload}>다시 시도</Btn>}
       </div>
@@ -423,7 +423,7 @@ function Version({ pid, studyId, assessmentId, fallback, onSee }) {
   }
   if (same) return fallback;
 
-  const what = a.read_stage === "draft" ? "초안"
+  const what = a.read_stage === "draft" ? "임시저장"
     : a.superseded_by != null ? "이전 판독 · 대체됨" : "이전 판독";
   return (
     <div className="rev-miss rev-ver" ref={here} aria-current="true">

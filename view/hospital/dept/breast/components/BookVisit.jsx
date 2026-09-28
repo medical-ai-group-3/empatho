@@ -42,7 +42,7 @@ export function BookForm({ patient, suggest = 14, onDone, onSkip, skipLabel = "�
       onDone?.(order);
     } catch (e) {
       setErr(e?.code === "DUPLICATE_RESERVATION" || e?.status === 409
-        ? `${date} 에 이미 예약(또는 내원)이 있습니다 — 다른 날을 골라 주세요`
+        ? `${date}에 이미 예약(또는 내원)이 있습니다 — 다른 날짜를 선택해 주세요`
         : (e?.detail || e?.message || "예약하지 못했습니다"));
     } finally { setBusy(false); sending.current = false; }
   }

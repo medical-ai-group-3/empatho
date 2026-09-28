@@ -6,6 +6,8 @@ import { Body } from "../../../lib/Body";
 import { Btn, Card, Page } from "../../../lib/Page";
 import { go } from "../../../nav";
 import { Chip, Search, Sort, Split, Table } from "../../../lib/Parts";
+import { Two } from "../../../lib/ListCells";
+import { shortAt } from "../../../lib/shortAt";
 import { useApi } from "../../../lib/useApi";
 import "../breast.css";
 import ReviewViewer from "../components/ReviewViewer";
@@ -34,13 +36,16 @@ const SORTS = [
   { key: "status", label: "다음 할 일" },
 ];
 
+/* 09-28 — 여섯 칸이 목록 폭(440px)에 안 들어 1280 창에서 끝 칸(불일치)이
+   목록 밖으로 잘리고 이름이 「김영희 (41/ / 여)」로 꺾였다.
+   · BI-RADS · B 를 한 칸(「4b · B3」)으로, 불일치는 다음 할 일 칸의 칩으로
+   · 나이 · 성별 · 등록번호는 이름 밑 둘째 줄, 알레르기는 이름 옆 작은 표시
+   · 이름 칸만 남는 폭을 받고 나머지는 값 폭만큼(Table cls) */
 const COLS = [
-  { key: "patient", label: "환자", w: "30%" },
-  { key: "visited", label: "최근 내원", w: "15%" },
-  { key: "birads", label: "BI-RADS", w: "11%" },
-  { key: "b", label: "B", w: "7%" },
-  { key: "next", label: "다음 할 일", w: "22%" },
-  { key: "odd", label: "불일치", w: "10%" },
+  { key: "patient", label: "환자", cls: "c-grow" },
+  { key: "visited", label: "최근 내원", cls: "c-fit" },
+  { key: "grade", label: "BI-RADS · B", cls: "c-fit" },
+  { key: "next", label: "다음 할 일", cls: "c-fit" },
 ];
 
 export default function Patients() {
@@ -65,14 +70,14 @@ export default function Patients() {
   const picked = pickedId ?? visible[0]?.patient_id ?? null;
 
   return (
-    <Page className="breast breast-patients-page" crumb={["유방외과", "전체 환자 목록"]}
-      title="전체 환자 목록">
+    <Page className="breast breast-patients-page" crumb={["유방외과", "전체 환자"]}
+      title="전체 환자">
       <div className="pane">
         <Body loading={loading} error={error} onRetry={reload}>
           {patients && (
             <Split
               side="third"
-              empty="왼쪽 목록에서 환자를 고르면 상세 정보가 보입니다"
+              empty="왼쪽 목록에서 환자를 선택하면 요약이 표시됩니다"
               left={
                 <Card title={`환자 목록 (${patients.length})`}
                   right={<Search placeholder="환자명 · 등록번호 · 연락처" value={query} onChange={setQuery} />}
@@ -84,7 +89,7 @@ export default function Patients() {
                     rows={visible.map((p) => toRow(p, items.get(String(p.patient_id))))} />
                   <div className="tbl-foot">
                     <span>{patients.length}건 중 {visible.length}건 표시</span>
-                    <span className="muted">대기 여부와 관계없이 등록된 환자입니다</span>
+                    <span className="muted">대기 여부와 관계없이 등록된 모든 환자를 표시합니다</span>
                   </div>
                 </Card>
               }
@@ -101,22 +106,28 @@ function toRow(patient, it) {
   const next = it?.next_step ? NEXT[it.next_step] : null;
   const odd = it ? it.open_discordance : patient.has_open_discordance;
   const bcat = it?.latest_b_category ?? it?.b_category ?? null;
+  /* 서버 worklist 가 싣는 최근 판정 — 칸 이름이 정해지기 전이라 둘 다 본다 */
+  const birads = it?.latest_birads ?? it?.birads ?? null;
+  const grade = [birads, bcat ? `B${String(bcat).toUpperCase().replace(/^B/, "")}` : null]
+    .filter(Boolean).join(" · ");
+  const allergic = Boolean(H.allergy(patient) || it?.has_allergy);
+  const name = patient.name || "이름 미등록";
   return {
     id: patient.patient_id,
     patient: (
-      <>
-        {`${patient.name || "이름 미등록"} (${patient.age ?? "—"}/${patient.sex ? label(SEX, patient.sex) : "—"})`}
-        {(H.allergy(patient) || it?.has_allergy) && <> <Chip>알레르기</Chip></>}
-      </>
+      <Two strong title={name}
+           main={<>{name}{allergic && <i className="lst-flag">알레르기</i>}</>}
+           sub={[H.who(patient), patient.patient_number].filter(Boolean).join(" · ")} />
     ),
-    visited: formatDate(it?.last_visit_at ?? patient.last_visit_at ?? patient.first_visited_at),
-    /* 서버 worklist 가 싣는 최근 판정 — 칸 이름이 정해지기 전이라 둘 다 본다 */
-    birads: it?.latest_birads ?? it?.birads ?? "—",
-    b: bcat ? String(bcat).toUpperCase() : "—",
-    next: next
-      ? <Chip tone={PENDING_KEYS.includes(it.next_step) ? "fill" : "line"}>{next.name}</Chip>
-      : "—",
-    odd: odd ? <Chip tone="fill">열림</Chip> : odd === undefined ? "—" : "없음",
+    /* 「09-21」 — 날짜만(올해가 아니면 「25-09-21」) */
+    visited: shortAt(String(it?.last_visit_at ?? patient.last_visit_at ?? patient.first_visited_at ?? "").slice(0, 10)) ?? "—",
+    grade: grade || "—",
+    next: (next || odd) ? (
+      <span className="lst-chips">
+        {next && <Chip tone={PENDING_KEYS.includes(it.next_step) ? "fill" : "line"}>{next.name}</Chip>}
+        {odd && <Chip tone="fill">불일치</Chip>}
+      </span>
+    ) : "—",
   };
 }
 
@@ -195,7 +206,7 @@ function PatientDetailBody({ patient, item }) {
             <span className="home-fill" />
             {/* 팝업으로 하는 일(촬영 요청 · 진료 완료 · 재진)은 대기 환자에서 한다 */}
             <Btn kind="fill" onClick={() => nav(flow.next.to ?? go.breast.waiting())}>
-              {flow.next.to ? "열기 →" : "대기 환자에서 →"}
+              {flow.next.to ? "열기 →" : "대기 환자에서 열기 →"}
             </Btn>
           </div>
         )}
@@ -257,12 +268,4 @@ function PatientTimeline({ pid, events, pick, onPick }) {
       })}
     </ul>
   );
-}
-
-function formatDate(value) {
-  if (!value) return "—";
-  const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? String(value).slice(0, 10)
-    : date.toLocaleDateString("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit" });
 }

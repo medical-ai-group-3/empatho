@@ -69,7 +69,7 @@ const personOf = (r) => ({ patient_id: r.patient ?? r.patient_id,
                            patient_number: r.patient_number ?? null });
 
 const STATUS = {
-  requested: "미확정", scheduled: "예약 확정", ordered: "검사 지시",
+  requested: "미확정", scheduled: "예약 확정", ordered: "검사 확정",
   accepted: "접수됨", in_progress: "검사 중", completed: "완료", cancelled: "취소",
 };
 
@@ -101,9 +101,9 @@ function startOfWeek(iso) {
 /* 할 일 줄 — 환자가 흐르는 순서 */
 const QUEUES = [
   { key: "requests", label: "앱 신청", empty: "확인할 신청이 없습니다" },
-  { key: "next", label: "다음 예약 필요", empty: "다음 예약을 잡을 분이 없습니다" },
+  { key: "next", label: "다음 예약 필요", empty: "다음 예약이 필요한 환자가 없습니다" },
   { key: "followup", label: "추적 예약 필요", empty: "예약을 기다리는 추적 회차가 없습니다" },
-  { key: "noshow", label: "안 오심(7일)", empty: "지난 7일 안 오신 분이 없습니다" },
+  { key: "noshow", label: "미내원(7일)", empty: "지난 7일간 미내원 환자가 없습니다" },
 ];
 
 export default function Reservations({ cfg }) {
@@ -383,14 +383,14 @@ function Side({ anchor, onPick, cfg, ver, work, queue, setQueue, onTake }) {
 function subOf(key, r) {
   if (key === "requests") return `희망 ${dayOf(r.scheduled_at) || "날짜 없음"} ${timeOf(r.scheduled_at)}`.trim();
   if (key === "next") {
-    return [`${dayOf(r.visited_at ?? r.scheduled_at).slice(5)} 진료 끝`, r.primary_staff_name]
+    return [`${dayOf(r.visited_at ?? r.scheduled_at).slice(5)} 진료 완료`, r.primary_staff_name]
       .filter(Boolean).join(" · ");
   }
   if (key === "followup") {
     const due = dayOf(r.due_at);
     return `${r.round_no ?? "—"}회차 · 예정 ${due.slice(5)}${H.dueBucket(r.due_at) === "over" ? " 지남" : ""}`;
   }
-  return `${dayOf(r.scheduled_at).slice(5)} ${timeOf(r.scheduled_at)} 예약 · 안 오심`;
+  return `${dayOf(r.scheduled_at).slice(5)} ${timeOf(r.scheduled_at)} 예약 · 미내원`;
 }
 
 function Mini({ y, m, anchor, onPick, counts }) {
@@ -622,8 +622,8 @@ function Aside({ cfg, pick, rows, ver, onEdit, onNext, onDone, onDate, onClear }
 
       {/* 예약 정보 · 지난 예약을 한 카드로 — 둘 다 「이 사람의 예약」이다 */}
       <Card title="이 환자 예약"
-            right={missed.length > 0 && <Chip tone="fill">안 옴 {missed.length}</Chip>}>
-        {patientId == null ? <Empty title="예약이나 사람을 고르세요" /> : (
+            right={missed.length > 0 && <Chip tone="fill">미내원 {missed.length}</Chip>}>
+        {patientId == null ? <Empty title="예약이나 환자를 선택하세요" /> : (
           <>
             <p className="resv-who">
               <b>{person?.name ?? `#${patientId}`}</b>
@@ -635,7 +635,7 @@ function Aside({ cfg, pick, rows, ver, onEdit, onNext, onDone, onDate, onClear }
             </p>
             {missed.length > 0 && (
               <p className="resv-miss">
-                안 오신 적 {missed.length}번
+                미내원 {missed.length}회
                 <span>{missed.slice(0, 3).map((r) => dayOf(r.scheduled_at)).join(" · ")}</span>
               </p>
             )}
@@ -647,10 +647,10 @@ function Aside({ cfg, pick, rows, ver, onEdit, onNext, onDone, onDate, onClear }
                      className={String(r.exam_order_id) === String(order?.exam_order_id) ? "on" : undefined}>
                     <i>{r.order_status === "cancelled" ? "취소"
                       : r.visited_at ? "완료"
-                      : dayOf(r.scheduled_at) < today ? "안 옴"
+                      : dayOf(r.scheduled_at) < today ? "미내원"
                       : isPending(r) ? "미확정" : "확정"}</i>
                     <time>{dayOf(r.scheduled_at)}</time>
-                    <span>{r.primary_staff_name ?? "담당 미정"}</span>
+                    <span>{r.primary_staff_name ?? "주치의 미배정"}</span>
                     {/* 종류는 유방외과가 정하기 전까지 「미정」이다 */}
                     <em>{r.modality ?? "미정"}</em>
                   </p>
@@ -658,7 +658,7 @@ function Aside({ cfg, pick, rows, ver, onEdit, onNext, onDone, onDate, onClear }
               </div>
             </Body>
             <div className="rowb">
-              <Btn to={go.patient(patientId)}>환자 상세</Btn>
+              <Btn to={go.patient(patientId)}>환자 기록</Btn>
             </div>
           </>
         )}
@@ -696,7 +696,7 @@ function Done({ order, onNext }) {
       <div className="rowb">
         <Btn kind="fill" onClick={onNext} {...may.attrs} disabled={!may.ok}>다음 예약 잡기</Btn>
       </div>
-      <p className="hcard-k">내원했거나 진행 중인 예약은 바꿀 수 없습니다.</p>
+      <p className="hcard-k">내원했거나 진행 중인 예약은 변경할 수 없습니다.</p>
     </Card>
   );
 }
@@ -791,7 +791,7 @@ function New({ cfg, pick, rows, ver, onEdit, onDone, onDate, onClear }) {
     setBusy(true); setErr(null); setOk(null);
     try {
       const changed = await api.reschedule(order.exam_order_id, `${date}T${time}:00`);
-      setOk(`${order.patient_name ?? `#${order.patient}`} · ${date} ${time} 로 바꿨습니다`);
+      setOk(`${order.patient_name ?? `#${order.patient}`} · ${date} ${time} 예약으로 변경했습니다`);
       onDone(changed ?? { exam_order_id: order.exam_order_id, scheduled_at: `${date}T${time}:00` });
     } catch (e2) {
       setErr(e2);
@@ -835,7 +835,7 @@ function New({ cfg, pick, rows, ver, onEdit, onDone, onDate, onClear }) {
       /* 누구 것인지 같이 적고 고른 사람을 비운다 — 그대로 두면 판이 다시
          불리면서 방금 잡은 예약이 「같은 날 이미 예약이 있습니다」로 떠
          실패한 것처럼 보였고, 한 번 더 누르면 중복 예약이 생겼다 */
-      setOk(`${who.name ?? `#${who.patient_id}`} · ${date} ${time} 로 잡았습니다`);
+      setOk(`${who.name ?? `#${who.patient_id}`} · ${date} ${time}에 예약했습니다`);
       setWho(null); setFound(null); setQ("");
       onDone();
     } catch (e2) {
@@ -857,7 +857,7 @@ function New({ cfg, pick, rows, ver, onEdit, onDone, onDate, onClear }) {
     setBusy(true); setErr(null); setOk(null);
     try {
       const changed = await api.confirm(order.exam_order_id, `${date}T${time}:00`);
-      setOk(`${order.patient_name ?? `#${order.patient}`} · ${date} ${time} 로 확정했습니다`);
+      setOk(`${order.patient_name ?? `#${order.patient}`} · ${date} ${time} 예약으로 확정했습니다`);
       onDone(changed ?? { exam_order_id: order.exam_order_id, order_status: "scheduled" });
     } catch (e2) { setErr(e2); if (e2?.status === 409) onDone(); }
     finally { setBusy(false); }
@@ -921,31 +921,31 @@ function New({ cfg, pick, rows, ver, onEdit, onDone, onDate, onClear }) {
         </select>
       </label>
 
-      <p className="hcard-k">검사 종류는 여기서 안 정합니다 — 진료 뒤 유방외과가 오더를 냅니다.</p>
+      <p className="hcard-k">검사 종류는 여기서 정하지 않습니다 — 진료 후 유방외과에서 오더를 냅니다.</p>
       {fup != null && !editable && (
-        <p className="hcard-k resv-fup">추적 회차 예약 — 잡으면 이 예약이 그 회차에 이어집니다.</p>
+        <p className="hcard-k resv-fup">추적 회차 예약 — 예약하면 해당 회차에 연결됩니다.</p>
       )}
       {!date && who && !editable && (
-        <p className="hcard-k">날짜를 고르세요 — 판의 빈 칸이나 위 빠른 날짜를 누릅니다.</p>
+        <p className="hcard-k">날짜를 선택하세요 — 달력의 빈 칸이나 위의 빠른 날짜를 누르세요.</p>
       )}
 
       {editable && !clash && (
-        <p className="hcard-k">판의 빈 칸을 누르면 이 예약을 그 시각으로 옮깁니다.</p>
+        <p className="hcard-k">달력의 빈 칸을 누르면 이 예약을 그 시간으로 옮깁니다.</p>
       )}
       {clash && (clashLive ? (
         <p className="note err">
-          {date} 에 이 환자 예약이 이미 있습니다 — {timeOf(clash.scheduled_at)}.
-          {editable ? " 한 날에 둘을 둘 수 없습니다." : " 새로 잡지 않고 그 예약을 고칩니다."}
+          {date}에 이 환자의 예약이 이미 있습니다 — {timeOf(clash.scheduled_at)}.
+          {editable ? " 하루에 두 건을 예약할 수 없습니다." : " 새로 예약하지 말고 기존 예약을 변경하세요."}
           {" "}
           <button type="button" className="resv-jump"
                   onClick={() => { setErr(null); setOk(null);
                                    onEdit(clash, `${date}T${time}:00`); }}>
-            그 예약 고치기
+            기존 예약 변경
           </button>
         </p>
       ) : (
         <p className="note err">
-          {date} {timeOf(clash.scheduled_at)} 예약으로 이미 내원했습니다 — 다른 날을 골라 주세요.
+          {date} {timeOf(clash.scheduled_at)} 예약으로 이미 내원했습니다 — 다른 날짜를 선택해 주세요.
         </p>
       ))}
       {/* 겹침 안내가 이미 선 409 는 같은 말을 두 번 하지 않는다 */}
@@ -957,7 +957,7 @@ function New({ cfg, pick, rows, ver, onEdit, onDone, onDate, onClear }) {
         <Btn to={go.nursing.patients()}>환자 목록</Btn>
         {pending && (
           <Btn kind="fill" onClick={confirm} {...mayConfirm.attrs}
-               disabled={busy || !mayConfirm.ok || Boolean(clash)}>이 시각으로 신청 확정</Btn>
+               disabled={busy || !mayConfirm.ok || Boolean(clash)}>이 시간으로 예약 확정</Btn>
         )}
         {editable ? (
           <>

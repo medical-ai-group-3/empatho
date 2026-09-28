@@ -240,7 +240,7 @@ function Queue({ state, rows, parked, all, odd, tab, onTab, pick, onPick, itemOf
         <div className="work-q-b">
           {rows.length === 0 && (
             <p className="bf-q-none">
-              {want ? "해당하는 환자가 없습니다" : tab === "odd" ? "엇갈린 건이 없습니다" : "지금 기다리는 환자가 없습니다"}
+              {want ? "해당하는 환자가 없습니다" : tab === "odd" ? "판정 불일치 환자가 없습니다" : "지금 기다리는 환자가 없습니다"}
             </p>
           )}
           {rows.map((r) => (

@@ -1,4 +1,4 @@
-import { Suspense, lazy, useState } from "react";
+import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Body } from "../lib/Body";
 import { Btn, Card, Page } from "../lib/Page";
@@ -48,6 +48,29 @@ const DicomStackViewer = lazy(() => import("../lib/dicom/DicomStackViewer"));
 /* 다른 사람이 먼저 확정했거나 이미 확정된 건 — 서버 409 코드 */
 const FINALIZED = new Set(["STUDY_ALREADY_FINALIZED", "SPECIMEN_ALREADY_FINALIZED"]);
 
+/* 「AI 다시 실행」 뒤 진행을 묻는 간격 · 최대 시간. 맘모 한 번이 약 34초,
+   서버가 GPU 메모리 부족이면 20초 · 60초 뒤 두 번 더 건다(tasks.py) */
+const AI_POLL_MS = 4000;
+const AI_POLL_MAX_MS = 20 * 60 * 1000;
+
+/* 최신 AI 결과가 아직 도는 중인가 — 영상은 d.ai 가 가장 최근 행이다
+   (병리는 크롭마다 배열이라 여기서 보지 않는다 — 다시 실행이 없다) */
+const aiBusy = (d) => {
+  const a = d?.ai;
+  return Boolean(a && !Array.isArray(a) && (a.run_status === "queued" || a.run_status === "running"));
+};
+
+/* 주소의 물음표 앞이 같으면 앞의 것을 그대로 쓴다. 판독 응답을 다시 받을
+   때마다 manifest 티켓이 새로 붙어 와서, 그대로 넘기면 뷰어가 처음부터
+   다시 불러 보던 뷰 · 창값이 날아갔다(AI 진행을 묻는 동안 몇 초마다) */
+const urlBase = (u) => String(u ?? "").split("?")[0];
+function useStableUrl(url) {
+  const [kept, setKept] = useState(url);
+  if (!url) return url;
+  if (!kept || urlBase(kept) !== urlBase(url)) { setKept(url); return url; }
+  return kept;
+}
+
 export default function ReadScreen({ cfg }) {
   const c = cfg.read;
   const { id } = useParams();
@@ -69,7 +92,8 @@ function Load({ cfg, id }) {
   /* ⚠ 자료가 있으면 다시 부르는 중에도 Inner 를 그대로 둔다(reload(true)) —
      409 뒤에 읽기 전용으로 바꿔 열 때 안내 문구가 날아가면 안 된다 */
   if (data && !error) {
-    return <Inner key={id} cfg={cfg} id={id} d={data} onStale={() => reload(true)} />;
+    return <Inner key={id} cfg={cfg} id={id} d={data} onStale={() => reload(true)}
+                  onRefresh={() => reload(true)} />;
   }
   return (
     <Page className="read-page" title={c.title}>
@@ -78,7 +102,7 @@ function Load({ cfg, id }) {
   );
 }
 
-function Inner({ cfg, id, d, onStale }) {
+function Inner({ cfg, id, d, onStale, onRefresh }) {
   const c = cfg.read;
   const nav = useNavigate();
 
@@ -121,6 +145,7 @@ function Inner({ cfg, id, d, onStale }) {
      세 번째 값은 스택 뷰어의 지금 장 — 초음파처럼 장마다 AI 결과가 따로인
      과가 그 장의 것을 고른다(dept/radiology.jsx radStage) */
   const view = c.stage ? c.stage(d, slide, inst) : {};
+  const stackManifest = useStableUrl(view.stackManifest);
   const isVolume = Boolean(view.volumeManifest);
   const isStack = Boolean(view.stackManifest);
   const isCornerstone = isVolume || isStack;
@@ -185,6 +210,43 @@ function Inner({ cfg, id, d, onStale }) {
   }
 
   const canAi = can(c.need.ai);
+
+  /* ── AI 다시 실행 ─────────────────────────────────────────────
+     서버가 잠깐 못 받아(GPU 메모리 부족 · 시간 초과 · 연결) 판정을 못 낸
+     결과만 AI 소견 칸이 이 단추를 띄운다(dept/aiFailure.js). 권한 ·
+     과 설정(c.need.run · cfg.api.analyze)이 있고 확정 전일 때만.
+     POST 하면 새 행이 생긴다 — 판독 응답을 다시 받아 d.ai 가 그 행이 되면
+     진행(GET /ai-results)을 묻다가, 끝나면 한 번 더 받아 결과를 그린다 */
+  const canRun = Boolean(c.need.run && cfg.api.analyze && !isFinal && can(c.need.run));
+  /* busy 는 누른 때의 d 에 묶는다 — 판독 응답을 다시 받으면(d 가 바뀌면) 풀린다 */
+  const [rr, setRr] = useState({ busy: false, msg: null, at: null });
+  const running = aiBusy(d);
+  /* onRefresh 는 부를 때마다 새 함수다 — 의존성에 넣으면 그릴 때마다
+     진행 묻기 타이머가 처음부터 다시 돈다 */
+  const refresh = useRef(onRefresh);
+  useEffect(() => { refresh.current = onRefresh; }, [onRefresh]);
+  useEffect(() => {
+    if (!running || !cfg.api.progress) return undefined;
+    const t0 = Date.now();
+    let stop = false;
+    const t = setInterval(async () => {
+      if (stop) return;
+      if (Date.now() - t0 > AI_POLL_MAX_MS) { stop = true; clearInterval(t); return; }
+      const p = await cfg.api.progress(id).catch(() => null);
+      if (!stop && p && p.status !== "queued" && p.status !== "running") { stop = true; refresh.current?.(); }
+    }, AI_POLL_MS);
+    return () => { stop = true; clearInterval(t); };
+  }, [running, id, cfg, d]);
+  async function rerunAi() {
+    setRr({ busy: true, msg: null, at: d });
+    try {
+      await cfg.api.analyze(id);
+      refresh.current?.();
+    } catch (e) {
+      setRr({ busy: false, msg: e.detail || e.message || "AI 다시 실행을 시작하지 못했습니다.", at: null });
+    }
+  }
+  const rerun = canRun ? { run: rerunAi, busy: (rr.busy && rr.at === d) || running, msg: rr.msg } : null;
   const amendTo = cfg.amend && cfg.go.amend && can(cfg.amend.need.view) ? cfg.go.amend(id) : null;
 
   return (
@@ -213,10 +275,11 @@ function Inner({ cfg, id, d, onStale }) {
              것이다. pick·onPick — 소견에서 병변을 고르면 뷰어가 밝힌다.
              slide·onSlide — 병리는 AI 카드가 크롭을 바꾼다 */
           ai={canAi ? <c.Ai d={d} view={view} pick={pick} onPick={setPick}
-                            slide={slide} onSlide={setSlide} /> : null}
+                            slide={slide} onSlide={setSlide} rerun={rerun}
+                            summarized={Boolean(c.AiSummary)} /> : null}
           aiSummary={canAi && c.AiSummary
             ? <c.AiSummary d={d} view={view} pick={pick} onPick={setPick}
-                           slide={slide} onSlide={setSlide} />
+                           slide={slide} onSlide={setSlide} rerun={rerun} />
             : null}
 
           doctorName={isFinal ? "확정 판독" : "의사 소견"}
@@ -277,8 +340,9 @@ function Inner({ cfg, id, d, onStale }) {
             <div className="mri-viewer-slot">
               <Suspense fallback={<div className="mri-loading">맘모 뷰어 불러오는 중…</div>}>
                 <DicomStackViewer
-                  manifestUrl={view.stackManifest}
+                  manifestUrl={stackManifest}
                   baseUrl={view.stackBase}
+                  views={view.views}
                   mode="diagnostic"
                   onAnnotation={setPendingMark}
                   overlay={view.overlay}

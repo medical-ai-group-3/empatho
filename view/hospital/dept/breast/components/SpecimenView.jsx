@@ -47,7 +47,7 @@ function Crop({ d, i }) {
   const scope = { kind: cfg.scopeKind, id: d.unit.id };
   const img = useFile(c?.image, cfg.api.ticket, scope);
   const mask = useFile(c?.mask, cfg.api.ticket, scope);
-  if (!c) return <p className="spec-empty">올린 크롭이 없습니다</p>;
+  if (!c) return <p className="spec-empty">업로드된 크롭 이미지가 없습니다</p>;
   return (
     <>
       <div className="spec-stage">

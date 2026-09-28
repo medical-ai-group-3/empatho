@@ -62,7 +62,7 @@ export default function ExamOrderModal({ patient, initialModality, onClose, onDo
         </div>
         <div className="modal-body">
           <div className="field">
-            <label>모달리티</label>
+            <label>검사 종류</label>
             <select value={modality} onChange={(e) => setModality(e.target.value)}>
               {MODALITIES.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
             </select>
@@ -74,7 +74,7 @@ export default function ExamOrderModal({ patient, initialModality, onClose, onDo
             </select>
           </div>
           <div className="field">
-            <label>요청의견서</label>
+            <label>의뢰 내용</label>
             <textarea value={note} onChange={(e) => setNote(e.target.value)}
               placeholder="영상의학과에 전달할 소견을 적어 주세요" />
           </div>

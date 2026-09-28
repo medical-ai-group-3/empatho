@@ -91,14 +91,14 @@ function Inner({ cfg }) {
   const say = c.phrasesCol === true;
   return (
     <Page className="wq-page" crumb={[cfg.name, c.title]} title={c.title}
-          right={<Btn to={cfg.go.list()}>판독 목록</Btn>}>
+          right={<Btn to={cfg.go.list()}>환자 목록</Btn>}>
       <div className={`work${say ? "" : " no-say"}`}>
         <Side c={c} state={list} rows={rows} total={all.length} pick={picked} onPick={setPick}
               cfg={cfg} onTook={took} fv={fv} setFv={setFv} />
 
         <div className="work-mid">
           {!cur
-            ? <Empty title={all.length ? "거른 조건에 맞는 건이 없습니다" : c.emptyText} />
+            ? <Empty title={all.length ? "조건에 맞는 항목이 없습니다" : c.emptyText} />
             : <Mid cfg={cfg} row={cur} onTook={took} />}
         </div>
 
@@ -116,12 +116,12 @@ function Side({ c, state, rows, total, pick, onPick, cfg, onTook, fv, setFv }) {
     <aside className="work-q">
       <header className="work-q-h">
         <h2>{c.listTitle} <em className="work-q-n">{rows.length === total ? total : `${rows.length} / ${total}`}</em></h2>
-        <span className="hcard-k">도착한 순서 · 순서 고정</span>
+        <span className="hcard-k">도착 순 · 순서 고정</span>
         <Filters groups={c.filters} value={fv} onChange={setFv} />
       </header>
       <Body loading={state.loading && !state.data} error={state.error}
             onRetry={state.reload}
-            empty={rows.length === 0 && <Empty title={total ? "거른 조건에 맞는 건이 없습니다" : c.emptyText} />}>
+            empty={rows.length === 0 && <Empty title={total ? "조건에 맞는 항목이 없습니다" : c.emptyText} />}>
         <div className="work-q-b">
           {rows.map((raw, i) => {
             const r = c.row(raw);
@@ -145,7 +145,7 @@ function Side({ c, state, rows, total, pick, onPick, cfg, onTook, fv, setFv }) {
       </Body>
       {next && (
         <footer className="work-q-f">
-          <Take cfg={cfg} id={next.id} onTook={onTook} label="다음 건 집기" />
+          <Take cfg={cfg} id={next.id} onTook={onTook} verb={c.takeVerb} label={c.nextLabel ?? "다음 건 담당하기"} />
           <span className="hcard-k">맨 앞은 {next.title}</span>
         </footer>
       )}
@@ -165,7 +165,7 @@ function Side({ c, state, rows, total, pick, onPick, cfg, onTook, fv, setFv }) {
      Study 를 만들어 놓고 한쪽만 409 로 떨어져 고아 행이 남는다.
    ⚠ **오더 번호를 같이 들고 간다.** 다음 화면부터는 study_id 로만
      움직이는데 「오더 확정」 한 곳만 오더 번호를 받는다. */
-function Take({ cfg, id, onTook, label, kind = "line" }) {
+function Take({ cfg, id, onTook, label, verb = "담당하기", kind = "line" }) {
   const may = useCan(cfg.queue.need.assign);
   const [asking, setAsking] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -189,7 +189,7 @@ function Take({ cfg, id, onTook, label, kind = "line" }) {
         ? "다른 선생님이 이미 맡았습니다"
         : e.code === ERR.NETWORK
           ? "서버에 연결하지 못했습니다"
-          : (e.detail || "집기에 실패했습니다"));
+          : (e.detail || "처리하지 못했습니다. 다시 시도해 주세요"));
       setAsking(false);
     } finally { setBusy(false); }
   }
@@ -203,11 +203,11 @@ function Take({ cfg, id, onTook, label, kind = "line" }) {
   }
   return (
     <span className="work-ask">
-      <span className="hcard-k">집으면 내 것이 됩니다</span>
+      <span className="hcard-k">{verb === "접수" ? "접수하면" : "담당하면"} 내 목록으로 옮겨지고 다른 사람 목록에서 사라집니다</span>
       <Btn kind="fill" onClick={go} disabled={busy}>
-        {busy ? "집는 중…" : "집기"}
+        {busy ? "처리 중…" : verb}
       </Btn>
-      <Btn onClick={() => setAsking(false)} disabled={busy}>그만</Btn>
+      <Btn onClick={() => setAsking(false)} disabled={busy}>취소</Btn>
     </span>
   );
 }
@@ -245,11 +245,11 @@ function Mid({ cfg, row, onTook }) {
             <span className="home-fill" />
             {/* ⚠ 주소를 직접 적지 않는다 — 주소가 바뀌면 nav.js 만 고치면
                 되게 해 둔 자리다 */}
-            {d.patient_id && <Btn to={go.patient(d.patient_id)}>환자 상세</Btn>}
+            {d.patient_id && <Btn to={go.patient(d.patient_id)}>환자 기록</Btn>}
             {/* 집기는 머리에 둔다 — 아래에 두면 긴 검체 정보에 밀려 화면
                 밖으로 나갔다(병리 1600×950 에서 스크롤해야 보였다) */}
-            <Take key={r.id} cfg={cfg} id={r.id} onTook={onTook} kind="fill"
-                  label={c.takeLabel ?? "집기"} />
+            <Take key={r.id} cfg={cfg} id={r.id} onTook={onTook} kind="fill" verb={c.takeVerb}
+                  label={c.takeLabel ?? "담당하기"} />
           </header>
 
           <section className="work-box">
@@ -313,7 +313,7 @@ function Past({ cfg, row }) {
         {rows.length === 0
           ? (
             <p className="hcard-k hpad">
-              {has ? "아직 없습니다" : "이 과에는 이력을 부르는 경로가 없습니다"}
+              {has ? "아직 없습니다" : "이 과에서는 이력을 볼 수 없습니다"}
             </p>
           )
           : rows.map((e, i) => {

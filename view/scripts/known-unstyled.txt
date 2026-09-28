@@ -73,6 +73,13 @@ dicom-stack-cell          hospital/lib/dicom/DicomStackViewer.jsx:183
 dicom-stack-message       hospital/lib/dicom/DicomStackViewer.jsx:184
 dicom-stack-error         hospital/lib/dicom/DicomStackViewer.jsx:186
 dicom-stack-overlay       hospital/lib/dicom/DicomStackViewer.jsx:294
+dicom-stack-nav           hospital/lib/dicom/DicomStackViewer.jsx  (09-28 뷰 넘기기 · 전체 보기 — 컴포넌트 안 <style> 에 규칙)
+dicom-stack-step          hospital/lib/dicom/DicomStackViewer.jsx  (09-28 뷰 넘기기 · 전체 보기 — 컴포넌트 안 <style> 에 규칙)
+dicom-stack-strip         hospital/lib/dicom/DicomStackViewer.jsx  (09-28 뷰 넘기기 · 전체 보기 — 컴포넌트 안 <style> 에 규칙)
+dicom-stack-keys          hospital/lib/dicom/DicomStackViewer.jsx  (09-28 뷰 넘기기 · 전체 보기 — 컴포넌트 안 <style> 에 규칙)
+dicom-stack-grid          hospital/lib/dicom/DicomStackViewer.jsx  (09-28 뷰 넘기기 · 전체 보기 — 컴포넌트 안 <style> 에 규칙)
+dicom-stack-gview         hospital/lib/dicom/DicomStackViewer.jsx  (09-28 뷰 넘기기 · 전체 보기 — 컴포넌트 안 <style> 에 규칙)
+dicom-stack-glabel        hospital/lib/dicom/DicomStackViewer.jsx  (09-28 뷰 넘기기 · 전체 보기 — 컴포넌트 안 <style> 에 규칙)
 mri-review-panel          hospital/lib/dicom/MRIReviewGrid.jsx:45
 anatomy-panel             hospital/lib/dicom/MRIReviewGrid.jsx:45
 tumor-panel               hospital/lib/dicom/MRIReviewGrid.jsx:55

@@ -81,13 +81,13 @@ export default function PatientBar({ patient, right, children }) {
       )}
 
       {!shut && children && <span className="pb-mid">{children}</span>}
-      {!shut && staff && <span className="pb-staff">담당 {staff}</span>}
+      {!shut && staff && <span className="pb-staff">주치의 {staff}</span>}
 
       <span className="pb-r">
         {!shut && right}
         <button className="pb-fold" onClick={() => setShut(!shut)}
                 aria-expanded={!shut}
-                title={shut ? "환자 정보 펼치기" : "접기 — 뷰어를 넓게 쓴다"}>
+                title={shut ? "환자 정보 펼치기" : "접기 — 뷰어를 넓게 봅니다"}>
           {shut ? "▾" : "▴"}
         </button>
       </span>

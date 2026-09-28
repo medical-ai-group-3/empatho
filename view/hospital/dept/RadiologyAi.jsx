@@ -1,6 +1,8 @@
 import { Chip, Fold } from "../lib/Parts";
 import { DESCRIPTOR_AXIS, LESION_KIND, label, modality as asModality } from "../codes";
 import { Bars, BreastMap, Gauge, GradeBars, Radar } from "./AiViz";
+import { AiFailNote, AiRunningNote } from "./AiFail";
+import { aiFailure, aiRunning } from "./aiFailure";
 
 /* 영상의학과 AI 소견 — 모달리티마다 내용이 다르다
  * ────────────────────────────────────────────────────────────────
@@ -28,7 +30,7 @@ import { Bars, BreastMap, Gauge, GradeBars, Radar } from "./AiViz";
  *      판독을 끌고 가는 숫자라 띄우지 않기로 했다.
  */
 
-export default function RadiologyAi({ d, view, pick, onPick }) {
+export default function RadiologyAi({ d, view, pick, onPick, summarized = false, rerun = null }) {
   /* 판독 화면은 뷰어가 지금 보여 주는 장의 결과를 view.ai 로 준다 —
      초음파는 장마다 AI 결과가 따로라, 검사의 «최신» 하나를 쓰면 다른 장
      결과를 이 장 것처럼 읽게 된다(dept/radiology.jsx radStage) */
@@ -37,6 +39,21 @@ export default function RadiologyAi({ d, view, pick, onPick }) {
     return <p className="muted">
       {view?.aiMissing ? "이 영상에는 AI 결과가 없습니다." : "AI 결과가 없습니다."}
     </p>;
+  }
+
+  /* 도는 중 · 서버가 잠깐 못 받아 실패한 것(GPU 메모리 · 시간 · 연결)은
+     「판정 못 함」과 다르다 — 결과가 아니므로 뜻만 적고 원문은 접는다
+     (dept/aiFailure.js). 다시 실행 단추는 요약 줄에 있다.
+     ⚠ 전에는 failed 행도 아래로 흘러가 「병변 0 · 생검 해당 없음」처럼
+       정상 소견 모양으로 그려졌다 */
+  /* summarized — 판독 화면처럼 바로 위 요약 줄이 같은 말(+ 단추 · 원문)을 이미
+     하고 있으면 여기서는 되풀이하지 않는다 */
+  if (aiRunning(ai)) return summarized ? null : <AiRunningNote />;
+  const fail = aiFailure(ai);
+  if (fail) {
+    return summarized
+      ? <p className="muted small">「정상」이라는 뜻이 아닙니다. 직접 판독하시{rerun ? "거나 위의 「AI 다시 실행」으로 다시 돌려 주세요." : "면 됩니다."}</p>
+      : <AiFailNote f={fail} />;
   }
 
   /* ⚠ `??` 를 쓰면 안 된다. 봉투의 abstained 는 「추론 서버가 거부했나」이고
@@ -73,11 +90,15 @@ export default function RadiologyAi({ d, view, pick, onPick }) {
 /* ── 요약 한 줄 — 판독 화면 오른쪽 맨 위, 접어도 남는다 ──────────
  * 판정 문장을 만들지 않는다(지킬 것 2) — 모델이 낸 값만 칩으로.
  * 맘모 병변 칩은 누르면 뷰어에서 밝힌다(자세히의 「영상에서 보기」와 같은 손잡이) */
-export function RadiologyAiSummary({ d, view, pick, onPick }) {
+export function RadiologyAiSummary({ d, view, pick, onPick, rerun = null }) {
   const ai = view && "ai" in view ? view.ai : d.ai;
   if (!ai) {
     return <p className="muted small">{view?.aiMissing ? "이 영상에는 AI 결과가 없습니다." : "AI 결과가 없습니다."}</p>;
   }
+  if (aiRunning(ai)) return <AiRunningNote compact />;
+  /* 서버 실패 — 뜻 한 줄 + 「AI 다시 실행」(권한 있을 때) + 접은 원문 */
+  const fail = aiFailure(ai);
+  if (fail) return <AiFailNote f={fail} rerun={rerun} compact />;
   if (ai.abstained || ai.summary?.abstained || ai.lesion_found === false) {
     return <p className="ai-sum-na"><b>판정 못 함</b> · {ai.abstain_reason ?? "임계값을 넘는 검출이 없습니다"} — 「정상」이 아닙니다</p>;
   }

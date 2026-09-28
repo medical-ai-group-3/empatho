@@ -46,7 +46,7 @@ export function Locked({ what = "이 화면", need }) {
     <div className="state">
       <b>열람 권한이 없습니다</b>
       <span>
-        {what}을 보려면 {need ? <code>{need}</code> : "해당"} 권한이 필요합니다.
+        {what}에 접근하려면 {need ? <code>{need}</code> : "해당"} 권한이 필요합니다.
         관리자에게 문의하세요.
       </span>
     </div>
@@ -79,7 +79,7 @@ export function Search({ placeholder = "검색", value, onChange }) {
 /* ── 두 단 — 왼쪽 목록, 오른쪽 상세 ───────────────────────────
    1장과 4장이 같은 모양이다. 오른쪽은 **고른 것이 없으면 비어 있지 않고**
    무엇을 고르라고 말한다. */
-export function Split({ side = "normal", left, right, empty = "왼쪽에서 하나를 고르세요" }) {
+export function Split({ side = "normal", left, right, empty = "왼쪽 목록에서 선택하세요" }) {
   return (
     <div className={`split ${side === "wide" ? "wide" : ""} ${side === "third" ? "third" : ""}`}>
       <div className="split-l">{left}</div>
@@ -156,20 +156,24 @@ export function Fold({ title, open = true, right, children }) {
    ⚠ 빈 문구를 **부르는 쪽이 정한다.** 「해당하는 환자가 없습니다」는
      검색 결과에는 맞지만 큐에는 틀리다 — 「접수 대기 중인 검체가
      없습니다」처럼 무엇이 비었는지 말해야 다음에 할 일이 보인다. */
+/* cols[].cls — 칸 모양. 「c-grow」는 남는 폭을 받고 넘치면 말줄임,
+   「c-fit」은 값 폭만큼만 차지하고 꺾이지 않는다(좁은 목록 칸, 09-28) */
 export function Table({ cols, rows, value, onPick,
                         emptyText = "해당하는 환자가 없습니다" }) {
   return (
     <div className="tbl-wrap">
       <table className="tbl">
         <thead>
-          <tr>{cols.map((c) => <th key={c.key} style={c.w ? { width: c.w } : undefined}>{c.label}</th>)}</tr>
+          <tr>{cols.map((c) => (
+            <th key={c.key} className={c.cls} style={c.w ? { width: c.w } : undefined}>{c.label}</th>
+          ))}</tr>
         </thead>
         <tbody>
           {rows.map((r) => (
             <tr key={r.id} className={value === r.id ? "on" : undefined}
                 onClick={() => onPick?.(r.id)} tabIndex={0}
                 onKeyDown={(e) => { if (e.key === "Enter") onPick?.(r.id); }}>
-              {cols.map((c) => <td key={c.key}>{readable(r[c.key])}</td>)}
+              {cols.map((c) => <td key={c.key} className={c.cls}>{readable(r[c.key])}</td>)}
             </tr>
           ))}
           {rows.length === 0 && (
@@ -355,7 +359,7 @@ export function Phrases({ groups = [], onPick, disabled = false }) {
           <span className="phr-k">{group}</span>
           {list.map((t) => (
             <button type="button" key={t} className="phr-b" disabled={disabled}
-                    title="판독 소견에 붙입니다" onClick={() => onPick?.(t)}>{t}</button>
+                    title="판독 소견에 추가합니다" onClick={() => onPick?.(t)}>{t}</button>
           ))}
         </div>
       ))}

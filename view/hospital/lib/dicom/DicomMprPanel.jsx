@@ -49,7 +49,7 @@ const SEGMENTATION_ID = "dicomMprSegmentation";
  * 알 수 있게). 탐색(Crosshairs)이 기본이고, 나머지는 골라야 켜진다 —
  * 셋 다 기본으로 켜 두면 실수로 측정선이 그려진다. */
 const TOOLS = [
-  { key: "crosshairs", label: "탐색", toolName: "Crosshairs" },
+  { key: "crosshairs", label: "십자선", toolName: "Crosshairs" },
   { key: "length", label: "길이 측정", toolName: "Length" },
   { key: "rect", label: "박스 그리기", toolName: "RectangleROI" },
   { key: "brush", label: "마스크", toolName: "Brush" },
@@ -411,7 +411,7 @@ function Panel({ title, axis, elRef, status, progress, error }) {
 
       <div className="dicom-mpr-canvas-wrap">
         {status === "empty" && (
-          <div className="dicom-mpr-message">DICOM Series가 없습니다</div>
+          <div className="dicom-mpr-message">표시할 DICOM 시리즈가 없습니다</div>
         )}
         {status === "loading" && (
           <div className="dicom-mpr-message">

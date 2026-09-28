@@ -76,9 +76,15 @@ input,select,textarea{font:inherit; color:inherit}
 .band-r{display:flex; align-items:center; gap:var(--gap-sm); flex:none}
 .when{font-size:var(--top-fs); color:var(--v-warm);
   font-variant-numeric:tabular-nums}
-.bell{position:relative; width:var(--bell); height:var(--bell);
-  color:var(--v-warm); display:flex; align-items:center; justify-content:center}
-.bell i{position:absolute; top:-6px; right:-8px;
+.bell{position:relative; width:calc(var(--bell) + 12px); height:calc(var(--bell) + 12px);
+  color:var(--v-warm); display:flex; align-items:center; justify-content:center;
+  border-radius:var(--round); transition:color var(--m-hover) var(--ease-tab),
+  background var(--m-hover) var(--ease-tab)}
+.bell:hover, .bell[aria-expanded="true"]{color:var(--v-ink); background:rgb(255 255 255 / .08)}
+.bell:focus-visible{outline:2px solid var(--cyan); outline-offset:2px}
+.bell-ico{width:calc(var(--bell) + 2px); height:calc(var(--bell) + 2px);
+  fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round}
+.bell i{position:absolute; top:-2px; right:-4px;
   min-width:var(--bell-dot); height:var(--bell-dot); padding:0 3px;
   border-radius:var(--round); background:var(--cyan); color:var(--cyan-ink);
   font-size:var(--bell-dot-fs); font-style:normal; font-weight:700;
@@ -364,18 +370,38 @@ input,select,textarea{font:inherit; color:inherit}
   border-bottom:var(--hair) solid var(--line-2)}
 .hcard-h h2{font-size:var(--hcard-h-fs); font-weight:700; flex:none}
 
-/* 칸 옮기기 — 손잡이 · 끄는 중 · 놓을 자리. 놓을 자리는 칸 위아래에
-   선 하나로만 보인다. 칸이 비켜서며 움직이면 놓기 직전에 목표가 달아난다 */
-.hcard-grip{flex:none; margin-left:calc(-4px * var(--sp)); padding:0 2px;
-  color:var(--faint); cursor:grab; user-select:none; line-height:1;
-  border-radius:var(--in-radius)}
-.hcard-grip:hover, .hcard-grip:focus-visible{color:var(--ink)}
-.hcard-grip:active{cursor:grabbing}
-.hcard.dragging{opacity:.4}
-.hcard.drop-before{box-shadow:0 calc(-3px * var(--sp)) 0 var(--cyan)}
-.hcard.drop-after{box-shadow:0 calc(3px * var(--sp)) 0 var(--cyan)}
-.pane.drop-end{box-shadow:inset 0 calc(-3px * var(--sp)) 0 var(--cyan)}
-.desk-reset{flex:none; margin:0 0 var(--gap-sm); display:flex; justify-content:flex-end}
+/* 칸 배치 편집(lib/Arrange.jsx) — 평소에는 「배치 편집」 단추 하나. 편집 중에만
+   칸마다 점선 틀과 손잡이가 서고, 머리 자리에 [기본 배치로][취소][저장] 막대가
+   뜬다. 저장 · 취소하면 사라져 **줄을 따로 차지하지 않는다**(09-28) */
+.home-arr{display:inline-flex; align-items:center}
+.arr-edit{display:inline-flex; align-items:center; gap:var(--gap-xs);
+  height:calc(30px * var(--sp)); padding:0 calc(10px * var(--sp));
+  border-radius:var(--round); font-size:var(--hcard-k-fs); color:var(--ink-2);
+  border:var(--hair) solid var(--border); background:var(--card)}
+.arr-edit:hover{color:var(--ink); border-color:var(--faint)}
+.arr-edit svg{width:14px; height:14px; fill:none; stroke:currentColor; stroke-width:1.4}
+.arr-bar{display:inline-flex; align-items:center; gap:var(--gap-sm);
+  padding:calc(4px * var(--sp)) calc(6px * var(--sp)) calc(4px * var(--sp)) calc(12px * var(--sp));
+  border-radius:var(--round); background:var(--canvas); border:var(--hair) solid var(--border)}
+.arr-hint{font-size:var(--hcard-k-fs); color:var(--warm); white-space:nowrap}
+.arr-slot{position:relative; display:flex; flex-direction:column; min-height:0;
+  border-radius:var(--hcard-radius); outline:1px dashed var(--faint); outline-offset:3px}
+.arr-slot > *{flex:1 1 auto; min-height:0}
+/* 손잡이는 칸 **왼쪽 위 모서리 바깥**에 — 머리 오른쪽의 시각 · 건수를 가리지 않게 */
+.arr-grip{position:absolute; top:calc(-11px * var(--sp)); left:calc(-11px * var(--sp)); z-index:3;
+  box-shadow:0 0 0 2px var(--canvas);
+  display:inline-grid; place-items:center; width:calc(26px * var(--sp)); height:calc(26px * var(--sp));
+  border-radius:var(--in-radius); background:var(--soot); color:var(--soot-ink);
+  cursor:grab; user-select:none; font-size:14px; line-height:1}
+.arr-grip:active{cursor:grabbing}
+.arr-grip:focus-visible{outline:2px solid var(--cyan); outline-offset:2px}
+.arr-slot.dragging{opacity:.4}
+.arr-slot.drop-before{box-shadow:0 calc(-4px * var(--sp)) 0 var(--cyan)}
+.arr-slot.drop-after{box-shadow:0 calc(4px * var(--sp)) 0 var(--cyan)}
+.drop-end{box-shadow:inset 0 calc(-3px * var(--sp)) 0 var(--cyan)}
+/* 편집 중 빈 단 — 끌어다 놓을 자리가 보이게 */
+.arr-on .arr-empty{min-height:calc(160px * var(--sp)); border-radius:var(--hcard-radius);
+  outline:1px dashed var(--faint); outline-offset:3px}
 .hcard-n{font-size:var(--hcard-n-fs); font-weight:600; color:var(--ink-2);
   font-variant-numeric:tabular-nums; flex:none}
 .hcard-k{font-size:var(--hcard-k-fs); color:var(--ink-2); flex:none}
@@ -526,6 +552,25 @@ a.frow:hover .frow-k{color:var(--ink)}
 .drow-dot{flex:none; width:var(--drow-dot); height:var(--drow-dot);
   border-radius:50%; background:var(--cyan); margin-top:var(--gap-5)}
 .drow span{font-size:var(--drow-fs); line-height:var(--body-lh)}
+
+/* ── 과가 더 싣는 목록 칸(lib/Home.jsx ListCard) — 두 줄짜리 줄 ── */
+.lrows{flex:1; min-height:0; overflow-y:auto}
+.lrow{display:flex; flex-direction:column; gap:var(--brow-gap);
+  padding:var(--qrow-pad-y) var(--hcard-pad-x);
+  border-bottom:var(--hair) solid var(--line-2)}
+a.lrow:hover{background:var(--canvas)}
+.lrow.off{color:var(--ink-2)}
+.lrow.off b{font-weight:500}
+.lrow-1{display:flex; align-items:center; gap:var(--chip-gap); min-width:0}
+.lrow-1 b{font-size:var(--qrow-nm-fs); font-weight:600; white-space:nowrap}
+.lrow-meta{min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  font-size:var(--qrow-meta-fs); color:var(--ink-2); font-variant-numeric:tabular-nums}
+.lrow-1 time{flex:none; font-size:var(--qrow-meta-fs); color:var(--warm);
+  font-variant-numeric:tabular-nums}
+.lrow-2{display:flex; align-items:baseline; gap:var(--gap-sm); min-width:0;
+  font-size:var(--qrow-meta-fs); color:var(--ink-2)}
+.lrow-sub{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.lrow-2 em{flex:none; font-style:normal; font-weight:600; color:var(--ink)}
 
 /* ── 인계 사항 ───────────────────────────────────────────────── */
 .hand-add{display:flex; flex-direction:column; gap:var(--gap-sm);
@@ -706,7 +751,26 @@ a.frow:hover .frow-k{color:var(--ink)}
 
 /* 왼쪽 — 내원한 대기 환자 */
 .nwait-q{display:flex; flex-direction:column; min-height:0; min-width:0}
-.nwait-q-b{flex:1; min-height:0; overflow-y:auto}
+/* 09-28 목록은 **제 줄 수만큼만** 선다 — 줄이 둘인데 칸을 다 먹어 왼쪽이
+   통째로 비었다. 남는 자리는 밑의 「오늘 요약」이 받고, 줄이 많으면 목록이
+   줄어들며 제 안에서 굴린다(요약은 최소 높이를 지킨다) */
+.nwait-q-b{flex:0 1 auto; min-height:0; overflow-y:auto}
+.nwait-q > .state{flex:none}
+.nq-sum{flex:1 0 calc(210px * var(--sp)); min-height:0; display:flex; flex-direction:column;
+  border-top:var(--hair) solid var(--border); background:var(--canvas)}
+.nq-nums{margin:0; padding:var(--gap-sm) var(--bcol-pad); display:grid;
+  grid-template-columns:repeat(2, minmax(0, 1fr)); gap:var(--gap-xs) var(--gap-sm)}
+.nq-nums > div{display:flex; align-items:baseline; gap:var(--gap-sm); min-width:0}
+.nq-nums dt{flex:1; min-width:0; font-size:var(--qrow-meta-fs); color:var(--ink-2);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.nq-nums dd{margin:0; font-weight:700; color:var(--ink); font-variant-numeric:tabular-nums}
+.nq-sub{margin:0; display:flex; align-items:baseline; gap:var(--gap-sm);
+  padding:var(--gap-xs) var(--bcol-pad); border-top:var(--hair) solid var(--line-2);
+  font-size:var(--qrow-meta-fs); color:var(--ink-2)}
+.nq-sub b{font-size:var(--srow-fs); color:var(--ink)}
+.nq-late{flex:1; min-height:0; overflow-y:auto; background:var(--card)}
+a.nside-row:hover{background:var(--canvas)}
+.nsent-to{min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 .nrow{display:flex; align-items:flex-start; gap:var(--qrow-gap);
   padding:var(--nrow-pad-y) var(--bcol-pad); cursor:pointer;
   border-bottom:var(--hair) solid var(--line-2);
@@ -811,14 +875,25 @@ a.frow:hover .frow-k{color:var(--ink)}
 .npaper{width:100%; display:flex; flex-direction:column; gap:var(--gap-sm)}
 .npaper-q{display:flex; flex-direction:column; gap:var(--gap-xs)}
 .npaper-q > span{font-size:var(--label-fs); color:var(--ink-2)}
-/* 오른쪽 배정 현황 — 선생님 한 줄 + 기다리는 사람 이름 */
-.nload{border-bottom:var(--hair) solid var(--line-2)}
-.nload .nside-row{border-bottom:0}
-.nload .nside-row em{font-style:normal; font-weight:700; color:var(--ink);
-  font-variant-numeric:tabular-nums}
-.nload-who{margin:0; padding:0 var(--bcol-pad) var(--nside-pad-y); text-align:left;
-  font-size:var(--qrow-meta-fs); color:var(--ink-2)}
-.nload.none{background:var(--canvas)}
+/* 오른쪽 배정 현황 — 선생님마다 상자 하나(09-28). 이름 · 큰 숫자 둘 · 이름 칩 */
+.nload-grid{display:flex; flex-direction:column; gap:var(--gap-sm);
+  padding:var(--gap-sm) var(--bcol-pad)}
+.nload-box{border:var(--hair) solid var(--border); border-radius:var(--in-radius);
+  background:var(--card); padding:var(--gap-sm) calc(12px * var(--sp))}
+.nload-h{display:flex; align-items:center; gap:calc(12px * var(--sp))}
+.nload-h > b{font-size:var(--qrow-nm-fs); font-weight:700; white-space:nowrap}
+.nload-stat{display:inline-flex; flex-direction:column; align-items:center; line-height:1.1;
+  min-width:calc(40px * var(--sp))}
+.nload-stat em{font-style:normal; font-weight:700; font-size:calc(20px * var(--ft));
+  color:var(--ink); font-variant-numeric:tabular-nums}
+.nload-stat i{font-style:normal; font-size:calc(11px * var(--ft)); color:var(--warm)}
+.nload-stat.muted em{color:var(--ink-2)}
+.nload-chips{list-style:none; margin:var(--gap-sm) 0 0; padding:0; display:flex;
+  flex-wrap:wrap; gap:calc(6px * var(--sp))}
+.nload-chips li{font-size:var(--qrow-meta-fs); color:var(--ink);
+  background:var(--canvas); border:var(--hair) solid var(--line-2);
+  border-radius:999px; padding:calc(2px * var(--sp)) calc(9px * var(--sp)); white-space:nowrap}
+.nload-empty{margin:var(--gap-xs) 0 0; font-size:var(--qrow-meta-fs); color:var(--faint)}
 
 /* 오른쪽 — 곁에 두고 보는 것 셋. 여기도 1px 선으로 가른다.
    앞 둘만 높이를 나눠 갖는다 — 셋째는 문장 한 덩이라 제 높이면 된다 */
@@ -826,6 +901,8 @@ a.frow:hover .frow-k{color:var(--ink)}
 .nside{display:flex; flex-direction:column; min-height:0}
 .nside + .nside{border-top:var(--hair) solid var(--border)}
 .nside:nth-child(-n+2){flex:1 1 0}
+/* 배정 현황은 제 줄만큼 — 밑의 「오늘 보낸 환자」가 남는 높이를 받는다 */
+.nwait-side .nside.fit{flex:0 1 auto}
 .nside-b{flex:1; min-height:0; overflow-y:auto}
 .nside-row{margin:0; display:flex; align-items:baseline; gap:var(--chip-gap);
   padding:var(--nside-pad-y) var(--bcol-pad);
@@ -874,6 +951,26 @@ a.frow:hover .frow-k{color:var(--ink)}
 .fup-list{min-width:0; background:var(--card); border:var(--hair) solid var(--border);
   border-radius:var(--hcard-radius); overflow:hidden}
 .fup-list .tbl tbody tr{cursor:pointer}
+/* 표 밑 — 칸별 수 · 다가오는 회차(표가 짧을 때만, Followups.jsx Ahead) */
+.fup-more{display:flex; flex-direction:column; gap:var(--gap-sm);
+  padding:var(--hcard-pad-y) var(--hcard-pad-x); border-top:var(--hair) solid var(--border);
+  background:var(--canvas)}
+.fup-more h3{font-size:var(--qrow-meta-fs); font-weight:600; color:var(--ink-2)}
+.fup-nums{display:grid; grid-template-columns:repeat(auto-fill, minmax(calc(96px * var(--sp)), 1fr)); gap:var(--gap-xs)}
+.fup-num{display:flex; flex-direction:column; align-items:flex-start; gap:var(--gap-xxs);
+  padding:var(--gap-sm) var(--in-pad-x); border-radius:var(--in-radius);
+  background:var(--card); box-shadow:inset 0 0 0 var(--hair) var(--border); text-align:left}
+.fup-num:hover{box-shadow:inset 0 0 0 var(--hair) var(--faint)}
+.fup-num b{font-size:var(--hcard-h-fs); font-weight:700; font-variant-numeric:tabular-nums}
+.fup-num span{font-size:var(--qrow-meta-fs); color:var(--ink-2)}
+.fup-next{margin:0; padding:0; list-style:none; background:var(--card);
+  border-radius:var(--in-radius); box-shadow:inset 0 0 0 var(--hair) var(--border)}
+.fup-next li + li{border-top:var(--hair) solid var(--line-2)}
+.fup-next button{width:100%; display:flex; align-items:baseline; gap:var(--gap-sm);
+  padding:var(--gap-sm) var(--in-pad-x); text-align:left; font-size:var(--srow-fs)}
+.fup-next button:hover{background:var(--canvas)}
+.fup-next time{flex:none; color:var(--warm); font-variant-numeric:tabular-nums}
+.fup-next b{font-weight:600}
 .fup-side{position:sticky; top:calc(var(--top-total) + var(--gap)); min-width:0;
   max-height:calc(100vh - var(--top-total) - var(--foot-h) - var(--gap) * 2); overflow-y:auto}
 .fup-card .card-b{gap:0}
@@ -937,8 +1034,10 @@ a.frow:hover .frow-k{color:var(--ink)}
   margin-bottom:var(--gap-sm)}
 .prail-drop{position:relative; display:flex; justify-content:flex-start}
 .prail-drop .btn em{font-style:normal; font-weight:600; margin-left:var(--gap-xxs)}
-.prail-drop .prail{position:absolute; top:calc(100% + var(--gap-xs)); left:0;
-  z-index:20; width:var(--prail-w); max-height:60vh;
+/* ⚠ 09-28 — 단추가 판독 머리 **오른쪽 끝**이라 왼쪽에 맞춰 펼치면 화면 밖으로
+   잘렸다. 단추 오른쪽 끝에 맞춰 왼쪽으로 펼치고, 화면보다 넓어지지 않게 */
+.prail-drop .prail{position:absolute; top:calc(100% + var(--gap-xs)); right:0; left:auto;
+  z-index:20; width:min(var(--prail-w), calc(100vw - 32px)); max-height:60vh;
   box-shadow:0 8px 24px rgba(0,0,0,.18)}
 /* 전체화면이면 레일이 없다 — 그때는 영상만 본다 */
 .read-cols.readfull{grid-template-columns:minmax(0, 1fr)}
@@ -963,7 +1062,8 @@ a.frow:hover .frow-k{color:var(--ink)}
 .prail-day time{font-size:var(--prail-d-fs); font-weight:600;
   font-variant-numeric:tabular-nums}
 .prail-k{font-size:var(--stag-fs); color:var(--warm)}
-.prail-day b{font-size:var(--qrow-meta-fs); font-weight:600; color:var(--ink-2)}
+.prail-day b{font-size:var(--qrow-meta-fs); font-weight:600; color:var(--ink-2);
+  overflow-wrap:anywhere; word-break:keep-all}
 
 /* ── 업무 화면 네 단 — 유방외과 · 영상 · 병리가 같이 쓴다 ───────
    Surgery.html · Radiology.html · Pathology.html 세 목업이 **같은 껍데기**다.
@@ -1810,6 +1910,76 @@ a.pevent:focus-visible{outline:var(--hair) solid var(--cyan); outline-offset:2px
 /* 목록 옆 상세(뷰어 · 환자 정보 · 판독 소견)도 한글 낱말을 가운데서
    끊지 않는다. 한 낱말이 칸보다 길 때만 어쩔 수 없이 끊는다 */
 .split.third .split-r{word-break:keep-all; overflow-wrap:break-word}
+
+/* ── 좁은 목록 칸 모양 (Table cols[].cls · lib/ListCells) — 09-28 ──────
+   다섯 칸이 목록 폭에 안 들어 「테스터1 (26/남)」이 두 줄로 꺾이고
+   끝 칸 칩 「미열람」이 목록 밖으로 잘렸다(영상의학과 검사 목록).
+   · c-fit  — 값 폭만큼만(1%), 꺾지 않는다
+   · c-grow — 남는 폭을 다 받고, 넘치면 말줄임(max-width:0 이 표 폭을
+     넘지 않게 묶는다). 이름이 길어도 표가 목록 밖으로 안 나간다 */
+.tbl .c-fit{width:1%; white-space:nowrap}
+.tbl td.c-grow{max-width:0; overflow:hidden}
+.split.third .split-l .tbl td.c-grow{white-space:nowrap}
+/* 두 줄 칸 — 위는 본 값, 아래는 작은 곁 값(나이 · 성별 · 번호 · 일시) */
+.c2{display:flex; flex-direction:column; gap:calc(2px * var(--sp)); min-width:0; line-height:1.3}
+.c2-m,.c2-s{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.c2-s{font-size:var(--qrow-meta-fs); color:var(--warm); font-variant-numeric:tabular-nums}
+/* 유방외과 열람 — 칩 대신 점 + 글자. 미열람은 시안 점(전과 같은 뜻),
+   열람은 빈 고리로 흐리게 */
+.seen{display:inline-flex; align-items:center; gap:var(--gap-xs); white-space:nowrap;
+  font-size:var(--chip-fs); font-weight:600; color:var(--ink-2)}
+.seen::before{content:""; flex:none; width:calc(var(--chip-dot) + 1px); height:calc(var(--chip-dot) + 1px);
+  border-radius:50%; background:var(--cyan)}
+.seen.on{color:var(--warm); font-weight:500}
+.seen.on::before{background:none; box-shadow:inset 0 0 0 1.5px var(--faint)}
+.split.third .split-l .tbl .chip{padding:calc(3px * var(--sp)) calc(8px * var(--sp))}
+/* 이름 옆 작은 표시(알레르기) — 칩 한 줄을 따로 먹지 않게 글자 크기로 */
+.lst-flag{font-style:normal; font-size:calc(10.5px * var(--ft)); font-weight:600; line-height:1.5;
+  display:inline-block; vertical-align:1px; color:var(--soot-ink); background:var(--soot);
+  margin-left:var(--gap-xs); padding:0 calc(5px * var(--sp)); border-radius:var(--round)}
+.lst-chips{display:inline-flex; gap:var(--gap-xs)}
+/* 넓은 목록(간호 환자 목록) — 칸 폭을 정하지 않고 값 길이만큼 나눠 갖는다.
+   꺾지 않는다(「P-2026-/00418」이 되던 것) */
+.tbl .c-nw{white-space:nowrap}
+.plist .tbl .dim{color:var(--warm)}
+.plist .tbl .num{font-variant-numeric:tabular-nums}
+/* 칸이 아홉이라 좁은 창(1280~1440)에서는 목록 칸에 안 든다 — 목록 칸 폭을
+   보고 접는다. 칸 사이를 줄이고, 더 좁으면 생년월일을 이름 밑으로 내리고
+   「· 7일 전」을 뺀다 */
+.plist > .split-l{container:plist / inline-size}
+.plist-nm .plist-birth{display:none}
+@container plist (max-width: 1000px){
+  .plist .tbl{--row-pad-x:calc(10px * var(--sp))}
+}
+@container plist (max-width: 880px){
+  .plist .tbl .c-birth{display:none}
+  .plist-nm{flex-wrap:wrap; column-gap:var(--gap-sm); row-gap:calc(2px * var(--sp)); line-height:1.3}
+  .plist-nm .plist-birth{display:block; flex-basis:100%}
+  .plist .tbl .plist-ago{display:none}
+}
+/* 이 환자 할 일 — 정보 탭 맨 위 */
+.plist-todo{display:flex; flex-direction:column; gap:var(--gap-xs);
+  padding:var(--gap-sm) var(--card-pad-sm); border-radius:var(--in-radius);
+  background:var(--canvas); box-shadow:inset 0 0 0 var(--hair) var(--line-2)}
+.plist-todo ul{margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:var(--gap-xs)}
+.plist-todo li{display:flex; align-items:center; justify-content:space-between; gap:var(--gap-sm);
+  font-size:var(--kv-fs); min-height:calc(28px * var(--sp))}
+/* 거르는 칩 · 정렬을 한 흐름으로 — 묶음(상태 · 모달리티 · 담당)이 한 덩이로
+   다음 줄로 넘어가고, 정렬 고르개는 줄 끝에 붙는다. 세 줄 → 두 줄 */
+.tbl-top.lst-top{justify-content:flex-start; gap:var(--gap-xs) var(--gap);
+  padding-top:var(--gap-xs); padding-bottom:var(--gap-xs)}
+.lst-top .qfilters{display:contents}
+/* 첫 묶음(상태) 옆에 정렬, 그 아래 줄에 나머지 묶음 — 440px 에서 두 줄 */
+.lst-top .qfilters > .sorts{order:2}
+.lst-top .qfilters > .sorts:first-child{order:0}
+.lst-top .lst-sort{order:1}
+.lst-top .sorts{flex-wrap:nowrap; gap:calc(4px * var(--sp))}
+.lst-top .pill{padding:calc(3px * var(--sp)) calc(8px * var(--sp))}
+.lst-sort{margin-left:auto; display:inline-flex; align-items:center; gap:calc(4px * var(--sp))}
+.lst-sort select{font-size:var(--chip-fs); font-weight:600; color:var(--ink-2);
+  background:var(--card); border:none; border-radius:var(--round); cursor:pointer;
+  box-shadow:inset 0 0 0 var(--hair) var(--border);
+  padding:calc(3px * var(--sp)) calc(6px * var(--sp))}
 
 /* 상세 안을 뷰어(가운데)·환자 상세정보(오른쪽)로 한 번 더 가른다 —
    목록·뷰어·상세 3단 설계(2026-09-18). 뷰어를 살짝 더 넓게 둔다. */
@@ -3310,6 +3480,33 @@ a.exam-history-pick{text-decoration:none}
 .vside .quote{background:var(--v-bg); border-left-color:var(--v-line); color:var(--v-ink)}
 .ai-sum-na{margin:0; font-size:var(--v-fs); color:var(--v-warm)}
 .ai-sum-na b{color:var(--v-ink)}
+/* 09-28 — 오른쪽 칸이 옆으로 구르지 않게. 서버 예외 글(GPU 메모리 부족 등)이
+   띄어쓰기 없이 길게 와서 칸을 밀어냈다. 넘칠 때만 아무 데서나 끊는다 */
+.vside-b{overflow-x:hidden; overflow-wrap:anywhere}
+.vside-b > *{min-width:0}
+.ai-sum-na,.ai-na span{overflow-wrap:anywhere}
+/* AI 가 서버 사정으로 못 낸 것 · 도는 중 (dept/aiFailure.jsx) */
+.ai-fail{display:flex; flex-direction:column; gap:var(--gap-xs); min-width:0;
+  font-size:var(--v-fs); color:var(--v-warm)}
+.ai-fail p{margin:0}
+.ai-fail-t{display:flex; flex-direction:column; gap:var(--gap-xxs)}
+.ai-fail-t b{color:var(--v-ink)}
+.ai-fail-t span{color:var(--v-ink); overflow-wrap:anywhere}
+.ai-fail.compact .ai-fail-t{flex-direction:row; flex-wrap:wrap; column-gap:var(--gap-xs)}
+.ai-fail.compact .ai-fail-t b::after{content:" ·"; color:var(--v-warm); font-weight:400}
+.ai-fail-act{display:flex; align-items:center; flex-wrap:wrap; gap:var(--gap-xs)}
+.ai-fail-act .warnline{margin:0}
+.ai-fail-raw{min-width:0}
+.ai-fail-raw summary{cursor:pointer; color:var(--v-warm); width:max-content}
+.ai-fail-raw summary:hover{color:var(--v-ink)}
+.ai-fail-raw code{display:block; margin-top:var(--gap-xs); padding:var(--gap-xs) var(--gap-sm);
+  background:var(--v-bg); border:var(--hair) solid var(--v-line); border-radius:var(--radius-xs);
+  font-size:var(--label-fs); line-height:1.5; color:var(--v-warm);
+  white-space:pre-wrap; overflow-wrap:anywhere; word-break:break-word; max-height:12em; overflow-y:auto}
+.ai-run{margin:0; display:flex; flex-wrap:wrap; column-gap:var(--gap-xs);
+  font-size:var(--v-fs); color:var(--v-warm)}
+.ai-run b{color:var(--v-ink)}
+.ai-run.compact span{display:none}
 
 /* 상용구 칩 — 누르면 판독 소견 끝에 붙는다. 병변 · 크롭 고르기 칩도 같은 모양 */
 .phr{display:flex; flex-direction:column; gap:var(--gap-xs)}

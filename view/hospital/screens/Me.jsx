@@ -57,7 +57,7 @@ export default function MeScreen() {
     <Page
       crumb={["내 정보"]}
       title="내 정보"
-      sub="프로필과 알림을 확인하고 설정하는 자리입니다."
+      sub="프로필과 알림 설정을 확인하고 변경합니다."
       right={scope && <Chip>{scope.label}</Chip>}
     >
       <ProfileCard me={me} />
@@ -141,7 +141,7 @@ function ProfileCard({ me }) {
       </div>
 
       <p className="muted small">
-        소속 · 직책 · 사번은 관리자가 정합니다. 틀렸으면 관리자에게 문의하세요.
+        소속 · 직책 · 사번은 관리자가 지정합니다. 정보가 다르면 관리자에게 문의하세요.
       </p>
 
       <div className="me-foot">
@@ -242,7 +242,7 @@ function AccountCard() {
         <p><b>로그아웃되었습니다.</b> 창을 닫아 주세요.</p>
         {err && (
           <p className="note err">
-            서버에 알리지는 못했습니다 ({err}). 이 기기에서는 로그아웃됐습니다.
+            서버에 로그아웃을 알리지 못했습니다 ({err}). 이 기기에서는 로그아웃됐습니다.
           </p>
         )}
       </Card>

@@ -35,11 +35,67 @@ import { Shape } from "../Stage";
  *   onInstance(sop, index)
  *     장이 바뀔 때마다 알린다 — 판독 화면이 지금 장의 AI 결과를 고른다.
  *   manifest 항목은 "<SOP UID>?ticket=…" 꼴이다(Go getDicomSeriesInstances).
- *   물음표 앞이 SOP UID 다. */
+ *   물음표 앞이 SOP UID 다.
+ *
+ * ── 뷰 넘기기 (09-28) ─────────────────────────────────────────
+ *   「뷰 1 / 4」만 있고 넘길 손잡이가 휠뿐이라, 휠을 모르는 사람은 네 장 중
+ *   한 장만 보고 판독했다. 이제 셋이다 — ‹ › 단추 · 키보드(←/→ · PageUp/
+ *   PageDown · Home/End, 뷰어에 초점이 있을 때) · 뷰 띠(R-CC · L-CC …).
+ *   views = [{ sop, label }]
+ *     이 순서로 늘어놓고 이 이름으로 부른다. 판독 응답 images[] 의
+ *     laterality · view_position 에서 만든다(dept/radiology.jsx stackViews).
+ *     순서는 판독 관례의 hanging order — **R-CC · L-CC · R-MLO · L-MLO**.
+ *     같은 방향의 좌우를 잇달아 봐야 비대칭이 보인다(2×2 에서도 위가 CC,
+ *     아래가 MLO, 왼쪽 칸이 오른쪽 유방). 모르는 장은 manifest 순서대로
+ *     뒤에 붙고 「뷰 n」으로 부른다. views 가 없으면(유방외과 검사 종합 등)
+ *     manifest 순서 그대로다.
+ *   전체 보기(2×2) — 장이 2~4장이면 네 장을 한 번에 띄운다. 칸마다 따로
+ *     뷰포트(창값만)라 AI 박스도 그 장 것만 얹힌다. 칸 이름을 누르면 그 뷰를
+ *     크게 본다. 측정 · 박스 · 마스크 도구는 한 장 보기에서만 쓴다. */
 const RENDERING_ENGINE_ID = "dicomStackRenderingEngine";
 const VIEWPORT_ID = "DICOM_STACK_VIEWPORT";
 const TOOL_GROUP_ID = "dicomStack2dToolGroup";
 const SEGMENTATION_ID = "dicomStackSegmentation";
+const GRID_TOOL_GROUP_ID = "dicomStackGridToolGroup";
+/* 뷰 띠는 이 장 수까지만 — 초음파처럼 수십 장이면 ‹ › 와 숫자만 둔다 */
+const STRIP_MAX = 12;
+
+const sopOf = (f) => String(f).split("?")[0];
+
+/* manifest 를 views 순서로 늘어놓는다. views 에 없는 장은 원래 순서대로 뒤에 */
+function orderFiles(files, views) {
+  if (!views?.length) return files;
+  const rank = new Map(views.map((v, i) => [v.sop, i]));
+  return files
+    .map((f, i) => ({ f, i, r: rank.has(sopOf(f)) ? rank.get(sopOf(f)) : views.length + i }))
+    .sort((a, b) => a.r - b.r || a.i - b.i)
+    .map((x) => x.f);
+}
+
+/* 이미지 픽셀 → 화면 픽셀 affine. 이미지 (0,0)·(1,0)·(0,1) 세 점을 화면으로
+   보내 보면 한 벌이 나온다 — 회전·반전이 있어도 맞는다 */
+function affineOf(vp) {
+  const imageId = vp?.getCurrentImageId?.();
+  if (!imageId) return null;
+  const at = (x, y) => vp.worldToCanvas(cornerstone.utilities.imageToWorldCoords(imageId, [x, y]));
+  const o = at(0, 0); const ax = at(1, 0); const ay = at(0, 1);
+  const m = [ax[0] - o[0], ax[1] - o[1], ay[0] - o[0], ay[1] - o[1], o[0], o[1]];
+  return m.every(Number.isFinite) ? m : null;
+}
+const sameXf = (a, b) => Boolean(a && b) && a.every((v, i) => Math.abs(v - b[i]) < 1e-6);
+
+/* AI 도형 한 겹 — 도구(창값·이동·측정)를 가리지 않게 마우스는 통과시킨다 */
+function Overlay({ xf, shapes, pick }) {
+  if (!xf || !shapes?.length) return null;
+  const zoom = Math.hypot(xf[0], xf[1]) || 1;
+  return (
+    <svg className="dicom-stack-overlay" aria-hidden="true">
+      <g transform={`matrix(${xf.join(" ")})`}>
+        {shapes.map((s) => <Shape key={s.id} s={s} on={pick === s.id} scale={zoom} />)}
+      </g>
+    </svg>
+  );
+}
 
 const TOOLS = [
   { key: "wl", label: "창값", toolName: "WindowLevel" },
@@ -52,10 +108,17 @@ const TOOLS = [
 
 export default function DicomStackViewer({
   manifestUrl, baseUrl, mode = "diagnostic", onAnnotation,
-  overlay, pick = null, focusSop = null, onInstance,
+  overlay, pick = null, focusSop = null, onInstance, views,
 }) {
   const isReview = mode === "review";
+  const wrapRef = useRef(null);
   const elRef = useRef(null);
+  const [imageIds, setImageIds] = useState([]);
+  const [grid, setGrid] = useState(false);
+  /* views 는 부를 때마다 새 배열이다 — 내용이 같으면 다시 불러오지 않는다 */
+  const viewsRef = useRef(views);
+  useEffect(() => { viewsRef.current = views; }, [views]);
+  const viewsKey = (views ?? []).map((v) => `${v.sop}:${v.label ?? ""}`).join("|");
   const sopsRef = useRef([]);           // manifest 순서의 SOP UID (이벤트 처리용)
   const [sops, setSops] = useState([]); // 같은 것 — 그리기용
   const viewportRef = useRef(null);
@@ -66,15 +129,9 @@ export default function DicomStackViewer({
   /* 지금 장의 변환을 다시 잰다. 이미지 (0,0)·(1,0)·(0,1) 세 점을 화면으로
      보내 보면 affine 한 벌이 나온다 — 회전·반전이 있어도 맞는다 */
   const measure = useCallback(() => {
-    const vp = viewportRef.current;
     try {
-      const imageId = vp?.getCurrentImageId?.();
-      if (!imageId) { setXf(null); return; }
-      const at = (x, y) => vp.worldToCanvas(cornerstone.utilities.imageToWorldCoords(imageId, [x, y]));
-      const o = at(0, 0); const ax = at(1, 0); const ay = at(0, 1);
-      const m = [ax[0] - o[0], ax[1] - o[1], ay[0] - o[0], ay[1] - o[1], o[0], o[1]];
-      if (!m.every(Number.isFinite)) { setXf(null); return; }
-      setXf((prev) => (prev && prev.every((v, i) => Math.abs(v - m[i]) < 1e-6) ? prev : m));
+      const m = affineOf(viewportRef.current);
+      setXf((prev) => (m == null ? null : sameXf(prev, m) ? prev : m));
     } catch { setXf(null); }
   }, []);
   const [status, setStatus] = useState("loading"); // loading | ready | error | empty
@@ -116,10 +173,11 @@ export default function DicomStackViewer({
            「Unexpected token '<'」 가 그대로 뜬다 — Vite 가 404 에
            index.html 을 돌려주기 때문이다. loadManifest 가 그걸 가려내고
            「자료가 없습니다」로 바꿔 준다 (lib/dicom/manifest.js) */
-        const files = await loadManifest(manifestUrl);
-        sopsRef.current = files.map((f) => String(f).split("?")[0]);
+        const files = orderFiles(await loadManifest(manifestUrl), viewsRef.current);
+        sopsRef.current = files.map(sopOf);
         setSops(sopsRef.current);
         const imageIds = files.map((f) => `wadouri:${baseUrl}/${f}`);
+        setImageIds(imageIds);
         if (imageIds.length === 0) { setStatus("empty"); return; }
 
         cornerstone.getRenderingEngine(RENDERING_ENGINE_ID)?.destroy();
@@ -185,6 +243,7 @@ export default function DicomStackViewer({
 
         setViewCount(imageIds.length);
         setViewIndex(0);
+        setGrid(false);
         onInstanceRef.current?.(sopsRef.current[0] ?? null, 0);
         setActiveTool("wl");
         viewport.render();
@@ -230,7 +289,7 @@ export default function DicomStackViewer({
       } catch { /* 툴그룹이 아직 없을 수 있다 */ }
       cornerstone.getRenderingEngine(RENDERING_ENGINE_ID)?.destroy();
     };
-  }, [manifestUrl, baseUrl, isReview, measure]);
+  }, [manifestUrl, baseUrl, isReview, measure, viewsKey]);
 
   /* 「영상에서 보기」 — 고른 병변이 있는 장으로 넘긴다 */
   useEffect(() => {
@@ -241,10 +300,50 @@ export default function DicomStackViewer({
     Promise.resolve(vp.setImageIdIndex(idx)).catch(() => {});
   }, [status, focusSop, pick, sops]);
 
+  /* 「영상에서 보기」는 한 장 보기로 돌아와 그 장을 연다 — 고른 것이 바뀐
+     그때 한 번만(그리는 중에 앞 값과 견준다) */
+  const focusKey = focusSop ? `${focusSop}|${typeof pick === "object" ? JSON.stringify(pick) : pick}` : null;
+  const [focusSeen, setFocusSeen] = useState(focusKey);
+  if (focusKey !== focusSeen) {
+    setFocusSeen(focusKey);
+    if (focusKey && grid) setGrid(false);
+  }
+
+  /* ‹ › · 키보드 · 뷰 띠가 모두 여기로 온다. 끝에서 멈춘다(돌아 넘기지 않는다) —
+     네 장째에서 한 번 더 눌러 첫 장이 뜨면 「다음 장」으로 읽힌다 */
+  const go = useCallback((idx) => {
+    const vp = viewportRef.current;
+    const n = sopsRef.current.length;
+    if (!vp || n === 0) return;
+    const i = Math.max(0, Math.min(n - 1, idx));
+    if (vp.getCurrentImageIdIndex?.() === i) return;
+    Promise.resolve(vp.setImageIdIndex(i)).catch((e) => console.warn("[DicomStackViewer] 뷰 넘기기 실패", e));
+  }, []);
+
+  function onKey(e) {
+    if (status !== "ready" || viewCount < 2) return;
+    if (e.altKey || e.ctrlKey || e.metaKey) return;
+    const tag = e.target?.tagName;
+    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+    const cur = viewportRef.current?.getCurrentImageIdIndex?.() ?? viewIndex;
+    const to = {
+      ArrowLeft: cur - 1, PageUp: cur - 1, ArrowRight: cur + 1, PageDown: cur + 1,
+      Home: 0, End: viewCount - 1,
+    }[e.key];
+    if (to == null) return;
+    e.preventDefault();
+    go(to);
+  }
+
+  /* 뷰 이름 — views 가 준 것, 없으면 「뷰 n」 */
+  const labelOf = new Map((views ?? []).map((v) => [v.sop, v.label]));
+  const names = sops.map((u, i) => labelOf.get(u) || `뷰 ${i + 1}`);
+  const named = (i) => Boolean(labelOf.get(sops[i]));
+  const canGrid = viewCount >= 2 && viewCount <= 4;
+
   const sop = sops[viewIndex] ?? null;
   const layer = status === "ready" && overlay && sop ? overlay(sop) : null;
   const shapes = layer?.shapes ?? [];
-  const zoom = xf ? Math.hypot(xf[0], xf[1]) || 1 : 1;
 
   function selectTool(key) {
     const toolGroup = cornerstoneTools.ToolGroupManager.getToolGroup(TOOL_GROUP_ID);
@@ -263,8 +362,17 @@ export default function DicomStackViewer({
 
   const visibleTools = isReview ? TOOLS.filter((t) => ["wl", "pan", "zoom"].includes(t.key)) : TOOLS;
 
+  const multi = status === "ready" && viewCount > 1;
+
   return (
-    <div className="dicom-stack-wrap">
+    /* 초점을 받는 자리 — 뷰어를 한 번 누르면 ←/→ 로 넘긴다. cornerstone 가
+       mousedown 을 막아 초점이 안 옮겨 오므로 눌릴 때 직접 준다 */
+    <div className="dicom-stack-wrap" ref={wrapRef} tabIndex={multi ? 0 : undefined}
+         onKeyDown={onKey}
+         onPointerDownCapture={(e) => {
+           if (multi && e.target.closest?.(".dicom-stack-cell")) wrapRef.current?.focus({ preventScroll: true });
+         }}
+         aria-label={multi ? `DICOM 뷰어 — ${names[viewIndex] ?? ""}. ←/→ 로 뷰를 넘깁니다` : undefined}>
       {status === "ready" && (
         <div className="dicom-stack-toolbar">
           {visibleTools.map((t) => (
@@ -272,13 +380,37 @@ export default function DicomStackViewer({
               key={t.key}
               type="button"
               className={activeTool === t.key ? "on" : ""}
+              disabled={grid}
+              title={grid ? "한 장 보기에서 씁니다" : undefined}
               onClick={() => selectTool(t.key)}
             >
               {t.label}
             </button>
           ))}
-          {viewCount > 1 && (
-            <span className="dicom-stack-count">뷰 {viewIndex + 1} / {viewCount}</span>
+          {multi && (
+            <span className="dicom-stack-nav">
+              {canGrid && (
+                <button type="button" className={grid ? "on" : ""} aria-pressed={grid}
+                        onClick={() => setGrid((v) => !v)}
+                        title={grid ? "한 장씩 크게 봅니다" : "모든 뷰를 한 번에 봅니다"}>
+                  {grid ? "한 장 보기" : "전체 보기"}
+                </button>
+              )}
+              {!grid && (
+                <>
+                  <button type="button" className="dicom-stack-step" aria-label="이전 뷰"
+                          title="이전 뷰 (← · PageUp)" disabled={viewIndex <= 0}
+                          onClick={() => go(viewIndex - 1)}>‹</button>
+                  <span className="dicom-stack-count" aria-live="polite">
+                    {named(viewIndex) && <b>{names[viewIndex]}</b>}
+                    뷰 {viewIndex + 1} / {viewCount}
+                  </span>
+                  <button type="button" className="dicom-stack-step" aria-label="다음 뷰"
+                          title="다음 뷰 (→ · PageDown)" disabled={viewIndex >= viewCount - 1}
+                          onClick={() => go(viewIndex + 1)}>›</button>
+                </>
+              )}
+            </span>
           )}
         </div>
       )}
@@ -288,16 +420,30 @@ export default function DicomStackViewer({
         {status === "loading" && <div className="dicom-stack-message">불러오는 중…</div>}
         {status === "error" && <div className="dicom-stack-message dicom-stack-error">{error}</div>}
         <div ref={elRef} style={{ width: "100%", height: "100%", display: status === "ready" ? "block" : "none" }} />
-        {/* AI 도형 — 도구(창값·이동·측정)를 가리지 않게 마우스는 통과시킨다.
-            고르는 것은 AI 소견 패널이 한다 */}
-        {xf && shapes.length > 0 && (
-          <svg className="dicom-stack-overlay" aria-hidden="true">
-            <g transform={`matrix(${xf.join(" ")})`}>
-              {shapes.map((s) => <Shape key={s.id} s={s} on={pick === s.id} scale={zoom} />)}
-            </g>
-          </svg>
+        {/* AI 도형 — 고르는 것은 AI 소견 패널이 한다 */}
+        {!grid && <Overlay xf={xf} shapes={shapes} pick={pick} />}
+        {/* 전체 보기 — 한 장 뷰포트는 그대로 두고 위에 덮는다. 내렸다 올리면
+            도구 · 창값 · 세그멘테이션을 다시 만들어야 해서다 */}
+        {grid && status === "ready" && (
+          <GridView imageIds={imageIds} sops={sops} names={names}
+                    current={viewIndex} overlay={overlay} pick={pick}
+                    onOpen={(i) => { setGrid(false); go(i); }} />
         )}
       </div>
+
+      {/* 뷰 띠 — 지금 뷰가 밝다. 전체 보기에서 누르면 그 뷰를 크게 연다 */}
+      {multi && viewCount <= STRIP_MAX && (
+        <div className="dicom-stack-strip" role="group" aria-label="뷰 고르기">
+          {names.map((n, i) => (
+            <button key={sops[i] ?? i} type="button" className={!grid && i === viewIndex ? "on" : ""}
+                    aria-current={!grid && i === viewIndex ? "true" : undefined}
+                    onClick={() => { setGrid(false); go(i); }}>
+              {n}
+            </button>
+          ))}
+          <span className="dicom-stack-keys">← → 로 넘깁니다</span>
+        </div>
+      )}
 
       <style>{`
         .dicom-stack-wrap { display: flex; flex-direction: column; width: 100%; height: 100%; min-width: 0; min-height: 0; gap: 8px; }
@@ -308,7 +454,36 @@ export default function DicomStackViewer({
         }
         .dicom-stack-toolbar button:hover { border-color: #596169; color: #ffffff; }
         .dicom-stack-toolbar button.on { background: #343a40; border-color: #6488ff; color: #ffffff; }
-        .dicom-stack-count { margin-left: auto; font-size: 11px; color: #8e959c; font-variant-numeric: tabular-nums; }
+        .dicom-stack-wrap:focus { outline: none; }
+        .dicom-stack-wrap:focus-visible .dicom-stack-cell { border-color: #6488ff; }
+        .dicom-stack-toolbar button:disabled { opacity: .4; cursor: default; }
+        .dicom-stack-toolbar button:disabled:hover { border-color: #343a40; color: #aeb4ba; }
+        .dicom-stack-nav { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; }
+        .dicom-stack-toolbar .dicom-stack-step { width: 30px; padding: 3px 0; font-size: 16px; line-height: 1; }
+        .dicom-stack-count { font-size: 11px; color: #8e959c; font-variant-numeric: tabular-nums; white-space: nowrap; }
+        .dicom-stack-count b { color: #ffffff; font-weight: 600; margin-right: 6px; }
+        .dicom-stack-strip { flex: 0 0 auto; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+        .dicom-stack-strip button {
+          min-width: 58px; padding: 5px 10px; border: 1px solid #343a40; border-radius: 5px;
+          background: #111518; color: #aeb4ba; font-size: 11.5px; cursor: pointer; font-variant-numeric: tabular-nums;
+        }
+        .dicom-stack-strip button:hover { border-color: #596169; color: #ffffff; }
+        .dicom-stack-strip button.on { background: #343a40; border-color: #6488ff; color: #ffffff; font-weight: 600; }
+        .dicom-stack-keys { margin-left: auto; font-size: 11px; color: #596169; }
+        .dicom-stack-grid {
+          position: absolute; inset: 0; z-index: 1; display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 1fr;
+          gap: 2px; background: #000000;
+        }
+        .dicom-stack-gcell { position: relative; min-width: 0; min-height: 0; overflow: hidden; background: #111518; }
+        .dicom-stack-gcell.on::after {
+          content: ""; position: absolute; inset: 0; border: 1px solid #6488ff; pointer-events: none; z-index: 2;
+        }
+        .dicom-stack-gview { position: absolute; inset: 0; }
+        .dicom-stack-glabel {
+          position: absolute; left: 6px; top: 6px; z-index: 3; padding: 2px 8px; border-radius: 4px;
+          border: 1px solid #343a40; background: rgba(17,21,24,.85); color: #ffffff; font-size: 11px; cursor: pointer;
+        }
+        .dicom-stack-glabel:hover { border-color: #6488ff; }
         .dicom-stack-cell {
           position: relative; flex: 1; min-height: 0; overflow: hidden;
           border: 1px solid #596169; border-radius: 8px; background: #111518;
@@ -323,6 +498,122 @@ export default function DicomStackViewer({
         .dicom-stack-overlay .shp rect, .dicom-stack-overlay .shp path { stroke-width: 2px; }
         .dicom-stack-error { max-width: 90%; text-align: center; color: #c9828c; line-height: 1.5; }
       `}</style>
+    </div>
+  );
+}
+
+/* ── 전체 보기(2×2) ──────────────────────────────────────────
+ * 칸마다 STACK 뷰포트 하나에 장 하나. 툴그룹은 따로다 — 한 뷰포트는
+ * 툴그룹 하나에만 들어간다. 도구는 창값(왼쪽 끌기)만.
+ * ⚠ 렌더링 엔진은 한 장 보기의 것에 뷰포트만 더한다(enableElement). 엔진을
+ *   하나 더 만들면 엔진마다 WebGL 문맥을 7개씩 잡아 브라우저 한도(16)를
+ *   넘고, 가장 오래된 문맥 — 한 장 보기 것 — 이 끊겨 닫은 뒤 화면이 죽었다.
+ * 영상은 한 장 보기가 이미 받아 캐시에 있어 다시 받지 않는다(처음 보는
+ * 장만 받는다). 칸 이름 단추 · 두 번 누르기로 그 뷰를 크게 연다. */
+function GridView({ imageIds, sops, names, current, overlay, pick, onOpen }) {
+  const cells = useRef([]);
+  const vps = useRef([]);
+  const [xfs, setXfs] = useState([]);
+  const [err, setErr] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    let ro;
+    const cleanups = [];
+    const engine = cornerstone.getRenderingEngine(RENDERING_ENGINE_ID);
+    const ids = imageIds.map((_, i) => `DICOM_GRID_${i}`);
+
+    const measureAt = (i) => {
+      try {
+        const m = affineOf(vps.current[i]);
+        setXfs((prev) => {
+          if (m == null ? prev[i] == null : sameXf(prev[i], m)) return prev;
+          const next = [...prev]; next[i] = m; return next;
+        });
+      } catch { /* 다음 그리기에서 */ }
+    };
+
+    (async () => {
+      try {
+        if (!engine) throw new Error("뷰어가 아직 준비되지 않았습니다");
+        const { ViewportType, Events } = cornerstone.Enums;
+        ids.forEach((viewportId, i) => engine.enableElement({
+          viewportId, type: ViewportType.STACK, element: cells.current[i],
+        }));
+        vps.current = ids.map((viewportId) => engine.getViewport(viewportId));
+        await Promise.all(vps.current.map((vp, i) => vp.setStack([imageIds[i]], 0)));
+        if (cancelled) return;
+        /* ⚠ 엔진에 뷰포트를 더한 직후라 카메라가 엉뚱하게 멀리(배율 1/100)
+           잡혀 칸이 새까맸다. 장을 얹은 뒤 한 번 맞춘다 */
+        vps.current.forEach((vp) => vp.resetCamera());
+
+        try { cornerstoneTools.ToolGroupManager.destroyToolGroup(GRID_TOOL_GROUP_ID); }
+        catch { /* 처음이라 없을 수 있다 */ }
+        const tg = cornerstoneTools.ToolGroupManager.createToolGroup(GRID_TOOL_GROUP_ID);
+        tg.addTool(cornerstoneTools.WindowLevelTool.toolName);
+        tg.setToolActive(cornerstoneTools.WindowLevelTool.toolName, {
+          bindings: [{ mouseButton: cornerstoneTools.Enums.MouseBindings.Primary }],
+        });
+        ids.forEach((viewportId) => tg.addViewport(viewportId, RENDERING_ENGINE_ID));
+
+        imageIds.forEach((_, i) => {
+          const el = cells.current[i];
+          const f = () => measureAt(i);
+          el?.addEventListener(Events.IMAGE_RENDERED, f);
+          el?.addEventListener(Events.CAMERA_MODIFIED, f);
+          cleanups.push(() => {
+            el?.removeEventListener(Events.IMAGE_RENDERED, f);
+            el?.removeEventListener(Events.CAMERA_MODIFIED, f);
+          });
+        });
+        engine.renderViewports(ids);
+        imageIds.forEach((_, i) => measureAt(i));
+
+        const box = cells.current[0]?.parentElement?.parentElement;
+        if (box) {
+          ro = new ResizeObserver(() => {
+            if (cancelled) return;
+            engine.resize(true, false);
+            engine.render();
+          });
+          ro.observe(box);
+        }
+      } catch (e) {
+        console.error("[DicomStackViewer grid]", e);
+        if (!cancelled) setErr(e.message || String(e));
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      ro?.disconnect();
+      cleanups.forEach((f) => f());
+      try { cornerstoneTools.ToolGroupManager.destroyToolGroup(GRID_TOOL_GROUP_ID); }
+      catch { /* 이미 없다 */ }
+      /* 한 장 보기 엔진이 먼저 내려갔으면(뷰어째 닫힘) 할 일이 없다 */
+      const live = cornerstone.getRenderingEngine(RENDERING_ENGINE_ID);
+      if (live && live === engine && !live.hasBeenDestroyed) {
+        ids.forEach((viewportId) => { try { live.disableElement(viewportId); } catch { /* 이미 없다 */ } });
+      }
+      vps.current = [];
+    };
+  }, [imageIds]);
+
+  return (
+    <div className="dicom-stack-grid" role="group" aria-label="전체 보기">
+      {err && <div className="dicom-stack-message dicom-stack-error">{err}</div>}
+      {imageIds.map((id, i) => {
+        const layer = overlay && sops[i] ? overlay(sops[i]) : null;
+        return (
+          <div key={id} className={`dicom-stack-gcell${i === current ? " on" : ""}`}
+               onDoubleClick={() => onOpen(i)}>
+            <div className="dicom-stack-gview" ref={(el) => { cells.current[i] = el; }} />
+            <Overlay xf={xfs[i]} shapes={layer?.shapes ?? []} pick={pick} />
+            <button type="button" className="dicom-stack-glabel" title="이 뷰를 크게 봅니다"
+                    onClick={() => onOpen(i)}>{names[i]}</button>
+          </div>
+        );
+      })}
     </div>
   );
 }

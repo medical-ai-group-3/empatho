@@ -84,19 +84,22 @@ export const breast = {
        .pane > .hcard:last-child) — 큐가 혼자 한 단을 먹어 셋뿐인 줄 밑이
        통째로 비던 것(09-28)을 흐름 칸이 받는다.
        ⚠ 칸 이름이 바뀌었다(stuck → flow). 옛 저장 배치는 아래에서 지운다 */
-    layout: [["queue", "flow"], ["side", "todo"], ["calendar", "handover"]],
+    /* 09-28 가운데 단을 뒤집었다 — 할 일이 맨 아래라 남는 높이를 다 받아
+       빈 상자가 가운데 한 단을 먹었다. 이제 할 일이 위(제 줄만큼)이고,
+       남는 높이는 **다가오는 예약**(오늘 남은 것 + 두 주)이 받는다 */
+    layout: [["queue", "flow"], ["todo", "side"], ["calendar", "handover"]],
 
     queue: ({ waiting, all, status, items, rawStatus, itemList }) => ({
       title: "대기 중인 환자",
-      hint: "누르면 환자 상세",
+      hint: "누르면 환자 상세로 이동",
       /* 열 이름. 공통 머리(「구분」·「상태」)로는 이 과 줄이 무엇인지
          안 읽힌다는 말을 들었다(09-28) */
       cols: { chip: "주의", sub: "진행" },
       extra: [{ key: "next", name: "다음 할 일" }, { key: "visit", name: "내원" },
-              { key: "doctor", name: "담당의" }],
+              { key: "doctor", name: "주치의" }],
       tabs: [
-        { key: "mine", name: "내 담당",
-          empty: "지금 기다리는 내 담당 환자가 없습니다",
+        { key: "mine", name: "내 환자",
+          empty: "지금 기다리는 내 환자가 없습니다",
           rows: byVisit(waiting, status, items) },
         { key: "all", name: "과 전체",
           empty: "지금 기다리는 환자가 없습니다",
@@ -117,7 +120,7 @@ export const breast = {
         ?? bag.itemList.filter((it) => it.next_step === k).length;
       return {
         title: "진료 흐름 · 내가 할 일",
-        summary: bag.guessed ? `대기 ${Math.min(bag.waiting.length, GUESS_MAX)}명 되짚음` : "서버 집계",
+        summary: bag.guessed ? `대기 ${Math.min(bag.waiting.length, GUESS_MAX)}명 기준 추정` : "전체 집계",
         items: PENDING_KEYS.map((k) => ({
           name: NEXT[k].name, count: count(k),
           to: `${go.breast.waiting()}?next=${k}`,
@@ -125,24 +128,34 @@ export const breast = {
       };
     },
 
-    /* 달력 밑 — 오늘 예약했고 아직 안 온 사람. 내원하면 위 대기로 넘어간다 */
-    side: ({ schedule }) => ({
-      title: "오늘 예약",
-      empty: "오늘 남은 예약이 없습니다",
-      rows: schedule
-        .filter((r) => H.isToday(r.scheduled_at) && !r.visited_at)
-        .map((r) => {
-          const pid = r.patient ?? r.patient_id;
-          return {
-            id: r.exam_order_id ?? r.id,
-            name: H.nameOf(r),
-            meta: H.who(r),
-            sub: H.isPast(r.scheduled_at) ? "시각 지남" : null,
-            at: H.at(r.scheduled_at),
-            to: pid != null ? go.breast.review(pid) : null,
-          };
-        }),
-    }),
+    /* 다가오는 예약 — 오늘 예약했고 아직 안 온 사람, 그 뒤 두 주 안의 예약.
+       내원하면 위 대기로 넘어간다. 오늘 것은 시각, 뒷날 것은 날짜를 앞에 둔다.
+       ⚠ 09-28 전에는 오늘 것만이라 한두 줄 밑이 통째로 비었다. 값은 같은
+         예약 목록(GET /exam-orders?scheduled_from=…)이고 범위만 두 주 늘렸다 */
+    side: ({ schedule }) => {
+      const until = H.iso(new Date(Date.now() + UPCOMING_DAYS * 86400000));
+      return {
+        title: "다가오는 예약",
+        empty: "2주 안에 잡힌 예약이 없습니다",
+        rows: schedule
+          .filter((r) => r.scheduled_at && !r.visited_at && r.order_status !== "cancelled"
+            && String(r.scheduled_at).slice(0, 10) <= until
+            && (H.isToday(r.scheduled_at) || String(r.scheduled_at).slice(0, 10) > H.iso(new Date())))
+          .sort((a, b) => String(a.scheduled_at).localeCompare(String(b.scheduled_at)))
+          .map((r) => {
+            const pid = r.patient ?? r.patient_id;
+            const today = H.isToday(r.scheduled_at);
+            return {
+              id: r.exam_order_id ?? r.id,
+              name: H.nameOf(r),
+              meta: H.who(r),
+              sub: today ? (H.isPast(r.scheduled_at) ? "오늘 · 시간 지남" : "오늘") : H.at(r.scheduled_at),
+              at: today ? H.at(r.scheduled_at) : H.day(r.scheduled_at),
+              to: pid != null ? go.breast.review(pid) : null,
+            };
+          }),
+      };
+    },
 
     /* 09-28 「확인이 필요한 것」(stuck)을 뺐다 — 불일치 · 알레르기 두 줄이었고
        이제 흐름 칸(판정 불일치)과 큐 줄의 칩(알레르기)이 말한다.
@@ -246,10 +259,15 @@ function visitKey(status, r) {
   return String(status.get(String(r.patient_id))?.visited_at ?? "~");
 }
 
+/* 홈이 받는 예약 범위 — 이달 첫날부터 이달 끝(달력 점)과 오늘 + 두 주
+   (다가오는 예약) 가운데 늦은 날까지 */
+const UPCOMING_DAYS = 14;
+
 function monthBounds(now = new Date()) {
   const first = new Date(now.getFullYear(), now.getMonth(), 1);
   const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-  return [H.iso(first), H.iso(last)];
+  const ahead = new Date(now.getFullYear(), now.getMonth(), now.getDate() + UPCOMING_DAYS);
+  return [H.iso(first), H.iso(ahead > last ? ahead : last)];
 }
 
 export default breast;

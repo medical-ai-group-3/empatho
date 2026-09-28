@@ -4,6 +4,8 @@ import { go } from "../nav";
 import * as H from "./home";
 import { Chip, Facts, Fold, Warn, useCan } from "../lib/Parts";
 import { Body } from "../lib/Body";
+import { Seen, Two } from "../lib/ListCells";
+import { shortAt } from "../lib/shortAt";
 import RadiologyAi from "./RadiologyAi";
 import Stage, { boxesFromLesions, polygonsFromAi } from "../lib/Stage";
 import { useApi } from "../lib/useApi";
@@ -15,7 +17,8 @@ import { currentAssessment } from "../api";
 import { RadiologyAiSummary } from "./RadiologyAi";
 import { Phrases } from "../lib/Parts";
 import { BIRADS_LABEL, DENSITY_CATEGORY, EXAM_PURPOSE, RECOMMENDATION } from "../codes";
-import { getMe } from "../perm";
+import { can, getMe } from "../perm";
+import { DISPOSITION_TYPE, FLAG_STATUS } from "../codes";
 
 /* ── 판독(3장) 보조 — 상용구 · 알레르기 · 의뢰 질문 · 밀도 ────────
    ⚠ 상용구는 **서버가 주는 값이 아니다.** 저장 경로가 없어 여기 박았다.
@@ -84,6 +87,8 @@ export function radStage(d, i = 0, sop = null) {
     const ai = isUs ? (cur ? aiForFiles(d, [cur]) : null) : d.ai ?? null;
     return {
       stackManifest: d.stack_manifest, stackBase: d.stack_base,
+      /* 뷰어가 이 순서 · 이름으로 늘어놓는다(‹ › · 뷰 띠 · 전체 보기) */
+      views: stackViews(files),
       ai,
       aiMissing: isUs && Boolean(cur) && !ai,
       overlay: (at) => {
@@ -151,6 +156,28 @@ function mammoLesions(d) {
 const latOf = (v) => ({ l: "L", left: "L", r: "R", right: "R" })[String(v ?? "").toLowerCase()] ?? null;
 const viewOf = (v) => String(v ?? "").trim().toUpperCase() || null;
 
+/* 스택 뷰어의 뷰 순서 · 이름 — [{ sop, label }].
+   맘모 판독 관례의 hanging order: **R-CC · L-CC · R-MLO · L-MLO**.
+   같은 방향의 좌우를 잇달아 넘겨 봐야 비대칭이 보인다(전체 보기 2×2 도
+   위가 CC, 아래가 MLO). 그 밖의 방향(XCCL 등)은 그 뒤에 R → L, 좌우 ·
+   방향을 모르는 장(초음파 등)은 label 없이 서버 순서대로 맨 뒤 —
+   뷰어가 「뷰 n」으로 부른다 */
+const HANG = ["R-CC", "L-CC", "R-MLO", "L-MLO"];
+function stackViews(files) {
+  return files
+    .filter((f) => f?.sop_instance_uid)
+    .map((f, i) => {
+      const lat = latOf(f.laterality);
+      const v = viewOf(f.view_position);
+      const label = lat && v ? `${lat}-${v}` : null;
+      const h = label ? HANG.indexOf(label) : -1;
+      const rank = h >= 0 ? h : label ? HANG.length + (lat === "R" ? 0 : 1) : 100;
+      return { sop: f.sop_instance_uid, label, rank, i };
+    })
+    .sort((a, b) => a.rank - b.rank || a.i - b.i)
+    .map(({ sop, label }) => ({ sop, label }));
+}
+
 /* 병변이 나온 장 — 병변의 image.{laterality, view}(tasks.py _mammo)와
    파일의 laterality · view_position(DICOM 헤더에서 읽은 값, I-2)을 맞춘다 */
 function fileOfLesion(files, l) {
@@ -169,11 +196,11 @@ function whereLesion(d, files, id) {
     return { why: "이 병변이 어느 영상(좌우 · CC/MLO)에서 나왔는지 결과에 없습니다" };
   }
   if (!files.some((f) => latOf(f.laterality) && viewOf(f.view_position))) {
-    return { why: "업로드된 영상에 좌우 · 촬영 방향(laterality · view_position) 값이 없어 어느 장인지 찾지 못합니다" };
+    return { why: "업로드된 영상에 좌우 · 촬영 방향 정보가 없어 해당 영상을 찾지 못합니다" };
   }
   const f = fileOfLesion(files, l);
   if (!f) return { why: `${latOf(l.image.laterality)}-${viewOf(l.image.view)} 영상이 이 검사에 없습니다` };
-  if (!f.sop_instance_uid) return { why: "그 영상의 DICOM 번호(SOP UID)가 없어 뷰어에서 찾지 못합니다" };
+  if (!f.sop_instance_uid) return { why: "해당 영상의 DICOM 식별자(SOP UID)가 없어 뷰어에서 찾지 못합니다" };
   return { sop: f.sop_instance_uid };
 }
 
@@ -247,6 +274,8 @@ const api = {
   retake:     (oid)   => rad.retake(oid),
   /* 홈 「오늘 한 일」 — 오늘 내가 확정한 판독 */
   myReads:    ()      => rad.myReads(),
+  /* 홈 「내 판독 불일치 결과」 — 내 판독에 걸린 판정 불일치 */
+  myDiscordances: ()  => rad.myDiscordances(),
   analyze:    (id)    => rad.analyze(id),
   progress:   (id)    => rad.progress(id),
   /* 원본 응답과 업로드 파일 목록을 화면 계약으로 합치는 일은 api.js가 맡는다. */
@@ -284,8 +313,9 @@ function ListViewer({ d, cfg, slide, onSlide, bright, contrast, mask }) {
             mode="review" />
         </Suspense>
       ) : isStack ? (
-        <Suspense fallback={<div className="mri-loading">맘모 뷰어 불러오는 중…</div>}>
-          <DicomStackViewer manifestUrl={view.stackManifest} baseUrl={view.stackBase} mode="review" />
+        <Suspense fallback={<div className="mri-loading">유방촬영 뷰어 불러오는 중…</div>}>
+          <DicomStackViewer manifestUrl={view.stackManifest} baseUrl={view.stackBase} mode="review"
+                            views={view.views} overlay={view.overlay} />
         </Suspense>
       ) : (
         <Stage
@@ -379,7 +409,7 @@ const LIST_FILTERS = [
       { key: "all", name: "전체" },
       { key: "pending", name: "대기", query: { read_status: "pending" },
         test: (r) => r.read_status == null || r.read_status === "pending" },
-      { key: "draft", name: "초안", query: { read_status: "draft" },
+      { key: "draft", name: "임시저장", query: { read_status: "draft" },
         test: (r) => r.read_status == null || r.read_status === "draft" },
       { key: "finalized", name: "확정", query: { read_status: "finalized" },
         test: (r) => r.read_status == null ? Boolean(r.finalized) : r.read_status === "finalized" },
@@ -388,7 +418,7 @@ const LIST_FILTERS = [
   { key: "own", label: "담당",
     items: [
       { key: "all", name: "전체" },
-      { key: "me", name: "내 것", query: { assigned: "me" }, test: mine },
+      { key: "me", name: "내 담당", query: { assigned: "me" }, test: mine },
     ] },
 ];
 
@@ -419,15 +449,68 @@ export const radiology = {
       H.soft(api.queue()),
       api.list({ page_size: 200 }, { need: (r) => r.read_status !== "finalized" }),
       H.soft(api.myReads()),
-    ]).then(([queue, list, reads]) => ({
+      /* 403 · 404(이 경로를 안 연 서버)는 null — 칸을 안 세운다. 그 밖의
+         실패는 칸을 세우고 못 불렀다고 적는다 */
+      api.myDiscordances().catch((e) => (e?.status === 403 || e?.status === 404 ? null : "error")),
+    ]).then(([queue, list, reads, flags]) => ({
       queue: H.rows(queue), studies: H.rows(list), reads: H.rows(reads),
+      flags,
     })),
 
     /* 달력은 뺀다 — 찍을 점이 없어 늘 빈 달이었다(marks 가 늘 []).
-       「확인이 필요한 것」도 뺀다 — 탭 머리 숫자가 같은 말을 한다 */
-    layout: [["queue"], ["done", "handover"], ["todo"]],
+       「확인이 필요한 것」도 뺀다 — 탭 머리 숫자가 같은 말을 한다.
+       09-28 「판독 현황」 밑에 「내 판독 불일치 결과」를 둔다 — 큐가 짧으면
+       그 밑이 통째로 비었다. 둘 다 줄어드는 칸이라 큐가 길면 나눠 굴린다 */
+    layout: [["queue", "flags"], ["done", "handover"], ["todo"]],
 
-    primary: { label: "다음 환자 받기", to: go.radiology.queue(),
+    cards: {
+      /* ── 내 판독 불일치 결과 ──────────────────────────────────
+       * 내가 확정한 판독이 병리와 엇갈려 걸린 것(GET /discordances?
+       * assessed_by=me). 열린 것 먼저(걸린 순), 그 뒤 최근 종결.
+       *   열림  유방외과 처분 전 — 정정 권한이 있으면 판독 정정으로 간다
+       *   종결  유방외과가 고른 처분(재조직검사 · 수술적 절제 · 종결)
+       * ⚠ 처분은 유방외과 몫이다. 여기는 **보기만** 한다 */
+      flags: ({ flags }) => {
+        if (flags == null) return null;
+        const base = { title: "내 판독의 판정 불일치", empty: "내 판독과 관련된 판정 불일치가 없습니다" };
+        if (flags === "error") return { ...base, error: "불일치 결과를 불러오지 못했습니다", count: null };
+        const at = (f) => String(f.closed_at ?? f.flagged_at ?? f.created_at ?? "");
+        const open = flags.filter((f) => !f.closed_at)
+          .sort((a, b) => String(b.flagged_at ?? b.created_at ?? "").localeCompare(String(a.flagged_at ?? a.created_at ?? "")));
+        const shut = flags.filter((f) => f.closed_at)
+          .sort((a, b) => at(b).localeCompare(at(a))).slice(0, 10);
+        const amend = can("radiology.amend.view");
+        const row = (f) => {
+          const sid = f.study ?? f.study_id ?? null;
+          const done = Boolean(f.closed_at);
+          const mod = f.modality ? label(MODALITY, asModality(f.modality)) : null;
+          const pair = [f.category && `BI-RADS ${String(f.category).toUpperCase()}`,
+                        f.b_category && String(f.b_category).toUpperCase()].filter(Boolean).join(" ↔ ");
+          return {
+            id: f.discordance_id ?? f.id ?? `${sid}-${at(f)}`,
+            chip: done ? "종결" : "진행 중",
+            chipTone: done ? "line" : "fill",
+            name: f.patient_name ?? H.nameOf(f),
+            meta: [f.patient_number, mod, pair].filter(Boolean).join(" · "),
+            sub: [label(FLAG_STATUS, f.flag_status), f.violated_rule].filter(Boolean).join(" · "),
+            note: done
+              ? `처분 ${label(DISPOSITION_TYPE, f.disposition_type) || "기록 없음"}`
+              : "유방외과 처분 대기",
+            at: H.day(done ? f.closed_at : (f.flagged_at ?? f.created_at)),
+            to: sid == null ? null : !done && amend ? go.radiology.amend(sid) : go.radiology.read(sid),
+            off: done,
+          };
+        };
+        return {
+          ...base,
+          count: open.length,
+          hint: `진행 중 ${open.length} · 최근 종결 ${shut.length}`,
+          rows: [...open, ...shut].map(row),
+        };
+      },
+    },
+
+    primary: { label: "다음 검사 시작", to: go.radiology.queue(),
                need: "radiology.queue.view" },
 
     /* ── 홈 주 큐 — 판독 현황 ─────────────────────────────────
@@ -476,7 +559,7 @@ export const radiology = {
          처음 여는 탭은 판독의가 지금 할 일인 「소견 대기」(pick) */
       return {
         title: "판독 현황",
-        hint: "일이 흐르는 순서",
+        hint: "진행 순서",
         cols: { chip: "모달리티", sub: "내용" },
         pick: "doctor",
         /* 기다린 시간은 별도 열 — 시각(at)과 나란히 */
@@ -504,11 +587,11 @@ export const radiology = {
             })) },
           { key: "upload", name: "업로드 대기", empty: "영상을 기다리는 검사가 없습니다",
             rows: pending.filter((r) => !hasImg(r)).map(study("업로드")) },
-          { key: "ai", name: "AI 분석 중", empty: "AI 가 분석 중인 검사가 없습니다",
+          { key: "ai", name: "AI 분석 중", empty: "AI 분석 중인 검사가 없습니다",
             rows: pending.filter((r) => hasImg(r) && running(r)).map(study("판독")) },
-          { key: "doctor", name: "소견 대기", empty: "소견을 쓸 검사가 없습니다",
+          { key: "doctor", name: "소견 대기", empty: "소견 작성을 기다리는 검사가 없습니다",
             rows: pending.filter((r) => hasImg(r) && !running(r)).map(study("판독")) },
-          { key: "draft", name: "초안", empty: "확정 안 한 판독이 없습니다",
+          { key: "draft", name: "임시저장", empty: "임시저장된 판독이 없습니다",
             rows: studies.filter((r) => r.read_status === "draft").map(study("판독")) },
         ],
       };
@@ -577,7 +660,9 @@ export const radiology = {
     emptyText: "촬영 대기 중인 오더가 없습니다",
     /* 누르면 하는 일 그대로 — 전에는 「환자 선택」이라 고르기만 하는 줄
        알았다. 실제로는 되돌릴 수 없는 집기다 */
-    takeLabel: "이 검사 집기",
+    takeLabel: "이 검사 담당하기",
+    takeVerb: "담당하기",
+    nextLabel: "다음 검사 담당하기",
     filters: HOME_FILTERS,
     need: { view: "radiology.queue.view", assign: "radiology.queue.assign" },
     /* 지난 검사 줄 → 그 검사의 판독(새 탭). 병리 줄은 권한 밖이라 안 건다 */
@@ -589,7 +674,7 @@ export const radiology = {
         id: it.id,
         /* 지난 검사 칸이 이 번호로 환자 이력을 부른다 */
         patientId: it.patient_id ?? it.patient ?? null,
-        title: `${H.nameOf(it)}${H.who(it) ? ` (${it.age ?? "?"}/${label(SEX, it.sex)})` : ""}`,
+        title: `${H.nameOf(it)}${H.who(it) ? ` (${H.who(it)})` : ""}`,
         /* 누가 낸 오더인지 같이 적는다 — 이 큐는 유방외과가 낸 촬영 요청이다 */
         sub: [label(MODALITY, asModality(it.modality)), label(PURPOSE, it.exam_purpose) || null,
               `${it.ordered_by_name ?? "유방외과"} 요청`].filter(Boolean).join(" · "),
@@ -610,7 +695,7 @@ export const radiology = {
               <span className="section-label">{why ? `의뢰 · ${why}` : "의뢰"}</span>
               {d.purpose
                 ? <p className="quote">{d.purpose}</p>
-                : <p className="muted small">의뢰 문구가 없습니다</p>}
+                : <p className="muted small">의뢰 내용이 없습니다</p>}
             </div>
           )}
           <Facts items={[
@@ -640,8 +725,8 @@ export const radiology = {
       return ".dcm,.zip,image/*,video/*";
     },
     /* 끌어 놓는 칸 아래 한 줄 — 무엇을 어떤 꼴로 올리는가 */
-    hint: "맘모 양측 CC·MLO 4뷰(DICOM) · 초음파 프레임·클립 · MRI 시리즈는 zip 으로",
-    estimate: "초음파 약 0.4초 · 맘모 약 34초 · MRI 약 3분. 기다리지 않고 나가도 됩니다 — 다시 들어오면 진행이 그대로 보입니다.",
+    hint: "유방촬영 양측 CC·MLO 4장(DICOM) · 초음파 프레임·클립 · MRI 시리즈는 zip으로 올립니다",
+    estimate: "AI 분석 시간은 초음파 약 0.4초 · 유방촬영 약 34초 · MRI 약 3분입니다. 화면을 나가도 분석은 계속되고, 다시 들어오면 진행 상황이 보입니다.",
     need: {
       view: "radiology.upload.view",
       send: "radiology.upload.send",
@@ -772,6 +857,8 @@ export const radiology = {
     need: {
       view: "radiology.read.view",
       ai: "radiology.ai.view",
+      /* AI 다시 실행 — 서버가 잠깐 못 받은 결과에만 뜬다(dept/aiFailure.js) */
+      run: "radiology.ai.run",
       draft: "radiology.read.draft",
       finalize: "radiology.read.finalize",
     },
@@ -941,33 +1028,34 @@ export const radiology = {
     sorts: [
       { key: "patient__name", label: "이름" },
       { key: "performed_at", label: "촬영 순서" },
-      { key: "read_status", label: "진행상황" },
+      { key: "read_status", label: "진행 상황" },
       { key: "modality", label: "모달리티" },
       { key: "report__viewed_at", label: "유방외과 열람" },
     ],
 
+    /* 09-28 — 다섯 칸이 440px 에 안 들어 이름이 두 줄로 꺾이고 끝 칸
+       칩이 목록 밖으로 잘렸다. 모달리티 · 촬영일을 한 칸(검사)으로 묶고,
+       나이 · 성별 · 환자번호는 이름 밑 둘째 줄로 내린다(lib/ListCells) */
     cols: [
-      { key: "patient", label: "환자", w: "24%" },
-      { key: "modality", label: "모달리티", w: "14%" },
-      { key: "performed", label: "촬영일", w: "16%" },
-      { key: "status", label: "진행상황", w: "18%" },
-      { key: "viewed", label: "유방외과", w: "14%" },
+      { key: "patient", label: "환자", cls: "c-grow" },
+      { key: "exam", label: "검사", cls: "c-fit" },
+      { key: "status", label: "진행 상황", cls: "c-fit" },
+      { key: "viewed", label: "유방외과", cls: "c-fit" },
     ],
 
     /* 진행상황은 read_status 를 한글로. 「작성 중」으로 거르면 쓰다 만
        판독을 찾을 수 있다 — 병리와 달리 여기서는 표시한다 */
     row: (r) => ({
       id: r.id,
-      patient: `${H.nameOf(r)}${H.who(r) ? ` (${r.age ?? "?"}/${label(SEX, r.sex)})` : ""}`,
-      modality: label(MODALITY, asModality(r.modality)),
+      patient: <Two strong main={H.nameOf(r)} title={H.nameOf(r)}
+                    sub={[H.who(r), H.noOf(r)].filter(Boolean).join(" · ")} />,
       /* 「09-28 08:05」 — 목록 칸이 좁아 해를 뺀다(상세에 전체가 있다) */
-      performed: r.performed_at ? String(r.performed_at).slice(5, 16).replace("T", " ") : "—",
+      exam: <Two main={label(MODALITY, asModality(r.modality)) || "—"}
+                 sub={shortAt(r.performed_at) ?? "—"} />,
       status: <Chip tone={tone("read", r.read_status)}>
         {text(r, "read_status", READ_STATUS, "status_label")}
       </Chip>,
-      viewed: r.viewed_at
-        ? <Chip tone="line">열람</Chip>
-        : <Chip tone="dot">미열람</Chip>,
+      viewed: <Seen at={r.viewed_at} />,
     }),
 
     /* 2026-09-18 — 환자 목록 설계에 맞춰 뷰어·검사 이력을 추가했다.
@@ -1008,14 +1096,14 @@ export const radiology = {
 
             <div className="list-detail-info">
               <Facts items={[
-                ["환자", `${H.nameOf(d)}${H.who(d) ? ` (${d.age ?? "?"}/${label(SEX, d.sex)})` : ""}`],
+                ["환자", [H.nameOf(d), H.who(d)].filter(Boolean).join(" · ")],
                 ["환자번호", d.patient_no],
                 al && [al.label, al.note ?? "있음"],
                 ["의뢰", [label(PURPOSE, d.exam_purpose), d.purpose].filter(Boolean).join(" · ") || "—"],
                 ["촬영", [d.performed_at && String(d.performed_at).slice(0, 16).replace("T", " "), d.device]
                   .filter(Boolean).join(" · ") || "—"],
                 ["담당 판독의", d.assigned_to_name ?? d.assigned_to ?? "—"],
-                ["진행상황", text(d, "read_status", READ_STATUS, "status_label")],
+                ["진행 상황", text(d, "read_status", READ_STATUS, "status_label")],
                 ["유방외과 열람", d.viewed_at ?? "미열람"],
               ]} />
 
@@ -1047,7 +1135,7 @@ export const radiology = {
     categories: (d) => biradsFor(d?.unit?.modality),
     /* 코드 → 「4b — 중등도 악성 의심」 (기존 판독 · 이력 칸) */
     categoryText: (v) => (v ? `BI-RADS ${label(BIRADS_LABEL, v)}` : "—"),
-    saveHint: "저장하면 새 판독이 만들어지고 유방외과로 전달됩니다. 옛 판독은 지워지지 않습니다.",
+    saveHint: "저장하면 새 판독이 만들어지고 유방외과로 전달됩니다. 이전 판독은 삭제되지 않습니다.",
     need: { view: "radiology.amend.view", save: "radiology.amend.save" },
 
     /* 옛 서버 · 목업은 판독 응답에 history 를 싣는다. 실서버는 안 싣는다 —
@@ -1096,7 +1184,7 @@ function Quality({ cfg, id, orderId, quality, setQuality, locked }) {
 
   async function askRetake() {
     if (!orderId) {
-      setMsg("오더 번호를 몰라 재촬영을 걸 수 없습니다 — 촬영 대기에서 다시 들어와 주세요.");
+      setMsg("오더 번호를 찾을 수 없어 재촬영을 요청할 수 없습니다 — 촬영 대기에서 다시 열어 주세요.");
       return;
     }
     const out = await cfg.api.retake(orderId);
@@ -1128,17 +1216,17 @@ function Quality({ cfg, id, orderId, quality, setQuality, locked }) {
   return (
     <>
       <p className="muted small">
-        {quality === "accepted" ? "승인했습니다 — AI 분석을 걸 수 있습니다."
+        {quality === "accepted" ? "승인했습니다 — AI 분석을 시작할 수 있습니다."
           : quality === "rejected" ? "반려했습니다. 재촬영 오더가 아직 없습니다."
-            : "올린 촬영본을 보고 판정합니다. 승인해야 분석이 걸립니다."}
+            : "업로드한 영상의 품질을 확인합니다. 승인해야 AI 분석을 시작할 수 있습니다."}
       </p>
       {asking ? (
         <div className="stack">
-          <span className="hcard-k">반려하면 새 촬영 오더가 촬영 대기에 섭니다</span>
+          <span className="hcard-k">반려하면 재촬영 오더가 촬영 대기에 추가됩니다</span>
           <button type="button" className="btn fill" onClick={reject} disabled={busy}>
             {busy ? "요청 중…" : "반려하고 재촬영"}
           </button>
-          <button type="button" className="btn line" onClick={() => setAsking(false)} disabled={busy}>그만</button>
+          <button type="button" className="btn line" onClick={() => setAsking(false)} disabled={busy}>취소</button>
         </div>
       ) : (
         <div className="stack">
@@ -1151,7 +1239,7 @@ function Quality({ cfg, id, orderId, quality, setQuality, locked }) {
           )}
           <button type="button" className="btn line" onClick={() => setAsking(true)}
                   disabled={busy || locked || !retake.ok}
-                  title={retake.ok ? (locked ? "분석을 건 뒤에는 반려하지 않습니다" : undefined) : retake.attrs.title}>
+                  title={retake.ok ? (locked ? "AI 분석을 시작한 뒤에는 반려할 수 없습니다" : undefined) : retake.attrs.title}>
             {quality === "rejected" ? "재촬영 요청" : "반려 → 재촬영"}
           </button>
         </div>

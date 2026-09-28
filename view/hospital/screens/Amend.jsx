@@ -121,8 +121,8 @@ function Inner({ cfg, id, d }) {
             </Body>
           </Card>
 
-          <Card title={`판독 이력 ${history.length}판`}>
-            {history.length === 0 && <p className="muted">이전 판이 없습니다.</p>}
+          <Card title={`판독 이력 ${history.length}건`}>
+            {history.length === 0 && <p className="muted">이전 판독이 없습니다.</p>}
             <ol className="hist">
               {history.map((h, i) => (
                 <li key={h.id ?? i}>
@@ -167,7 +167,7 @@ function Form({ cfg, id, d, seed, assessmentId }) {
   const categories = typeof c.categories === "function" ? c.categories(d) : c.categories;
 
   async function save() {
-    if (!assessmentId) { setMsg("정정할 확정 판독 ID를 찾을 수 없습니다."); return; }
+    if (!assessmentId) { setMsg("정정할 확정 판독을 찾을 수 없습니다."); return; }
     setBusy(true); setMsg(null);
     /* 정정 뒤에는 판독 화면으로 — 새 판이 확정 판독으로 떠 있는 것을 본다 */
     try { await cfg.api.amend(assessmentId, f); nav(cfg.go.read(id)); }
@@ -198,9 +198,9 @@ function Form({ cfg, id, d, seed, assessmentId }) {
       <label className="field">
         <span>수정 후 판독문 <i className="req">*</i></span>
         <textarea className="lg" value={f.finding_note} rows={7} maxLength={1000}
-                  placeholder="유방외과로 나갈 판독문을 고쳐 씁니다"
+                  placeholder="유방외과로 전달할 수정 판독문을 작성합니다"
                   onChange={(e) => set("finding_note", e.target.value)} />
-        <span className="count">{f.finding_note.length} / 1000 · 유방외과로 나갑니다</span>
+        <span className="count">{f.finding_note.length} / 1000 · 유방외과로 전달됩니다</span>
       </label>
 
       {msg && <div className="notice">{msg}</div>}
@@ -218,8 +218,8 @@ function Form({ cfg, id, d, seed, assessmentId }) {
         saveNeed={c.need.save}
         saveLabel="정정 저장"
       />
-      {!assessmentId && <p className="muted small">정정할 확정 판독 ID를 찾지 못해 저장할 수 없습니다.</p>}
-      {assessmentId && !ready && <p className="muted small">정정 사유 · {c.categoryLabel} · 판독문을 모두 채워야 저장할 수 있습니다. 「판독 화면으로」는 여기 쓴 것을 남기지 않습니다.</p>}
+      {!assessmentId && <p className="muted small">정정할 확정 판독을 찾지 못해 저장할 수 없습니다.</p>}
+      {assessmentId && !ready && <p className="muted small">정정 사유 · {c.categoryLabel} · 판독문을 모두 채워야 저장할 수 있습니다. 「판독 화면으로」를 누르면 여기 작성한 내용은 저장되지 않습니다.</p>}
     </>
   );
 }

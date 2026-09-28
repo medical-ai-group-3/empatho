@@ -31,7 +31,7 @@ function deptPerms(dept, name, { hasAmend = true } = {}) {
   return [
     { key: `${dept}.queue.view`,    label: `${name} 대기 큐 보기`,
       where: "1장 대기 큐 화면 자체" },
-    { key: `${dept}.queue.assign`,  label: `${name} 환자 집기`,
+    { key: `${dept}.queue.assign`,  label: `${name} 검사 · 검체 담당`,
       where: "1장 [다음 환자] 버튼" },
     { key: `${dept}.upload.view`,   label: `${name} 업로드 화면 보기`,
       where: "2장 화면 자체" },

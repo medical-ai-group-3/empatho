@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { breast as api, currentAssessment } from "../../../api";
 import { REPORT_DEPT, SEX, label } from "../../../codes";
@@ -10,9 +10,12 @@ import { go } from "../../../nav";
 import * as H from "../../home";
 import "../breast.css";   /* 유방외과 전용 — .breast 안에 갇혀 있다. 네 화면이 각자
                              끌고 온다: 주소로 곧장 들어와도 스타일이 빠지면 안 된다 */
-import Stepper from "../components/Stepper";
 import CloseVisitModal from "../components/CloseVisitModal";
 import { BookForm } from "../components/BookVisit";
+import FollowupRounds from "../components/FollowupRounds";
+import PrescriptionDraft from "../components/Prescription";
+import { CondList, LockPanel } from "../components/Unlock";
+import { ruleText, unlockConds } from "../unlock";
 import { PathRows, PendingLine, RadRows } from "../components/Results";
 import { lesionText } from "../results";
 import { flowOf } from "../flow";
@@ -30,46 +33,44 @@ const EXPLAIN_METHODS = ["대면", "유선", "영상"];
 
 /* 결정 사유 상용구 — 누르면 사유 칸 끝에 붙는다.
  * ⚠ **서버가 주는 값이 아니다.** 상용구를 저장하는 경로가 없다 — 화면에
- *   박아 둔 글이다(목업의 세 묶음). 09-28 대기 환자 오른쪽 단에 누르면
- *   아무 데도 안 붙는 글로 있던 것을 여기로 옮겼다. */
+ *   박아 둔 글이다(목업의 세 묶음). */
 const PHRASES = [
   ["수술", ["단일 병변, 유방보존술 가능", "다발성 병변으로 전절제 고려"]],
   ["추가 검사", ["병변 범위 평가 위해 MRI 시행", "표적 미포함 의심, 재조직검사"]],
   ["보류 · 추적", ["환자 상의 후 재내원", "6개월 추적 관찰"]],
 ];
 
-/* 화면 3 · 치료 방침 ("/patients/:id/decision") — 09-28 흐름 순서로 다시 짬
+/* 화면 3 · 치료 방침 ("/patients/:id/decision") — 한 쪽에서 위아래로 한 번
  * ════════════════════════════════════════════════════════════════
  *
- *   ┌ 1fr ────────────────────────────────┬ 320px (붙박이) ─┐
- *   │ ① 결과 요약            (읽기 전용)     │ 환자 · 알레르기  │
- *   │ ② 판정 불일치          (열리면 문)     │ 진료 단계(세로)  │
- *   │ ③ AI 종합 리포트 · 의사 종합 소견      │ 잠금 조건 셋     │
- *   │ ④ 수술 여부            (저장된 값을 편다)│ [다음 할 일]     │
- *   │ ⑤ 환자 설명 → 잠금 해제               │                 │
- *   │ ⑥ 처방                               │                 │
- *   │ ⑦ 진료 완료 · 재진 예약 → 다음 환자    │                 │
- *   └──────────────────────────────────────┴─────────────────┘
+ *   ┌ 1fr ─────────────────────────────────┬ 320px (붙박이) ────────┐
+ *   │ ① 결과 요약            (읽기 전용)      │ 환자 · 알레르기         │
+ *   │ ② 판정 불일치          (열리면 문)      │ 진료 단계 목차(①~⑦)     │
+ *   │ ③ AI 종합 리포트 · 의사 종합 소견       │   번호 · 제목 · 상태 ·  │
+ *   │ ④ 수술 여부            (저장된 값을 편다)│   한 줄 요약 — 누르면 │
+ *   │ ⑤ 환자 설명 → 잠금 해제                │   그 카드로 내려간다    │
+ *   │ ⑥ 처방                                │ 다음 할 일              │
+ *   │ ⑦ 진료 완료 · 재진 예약 · 추적          │ 잠금 조건 셋(까닭 · 할 일)│
+ *   └───────────────────────────────────────┴───────────────────────┘
  *
- * 전에는 두 단에 카드가 흩어져 있어서(결정이 맨 위, 설명이 오른쪽 아래)
- * 무엇을 어느 순서로 하는지 화면이 말하지 않았다. 이제 위에서 아래로 한
- * 번 내려가면 진료가 끝난다.
- *
+ * ⚠ 09-28 사용자 의견 — 「플로우별로 가로로 구성되어 있어 가독성이 떨어진다.
+ *   진료 단계를 한 페이지에서 확인할 수 있게」. 오른쪽에 있던 열두 칸짜리
+ *   흐름 줄(접수 · 문진 → … → 추적)을 뺐다 — 이 화면에서 손대는 것은 ①~⑦
+ *   이고, 앞 단계(접수 · 촬영 · 판독 · 병리)는 ① 결과 요약이 말한다. 목차의
+ *   줄 하나와 카드 머리 하나가 **같은 번호 · 같은 상태 · 같은 요약**을 쓴다
+ *   (steps 한 벌에서 둘 다 그린다).
+ * ⚠ 끝난 카드는 접힌다(머리만 — 번호 · 제목 · 상태 · 한 줄 요약). ① · ③ 은
+ *   결정의 재료라 끝나도 펴 둔다. 머리를 누르면 편다.
  * ⚠ **판정 불일치가 열려 있으면 ④ ~ ⑥ 을 잠근다.** 엇갈린 채로 방침을
  *   정하면 안 된다 — 서버의 잠금 해제 조건 ②(대조 종결)와 같은 말이다.
- *   ③ 리포트는 만들 수 있다(엇갈림을 판단하는 재료다).
- * ⚠ 잠금 해제 3조건(①전 레코드 확정 ②대조 종결 ③대면 설명 완료)은 서버가
- *   판단해서 GET /reports/{id}/unlock-status 로 내려준다 — 화면은 그 결과를
- *   그대로 보여주고 셋 다 참일 때만 [잠금 해제] 버튼을 켠다.
+ * ⚠ 잠금 해제 3조건은 서버가 판단한다(GET /reports/{id}/unlock-status).
+ *   **환자용 번호**로 묻는다 — 환자가 읽는 벌이 그것이다(components/Unlock.jsx).
  * ⚠ **목업의 「수술 계획」 칸(술식·측·수술 예정일·집도)은 못 만든다.**
- *   그 값을 받는 경로가 서버에 없다 — assessment 의 decision 은
- *   종류·가부·근거 셋뿐이고 수술 일정 자원이 따로 없다(8장).
+ *   그 값을 받는 경로가 서버에 없다.
  *
  * 진료 이력의 치료 결정 · 리포트 · 결과 설명 · 처방 줄에서 오면 ?focus= 가
  * 붙는다(dept/breast/history.js — decision · report · patient-report ·
- * explain · prescription). 그 칸(id="dec-…")으로 내려가 왼쪽 선으로 짚는다.
- * ⚠ 지난 결정 · 설명의 **그때 값**을 보여 주지는 못한다 — 서버가 결정을
- *   판독 행에 덮어쓰고(decision_*), 설명도 리포트 행에 덮어쓴다. */
+ * explain · prescription). 그 칸을 펴고(id="dec-…") 그리로 내려간다. */
 export default function Decision() {
   const { id } = useParams();
   const nav = useNavigate();
@@ -91,14 +92,21 @@ export default function Decision() {
   );
 }
 
+const day = (v) => (v ? String(v).slice(0, 10) : null);
+const upper = (v) => (v == null ? null : String(v).toUpperCase());
+
+/* ?focus= 값 → 카드. patient-report 는 ⑤ 안의 칸이다 */
+const FOCUS_CARD = { "patient-report": "explain" };
+
 function Inner({ patient, onReload, focus, onNextPatient }) {
   const pid = patient.patient_id;
-  const report = patient.report;
-  const reportId = report?.report_id ?? null;
+  const report = patient.report;                           /* 의사용 — ③ 이 읽고 쓴다 */
+  const target = patient.patient_report ?? report;         /* 환자용 — ⑤ 설명 · 잠금 해제 */
+  const targetId = target?.report_id ?? null;
   const reports = useApi(() => api.reports(pid), [pid]);
   const unlock = useApi(
-    () => reportId ? api.unlockStatus(reportId) : Promise.resolve(null),
-    [reportId],
+    () => (targetId ? api.unlockStatus(targetId) : Promise.resolve(null)),
+    [targetId],
   );
   const timeline = useApi(() => api.timeline(pid), [pid]);
   const saved = useApi(() => api.prescriptions(pid), [pid]);
@@ -110,38 +118,116 @@ function Inner({ patient, onReload, focus, onNextPatient }) {
   const blocked = Boolean(patient.open_discordance);
 
   /* 수술 결정은 assessment 한 건에 매달린다(models.py:675 — study 에 물려
-   * 있지 patient 에 안 물려 있다). timeline 의 「판독」 줄이 assessment_id ·
-   * study_id 를 싣는다.
-   * ⚠ 09-28 — 전에는 **마지막 「판독」 줄**을 집었는데, 서버 timeline 은
-   *   초안(draft)도 「판독」으로 준다. 초안에 결정을 걸면 확정 판독이 오면서
-   *   결정이 사라진다. 확정(final) 줄만 본다 — read_stage 가 없는 옛 줄은
-   *   확정으로 친다. 그 검사의 판 목록에서 **지금 유효한 판**을 다시 고른다
-   *   (정정으로 덮인 판에 걸지 않게) */
+   * 있다). 확정(final) 「판독」 줄만 본다 — 초안에 결정을 걸면 확정 판독이
+   * 오면서 결정이 사라진다. read_stage 가 없는 옛 줄은 확정으로 친다. 그
+   * 검사의 판 목록에서 **지금 유효한 판**을 다시 고른다 */
   const finals = events.filter((e) => e.type === "판독" && e.assessment_id != null
     && (e.read_stage == null || e.read_stage === "final"));
   const lastRead = finals.at(-1) ?? null;
-  const target = useApi(
+  const cur = useApi(
     () => (lastRead?.study_id != null ? api.assessments(lastRead.study_id).then(H.rows) : Promise.resolve([])),
     [lastRead?.study_id ?? null],
   );
-  const current = currentAssessment(H.rows(target.data)) ?? null;
+  const current = currentAssessment(H.rows(cur.data)) ?? null;
   const assessmentId = current?.assessment_id ?? lastRead?.assessment_id ?? null;
-  /* 저장된 결정 — 판 행의 decision_* 가 지금 값이다. 판 목록을 못 받았으면
-     이력의 마지막 「치료 결정」 줄로 대신한다 */
   const lastDecided = [...events].reverse().find((e) => e.type === "치료 결정") ?? null;
   const savedDecision = current?.decision_value
     ? { value: current.decision_value, reason: current.decision_reason ?? "", at: current.decided_at }
     : lastDecided?.decision_value
-      ? { value: lastDecided.decision_value, reason: lastDecided.detail ?? "", at: lastDecided.at }
+      /* ⚠ 이력 줄의 detail 은 **결정 코드**(yes · no)다 — 사유가 아니다. 전에는
+         그 코드를 사유 칸에 넣어서 저장 직후 사유가 「no」로 보였다 */
+      ? { value: lastDecided.decision_value, reason: "", at: lastDecided.at }
       : null;
 
-  /* 이력에서 골라 온 칸. ⚠ 리포트 칸은 뒤늦게 차며 길어진다 — 머리로 맞춘다 */
+  const st = (key) => flow.steps.find((s) => s.key === key)?.state ?? "todo";
+  const conds = unlockConds(unlock.data);
+  const metCount = conds.filter((c) => c.met).length;
+  const unlocked = Boolean(target?.is_unlocked || unlock.data?.unlocked);
+  const explained = Boolean(flow.facts.explained || target?.explained_at
+    || conds.find((c) => c.key === "explained")?.met);
+  const rx = saved.data ?? [];
+  const rad = patient.readings?.radiology ?? [];
+  const pat = patient.readings?.pathology ?? [];
+  const decisionLabel = DECISIONS.find((d) => d.v === savedDecision?.value)?.label ?? savedDecision?.value;
+  const sources = (reports.data ?? []).filter((r) => r.report_type === "stage").length;
+
+  /* 한 벌 — 목차와 카드 머리가 같이 읽는다 */
+  const steps = [
+    { n: 1, id: "results", title: "결과 요약", state: "done", pill: "읽기 전용", keepOpen: true,
+      summary: [rad[0]?.grade != null ? `BI-RADS ${rad[0].grade}` : null,
+        pat[0]?.grade ? `병리 ${upper(pat[0].grade)}` : null,
+        flow.facts.pendingCount ? `${flow.facts.pendingCount}건 판독 대기` : null,
+        flow.facts.pendingPath?.length ? "병리 확진 대기" : null,
+      ].filter(Boolean).join(" · ") || "확정된 결과 없음" },
+    { n: 2, id: "discordance", title: "판정 불일치",
+      state: blocked ? "now" : "done", pill: blocked ? "처분 필요" : "없음",
+      summary: blocked ? ruleText(patient.open_discordance) : "미처분 불일치 없음" },
+    { n: 3, id: "report", title: "AI 종합 리포트 · 의사 종합 소견", keepOpen: true,
+      state: report ? "done" : st("report"), pill: report ? "생성됨" : "생성 전",
+      summary: report
+        ? `#${report.report_id}${report.ai_summary ? "" : " · 소견문 작성 중"}${report.content_json?.doctor_summary ? " · 의사 소견 있음" : ""}`
+        : sources ? `확정 판독문 ${sources}건으로 만들 수 있음` : "확정 판독문 없음" },
+    { n: 4, id: "decision", title: "수술 여부",
+      state: savedDecision ? "done" : blocked ? "lock" : st("decision"),
+      pill: savedDecision ? "저장됨" : blocked ? "잠김" : "결정 전",
+      summary: savedDecision ? [decisionLabel, day(savedDecision.at)].filter(Boolean).join(" · ")
+        : blocked ? "불일치 처분 후" : "수술 시행 · 안 함 · 보류 중 하나" },
+    { n: 5, id: "explain", title: "환자 설명 → 잠금 해제",
+      state: unlocked ? "done" : explained ? "now" : blocked ? "lock" : st("explain"),
+      pill: unlocked ? "공개됨" : explained ? "설명함 · 잠김" : blocked ? "잠김" : "설명 전",
+      summary: unlocked ? `환자 앱 공개${target?.unlocked_at ? ` · ${day(target.unlocked_at)}` : ""}`
+        : !target ? "종합 리포트(③) 생성 후"
+        : `잠금 조건 ${metCount}/3${explained ? " · 설명 기록됨" : ""}` },
+    { n: 6, id: "prescription", title: "처방",
+      state: rx.length ? "done" : blocked ? "lock" : "opt",
+      pill: rx.length ? `${rx.length}건` : "필요할 때만",
+      summary: rx.length
+        ? `${(rx.at(-1)?.content?.drugs ?? []).map((d) => d.name).slice(0, 2).join(", ") || "처방"}${day(rx.at(-1)?.prescribed_at ?? rx.at(-1)?.created_at) ? ` · ${day(rx.at(-1)?.prescribed_at ?? rx.at(-1)?.created_at)}` : ""}`
+        : "약이 필요 없으면 건너뜀" },
+    { n: 7, id: "close", title: "진료 완료 · 재진 예약 · 추적",
+      state: flow.facts.closed ? "done" : st("close") === "now" || st("followup") === "now" ? "now" : "todo",
+      pill: flow.facts.closed ? "진료 완료" : flow.facts.visitOpen ? "진료 중" : "—",
+      summary: flow.facts.closed ? "진료 완료 · 재진 · 추적 예약은 언제든 가능"
+        : flow.facts.visitOpen ? "진료 중 — 마치면 진료 완료를 누르세요" : "진행 중인 방문 없음 · 다음 예약만 가능" },
+  ];
+
+  /* 펴고 접기 — 끝난 카드는 접어 둔다(keepOpen 은 늘 편다). 누르면 그 값이 이긴다 */
+  const [opened, setOpened] = useState(() => {
+    const f = FOCUS_CARD[focus] ?? focus;
+    return f ? { [f]: true } : {};
+  });
+  const isOpen = (s) => opened[s.id] ?? (s.keepOpen || s.state !== "done");
+  const toggle = (idKey) => setOpened((o) => ({ ...o, [idKey]: !isOpen(steps.find((s) => s.id === idKey)) }));
+
+  const pendingJump = useRef(null);
+  function jump(idKey, inner = null) {
+    setOpened((o) => ({ ...o, [idKey]: true }));
+    pendingJump.current = inner ?? `dec-${idKey}`;
+  }
+  useEffect(() => {
+    if (!pendingJump.current) return;
+    const el = document.getElementById(pendingJump.current);
+    pendingJump.current = null;
+    if (!el) return;
+    el.scrollIntoView({ block: "start", behavior: "smooth" });
+    const f = el.matches("textarea, input, button") ? el : el.querySelector("h3 button, textarea");
+    f?.focus({ preventScroll: true });
+  });
+
+  /* 이력에서 골라 온 칸. ⚠ 리포트 칸은 뒤늦게 차며 길어진다 — 머리로 맞춘다.
+     같은 쪽에서 ?focus= 만 바뀌면(다음 할 일 링크) 그 카드를 렌더 중에 편다 */
   const at = (key) => focus === key;
+  const [seenFocus, setSeenFocus] = useState(focus);
+  if (focus !== seenFocus) {
+    setSeenFocus(focus);
+    if (focus) setOpened((o) => ({ ...o, [FOCUS_CARD[focus] ?? focus]: true }));
+  }
   useEffect(() => {
     if (focus) document.getElementById(`dec-${focus}`)?.scrollIntoView({ block: "start" });
   }, [focus]);
 
-  const st = (key) => flow.steps.find((s) => s.key === key)?.state ?? "todo";
+  const card = (s) => ({ ...s, open: isOpen(s), onToggle: () => toggle(s.id) });
+  const S = Object.fromEntries(steps.map((s) => [s.id, card(s)]));
 
   return (
     <>
@@ -152,81 +238,76 @@ function Inner({ patient, onReload, focus, onNextPatient }) {
       )}
       <div className="bf-dec">
         <div className="bf-dec-main">
-          <StepCard n="1" id="results" title="결과 요약" state="done" pill="읽기 전용"
+          <StepCard {...S.results}
                     right={<Link className="edit-btn" to={go.breast.review(pid)}>환자 상세 ›</Link>}>
             <Results patient={patient} />
           </StepCard>
 
-          <StepCard n="2" id="discordance" title="판정 불일치"
-                    state={blocked ? "now" : "done"} pill={blocked ? "처분 필요" : "없음"}>
+          <StepCard {...S.discordance}>
             {blocked ? (
               <div className="bf-gate">
-                <p className="card-text"><b>영상과 병리 판정이 엇갈립니다.</b> {patient.open_discordance.violated_rule}</p>
+                {(patient.open_discordances ?? [patient.open_discordance]).map((d) => (
+                  <div className="bf-gate-row" key={d.discordance_id}>
+                    <p className="card-text"><b>영상과 병리 판정이 엇갈립니다.</b> {ruleText(d)}</p>
+                    <Link className="btn" to={go.breast.discordance(d.discordance_id)}>처분하기 →</Link>
+                  </div>
+                ))}
                 <p className="note">처분하기 전에는 ④ 수술 여부 · ⑤ 환자 설명 · ⑥ 처방을 저장할 수 없습니다.
                   처분하면 이 화면으로 돌아옵니다.</p>
-                <div className="card-foot">
-                  <Link className="btn" to={go.breast.discordance(patient.open_discordance.discordance_id)}>
-                    처분하기 →
-                  </Link>
-                </div>
               </div>
-            ) : <p className="note">열린 불일치가 없습니다. 방침을 정할 수 있습니다.</p>}
+            ) : <p className="note">처분할 판정 불일치가 없습니다. 치료 방침을 정할 수 있습니다.</p>}
           </StepCard>
 
-          <StepCard n="3" id="report" here={at("report")} title="AI 종합 리포트 · 의사 종합 소견"
-                    state={report ? "done" : st("report")} pill={report ? "생성됨" : "생성 전"}>
+          <StepCard {...S.report} here={at("report")}>
             {report && <AiSummary report={report} />}
             {/* 만든 뒤에도 생성 칸을 남긴다 — 판독이 더 들어와도 다시 만들 길 */}
             <FinalReport patient={patient} reports={reports} onCreated={onReload} again={Boolean(report)} />
             {report
               ? <DoctorSummary key={report.report_id} report={report} />
-              : <p className="note">종합 리포트를 만들면 여기에 의사 종합 소견을 적습니다.</p>}
+              : <p className="note">종합 리포트를 만든 뒤 여기에 의사 종합 소견을 작성합니다.</p>}
           </StepCard>
 
-          <StepCard n="4" id="decision" here={at("decision")} title="수술 여부"
-                    state={savedDecision ? "done" : blocked ? "lock" : st("decision")}
-                    pill={savedDecision ? "저장됨" : blocked ? "잠김" : "결정 전"}>
-            <DecisionForm key={`${assessmentId}-${savedDecision?.value ?? ""}`}
+          <StepCard {...S.decision} here={at("decision")}>
+            <DecisionForm key={`${assessmentId}-${savedDecision?.value ?? ""}-${savedDecision?.reason ?? ""}`}
                           assessmentId={assessmentId}
-                          loading={timeline.loading || target.loading}
+                          loading={timeline.loading || cur.loading}
                           saved={savedDecision} blocked={blocked}
-                          onSaved={() => { timeline.reload(true); target.reload(true); }} />
+                          onSaved={() => { timeline.reload(true); cur.reload(true); }} />
           </StepCard>
 
-          <StepCard n="5" id="explain" here={at("explain") || at("patient-report")}
-                    title="환자 설명 → 잠금 해제"
-                    state={flow.facts.explained ? (report?.is_unlocked ? "done" : "now") : blocked ? "lock" : st("explain")}
-                    pill={report?.is_unlocked ? "공개됨" : flow.facts.explained ? "설명함 · 잠김" : blocked ? "잠김" : "설명 전"}>
+          <StepCard {...S.explain} here={at("explain") || at("patient-report")}>
             <div id="dec-patient-report">
               <PatientReport report={patient.patient_report} reports={reports} />
             </div>
-            {report
-              ? <ExplainForm report={report} blocked={blocked} unlock={unlock}
+            {target
+              ? <ExplainForm key={target.report_id} report={target} patient={patient} blocked={blocked}
+                             unlock={unlock} unlocked={unlocked}
+                             onExplainJump={() => jump("explain", "dec-explain-content")}
                              onSaved={() => { onReload(); unlock.reload(true); timeline.reload(true); }} />
-              : <p className="note">종합 리포트(③)가 생긴 뒤 설명을 기록할 수 있습니다.</p>}
+              : <p className="note">종합 리포트(③)가 생성된 뒤 설명을 기록할 수 있습니다.</p>}
           </StepCard>
 
-          <StepCard n="6" id="prescription" here={at("prescription")} title="처방"
-                    state={(saved.data?.length ?? 0) > 0 ? "done" : blocked ? "lock" : "opt"}
-                    pill={(saved.data?.length ?? 0) > 0 ? `${saved.data.length}건` : "필요할 때만"}>
+          <StepCard {...S.prescription} here={at("prescription")}>
             <PrescriptionDraft patient={patient} report={report} saved={saved} blocked={blocked} />
           </StepCard>
 
-          <StepCard n="7" id="close" title="진료 완료 · 재진 예약"
-                    state={flow.facts.closed ? "done" : st("close") === "now" || st("followup") === "now" ? "now" : "todo"}
-                    pill={flow.facts.closed ? "방문 닫힘" : flow.facts.visitOpen ? "방문 중" : "—"}>
+          <StepCard {...S.close}>
             <div className="bf-close">
               <p className="card-text">
                 {flow.facts.visitOpen
-                  ? "이번 방문을 닫으면 대기 목록과 환자 앱 예약에서 빠집니다."
-                  : "열린 방문이 없습니다. 다음 방문만 잡으면 됩니다."}
+                  ? "진료를 완료하면 대기 목록과 환자 앱 예약에서 빠집니다."
+                  : "진행 중인 방문이 없습니다. 다음 예약만 잡으면 됩니다."}
               </p>
+              <p className="section-label">재진 예약</p>
               <BookForm patient={patient} suggest={flow.facts.grade === "3" ? 182 : 14} />
+              {/* 추적 회차도 여기서 건다 — 서버가 안 열어 준 배포본이면
+                  칸이 스스로 사라진다(FollowupRounds) */}
+              <FollowupRounds patient={patient} />
               <div className="card-foot split">
                 <button className="btn ghost" onClick={onNextPatient}>다음 환자 →</button>
                 <button className="btn" onClick={() => setClosing(true)}
                         disabled={!flow.facts.visitOpen || blocked}
-                        title={blocked ? "판정 불일치를 먼저 처분해 주세요" : !flow.facts.visitOpen ? "닫을 방문이 없습니다" : undefined}>
+                        title={blocked ? "판정 불일치를 먼저 처분해 주세요" : !flow.facts.visitOpen ? "완료할 방문이 없습니다" : undefined}>
                   진료 완료
                 </button>
               </div>
@@ -234,7 +315,8 @@ function Inner({ patient, onReload, focus, onNextPatient }) {
           </StepCard>
         </div>
 
-        <Rail patient={patient} flow={flow} unlock={unlock} />
+        <Rail patient={patient} flow={flow} steps={steps} conds={unlock.data ? conds : null}
+              unlockLoading={unlock.loading} unlocked={unlocked} onJump={jump} />
       </div>
 
       {closing && (
@@ -246,20 +328,34 @@ function Inner({ patient, onReload, focus, onNextPatient }) {
   );
 }
 
-/* 단계 카드 한 장 — 번호 · 제목 · 상태. id 는 늘 단다(?focus= 가 찾는 자리) */
+/* 상태 → 칩 모양. 목차 · 카드 머리가 같이 쓴다 */
 const PILL = { done: "ok", now: "warn", lock: "wait", todo: "wait", opt: "wait", wait: "wait", skip: "wait" };
+const SAY = { done: "완료", now: "현재", lock: "잠김", todo: "예정", opt: "선택", wait: "진행 중", skip: "해당 없음" };
 
-function StepCard({ n, id, title, state = "todo", pill, right = null, here = false, children }) {
+/* 단계 카드 한 장 — 번호 · 제목 · 상태 칩 · 한 줄 요약. id 는 늘 단다(?focus=
+ * 가 찾는 자리). 접히면 머리만 남는다. 머리 단추가 펴고 접는다 */
+function StepCard({ n, id, title, state = "todo", pill, summary, right = null, here = false,
+                    open = true, onToggle, children }) {
+  const bodyId = `dec-${id}-body`;
   return (
-    <section id={`dec-${id}`} className={`card bf-sc ${state}${here ? " here" : ""}`}>
-      <div className="card-head">
+    <section id={`dec-${id}`} className={`card bf-sc ${state}${here ? " here" : ""}${open ? "" : " shut"}`}
+             aria-labelledby={`dec-${id}-h`}>
+      <div className="card-head bf-sc-head">
         <span className="bf-sc-n" aria-hidden="true">{n}</span>
-        <h3>{title}</h3>
-        {pill && <span className={`pill ${PILL[state] ?? "wait"}`}>{pill}</span>}
-        <span className="home-fill" />
+        <h3 id={`dec-${id}-h`}>
+          <button type="button" className="bf-sc-t" aria-expanded={open} aria-controls={bodyId}
+                  onClick={onToggle}>
+            <span className="bf-sc-title">{title}</span>
+            {summary && <span className="bf-sc-sum">{summary}</span>}
+          </button>
+        </h3>
+        {pill && <span className={`pill ${PILL[state] ?? "wait"}`} title={SAY[state]}>{pill}</span>}
         {right}
+        <span className="bf-sc-fold" aria-hidden="true">{open ? "접기" : "펼치기"}</span>
       </div>
-      {children}
+      <div id={bodyId} className="bf-sc-body" hidden={!open}>
+        {children}
+      </div>
     </section>
   );
 }
@@ -285,15 +381,15 @@ function Results({ patient }) {
   );
 }
 
-/* 오른쪽 320px — 보면서 하는 것. 붙박이라 아래로 내려가도 따라온다.
- * ⚠ 09-28 환자 정보 아홉 줄(이름 · 연락처 · 간호 메모 …)을 뺐다 — 쪽 머리
- *   환자 띠(PatientBar)와 겹쳤다. 결정할 때 봐야 하는 것만 남긴다 */
-function Rail({ patient, flow, unlock }) {
+/* 오른쪽 320px — 붙박이. 환자 · 진료 단계 목차 · 다음 할 일 · 잠금 조건.
+ * 목차 줄을 누르면 그 카드를 펴고 내려간다 */
+function Rail({ patient, flow, steps, conds, unlockLoading, unlocked, onJump }) {
   const sex = label(SEX, patient.sex) || null;
   const next = flow.next;
-  const c = unlock.data?.conditions ?? null;
+  const here = ["report", "decision", "explain", "prescription", "close", "followup"];
+  const nextCard = next && here.includes(next.key) ? (next.key === "followup" ? "close" : next.key) : null;
   return (
-    <aside className="bf-rail">
+    <aside className="bf-rail" aria-label="진료 단계와 잠금 조건">
       <div className="card">
         <div className="pt-head">
           <span className="avatar" aria-hidden="true">{H.nameOf(patient)[0]}</span>
@@ -310,35 +406,49 @@ function Rail({ patient, flow, unlock }) {
         </div>
       </div>
 
-      <div className="card">
-        <div className="card-head"><h3>진료 단계</h3></div>
-        <Stepper steps={flow.steps} col />
+      <nav className="card bf-idx" aria-label="진료 단계">
+        <div className="card-head"><h3>진료 단계</h3>
+          <span className="meta">{steps.filter((s) => s.state === "done").length}/{steps.length} 완료</span></div>
+        <ol>
+          {steps.map((s) => (
+            <li key={s.id}>
+              <button type="button" className={`bf-idx-i ${s.state}`} onClick={() => onJump(s.id)}
+                      aria-current={s.state === "now" ? "step" : undefined}>
+                <span className="bf-sc-n" aria-hidden="true">{s.n}</span>
+                <span className="bf-idx-t">
+                  <b>{s.title}</b>
+                  <small>{s.summary}</small>
+                </span>
+                <span className={`pill ${PILL[s.state] ?? "wait"}`}>{s.pill}</span>
+              </button>
+            </li>
+          ))}
+        </ol>
         {next && (
           <div className="bf-rail-next">
             <p className="section-label">다음 할 일</p>
             <p className="card-text"><b>{next.label}</b></p>
             {next.why && <p className="note">{next.why}</p>}
-            {next.to && <Link className="btn" to={next.to}>{next.label} →</Link>}
+            {nextCard
+              ? <button type="button" className="btn" onClick={() => onJump(nextCard)}>{next.label} ↓</button>
+              : next.to && <Link className="btn" to={next.to}>{next.label} →</Link>}
           </div>
         )}
-      </div>
+      </nav>
 
-      <div className="card">
+      <div className="card bf-rail-lock">
         <div className="card-head"><h3>잠금 조건</h3>
-          <span className="meta">{unlock.data?.can_unlock ? "풀 수 있음" : "잠김"}</span></div>
-        {!unlock.data && !unlock.loading
-          ? <p className="note">종합 리포트가 생기면 서버가 조건을 셉니다.</p>
-          : (
-            <div className="cond-list">
-              <Cond ok={c?.all_finalized} label="① 전 레코드 확정" />
-              <Cond ok={c?.discordance_closed} label="② 대조 종결" />
-              <Cond ok={c?.explained} label="③ 대면 설명 완료" />
-            </div>
-          )}
+          <span className="meta">{unlocked ? "공개됨" : conds?.every((c) => c.met) ? "해제 가능" : "잠김"}</span></div>
+        {!conds && !unlockLoading
+          ? <p className="note">종합 리포트가 생성되면 잠금 조건을 확인합니다.</p>
+          : !conds ? <p className="note">조건을 확인하는 중…</p>
+          : <CondList conds={conds} patient={patient} compact
+                      onExplain={() => onJump("explain", "dec-explain-content")} />}
       </div>
     </aside>
   );
 }
+
 
 /* ⑤ 안 — 환자에게 공개되는 리포트. 최종 리포트가 없으면 확정된 검사별
    리포트 목록을 보여 주고, 잠금 상태는 서버의 unlock-status를 그대로 쓴다 */
@@ -369,7 +479,7 @@ function PatientReport({ report, reports }) {
           </div>
         ) : stageReports.length ? (
           <div className="patient-report-body">
-            <p className="card-text">최종 리포트 생성 전입니다. 현재 확인 가능한 검사별 판독문:</p>
+            <p className="card-text">종합 리포트 생성 전입니다. 현재 확인 가능한 검사별 판독문:</p>
             <div className="report-stage-list">
               {stageReports.map((row) => (
                 <div className="report-stage-row" key={row.report_id}>
@@ -415,7 +525,7 @@ function FinalReport({ patient, reports, onCreated, again = false }) {
       await api.finalReport({ patient_id: patient.patient_id, source_report_ids: effectiveSelected });
       onCreated?.();
     } catch (e) {
-      setMsg(e.detail || "최종 리포트 생성에 실패했습니다.");
+      setMsg(e.detail || "종합 리포트 생성에 실패했습니다.");
     } finally { setBusy(false); }
   }
 
@@ -423,7 +533,7 @@ function FinalReport({ patient, reports, onCreated, again = false }) {
   if (again && !open) {
     return (
       <div className="bf-block">
-        <button className="edit-btn" onClick={() => setOpen(true)}>판독이 더 들어왔으면 — 다시 만들기 ›</button>
+        <button className="edit-btn" onClick={() => setOpen(true)}>판독이 추가됐다면 다시 만들기 ›</button>
       </div>
     );
   }
@@ -433,12 +543,12 @@ function FinalReport({ patient, reports, onCreated, again = false }) {
       <p className="section-label">{again ? "다시 만들기" : "만들기"}</p>
       <p className="card-text">
         {again
-          ? "판독이 더 들어왔으면 골라서 새로 만듭니다. 새 리포트가 위에 뜹니다."
+          ? "추가된 판독문까지 선택해 새로 만듭니다. 새 리포트는 위에 표시됩니다."
           : "확정된 검사 판독문을 골라 AI 종합 리포트를 만듭니다."}
       </p>
       {reports.loading ? <p className="note">판독문을 불러오는 중입니다.</p>
         : reports.error ? <p className="warnline">판독문을 불러오지 못했습니다. 새로고침 후 다시 시도해 주세요.</p>
-        : sources.length === 0 ? <p className="note">생성할 확정 검사 판독문이 없습니다.</p>
+        : sources.length === 0 ? <p className="note">리포트를 만들 확정 판독문이 없습니다.</p>
         : <div className="stack">
             {sources.map((source) => (
               <label key={source.report_id} className="check-row">
@@ -566,7 +676,7 @@ function DecisionForm({ assessmentId, loading, saved, blocked, onSaved }) {
       {saved && (
         <p className="note">
           저장된 결정 · <b>{DECISIONS.find((d) => d.v === saved.value)?.label ?? saved.value}</b>
-          {saved.at && ` (${String(saved.at).slice(0, 10)})`} — 고치면 덮어씁니다.
+          {saved.at && ` (${String(saved.at).slice(0, 10)})`} — 수정하면 덮어씁니다.
         </p>
       )}
       <div className="radio-group bf-seg" style={{ marginTop: 10 }}>
@@ -581,7 +691,7 @@ function DecisionForm({ assessmentId, loading, saved, blocked, onSaved }) {
       </div>
       <div className="field">
         <label>결정 사유</label>
-        <div className="bf-phr" role="group" aria-label="상용구 — 누르면 사유 끝에 붙습니다">
+        <div className="bf-phr" role="group" aria-label="상용구 — 누르면 사유 끝에 추가됩니다">
           {PHRASES.map(([group, items]) => (
             <span className="bf-phr-g" key={group}>
               <small>{group}</small>
@@ -602,296 +712,22 @@ function DecisionForm({ assessmentId, loading, saved, blocked, onSaved }) {
         </span>
         <button className="btn" onClick={save} {...may.attrs}
           disabled={saving || !assessmentId || off || !decisionValue || !changed}>
-          {saving ? "저장 중…" : saved ? "결정 고치기" : "결정 저장"}
+          {saving ? "저장 중…" : saved ? "결정 수정" : "결정 저장"}
         </button>
       </div>
     </>
   );
 }
 
-/* 처방 한 줄의 빈 칸.
- *
- * ⚠ ingredient · watch 는 **환자 앱이 이미 그리고 있는 자리**다
- *   (src/screens/Meds.jsx 의 「어떤 약인가요」). 여기서 안 적으면 환자
- *   화면의 그 줄이 그냥 빈다. 특히 watch(「이럴 땐 알려 주세요」)는
- *   환자가 이상 증상을 알아차리는 유일한 안내라 비워 두지 않는 편이 좋다.
- */
-const emptyDrug = () => ({
-  name: "", ingredient: "", dose: "", times: "", days: "",
-  purpose: "", how: "", watch: "",
-});
-
-/* e약은요 품목명은 끝 괄호에 성분을 적는다 — 「타이레놀정500밀리그람(아세트아미노펜)」.
- * 그 괄호만 꺼낸다. 수출명 같은 다른 괄호면 비워 둔다(틀린 성분보다 빈칸이 낫다). */
-function ingredientOf(name) {
-  const m = /\(([^()]+)\)\s*$/.exec(name ?? "");
-  return m && !m[1].includes("수출명") ? m[1].trim() : "";
-}
-
-/* 약 이름 칸 + 자동완성.
- *
- * ⚠ 목록에 없는 약도 그대로 적을 수 있어야 한다 — 원내 조제약·신약은
- *   e약은요에 없다. 그래서 고르지 않아도 입력값이 곧 약 이름이다.
- * ⚠ 늦게 온 응답이 새 응답을 덮지 않게 요청마다 번호를 매긴다. */
-function DrugNameInput({ value, onChange, onPick }) {
-  const listId = useId();
-  const [open, setOpen] = useState(false);
-  const [active, setActive] = useState(-1);
-  const [picked, setPicked] = useState(null);   /* 방금 고른 이름 — 그 값으로 다시 찾지 않는다 */
-  /* 마지막으로 받은 답. 어느 질의의 답인지(q)를 함께 둬서 「찾는 중」을 따로
-     들고 있지 않고 그 차이로 센다 */
-  const [result, setResult] = useState({ q: "", items: [], error: null });
-  const seq = useRef(0);
-
-  const q = value.trim();
-  const searching = q.length >= 2 && q !== picked;
-
-  useEffect(() => {
-    if (!searching) { seq.current += 1; return undefined; }
-    const n = ++seq.current;
-    const timer = setTimeout(async () => {
-      try {
-        const res = await api.drugs(q);
-        if (n === seq.current) setResult({ q, items: res?.items ?? [], error: null });
-      } catch (e) {
-        if (n !== seq.current) return;
-        setResult({ q, items: [], error: e.status === 503
-          ? "약 검색을 지금 쓸 수 없습니다. 이름을 직접 입력해 주세요."
-          : "약 검색에 실패했습니다. 이름을 직접 입력해 주세요." });
-      }
-    }, 250);
-    return () => clearTimeout(timer);
-  }, [q, searching]);
-
-  /* 새 답이 오기 전까지는 앞 답을 그대로 보여 준다 — 한 글자마다 목록이
-     비었다 찼다 하면 읽을 수가 없다 */
-  const items = searching ? result.items : [];
-  const loading = searching && result.q !== q;
-  const error = searching && result.q === q ? result.error : null;
-
-  function choose(item) {
-    setPicked(item.name);
-    onPick(item);
-    setOpen(false); setActive(-1);
-  }
-
-  function onKeyDown(e) {
-    if (!open || !items.length) return;
-    if (e.key === "ArrowDown") {
-      e.preventDefault(); setActive((i) => (i + 1) % items.length);
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault(); setActive((i) => (i <= 0 ? items.length : i) - 1);
-    } else if (e.key === "Enter" && active >= 0) {
-      e.preventDefault(); choose(items[active]);
-    } else if (e.key === "Escape") {
-      setOpen(false);
-    }
-  }
-
-  const showList = open && searching;
-
-  return (
-    <div className="drug-suggest">
-      <input
-        role="combobox"
-        aria-expanded={showList && items.length > 0}
-        aria-controls={listId}
-        aria-autocomplete="list"
-        aria-activedescendant={active >= 0 ? `${listId}-${active}` : undefined}
-        autoComplete="off"
-        value={value}
-        onChange={(e) => { setPicked(null); setOpen(true); setActive(-1); onChange(e.target.value); }}
-        onFocus={() => setOpen(true)}
-        onBlur={() => setOpen(false)}
-        onKeyDown={onKeyDown}
-        placeholder="두 글자 이상 입력하면 약을 찾습니다"
-      />
-      {showList && (items.length > 0 || loading) && (
-        <ul className="drug-suggest-list" id={listId} role="listbox">
-          {items.map((item, i) => (
-            <li
-              key={item.item_seq}
-              id={`${listId}-${i}`}
-              role="option"
-              aria-selected={i === active}
-              className={i === active ? "on" : undefined}
-              /* blur 보다 먼저 잡아야 목록이 닫히기 전에 고른다 */
-              onMouseDown={(e) => { e.preventDefault(); choose(item); }}
-              onMouseEnter={() => setActive(i)}
-            >
-              <span className="drug-suggest-name">{item.name}</span>
-              {item.maker && <span className="drug-suggest-maker">{item.maker}</span>}
-            </li>
-          ))}
-          {loading && !items.length && <li className="drug-suggest-empty">찾는 중…</li>}
-        </ul>
-      )}
-      {error && <span className="err">{error}</span>}
-    </div>
-  );
-}
-
-/* ⑥ 처방. 저장된 처방을 **약까지** 먼저 보여 준다 — 전에는 「저장된 처방
-   N건」 숫자뿐이라 무엇을 이미 줬는지 보려면 환자 앱을 열어야 했다 */
-function PrescriptionDraft({ patient, report, saved, blocked }) {
-  const [drugs, setDrugs] = useState([emptyDrug()]);
-  const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState(null);
-  const [writing, setWriting] = useState(false);
-  const reportId = report?.report_id ?? null;
-  const list = saved.data ?? [];
-
-  function change(index, key, value) {
-    setDrugs((rows) => rows.map((drug, i) => i === index ? { ...drug, [key]: value } : drug));
-  }
-
-  /* 자동완성에서 고른 약. 이름과, 비어 있으면 성분명까지만 채운다 —
-     설명칸(purpose·how·watch)은 처방한 사람이 쓰는 자리라 건드리지 않는다 */
-  function pick(index, item) {
-    setDrugs((rows) => rows.map((drug, i) => i !== index ? drug : {
-      ...drug,
-      name: item.name,
-      ingredient: drug.ingredient.trim() ? drug.ingredient : ingredientOf(item.name),
-    }));
-  }
-
-  function remove(index) {
-    setDrugs((rows) => rows.length === 1 ? rows : rows.filter((_, i) => i !== index));
-  }
-
-  async function save() {
-    const cleaned = drugs.map((drug) => ({
-      name: drug.name.trim(), ingredient: drug.ingredient.trim(),
-      dose: drug.dose.trim(),
-      /* 쉼표로 나눠 보낸다. 서버가 HH:MM 인지 보고 아니면 거절한다 —
-         복약 기록이 이 값을 회차 열쇠로 쓰기 때문에 「아침」 같은 말이
-         섞이면 같은 회차인지 판정할 길이 없다 */
-      times: drug.times.split(",").map((time) => time.trim()).filter(Boolean),
-      days: Number(drug.days), purpose: drug.purpose.trim(),
-      how: drug.how.trim(), watch: drug.watch.trim(),
-    }));
-    if (!reportId || saving || blocked || cleaned.some((drug) => !drug.name || !drug.dose || !drug.times.length || !drug.days)) return;
-    setSaving(true); setMsg(null);
-    try {
-      await api.prescribe(patient.patient_id, { report_id: reportId, content: { drugs: cleaned } });
-      setDrugs([emptyDrug()]);
-      setWriting(false);
-      setMsg("처방을 저장했습니다. 환자 앱의 복약 관리에서 확인할 수 있습니다.");
-      saved.reload(true);
-    } catch (e) {
-      setMsg(e.detail || e.message || "처방을 저장하지 못했습니다.");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  const valid = reportId && drugs.every((drug) =>
-    drug.name.trim() && drug.dose.trim() && drug.times.trim() && Number(drug.days) > 0);
-
-  return (
-    <div className="prescription-draft">
-      <p className="meta">저장 즉시 환자 앱의 복약 관리에 표시됩니다. 처방 일수는 약마다 따로 셉니다.</p>
-
-      {saved.error && <p className="warnline">저장된 처방을 불러오지 못했습니다.</p>}
-      {list.length > 0 && (
-        <ul className="bf-rx">
-          {list.map((rx, i) => (
-            <li key={rx.prescription_id ?? i}>
-              <span className="bf-rx-h">
-                <b>{String(rx.prescribed_at ?? rx.created_at ?? "").slice(0, 10) || "날짜 없음"}</b>
-                {rx.prescriber && <span className="note">{rx.prescriber}</span>}
-              </span>
-              {(rx.content?.drugs ?? []).map((d, j) => (
-                <span className="bf-rx-d" key={j}>
-                  <b>{d.name}</b>
-                  {[d.dose, Array.isArray(d.times) ? d.times.join(", ") : d.times,
-                    d.days ? `${d.days}일` : null, d.purpose].filter(Boolean).join(" · ")}
-                </span>
-              ))}
-            </li>
-          ))}
-        </ul>
-      )}
-      {blocked && <p className="note">판정 불일치(②)를 처분한 뒤 처방할 수 있습니다.</p>}
-      {!blocked && !reportId && <p className="note">종합 리포트(③)가 생성된 뒤 처방을 저장할 수 있습니다.</p>}
-
-      {!writing ? (
-        <div className="card-foot split">
-          <span className="note">{msg ?? (list.length ? `저장된 처방 ${list.length}건` : "아직 처방이 없습니다 — 약이 필요 없으면 건너뜁니다")}</span>
-          <button className="btn ghost" onClick={() => setWriting(true)} disabled={blocked || !reportId}>
-            + 새 처방
-          </button>
-        </div>
-      ) : (
-        <>
-          {drugs.map((drug, index) => (
-            <div className="prescription-drug" key={index}>
-              <div className="prescription-drug-head">
-                <b>약 {index + 1}</b>
-                {drugs.length > 1 && <button className="edit-btn" onClick={() => remove(index)}>삭제</button>}
-              </div>
-              <div className="prescription-grid">
-                <div className="field">
-                  <label>약 이름 <span className="req">*</span></label>
-                  <DrugNameInput
-                    value={drug.name}
-                    onChange={(value) => change(index, "name", value)}
-                    onPick={(item) => pick(index, item)}
-                  />
-                </div>
-                <div className="field">
-                  <label>성분명</label>
-                  <input value={drug.ingredient} onChange={(e) => change(index, "ingredient", e.target.value)} placeholder="예: 타목시펜시트르산염" />
-                </div>
-                <div className="field">
-                  <label>1회 복용량 <span className="req">*</span></label>
-                  <input value={drug.dose} onChange={(e) => change(index, "dose", e.target.value)} placeholder="예: 1정" />
-                </div>
-                <div className="field">
-                  <label>복용 시간 <span className="req">*</span></label>
-                  <input value={drug.times} onChange={(e) => change(index, "times", e.target.value)} placeholder="예: 09:00, 19:00" />
-                </div>
-                <div className="field">
-                  <label>처방 일수 <span className="req">*</span></label>
-                  <input type="number" min="1" value={drug.days} onChange={(e) => change(index, "days", e.target.value)} placeholder="일수" />
-                </div>
-                <div className="field">
-                  <label>처방 목적</label>
-                  <input value={drug.purpose} onChange={(e) => change(index, "purpose", e.target.value)} placeholder="환자 앱에 표시할 처방 목적" />
-                </div>
-              </div>
-              <div className="field">
-                <label>복용 안내</label>
-                <textarea value={drug.how} onChange={(e) => change(index, "how", e.target.value)} placeholder="환자 앱에 표시할 복용 방법과 안내" />
-              </div>
-              <div className="field" style={{ marginBottom: 0 }}>
-                <label>주의사항</label>
-                <textarea value={drug.watch} onChange={(e) => change(index, "watch", e.target.value)} placeholder="이런 증상이 생기면 병원에 알리도록 — 환자 앱에 강조해서 표시된다" />
-              </div>
-            </div>
-          ))}
-
-          <div className="card-foot split prescription-actions">
-            <button className="btn ghost sm" onClick={() => setDrugs((rows) => [...rows, emptyDrug()])}>+ 약 추가</button>
-            <span className="note">{msg}</span>
-            <button className="btn ghost" onClick={() => { setWriting(false); setDrugs([emptyDrug()]); }}>취소</button>
-            <button className="btn" onClick={save} disabled={!valid || saving || blocked}>
-              {saving ? "저장 중…" : "처방 저장"}
-            </button>
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
 
 /* ⑤ 환자 설명 → 잠금 해제.
- * ⚠ 09-28 — 칸 이름이 「의사 최종 소견」이었다. 실제로 받는 것은 **환자에게
- *   무엇을 어떻게 설명했나**이고, 저장하면 잠금 해제 조건 ③이 켜진다.
- *   소견은 ③의 의사 종합 소견이 맡는다 */
-function ExplainForm({ report, onSaved, blocked, unlock }) {
+ * report — **환자용** 종합 소견서(없으면 의사용). 서버가 설명 · 해제를 짝
+ * 전체에 건다(core/views/surgery.py _report_pair).
+ * ⚠ 설명 내용(explain_content)은 모델 칸이 없어 서버가 content_json 에 둔다 —
+ *   전에는 보낸 글이 그냥 버려졌다. */
+function ExplainForm({ report, patient, onSaved, blocked, unlock, unlocked, onExplainJump }) {
   const [method, setMethod] = useState(report.explain_method ?? EXPLAIN_METHODS[0]);
-  const [content, setContent] = useState(report.explain_content ?? "");
+  const [content, setContent] = useState(report.explain_content ?? report.content_json?.explain_content ?? "");
   const [confirmed, setConfirmed] = useState(report.patient_confirmed ?? false);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState(null);
@@ -903,7 +739,7 @@ function ExplainForm({ report, onSaved, blocked, unlock }) {
       await api.explain(report.report_id, {
         explain_method: method, explain_content: content, patient_confirmed: confirmed,
       });
-      setMsg("환자 설명이 기록되었습니다");
+      setMsg("환자 설명이 기록되었습니다 — 잠금 조건 ③이 충족됩니다");
       unlock.reload(true);
       onSaved?.();
     } catch (e) {
@@ -914,94 +750,50 @@ function ExplainForm({ report, onSaved, blocked, unlock }) {
   }
 
   return (
-    <div className="bf-block">
+    <div className="bf-block" id="dec-explain-form">
       {report.explained_at && (
-        <p className="note">설명 기록 · {String(report.explained_at).replace("T", " ").slice(0, 16)}</p>
+        <p className="note">설명 기록 · {String(report.explained_at).replace("T", " ").slice(0, 16)}
+          {report.explain_method ? ` · ${report.explain_method}` : ""} — 다시 저장하면 새 기록으로 바뀝니다.</p>
       )}
       <p className="section-label" style={{ marginTop: 0 }}>설명 방법</p>
       <div className="radio-group" style={{ flexDirection: "row" }}>
         {EXPLAIN_METHODS.map((m) => (
           <label className="radio-row" key={m} style={{ flex: 1, justifyContent: "center" }}>
-            <input type="radio" name="explain_method" value={m} disabled={blocked}
+            <input type="radio" name="explain_method" value={m} disabled={blocked || unlocked}
               checked={method === m} onChange={() => setMethod(m)} />
             {m}
           </label>
         ))}
       </div>
       <div className="field">
-        <label>설명 내용</label>
-        <textarea value={content} disabled={blocked} onChange={(e) => setContent(e.target.value)}
-                  placeholder="진단 · 치료 계획 · 예상 경과를 어떻게 설명했는지" />
+        <label htmlFor="dec-explain-content">설명 내용</label>
+        <textarea id="dec-explain-content" value={content} disabled={blocked || unlocked}
+                  onChange={(e) => setContent(e.target.value)}
+                  placeholder="진단 · 치료 계획 · 예상 경과를 어떻게 설명했는지 적어 주세요" />
       </div>
       <label className="check-row">
-        <input type="checkbox" checked={confirmed} disabled={blocked}
+        <input type="checkbox" checked={confirmed} disabled={blocked || unlocked}
           onChange={(e) => setConfirmed(e.target.checked)} />
         환자가 결과 및 치료 계획을 확인함
       </label>
       <div className="card-foot split">
-        <span className="note">{msg ?? (blocked ? "판정 불일치(②)를 먼저 처분해 주세요" : null)}</span>
-        <button className="btn" onClick={save} disabled={saving || blocked}>
-          {saving ? "저장 중…" : "설명 기록 저장"}
+        <span className="note" role="status">{msg ?? (blocked ? "판정 불일치(②)를 먼저 처분해 주세요"
+          : unlocked ? "이미 공개된 리포트입니다" : null)}</span>
+        <button className="btn" onClick={save} disabled={saving || blocked || unlocked}>
+          {saving ? "저장 중…" : report.explained_at ? "설명 기록 다시 저장" : "설명 기록 저장"}
         </button>
       </div>
       <section className="explain-lock" aria-label="환자 리포트 잠금">
         <p className="section-label">잠금 해제</p>
         <Body loading={unlock.loading && !unlock.data} error={unlock.error} onRetry={unlock.reload}>
           {unlock.data && (
-            <LockPanel reportId={report.report_id} status={unlock.data}
+            <LockPanel reportId={report.report_id} status={unlock.data} patient={patient}
+              unlocked={unlocked} unlockedAt={report.unlocked_at}
+              onExplain={onExplainJump}
               onUnlocked={() => { unlock.reload(true); onSaved?.(); }} />
           )}
         </Body>
       </section>
-    </div>
-  );
-}
-
-function LockPanel({ reportId, status, onUnlocked }) {
-  const c = status.conditions ?? {};
-  const [unlocking, setUnlocking] = useState(false);
-  const [error, setError] = useState(null);
-
-  async function unlock() {
-    setUnlocking(true);
-    setError(null);
-    try {
-      await api.unlock(reportId);
-      onUnlocked?.();
-    } catch (e) {
-      setError(e.detail || e.message || "잠금 해제에 실패했습니다.");
-    } finally {
-      setUnlocking(false);
-    }
-  }
-
-  return (
-    <div className={status.can_unlock ? "lock-panel unlocked" : "lock-panel"}>
-      <span className="lock-icon" aria-hidden="true">{status.can_unlock ? "🔓" : "🔒"}</span>
-      <p className="status">
-        {status.can_unlock ? "조건을 모두 채웠습니다 — 풀 수 있습니다" : "환자 리포트가 잠겨 있습니다"}
-      </p>
-      <div className="cond-list">
-        <Cond ok={c.all_finalized} label="① 전 레코드 확정" />
-        <Cond ok={c.discordance_closed} label="② 대조 종결" />
-        <Cond ok={c.explained} label="③ 대면 설명 완료" />
-      </div>
-      <button className="btn" disabled={!status.can_unlock || unlocking} onClick={unlock}>
-        {unlocking ? "해제 중…" : "환자 리포트 열람 잠금 해제"}
-      </button>
-      {error && <p className="note err">{error}</p>}
-      {!status.can_unlock && (
-        <p className="hint">설명 기록 저장 후 환자 확인 체크 시 해제할 수 있습니다.</p>
-      )}
-    </div>
-  );
-}
-
-function Cond({ ok, label }) {
-  return (
-    <div className="cond-row">
-      <span>{label}</span>
-      {ok ? <span className="check">✓</span> : <span className="pill wait">대기</span>}
     </div>
   );
 }

@@ -90,7 +90,7 @@ export const nursing = {
 
     queue: ({ follow, asks }) => ({
       title: "전화 · 예약 확인",
-      hint: "누르면 그 화면으로",
+      hint: "누르면 해당 화면으로 이동",
       cols: { chip: "구분", sub: "할 일", r: "기한" },
       tabs: [
         /* 기한이 지났거나 이번 주 안인 회차만, 급한 순서로 */
@@ -137,10 +137,10 @@ export const nursing = {
       return [
         { tag: "추적 기한", text: "기한이 지난 추적 콜",
           count: due("over"), to: go.nursing.followups() },
-        { tag: "안 오심", text: "예약 시각이 지났는데 아직 안 오신 분",
+        { tag: "미내원", text: "예약 시간이 지났는데 아직 내원하지 않은 환자",
           count: booked.filter((r) => H.isPast(r.scheduled_at)).length,
           to: go.nursing.intake() },
-        { tag: "검체", text: "병리가 아직 집지 않은 검체 — 라벨 확인이 남았습니다",
+        { tag: "검체", text: "병리과가 아직 접수하지 않은 검체 — 라벨 확인이 필요합니다",
           count: bound.total, to: `${go.nursing.intake()}?tab=specimen` },
         { tag: "예약 확인", text: "앱으로 들어온 신청 — 날짜·시간을 정해야 합니다",
           count: asks.total, to: `${go.nursing.reservations()}?tab=requests` },
@@ -148,10 +148,10 @@ export const nursing = {
           count: due("today"), to: go.nursing.followups() },
         { tag: "추적 이번 주", text: "이번 주 안에 걸어야 하는 추적 콜",
           count: due("week"), to: go.nursing.followups() },
-        { tag: "콜", text: "부재로 다시 걸어야 하는 추적 콜",
+        { tag: "재통화", text: "부재로 다시 걸어야 하는 추적 콜",
           count: follow.filter((r) => r.call_result === "부재").length,
           to: go.nursing.followups() },
-        { tag: "문진", text: "접수 뒤 문진이 비어 있는 환자",
+        { tag: "문진", text: "접수 후 문진이 비어 있는 환자",
           count: arrived.filter((r) => !r.questionnaire).length,
           to: `${go.nursing.intake()}?tab=q` },
         /* 09-28 문진은 끝났는데 아직 유방외과로 안 보낸 사람. 선생님별 수는

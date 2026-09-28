@@ -43,7 +43,7 @@ export default function Followups({ cfg }) {
 }
 
 /* 기한 칸 — 「며칠 지났나」가 아니라 「어느 칸에 드나」다 */
-const BUCKET = { over: "지남", today: "오늘", week: "이번 주" };
+const BUCKET = { over: "기한 지남", today: "오늘", week: "이번 주" };
 const CHIPS = [
   { key: "over", label: "지난 기한" },
   { key: "today", label: "오늘" },
@@ -51,7 +51,7 @@ const CHIPS = [
   { key: "all", label: "전체" },
   { key: "cand", label: "추적 대상(회차 없음)" },
 ];
-const ROUND = { stable: "변화 없음", changed: "변화 있음", no_show: "안 오심" };
+const ROUND = { stable: "변화 없음", changed: "변화 있음", no_show: "미내원" };
 
 const pidOf = (r) => r.patient ?? r.patient_id;
 /* 줄 열쇠 — 후보는 followup_id 가 없다(null). 환자로 가른다 */
@@ -108,7 +108,9 @@ function Inner({ cfg }) {
   const byPatient = askedPatient
     ? (open.find((r) => String(pidOf(r)) === askedPatient)
       ?? rows.find((r) => String(pidOf(r)) === askedPatient)) : null;
-  const chosenKey = pick ?? (byPatient ? keyOf(byPatient) : null);
+  /* 09-28 아무도 안 골랐으면 **이 칸의 첫 사람**을 편다 — 오른쪽이 「고르세요」
+     빈 상자로 서 있으면 창구가 매번 한 번 더 눌러야 했다(접수 화면과 같다) */
+  const chosenKey = pick ?? (byPatient ? keyOf(byPatient) : shown[0] ? keyOf(shown[0]) : null);
   const chosen = rows.find((r) => keyOf(r) === String(chosenKey)) ?? null;
 
   return (
@@ -141,7 +143,7 @@ function Inner({ cfg }) {
                 empty={shown.length === 0 && (
                   <Empty title={here === "all" ? "추적 중인 환자가 없습니다"
                     : here === "cand" ? "회차를 만들 추적 대상이 없습니다"
-                      : `${CHIPS.find((c) => c.key === here).label} 칸에 든 환자가 없습니다`} />
+                      : `「${CHIPS.find((c) => c.key === here).label}」에 해당하는 환자가 없습니다`} />
                 )}>
             <div className="tbl-wrap fup-tbl">
               <table className="tbl">
@@ -160,6 +162,13 @@ function Inner({ cfg }) {
               </table>
             </div>
           </Body>
+          {/* 표가 짧으면 밑이 통째로 비었다(09-28) — 다른 칸의 다가오는 회차와
+              칸별 수를 둔다. 표가 길면 안 그린다(표가 곧 일이다) */}
+          {list.data && shown.length < 8 && (
+            <Ahead open={open} live={live} count={count} here={here}
+                   onPick={(r) => { setTab("all"); setPick(keyOf(r)); }}
+                   onTab={setTab} />
+          )}
         </div>
 
         <aside className="fup-side">
@@ -169,13 +178,62 @@ function Inner({ cfg }) {
                       onPick={(k) => setPick(k)} />
             : (
               <div className="slot big">
-                <b>왼쪽에서 한 사람을 고르세요</b>
-                <span>전화번호를 보고 콜을 남기고, 연결되면 여기서 검사 예약까지 잇습니다.</span>
+                <b>왼쪽 목록에서 환자를 선택하세요</b>
+                <span>전화 후 콜 결과를 기록하고, 연결되면 여기서 바로 검사 예약까지 진행합니다.</span>
               </div>
             )}
         </aside>
       </div>
     </Page>
+  );
+}
+
+/* ── 표 밑 — 한눈에 · 다가오는 회차 ─────────────────────────────
+ * 칸별 수(누르면 그 칸으로)와 **지금 칸에 없는** 열린 회차를 예정일 순으로
+ * 여섯. 전부 위 목록(GET /followups/)을 다시 센 것이다 — 새 값이 없다.
+ * ⚠ 「그 뒤」는 이번 주를 넘긴 열린 회차, 「종결」은 끝난 회차(연결 · 거부) */
+function Ahead({ open, live, count, here, onPick, onTab }) {
+  const later = open.filter((r) => !H.dueBucket(r.due_at)).length;
+  const closed = live.length - open.length;
+  const next = open
+    .filter((r) => here === "all" || here === "cand" || H.dueBucket(r.due_at) !== here)
+    .sort((a, b) => String(a.due_at ?? "9").localeCompare(String(b.due_at ?? "9")))
+    .slice(0, 6);
+  const nums = [
+    ["over", "지난 기한", count.over], ["today", "오늘", count.today], ["week", "이번 주", count.week],
+    ["all", "이후", later], ["all", "종결", closed], ["cand", "추적 대상", count.cand],
+  ];
+  return (
+    <section className="fup-more" aria-label="다가오는 회차">
+      <div className="fup-nums">
+        {nums.map(([k, name, n]) => (
+          <button type="button" key={name} className="fup-num" onClick={() => onTab(k)}>
+            <b>{n}</b><span>{name}</span>
+          </button>
+        ))}
+      </div>
+      <h3>{here === "all" || here === "cand" ? "다가오는 회차" : "다른 구분의 다가오는 회차"}</h3>
+      {next.length === 0
+        ? <p className="hcard-k">다가오는 회차가 없습니다</p>
+        : (
+          <ul className="fup-next">
+            {next.map((r) => {
+              const b = H.dueBucket(r.due_at);
+              return (
+                <li key={keyOf(r)}>
+                  <button type="button" onClick={() => onPick(r)}>
+                    <time>{r.due_at ? String(r.due_at).slice(0, 10) : "예정일 없음"}</time>
+                    <b>{H.nameOf(r)}</b>
+                    <span>{r.round_no != null ? `${r.round_no}회차` : ""}</span>
+                    <span className="home-fill" />
+                    <span className="hcard-k">{b ? BUCKET[b] : "예정"} · {r.call_result ?? "미연락"}</span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+    </section>
   );
 }
 
@@ -241,7 +299,7 @@ function Detail({ cfg, f, rows, onDone, onPick }) {
               <span>{[f.patient_number, f.birth_date].filter(Boolean).join(" · ")}</span>
             </span>
           )}
-          right={pid != null && <Btn to={go.patient(pid)}>환자 상세</Btn>}>
+          right={pid != null && <Btn to={go.patient(pid)}>환자 기록</Btn>}>
       <div className="fup-phone">
         {f.phone ? (
           <button type="button" className="fup-tel" onClick={copy} title="눌러서 복사">
@@ -250,8 +308,8 @@ function Detail({ cfg, f, rows, onDone, onPick }) {
           </button>
         ) : cand
           /* ⚠ 후보 줄은 서버가 이름만 준다(FollowupViewSet.list) — 없는 게 아니다 */
-          ? <span className="hcard-k">후보 줄에는 전화가 실려 오지 않습니다 — 환자 상세에서 봅니다</span>
-          : <span className="hcard-k">전화번호가 없습니다 — 환자 목록에서 정정합니다</span>}
+          ? <span className="hcard-k">추적 대상 목록에는 전화번호가 없습니다 — 환자 기록에서 확인하세요</span>
+          : <span className="hcard-k">등록된 전화번호가 없습니다 — 환자 목록에서 수정해 주세요</span>}
       </div>
 
       <dl className="kv">
@@ -338,9 +396,9 @@ function Call({ cfg, f, onDone }) {
       {err && <p className="note err">{err}</p>}
       <div className="rowb">
         {/* ⚠ 9장이 남기라고 한 말 — 되돌릴 수 없는 갈림길이다 */}
-        <span className="hcard-k">「연결」로 남기면 이 회차가 끝납니다. 부재 · 거부는 다시 뜹니다.</span>
+        <span className="hcard-k">「연결」로 기록하면 이 회차가 종결됩니다. 부재 · 거부는 목록에 다시 표시됩니다.</span>
         <Btn kind="fill" onClick={save} {...may.attrs} disabled={!pick || busy || !may.ok}>
-          {busy ? "남기는 중…" : "남기기"}
+          {busy ? "기록하는 중…" : "기록"}
         </Btn>
       </div>
     </section>
@@ -375,7 +433,7 @@ function Next({ cfg, f, pid, just, last, onDone }) {
   return (
     <>
       <section className="fup-sec">
-        <h3>{connected ? "연결됐습니다 — 다음 걸음" : "끝난 회차"}</h3>
+        <h3>{connected ? "연결됐습니다 — 다음 단계" : "종결된 회차"}</h3>
         <div className="rowb fup-go">
           <Btn kind="fill" to={to}>검사 예약 잡기 →</Btn>
         </div>
@@ -429,7 +487,7 @@ function Make({ cfg, pid, round, onDone, title }) {
       /* due_at 은 DateTimeField 다 — 병원 시간(KST) 오전 9시로 붙여 보낸다 */
       await cfg.api.createFollowup({ patient_id: Number(pid), round_no: round,
                                      due_at: `${due}T09:00:00` });
-      setOk(`${round}회차 · ${due} 로 만들었습니다`);
+      setOk(`${round}회차 · ${due}로 만들었습니다`);
       onDone?.();
     } catch (e) { setErr(e.detail || e.message); }
     finally { setBusy(false); }

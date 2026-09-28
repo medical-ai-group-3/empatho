@@ -73,7 +73,7 @@ export const READ_STATUS = {
 
 /** 검체 접수 상태. 서버 enum: ["unbound", "bound", "accessioned"] */
 export const ACCESSION_STATUS = {
-  unbound: "바인딩 전",
+  unbound: "등록 전",
   bound: "접수 대기",
   accessioned: "접수 완료",
 };
@@ -170,7 +170,7 @@ export const DIAGNOSIS = { benign: "양성 (benign)", malignant: "악성 (malign
 
 /** 판독 단계. 서버 enum: ["draft", "final"] — READ_STATUS(검사의 상태)와 다르다.
  *  이쪽은 Assessment 한 행의 단계다 */
-export const READ_STAGE = { draft: "초안", final: "확정" };
+export const READ_STAGE = { draft: "임시저장", final: "확정" };
 
 /* ── 치료 결정 · 리포트 ────────────────────────────────────────
    진료 이력의 「치료 결정」「리포트」 줄이 코드로 온다 */
@@ -181,6 +181,10 @@ export const DECISION_TYPE = {
 };
 /** 서버 enum: ["yes", "no", "defer"] — 종류(위)와 붙여 「수술 · 시행」으로 읽는다 */
 export const DECISION_VALUE = { yes: "시행", no: "하지 않음", defer: "보류" };
+/* 판정 불일치 — 처분(DISPOSITION_TYPE 셋, models.py)과 대조 결과(flag_status).
+   ⚠ flag_status 에는 "open" 이 없다. 열림 · 종결은 closed_at 으로 가른다 */
+export const DISPOSITION_TYPE = { rebiopsy: "재조직검사", excision: "수술적 절제", no_action: "불일치 아님 · 종결" };
+export const FLAG_STATUS = { pass: "일치", sev1: "심각도 1", sev2: "심각도 2", review: "검토 필요", unbindable: "대조 불가" };
 /** 서버 enum: ["stage", "final"] */
 export const REPORT_TYPE = { stage: "검사별 판독문", final: "종합 리포트" };
 /** 서버 enum: ["clinician", "patient"] */
@@ -207,7 +211,7 @@ export const EXAM_PURPOSE = { screening: "정기 검진", diagnostic: "이상 �
 /** 유방 밀도 범주. 서버 enum: ["a","b","c","d"] (Study.density_category) */
 export const DENSITY_CATEGORY = [
   { value: "a", label: "a — 거의 지방" },
-  { value: "b", label: "b — 산재성 섬유선" },
+  { value: "b", label: "b — 산재성 섬유선 조직" },
   { value: "c", label: "c — 불균질 치밀" },
   { value: "d", label: "d — 극도 치밀" },
 ];

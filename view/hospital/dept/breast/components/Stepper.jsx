@@ -9,7 +9,7 @@ import { Btn } from "../../../lib/Page";
  *   끝난 것은 채움, 나머지는 글자와 기호로 가른다.
  * col — 세로 줄(오른쪽 320px 레일). 기본은 가로 한 줄이고 좁으면 접힌다. */
 const MARK = { done: "✓", now: "●", wait: "…", todo: "○", skip: "–", opt: "○" };
-const SAY = { done: "끝남", now: "지금", wait: "진행 중", todo: "아직", skip: "해당 없음", opt: "선택" };
+const SAY = { done: "완료", now: "현재", wait: "진행 중", todo: "예정", skip: "해당 없음", opt: "선택" };
 
 export default function Stepper({ steps, col = false }) {
   return (

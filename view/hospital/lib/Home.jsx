@@ -1,4 +1,6 @@
-import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
+import { ArrangeBar, Panes, useArrange } from "./Arrange";
 import { Link, useNavigate } from "react-router-dom";
 import { Body, Empty } from "./Body";
 import { Chip } from "./Parts";
@@ -68,6 +70,7 @@ export default function Home({ cfg }) {
   }, []);
 
   const again = () => setTick((n) => n + 1);
+  const [barEl, setBarEl] = useState(null);
 
   return (
     <main className="page home">
@@ -75,6 +78,9 @@ export default function Home({ cfg }) {
         <h1>{cfg.name}</h1>
         <span className="home-day">{today()}</span>
         <span className="home-fill" />
+        {/* 「배치 편집」 자리 — Desk 가 이 자리로 그린다(칸 목록을 Desk 가 알아서).
+            편집 중 막대도 여기 서서 **줄을 따로 차지하지 않는다** */}
+        <span className="home-arr" ref={setBarEl} />
         <Act act={home.primary} />
       </header>
 
@@ -82,7 +88,7 @@ export default function Home({ cfg }) {
 
       <Body loading={!bag && !error} error={error} onRetry={again}
             skeleton="block">
-        <Desk cfg={cfg} home={home} bag={bag} again={again} />
+        <Desk cfg={cfg} home={home} bag={bag} again={again} barEl={barEl} />
       </Body>
     </main>
   );
@@ -123,7 +129,7 @@ function Recent() {
           </span>
         ))}
       <span className="home-fill" />
-      <span className="recent-note">내 계정으로 연 환자만 보입니다</span>
+      <span className="recent-note">내 계정으로 열어 본 환자만 표시됩니다</span>
     </div>
   );
 }
@@ -138,7 +144,7 @@ function Recent() {
  *   공용 PC 라 안 남기지만(아래 Recent) 배치에는 **환자 정보가 없다** —
  *   칸 이름의 순서뿐이다.
  */
-function Desk({ cfg, home, bag, again }) {
+function Desk({ cfg, home, bag, again, barEl }) {
   const queue = bag && home.queue ? home.queue(bag) : null;
   const stuck = (bag && home.stuck ? home.stuck(bag) : []).filter((s) => s.count > 0);
   const done = bag && home.done ? home.done(bag) : null;
@@ -160,6 +166,13 @@ function Desk({ cfg, home, bag, again }) {
     calendar: <Calendar marks={marks} note={bag && home.calNote ? home.calNote(bag) : null}
                         to={home.calTo} />,
     side:     home.side && <Side side={side} />,
+    /* 과가 더 싣는 목록 칸(home.cards — { 이름: (bag) => 칸 | null }).
+       null 이면 칸을 안 세운다 — 서버가 그 경로를 안 열어 준 배포본(403 ·
+       404)에서 빈 칸이 서지 않게. 영상의학과 「내 판독 불일치 결과」가 쓴다 */
+    ...Object.fromEntries(Object.entries(home.cards ?? {}).map(([id, make]) => {
+      const spec = bag ? make(bag) : null;
+      return [id, spec && <ListCard key={id} spec={spec} />];
+    })),
   };
 
   /* 기본 배치 — 과가 home.layout 으로 바꿀 수 있다. 「오늘 한 일」을 안 쓰는 과(home.done 이 없다)는 그 자리에
@@ -170,7 +183,7 @@ function Desk({ cfg, home, bag, again }) {
     ["calendar", "side", ...(home.done ? ["todo"] : [])],
   ]).map((pane) => pane.filter((id) => cards[id]));
 
-  const lay = useLayout(cfg.key, base);
+  const lay = useArrange(`home.${cfg.key}`, base);
 
   return (
     <>
@@ -181,171 +194,22 @@ function Desk({ cfg, home, bag, again }) {
         <div className="home-intake"><Intake api={cfg.api} onDone={again} /></div>
       )}
       {home.board && bag && <StageBoard {...home.board(bag)} />}
-      {lay.custom && (
-        <p className="desk-reset">
-          <button type="button" className="btn line sm" onClick={lay.reset}>
-            기본 배치로
-          </button>
-        </p>
-      )}
-      <div className="desk">
-        {lay.panes.map((ids, p) => (
-          <div className={`pane${lay.over?.pane === p && lay.over.id == null ? " drop-end" : ""}`}
-               key={p}
-               onDragOver={(e) => lay.dragging && (e.preventDefault(), lay.hover(p, null))}
-               onDrop={(e) => { e.preventDefault(); lay.drop(); }}>
-            {ids.map((id) => (
-              <Slot.Provider key={id} value={lay.slot(id)}>{cards[id]}</Slot.Provider>
-            ))}
-          </div>
-        ))}
-      </div>
+      {barEl && createPortal(<ArrangeBar lay={lay} />, barEl)}
+      <Panes lay={lay} cards={cards} className="desk" paneClass="pane"
+             cols={["minmax(0, 1.5fr)", "minmax(0, 1fr)", "var(--desk-r)"]} />
     </>
   );
-}
-
-/* 칸이 자기 손잡이와 끌어 놓기 처리를 꺼내 쓰는 자리. Desk 밖에서 쓰인
-   Card(없다면) 는 손잡이 없이 그려진다 */
-const Slot = createContext(null);
-
-const LAYOUT_KEY = (dept) => `empatho.home.layout.${dept}`;
-
-function readLayout(dept) {
-  try { return JSON.parse(localStorage.getItem(LAYOUT_KEY(dept))); }
-  catch { return null; }
-}
-
-/* 저장된 배치를 지금 있는 칸에 맞춘다. 없어진 칸은 버리고, 새로 생긴
-   칸은 기본 자리 단의 끝에 붙인다 — 과 설정이 바뀌어도 칸이 사라지지 않게 */
-function fit(saved, base) {
-  if (!Array.isArray(saved) || saved.length !== base.length) return base;
-  const all = new Set(base.flat());
-  const used = new Set();
-  const out = saved.map((ids) => (Array.isArray(ids) ? ids : [])
-    .filter((id) => all.has(id) && !used.has(id) && used.add(id)));
-  base.forEach((ids, p) => ids.forEach((id) => { if (!used.has(id)) out[p].push(id); }));
-  return out;
-}
-
-function useLayout(dept, base) {
-  const baseKey = JSON.stringify(base);
-  const [saved, setSaved] = useState(() => readLayout(dept));
-  const [dragging, setDragging] = useState(null);
-  const [over, setOver] = useState(null);       /* { pane, id, after } */
-  const focusNext = useRef(null);
-  const panes = useMemo(() => fit(saved, JSON.parse(baseKey)), [saved, baseKey]);
-
-  useEffect(() => {
-    if (!focusNext.current) return;
-    document.querySelector(`[data-grip="${focusNext.current}"]`)?.focus();
-    focusNext.current = null;
-  }, [panes]);
-
-  function save(next) {
-    setSaved(next);
-    try { localStorage.setItem(LAYOUT_KEY(dept), JSON.stringify(next)); }
-    catch { /* 못 쓰면 이번 화면에서만 바뀐다 */ }
-  }
-
-  /* id 를 pane 의 at 자리로 옮긴다 */
-  function place(id, pane, at) {
-    const next = panes.map((ids) => ids.filter((x) => x !== id));
-    next[pane].splice(Math.max(0, Math.min(at, next[pane].length)), 0, id);
-    save(next);
-  }
-
-  function where(id) {
-    const p = panes.findIndex((ids) => ids.includes(id));
-    return [p, panes[p].indexOf(id)];
-  }
-
-  function drop() {
-    if (dragging && over) {
-      const { pane, id, after } = over;
-      if (id == null) place(dragging, pane, Infinity);
-      else if (id !== dragging) {
-        const rest = panes[pane].filter((x) => x !== dragging);
-        place(dragging, pane, rest.indexOf(id) + (after ? 1 : 0));
-      }
-    }
-    setDragging(null); setOver(null);
-  }
-
-  function key(id, e) {
-    const [p, i] = where(id);
-    const to = {
-      ArrowUp:    [p, i - 1],
-      ArrowDown:  [p, i + 1],
-      ArrowLeft:  [p - 1, i],
-      ArrowRight: [p + 1, i],
-    }[e.key];
-    if (!to || to[0] < 0 || to[0] >= panes.length) return;
-    e.preventDefault();
-    focusNext.current = id;
-    place(id, to[0], Math.max(0, to[1]));
-  }
-
-  const slot = (id) => ({
-    id,
-    dragging: dragging === id,
-    mark: over?.id === id && dragging !== id ? (over.after ? "after" : "before") : null,
-    start: (e, el) => {
-      e.dataTransfer.effectAllowed = "move";
-      e.dataTransfer.setData("text/plain", id);   /* 파이어폭스는 이게 없으면 안 끈다 */
-      if (el) e.dataTransfer.setDragImage(el, 24, 20);
-      setDragging(id);
-    },
-    end: () => { setDragging(null); setOver(null); },
-    over: (e, el) => {
-      if (!dragging) return;
-      e.preventDefault(); e.stopPropagation();
-      const box = el.getBoundingClientRect();
-      const after = e.clientY > box.top + box.height / 2;
-      const [p] = where(id);
-      if (over?.id !== id || over.after !== after) setOver({ pane: p, id, after });
-    },
-    drop: (e) => { e.preventDefault(); e.stopPropagation(); drop(); },
-    key: (e) => key(id, e),
-  });
-
-  return {
-    panes, dragging, over, slot, drop,
-    hover: (pane, id) => { if (over?.pane !== pane || over.id !== id) setOver({ pane, id }); },
-    custom: saved != null && JSON.stringify(panes) !== baseKey,
-    reset: () => {
-      setSaved(null);
-      try { localStorage.removeItem(LAYOUT_KEY(dept)); } catch { /* 없음 */ }
-    },
-  };
 }
 
 /* 칸 하나의 틀 — 점 + 제목 + 건수, 오른쪽에 작은 글씨나 단추.
    ⚠ 목업은 칸마다 점 색이 다르지만(파랑·주황·초록·보라) 이 판은 **상태
      색을 새로 만들지 않는다**(tokens.css). 채움과 외곽선으로만 가른다 */
 function Card({ dot = "fill", title, count, right, grow, className = "", children }) {
-  const slot = useContext(Slot);
-  const self = useRef(null);
-  const cls = [
-    "hcard", grow && "grow", className,
-    slot?.dragging && "dragging", slot?.mark && `drop-${slot.mark}`,
-  ].filter(Boolean).join(" ");
+  /* 옮기기 손잡이는 배치 편집 중에만 lib/Arrange.jsx 의 틀이 단다 */
+  const cls = ["hcard", grow && "grow", className].filter(Boolean).join(" ");
   return (
-    <section ref={self} className={cls}
-             {...(slot ? {
-               onDragOver: (e) => slot.over(e, self.current),
-               onDrop: slot.drop,
-             } : {})}>
+    <section className={cls}>
       <div className="hcard-h">
-        {slot && (
-          /* ⚠ <button> 이 아니다 — 파이어폭스는 button 을 끌지 못한다 */
-          <span className="hcard-grip" role="button" tabIndex={0} draggable
-                data-grip={slot.id}
-                aria-label={`${title} 칸 옮기기 — 끌거나 방향키`}
-                title="끌어서 옮기기 · 방향키로도 옮깁니다"
-                onDragStart={(e) => slot.start(e, self.current)}
-                onDragEnd={slot.end}
-                onKeyDown={slot.key}>⠿</span>
-        )}
         {dot !== "none" && <i className={`hdot ${dot}`} aria-hidden="true" />}
         <h2>{title}</h2>
         {count != null && <b className="hcard-n">{count}</b>}
@@ -387,14 +251,14 @@ function Intake({ api, onDone }) {
       await api.checkIn({ patient_id: p.patient_id });
       setFound((list) => list.filter((r) => r.patient_id !== p.patient_id));
       /* 줄이 조용히 사라지기만 하면 됐는지 모른다 */
-      setOk(`${p.name ?? "환자"} 님을 접수했습니다 — 「내원 대기」 탭에 올라갑니다`);
+      setOk(`${p.name ?? "환자"} 님을 접수했습니다 — 「내원 대기」에 표시됩니다`);
       onDone();
     } catch (e2) { setErr(e2); }
     finally { setBusy(null); }
   }
 
   return (
-    <Card title="접수" right={<span className="hcard-k">찾아서 확인한 뒤 누릅니다</span>}>
+    <Card title="접수" right={<span className="hcard-k">환자를 검색해 확인한 뒤 접수합니다</span>}>
       {/* 등록 팝업을 여기서 바로 연다 — 만든 사람은 아래 찾은 줄에 올라와
           [접수] 만 누르면 된다. 다른 화면으로 넘기지 않는다 */}
       {reg && (
@@ -402,8 +266,8 @@ function Intake({ api, onDone }) {
                   onDone={(p, how) => {
                     setReg(false); setErr(null); setFound([p]);
                     setOk(how === "exists"
-                      ? "이미 등록된 분입니다 — 아래 줄에서 [접수] 를 누르세요"
-                      : "등록했습니다 — 아래 줄에서 [접수] 를 누르세요");
+                      ? "이미 등록된 환자입니다 — 아래 목록에서 [접수]를 누르세요"
+                      : "등록했습니다 — 아래 목록에서 [접수]를 누르세요");
                   }} />
       )}
       <form className="intake-find" onSubmit={find}>
@@ -577,7 +441,7 @@ function useOpen(row) {
 function Stuck({ items }) {
   const total = items.reduce((n, c) => n + c.count, 0);
   return (
-    <Card dot="ring" title="확인이 필요한 것" count={total}>
+    <Card dot="ring" title="확인 필요" count={total}>
       {items.length === 0
         ? <p className="hcard-k hpad">지금은 없습니다</p>
         : items.map((c) => (
@@ -613,7 +477,7 @@ function Flow({ flow }) {
           right={flow?.summary && <span className="hcard-k">{flow.summary}</span>}>
       <div className="flows">
         {items.length === 0
-          ? <p className="hcard-k hpad">오늘 온 환자가 없습니다</p>
+          ? <p className="hcard-k hpad">오늘 내원한 환자가 없습니다</p>
           : items.map((it) => (
             <Line key={it.name} to={it.to} className="frow">
               <span className="frow-k">{it.name}</span>
@@ -640,7 +504,7 @@ function Done({ done }) {
           right={done?.summary && <span className="hcard-k">{done.summary}</span>}>
       <div className="drows">
         {items.length === 0
-          ? <Empty title={done?.empty ?? "아직 집계하지 않습니다"} />
+          ? <Empty title={done?.empty ?? "집계된 내용이 없습니다"} />
           : items.map((it) => (
             <Line key={it.id} to={it.to} className="drow">
               <time>{it.at}</time>
@@ -699,7 +563,7 @@ function Handover({ dept }) {
       {open && (
         <form className="hand-add" onSubmit={submit}>
           <textarea value={text} onChange={(e) => setText(e.target.value)}
-                    placeholder="교대할 때 넘길 말" rows={2} />
+                    placeholder="교대 시 전달할 내용" rows={2} />
           <div className="rowb">
             <button type="button" className="btn line sm"
                     onClick={() => setOpen(false)}>취소</button>
@@ -711,7 +575,7 @@ function Handover({ dept }) {
 
       {remote.error && <p className="hcard-k hpad">인계 사항을 불러오지 못했습니다</p>}
       {list.length === 0 && !open && !remote.error
-        ? <p className="hcard-k hpad">{remote.loading ? "불러오는 중…" : "넘길 말이 없습니다"}</p>
+        ? <p className="hcard-k hpad">{remote.loading ? "불러오는 중…" : "인계 사항이 없습니다"}</p>
         : list.map((it) => (
           <article className="hrow" key={it.id}>
             <div className="hrow-1">
@@ -753,6 +617,44 @@ function Side({ side }) {
               </span>
             </Line>
           ))}
+      </div>
+    </Card>
+  );
+}
+
+/* ── 과가 더 싣는 목록 칸 (home.cards) ──────────────────────────
+ * 두 줄짜리 줄 — 칩 · 이름 · 곁말 ··· 날짜 › / 아래에 까닭 한 줄 · 덧말.
+ *   spec = { title, hint, count, empty, error, rows:[{ id, chip, chipTone,
+ *            name, meta, sub, note, at, to, off }] }
+ * off 인 줄은 흐리게 — 끝난 것(종결)이 열린 것보다 앞에 읽히지 않게 */
+function ListCard({ spec }) {
+  const rows = spec.rows ?? [];
+  return (
+    <Card dot="ring" title={spec.title} count={spec.count ?? rows.length} grow
+          right={spec.hint && <span className="hcard-k">{spec.hint}</span>}>
+      <div className="lrows">
+        {spec.error
+          ? <p className="hcard-k hpad">{spec.error}</p>
+          : rows.length === 0
+            ? <p className="hcard-k hpad">{spec.empty ?? "없습니다"}</p>
+            : rows.map((r) => (
+              <Line key={r.id} to={r.to} className={`lrow${r.off ? " off" : ""}`}>
+                <span className="lrow-1">
+                  {r.chip && <Chip tone={r.chipTone ?? "line"}>{r.chip}</Chip>}
+                  <b>{r.name}</b>
+                  {r.meta && <span className="lrow-meta">{r.meta}</span>}
+                  <span className="home-fill" />
+                  {r.at && <time>{r.at}</time>}
+                  {r.to && <i className="qrow-go" aria-hidden="true">›</i>}
+                </span>
+                {(r.sub || r.note) && (
+                  <span className="lrow-2">
+                    {r.sub && <span className="lrow-sub">{r.sub}</span>}
+                    {r.note && <em>{r.note}</em>}
+                  </span>
+                )}
+              </Line>
+            ))}
       </div>
     </Card>
   );
@@ -859,7 +761,7 @@ function Todo({ dept }) {
   return (
     <Card dot="none" title="할 일" grow
           count={`${left}개 남음`}
-          right={<span className="hcard-k">나만 보임</span>}>
+          right={<span className="hcard-k">나만 볼 수 있음</span>}>
       <div className="todos">
         {list.length === 0 && <p className="hcard-k hpad">없습니다</p>}
         {list.map((it) => (

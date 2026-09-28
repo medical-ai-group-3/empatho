@@ -81,7 +81,7 @@ export default function Console() {
         {manual && (
           <div className="slot" role="status">
             <b>새 탭이 열리지 않았습니다</b>
-            <span>브라우저가 팝업을 막은 것 같습니다. 세션은 만들어졌으니 아래로 들어가세요.</span>
+            <span>브라우저가 팝업을 차단한 것 같습니다. 세션은 만들어졌으니 아래 버튼으로 이동하세요.</span>
             <Btn onClick={() => { window.location.href = manual; }}>
               관리자 화면으로 이동
             </Btn>
@@ -105,10 +105,10 @@ export default function Console() {
       <Card title="관리자 화면에서 하는 일">
         <ul className="bullets">
           <li>
-            <b>계정 승인</b> — 직원이 가입하면 <code>pending</code> 으로 서고
-            로그인이 막힙니다. 여기서 승인해야 들어옵니다.
+            <b>계정 승인</b> — 직원이 가입하면 승인 대기 상태가 되어
+            로그인할 수 없습니다. 여기서 승인해야 로그인할 수 있습니다.
           </li>
-          <li><b>권한 부여</b> — 역할 기본 권한 위에 사람별로 더 얹습니다.</li>
+          <li><b>권한 부여</b> — 역할별 기본 권한에 더해 개인별 권한을 추가합니다.</li>
           <li><b>자료 조회</b> — 환자 · 검사 · 판독 · 리포트를 표로 봅니다.</li>
         </ul>
 
@@ -116,7 +116,7 @@ export default function Console() {
             못 찾고 나서 알게 되면 그때는 이미 늦다 */}
         <Warn>
           관리자 화면의 변경 이력은 관리자가 여럿이어도 <b>한 계정으로 남습니다.</b>
-          누가 고쳤는지는 가려지지 않습니다. 계정 승인 이력만은 따로 남습니다.
+          누가 수정했는지는 구분되지 않습니다. 계정 승인 이력만은 따로 남습니다.
         </Warn>
       </Card>
     </Page>

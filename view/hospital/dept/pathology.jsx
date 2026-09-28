@@ -3,6 +3,8 @@ import { go } from "../nav";
 import * as H from "./home";
 import { Chip, Facts, Fold } from "../lib/Parts";
 import { Body } from "../lib/Body";
+import { Seen, Two } from "../lib/ListCells";
+import { shortAt } from "../lib/shortAt";
 import { useApi } from "../lib/useApi";
 import { useFile } from "../lib/files";
 import Stage, { MaskKeys, PATHOLOGY_MASK_COLORS } from "../lib/Stage";
@@ -14,7 +16,7 @@ import { currentAssessment } from "../api";
 import { getMe } from "../perm";
 import { BIRADS_LABEL, GUIDANCE_ROUTE, HER2, HISTOLOGIC_TYPE, MODALITY, NOTTINGHAM, RECEPTOR,
          SPECIMEN_TYPE, modality as asModality } from "../codes";
-import { ACCESSION_STATUS, B_CATEGORY, B_CATEGORY_LABEL, DIAGNOSIS, SEX,
+import { ACCESSION_STATUS, B_CATEGORY, B_CATEGORY_LABEL, DIAGNOSIS,
          label, text } from "../codes";
 /* 홈 · 큐 · 업로드 · 목록(0·1·2·4장) 전용 — 09-28 재배치 */
 import { BIRADS_LABEL as BR_LABEL, GUIDANCE_ROUTE as GUIDE, MODALITY as MOD,
@@ -70,8 +72,8 @@ function ago(v) {
    괄호는 아는 것만 */
 function patientText(r) {
   if (!r) return "";
-  const bits = [r.age != null && r.age !== "" ? String(r.age) : null, label(SEX, r.sex) || null]
-    .filter(Boolean).join("/");
+  /* 「김하늘 (44 · 여)」 — 빈 것은 안 쓴다(H.who). 「(51/)」가 나오던 것 */
+  const bits = H.who(r);
   return bits ? `${H.nameOf(r)} (${bits})` : H.nameOf(r);
 }
 
@@ -401,7 +403,7 @@ const isDisc = (r, ctx) => Boolean(ctx?.disc) && (ctx.disc.spec.has(String(r.id)
   || ctx.disc.pat.has(String(r.patient ?? r.patient_id)));
 
 /* 판독 단계 — api.js 의 read_state(assigned_to · finalized_at 로 센 것) */
-const STATE = { waiting: "미접수", reading: "판독중", final: "확정" };
+const STATE = { waiting: "미접수", reading: "판독 중", final: "확정" };
 const STATE_TONE = { waiting: "line", reading: "fill", final: "dot" };
 
 /* 목록 칩 한 묶음 — 주소 ?f= 로 온다(홈 흐름 줄 · 「초안」 줄이 여기로) */
@@ -409,7 +411,7 @@ const LIST_FILTERS = [
   { key: "f", label: "보기",
     items: [
       { key: "all", name: "전체" },
-      { key: "mine", name: "내 판독중", query: { assigned: "me", finalized: "no" },
+      { key: "mine", name: "내 판독 중", query: { assigned: "me", finalized: "no" },
         test: (r) => !r.finalized && mine(r) },
       { key: "open", name: "미확정", query: { finalized: "no" }, test: (r) => !r.finalized },
       { key: "final", name: "확정", query: { finalized: "yes" }, test: (r) => r.finalized },
@@ -453,7 +455,7 @@ function Correlate({ d, cfg }) {
       <span className="section-label">영상 대조</span>
       {cor.loading && hasLesion ? <p className="muted small">불러오는 중…</p>
         : lines.length ? <Facts items={lines} />
-          : <p className="muted small">겨눈 병변 · 영상 판정이 검체에 안 이어져 있습니다</p>}
+          : <p className="muted small">이 검체에 연결된 표적 병변 · 영상 판정이 없습니다</p>}
       {lines.length > 0 && <p className="muted small">영상 판정입니다 — 병리 등급(B 분류)과 다른 체계입니다.</p>}
     </div>
   );
@@ -482,7 +484,7 @@ export const pathology = {
       return { queue: H.rows(queue), specimens, disc: discSets(H.rows(disc)) };
     }),
 
-    primary: { label: "다음 검체 받기", to: go.pathology.queue(),
+    primary: { label: "다음 검체 접수", to: go.pathology.queue(),
                need: "pathology.queue.view" },
 
     /* 달력은 뺀다 — 찍을 점이 없어 늘 빈 달이었다. 맨 위는 흐름 한 줄 */
@@ -506,7 +508,7 @@ export const pathology = {
         summary: tat ? `평균 TAT ${tat} (채취→확정)` : "평균 TAT —",
         items: [
           { name: "접수 대기", count: queue.length, to: go.pathology.queue() },
-          { name: "내 판독중", count: specimens.filter((r) => !r.finalized).length, to: `${L}?f=mine` },
+          { name: "내 판독 중", count: specimens.filter((r) => !r.finalized).length, to: `${L}?f=mine` },
           { name: "오늘 확정", count: today.length, to: `${L}?f=final` },
           { name: "불일치", count: specimens.filter((r) => isDisc(r, { disc })).length, to: `${L}?f=disc` },
         ],
@@ -515,7 +517,7 @@ export const pathology = {
 
     queue: ({ queue }) => ({
       title: "검체 대기",
-      hint: "바인딩 순서대로",
+      hint: "등록 순서대로",
       empty: "접수 대기 검체가 없습니다",
       /* 「구분」「상태」가 아니라 무엇을 적었는지 */
       cols: { chip: "채취 방식", sub: "검체번호" },
@@ -545,7 +547,7 @@ export const pathology = {
        ⚠ 전에는 걸러지지 않은 목록으로 가서 어느 것이 초안인지 다시 찾아야
        했다 — 「내 판독중」으로 걸러 보낸다 */
     stuck: ({ specimens }) => [
-      { tag: "초안", text: "써 두고 확정 안 한 내 검체",
+      { tag: "임시저장", text: "임시저장만 하고 확정하지 않은 내 검체",
         count: specimens.filter((r) => !r.finalized
           && (r.b_category || r.diagnosis || r.finding_note)).length,
         to: `${go.pathology.list()}?f=mine` },
@@ -591,7 +593,9 @@ export const pathology = {
     /* ⚠ 09-28 — 상용구 칸은 큐에서 안 그린다(phrasesCol 을 안 켠다) */
     searchHint: "환자 · 검체번호",
     emptyText: "접수 대기 중인 검체가 없습니다",
-    takeLabel: "이 검체 집기",
+    takeLabel: "이 검체 접수",
+    takeVerb: "접수",
+    nextLabel: "다음 검체 접수",
     need: { view: "pathology.queue.view", assign: "pathology.queue.assign" },
     /* 이력은 영상 · 병리 · 불일치만 — 처방 · 결과 설명 · 리포트 · 치료 결정은
        검체를 받는 데 안 쓴다 */
@@ -619,7 +623,7 @@ export const pathology = {
           <span className="section-label">의뢰</span>
           {d.clinical_note
             ? <p className="quote">{d.clinical_note}</p>
-            : <p className="muted small">의뢰 문구가 없습니다</p>}
+            : <p className="muted small">의뢰 내용이 없습니다</p>}
         </div>
 
         <Facts items={[
@@ -627,7 +631,7 @@ export const pathology = {
           ["종류 · 유도", [kindText(d.kind), guideText(d.method)].filter(Boolean).join(" · ") || "—"],
           ["채취", collectedText(d.collected_at) ?? "—"],
           d.site && ["부위", d.site],
-          ["바인딩", d.bound_by_name ?? "—"],
+          ["등록자", d.bound_by_name ?? "—"],
         ]} />
 
         <Correlate d={d} cfg={cfg} />
@@ -647,8 +651,8 @@ export const pathology = {
     accept: "image/png,image/jpeg,image/tiff",
     /* 끌어 놓는 칸 아래 한 줄. ⚠ 여러 장을 권한다 — 같은 슬라이드라도
        자른 자리에 따라 AI 계측값이 크게 달라진다 */
-    hint: "WSI 전체가 아니라 잘라낸 조직 이미지 — 여러 장 올리면 장마다 분석이 한 건씩 생깁니다",
-    estimate: "크롭 한 장에 약 2.2초 걸립니다.",
+    hint: "WSI 전체가 아닌 잘라낸 조직 이미지(크롭)를 올립니다 — 이미지마다 AI 분석이 한 건씩 실행됩니다",
+    estimate: "AI 분석은 크롭 한 장에 약 2.2초 걸립니다.",
     need: {
       view: "pathology.upload.view",
       send: "pathology.upload.send",
@@ -681,9 +685,9 @@ export const pathology = {
     /* ⚠ **병리는 정정 경로가 없다**(확정 사양서 §8-2). 영상은 정정
        화면이 있지만 여기는 없다 — 그 사실을 저장 줄에 적는다. 「되돌릴
        수 없다」만으로는 «나중에 고칠 수 있나»가 안 읽힌다 */
-    saveHint: "확정은 한 번뿐입니다. 병리는 정정 경로가 없어, 확정한 뒤 "
-      + "오류가 나면 새 검체로 다시 받아야 합니다.",
-    finalNote: "병리는 정정 경로가 없습니다. 오류가 있으면 새 검체로 다시 받습니다.",
+    saveHint: "확정은 한 번만 할 수 있습니다. 병리 판독은 정정할 수 없어, 확정 후 "
+      + "오류가 있으면 새 검체로 다시 접수해야 합니다.",
+    finalNote: "병리 판독은 정정할 수 없습니다. 오류가 있으면 새 검체로 다시 접수합니다.",
     phrases: PHRASES,
 
     /* 확정된 검체는 읽기 전용 — 서버도 409 SPECIMEN_ALREADY_FINALIZED 로 막는다 */
@@ -794,15 +798,15 @@ export const pathology = {
           ["종류", label(SPECIMEN_TYPE, d.unit.specimen_type) || d.unit.kind],
           ["유도 방식", label(GUIDANCE_ROUTE, d.unit.guidance_route) || d.unit.method],
           ["채취", d.unit.collected_at ? `${readableAt(d.unit.collected_at)} (${ago(d.unit.collected_at)})` : null],
-          ["바인딩", d.unit.bound_by_name],
+          ["등록자", d.unit.bound_by_name],
           d.unit.site && ["병변 위치", d.unit.site],
         ]} />
         {d.unit.clinical_note && (
-          <Fold title="의뢰 문구">
+          <Fold title="의뢰 내용">
             <p className="quote">{d.unit.clinical_note}</p>
           </Fold>
         )}
-        <Fold title={`올린 크롭 ${(d.crops ?? []).length}장`}>
+        <Fold title={`업로드한 크롭 ${(d.crops ?? []).length}장`}>
           <ul className="slides">
             {(d.crops ?? []).map((c, i) => (
               <li key={c.id} className={slide === i ? "on" : undefined}>
@@ -934,12 +938,14 @@ export const pathology = {
       { key: "report__last_viewed_at", label: "유방외과 열람" },
     ],
 
+    /* 09-28 — 다섯 칸이 440px 에 안 들어 이름이 꺾이고 끝 칸이 잘렸다.
+       검체번호 · 채취일을 한 칸(검체)으로 묶고, 나이 · 성별 · 환자번호는
+       이름 밑 둘째 줄로 내린다(lib/ListCells) */
     cols: [
-      { key: "patient", label: "환자", w: "22%" },
-      { key: "specimen", label: "검체번호", w: "20%" },
-      { key: "collected", label: "채취일", w: "16%" },
-      { key: "status", label: "진행상황", w: "18%" },
-      { key: "viewed", label: "유방외과", w: "14%" },
+      { key: "patient", label: "환자", cls: "c-grow" },
+      { key: "specimen", label: "검체", cls: "c-fit" },
+      { key: "status", label: "진행 상황", cls: "c-fit" },
+      { key: "viewed", label: "유방외과", cls: "c-fit" },
     ],
 
     /* 진행상황 — ⚠ accession_status 로는 「판독 완료」를 못 말한다(서버 enum
@@ -947,17 +953,15 @@ export const pathology = {
        미접수 → 판독중 → 확정 (api.js 의 read_state) */
     row: (r) => ({
       id: r.id,
-      patient: patientText(r),
-      specimen: r.specimen_no,
-      /* 「09-28 08:20」 — 목록 칸이 좁아 해를 뺀다 */
-      collected: r.collected_at ? String(r.collected_at).slice(5, 16).replace("T", " ") : "—",
+      patient: <Two strong main={H.nameOf(r)} title={H.nameOf(r)}
+                    sub={[H.who(r), H.noOf(r)].filter(Boolean).join(" · ")} />,
+      /* 「09-28 08:20」 채취 — 목록 칸이 좁아 해를 뺀다 */
+      specimen: <Two main={r.specimen_no || "—"} sub={shortAt(r.collected_at) ?? "—"} />,
       status: <Chip tone={STATE_TONE[r.read_state] ?? "line"}>
         {STATE[r.read_state] ?? text(r, "accession_status", ACCESSION_STATUS, "status_label")}
       </Chip>,
       /* 「확인」이 아니라 「열람」이다 — 자동 기록이라 의도적 확인이 아니다 */
-      viewed: r.viewed_at
-        ? <Chip tone="line">열람</Chip>
-        : <Chip tone="dot">미열람</Chip>,
+      viewed: <Seen at={r.viewed_at} />,
     }),
 
     Detail: ({ d, cfg }) => <PathologyListDetail d={d} cfg={cfg} />,
@@ -989,7 +993,7 @@ function PathologyListDetail({ d, cfg }) {
           ["종류 · 유도", [kindText(d.kind), guideText(d.method)].filter(Boolean).join(" · ") || "—"],
           ["채취", collectedText(d.collected_at) ?? "—"],
           ["담당 병리의", d.reported_by ?? d.assigned_to_name ?? "—"],
-          ["진행상황", STATE[d.read_state] ?? text(d, "accession_status", ACCESSION_STATUS, "status_label")],
+          ["진행 상황", STATE[d.read_state] ?? text(d, "accession_status", ACCESSION_STATUS, "status_label")],
           ["유방외과 열람", d.viewed_at ?? "미열람"],
         ]} />
         <Fold title="판독 결과" open={Boolean(d.finalized)}>

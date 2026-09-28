@@ -9,6 +9,7 @@ import { can } from "../../perm";
 import { go } from "../../nav";
 import { MODALITY, SEX, label, modality as asModality } from "../../codes";
 import * as H from "../../dept/home";
+import { shortAt } from "../../lib/shortAt";
 
 const permitted = (key, integrated) => can(integrated ? [key, "nursing.waiting.view"] : key);
 
@@ -55,6 +56,9 @@ export default function Patients({ cfg, integrated: asked = false }) {
 
   /* 거르개마다 몇 명인지 — 누르기 전에 보인다. ⚠ 서버가 그 칸을 안 주면
      (has_account · primary_staff 가 목록에 없다) 그 거르개는 안 세운다 */
+  /* 서버가 안 싣는 칸(옛 서버 · 목업)은 세우지 않는다 — 늘 「—」인 칸이 된다 */
+  const cols = COLS.filter((c) => !c.need || all.some((r) => c.need(r) != null));
+
   const filters = FILTERS
     .filter((f) => !f.need || all.some((r) => f.need in r))
     .map((f) => ({ ...f, label: `${f.label} ${filter(all, f.key).length}` }));
@@ -81,7 +85,7 @@ export default function Patients({ cfg, integrated: asked = false }) {
 
             <Body loading={list.loading} error={list.error} onRetry={list.reload}>
               {list.data && (
-                <Table cols={COLS} rows={rows.map(row)} value={pick} onPick={setPick} />
+                <Table cols={cols} rows={rows.map(row)} value={pick} onPick={setPick} />
               )}
             </Body>
           </Card>
@@ -94,8 +98,8 @@ export default function Patients({ cfg, integrated: asked = false }) {
                    integrated={integrated} onSaved={() => list.reload(true)} />
           ) : (
             <div className="slot big">
-              <b>왼쪽에서 환자를 고르세요</b>
-              <span>정보를 고치고, 지난 방문 · 예약과 추적 회차를 봅니다.</span>
+              <b>왼쪽 목록에서 환자를 선택하세요</b>
+              <span>환자 정보를 수정하고, 지난 방문 · 예약과 추적 회차를 확인합니다.</span>
             </div>
           )}
         </aside>
@@ -107,15 +111,62 @@ export default function Patients({ cfg, integrated: asked = false }) {
 /* ── 목록 ────────────────────────────────────────────────────── */
 
 /* ⚠ 09-28 「상태」 칸을 뺐다 — 목록 응답에 그 값이 없어 늘 「—」였다.
-   대신 창구가 실제로 보는 전화 · 주치의 · 앱 연동을 둔다 */
+   대신 창구가 실제로 보는 전화 · 주치의 · 앱 연동을 둔다.
+   ⚠ 09-28(오후) — 이름 칸 하나만 남는 폭을 다 받아 이름과 전화 사이가 크게
+   비었고, 좁은 창에서는 「P-2026-/00418」로 번호가 꺾였다. 칸마다 폭을
+   정하지 않고(c-nw) 값 길이만큼 나눠 갖게 한다 — 홈 큐(d78905a)와 같은 생각.
+   생년월일(본인 확인) · 최근 내원 · 다음 예약을 더했다. 서버가 그 값을 안
+   주면(need) 칸을 세우지 않는다 */
 const COLS = [
-  { key: "no",      label: "환자번호", w: "15%" },
-  { key: "name",    label: "이름" },
-  { key: "phone",   label: "전화", w: "17%" },
-  { key: "staff",   label: "주치의", w: "13%" },
-  { key: "app",     label: "앱", w: "9%" },
-  { key: "allergy", label: "알레르기", w: "11%" },
+  { key: "no",      label: "환자번호", cls: "c-nw" },
+  { key: "name",    label: "이름", cls: "c-nw" },
+  { key: "birth",   label: "생년월일", cls: "c-nw c-birth", need: birthOf },
+  { key: "phone",   label: "전화", cls: "c-nw" },
+  { key: "last",    label: "최근 내원", cls: "c-nw", need: (r) => ("last_visit_at" in r ? true : null) },
+  { key: "next",    label: "다음 예약", cls: "c-nw", need: (r) => ("next_visit_at" in r ? true : null) },
+  { key: "staff",   label: "주치의", cls: "c-nw" },
+  { key: "app",     label: "앱", cls: "c-nw" },
+  { key: "allergy", label: "알레르기", cls: "c-nw" },
 ];
+
+function birthOf(r) {
+  const v = r?.birth_date ?? r?.pii?.birth_date ?? null;
+  return v ? String(v).slice(0, 10) : null;
+}
+
+/* 「01012345678」 → 「010-1234-5678」. 숫자만 온 휴대폰 번호만 고친다 —
+   그 밖의 꼴(유선 · 이미 하이픈 · 국외)은 받은 그대로 둔다 */
+function phoneText(v) {
+  if (v == null || v === "") return null;
+  const t = String(v).trim();
+  const m = t.match(/^(01\d)(\d{3,4})(\d{4})$/);
+  return m ? `${m[1]}-${m[2]}-${m[3]}` : t;
+}
+
+/* 「3일 전」 — 한 달 안쪽만. 그보다 오래면 날짜로 충분하다 */
+function ago(value, now = new Date()) {
+  if (!value) return null;
+  const d = new Date(`${String(value).slice(0, 10)}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return null;
+  const t = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const n = Math.round((t - d) / 86400000);
+  if (n < 0 || n > 30) return null;
+  return n === 0 ? "오늘" : n === 1 ? "어제" : `${n}일 전`;
+}
+
+/* 다음 예약 — 「10-02 09:30」, 오늘이면 「오늘 09:30」 */
+function nextText(value) {
+  if (!value) return null;
+  const t = shortAt(value);
+  return String(value).slice(0, 10) === H.iso(new Date()) ? t.replace(/^\S+/, "오늘") : t;
+}
+
+/* 알레르기 — 서버가 true / false / null(모름)로 준다. 「없음」은 false 일
+   때만, 모르면 흐린 「—」 */
+function allergyCell(v) {
+  if (v === true) return <Chip tone="fill">있음</Chip>;
+  return <span className="dim">{v === false ? "없음" : "—"}</span>;
+}
 
 /* 필터는 **화면이 건다.** 서버 목록에 거를 칸이 없어서다.
    need — 그 칸이 목록에 실려 와야 세울 수 있는 거르개 */
@@ -153,18 +204,30 @@ function ageOf(r) {
 }
 
 function row(r) {
-  const age = ageOf(r);
-  const who = [age, label(SEX, r.sex)].filter((v) => v != null && v !== "").join(" · ");
+  const who = H.who({ age: ageOf(r), sex: r.sex });
+  const lastAgo = ago(r.last_visit_at);
   return {
     id: r.patient_id,
     no: <span className="num dim">{r.patient_number ?? "—"}</span>,
-    name: <span className="plist-nm"><b>{r.name ?? "—"}</b>{who && <span>{who}</span>}</span>,
-    phone: <span className="num">{r.phone ?? "—"}</span>,
+    /* 생년월일은 좁은 창에서 이름 밑으로 내려온다(.plist-birth · 칸은 숨김) */
+    name: (
+      <span className="plist-nm">
+        <b>{r.name ?? "—"}</b>{who && <span>{who}</span>}
+        {birthOf(r) && <span className="plist-birth num">{birthOf(r)}</span>}
+      </span>
+    ),
+    birth: <span className="num">{birthOf(r) ?? "—"}</span>,
+    phone: <span className="num">{phoneText(r.phone) ?? "—"}</span>,
+    last: r.last_visit_at
+      ? <span className="num">{shortAt(String(r.last_visit_at).slice(0, 10))}
+          {lastAgo && <span className="dim plist-ago"> · {lastAgo}</span>}</span>
+      : <span className="dim">—</span>,
+    next: r.next_visit_at
+      ? <span className="num">{nextText(r.next_visit_at)}</span>
+      : <span className="dim">없음</span>,
     staff: r.primary_staff_name ?? (r.primary_staff != null ? `#${r.primary_staff}` : <span className="dim">미배정</span>),
-    app: r.has_account == null ? "—" : r.has_account ? "연동" : <span className="dim">미가입</span>,
-    allergy: r.has_allergy == null
-      ? "—"
-      : (r.has_allergy ? <Chip tone="fill">있음</Chip> : "없음"),
+    app: r.has_account == null ? <span className="dim">—</span> : r.has_account ? "연동" : <span className="dim">미가입</span>,
+    allergy: allergyCell(r.has_allergy),
   };
 }
 
@@ -191,7 +254,7 @@ function Panel({ patient, date, integrated, onSaved }) {
                 .filter(Boolean).join(" · ")}</span>
             </span>
           )}
-          right={<Btn to={go.patient(pid)}>환자 상세 열기</Btn>}>
+          right={<Btn to={go.patient(pid)}>환자 기록 열기</Btn>}>
       <nav className="qtabs" aria-label="환자 정보 구분">
         {TABS.map((t) => (
           <button type="button" key={t.key} className={`qtab${t.key === tab ? " on" : ""}`}
@@ -199,7 +262,8 @@ function Panel({ patient, date, integrated, onSaved }) {
         ))}
       </nav>
       <div className="plist-b">
-        {tab === "info" && <Info patient={patient} integrated={integrated} onSaved={onSaved} />}
+        {tab === "info" && <Info patient={patient} integrated={integrated} onSaved={onSaved}
+                                 reserveTo={reserveTo} />}
         {tab === "visits" && <Visits pid={pid} reserveTo={reserveTo} integrated={integrated} />}
         {tab === "follow" && <Follow pid={pid} />}
       </div>
@@ -213,7 +277,7 @@ function Panel({ patient, date, integrated, onSaved }) {
  * ⚠ 둘은 **다른 표**다. 인적 사항은 patient_pii 에 있어 위 PATCH 로는 조용히
  *   안 바뀐다 — 그래서 저장 단추도 따로 둔다.
  */
-function Info({ patient, integrated, onSaved }) {
+function Info({ patient, integrated, onSaved, reserveTo }) {
   const [edited, setEdited] = useState({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -253,11 +317,36 @@ function Info({ patient, integrated, onSaved }) {
     <Body loading={full.loading} error={full.error} onRetry={full.reload}>
       {full.data && form && (
         <>
+          <Todo patient={patient} note={full.data.allergy_note} reserveTo={reserveTo}
+                integrated={integrated} />
+          {/* 오늘 · 최근 방문 요약 — 목록 한 줄보다 조금 더. 서버가 안 싣는
+              값(최근 내원 · 다음 예약)은 줄을 안 세운다 */}
           <dl className="kv patient-facts">
             <div><dt>환자번호</dt><dd className="num">{full.data.patient_number ?? patient.patient_number ?? "—"}</dd></div>
+            {(birthOf(full.data) ?? birthOf(patient)) && (
+              <div><dt>생년월일</dt><dd className="num">{birthOf(full.data) ?? birthOf(patient)}</dd></div>
+            )}
+            <div><dt>전화</dt><dd className="num">{phoneText(full.data.pii?.phone ?? patient.phone) ?? "—"}</dd></div>
             <div><dt>주치의</dt><dd>{full.data.primary_staff_name ?? patient.primary_staff_name ?? "미배정"}</dd></div>
             <div><dt>앱 연동</dt><dd>{patient.has_account == null ? "—" : patient.has_account ? "연동" : "미가입"}</dd></div>
             <div><dt>내원 구분</dt><dd>{full.data.first_visited_at ? "재진" : "초진"}</dd></div>
+            {"last_visit_at" in patient && (
+              <div><dt>최근 내원</dt><dd className="num">
+                {patient.last_visit_at
+                  ? [String(patient.last_visit_at).slice(0, 10), ago(patient.last_visit_at)].filter(Boolean).join(" · ")
+                  : "기록 없음"}
+              </dd></div>
+            )}
+            {"next_visit_at" in patient && (
+              <div><dt>다음 예약</dt><dd className="num">
+                {patient.next_visit_at ? String(patient.next_visit_at).slice(0, 16).replace("T", " ") : "없음"}
+              </dd></div>
+            )}
+            <div><dt>알레르기</dt><dd>
+              {full.data.has_allergy === true
+                ? (H.some(full.data.allergy_note) ?? "있음 (내용 미기록)")
+                : full.data.has_allergy === false ? "없음" : "—"}
+            </dd></div>
           </dl>
 
           <h3 className="plist-h">진료 정보</h3>
@@ -301,6 +390,35 @@ function Info({ patient, integrated, onSaved }) {
   );
 }
 
+/* 이 환자 할 일 — 창구에서 지금 챙길 것. 가진 값으로만 센다(새로 안 부른다).
+   다음 예약 없음 · 앱 미가입 · 주치의 미배정 · 알레르기 내용 미기록 */
+function Todo({ patient, note, reserveTo, integrated }) {
+  const items = [];
+  if ("next_visit_at" in patient && !patient.next_visit_at) {
+    items.push({ key: "resv", text: "다음 예약이 없습니다",
+      act: permitted("reception.reserve", integrated)
+        ? <Btn kind="fill" to={reserveTo}>예약 잡기 →</Btn> : null });
+  }
+  if (patient.has_account === false) items.push({ key: "app", text: "앱 미가입 — 설치 · 가입을 안내하세요" });
+  if ("primary_staff" in patient && patient.primary_staff == null) {
+    items.push({ key: "staff", text: "주치의가 배정되지 않았습니다" });
+  }
+  if (patient.has_allergy === true && !H.some(note)) {
+    items.push({ key: "al", text: "알레르기 내용이 비어 있습니다 — 아래 메모에 적어 주세요" });
+  }
+  if (items.length === 0) return null;
+  return (
+    <div className="plist-todo">
+      <span className="hcard-k">이 환자 할 일</span>
+      <ul>
+        {items.map((it) => (
+          <li key={it.key}><span>{it.text}</span>{it.act}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 /* 인적 사항 정정 — 창구에서 이름 오타 · 번호 바뀜 · 생년월일 잘못 적힘을 고친다.
    **바뀐 칸만** 보낸다. 전화가 다른 환자와 겹치면 서버가 400 을 준다.
    ⚠ 서버에 경로가 없으면(404 · 405) 그렇다고 적는다 — 저장된 척하지 않는다 */
@@ -320,11 +438,11 @@ function Pii({ pid, now, integrated, onDone }) {
     setBusy(true); setErr(null); setOk(null);
     try {
       await api.correctPii(pid, changed);
-      setOk("고쳤습니다");
+      setOk("수정했습니다");
       onDone?.();
     } catch (e) {
       setErr([404, 405].includes(e?.status)
-        ? { ...e, detail: "서버에 인적 사항 정정 경로가 아직 없습니다 — 고치지 않았습니다" } : e);
+        ? { ...e, detail: "아직 인적 사항 정정 기능을 사용할 수 없습니다 — 수정되지 않았습니다" } : e);
     } finally { setBusy(false); }
   }
 
@@ -345,7 +463,7 @@ function Pii({ pid, now, integrated, onDone }) {
       <div className="save-b">
         {ok && <span className="hcard-k" role="status">{ok}</span>}
         <Btn onClick={save} disabled={busy || !may || Object.keys(changed).length === 0}>
-          {busy ? "고치는 중…" : "정정 저장"}
+          {busy ? "수정하는 중…" : "정정 저장"}
         </Btn>
       </div>
       {err && <Failed error={err} />}
@@ -359,7 +477,7 @@ function Pii({ pid, now, integrated, onDone }) {
  * ⚠ **「부도」라고 쓰지 않는다.** 창구에서 내원을 안 찍었을 수도 있다.
  */
 const STATUS = {
-  requested: "미확정", scheduled: "예약 확정", ordered: "검사 지시",
+  requested: "미확정", scheduled: "예약 확정", ordered: "검사 확정",
   accepted: "접수됨", in_progress: "검사 중", completed: "완료", cancelled: "취소",
 };
 const dayOf = (s) => (s ? String(s).slice(0, 10) : "");
@@ -368,7 +486,7 @@ const missedOf = (o, today) => dayOf(o.scheduled_at) && dayOf(o.scheduled_at) < 
   && !o.visited_at && o.order_status !== "cancelled";
 
 function statusOf(o, today) {
-  if (missedOf(o, today)) return "안 옴";
+  if (missedOf(o, today)) return "미내원";
   if (o.visited_at && o.order_status === "requested") return "내원";
   return STATUS[o.order_status] ?? o.order_status ?? "—";
 }
@@ -386,7 +504,7 @@ function Visits({ pid, reserveTo, integrated }) {
     <>
       <div className="plist-act">
         <span className="hcard-k">
-          다가오는 예약 {ahead.length}건{missed.length > 0 && ` · 안 오신 적 ${missed.length}번`}
+          다가오는 예약 {ahead.length}건{missed.length > 0 && ` · 미내원 ${missed.length}회`}
         </span>
         <span className="home-fill" />
         {/* 예약은 예약 관리에서만 잡는다 — 같은 날 중복 막이가 거기 있다 */}
@@ -413,7 +531,7 @@ function Visits({ pid, reserveTo, integrated }) {
 
 /* ── 추적 ────────────────────────────────────────────────────────
  * BI-RADS 3 추적 회차. 전화 · 회차 결과는 추적 관리에서 한다 — 여기는 본다 */
-const ROUND = { stable: "변화 없음", changed: "변화 있음", no_show: "안 오심" };
+const ROUND = { stable: "변화 없음", changed: "변화 있음", no_show: "미내원" };
 
 function Follow({ pid }) {
   const list = useApi(() => nur.followupsOf(pid), [pid]);
@@ -426,11 +544,11 @@ function Follow({ pid }) {
         <Btn to={`${go.nursing.followups()}?patient=${pid}`}>추적 관리에서 열기</Btn>
       </div>
       <Body loading={list.loading} error={list.error} onRetry={list.reload}
-            empty={list.data && rows.length === 0 && <Empty title="추적 중인 회차가 없습니다" hint="BI-RADS 3 으로 확정되면 여기에 후보로 뜹니다" />}>
+            empty={list.data && rows.length === 0 && <Empty title="추적 중인 회차가 없습니다" hint="BI-RADS 3으로 확정되면 여기에 추적 대상으로 표시됩니다" />}>
         <div className="resv-past plist-visits">
           {rows.map((r, i) => (
             <p key={r.followup_id ?? `c${i}`}>
-              <i>{r.status === "candidate" ? "후보" : H.openFollowup(r) ? "진행" : "종결"}</i>
+              <i>{r.status === "candidate" ? "대상" : H.openFollowup(r) ? "진행" : "종결"}</i>
               <time>{r.due_at ? dayOf(r.due_at) : "예정일 없음"}</time>
               <span>{r.status === "candidate" ? "회차 없음 · BI-RADS 3" : `${r.round_no}회차`}</span>
               <em>{ROUND[r.round_result] ?? r.call_result ?? ""}</em>

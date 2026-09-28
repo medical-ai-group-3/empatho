@@ -79,10 +79,14 @@ function factsOfPatient(p, { timeline, rx } = {}) {
   /* 결정은 판독 행에 덮어써진다 — 이력의 마지막 「치료 결정」이 지금 값이다 */
   const decided = ev ? [...ev].reverse().find((e) => e.type === "치료 결정") ?? null : undefined;
   const report = p.report ?? null;
+  /* 종합 소견서는 의사용(p.report) · 환자용(p.patient_report) 두 벌이다. 치료
+     방침 화면은 설명 · 잠금 해제를 **환자용**에 건다(09-28) — 둘 중 하나라도
+     설명 기록이 있으면 설명한 것이다. 옛 서버는 한 벌에만 적는다 */
+  const pair = [report, p.patient_report].filter(Boolean);
+  const pairIds = new Set(pair.map((r) => String(r.report_id)));
   const explained = report
-    ? Boolean(report.explained_at
-      || (report.patient_confirmed && report.explain_method)
-      || (ev ?? []).some((e) => e.type === "결과 설명" && String(e.report_id) === String(report.report_id)))
+    ? Boolean(pair.some((r) => r.explained_at || (r.patient_confirmed && r.explain_method))
+      || (ev ?? []).some((e) => e.type === "결과 설명" && pairIds.has(String(e.report_id))))
     : false;
   const rxCount = Array.isArray(rx) ? rx.length
     : ev ? ev.filter((e) => e.type === "처방").length : undefined;
@@ -96,7 +100,8 @@ function factsOfPatient(p, { timeline, rx } = {}) {
     closed: orders.some((o) => o.visited_at && o.order_status === "completed")
       && !orders.some((o) => o.visited_at && o.order_status === "requested"),
     disc: p.open_discordance ?? null,
-    report: Boolean(report), unlocked: Boolean(report?.is_unlocked),
+    report: Boolean(report),
+    unlocked: Boolean((p.patient_report ?? report)?.is_unlocked),
     decision: decided === undefined ? undefined : (decided?.decision_value ?? null),
     explained, rxCount,
   };
@@ -143,7 +148,7 @@ function deriveNext(f) {
   if (!f.explained) return { key: "explain" };
   if (f.visitOpen) return { key: "close" };
   return { key: "followup",
-           why: f.grade === "3" ? "BI-RADS 3 — 6개월 뒤 추적 검사를 잡아 주세요." : null };
+           why: f.grade === "3" ? "BI-RADS 3 — 6개월 뒤 추적 검사를 예약해 주세요." : null };
 }
 
 function waitWhy(f) {
@@ -158,11 +163,11 @@ function waitWhy(f) {
 const SAY = {
   discordance: "영상과 병리 판정이 엇갈립니다. 처분하기 전에는 치료 방침을 정할 수 없습니다.",
   review: "새로 확정된 결과가 있습니다. 환자 상세에서 확인해 주세요.",
-  report: "결과가 모였습니다. 확정 판독문을 묶어 AI 종합 리포트를 만들어 주세요.",
+  report: "결과가 모두 나왔습니다. 확정된 판독문으로 AI 종합 리포트를 만들어 주세요.",
   decision: "리포트를 보고 수술 여부와 결정 사유를 남겨 주세요.",
-  explain: "환자에게 결과와 치료 계획을 설명하고 기록하면 환자 리포트 잠금을 풀 수 있습니다.",
-  prescription: "필요한 약이 있으면 처방해 주세요. 환자 앱 복약 관리에 뜹니다.",
-  close: "이번 방문을 닫으면 대기 목록과 환자 앱 예약에서 빠집니다.",
+  explain: "환자에게 결과와 치료 계획을 설명하고 기록하면 환자 리포트 잠금을 해제할 수 있습니다.",
+  prescription: "필요한 약이 있으면 처방해 주세요. 환자 앱 복약 관리에 표시됩니다.",
+  close: "진료를 완료하면 대기 목록과 환자 앱 예약에서 빠집니다.",
   followup: "진료가 끝났습니다. 재진 · 추적 일정을 잡아 주세요.",
   exam: "필요한 검사를 요청해 주세요.",
   wait_results: "결과를 기다립니다.",
@@ -217,8 +222,8 @@ function noteOf(key, f) {
     case "imaging": return f.pendingCount ? `${f.pendingCount}건 진행` : null;
     case "path": return f.pat?.[0]?.grade ? String(f.pat[0].grade).toUpperCase()
       : f.pendingPath?.length ? "확진 대기" : null;
-    case "discordance": return f.disc ? "열림" : null;
-    case "decision": return f.decision ? ({ yes: "수술", no: "안 함", defer: "보류" }[f.decision] ?? f.decision) : null;
+    case "discordance": return f.disc ? "처분 대기" : null;
+    case "decision": return f.decision ? ({ yes: "수술", no: "수술 안 함", defer: "보류" }[f.decision] ?? f.decision) : null;
     case "explain": return f.unlocked ? "공개됨" : null;
     case "prescription": return f.rxCount > 0 ? `${f.rxCount}건` : "선택";
     default: return null;

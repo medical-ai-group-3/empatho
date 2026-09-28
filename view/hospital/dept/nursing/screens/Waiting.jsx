@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { Page, Btn } from "../../../lib/Page";
 import { Body, Empty } from "../../../lib/Body";
 import { Chip, Locked } from "../../../lib/Parts";
@@ -88,6 +88,10 @@ function Inner({ cfg, embedded }) {
   /* 오늘 온 사람 전부 — 보낸 사람(handed_at)과 선생님별 부하가 여기서 나온다 */
   const came = useApi(() => H.soft(api.todayStatus()), [tick]);
   const staff = useApi(() => H.soft(api.surgeons()), []);
+  /* 오늘 예약했고 아직 안 온 사람 — 왼쪽 「오늘 요약」 밑. 줄 박자(7초)마다
+     부를 만큼 급한 값이 아니라 다섯 박자에 한 번 */
+  const slow = Math.floor(tick / 5);
+  const booked = useApi(() => H.soft(api.scheduledToday()), [slow]);
   /* 문항 말 — 못 부르면 null 이고 화면은 코드 그대로 적는다 */
   const form = useApi(() => api.questionnaireForm().catch(() => null), []);
   useEffect(() => {
@@ -149,7 +153,8 @@ function Inner({ cfg, embedded }) {
     <div className="nwait">
       {/* 탭을 바꾸면 고른 사람을 놓는다 — 다른 탭 사람이 가운데 남아 있으면 헷갈린다 */}
       <Queue state={arrived} tab={here} setTab={(t) => { setTab(t); setPick(null); }}
-             lists={lists} people={people}
+             lists={lists} people={people} today={today}
+             booked={H.notYetCame(H.rows(booked.data), rows, today)}
              pick={here === "specimen" ? scur : cur}
              onPick={here === "specimen" ? setSpick : setPick} />
 
@@ -157,10 +162,10 @@ function Inner({ cfg, embedded }) {
         {here === "specimen" ? (
           srow
             ? <Specimen key={idOf(srow)} r={srow} people={people} />
-            : <Empty title="왼쪽에서 보낸 환자를 고르세요"
-                     hint="유방외과로 보낸 뒤 검체를 채취하면 여기서 라벨을 확인하고 바인딩합니다" />
+            : <Empty title="왼쪽 목록에서 환자를 선택하세요"
+                     hint="유방외과에서 검체를 채취하면 여기서 라벨을 확인하고 등록합니다" />
         ) : !cur
-          ? <Empty title="왼쪽에서 한 사람을 고르세요" />
+          ? <Empty title="왼쪽 목록에서 환자를 선택하세요" />
           : (
             <Body loading={detail.loading && !detail.data} error={detail.error}
                   onRetry={detail.reload}>
@@ -178,7 +183,7 @@ function Inner({ cfg, embedded }) {
           )}
       </div>
 
-      <Load people={people} load={load} lists={lists} />
+      <Load people={people} load={load} today={today} />
     </div>
   );
 
@@ -197,7 +202,7 @@ function Inner({ cfg, embedded }) {
  * ⚠ **셋째 줄에 검사 진행 점을 못 찍는다.** 이 큐는 촬영 전 환자만 모아서
  *   네 모달리티가 다 ○ 로 같아진다 — 문진 유무를 적는다(홈 현황판과 같은 기준).
  */
-function Queue({ state, tab, setTab, lists, people, pick, onPick }) {
+function Queue({ state, tab, setTab, lists, people, today, booked, pick, onPick }) {
   const rows = lists[tab];
   const nameOf = (id) => {
     const s = people.find((p) => String(staffId(p)) === String(id));
@@ -262,6 +267,65 @@ function Queue({ state, tab, setTab, lists, people, pick, onPick }) {
           })}
         </div>
       </Body>
+      <Summary today={today} lists={lists} booked={booked} />
+    </section>
+  );
+}
+
+/* ── 왼쪽 아래 — 오늘 요약 ──────────────────────────────────────
+ * 09-28 「줄이 둘뿐이면 왼쪽이 통째로 빈다」. 목록은 제 줄 수만큼만 서고
+ * (hospital.css .nwait-q-b) 남는 자리에 오늘 하루의 수와 **아직 안 오신
+ * 예약**을 둔다 — 창구가 다음에 전화할 사람이다.
+ * ⚠ 수는 전부 서버 목록을 센 것이다 — 접수 · 보냄 · 검사는 today-status,
+ *   문진 · 배정은 위 탭과 같은 목록. 지어낸 값이 없다.
+ * ⚠ 안 오신 예약을 누르면 이 화면 위 찾기에 그 사람을 걸어 둔다(?find=).
+ *   **접수는 사람이 누른다**(동명이인) */
+const EXAM_STAGE = ["영상의학과 대기", "영상의학과 촬영중", "AI 분석중"];
+
+function Summary({ today, lists, booked }) {
+  const live = today.filter((r) => r.stage_code !== "cancelled" && r.order_status !== "cancelled");
+  const nums = [
+    ["오늘 접수", live.length],
+    ["문진 대기", lists.q.length],
+    ["배정 대기", lists.assign.length],
+    ["유방외과로 보냄", lists.specimen.length],
+    ["검사 진행", live.filter((r) => EXAM_STAGE.includes(r.stage)).length],
+  ];
+  const late = booked.filter((r) => H.isPast(r.scheduled_at)).length;
+  return (
+    <section className="nq-sum" aria-label="오늘 요약">
+      <header className="bcol-h">
+        <b>오늘 요약</b>
+      </header>
+      <dl className="nq-nums">
+        {nums.map(([k, v]) => (
+          <div key={k}><dt>{k}</dt><dd>{v}</dd></div>
+        ))}
+      </dl>
+      <p className="nq-sub">
+        <b>미내원 예약</b>
+        <span className="home-fill" />
+        <span>{booked.length}명{late > 0 && ` · 시간 지남 ${late}`}</span>
+      </p>
+      <div className="nq-late">
+        {booked.length === 0
+          ? <p className="hcard-k hpad">오늘 남은 예약이 없습니다</p>
+          : [...booked]
+            .sort((a, b) => String(a.scheduled_at ?? "").localeCompare(String(b.scheduled_at ?? "")))
+            .map((r) => {
+              const find = H.noOf(r) ?? H.nameOf(r);
+              return (
+                <Link key={idOf(r) ?? `${r.patient}-${r.scheduled_at}`} className="nside-row"
+                      to={`${go.nursing.intake()}?find=${encodeURIComponent(find)}`}
+                      title="위 검색창에 넣습니다 — 접수하려면 [접수]를 누르세요">
+                  <time>{H.at(r.scheduled_at) ?? "—"}</time>
+                  <b>{H.nameOf(r)}</b>
+                  <span className="home-fill" />
+                  {H.isPast(r.scheduled_at) && <span>시간 지남</span>}
+                </Link>
+              );
+            })}
+      </div>
     </section>
   );
 }
@@ -330,7 +394,7 @@ function Detail({ cfg, d, form, people, load, onSent, onSaved }) {
     setMsg(null);
     try {
       await api.saveNote(id, note);
-      setMsg("적어 두었습니다");
+      setMsg("메모를 저장했습니다");
     } catch (e) { setMsg(e.detail || e.message); }
     finally { setSaving(false); }
   }
@@ -372,8 +436,8 @@ function Detail({ cfg, d, form, people, load, onSent, onSaved }) {
           </dl>
           <div className="rowb">
             {/* 검체는 보통 보낸 뒤(검체 확인 탭)다. 채취를 먼저 한 날을 위해 둔다 */}
-            <Btn onClick={() => { setBound(null); setModal("specimen"); }}>검체 바인딩</Btn>
-            <Btn to={go.patient(patientId)}>환자 상세</Btn>
+            <Btn onClick={() => { setBound(null); setModal("specimen"); }}>검체 등록</Btn>
+            <Btn to={go.patient(patientId)}>환자 기록</Btn>
           </div>
           {bound && <span className="hcard-k" role="status">{bound}</span>}
         </section>
@@ -390,7 +454,7 @@ function Detail({ cfg, d, form, people, load, onSent, onSaved }) {
                    onDone={() => { setPaper(false); onSaved(); }} />
           ) : qs.length === 0 ? (
             <>
-              <p className="hcard-k">앱으로 낸 문진이 없습니다 — 종이 문진을 받았다면 옮겨 적습니다.</p>
+              <p className="hcard-k">앱으로 제출한 문진이 없습니다 — 종이 문진을 받았다면 입력해 주세요.</p>
               <Btn onClick={() => setPaper(true)} disabled={!can(["nursing.waiting.assign", "reception.intake.view"])}>
                 종이 문진 입력
               </Btn>
@@ -406,7 +470,7 @@ function Detail({ cfg, d, form, people, load, onSent, onSaved }) {
             </dl>
           )}
           {!paper && qs.length > 0 && !form && (
-            <span className="hcard-k">문항 정의를 못 불러 코드로 적었습니다</span>
+            <span className="hcard-k">문항 정보를 불러오지 못해 코드로 표시합니다</span>
           )}
         </section>
 
@@ -417,7 +481,7 @@ function Detail({ cfg, d, form, people, load, onSent, onSaved }) {
           <div className="rowb">
             {msg && <span className="hcard-k">{msg}</span>}
             <Btn onClick={save} disabled={saving || !mayNote}>
-              {saving ? "적는 중…" : "적어 두기"}
+              {saving ? "저장하는 중…" : "메모 저장"}
             </Btn>
           </div>
         </section>
@@ -452,7 +516,7 @@ function Paper({ cfg, pid, form, onClose, onDone }) {
   if (qs.length === 0) {
     return (
       <>
-        <p className="note err">문항 정의를 못 불러 입력 칸을 세울 수 없습니다.</p>
+        <p className="note err">문항 정보를 불러오지 못해 입력란을 표시할 수 없습니다.</p>
         <Btn onClick={onClose}>닫기</Btn>
       </>
     );
@@ -486,7 +550,7 @@ function Paper({ cfg, pid, form, onClose, onDone }) {
       ))}
       {err && <p className="note err">{err}</p>}
       <div className="rowb">
-        <Btn onClick={onClose} disabled={busy}>그만</Btn>
+        <Btn onClick={onClose} disabled={busy}>취소</Btn>
         <Btn kind="fill" onClick={save} disabled={busy || Object.keys(ans).length === 0}>
           {busy ? "저장하는 중…" : "문진 저장"}
         </Btn>
@@ -524,10 +588,10 @@ function Assign({ cfg, orderId, picked, people, load, may, onSent }) {
       {/* 칸 이름을 단다 — 칩만 늘어서 있으면 「무엇을 고르는 줄」인지 안 읽힌다(09-28) */}
       <div className="nassign-h">
         <b>담당 의사 배정</b>
-        <span className="hcard-k">선생님을 고른 뒤 보냅니다 · 숫자는 그 선생님 앞에 지금 기다리는 환자 수</span>
+        <span className="hcard-k">의사를 선택한 뒤 보냅니다 · 숫자는 현재 대기 중인 환자 수</span>
       </div>
       {people.length === 0
-        ? <span className="hcard-k">유방외과 의사 명단을 못 불렀습니다</span>
+        ? <span className="hcard-k">유방외과 의사 명단을 불러오지 못했습니다</span>
         : (
           <div className="ndocs" role="radiogroup" aria-label="유방외과 의사">
             {people.map((s) => {
@@ -549,10 +613,10 @@ function Assign({ cfg, orderId, picked, people, load, may, onSent }) {
       <div className="nassign-go">
         {err ? <p className="note err">{err}</p>
           /* ⚠ 되돌릴 수 없다 — 9장이 남기라고 한 두 문구 중 하나다 */
-          : <span className="hcard-k">보내면 되돌릴 수 없습니다 — 그 의사의 「내 환자」에만 뜹니다</span>}
+          : <span className="hcard-k">보낸 뒤에는 되돌릴 수 없습니다 — 선택한 의사의 「내 환자」에만 표시됩니다</span>}
         <span className="home-fill" />
         <Btn kind="fill" onClick={send} disabled={!who || busy || !may}>
-          {busy ? "보내는 중…" : "유방외과 큐로 보내기"}
+          {busy ? "보내는 중…" : "유방외과로 보내기"}
         </Btn>
       </div>
     </footer>
@@ -592,9 +656,9 @@ function Specimen({ r, people }) {
       </header>
       <div className="ndet-b one">
         <section className="ndet-box wide">
-          <h3>이 환자에게 이은 검체 <Chip>{items.length}</Chip></h3>
+          <h3>이 환자에게 등록된 검체 <Chip>{items.length}</Chip></h3>
           <Body loading={list.loading && !list.data} error={list.error} onRetry={list.reload}
-                empty={items.length === 0 && <p className="hcard-k">아직 이은 검체가 없습니다</p>}>
+                empty={items.length === 0 && <p className="hcard-k">아직 등록된 검체가 없습니다</p>}>
             <dl className="kv">
               {items.map((s, i) => (
                 <div key={s.specimen_id ?? s.id ?? i}>
@@ -605,16 +669,16 @@ function Specimen({ r, people }) {
             </dl>
           </Body>
           <p className="hcard-k">
-            채취 여부는 유방외과 진료에서 정해집니다 — 라벨을 확인하고 이어야 병리 큐로 넘어갑니다.
+            채취 여부는 유방외과 진료에서 정합니다 — 라벨을 확인하고 등록해야 병리과로 넘어갑니다.
           </p>
         </section>
       </div>
       <footer className="ndet-f">
         {msg && <span className="hcard-k" role="status">{msg}</span>}
         <span className="home-fill" />
-        <Btn to={go.patient(pid)}>환자 상세</Btn>
+        <Btn to={go.patient(pid)}>환자 기록</Btn>
         <Btn kind="fill" onClick={() => { setMsg(null); setModal(true); }}
-             disabled={!can(["nursing.waiting.assign", "nursing.waiting.view"])}>검체 바인딩</Btn>
+             disabled={!can(["nursing.waiting.assign", "nursing.waiting.view"])}>검체 등록</Btn>
       </footer>
       {modal && (
         <SpecimenBindingModal patient={patient} onClose={() => setModal(false)}
@@ -625,58 +689,100 @@ function Specimen({ r, people }) {
 }
 
 /* ── 오른쪽 380px — 배정 현황(오늘) ─────────────────────────────
- * 선생님마다 **지금 외래 차례로 기다리는 사람**과 오늘 보낸 수. 맨 아래는
- * 아직 안 보낸 사람(미배정 — 왼쪽 두 탭).
+ * 선생님마다 **상자 하나** — 이름 · 지금 외래 차례로 기다리는 수 · 오늘 보낸
+ * 수를 큰 숫자로, 기다리는 사람은 이름 칩으로. 줄글(「김서연 · 박하은 · …」)
+ * 이던 것이 한눈에 안 읽힌다는 말을 들었다(09-28).
+ * ⚠ 「미배정」 줄은 뺐다 — 왼쪽 문진 · 배정 탭의 숫자와 같은 말이다(09-28).
  * ⚠ 09-28 전에는 「금일 내원 예정 · 오늘 추적 콜」을 두었다 — 홈과 같은 줄이라
  *   뺐다. 「검체 바인딩 필요」 칸은 늘 비어 있어서 왼쪽 검체 확인 탭이 됐다.
  */
-function Load({ people, load, lists }) {
+function Load({ people, load, today }) {
   const known = new Set(people.map((s) => String(staffId(s))));
-  /* 명단에 없는데 보낸 기록이 있는 사람(퇴사 · 다른 과 등)도 줄을 세운다 */
+  /* 명단에 없는데 보낸 기록이 있는 사람(퇴사 · 다른 과 등)도 상자를 세운다 */
   const extra = [...load.entries()].filter(([k]) => !known.has(k));
   const rows = [
     ...people.map((s) => ({ key: String(staffId(s)), name: staffName(s), l: load.get(String(staffId(s))) })),
     ...extra.map(([k, l]) => ({ key: k, name: l.name ?? `직원 ${k}`, l })),
   ];
-  const none = lists.q.length + lists.assign.length;
 
   return (
     <div className="nwait-side">
-      <section className="nside">
+      <section className="nside fit">
         <header className="bcol-h">
           <i className="hdot ring" aria-hidden="true" />
           <b>배정 현황(오늘)</b>
           <span className="home-fill" />
-          <span className="hcard-k">외래 대기 · 오늘 보냄</span>
+          <span className="hcard-k">의사별</span>
         </header>
-        <div className="nside-b">
-          {rows.length === 0 && <p className="hcard-k hpad">의사 명단을 못 불렀습니다</p>}
-          {rows.map(({ key, name, l }) => (
-            <div className="nload" key={key}>
-              <p className="nside-row">
-                <b>{name}</b>
-                <span className="home-fill" />
-                <span>대기 <em>{l?.wait.length ?? 0}</em></span>
-                <span>오늘 <em>{l?.sent ?? 0}</em></span>
-              </p>
-              {l?.wait.length > 0 && (
-                <p className="nload-who">{l.wait.map((r) => H.nameOf(r)).join(" · ")}</p>
-              )}
-            </div>
-          ))}
-          <div className="nload none">
-            <p className="nside-row">
-              <b>미배정</b>
-              <span className="home-fill" />
-              <span>문진 <em>{lists.q.length}</em></span>
-              <span>배정 <em>{lists.assign.length}</em></span>
-            </p>
-            <p className="nload-who">
-              {none === 0 ? "보낼 사람이 없습니다" : "왼쪽 문진 · 배정 탭의 환자입니다"}
-            </p>
-          </div>
+        <div className="nside-b nload-grid">
+          {rows.length === 0 && <p className="hcard-k hpad">의사 명단을 불러오지 못했습니다</p>}
+          {rows.map(({ key, name, l }) => {
+            const wait = l?.wait ?? [];
+            return (
+              <article className="nload-box" key={key}>
+                <header className="nload-h">
+                  <b>{name}</b>
+                  <span className="home-fill" />
+                  <span className="nload-stat">
+                    <em>{wait.length}</em><i>대기</i>
+                  </span>
+                  <span className="nload-stat muted">
+                    <em>{l?.sent ?? 0}</em><i>오늘 보냄</i>
+                  </span>
+                </header>
+                {wait.length > 0
+                  ? (
+                    <ul className="nload-chips">
+                      {wait.map((r) => <li key={idOf(r)}>{H.nameOf(r)}</li>)}
+                    </ul>
+                  )
+                  : <p className="nload-empty">대기 환자 없음</p>}
+              </article>
+            );
+          })}
         </div>
       </section>
+      <Sent today={today} />
     </div>
+  );
+}
+
+/* ── 오른쪽 아래 — 오늘 보낸 환자 ─────────────────────────────────
+ * 09-28 배정 현황 밑이 통째로 비었다. 오늘 유방외과로 보낸 사람을 **보낸
+ * 시각 최신순**으로 — 「방금 누구를 누구에게 보냈나」를 창구에서 되짚는
+ * 자리다. 왼쪽 「검체 확인」 탭과 같은 목록(handed_at)이고, 이쪽은 누르면
+ * 환자 상세로 간다. 단계는 서버 말(stage) 그대로 */
+function Sent({ today }) {
+  const rows = today.filter(handed)
+    .sort((a, b) => String(b.handed_at ?? "").localeCompare(String(a.handed_at ?? "")));
+  return (
+    <section className="nside">
+      <header className="bcol-h">
+        <i className="hdot ink" aria-hidden="true" />
+        <b>오늘 보낸 환자</b>
+        <em>{rows.length}</em>
+        <span className="home-fill" />
+        <span className="hcard-k">최근 순</span>
+      </header>
+      <div className="nside-b">
+        {rows.length === 0
+          ? <p className="hcard-k hpad">오늘 유방외과로 보낸 환자가 아직 없습니다</p>
+          : rows.map((r) => {
+            const pid = r.patient_id ?? r.patient;
+            const body = (
+              <>
+                <time>{H.at(r.handed_at) ?? "—"}</time>
+                <b>{H.nameOf(r)}</b>
+                <span className="nsent-to">→ {r.handed_to_name ?? r.primary_staff_name ?? "유방외과"}</span>
+                <span className="home-fill" />
+                {r.stage && <span>{r.stage}</span>}
+              </>
+            );
+            return pid != null
+              ? <Link key={idOf(r)} className="nside-row" to={go.patient(pid)}>{body}</Link>
+              : <p key={idOf(r)} className="nside-row">{body}</p>;
+          })}
+      </div>
+    </section>
   );
 }

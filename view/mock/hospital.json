@@ -372,28 +372,28 @@
  ],
  "__note_patient_list_0928": "간호 F3 — 환자 목록 화면(page_size 를 다는 전체 목록)만 받는 열쇠. PatientListSerializer 모양 + primary_staff_name · has_account. 유방외과 목록(?status= 만)은 아래 옛 열쇠로 그대로 간다",
  "GET /api/v1/hospital/patients/?status=all&page_size={n}": [
-  {"patient_id": 61, "patient_number": "P-2026-00418", "name": "박서연", "phone": "010-2481-5530", "birth_date": "1979-03-11", "birth_year": 1979, "sex": "female", "has_allergy": true, "primary_staff": null, "primary_staff_name": null, "has_account": true},
-  {"patient_id": 62, "patient_number": "P-2026-00415", "name": "김도윤", "phone": "010-7720-1184", "birth_date": "1965-01-20", "birth_year": 1965, "sex": "male", "has_allergy": false, "primary_staff": null, "primary_staff_name": null, "has_account": false},
-  {"patient_id": 63, "patient_number": "P-2026-00413", "name": "한지우", "phone": "010-5555-6666", "birth_date": "1993-11-08", "birth_year": 1993, "sex": "female", "has_allergy": false, "primary_staff": null, "primary_staff_name": null, "has_account": true},
-  {"patient_id": 64, "patient_number": "P-2026-00416", "name": "최은영", "phone": "010-3391-4402", "birth_date": "1987-02-20", "birth_year": 1987, "sex": "female", "has_allergy": false, "primary_staff": "S-2002", "primary_staff_name": "최민수", "has_account": true},
-  {"patient_id": 65, "patient_number": "P-2026-00412", "name": "오세라", "phone": "010-7777-8888", "birth_date": "1968-04-02", "birth_year": 1968, "sex": "female", "has_allergy": false, "primary_staff": null, "primary_staff_name": null, "has_account": false},
-  {"patient_id": 66, "patient_number": "P-2026-00411", "name": "윤채원", "phone": "010-4410-8812", "birth_date": "1997-05-30", "birth_year": 1997, "sex": "female", "has_allergy": false, "primary_staff": "S-2003", "primary_staff_name": "이수정", "has_account": true},
-  {"patient_id": 71, "patient_number": "P-2026-00414", "name": "정수아", "phone": "010-6666-7777", "birth_date": "1982-01-15", "birth_year": 1982, "sex": "female", "has_allergy": false, "primary_staff": "S-2001", "primary_staff_name": "서나영", "has_account": true},
-  {"patient_id": 72, "patient_number": "P-2026-00405", "name": "강민서", "phone": "010-8888-9999", "birth_date": "1990-09-12", "birth_year": 1990, "sex": "female", "has_allergy": true, "primary_staff": "S-2001", "primary_staff_name": "서나영", "has_account": false},
-  {"patient_id": 73, "patient_number": "P-2026-00420", "name": "이지은", "phone": "010-2020-3131", "birth_date": "1974-06-18", "birth_year": 1974, "sex": "female", "has_allergy": false, "primary_staff": "S-2002", "primary_staff_name": "최민수", "has_account": true},
-  {"patient_id": 74, "patient_number": "P-2026-00401", "name": "박하은", "phone": "010-9090-1212", "birth_date": "1985-12-02", "birth_year": 1985, "sex": "female", "has_allergy": false, "primary_staff": "S-2001", "primary_staff_name": "서나영", "has_account": true},
-  {"patient_id": 75, "patient_number": "P-2026-00399", "name": "서지민", "phone": "010-4545-6767", "birth_date": "1971-08-25", "birth_year": 1971, "sex": "female", "has_allergy": false, "primary_staff": "S-2002", "primary_staff_name": "최민수", "has_account": false},
-  {"patient_id": 76, "patient_number": "P-2026-00398", "name": "한수민", "phone": "010-3232-5454", "birth_date": "1978-02-14", "birth_year": 1978, "sex": "female", "has_allergy": false, "primary_staff": "S-2001", "primary_staff_name": "서나영", "has_account": true},
-  {"patient_id": 77, "patient_number": "P-2026-00377", "name": "문가영", "phone": "010-1100-2200", "birth_date": "1969-10-09", "birth_year": 1969, "sex": "female", "has_allergy": true, "primary_staff": "S-2003", "primary_staff_name": "이수정", "has_account": false},
-  {"patient_id": 41, "patient_number": "E_1029304", "name": "김영희", "phone": "010-1234-5678", "birth_date": "1985-07-02", "birth_year": 1985, "sex": "female", "has_allergy": true, "primary_staff": null, "primary_staff_name": null, "has_account": true},
-  {"patient_id": 42, "patient_number": "E_1029311", "name": "윤서현", "phone": "010-0000-0000", "birth_date": "1971-11-30", "birth_year": 1971, "sex": "female", "has_allergy": false, "primary_staff": "S-2002", "primary_staff_name": "최민수", "has_account": true},
-  {"patient_id": 43, "patient_number": "E_1029355", "name": "이정민", "phone": "010-7777-1234", "birth_date": "1964-04-08", "birth_year": 1964, "sex": "male", "has_allergy": false, "primary_staff": "S-2003", "primary_staff_name": "이수정", "has_account": false},
-  {"patient_id": 44, "patient_number": "E_1029362", "name": "한지우B", "phone": "010-3333-9090", "birth_date": "1990-03-14", "birth_year": 1990, "sex": "female", "has_allergy": true, "primary_staff": null, "primary_staff_name": null, "has_account": true},
-  {"patient_id": 45, "patient_number": "E_1029370", "name": "최유나", "phone": "010-5151-2323", "birth_date": "1978-09-27", "birth_year": 1978, "sex": "female", "has_allergy": false, "primary_staff": null, "primary_staff_name": null, "has_account": false},
-  {"patient_id": 46, "patient_number": "E_1029381", "name": "장하윤", "phone": "010-6161-7272", "birth_date": "1983-05-05", "birth_year": 1983, "sex": "female", "has_allergy": false, "primary_staff": "S-2001", "primary_staff_name": "서나영", "has_account": true},
-  {"patient_id": 47, "patient_number": "E_1029390", "name": "오세림", "phone": "010-8282-9393", "birth_date": "1976-07-21", "birth_year": 1976, "sex": "female", "has_allergy": false, "primary_staff": "S-2003", "primary_staff_name": "이수정", "has_account": false},
-  {"patient_id": 48, "patient_number": "E_1029402", "name": "배수진", "phone": "010-1414-2525", "birth_date": "1989-01-30", "birth_year": 1989, "sex": "female", "has_allergy": false, "primary_staff": null, "primary_staff_name": null, "has_account": true},
-  {"patient_id": 49, "patient_number": "E_1029415", "name": "신다은", "phone": "010-3636-4747", "birth_date": "1992-11-11", "birth_year": 1992, "sex": "female", "has_allergy": true, "primary_staff": "S-2002", "primary_staff_name": "최민수", "has_account": true}
+  {"patient_id": 61, "patient_number": "P-2026-00418", "name": "박서연", "phone": "010-2481-5530", "birth_date": "1979-03-11", "birth_year": 1979, "sex": "female", "has_allergy": true, "primary_staff": null, "primary_staff_name": null, "has_account": true, "last_visit_at": "2026-09-21T10:11:00+09:00", "next_visit_at": "2026-10-02T09:30:00+09:00"},
+  {"patient_id": 62, "patient_number": "P-2026-00415", "name": "김도윤", "phone": "010-7720-1184", "birth_date": "1965-01-20", "birth_year": 1965, "sex": "male", "has_allergy": false, "primary_staff": null, "primary_staff_name": null, "has_account": false, "last_visit_at": "2026-09-25T14:05:00+09:00", "next_visit_at": null},
+  {"patient_id": 63, "patient_number": "P-2026-00413", "name": "한지우", "phone": "010-5555-6666", "birth_date": "1993-11-08", "birth_year": 1993, "sex": "female", "has_allergy": false, "primary_staff": null, "primary_staff_name": null, "has_account": true, "last_visit_at": "2026-08-30T09:40:00+09:00", "next_visit_at": "2026-09-28T15:00:00+09:00"},
+  {"patient_id": 64, "patient_number": "P-2026-00416", "name": "최은영", "phone": "010-3391-4402", "birth_date": "1987-02-20", "birth_year": 1987, "sex": "female", "has_allergy": false, "primary_staff": "S-2002", "primary_staff_name": "최민수", "has_account": true, "last_visit_at": "2026-09-27T11:20:00+09:00", "next_visit_at": "2026-10-15T10:00:00+09:00"},
+  {"patient_id": 65, "patient_number": "P-2026-00412", "name": "오세라", "phone": "010-7777-8888", "birth_date": "1968-04-02", "birth_year": 1968, "sex": "female", "has_allergy": false, "primary_staff": null, "primary_staff_name": null, "has_account": false, "last_visit_at": null, "next_visit_at": "2026-09-30T13:30:00+09:00"},
+  {"patient_id": 66, "patient_number": "P-2026-00411", "name": "윤채원", "phone": "010-4410-8812", "birth_date": "1997-05-30", "birth_year": 1997, "sex": "female", "has_allergy": false, "primary_staff": "S-2003", "primary_staff_name": "이수정", "has_account": true, "last_visit_at": "2026-06-12T10:00:00+09:00", "next_visit_at": null},
+  {"patient_id": 71, "patient_number": "P-2026-00414", "name": "정수아", "phone": "010-6666-7777", "birth_date": "1982-01-15", "birth_year": 1982, "sex": "female", "has_allergy": false, "primary_staff": "S-2001", "primary_staff_name": "서나영", "has_account": true, "last_visit_at": "2026-09-26T16:40:00+09:00", "next_visit_at": "2026-10-07T11:00:00+09:00"},
+  {"patient_id": 72, "patient_number": "P-2026-00405", "name": "강민서", "phone": "010-8888-9999", "birth_date": "1990-09-12", "birth_year": 1990, "sex": "female", "has_allergy": true, "primary_staff": "S-2001", "primary_staff_name": "서나영", "has_account": false, "last_visit_at": "2026-09-28T09:10:00+09:00", "next_visit_at": "2026-10-28T09:00:00+09:00"},
+  {"patient_id": 73, "patient_number": "P-2026-00420", "name": "이지은", "phone": "010-2020-3131", "birth_date": "1974-06-18", "birth_year": 1974, "sex": "female", "has_allergy": false, "primary_staff": "S-2002", "primary_staff_name": "최민수", "has_account": true, "last_visit_at": "2026-09-15T13:00:00+09:00", "next_visit_at": null},
+  {"patient_id": 74, "patient_number": "P-2026-00401", "name": "박하은", "phone": "010-9090-1212", "birth_date": "1985-12-02", "birth_year": 1985, "sex": "female", "has_allergy": false, "primary_staff": "S-2001", "primary_staff_name": "서나영", "has_account": true, "last_visit_at": "2026-07-03T10:30:00+09:00", "next_visit_at": "2026-10-03T10:30:00+09:00"},
+  {"patient_id": 75, "patient_number": "P-2026-00399", "name": "서지민", "phone": "010-4545-6767", "birth_date": "1971-08-25", "birth_year": 1971, "sex": "female", "has_allergy": false, "primary_staff": "S-2002", "primary_staff_name": "최민수", "has_account": false, "last_visit_at": "2026-09-10T15:20:00+09:00", "next_visit_at": "2026-12-10T15:00:00+09:00"},
+  {"patient_id": 76, "patient_number": "P-2026-00398", "name": "한수민", "phone": "010-3232-5454", "birth_date": "1978-02-14", "birth_year": 1978, "sex": "female", "has_allergy": false, "primary_staff": "S-2001", "primary_staff_name": "서나영", "has_account": true, "last_visit_at": "2025-12-02T09:00:00+09:00", "next_visit_at": null},
+  {"patient_id": 77, "patient_number": "P-2026-00377", "name": "문가영", "phone": "010-1100-2200", "birth_date": "1969-10-09", "birth_year": 1969, "sex": "female", "has_allergy": true, "primary_staff": "S-2003", "primary_staff_name": "이수정", "has_account": false, "last_visit_at": "2026-09-24T10:50:00+09:00", "next_visit_at": "2026-10-01T14:00:00+09:00"},
+  {"patient_id": 41, "patient_number": "E_1029304", "name": "김영희", "phone": "010-1234-5678", "birth_date": "1985-07-02", "birth_year": 1985, "sex": "female", "has_allergy": true, "primary_staff": null, "primary_staff_name": null, "has_account": true, "last_visit_at": "2026-09-15T10:05:00+09:00", "next_visit_at": "2026-10-06T10:00:00+09:00"},
+  {"patient_id": 42, "patient_number": "E_1029311", "name": "윤서현", "phone": "010-0000-0000", "birth_date": "1971-11-30", "birth_year": 1971, "sex": "female", "has_allergy": false, "primary_staff": "S-2002", "primary_staff_name": "최민수", "has_account": true, "last_visit_at": "2026-09-13T09:40:00+09:00", "next_visit_at": null},
+  {"patient_id": 43, "patient_number": "E_1029355", "name": "이정민", "phone": "010-7777-1234", "birth_date": "1964-04-08", "birth_year": 1964, "sex": "male", "has_allergy": false, "primary_staff": "S-2003", "primary_staff_name": "이수정", "has_account": false, "last_visit_at": null, "next_visit_at": null},
+  {"patient_id": 44, "patient_number": "E_1029362", "name": "한지우B", "phone": "010-3333-9090", "birth_date": "1990-03-14", "birth_year": 1990, "sex": "female", "has_allergy": true, "primary_staff": null, "primary_staff_name": null, "has_account": true, "last_visit_at": "2026-05-22T14:30:00+09:00", "next_visit_at": "2026-11-20T14:30:00+09:00"},
+  {"patient_id": 45, "patient_number": "E_1029370", "name": "최유나", "phone": "010-5151-2323", "birth_date": "1978-09-27", "birth_year": 1978, "sex": "female", "has_allergy": false, "primary_staff": null, "primary_staff_name": null, "has_account": false, "last_visit_at": "2026-09-22T11:00:00+09:00", "next_visit_at": "2026-09-29T09:00:00+09:00"},
+  {"patient_id": 46, "patient_number": "E_1029381", "name": "장하윤", "phone": "010-6161-7272", "birth_date": "1983-05-05", "birth_year": 1983, "sex": "female", "has_allergy": false, "primary_staff": "S-2001", "primary_staff_name": "서나영", "has_account": true, "last_visit_at": "2026-09-01T10:00:00+09:00", "next_visit_at": null},
+  {"patient_id": 47, "patient_number": "E_1029390", "name": "오세림", "phone": "010-8282-9393", "birth_date": "1976-07-21", "birth_year": 1976, "sex": "female", "has_allergy": false, "primary_staff": "S-2003", "primary_staff_name": "이수정", "has_account": false, "last_visit_at": "2026-09-18T15:30:00+09:00", "next_visit_at": "2026-10-09T15:30:00+09:00"},
+  {"patient_id": 48, "patient_number": "E_1029402", "name": "배수진", "phone": "010-1414-2525", "birth_date": "1989-01-30", "birth_year": 1989, "sex": "female", "has_allergy": false, "primary_staff": null, "primary_staff_name": null, "has_account": true, "last_visit_at": "2026-09-27T09:20:00+09:00", "next_visit_at": null},
+  {"patient_id": 49, "patient_number": "E_1029415", "name": "신다은", "phone": "010-3636-4747", "birth_date": "1992-11-11", "birth_year": 1992, "sex": "female", "has_allergy": true, "primary_staff": "S-2002", "primary_staff_name": "최민수", "has_account": true, "last_visit_at": "2026-08-14T11:40:00+09:00", "next_visit_at": "2026-10-14T11:40:00+09:00"}
  ],
  "GET /api/v1/hospital/patients/?status={s}": [
   {
@@ -3034,6 +3034,17 @@
   },
   "can_unlock": false
  },
+ "GET /api/v1/hospital/reports/R-9003/unlock-status": {
+  "conditions": [
+   {"key": "records_final", "label": "전 레코드 확정", "met": true, "items": []},
+   {"key": "discordance_closed", "label": "대조 종결", "met": false,
+    "items": [{"kind": "discordance", "discordance_id": "D-2001", "violated_rule": "rule1", "flag_status": "open"}]},
+   {"key": "explained", "label": "대면 설명 완료", "met": true, "explained_at": "2026-09-12T15:30:00+09:00"}
+  ],
+  "can_unlock": false,
+  "report_ids": ["R-9003", "R-9001"],
+  "unlocked": false
+ },
  "GET /api/v1/hospital/reports/R-9002/unlock-status": {
   "report_id": "R-9002",
   "conditions": {
@@ -3452,6 +3463,19 @@
    "annotations": []
   }
  ],
+ "__note_disc_mine_0928": "영상 홈 「내 판독 불일치 결과」 — 내 판독(assessed_by=me)에 걸린 불일치. 열린 것 둘 · 종결 둘",
+ "GET /api/v1/hospital/discordances?assessed_by=me": {"count": 4, "results": [
+  {"discordance_id": "D-2014", "study": "st-305", "assessment": 2105, "patient_id": 65, "patient_name": "오세라", "patient_number": "P-2026-0060", "modality": "mammo", "category": "5", "b_category": "b3", "violated_rule": "BI-RADS 5 판정에 병리 B3 — 표적 미포함 의심", "flag_status": "sev1", "disposition_type": null, "flagged_at": "2026-09-26T11:20:00+09:00", "closed_at": null},
+  {"discordance_id": "D-2001", "study": "st-302", "assessment": 2102, "patient_id": "P-1001", "patient_name": "김민지", "patient_number": "20260001", "modality": "us", "category": "4c", "b_category": "b2", "violated_rule": "BI-RADS 4C(악성 의심) 판정에 병리 양성 — 영상·병리 불일치", "flag_status": "sev2", "disposition_type": null, "flagged_at": "2026-09-11T16:10:00+09:00", "closed_at": null},
+  {"discordance_id": "D-1987", "study": "st-306", "assessment": 2096, "patient_id": 71, "patient_name": "정수아", "patient_number": "P-2026-00414", "modality": "mri", "category": "4", "b_category": "b2", "violated_rule": "BI-RADS 4 판정에 병리 양성 — 재검토 필요", "flag_status": "review", "disposition_type": "rebiopsy", "flagged_at": "2026-09-02T09:40:00+09:00", "closed_at": "2026-09-05T14:30:00+09:00"},
+  {"discordance_id": "D-1950", "study": "st-304", "assessment": 2090, "patient_id": 72, "patient_name": "강민서", "patient_number": "P-2026-00405", "modality": "mammo", "category": "2", "b_category": "b5", "violated_rule": "BI-RADS 2(양성) 판정에 병리 악성 — 영상 과소 판정", "flag_status": "sev1", "disposition_type": "excision", "flagged_at": "2026-08-20T10:00:00+09:00", "closed_at": "2026-08-22T17:10:00+09:00"}
+ ]},
+ "__note_consents_0928": "공용 환자 상세 「동의」 칸(간호 · 원무만 부른다) — 서버(GET /patients/{id}/consents) 모양 — doc_type · doc_version · agreed · agreed_at · withdrawn_at · channel",
+ "GET /api/v1/hospital/patients/{id}/consents": {"count": 3, "results": [
+  {"consent_id": 1, "doc_type": "privacy", "doc_version": "v2.1", "agreed": true, "agreed_at": "2026-03-02T10:05:00+09:00", "withdrawn_at": null},
+  {"consent_id": 2, "doc_type": "sensitive_health", "doc_version": "v1.0", "agreed": true, "agreed_at": "2026-03-02T10:06:00+09:00", "withdrawn_at": null},
+  {"consent_id": 3, "doc_type": "terms", "doc_version": "v1.0", "agreed": false, "agreed_at": "2026-03-02T10:06:00+09:00", "withdrawn_at": "2026-06-11T15:20:00+09:00"}
+ ]},
  "GET /api/v1/hospital/discordances": {
   "items": [
    {
@@ -3841,6 +3865,10 @@
   "report_type": "final", "audience": "clinician", "socket_id": "7"
  },
  "__note_followups_0928": "간호 F3 — FollowupSerializer 모양(followup_id · patient · patient_number · phone · birth_date · called_at · round_result). 후보는 서버처럼 followup_id null · status candidate. ?patient= 는 한 사람(61)만 — 거를 줄 없이 화면이 한 번 더 거른다. 옛 줄은 _legacy",
+ "__note_fup_surgery_0928": "유방외과 치료 방침 ⑦ · 진료 완료 둘째 걸음의 추적 회차(FollowupRounds) — P-1002 는 1회차가 끝나 있다. POST /followups/new 는 아래 {ok:true} 그대로",
+ "GET /api/v1/hospital/followups/?patient=P-1002&include_candidates=1": [
+  {"followup_id": 3201, "patient": "P-1002", "patient_name": "이서연", "patient_number": "20260002", "phone": "010-5555-0102", "birth_date": "1974-06-02", "round_no": 1, "status": "resolved", "due_at": "2026-03-09T09:00:00+09:00", "called_at": "2026-03-02T10:00:00+09:00", "call_result": "연결", "call_note": null, "closed_at": "2026-03-02T10:02:00+09:00", "closed_reason": "안내 콜 연결", "round_result": "stable"}
+ ],
  "GET /api/v1/hospital/followups/?patient={p}&include_candidates=1": [
   {"followup_id": 3001, "patient": 61, "patient_name": "박서연", "patient_number": "P-2026-00418", "phone": "010-2481-5530", "birth_date": "1979-03-11", "round_no": 1, "status": "open", "due_at": "2026-09-21T09:00:00+09:00", "called_at": null, "call_result": null, "call_note": null, "closed_at": null, "round_result": null}
  ],
@@ -3972,6 +4000,16 @@
  },
  "GET /api/v1/hospital/notifications/": {
   "items": [
+   {
+    "notification_id": 7105,
+    "notification_type": "report_ready",
+    "ref_type": "specimen",
+    "ref_id": "sp-102",
+    "patient": null,
+    "message": "윤서현 환자 검체 S-2026-0143 병리 판독이 확정되었습니다.",
+    "sent_at": "2026-09-28T11:05:00+09:00",
+    "acknowledged_at": null
+   },
    {
     "notification_id": 7104,
     "notification_type": "report_ready",

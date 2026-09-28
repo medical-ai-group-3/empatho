@@ -1018,6 +1018,10 @@ export const rad = {
        다시 거르지만 「내 것」은 못 가린다(assessed_by 가 번호라 /me 와 못 맞춘다) */
   myReads:    ()       => get(`/assessments${qs({ assessed_by: "me", finalized_on: "today" })}`)
     .then((raw) => (Array.isArray(raw) ? raw : raw?.results ?? raw?.items ?? [])),
+  /* 09-28 내 판독에 걸린 판정 불일치 — 홈 「내 판독 불일치 결과」.
+     ⚠ 이 질의(assessed_by=me)를 모르는 서버는 404 · 403 이거나 남의 것까지
+       준다. 앞의 둘은 홈이 칸을 감추고(H.soft 가 아니라 null), 뒤는 막을 수 없다 */
+  myDiscordances: ()   => get(`/discordances${qs({ assessed_by: "me" })}`).then(unwrapList),
 
   /* 품질 판정 — accepted · rejected. 반려여야 재촬영(retake)이 받아진다 */
   quality:    (id, status) => patch(`${RAD}/studies/${id}/upload`, { quality_status: status }),
@@ -1553,6 +1557,9 @@ export const reception = {
   register:    (b)  => post("/patients/register", b),
   checkIn:     (b)  => post("/exam-orders/checkin", b),
   todayStatus: ()   => get(`/patients/today-status${qs({ page_size: PAGE_ALL })}`).then(unwrapList),
+  /* 09-28 한 환자의 동의 기록(읽기 전용) — 간호 · 원무만. 다른 역할은 403,
+     경로가 없는 서버는 404 다. 부르는 쪽(screens/Patient.jsx)이 둘 다 칸을 감춘다 */
+  consentsOf:  (pid) => get(`/patients/${pid}/consents`).then(unwrapList),
 
   /* 예약 캘린더 — 한 달 치를 한 번에 받는다. 조회 전용이다.
      GET /exam-orders 는 한 경로에서 메서드로 갈린다(urls.py 의

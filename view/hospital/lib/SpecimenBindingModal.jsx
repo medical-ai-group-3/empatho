@@ -89,7 +89,7 @@ export default function SpecimenBindingModal({ patient, onClose, onDone }) {
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal wide" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
-          <h2>검체 바인딩 — {patient.name}</h2>
+          <h2>검체 등록 — {patient.name}</h2>
           <button aria-label="닫기" onClick={onClose}>×</button>
         </div>
         <div className="modal-body">

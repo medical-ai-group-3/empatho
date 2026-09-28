@@ -54,8 +54,8 @@ export default function StageBoard({ today = [], arrived = [], booked = null }) 
       return {
         ...r,
         time: H.at(r.scheduled_at),
-        flag: late ? "시각 지남" : null,
-        stage: late ? "아직 안 오심 · 연락 필요" : `예약 ${H.at(r.scheduled_at) ?? "시각 미정"}`,
+        flag: late ? "시간 지남" : null,
+        stage: late ? "미내원 · 연락 필요" : `예약 ${H.at(r.scheduled_at) ?? "시간 미정"}`,
         to: `${go.nursing.intake()}?find=${encodeURIComponent(H.noOf(r) ?? H.nameOf(r))}`,
       };
     }),

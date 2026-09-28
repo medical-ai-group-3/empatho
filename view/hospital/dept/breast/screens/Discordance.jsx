@@ -54,8 +54,8 @@ export default function Discordance() {
   const one = useApi(() => api.discordance(id), [id]);
 
   return (
-    <Page className="disc-page" crumb={["유방외과", "불일치 처분"]}
-          title="불일치 처분"
+    <Page className="disc-page" crumb={["유방외과", "판정 불일치"]}
+          title="판정 불일치"
           right={<Btn to={go.breast.waiting()}>대기 환자</Btn>}>
       <Body loading={one.loading && !one.data} error={one.error} onRetry={one.reload}>
         {one.data && (
@@ -148,12 +148,12 @@ function MyOpen({ here }) {
     <section className="bf-odds">
       <header className="bcol-h">
         <i className="hdot ring" aria-hidden="true" />
-        <b>처분 기다리는 불일치</b>
+        <b>처분 대기 불일치</b>
         <em>{rows.length}</em>
       </header>
       <Body loading={list.loading && !list.data} error={list.error} onRetry={list.reload}>
         {rows.length === 0
-          ? <p className="hcard-k hpad">열린 불일치가 없습니다</p>
+          ? <p className="hcard-k hpad">처분할 불일치가 없습니다</p>
           : (
             <ul className="bf-odds-l">
               {rows.map((r) => {

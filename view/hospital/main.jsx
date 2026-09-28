@@ -137,7 +137,7 @@ function Shell() {
       </Boom>
       {apiInfo.mock && (
         <footer className="mockbar">
-          목업 자료 — 지어낸 값입니다 · {apiInfo.base}
+          목업 데이터 — 실제 환자 정보가 아닙니다 · {apiInfo.base}
         </footer>
       )}
       {/* Boom 바깥이다 — 라우트 쪽 화면이 죽어도 메모는 그대로 떠 있어야

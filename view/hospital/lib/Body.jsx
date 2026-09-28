@@ -45,7 +45,7 @@ export function Body({ loading, error, onRetry, empty, children, skeleton = "lis
 
 /* ── 비었음 ───────────────────────────────────────────────────
    왜 비었는지 말하고, 할 수 있는 다음 일을 준다. */
-export function Empty({ title = "아직 아무것도 없습니다", hint, action }) {
+export function Empty({ title = "표시할 내용이 없습니다", hint, action }) {
   return (
     <div className="state">
       <b>{title}</b>

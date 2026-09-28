@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { breast as api } from "../../../api";
 import { BookForm } from "./BookVisit";
+import FollowupRounds from "./FollowupRounds";
 
 /* "진료 완료" 확인 팝업 — 촬영 없이 방문을 닫는다.
  *
@@ -17,7 +18,8 @@ import { BookForm } from "./BookVisit";
  *
  * ⚠ 09-28 — 닫고 나서 **막다른 길이었다.** 진료 흐름의 끝은 추적 · 재진이라
  *   닫은 자리에서 바로 다음 방문을 잡게 한다(둘째 걸음). 안 잡고 넘어가도
- *   된다 — 그때 [다음 환자]. suggest 는 권하는 간격(일). */
+ *   된다 — 그때 [다음 환자]. suggest 는 권하는 간격(일).
+ *   09-28 추적 회차도 둘째 걸음에서 만든다(FollowupRounds). */
 export default function CloseVisitModal({ patient, suggest = 14, onClose, onDone }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -64,7 +66,7 @@ export default function CloseVisitModal({ patient, suggest = 14, onClose, onDone
             <div className="modal-body">
               <p className="bf-lead">
                 이번 방문을 마칩니다. 대기 목록과 환자 앱 예약에서 빠집니다.
-                촬영을 요청한 건은 판독이 끝나면 따로 닫힙니다.
+                촬영을 요청한 검사는 판독이 끝나면 따로 종결됩니다.
               </p>
               {error && <p className="field err">{error}</p>}
             </div>
@@ -77,9 +79,11 @@ export default function CloseVisitModal({ patient, suggest = 14, onClose, onDone
           </>
         ) : (
           <div className="modal-body">
-            <p className="bf-lead">다음 방문을 지금 잡아 둘까요? 원무 예약판에 그대로 뜹니다.</p>
+            <p className="bf-lead">다음 방문을 지금 예약할까요? 원무 예약 화면에 바로 표시됩니다.</p>
             <BookForm patient={patient} suggest={suggest}
                       onSkip={() => onDone?.()} skipLabel="다음 환자 →" />
+            {/* 추적(6 · 12 · 24개월)도 같은 자리에서 — 못 쓰는 서버면 안 뜬다 */}
+            <FollowupRounds patient={patient} />
           </div>
         )}
       </div>
