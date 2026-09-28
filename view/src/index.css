@@ -2959,7 +2959,7 @@ a {
 .hero-tx { position: relative; z-index: 1; flex: 1; min-width: 0; }
 .hero-tx h2 { margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.5px; color: var(--heading); }
 .hero-tx p { margin: 4px 0 0; font-size: 13px; color: var(--heading-sub); }
-.top.hero-top .hero-dot { left: auto; right: -40px; bottom: -70px; }
+.top.hero-top .hero-dot { left: auto; right: -50px; bottom: 30px; }   /* 머리 아래끝에 잘리지 않게 */
 
 /* ── 배지(알약) ── 기본 연핑크 · 완료 청록 */
 .pill.new, .pill.lock { background: var(--pink-3); color: var(--pink); }
@@ -3009,6 +3009,32 @@ a {
 
 /* 빠른 메뉴 아이콘 — 타일(48px) 안에 24px. 전역 `.tile .ic svg{100%}` 때문에 타일을 꽉 채웠다 */
 .tile .ic svg { width: 24px; height: 24px; }
+
+/* 에뮬레이터 확인 — 상태바 높이가 두 번 더해져(머리 + 그 안의 알림줄)
+   「안녕하세요!」가 너무 내려왔다. 머리에서만 한 번 더한다 */
+.hero { padding-top: calc(8px + var(--safe-area-inset-top, env(safe-area-inset-top, 0px))); }
+.hero .hbar { padding-top: 0; }
+
+/* 탭 화면 머리(결과 · 예약 · 내 정보)도 홈처럼 첫 카드가 머리 아래쪽에 걸쳐
+   올라오게 한다. 머리의 둥근 아래 모서리가 바탕에 그대로 드러나 끊겨 보였다.
+   본문을 위로 끌어 올리고 바탕을 비워, 그 띠에서 그라데이션이 비쳐 보이게 한다 */
+/* 첫 요소가 카드가 아닌 화면(예약의 「내 예약」 글자, 빈 결과)에서는 모서리가
+   그대로 보인다 — 모서리를 없애고 아래쪽을 바탕색으로 흐려 어떤 내용이 와도 이어지게 */
+.top.hero-top {
+  padding-bottom: 58px;
+  border-radius: 0;
+  background: linear-gradient(180deg, transparent 50%, var(--bg) 100%), var(--hero);
+}
+.top.hero-top + .pane {
+  position: relative; z-index: 1;
+  margin-top: -40px;
+  background: transparent;
+}
+
+/* 하단 탭이 두꺼웠다(약 95px) — 명세 높이 70px 쪽으로 줄인다 */
+.tabs { padding: 5px; }
+.tabs a { padding: 6px 2px; gap: 1px; }
+.tabs .ic { width: 26px; height: 26px; }
 
 /* ── 오늘 병원 안내 ── 진한 테두리를 걷고 연핑크 그라데이션 카드로(안내 카드 규칙) */
 .today-visit {
