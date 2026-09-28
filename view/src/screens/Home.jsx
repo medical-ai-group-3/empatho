@@ -60,14 +60,15 @@ function visitOrdinal(n) {
   return `${n}번째`;
 }
 
+/* 이름만 색을 달리 칠하려고 { name, rest } 로 돌려준다(09-28 홈 인사 카드) */
 function visitGreeting(home) {
   const name = home.display_name || "환자";
   const visits = Number(home.visit_count);
 
   if (Number.isFinite(visits) && visits > 0) {
-    return `${name} 님,\n ${visitOrdinal(visits)} 방문예정이에요.`;
+    return { name, rest: `${visitOrdinal(visits)} 방문예정이에요.` };
   }
-  return `${name} 님,\n 방문 일정을 확인해봐요.`;
+  return { name, rest: "방문 일정을 확인해봐요." };
 }
 
 function todayLabel() {
@@ -165,7 +166,9 @@ function Inner({ d, prescriptions }) {
           <b>안녕하세요!</b>
           <span className="hello-message">
             <span className="hello-date">{todayLabel()}</span>
-            <span className="hello-visit">{visit}</span>
+            <span className="hello-visit">
+              <em>{visit.name}</em> 님,<br />{visit.rest}
+            </span>
             <span className="hello-health-label">오늘의 건강 한마디</span>
             <span className="hello-health-tip">
               식후 약은 꼭 식후에 드세요.
