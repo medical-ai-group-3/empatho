@@ -87,7 +87,14 @@ from .auth import issue_pair
 
 # 직원 가입에서 만들 수 있는 role. admin · patient 는 이 경로로 못 만든다 —
 # admin 은 운영자가 직접 부여하고, patient 는 signup_patient 가 따로 맡는다.
-STAFF_SIGNUP_ROLES = {"reception", "nursing", "radiology", "surgery", "pathology"}
+#
+# ⚠ reception 을 뺐다(2026-09-28). 원무 일은 간호과가 한다 — 화면은 이미
+#   간호과로 옮겼고(hospital/nav.js 6.1) 권한도 간호가 원무 것을 전부
+#   가진다(permissions.py 의 _merge_reception_into_nursing). 여기 남겨 두면
+#   **간호 화면을 못 보는 계정**이 계속 새로 생긴다.
+#   기존 reception 계정은 그대로 두고 로그인만 막는다 — account 를 가리키는
+#   감사 기록(created_by)이 59건이라 지우면 그 기록이 사라진다.
+STAFF_SIGNUP_ROLES = {"nursing", "radiology", "surgery", "pathology"}
 
 
 @api_view(["POST"])
@@ -149,9 +156,12 @@ def signup_staff(request):
         )
 
     if role not in STAFF_SIGNUP_ROLES:
+        # 문구를 손으로 적지 않는다 — 목록에서 뺀 역할이 안내에 남아
+        # 「된다고 적혀 있는데 안 된다」가 됐다(2026-09-28 reception).
         raise ApiError(
             "VALIDATION_ERROR",
-            "role 은 reception · nursing · radiology · surgery · pathology 중 하나여야 합니다.",
+            "role 은 %s 중 하나여야 합니다."
+            % " · ".join(sorted(STAFF_SIGNUP_ROLES)),
         )
 
     if Account.objects.filter(login_id=login_id).exists():
