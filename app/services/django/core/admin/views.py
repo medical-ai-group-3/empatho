@@ -494,7 +494,10 @@ def probe_worker():
 
     timeout = settings.ADMIN_PROBE_TIMEOUT_SEC
     try:
-        replies, took = _timed(lambda: app.control.ping(timeout=timeout) or [])
+        # limit — 워커가 다 답하면 바로 끝낸다. 없으면 ping 은 더 올 답을 기다리느라
+        # 늘 timeout 을 다 채워 「느림 2056ms」로 떴다(09-28). 한 대가 죽었을 때만 기다린다
+        replies, took = _timed(lambda: app.control.ping(
+            timeout=timeout, limit=settings.ADMIN_WORKER_COUNT) or [])
     except Exception as exc:
         return _result("celery 워커", False, _why(exc), None,
                        "브로커(redis)가 죽었을 수도 있다 — 소견문 생성이 멈춘다")
