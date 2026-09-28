@@ -10,6 +10,7 @@ import { seen, useRecent } from "./recent";
 import * as notes from "./notes";
 import { notes as notesApi } from "../api";
 import { useApi } from "./useApi";
+import { useMe } from "./useMe";
 import Register from "../screens/reception/Register";
 import StageBoard from "./StageBoard";
 import { Filters, applyFilters } from "./Filters";
@@ -553,22 +554,52 @@ function Done({ done }) {
 
 /* ── 가운데 아래 — 인계 사항 ───────────────────────────────────
  * 그 과 전체가 본다. **교대 메모이지 환자 기록이 아니다.**
- * ⚠ 09-27 서버로 옮겼다(GET/POST/DELETE /me/notes?type=handover). 전에는
- *   이 브라우저에만 남아 **같은 과 다른 사람에게 안 보였다** — 인계가
- *   안 되는 인계 칸이었다. 서버가 같은 역할끼리 보여 준다.
+ * ⚠ 09-27 서버로 옮겼다(GET/POST/PATCH/DELETE /me/notes?type=handover).
+ *   전에는 이 브라우저에만 남아 같은 과 다른 사람에게 안 보였다.
  *   과 구분은 서버가 로그인한 역할로 하므로 dept 는 다시 부르는 열쇠로만 쓴다.
+ *
+ * 09-28 — 처리한 인계를 **지우지 않고 완료로 내린다.** 지워 버리면 다음
+ *   교대가 그것을 또 처리한다. content 는 {text, done, done_by, done_at} 이고
+ *   서버는 JSONField 를 통째로 받으므로 백엔드를 안 고쳐도 된다.
  */
+
+/* 인계 한 줄의 시각. 연도를 적는다 — 안 적으면 작년 인계와 오늘 것이
+   화면에서 같아 보인다. */
+function handAt(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const p = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}.${p(d.getMonth() + 1)}.${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
 function Handover({ dept }) {
   const remote = useApi(() => notesApi.list("handover"), [dept]);
+  const me = useMe();
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
-  const list = (remote.data ?? []).map((n) => ({
-    id: n.personal_note_id,
-    at: n.created_at,
-    who: n.owner_name,
-    body: n.content?.text ?? "",
-  }));
+
+  /* 서버는 -updated_at 으로만 정렬한다. 완료 처리도 updated_at 을 건드려서
+     그대로 두면 **방금 끝낸 것이 맨 위로 올라온다.** 안 끝난 것을 위로 올린다. */
+  const list = (remote.data ?? [])
+    .map((n) => ({
+      id: n.personal_note_id,
+      at: n.created_at,
+      who: n.owner_name,
+      /* 번호로 견주는 것이 맞다 — 이름은 동명이인에서 틀린다. 다만
+         owner_staff_id 는 09-28 에 추가한 칸이라 그 전 배포본은 안 준다.
+         그때만 이름으로 물러선다(둘 다 없으면 「내 것」이 아니다). */
+      mine: (me?.staff_id != null && n.owner_staff_id != null)
+        ? n.owner_staff_id === me.staff_id
+        : Boolean(me?.name && n.owner_name === me.name),
+      body: n.content?.text ?? "",
+      done: Boolean(n.content?.done),
+      doneBy: n.content?.done_by ?? null,
+      doneAt: n.content?.done_at ?? null,
+      raw: n.content ?? {},
+    }))
+    .sort((a, b) => (a.done === b.done ? 0 : a.done ? 1 : -1));
 
   async function submit(e) {
     e.preventDefault();
@@ -583,6 +614,17 @@ function Handover({ dept }) {
     } finally { setBusy(false); }
   }
 
+  /* 완료 · 완료 취소. PATCH 는 content 를 통째로 덮으므로 원래 것을 펼쳐 담는다 */
+  async function toggleDone(it) {
+    const next = it.done
+      ? { ...it.raw, done: false, done_by: null, done_at: null }
+      : { ...it.raw, done: true, done_by: me?.name ?? null,
+          done_at: new Date().toISOString() };
+    await notesApi.update(it.id, next).catch(() => {});
+    remote.reload();
+  }
+
+  /* 지우기는 **쓴 사람만**. 완료가 생겼으므로 삭제는 「잘못 썼을 때」 용이다 */
   async function remove(id) {
     await notesApi.remove(id).catch(() => {});
     remote.reload();
@@ -611,17 +653,28 @@ function Handover({ dept }) {
       {list.length === 0 && !open && !remote.error
         ? <None>{remote.loading ? "불러오는 중…" : "남긴 인계 사항이 없습니다"}</None>
         : list.map((it) => (
-          <article className="hrow" key={it.id}>
+          <article className={`hrow${it.done ? " is-done" : ""}`} key={it.id}>
             <div className="hrow-1">
-              <time>{String(it.at ?? "").slice(5, 16).replace("T", " ")}</time>
-              <b>{it.who ?? "—"}</b>
+              <time>{handAt(it.at)}</time>
+              <b>{it.who ?? "—"}{it.mine && <span className="hrow-mine">나</span>}</b>
               <span className="home-fill" />
-              <button className="note-x" aria-label="지우기"
-                      onClick={() => remove(it.id)}>
-                ×
+              <button type="button" className="btn line xs"
+                      onClick={() => toggleDone(it)}>
+                {it.done ? "되돌리기" : "완료"}
               </button>
+              {it.mine && (
+                <button type="button" className="note-x" aria-label="지우기"
+                        onClick={() => remove(it.id)}>
+                  ×
+                </button>
+              )}
             </div>
             <p>{it.body}</p>
+            {it.done && (
+              <span className="hrow-done">
+                {[it.doneBy, handAt(it.doneAt)].filter(Boolean).join(" · ")} 완료
+              </span>
+            )}
           </article>
         ))}
 

@@ -642,9 +642,21 @@ a.lrow:hover{background:var(--canvas)}
   font-variant-numeric:tabular-nums}
 .hrow-1 b{font-size:var(--hrow-who-fs)}
 .hrow p{margin:0; font-size:var(--hrow-fs); color:var(--ink-2);
-  line-height:var(--body-lh)}
+  line-height:var(--body-lh);
+  /* textarea 로 받는 글이다 — 안 주면 여러 줄이 한 줄로 붙는다 */
+  white-space:pre-line}
 .note-x{color:var(--faint); padding:0 var(--gap-xs)}
 .note-x:hover{color:var(--ink)}
+
+/* 내가 쓴 인계 */
+.hrow-mine{margin-left:var(--gap-xxs); padding:0 var(--gap-xs);
+  border-radius:999px; background:var(--wash); color:var(--accent);
+  font-size:var(--hrow-k-fs); font-weight:500}
+
+/* 처리한 인계 — 지우지 않고 내린다. 다음 교대가 「이미 했다」를 알아야 한다 */
+.hrow.is-done{opacity:.55}
+.hrow.is-done p{text-decoration:line-through; text-decoration-thickness:1px}
+.hrow-done{font-size:var(--hrow-k-fs); color:var(--warm)}
 
 /* ── 달력 ────────────────────────────────────────────────────── */
 .hcal .hcard-h{border-bottom:none; padding-bottom:0}
@@ -707,6 +719,7 @@ a.lrow:hover{background:var(--canvas)}
 .btn.dark{background:var(--soot); color:var(--soot-ink)}
 .btn.dark:hover{filter:brightness(1.35)}
 .btn.sm{padding:var(--gap-tight) var(--chip-pad-x); font-size:var(--chip-fs)}
+.btn.xs{padding:0 var(--gap-xs); font-size:var(--hrow-k-fs); line-height:1.7}
 
 
 
