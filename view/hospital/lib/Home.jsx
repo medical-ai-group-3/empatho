@@ -460,9 +460,23 @@ function Queue({ queue }) {
   /* 과가 더 싣는 열(유방외과: 내원 · 담당의). 「진행」 뒤, 환자번호 앞에 선다.
      격자 열 수가 달라지므로 틀을 여기서 다시 짠다(.qrows 의 기본 7열) */
   const extra = queue?.extra ?? [];
-  const grid = extra.length
-    ? { gridTemplateColumns: `max-content auto auto auto auto ${"auto ".repeat(extra.length)}1fr auto` }
-    : undefined;
+  /* ⚠ 09-28 — 남는 폭을 **맨 끝 빈 칸 하나에 몰지 않는다.** 그렇게 하면
+     왼쪽 칸들이 붙고 가운데가 통째로 빈다(영상 홈 「판독 현황」). 칸마다
+     제 글자만큼은 받고(max-content) 나머지를 비율로 나눠 표처럼 퍼지게
+     한다. 한 줄 요약(sub)이 가장 많이 받는다 */
+  const spread = "minmax(max-content, 1fr)";
+  const grid = {
+    gridTemplateColumns: [
+      "max-content",                                   // 번호
+      "minmax(max-content, 1.2fr)",                    // 이름
+      spread,                                          // 나이·성별
+      spread,                                          // 칩
+      "minmax(6em, 2fr)",                              // 한 줄 요약(두 줄까지 접힌다)
+      ...extra.map(() => spread),                      // 과가 더 싣는 칸
+      "0",                                             // (예전 빈 칸 — 자리만)
+      "minmax(min-content, max-content)",              // 환자번호 · 시각(좁으면 두 줄)
+    ].join(" "),
+  };
 
   return (
     <Card title={queue?.title ?? "목록"} count={rows.length} grow

@@ -428,7 +428,8 @@ input,select,textarea{font:inherit; color:inherit}
    줄이 따라 늘어 머리 줄이 칸 절반을 차지하던 것 */
 .qrows{flex:1; min-height:0; overflow-y:auto; align-content:start;
   display:grid; grid-template-columns: max-content auto auto auto auto 1fr auto;
-  column-gap:calc(14px * var(--ft));}
+  /* 넓으면 20, 좁으면 10 까지 — 칸 사이가 좁은 창에서 폭을 다 먹지 않게 */
+  column-gap:clamp(calc(10px * var(--ft)), 1.3vw, calc(20px * var(--ft)));}
 .qrow{display:grid; grid-template-columns: subgrid; grid-column: 1/-1; align-items: center;
   padding:var(--qrow-pad-y) var(--hcard-pad-x);
   border-bottom:var(--hair) solid var(--line-2);}
@@ -440,10 +441,11 @@ input,select,textarea{font:inherit; color:inherit}
   padding:calc(6px * var(--sp)) var(--hcard-pad-x);
   background:var(--card); border-bottom:var(--hair) solid var(--line-2);
   font-size:var(--qrow-meta-fs); font-weight:600; color:var(--warm)}
-/* 라벨은 각 열 가운데. 번호칸은 비었고, 환자번호는 P번호 위(왼쪽)로 */
-.qrow-head > *{justify-self:center}
+/* 라벨은 **데이터와 같이 왼쪽**에 선다 — 가운데 두면 왼쪽 정렬된 값과
+   세로줄이 어긋나 표로 안 읽혔다(09-28). 번호는 오른쪽, 환자번호는 끝 */
+.qrow-head > *{justify-self:start}
 .qrow-head .qrow-n{justify-self:end}
-.qrow-head .qrow-r{justify-self:start}
+.qrow-head .qrow-r{justify-self:end}
 /* 누를 데가 있을 때만 손가락이 된다 — 못 누르는 줄에 커서만 바뀌면
    눌러 보고 나서야 안 된다는 걸 안다 */
 .qrow[role="button"]{cursor:pointer}
@@ -463,10 +465,15 @@ input,select,textarea{font:inherit; color:inherit}
    안 비는 쪽**을 골랐다.
    넘치면 줄어들며 말줄임한다 — 줄바꿈하면 줄 높이가 들쑥날쑥해져 훑어
    내려갈 수가 없다 */
+/* 09-28 — 한 줄로 자르면 좁은 창에서 「AI 완…」만 남아 무슨 말인지 몰랐다.
+   **두 줄까지** 접어 보이고, 그보다 길 때만 말줄임한다 */
 .qrow-sub{flex:0 1 auto; min-width:0; font-size:var(--qrow-meta-fs);
-  color:var(--warm); overflow:hidden; text-overflow:ellipsis;
-  white-space:nowrap}
-.qrow-r{flex:none; display:flex; align-items:center; gap:var(--qrow-gap)}
+  color:var(--warm); overflow:hidden; line-height:1.35;
+  display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2;
+  overflow-wrap:anywhere; word-break:keep-all}
+/* 좁으면 번호 밑으로 시각이 내려간다 — 칸 밖으로 밀려 잘리던 것 */
+.qrow-r{flex:none; display:flex; align-items:center; gap:0 var(--qrow-gap);
+  flex-wrap:wrap; justify-content:flex-end}
 .qrow-no{font-style:normal; font-size:var(--qrow-meta-fs); color:var(--warm);
   font-variant-numeric:tabular-nums}
 .qrow time{font-size:var(--qrow-meta-fs); color:var(--warm);
