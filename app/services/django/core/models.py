@@ -74,7 +74,16 @@ RUN_STATUS = ["queued", "running", "done", "failed"]
 LESION_KIND = ["mass", "calcification"]
 AI_OR_MANUAL = ["ai", "manual"]
 GRADE_CONFIDENCE = ["높음", "보통", "낮음"]
-BIRADS_CATEGORY = ["0", "1", "2", "3", "4a", "4b", "4c", "5", "6"]
+# BI-RADS 판정 등급. **"4" 는 MRI 전용**이다 — ACR BI-RADS MRI 는 4 를
+# 세분하지 않는다(4a · 4b · 4c 는 맘모 · 초음파만). 모달리티별 허용 값은
+# BIRADS_BY_MODALITY, 검증은 core/services/birads.py 가 한다.
+BIRADS_CATEGORY = ["0", "1", "2", "3", "4", "4a", "4b", "4c", "5", "6"]
+BIRADS_SUBCATEGORY_4 = ["4a", "4b", "4c"]
+BIRADS_BY_MODALITY = {
+    "mammo": ["0", "1", "2", "3", "4a", "4b", "4c", "5", "6"],
+    "us": ["0", "1", "2", "3", "4a", "4b", "4c", "5", "6"],
+    "mri": ["0", "1", "2", "3", "4", "5", "6"],
+}
 PATH_AGREEMENT = ["match", "one_step", "two_step", "not_applicable"]
 DECISION_TYPE = ["surgery", "biopsy", "imaging", "rebiopsy"]
 DECISION_VALUE = ["yes", "no", "defer"]

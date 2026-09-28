@@ -26,6 +26,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from .. import models
+from . import birads as birads_rules
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +39,10 @@ RULE_TABLE_VERSION = "disc-v1"
 #   문자열**이고, B 카테고리에 b5a · b5b 세분은 **없다**.
 BENIGN = frozenset({"b1", "b2"})            # 정상 · 양성
 MALIGNANT = frozenset({"b5"})               # 악성
-SUSPICIOUS_IMAGING = frozenset({"4a", "4b", "4c", "5"})   # 영상 의심
+# 영상 의심. MRI 는 4 를 세분하지 않아 세분 없는 "4" 도 여기 든다 —
+# 맘모 · 초음파의 4a~4c 와 같이 본다(services/birads.py). 규칙을 늘린 게
+# 아니라 같은 「의심」을 MRI 표기로 받는 것이라 규칙표 버전은 그대로 둔다.
+SUSPICIOUS_IMAGING = birads_rules.SUSPICIOUS              # 4 · 4a · 4b · 4c · 5
 LOW_RISK_IMAGING = frozenset({"1", "2", "3"})             # 영상 저위험
 
 # ── 규칙표 ─────────────────────────────────────────────────────

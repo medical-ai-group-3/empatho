@@ -27,6 +27,7 @@ from core.api.permissions import (
     MatrixPermission,
 )
 from core.api.errors import ApiError
+from core.services import birads as birads_rules
 from core.api import tickets
 
 
@@ -556,6 +557,8 @@ class AssessmentDraftView(AuditMixin, viewsets.ViewSet):
         serializer = serializers.AssessmentDraftSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
+        # MRI 는 4 만, 맘모 · 초음파는 4a~4c 만 — services/birads.py
+        birads_rules.validate_for_study(study, data.get("category"))
 
         assessment, _ = models.Assessment.objects.update_or_create(
             study=study, read_stage="draft", lesion_id=data.get("lesion_id"),
@@ -586,6 +589,10 @@ class StudyFinalizeView(AuditMixin, viewsets.ViewSet):
 
         if not drafts.exists():
             raise ApiError("VALIDATION_ERROR", "확정할 판정이 없습니다.")
+        # 규칙이 생기기 전에 저장된 임시저장(예: MRI 4b)이 그대로 final 로
+        # 올라가지 않게 확정 때 한 번 더 본다
+        for d in drafts:
+            birads_rules.validate_for_study(study, d.category)
 
         drafts.update(read_stage="final", finalized_at=timezone.now(),
                       updated_by=self._current_account())
@@ -694,6 +701,7 @@ class AssessmentAmendView(AuditMixin, viewsets.ViewSet):
         serializer = serializers.AssessmentAmendSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
+        birads_rules.validate_for_study(old.study, data["category"])
 
         account = self._current_account()
         new = models.Assessment.objects.create(

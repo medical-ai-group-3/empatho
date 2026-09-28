@@ -49,7 +49,7 @@ from django.utils import timezone
 from . import mesh 
 from celery.exceptions import SoftTimeLimitExceeded
 from .models import AiResult, ExamOrder, Notification, Report, StorageObject, Lesion, Image
-from .models import BIRADS_CATEGORY
+from .services import birads as birads_rules
 
 logger = logging.getLogger(__name__) 
 
@@ -415,19 +415,17 @@ def _birads(value) :
     모델마다 4 · "4A" · "BI-RADS 4a" 처럼 모양이 제각각이다. 문자열로 바꾸고
     소문자 · 접두사를 걷어 코드표에 있으면 그 값을, 없으면 None 을 돌려준다 —
     모르는 값 때문에 판독 뒤처리가 멈추면 안 된다.
+    ⚠ 세분 없는 4 도 이제 코드표 값이다(MRI 판정용 — services/birads.py).
     """
-    if value is None or isinstance(value, bool) :
-        return None
-    s = str(value).strip().lower().replace("bi-rads", "").replace("birads", "").strip()
-    return s if s in BIRADS_CATEGORY else None
+    return birads_rules.normalize(value)
 
 def _birads_rank(value) :
-    """등급 비교용 열쇠. 코드표 순서를 쓴다 — 코드표 밖 값은 가장 낮다.
+    """등급 비교용 열쇠. 코드표 밖 값은 가장 낮다.
 
     int 와 str 이 섞여 와도(4 와 "4a") 비교가 TypeError 로 터지지 않는다.
+    세분 없는 4 는 4b 와 같은 자리다 — 이유는 services/birads.py 머리말.
     """
-    b = _birads(value)
-    return BIRADS_CATEGORY.index(b) if b is not None else -1
+    return birads_rules.rank(value)
 
 def _mammo(ai, socket) :
     """맘모는 영상 넷(좌우 × CC/MLO)이 한 검진이다.
