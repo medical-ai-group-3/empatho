@@ -7,6 +7,13 @@ from .. import models
 
 AUDIT_FIELDS = ("created_at", "created_by", "updated_at", "updated_by")
 
+# 판독 권고(assessment.recommendation). ACR BI-RADS 관리 권고를 따른다 —
+#   0 → additional_imaging · 1·2 → routine_screening · 3 → short_interval_followup
+#   4·5 → biopsy · 6 → surgical_excision
+# 모델 칸은 choices 없는 CharField(100)라 여기서만 거른다.
+RECOMMENDATION = ["routine_screening", "short_interval_followup",
+                  "additional_imaging", "biopsy", "surgical_excision"]
+
 
 class StudySerializer(serializers.ModelSerializer):
     """GET /studies 목록·단건 — 프론트가 행마다 exam_order 를 따로 조회해
@@ -19,6 +26,15 @@ class StudySerializer(serializers.ModelSerializer):
     )
     age = serializers.SerializerMethodField()
     sex = serializers.CharField(source="patient.sex", read_only=True, allow_null=True)
+    # 09-28 — 판독 목록 · 판독 화면이 행마다 환자 · 오더를 따로 부르던(N+1)
+    # 것을 걷어 내려고 오더의 의뢰 문구 · 검사 목적과 환자번호를 같이 싣는다.
+    # density_category · density_percent 는 모델 칸이라 원래부터 실린다.
+    patient_number = serializers.CharField(
+        source="patient.patient_number", read_only=True, default=None)
+    order_note = serializers.CharField(
+        source="exam_order.order_note", read_only=True, default=None, allow_null=True)
+    exam_purpose = serializers.CharField(
+        source="exam_order.exam_purpose", read_only=True, default=None, allow_null=True)
     # 「유방외과 열람」 — 목록 쿼리셋이 얹는 값(core/viewed.py). 얹지 않은
     # 자리에서는 None 이다
     viewed_at = serializers.DateTimeField(read_only=True, default=None)
@@ -75,6 +91,15 @@ class LesionSerializer(serializers.ModelSerializer):
 
 
 class AssessmentSerializer(serializers.ModelSerializer):
+    # 09-28 — 「오늘 내가 확정한 판독」(GET /assessments?assessed_by=me) 은
+    # ?study 없이 여러 검사를 섞어 주므로, 행마다 누구 · 무슨 검사인지 싣는다.
+    patient_id = serializers.IntegerField(source="study.patient_id", read_only=True)
+    patient_name = serializers.CharField(
+        source="study.patient.pii.name", read_only=True, default=None)
+    patient_number = serializers.CharField(
+        source="study.patient.patient_number", read_only=True, default=None)
+    modality = serializers.CharField(source="study.modality", read_only=True, default=None)
+
     class Meta:
         model = models.Assessment
         exclude = AUDIT_FIELDS
@@ -100,6 +125,13 @@ class AssessmentDraftSerializer(serializers.Serializer):
     lesion_id = serializers.IntegerField(required=False, allow_null=True)
     finding_note = serializers.CharField(required=False, allow_blank=True)
     category = serializers.CharField(required=False, allow_null=True)
+    # 09-28 — 권고 · 권고 사유. 모델 칸은 있었는데 받는 자리가 없었다.
+    # 값 집합은 여기 둔다(모델 choices 로 두면 마이그레이션이 생긴다) —
+    # RECOMMENDATION 참고.
+    recommendation = serializers.ChoiceField(
+        choices=[(v, v) for v in RECOMMENDATION], required=False, allow_null=True)
+    recommendation_reason = serializers.CharField(
+        max_length=250, required=False, allow_blank=True, allow_null=True)
 
 
 class LesionCreateSerializer(serializers.Serializer):

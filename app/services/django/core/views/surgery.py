@@ -12,6 +12,7 @@ from ..mixins import AuditMixin
 from core.api.permissions import MatrixPermission, OwnedOnlyMixin, CanDisposeDiscordance
 from core.api.errors import ApiError
 from core.api.permissions import CanBindSpecimen, CanDecideAssessment, CanUnlockReport, CanIssueFinalReport
+from core.api.permissions import IsRole, SURGERY
 class ExamOrderRequestView(AuditMixin, viewsets.ViewSet):
     """§1 POST /exam-orders — 촬영 요청 팝업(유방외과가 만드는 오더)."""
 
@@ -468,7 +469,9 @@ class SpecimenBindViewSet(AuditMixin, viewsets.ViewSet):
     
     def list(self, request):
         # 목록의 「유방외과 열람」 칸 — core/viewed.py
-        qs = models.Specimen.objects.select_related("patient__pii").annotate(
+        from django.db.models import F  # 09-28 B1 — 열람순 정렬(빈 칸 뒤로)
+
+        qs = models.Specimen.objects.select_related("patient__pii", "bound_by").annotate(
             viewed_at=viewed.last_seen("specimen"))
         # ?patient= 로 한 환자 것만. 없으면 종전대로 전부 — 검체 접수 화면이
         # 전체 목록을 쓴다. 유방외과·검사 종합은 한 환자만 보면 되는데
@@ -478,16 +481,38 @@ class SpecimenBindViewSet(AuditMixin, viewsets.ViewSet):
             if not str(patient).isdigit():
                 raise ApiError("VALIDATION_ERROR", "patient 는 숫자여야 합니다.")
             qs = qs.filter(patient_id=int(patient))
+        # 09-28 — 병리 「내 검체」. ?assigned=me · ?finalized=yes|no
+        assigned = request.query_params.get("assigned")
+        if assigned == "me":
+            staff = getattr(request.user, "staff", None)
+            qs = qs.filter(assigned_to=staff) if staff is not None else qs.none()
+        elif assigned == "none":
+            qs = qs.filter(assigned_to__isnull=True)
+        elif assigned:
+            raise ApiError("VALIDATION_ERROR", "assigned 는 me 또는 none 이어야 합니다.")
+        finalized = request.query_params.get("finalized")
+        if finalized == "yes":
+            qs = qs.filter(finalized_at__isnull=False)
+        elif finalized == "no":
+            qs = qs.filter(finalized_at__isnull=True)
+        elif finalized:
+            raise ApiError("VALIDATION_ERROR", "finalized 는 yes 또는 no 여야 합니다.")
         ordering = request.query_params.get("ordering")
         allowed = {
             "patient__name": "patient__pii__name",
             "collected_at": "collected_at",
             "accessioned_at": "accessioned_at",
             "accession_status": "accession_status",
+            "finalized_at": "finalized_at",
+            # 유방외과 열람순. 검체에 리포트가 여럿이라 조인으로 정렬하면 행이
+            # 불어난다 — 위에서 얹은 viewed_at(가장 최근 열람)으로 정렬한다
+            "report__last_viewed_at": "viewed_at",
         }
         if ordering and ordering.lstrip("-") in allowed:
             field = allowed[ordering.lstrip("-")]
-            qs = qs.order_by(("-" + field) if ordering.startswith("-") else field)
+            expr = (F(field).desc(nulls_last=True) if ordering.startswith("-")
+                    else F(field).asc(nulls_last=True))
+            qs = qs.order_by(expr, "-specimen_id")
         out = serializers.SpecimenSerializer(qs, many = True)
         return Response(out.data)
     
@@ -496,13 +521,19 @@ class SpecimenBindViewSet(AuditMixin, viewsets.ViewSet):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
+        from ..services import specimen_snapshot  # 09-28 B1
+
+        lesion = models.Lesion.objects.select_related("study").get(pk=data["lesion_id"])
         specimen = models.Specimen.objects.create(
             lesion_id=data["lesion_id"],
-            patient_id=models.Lesion.objects.get(pk=data["lesion_id"]).patient_id,
+            patient_id=lesion.patient_id,
             specimen_label=data["specimen_label"],
             specimen_type=data["specimen_type"],
             guidance_route=data["guidance_route"],
             collected_at=data["collected_at"],
+            # 09-28 — 의뢰 문구(선택)와 바인딩 순간의 병변 모습
+            clinical_note=data.get("clinical_note") or None,
+            target_snapshot=specimen_snapshot.build(lesion),
             accession_status="bound",
             bound_by=getattr(request.user, "staff", None),
             created_by=self._current_account(),
@@ -571,6 +602,22 @@ class DiscordanceListView(generics.ListAPIView):
         status_param = self.request.query_params.get("status")
         if patient_id:
             qs = qs.filter(lesion__patient_id=patient_id)
+        # 09-28 — ?primary_staff=me | <직원 번호> — 내 환자 것만. 환자는 병변으로
+        # 찾고(플래그에 환자 칸이 없다), 병변이 빈 플래그는 검체로 받친다.
+        primary_staff = self.request.query_params.get("primary_staff")
+        if primary_staff:
+            if primary_staff == "me":
+                staff = getattr(self.request.user, "staff", None)
+                if staff is None:
+                    return qs.none()
+                staff_id = staff.pk
+            elif primary_staff.isdigit():
+                staff_id = int(primary_staff)
+            else:
+                raise ApiError("VALIDATION_ERROR", "primary_staff 는 me 또는 직원 번호여야 합니다.")
+            qs = qs.filter(Q(lesion__patient__primary_staff_id=staff_id)
+                           | Q(lesion__isnull=True,
+                               specimen__patient__primary_staff_id=staff_id))
         if status_param == "open":
             qs = qs.filter(closed_at__isnull=True)
         # ⚠ 순서를 못 박는다 — 부르는 쪽이 맨 앞 하나를 골라 「처분하기」를
@@ -698,3 +745,34 @@ class PrescriptionViewSet(AuditMixin, viewsets.ViewSet):
 
         out = serializers.PrescriptionSerializer(prescription)
         return Response(out.data, status=status.HTTP_201_CREATED)
+
+
+class SurgeryWorklistView(viewsets.ViewSet):
+    """GET /surgery/worklist — 유방외과 워크리스트(한 환자 한 줄 + 다음 할 일).
+
+    ?primary_staff=me(기본) | <직원 번호>   주치의로 거른다
+    ?scope=all                              주치의가 유방외과인 환자 전부(과 전체)
+
+    응답 {items: [...], counts: {<next_step>: n, open_discordance: n, total: n}}.
+    계산 규칙과 칸의 뜻은 core/surgery_worklist.py 머리말.
+
+    권한 — 매트릭스의 patient 행(유방외과 R)에 유방외과 역할을 하나 더 건다.
+    patient R 은 모든 의료진이 가져서 그것만으로는 다른 과에도 열린다.
+    """
+
+    resource = "patient"
+    permission_classes = [MatrixPermission, IsRole.of(SURGERY)]
+
+    def list(self, request):
+        from .. import surgery_worklist
+        p = request.query_params
+        scope = p.get("scope")
+        if scope not in (None, "", "all", "me"):
+            raise ApiError("VALIDATION_ERROR", "scope 는 all 이어야 합니다.")
+        primary_staff = p.get("primary_staff") or "me"
+        if primary_staff != "me" and not primary_staff.isdigit():
+            raise ApiError("VALIDATION_ERROR", "primary_staff 는 me 또는 직원 번호여야 합니다.")
+        patients = surgery_worklist.patient_scope(
+            getattr(request.user, "staff", None), primary_staff=primary_staff,
+            scope="all" if scope == "all" else None)
+        return Response(surgery_worklist.build(patients))

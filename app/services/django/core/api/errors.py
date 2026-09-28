@@ -143,6 +143,12 @@ HANDOVER_ERRORS = [
     _spec("RETAKE_REQUIRES_REJECTED_QUALITY", 409,
           "품질 반려된 촬영이 없어 재촬영 오더를 만들 수 없습니다.",
           "원본 오더에 quality_status=rejected 인 Study 가 하나도 없다"),
+    # 09-28 확정 뒤 되쓰기 막기. 영상은 정정(POST /assessments/{id}/amend)
+    # 경로가 따로 있고, 병리는 정정 경로 자체가 없다(확정 사양서 §8-2).
+    _spec("STUDY_ALREADY_FINALIZED", 409, "확정된 판독은 판독 정정으로 고칩니다.",
+          "read_status=finalized 이거나 살아 있는 final 판정이 있다 — amend 로"),
+    _spec("SPECIMEN_ALREADY_FINALIZED", 409, "확정된 병리 결과는 고칠 수 없습니다.",
+          "specimen.finalized_at 이 찍혀 있다 — 정정 경로 없음, 새 검체로"),
 ]
 
 SPEC_CODES = frozenset(e.code for e in SPEC_ERRORS)

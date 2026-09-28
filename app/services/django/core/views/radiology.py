@@ -14,6 +14,10 @@ from rest_framework import viewsets, status, generics
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+import datetime
+import logging
+
+from django.db import transaction
 from django.db.models import Count, F, OuterRef, Q, Subquery
 from django.utils import timezone
 
@@ -29,6 +33,64 @@ from core.api.permissions import (
 from core.api.errors import ApiError
 from core.services import birads as birads_rules
 from core.api import tickets
+
+logger = logging.getLogger(__name__)
+
+
+def _csv_param(request, name, allowed):
+    """?name=a 또는 ?name=a,b — 값 집합 밖이면 400. 없으면 None."""
+    raw = request.query_params.get(name)
+    if not raw:
+        return None
+    values = [v.strip() for v in raw.split(",") if v.strip()]
+    bad = [v for v in values if v not in allowed]
+    if bad:
+        raise ApiError("VALIDATION_ERROR",
+                       f"{name} 는 {', '.join(allowed)} 중 하나여야 합니다.")
+    return values
+
+
+def _study_is_finalized(study):
+    """확정된 검사인가 — read_status 가 finalized 이거나, 정정으로 대체되지
+    않은(살아 있는) final 판정이 하나라도 있으면 확정으로 본다."""
+    if study.read_status == "finalized":
+        return True
+    return models.Assessment.objects.filter(
+        study=study, read_stage="final", superseded_by__isnull=True).exists()
+
+
+def _get_study(pk):
+    study = (models.Study.objects.select_related("patient__pii", "patient__primary_staff")
+             .filter(pk=pk).first())
+    if study is None:
+        raise ApiError("NOT_FOUND", "검사를 찾을 수 없습니다.")
+    return study
+
+
+MODALITY_LABEL = {"mammo": "맘모그래피", "us": "초음파", "mri": "MRI"}
+
+
+def _notify_study_finalized(study, assessment_id):
+    """판독 확정이 **커밋된 뒤** 유방외과 주치의에게 한 번(09-28).
+    주치의가 없으면 건너뛴다. 종류는 기존 report_ready 를 쓴다 —
+    notification_type_ck 를 건드리면 마이그레이션이 생긴다."""
+    staff = study.patient.primary_staff
+    if staff is None:
+        return
+    pii = getattr(study.patient, "pii", None)
+    who = getattr(pii, "name", None) or study.patient.patient_number
+    label = MODALITY_LABEL.get(study.modality, study.modality)
+    message = f"{who} 환자 {label} 판독이 확정되었습니다."
+
+    def _send():
+        from .. import notify
+        try:
+            notify.send(staff=staff, type="report_ready", message=message,
+                        ref_type="assessment", ref_id=assessment_id)
+        except Exception:
+            logger.exception("[radiology] 확정 알림 실패 study=%s", study.pk)
+
+    transaction.on_commit(_send)
 
 
 class StudyViewSet(viewsets.ReadOnlyModelViewSet):
@@ -55,7 +117,7 @@ class StudyViewSet(viewsets.ReadOnlyModelViewSet):
         # image_count 는 행마다 세면 N+1 이라 여기서 한 번에 얹는다.
         # 부르는 쪽이 「판독으로 보낼까 업로드로 보낼까」를 이 값으로 가른다
         # (serializers/radiology.py 의 get_image_count 참고).
-        qs = models.Study.objects.select_related("patient__pii").annotate(
+        qs = models.Study.objects.select_related("patient__pii", "exam_order").annotate(
             image_count=Count(
                 "storage_objects",
                 filter=Q(storage_objects__deleted_at__isnull=True),
@@ -73,6 +135,23 @@ class StudyViewSet(viewsets.ReadOnlyModelViewSet):
             if not str(patient).isdigit():
                 raise ApiError("VALIDATION_ERROR", "patient 는 숫자여야 합니다.")
             qs = qs.filter(patient_id=int(patient))
+
+        # 09-28 — 「내 판독 목록」. ?assigned=me 는 오더를 집은 사람이 나인
+        # 검사만, ?read_status= · ?modality= 는 값 하나 또는 쉼표 목록.
+        assigned = self.request.query_params.get("assigned")
+        if assigned == "me":
+            staff = getattr(self.request.user, "staff", None)
+            if staff is None:
+                return qs.none()
+            qs = qs.filter(exam_order__assigned_to=staff)
+        elif assigned:
+            raise ApiError("VALIDATION_ERROR", "assigned 는 me 만 받습니다.")
+        read_status = _csv_param(self.request, "read_status", models.READ_STATUS)
+        if read_status:
+            qs = qs.filter(read_status__in=read_status)
+        modality = _csv_param(self.request, "modality", models.MODALITY)
+        if modality:
+            qs = qs.filter(modality__in=modality)
 
         status_param = self.request.query_params.get("status")
         if status_param:
@@ -111,7 +190,7 @@ class PatientStudiesView(generics.ListAPIView):
     serializer_class = serializers.StudySerializer
 
     def get_queryset(self):
-        return models.Study.objects.select_related("patient__pii").annotate(
+        return models.Study.objects.select_related("patient__pii", "exam_order").annotate(
             image_count=Count(
                 "storage_objects",
                 filter=Q(storage_objects__deleted_at__isnull=True),
@@ -553,21 +632,31 @@ class AssessmentDraftView(AuditMixin, viewsets.ViewSet):
     permission_classes = [MatrixPermission, CanFinalizeRadiologyRead]
 
     def update(self, request, pk=None):
-        study = models.Study.objects.get(pk=pk)
+        study = _get_study(pk)
+        # 09-28 — 확정된 판독 위에 임시저장을 쌓지 않는다. 전에는 여기서
+        # read_status 를 draft 로 되돌려 확정본이 「작성 중」으로 보였다.
+        # 고치려면 정정(POST /assessments/{id}/amend)으로 간다.
+        if _study_is_finalized(study):
+            raise ApiError("STUDY_ALREADY_FINALIZED")
         serializer = serializers.AssessmentDraftSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         # MRI 는 4 만, 맘모 · 초음파는 4a~4c 만 — services/birads.py
         birads_rules.validate_for_study(study, data.get("category"))
 
+        defaults = {
+            "finding_note": data.get("finding_note", ""),
+            "category": data.get("category"),
+            "assessed_by": getattr(request.user, "staff", None),
+            "updated_by": self._current_account(),
+        }
+        # 권고는 보낸 때만 덮는다 — 옛 화면은 안 보내므로 지우지 않는다
+        for field in ("recommendation", "recommendation_reason"):
+            if field in data:
+                defaults[field] = data[field]
         assessment, _ = models.Assessment.objects.update_or_create(
             study=study, read_stage="draft", lesion_id=data.get("lesion_id"),
-            defaults={
-                "finding_note": data.get("finding_note", ""),
-                "category": data.get("category"),
-                "assessed_by": getattr(request.user, "staff", None),
-                "updated_by": self._current_account(),
-            },
+            defaults=defaults,
         )
         study.read_status = "draft"
         study.updated_by = self._current_account()
@@ -584,21 +673,29 @@ class StudyFinalizeView(AuditMixin, viewsets.ViewSet):
     permission_classes = [MatrixPermission, CanFinalizeRadiologyRead]
 
     def partial_update(self, request, pk=None):
-        study = models.Study.objects.get(pk=pk)
+        study = _get_study(pk)
         drafts = models.Assessment.objects.filter(study=study, read_stage="draft")
 
         if not drafts.exists():
+            # 09-28 — 이미 확정된 검사를 다시 확정하려는 것은 409 로 가른다
+            # (전에는 400 「확정할 판정이 없습니다」라 화면이 사유를 몰랐다)
+            if _study_is_finalized(study):
+                raise ApiError("STUDY_ALREADY_FINALIZED")
             raise ApiError("VALIDATION_ERROR", "확정할 판정이 없습니다.")
         # 규칙이 생기기 전에 저장된 임시저장(예: MRI 4b)이 그대로 final 로
         # 올라가지 않게 확정 때 한 번 더 본다
         for d in drafts:
             birads_rules.validate_for_study(study, d.category)
 
+        draft_ids = list(drafts.order_by("assessment_id")
+                         .values_list("assessment_id", flat=True))
         drafts.update(read_stage="final", finalized_at=timezone.now(),
                       updated_by=self._current_account())
         study.read_status = "finalized"
         study.updated_by = self._current_account()
         study.save()
+        # 09-28 — 유방외과 주치의에게 「판독 확정」 알림(커밋 뒤)
+        _notify_study_finalized(study, draft_ids[0] if draft_ids else None)
 
         finals = models.Assessment.objects.filter(study=study, read_stage="final")
         out = serializers.AssessmentSerializer(finals, many=True)
@@ -683,10 +780,36 @@ class AssessmentHistoryView(generics.ListAPIView):
     serializer_class = serializers.AssessmentSerializer
 
     def get_queryset(self):
-        qs = models.Assessment.objects.all().order_by("-created_at")
+        qs = models.Assessment.objects.select_related(
+            "study__patient__pii").order_by("-created_at")
         study_id = self.request.query_params.get("study")
         if study_id:
             qs = qs.filter(study_id=study_id)
+
+        # 09-28 — 「오늘 내가 확정한 판독」. ?assessed_by=me (또는 staff 번호)
+        # · ?finalized_on=today|YYYY-MM-DD. ?study 없이도 부를 수 있다.
+        assessed_by = self.request.query_params.get("assessed_by")
+        if assessed_by == "me":
+            staff = getattr(self.request.user, "staff", None)
+            if staff is None:
+                return qs.none()
+            qs = qs.filter(assessed_by=staff)
+        elif assessed_by:
+            if not str(assessed_by).isdigit():
+                raise ApiError("VALIDATION_ERROR", "assessed_by 는 me 또는 숫자여야 합니다.")
+            qs = qs.filter(assessed_by_id=int(assessed_by))
+
+        finalized_on = self.request.query_params.get("finalized_on")
+        if finalized_on:
+            if finalized_on == "today":
+                day = timezone.localdate()
+            else:
+                try:
+                    day = datetime.date.fromisoformat(finalized_on)
+                except ValueError:
+                    raise ApiError("VALIDATION_ERROR",
+                                   "finalized_on 은 today 또는 YYYY-MM-DD 여야 합니다.")
+            qs = qs.filter(finalized_at__date=day)
         return qs
 
 

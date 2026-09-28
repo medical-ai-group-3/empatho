@@ -746,6 +746,8 @@ class ExamOrderScheduleView(AuditMixin, viewsets.ViewSet):
             # 「미확정」으로 보였다. 앱 신청을 확정한 것(confirm)과 같은 상태다
             order_status= "scheduled",
             ordered_at = timezone.now(),
+            # 09-28 — 추적 회차에서 잡은 예약(선택). 같은 환자인지는 serializer 가 봤다
+            followup_id = data.get("followup_id"),
             created_by = self._current_account(),
             updated_by = self._current_account(),
         )
@@ -928,17 +930,24 @@ class NotificationViewSet(AuditMixin, OwnedOnlyMixin, viewsets.ModelViewSet):
             note.save(update_fields=["acknowledged_at", "updated_by", "updated_at"])
         return Response(serializers.NotificationSerializer(note).data)
     
-def _sections(patient):
+def question_defs():
+    """화면이 그릴 문항(답 없음). 환자 앱 · 의료진 문진 폼(QuestionnaireFormView) 공용."""
     from core.api import questionnaire as qm
-    wrapper = patient.questionnaire if isinstance(patient.questionnaire, dict) else {}
-    answers = wrapper.get("answers") if isinstance(wrapper.get("answers"), dict) else {}
-    answers = answers or {}
     return [{
         "id": q["code"], "question": q["text"],
         "choices": [{"id": o["id"], "label": o["text"]} for o in q["options"]],
-        "answer": answers.get(q["code"]),
         "critical": False, "hint": "",   # ponytail: v1.yaml 에 critical 없음 — 전부 False
     } for q in qm.active_questions()]
+
+
+def _sections(patient):
+    wrapper = patient.questionnaire if isinstance(patient.questionnaire, dict) else {}
+    answers = wrapper.get("answers") if isinstance(wrapper.get("answers"), dict) else {}
+    answers = answers or {}
+    # 키 순서를 예전 그대로(id · question · choices · answer · critical · hint)
+    return [{"id": q["id"], "question": q["question"], "choices": q["choices"],
+             "answer": answers.get(q["id"]), "critical": q["critical"], "hint": q["hint"]}
+            for q in question_defs()]
 
 
 class PatientHomeView(APIView):

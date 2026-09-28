@@ -29,6 +29,8 @@ from .nursing import (
     ExamOrderNoteView,
     FollowupCreateView,
     FollowupCallView,
+    QuestionnaireFormView,
+    PatientPiiView,
 )
 
 from .radiology import (
@@ -64,6 +66,7 @@ from .surgery import (
     DiscordanceListView,
     DiscordanceDisposeView,
     PrescriptionViewSet,
+    SurgeryWorklistView,
 )
 from .pathology import(
     SpecimenQueueView,

@@ -152,12 +152,17 @@ class PatientListSerializer(serializers.ModelSerializer):
     primary_staff_name = serializers.CharField(
         source="primary_staff.full_name", read_only=True, default=None
     )
+    # 09-28 — 앱 가입 여부(account 가 붙어 있나). 창구가 「앱 안내」를 할지 가른다.
+    has_account = serializers.SerializerMethodField()
+
+    def get_has_account(self, patient) -> bool:
+        return patient.account_id is not None
 
     class Meta:
         model = models.Patient
         fields = ("patient_id", "patient_number", "name", "phone", "birth_date",
                   "birth_year", "sex", "has_allergy", "has_open_discordance",
-                  "primary_staff", "primary_staff_name")
+                  "primary_staff", "primary_staff_name", "has_account")
 
 
 # ── 워크플로 액션 전용 (쓰기) ──────────────────────────────────
@@ -332,9 +337,22 @@ class ExamOrderScheduleSerializer(serializers.Serializer):
 
     patient_id = serializers.IntegerField()
     scheduled_at = serializers.DateTimeField()
+    # 09-28 — 추적 회차에서 잡는 예약이면 그 회차를 오더에 잇는다
+    # (exam_order.followup). 다른 환자의 회차면 400.
+    followup_id = serializers.IntegerField(required=False, allow_null=True)
 
     def validate_patient_id(self, value):
         return _validate_patient_exists(value)
+
+    def validate(self, attrs):
+        fid = attrs.get("followup_id")
+        if fid is not None:
+            row = models.Followup.objects.filter(pk=fid).values("patient_id").first()
+            if row is None:
+                raise serializers.ValidationError({"followup_id": "존재하지 않는 추적 회차입니다."})
+            if row["patient_id"] != attrs["patient_id"]:
+                raise serializers.ValidationError({"followup_id": "다른 환자의 추적 회차입니다."})
+        return attrs
 
 
 class ExamOrderConfirmSerializer(serializers.Serializer):

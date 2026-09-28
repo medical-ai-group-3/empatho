@@ -8,14 +8,74 @@
 from rest_framework import viewsets, status, generics
 from rest_framework.response import Response
 
+import logging
+
+from django.db import transaction
 from django.utils import timezone
 
 from ..tasks import run_inference
 from .. import models, serializers
 from ..mixins import AuditMixin
 from ..services import discordance
+from ..serializers.pathology import MARKER_FIELDS
 from core.api.permissions import MatrixPermission, CanFinalizePathologyRead
 from core.api.errors import ApiError
+
+logger = logging.getLogger(__name__)
+
+
+def _get_specimen_for_write(request, pk):
+    """draft · finalize 앞의 공통 가드(09-28).
+
+    - 없는 검체는 404(전에는 .get() 이 DoesNotExist → 500 이었다)
+    - 확정된 검체는 409 SPECIMEN_ALREADY_FINALIZED — 병리는 정정 경로가
+      없다(확정 사양서 §8-2). 전에는 draft 가 확정 값을 조용히 덮었다
+    - 누가 집은(assigned_to) 검체는 **집은 사람만** 쓴다 — 403 ROLE_FORBIDDEN.
+      아직 아무도 안 집었으면 막지 않는다(종전 동작 유지)
+    """
+    specimen = (models.Specimen.objects.select_related("patient__primary_staff")
+                .filter(pk=pk).first())
+    if specimen is None:
+        raise ApiError("NOT_FOUND", "검체를 찾을 수 없습니다.")
+    if specimen.finalized_at is not None:
+        raise ApiError("SPECIMEN_ALREADY_FINALIZED")
+    staff = getattr(request.user, "staff", None)
+    if specimen.assigned_to_id is not None and (
+            staff is None or staff.pk != specimen.assigned_to_id):
+        raise ApiError("ROLE_FORBIDDEN", "이 검체를 맡은 선생님만 판독할 수 있습니다.")
+    return specimen
+
+
+def _apply_markers(specimen, data):
+    """조직형 · 등급 · 수용체 · Ki-67 — 보낸 칸만 덮는다(null 은 지우기)."""
+    for field in MARKER_FIELDS:
+        if field in data:
+            setattr(specimen, field, data[field])
+
+
+def _notify_finalized(specimen):
+    """확정이 **커밋된 뒤** 주치의에게 한 번. 주치의가 없으면 건너뛴다.
+
+    알림 종류는 새로 파지 않고 report_ready 를 쓴다(notification_type_ck
+    를 건드리면 마이그레이션이 생긴다). REF_TYPE 에 specimen 이 없어서
+    ref_type 은 비우고, 무엇이 확정됐는지는 문장에 담는다.
+    """
+    staff = specimen.patient.primary_staff
+    if staff is None:
+        return
+    pii = getattr(specimen.patient, "pii", None)
+    who = getattr(pii, "name", None) or specimen.patient.patient_number
+    label = specimen.specimen_label or f"#{specimen.pk}"
+    message = f"{who} 환자 검체 {label} 병리 결과가 확정되었습니다."
+
+    def _send():
+        from .. import notify
+        try:
+            notify.send(staff=staff, type="report_ready", message=message)
+        except Exception:
+            logger.exception("[pathology] 확정 알림 실패 specimen=%s", specimen.pk)
+
+    transaction.on_commit(_send)
 
 
 class SpecimenQueueView(generics.ListAPIView):
@@ -26,7 +86,8 @@ class SpecimenQueueView(generics.ListAPIView):
     serializer_class = serializers.SpecimenSerializer
 
     def get_queryset(self):
-        qs = models.Specimen.objects.select_related("patient__pii").order_by("collected_at")
+        qs = (models.Specimen.objects.select_related("patient__pii", "bound_by")
+              .order_by("collected_at"))
 
         status_param = self.request.query_params.get("status")
         if status_param:
@@ -35,6 +96,16 @@ class SpecimenQueueView(generics.ListAPIView):
         assigned_param = self.request.query_params.get("assigned")
         if assigned_param == "none":
             qs = qs.filter(assigned_to__isnull=True)
+        elif assigned_param == "me":
+            # 09-28 — GET /specimens 와 같은 규칙
+            staff = getattr(self.request.user, "staff", None)
+            qs = qs.filter(assigned_to=staff) if staff is not None else qs.none()
+
+        finalized = self.request.query_params.get("finalized")
+        if finalized == "yes":
+            qs = qs.filter(finalized_at__isnull=False)
+        elif finalized == "no":
+            qs = qs.filter(finalized_at__isnull=True)
 
         return qs
 
@@ -111,10 +182,11 @@ class SpecimenDraftView(AuditMixin, viewsets.ViewSet):
     permission_classes = [MatrixPermission, CanFinalizePathologyRead]
 
     def update(self, request, pk=None):
-        specimen = models.Specimen.objects.get(pk=pk)
+        specimen = _get_specimen_for_write(request, pk)
         serializer = serializers.SpecimenDraftSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
+        _apply_markers(specimen, data)
 
         specimen.b_category = data.get("b_category", specimen.b_category)
         specimen.diagnosis = data.get("diagnosis", specimen.diagnosis)
@@ -140,10 +212,11 @@ class SpecimenFinalizeView(AuditMixin, viewsets.ViewSet):
     permission_classes = [MatrixPermission, CanFinalizePathologyRead]
 
     def partial_update(self, request, pk=None):
-        specimen = models.Specimen.objects.get(pk=pk)
+        specimen = _get_specimen_for_write(request, pk)
         serializer = serializers.SpecimenFinalizeSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
+        _apply_markers(specimen, data)
 
         specimen.b_category = data["b_category"]
         specimen.diagnosis = data["diagnosis"]
@@ -162,6 +235,8 @@ class SpecimenFinalizeView(AuditMixin, viewsets.ViewSet):
         # ⚠ **커밋된 뒤** 돈다. 같은 트랜잭션에서 돌리면 확정이 뒤에 실패해
         #   되돌려질 때 플래그만 남는다.
         discordance.evaluate_on_commit(specimen.patient, specimen)
+        # 09-28 — 유방외과 주치의에게 「병리 확정」 알림(커밋 뒤)
+        _notify_finalized(specimen)
 
         out = serializers.SpecimenSerializer(specimen)
         return Response(out.data)

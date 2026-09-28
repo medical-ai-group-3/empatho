@@ -242,3 +242,17 @@ urlpatterns = [
     #     이제 국립중앙의료원 공공데이터를 부른다.
 ]
 
+# ── 09-28 진료 흐름 재배치(유방외과 · 간호 창구) ───────────────────────
+# 위 목록 한가운데에 끼우지 않고 여기 덧붙인다 — 여러 갈래가 동시에 줄을
+# 넣는 자리라 충돌을 줄인다.
+urlpatterns += [
+    # 유방외과 워크리스트 — core/surgery_worklist.py
+    path("surgery/worklist", views.SurgeryWorklistView.as_view({"get": "list"}),
+         name="surgery-worklist"),
+    # 의료진용 문진 문항(창구에서 종이 문진 옮겨 적기)
+    path("questionnaire/form", views.QuestionnaireFormView.as_view({"get": "list"}),
+         name="questionnaire-form"),
+    # 창구 인적 사항 정정(patient_pii U)
+    path("patients/<int:pk>/pii", views.PatientPiiView.as_view({"patch": "partial_update"}),
+         name="patient-pii"),
+]

@@ -107,6 +107,11 @@ class SpecimenSerializer(serializers.ModelSerializer):
     )
     age = serializers.SerializerMethodField()
     sex = serializers.CharField(source="patient.sex", read_only=True, allow_null=True)
+    # 09-28 — 병리 목록이 행마다 환자 · 직원을 따로 부르지 않게
+    patient_number = serializers.CharField(
+        source="patient.patient_number", read_only=True, default=None)
+    bound_by_name = serializers.CharField(
+        source="bound_by.full_name", read_only=True, default=None, allow_null=True)
     # 「유방외과 열람」 — 목록 쿼리셋이 얹는 값(core/viewed.py)
     viewed_at = serializers.DateTimeField(read_only=True, default=None)
 
@@ -185,6 +190,8 @@ class SpecimenBindSerializer(serializers.Serializer):
     specimen_type = serializers.ChoiceField(choices=models.as_choices(models.SPECIMEN_TYPE))
     guidance_route = serializers.ChoiceField(choices=models.as_choices(models.GUIDANCE_ROUTE))
     collected_at = serializers.DateTimeField()
+    # 09-28 — 유방외과 의뢰 문구(선택). 모델 칸 specimen.clinical_note
+    clinical_note = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
     def validate_specimen_label(self, value):
         if models.Specimen.objects.filter(specimen_label=value).exists():

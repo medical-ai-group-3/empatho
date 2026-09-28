@@ -34,6 +34,7 @@ from .nursing import (
     FollowupCallSerializer,
     FollowupUpdateSerializer,
     PrimaryStaffAssignSerializer,
+    PatientPiiCorrectSerializer,
 )
 
 from .radiology import (

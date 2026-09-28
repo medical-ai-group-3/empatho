@@ -12,6 +12,40 @@ from .. import models
 
 AUDIT_FIELDS = ("created_at", "created_by", "updated_at", "updated_by")
 
+# 09-28 — 병리 보고 칸(조직형 · 등급 · 수용체 · Ki-67). 모델 칸은 choices 없는
+# CharField 라 값 집합은 여기서만 거른다(모델에 두면 마이그레이션이 생긴다).
+HISTOLOGIC_TYPE = ["idc_nst", "ilc", "dcis", "lcis", "mucinous", "tubular",
+                   "papillary", "metaplastic", "fibroadenoma", "phyllodes",
+                   "fibrocystic", "other"]
+RECEPTOR_STATUS = ["positive", "negative", "low_positive"]   # ER · PR
+HER2_STATUS = ["negative", "low", "equivocal", "positive"]
+
+
+def _choices(values):
+    return [(v, v) for v in values]
+
+
+class _PathologyMarkersMixin(serializers.Serializer):
+    """draft · finalize 가 똑같이 받는 선택 칸. 안 보내면 안 건드린다."""
+
+    histologic_type = serializers.ChoiceField(
+        choices=_choices(HISTOLOGIC_TYPE), required=False, allow_null=True)
+    nottingham_grade = serializers.IntegerField(
+        min_value=1, max_value=3, required=False, allow_null=True)
+    er_status = serializers.ChoiceField(
+        choices=_choices(RECEPTOR_STATUS), required=False, allow_null=True)
+    pr_status = serializers.ChoiceField(
+        choices=_choices(RECEPTOR_STATUS), required=False, allow_null=True)
+    her2_status = serializers.ChoiceField(
+        choices=_choices(HER2_STATUS), required=False, allow_null=True)
+    ki67_percent = serializers.DecimalField(
+        max_digits=5, decimal_places=2, min_value=0, max_value=100,
+        required=False, allow_null=True)
+
+
+MARKER_FIELDS = ("histologic_type", "nottingham_grade", "er_status",
+                 "pr_status", "her2_status", "ki67_percent")
+
 
 class AiResultSerializer(serializers.ModelSerializer):
     class Meta:
@@ -21,7 +55,7 @@ class AiResultSerializer(serializers.ModelSerializer):
 
 # ── 워크플로 액션 전용 ──────────────────────────────────
 
-class SpecimenDraftSerializer(serializers.Serializer):
+class SpecimenDraftSerializer(_PathologyMarkersMixin):
     """PUT /specimens/{id}/draft — 임시저장(덮어쓰기).
 
     ⚠ 09-28 결정 — sTIL(임상 수치)은 병리의가 검체 단위로 직접 입력한다.
@@ -41,7 +75,7 @@ class SpecimenDraftSerializer(serializers.Serializer):
     )
 
 
-class SpecimenFinalizeSerializer(serializers.Serializer):
+class SpecimenFinalizeSerializer(_PathologyMarkersMixin):
     """PATCH /specimens/{id}/finalize — 확진 확정. stil_calibrated 설명은
     SpecimenDraftSerializer 참고 — 같은 자리다."""
 
