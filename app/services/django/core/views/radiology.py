@@ -363,12 +363,20 @@ class StudyReadView(viewsets.ViewSet):
             raise ApiError("STUDY_REJECTED")
 
         # 취소된(soft-delete) 파일은 「업로드된 것」으로 안 친다.
-        images = study.storage_objects.filter(deleted_at__isnull=True)
+        # 번호순으로 준다 — 초음파 병변 이름(US-n)의 n 이 이 순서의 몇째 장이다
+        images = study.storage_objects.filter(
+            deleted_at__isnull=True).order_by("storage_object_id")
         if not images.exists():
             raise ApiError("STUDY_NOT_READ_READY")
 
         lesions = study.lesions.all()
         latest_ai_result = study.ai_results.order_by("-created_at").first()
+        # 초음파는 영상 한 장이 판독 한 번이라(AiResultQueueView.start) 한
+        # 검사에 AiResult 가 여럿이다. latest_ai_result 하나만 주면 마지막에
+        # 끝난 장의 결과가 모든 장에 겹쳐 그려진다. 전부 준다 — 화면은
+        # ai_results[].source_object 와 images[].storage_object_id 를 맞춰
+        # 고른다. latest_ai_result 는 옛 화면을 위해 그대로 둔다.
+        ai_results = study.ai_results.order_by("-created_at", "-ai_result_id")
         current_assessment = (
             study.assessments.filter(read_stage="draft")
             .order_by("-created_at")
@@ -420,6 +428,8 @@ class StudyReadView(viewsets.ViewSet):
                 serializers.AiResultSerializer(latest_ai_result).data
                 if latest_ai_result else None
             ),
+            "ai_results": serializers.AiResultSerializer(
+                ai_results, many=True).data,
             "current_assessment": (
                 serializers.AssessmentSerializer(current_assessment).data
                 if current_assessment else None
@@ -656,13 +666,6 @@ class LesionViewSet(AuditMixin, viewsets.ModelViewSet):
         lesion.save()
         out = serializers.LesionSerializer(lesion)
         return Response(out.data)
-    
-    def get_queryset(self):
-        qs= super().get_queryset()
-        patient_id = self.request.query_params.get("patient")
-        if patient_id:
-            qs = qs.filter(patient_id = patient_id)
-        return qs
 
 
 class AssessmentHistoryView(generics.ListAPIView):

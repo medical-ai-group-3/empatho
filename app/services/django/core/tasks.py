@@ -49,6 +49,7 @@ from django.utils import timezone
 from . import mesh 
 from celery.exceptions import SoftTimeLimitExceeded
 from .models import AiResult, ExamOrder, Notification, Report, StorageObject, Lesion, Image
+from .models import BIRADS_CATEGORY
 
 logger = logging.getLogger(__name__) 
 
@@ -408,6 +409,26 @@ def _analyze(modality, socket, refs) :
             time.sleep(3)
     return out
 
+def _birads(value) :
+    """모델이 낸 BI-RADS 등급을 우리 코드값(BIRADS_CATEGORY)으로 맞춘다.
+
+    모델마다 4 · "4A" · "BI-RADS 4a" 처럼 모양이 제각각이다. 문자열로 바꾸고
+    소문자 · 접두사를 걷어 코드표에 있으면 그 값을, 없으면 None 을 돌려준다 —
+    모르는 값 때문에 판독 뒤처리가 멈추면 안 된다.
+    """
+    if value is None or isinstance(value, bool) :
+        return None
+    s = str(value).strip().lower().replace("bi-rads", "").replace("birads", "").strip()
+    return s if s in BIRADS_CATEGORY else None
+
+def _birads_rank(value) :
+    """등급 비교용 열쇠. 코드표 순서를 쓴다 — 코드표 밖 값은 가장 낮다.
+
+    int 와 str 이 섞여 와도(4 와 "4a") 비교가 TypeError 로 터지지 않는다.
+    """
+    b = _birads(value)
+    return BIRADS_CATEGORY.index(b) if b is not None else -1
+
 def _mammo(ai, socket) :
     """맘모는 영상 넷(좌우 × CC/MLO)이 한 검진이다.
 
@@ -439,9 +460,11 @@ def _mammo(ai, socket) :
             abstained = False
         n += s.get("n_lesions") or 0
         biopsy = biopsy or bool(s.get("biopsy"))
+        # 장마다 int · str 이 섞여 올 수 있다 — 그대로 > 로 견주면 TypeError 로
+        # 판독 전체가 failed 가 된다. 코드표 순서로 견주고 문자열로 남긴다.
         b = s.get("max_birads")
-        if b and (top is None or b > top) :
-            top = b
+        if b is not None and b != "" and (top is None or _birads_rank(b) > _birads_rank(top)) :
+            top = _birads(b) or str(b)
     out = dict(envelope)
     out["result"] = {
         "summary" : {
@@ -475,11 +498,16 @@ def _store_lesions(ai) :
     # 검체·판정이 안 붙은 것만 지운다 — 붙은 것은 PROTECT 라 지워지지도 않고,
     # 지우면 안 되는 기록이다.
     old = Lesion.objects.filter(
-        study_id=ai.study_id, 
+        study_id=ai.study_id,
         lesion_source="ai",
-        specimens__isnull=True, 
+        specimens__isnull=True,
         assessments__isnull=True
     )
+    # 초음파는 영상 한 장이 판독 한 번이다(한 검사에 AiResult 여럿). 검사 전체를
+    # 지우면 장마다 도는 판독이 서로의 병변을 지워, 마지막 장의 병변 하나만
+    # 남았다. 같은 원본에서 나온 병변만 지운다.
+    if modality == "us" :
+        old = old.filter(ai_result__source_object_id=ai.source_object_id)
     # 병변 메시(Image.lesion)가 PROTECT 라 먼저 지운다 — 안 그러면 재판독이
     # ProtectedError 로 멈춘다. ponytail: Garage 의 메시 파일은 남는다(고아)
     Image.objects.filter(lesion__in=old).delete()
@@ -488,17 +516,24 @@ def _store_lesions(ai) :
     rows = [] 
     if modality == "us" :
         if res.get("lesion_found") :
-            shape = res.get("shape") or {} 
-            grade = res.get("grade") or {} 
+            shape = res.get("shape") or {}
+            grade = res.get("grade") or {}
+            # 장 번호 — 이 검사의 (안 지운) 원본을 번호순으로 놓았을 때 몇째인가.
+            # 판독 화면의 images 와 같은 순서라 「US-2」가 둘째 장이다. 판독이
+            # 붙은 원본은 취소가 막혀 있어 번호가 뒤에서 밀리지 않는다.
+            nth = StorageObject.objects.filter(
+                study_id=ai.study_id, deleted_at__isnull=True,
+                storage_object_id__lte=ai.source_object_id).count() or 1
             rows.append(dict(
-                lesion_index=0, 
-                label="US-1",
+                lesion_index=nth - 1,
+                label=f"US-{nth}",
                 birads_model = grade.get("display"),
                 grade_confidence=grade.get("confidence"),
                 ai_size_px=shape.get("max_diameter_px"),
                 ai_size_measurable=False, 
                 mask_reliability = (res.get("mask_reliability") or {}).get("level"),
-                detail = {"shape": shape, "orientation_label": res.get("orientation_label")}
+                detail = {"shape": shape, "orientation_label": res.get("orientation_label"),
+                          "source_object": ai.source_object_id}
             ))
     elif modality == "mammo" :
         for i, l in enumerate(res.get("lesions") or []) :
@@ -520,12 +555,17 @@ def _store_lesions(ai) :
             rows.append(dict(
                 lesion_index=i, 
                 label=f"MRI-{i+1}",
+                # 모델이 등급을 내면 옮긴다. 코드표 밖 값은 비워 둔다(원값은 detail)
+                birads_model=_birads(l.get("birads")),
                 ai_size_mm=l.get("max_diameter_mm"),
                 ai_size_measurable=True, 
                 detail={
                     "volume_cm3": l.get("volume_cm3"),
                     "quadrant": l.get("quadrant"),
-                    "nipple_distance_mm": l.get("nipple_distance_mm")
+                    "nipple_distance_mm": l.get("nipple_distance_mm"),
+                    **({"birads_raw": l.get("birads")}
+                       if l.get("birads") is not None and _birads(l.get("birads")) is None
+                       else {}),
                 }
             ))
     for row in rows :

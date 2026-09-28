@@ -134,7 +134,9 @@ class LesionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = models.Lesion
-        exclude = AUDIT_FIELDS
+        # malignancy_p(악성 확률)는 화면 비노출 — core.serializers 가 이 클래스를
+        # 재수출하므로(radiology 것을 덮는다) 여기서도 반드시 뺀다
+        exclude = AUDIT_FIELDS + ("malignancy_p",)
 
     def get_mesh(self, obj):
         img = (obj.images.filter(kind="mesh_lesion", deleted_at__isnull=True)

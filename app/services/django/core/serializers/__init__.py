@@ -38,7 +38,8 @@ from .nursing import (
 
 from .radiology import (
     StudySerializer,
-    LesionSerializer,
+    # LesionSerializer 는 surgery 것(mesh 포함)을 쓴다 — 아래에서 가져온다.
+    # 둘 다 malignancy_p 를 뺀다(화면 비노출)
     AssessmentSerializer,
     AiResultSerializer,
     StorageObjectSerializer,
