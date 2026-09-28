@@ -52,7 +52,7 @@ type Meta struct {
 
 	// 맘모그래피 전용 — 이 둘이 없으면 좌우·촬영방향을 알 수 없다
 	Laterality   string `json:"laterality,omitempty"`    // L · R
-	ViewPosition string `json:"view_position,omitempty"` // CC · MLO
+	ViewPosition string `json:"view_position,omitempty"` // CC · MLO (ML · LM · XCCL … 도 그대로)
 
 	// MRI 조영 전·후를 가리는 데 쓴다. 값은 그대로 넘기고 판정은 Django 가
 	// 한다 — laterality 와 같은 방식이다. 조영제 태그(0018,0010)로는 못
@@ -123,6 +123,9 @@ var (
 	tItem           = tag{0xFFFE, 0xE000}
 	tItemDelim      = tag{0xFFFE, 0xE00D}
 	tSeqDelim       = tag{0xFFFE, 0xE0DD}
+	tViewCodeSeq    = tag{0x0054, 0x0220}
+	tCodeValue      = tag{0x0008, 0x0100}
+	tCodingScheme   = tag{0x0008, 0x0102}
 )
 
 // 4바이트 길이를 쓰는 VR. 나머지는 2바이트다. 여기를 틀리면 그 뒤 전부 어긋난다.
@@ -180,6 +183,8 @@ func Parse(r io.Reader, max int64) (*Meta, error) {
 	if m.SOPInstanceUID == "" && m.StudyInstanceUID == "" {
 		return nil, ErrNotDICOM
 	}
+	m.ViewPosition = resolveView(m.ViewPosition, p.viewCode, p.viewScheme)
+	m.Laterality = strings.ToUpper(strings.TrimSpace(m.Laterality))
 	return m, nil
 }
 
@@ -187,6 +192,9 @@ type parser struct {
 	r        *bufio.Reader
 	explicit bool
 	bo       binary.ByteOrder
+
+	// ViewCodeSequence(0054,0220) 첫 항목의 코드. ViewPosition 이 비었을 때만 쓴다.
+	viewCode, viewScheme string
 }
 
 // walk — take 가 false 를 낼 때까지 태그를 읽는다.
@@ -211,8 +219,17 @@ func (p *parser) walk(m *Meta, take func(tag) bool) error {
 		if err != nil {
 			return err
 		}
-		// 시퀀스는 값을 안 쓴다. 안쪽으로 안 들어가고 통째로 건너뛴다.
-		// 우리가 필요한 태그는 전부 최상위에 있다.
+		// ViewCodeSequence 만은 안으로 들어간다. CMMD 처럼 (0018,5101)
+		// ViewPosition 없이 촬영방향을 **여기에만** 적는 맘모가 있다.
+		if t == tViewCodeSeq && (vr == "SQ" || vr == "UN" || length == 0xFFFFFFFF) {
+			// 명시적 VR 파일에서 VR 이 UN 이면 안쪽은 암시적 VR LE 다 (PS3.5 6.2.2).
+			if err := p.readViewCodeSeq(length, p.explicit && vr == "UN"); err != nil {
+				return ignoreStop(err)
+			}
+			continue
+		}
+		// 그 밖의 시퀀스는 값을 안 쓴다. 안쪽으로 안 들어가고 통째로 건너뛴다.
+		// 우리가 필요한 나머지 태그는 전부 최상위에 있다.
 		if vr == "SQ" || (length == 0xFFFFFFFF && vr != "OB") {
 			if err := p.skipSeq(length); err != nil {
 				return ignoreStop(err)
@@ -339,6 +356,133 @@ func (p *parser) skipSeq(length uint32) error {
 	return nil
 }
 
+// readViewCodeSeq — ViewCodeSequence 를 읽어 **첫 항목**의 CodeValue ·
+// CodingSchemeDesignator 만 담는다. 나머지(두 번째 항목, 안쪽의
+// ViewModifierCodeSequence 같은 중첩 시퀀스)는 skipSeq 와 같은 규칙으로
+// 건너뛴다. 끝나면 스트림은 시퀀스 바로 뒤에 있어야 한다 — 어긋나면
+// 그 뒤 태그가 조용히 틀린다(TestSkipsSequences 와 같은 이유).
+func (p *parser) readViewCodeSeq(length uint32, unImplicit bool) error {
+	if unImplicit {
+		// 안쪽 요소를 암시적 VR LE 로 읽는다. 바깥 설정은 끝나면 되돌린다.
+		saveE, saveBO := p.explicit, p.bo
+		p.explicit, p.bo = false, binary.LittleEndian
+		defer func() { p.explicit, p.bo = saveE, saveBO }()
+	}
+	if length != 0xFFFFFFFF {
+		// 길이가 정해진 시퀀스 — 통째로 읽어 두고 따로 훑는다.
+		// 바깥 스트림은 정확히 length 만큼만 소비된다.
+		b, err := p.bytes(length)
+		if err != nil || b == nil {
+			return err
+		}
+		sub := p.sub(b)
+		items := 0
+		sub.scanCodeItems(&items)
+		p.viewCode, p.viewScheme = sub.viewCode, sub.viewScheme
+		return nil
+	}
+	items := 0
+	return p.scanCodeItems(&items)
+}
+
+func (p *parser) sub(b []byte) *parser {
+	return &parser{r: bufio.NewReader(bytes.NewReader(b)), explicit: p.explicit, bo: p.bo}
+}
+
+// scanCodeItems — 시퀀스 구분자나 입력 끝까지 요소를 읽는다.
+// items 는 지금까지 만난 항목 수. 첫 항목(items==1) 안의 코드만 담는다.
+func (p *parser) scanCodeItems(items *int) error {
+	for {
+		t, vr, l, err := p.element()
+		if err != nil {
+			if stopped(err) {
+				return nil // 길이가 정해진 조각의 끝, 또는 잘린 파일
+			}
+			return err
+		}
+		switch {
+		case t == tSeqDelim:
+			return nil
+		case t == tItemDelim:
+			// 항목 끝
+		case t == tItem && l == 0xFFFFFFFF:
+			*items++ // 길이 미정 항목 — 안쪽을 이어서 읽는다
+		case t == tItem:
+			*items++
+			b, err := p.bytes(l)
+			if err != nil {
+				return err
+			}
+			if *items == 1 && b != nil {
+				sub := p.sub(b)
+				n := 1
+				sub.scanCodeItems(&n)
+				p.viewCode, p.viewScheme = sub.viewCode, sub.viewScheme
+			}
+		case vr == "SQ" || l == 0xFFFFFFFF:
+			// 중첩 시퀀스(ViewModifierCodeSequence 등) — 안 본다
+			if err := p.skipSeq(l); err != nil {
+				return err
+			}
+		default:
+			b, err := p.bytes(l)
+			if err != nil {
+				return err
+			}
+			if *items != 1 {
+				continue
+			}
+			v := strings.TrimRight(string(b), "\x00 ")
+			switch t {
+			case tCodeValue:
+				p.viewCode = strings.TrimSpace(v)
+			case tCodingScheme:
+				p.viewScheme = strings.ToUpper(strings.TrimSpace(v))
+			}
+		}
+	}
+}
+
+// viewCodes — CID 4014 View for Mammography 의 코드 → ViewPosition 용어.
+// SCT(SNOMED-CT) 와 옛 SNOMED-RT(SRT, "R-…") 를 둘 다 받는다. 약어는
+// CID 4014 의 ACR MQCM 열을 그대로 쓴다.
+//
+// 127457009(tissue specimen from breast)은 촬영방향이 아니라서 안 넣는다.
+var viewCodes = map[string]string{
+	"399260004": "ML", "R-10224": "ML", // medio-lateral
+	"399368009": "MLO", "R-10226": "MLO", // medio-lateral oblique
+	"399352003": "LM", "R-10228": "LM", // latero-medial
+	"399099002": "LMO", "R-10230": "LMO", // latero-medial oblique
+	"399162004": "CC", "R-10242": "CC", // cranio-caudal
+	"399196006": "FB", "R-10244": "FB", // caudo-cranial (from below)
+	"399188001": "SIO", "R-102D0": "SIO", // superolateral to inferomedial oblique
+	"441555000": "ISO", "R-40AAA": "ISO", // inferomedial to superolateral oblique
+	"399192008": "XCCL", "R-1024A": "XCCL", // cranio-caudal exaggerated laterally
+	"399101009": "XCCM", "R-1024B": "XCCM", // cranio-caudal exaggerated medially
+}
+
+// resolveView — ViewPosition 을 정한다.
+//
+//  1. (0018,5101) ViewPosition 이 있으면 그것 (공백 정리·대문자).
+//  2. 없으면 ViewCodeSequence 첫 항목의 코드를 viewCodes 로 옮긴다.
+//     코딩 체계가 SCT·SRT·SNM3 이거나 비어 있을 때만 믿는다 — 다른 체계의
+//     같은 숫자를 잘못 옮기지 않으려고.
+//  3. 모르는 코드면 비워 둔다. 추측해서 채우면 AI 결과가 엉뚱한 영상에 붙는다.
+func resolveView(vp, code, scheme string) string {
+	if v := strings.ToUpper(strings.TrimSpace(vp)); v != "" {
+		return v
+	}
+	if code == "" {
+		return ""
+	}
+	switch scheme {
+	case "", "SCT", "SRT", "SNM3", "99SDM":
+	default:
+		return ""
+	}
+	return viewCodes[strings.ToUpper(code)]
+}
+
 func (p *parser) bytes(n uint32) ([]byte, error) {
 	if n == 0 {
 		return nil, nil
@@ -392,8 +536,12 @@ func (p *parser) assign(m *Meta, t tag, vr string, v []byte) {
 		m.StudyInstanceUID = s()
 	case tag{0x0020, 0x000E}:
 		m.SeriesInstanceUID = s()
-	case tag{0x0020, 0x0062}: // ImageLaterality
-		m.Laterality = s()
+	case tag{0x0020, 0x0062}: // ImageLaterality — 값이 있을 때만 덮는다
+		// (0020,0060) 이 태그 순서상 먼저 온다. 빈 ImageLaterality 가
+		// 앞서 읽은 Laterality 를 지우면 안 된다.
+		if v := s(); v != "" {
+			m.Laterality = v
+		}
 	case tag{0x0020, 0x0060}: // Laterality — 위가 없을 때만
 		if m.Laterality == "" {
 			m.Laterality = s()
@@ -508,6 +656,9 @@ func implicitVR(t tag) string {
 	}
 	if t.g == 0x7FE0 {
 		return "OW"
+	}
+	if t == tViewCodeSeq {
+		return "SQ"
 	}
 	return "UN"
 }
