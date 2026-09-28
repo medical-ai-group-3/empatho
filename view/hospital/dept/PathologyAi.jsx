@@ -106,7 +106,6 @@ export default function PathologyAi({ d }) {
                       <p className="muted small">
                         병리의사 sTIL과 척도가 달라 직접 비교할 수 없습니다.
                         세포 검출 누락으로 실제와 다르게 나올 수 있습니다.
-                        {band(r.stil_percent) && " ± 는 학습에 쓰지 않은 검증 이미지 27장 중 80%가 들어간 오차 범위입니다."}
                       </p>
                     </>
                   )}
