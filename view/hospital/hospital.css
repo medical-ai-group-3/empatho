@@ -292,9 +292,14 @@ input,select,textarea{font:inherit; color:inherit}
    빼고 글씨도 한 단 낮춘다. 굵은 제목 크기로 「기록된 병변이 없습니다」가
    서면 빈 것이 제일 크게 읽혔다(09-28 환자 기록). 쪽 한가운데의 비었음 ·
    오류는 그대로 상자다 */
-.card .state, .hcard .state{border:none; background:transparent; border-radius:0;
+/* 목록 **안의** 비었음도 같다 — 목록 칸이 이미 테두리를 둘렀다(접수 왼쪽
+   대기 목록 · 대기열 · 추적 목록 …). 새 목록 그릇은 이름을 `-list` 로 끝내거나
+   여기에 더한다 */
+.card .state, .hcard .state,
+.nwait .state, .queue .state, [class*="-list"] > .state{border:none; background:transparent; border-radius:0;
   padding:var(--card-pad-sm) 0}
-.card .state b, .hcard .state b{font-family:var(--font-ui); font-size:var(--state-fs);
+.card .state b, .hcard .state b,
+.nwait .state b, .queue .state b, [class*="-list"] > .state b{font-family:var(--font-ui); font-size:var(--state-fs);
   font-weight:500; color:var(--warm)}
 .hcard .state{flex:1 1 auto; min-height:var(--hnone-h); padding:var(--hcard-pad-y) var(--hcard-pad-x)}
 
@@ -381,10 +386,18 @@ input,select,textarea{font:inherit; color:inherit}
    세 단 아랫변이 화면 끝에서 맞는다. 목록 칸(grow)은 안에서 굴리고,
    다른 칸은 아래에 빈 바탕이 조금 는다 — 상자 밖이 통째로 비는 것보다
    낫다는 판단이다. 위 「늘리지 않는다」를 뒤집은 것이다 */
-.pane > .hcard:last-child{flex-grow:1}
+.pane > .hcard:last-child:not(.hug){flex-grow:1}
+/* 09-28 뒤 — 줄 몇 개짜리 칸(.hug · 확인 필요)이 맨 아래면 줄 밑이
+   150~300px 비어 덜 그린 것처럼 보였다. 그 단에 목록 칸(grow — 안에서
+   구르는 표)이 있으면 **목록 칸이 대신** 받는다. 없으면 그래도 이 칸이
+   받되, 바닥 줄(.hcard-foot)이 끝을 잡아 빈 바탕이 칸의 일부로 읽힌다 */
+.pane:has(> .hcard.hug:last-child) > .hcard.grow,
+.pane:not(:has(> .hcard.grow)) > .hcard.hug:last-child{flex-grow:1}
 /* 편집 중에는 칸이 틀(.arr-slot)에 싸인다 — 같은 규칙을 틀에 건다.
    안 걸면 「배치 편집」을 누르는 순간 단 아래가 통째로 비었다 */
-.pane > .arr-slot:last-child{flex-grow:1}
+.pane > .arr-slot:last-child:not(:has(> .hcard.hug)){flex-grow:1}
+.pane:has(> .arr-slot:last-child > .hcard.hug) > .arr-slot:has(> .hcard.grow),
+.pane:not(:has(> .arr-slot > .hcard.grow)) > .arr-slot:last-child{flex-grow:1}
 .arr-slot > .hcard.grow{flex:1 1 auto}
 .hcard-h{flex:none; display:flex; align-items:center; gap:var(--gap-sm);
   padding:var(--hcard-pad-y) var(--hcard-pad-x);
@@ -490,7 +503,7 @@ input,select,textarea{font:inherit; color:inherit}
 .qrow{display:grid; grid-template-columns: subgrid; grid-column: 1/-1; align-items: center;
   padding:var(--qrow-pad-y) var(--hcard-pad-x);
   border-bottom:var(--hair) solid var(--line-2);}
-.qrow-r{justify-self: end;}
+.qrow-r{justify-self: end; white-space:nowrap}
 /* 컬럼 이름 줄 — 데이터와 같은 subgrid 라 열이 정확히 맞는다. 위에 붙어
    따라 스크롤한다. 번호 칸(첫 셀)은 라벨 없이 자리만 잡는다. */
 .qrow-head{display:grid; grid-template-columns: subgrid; grid-column: 1/-1;
@@ -543,6 +556,12 @@ input,select,textarea{font:inherit; color:inherit}
   font-variant-numeric:tabular-nums}
 
 /* ── 확인이 필요한 것 ────────────────────────────────────────── */
+/* 줄들이 한 격자를 나눠 쓴다(subgrid) — 태그 폭이 줄마다 달라도 문장이
+   같은 x 에서 시작한다 */
+.srows{display:grid; grid-template-columns:max-content minmax(0, 1fr) max-content;
+  column-gap:var(--qrow-gap); align-content:start}
+.srows > .srow{display:grid; grid-template-columns:subgrid; grid-column:1/-1}
+.srows > .srow > .stag{justify-self:start}
 .srow{display:flex; align-items:center; gap:var(--qrow-gap);
   padding:var(--qrow-pad-y) var(--hcard-pad-x);
   border-bottom:var(--hair) solid var(--line-2);
@@ -1453,7 +1472,6 @@ a.nside-row:hover{background:var(--canvas)}
 .rev-who div{display:flex; align-items:baseline; gap:var(--gap-xs)}
 .rev-who dt{font-size:var(--label-fs); color:var(--warm)}
 .rev-who dd{margin:0; font-size:var(--row-fs)}
-.rev-who .rev-name dd{font-size:var(--hcard-h-fs); font-weight:700}
 .rev-odd{display:flex; align-items:center; gap:var(--gap-sm); flex:none;
   padding:var(--gap-xs) var(--gap-sm); border-radius:var(--card-radius);
   border:var(--hair) solid var(--line-2)}
@@ -2319,6 +2337,10 @@ a.pevent:focus-visible{outline:var(--hair) solid var(--cyan); outline-offset:2px
 .vside-tabs button.on{background:var(--v-line); color:var(--v-ink); font-weight:600}
 .vside-b{flex:1; overflow-y:auto; padding:var(--v-pad);
   display:flex; flex-direction:column; gap:var(--gap-sm)}
+/* 왼쪽 검사 정보 — 내용만큼만 선다. 뷰어 높이까지 늘이면 짧은 검사에서
+   아래가 빈 검은 판이 된다. 넘치면 뷰어 높이에서 멈추고 안에서 구른다 */
+.vside-info{align-self:flex-start; max-height:100%; min-height:0}
+.vside-info .vside-b{flex:0 1 auto; min-height:0}
 /* 검사 Series(Fold) — 환자 정보(.kv)와 같은 칸 안이지만 따로 떨어진
    카드로 보여야 한다(레이아웃 설계 §2). 뷰어 안이라고 면을 죽이지
    않는다 — 그러면 다시 환자정보와 하나로 붙어 보인다. */
@@ -3346,9 +3368,6 @@ code{padding:0 var(--gap-xs); border-radius:var(--radius-xs);
   flex-direction:column; background:var(--card); border-radius:var(--card-radius);
   box-shadow:var(--card-shadow); overflow:hidden}
 .modal.wide{max-width:820px}
-.modal-head{flex:0 0 auto; display:flex; align-items:center; justify-content:space-between;
-  gap:var(--gap-sm); padding:var(--card-pad); border-bottom:var(--hair) solid var(--border)}
-.modal-head h2{font-size:var(--h1-fs); font-family:var(--font-head)}
 /* 검체 등록 팝업(lib/SpecimenBindingModal.jsx) — 간호과 · 유방외과가 같이 띄운다.
    ⚠ .breast 안에서는 입력칸이 글자색을 물려받아(breast.css) 병변 칸 글자가
    cyan 으로 떴다 — 팝업 안은 늘 먹색 */
@@ -3366,6 +3385,9 @@ code{padding:0 var(--gap-xs); border-radius:var(--radius-xs);
 .spec-label.off{font-weight:400; color:var(--faint)}
 .fields.spec-fields{grid-template-columns:repeat(3, minmax(0, 1fr))}
 @media (max-width: 720px){ .fields.spec-fields{grid-template-columns:minmax(0, 1fr)} }
+.modal-head{flex:0 0 auto; display:flex; align-items:center; justify-content:space-between;
+  gap:var(--gap-sm); padding:var(--card-pad); border-bottom:var(--hair) solid var(--border)}
+.modal-head h2{font-size:var(--h1-fs); font-family:var(--font-head)}
 .modal-head button{color:var(--warm); font-size:18px; line-height:1}
 .modal-head button:hover{color:var(--ink)}
 .modal-body{flex:1; min-height:0; overflow-y:auto; padding:var(--card-pad);

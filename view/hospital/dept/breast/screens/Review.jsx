@@ -163,15 +163,15 @@ function Inner({ pid, p, focus, lay, onReload }) {
       )}
 
       <section className="rev-strip">
+        {/* 이름 · 나이 · 성별 · 환자번호 · 주치의는 바로 위 환자 띠(PatientBar)가
+            이미 보여 준다 — 여기 또 찍으면 같은 값이 두 줄로 겹친다(09-28).
+            띠에 없는 내원 · 의뢰만 둔다. 둘 다 비어도 dl 은 남긴다 — 오른쪽
+            불일치 칸을 끝으로 미는 자리다 */}
         <dl className="rev-who">
-          <div className="rev-name"><dd>{H.nameOf(p)}</dd></div>
           {[
-            ["나이 · 성별", H.who(p)],
-            ["환자번호", H.noOf(p)],
             ["내원", p.visit_type],
             /* 서버 코드(screening · diagnostic)를 그대로 찍던 자리 */
             ["의뢰", label(EXAM_PURPOSE, p.visit_purpose) || null],
-            ["주치의", p.primary_staff_name],
             /* 값 없는 칸(내원 · 의뢰가 비는 재진)은 「—」로 자리를 먹지 않게 뺀다 */
           ].filter(([, v]) => v != null && v !== "").map(([k, v]) => (
             <div key={k}><dt>{k}</dt><dd>{v}</dd></div>

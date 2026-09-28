@@ -239,6 +239,10 @@ export function menuScreens(d) {
    못 찾으면 null (과 바깥 주소 · 모르는 주소) */
 export function screenAt(d, pathname) {
   if (!d) return null;
+  /* 과 바깥 주소(/hospital/patients/:id 에서 내 과 줄을 띄울 때)를 과 안
+     주소로 잘못 맞추지 않게 — 앞머리가 과 주소가 아니면 과 안 화면이 아니다 */
+  const base = deptPath(d);
+  if (pathname !== base && !pathname.startsWith(`${base}/`)) return null;
   const rest = pathname.slice(deptPath(d).length).split("/").filter(Boolean);
   return d.screens.find((s) => {
     const parts = s.key ? s.key.split("/") : [];

@@ -28,17 +28,6 @@
 # hospital/dept/  (1개)
 
 # hospital/dept/breast/components/  (26개)
-nifti-viewer              hospital/dept/breast/components/NiftiSliceViewer.jsx:77
-nifti-title               hospital/dept/breast/components/NiftiSliceViewer.jsx:78
-nifti-axis-dot            hospital/dept/breast/components/NiftiSliceViewer.jsx:80
-nifti-mask-badge          hospital/dept/breast/components/NiftiSliceViewer.jsx:81
-nifti-canvas-wrap         hospital/dept/breast/components/NiftiSliceViewer.jsx:84
-nifti-message             hospital/dept/breast/components/NiftiSliceViewer.jsx:85
-nifti-error               hospital/dept/breast/components/NiftiSliceViewer.jsx:86
-nifti-canvas              hospital/dept/breast/components/NiftiSliceViewer.jsx:90
-nifti-mask-loading        hospital/dept/breast/components/NiftiSliceViewer.jsx:97
-nifti-slice-control       hospital/dept/breast/components/NiftiSliceViewer.jsx:100
-nifti-count               hospital/dept/breast/components/NiftiSliceViewer.jsx:111
 viewer-content            hospital/dept/breast/components/ReviewViewer.jsx:102
 png-overlay-viewer        hospital/dept/breast/components/ReviewViewer.jsx:500
 png-overlay-stage         hospital/dept/breast/components/ReviewViewer.jsx:512

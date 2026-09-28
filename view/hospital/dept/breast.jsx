@@ -213,7 +213,7 @@ function row(r, visit, it) {
     no: H.noOf(r),
     meta: H.who(r),
     chip: H.allergy(r) || it?.has_allergy ? "알레르기" : null,
-    sub: [visit ? (visit.stage_detail ?? visit.stage) : (it?.today_stage ?? null),
+    sub: [H.dots(visit ? (visit.stage_detail ?? visit.stage) : (it?.today_stage ?? null)),
           r.has_open_discordance && it?.next_step !== "discordance" ? "판정 불일치" : null]
       .filter(Boolean).join(" · "),
     /* 다음 할 일 — 내가 손댈 차례면 채움, 남의 차례(결과 대기 · 재진)면 선 */

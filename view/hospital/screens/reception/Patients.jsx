@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { ALL_PATIENTS, reception as api, nursing as nur } from "../../api";
 import { Page, Card, Btn } from "../../lib/Page";
 import { Body, Empty } from "../../lib/Body";
-import { Chip, Search, Table } from "../../lib/Parts";
+import { Chip, Search, Sort, Table } from "../../lib/Parts";
 import { useApi } from "../../lib/useApi";
 import { can } from "../../perm";
 import { go } from "../../nav";
@@ -83,14 +83,10 @@ export default function Patients({ cfg, integrated: asked = false }) {
                 <Search placeholder="이름 · 전화 · 환자번호 · 생년월일"
                         value={q} onChange={setQ} />
               </form>
-              {/* ⚠ 공용 Sort 는 앞에 「정렬」을 단다 — 이건 거르개다. 같은 모양을
-                  이름표 없이 둔다(칩 글자가 곧 뜻이다) */}
-              <div className="sorts" role="group" aria-label="환자 거르기">
-                {filters.map((f) => (
-                  <button type="button" key={f.key} className={`pill${only === f.key ? " on" : ""}`}
-                          aria-pressed={only === f.key} onClick={() => setOnly(f.key)}>{f.label}</button>
-                ))}
-              </div>
+              {/* 이건 정렬이 아니라 거르개다 — 공용 Sort 를 이름표 없이 쓴다
+                  (칩 글자가 곧 뜻이다) */}
+              <Sort items={filters} value={only} onChange={setOnly}
+                    label={null} aria="환자 거르기" />
             </div>
 
             <Body loading={list.loading} error={list.error} onRetry={list.reload}>

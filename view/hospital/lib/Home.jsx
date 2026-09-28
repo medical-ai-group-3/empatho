@@ -342,18 +342,22 @@ function Queue({ queue }) {
   /* ⚠ 이 탭의 **어느 줄에도 값이 없는 열은 폭을 안 받는다**(0). 이름만 떼고
      1fr 을 그대로 주면 빈 열이 표 한가운데 폭을 먹고, 정작 값이 있는
      「할 일」 · 「기한」이 두 줄로 눌렸다(간호 홈 「전화 · 예약 확인」 1280) */
-  const col = (k, track) => (has(k) ? track : "0");
+  /* ⚠ 09-28 — 빈 열을 폭 0 으로만 두면 **열 사이 간격은 그대로 먹는다**
+     (빈 나이·성별 열 · 예전 빈 칸 자리마다 간격 하나씩). 그래서 빈 열은
+     격자에서 아예 뺀다 — 머리 줄과 QRow 가 같은 `on` 으로 셀을 안 그려서
+     subgrid 의 셀 수가 열 수와 늘 맞는다 */
+  const on = { meta: has("meta"), chip: has("chip"), sub: has("sub") };
+  const shown = extra.filter((c) => has(c.key));
   const grid = {
     gridTemplateColumns: [
       "max-content",                                   // 번호
       "minmax(max-content, 1.2fr)",                    // 이름
-      col("meta", spread),                             // 나이·성별
-      col("chip", spread),                             // 칩
-      col("sub", "minmax(6em, 2fr)"),                  // 한 줄 요약(두 줄까지 접힌다)
-      ...extra.map((c) => col(c.key, spread)),         // 과가 더 싣는 칸
-      "0",                                             // (예전 빈 칸 — 자리만)
+      on.meta && spread,                               // 나이·성별
+      on.chip && spread,                               // 칩
+      on.sub && "minmax(6em, 2fr)",                    // 한 줄 요약(두 줄까지 접힌다)
+      ...shown.map(() => spread),                      // 과가 더 싣는 칸
       "minmax(min-content, max-content)",              // 환자번호 · 시각(좁으면 두 줄)
-    ].join(" "),
+    ].filter(Boolean).join(" "),
   };
 
   return (
@@ -379,16 +383,13 @@ function Queue({ queue }) {
               <div className="qrow-head" aria-hidden="true">
                 <i className="qrow-n" />
                 <b>이름</b>
-                <span className="qrow-meta">{has("meta") ? cols.meta : null}</span>
-                <span className="qrow-chip">{has("chip") ? cols.chip : null}</span>
-                <span className="qrow-sub">{has("sub") ? cols.sub : null}</span>
-                {extra.map((c) => (
-                  <span className="qrow-x" key={c.key}>{has(c.key) ? c.name : null}</span>
-                ))}
-                <span aria-hidden="true" />
+                {on.meta && <span className="qrow-meta">{cols.meta}</span>}
+                {on.chip && <span className="qrow-chip">{cols.chip}</span>}
+                {on.sub && <span className="qrow-sub">{cols.sub}</span>}
+                {shown.map((c) => <span className="qrow-x" key={c.key}>{c.name}</span>)}
                 <span className="qrow-r">{cols.r}</span>
               </div>
-              {rows.map((r, i) => <QRow key={r.id} row={r} n={i + 1} extra={extra} />)}
+              {rows.map((r, i) => <QRow key={r.id} row={r} n={i + 1} on={on} extra={shown} />)}
           </div>}
     </Card>
   );
@@ -400,22 +401,24 @@ const COLS = { meta: "나이·성별", chip: "구분", sub: "상태", r: "환자
  *   (유방외과처럼 요약이 아예 없는 과)에서 가운데가 통째로 빈다.
  *   양 끝을 잡아야 표로 읽힌다 — 「1 김민지 47·여 ⋯⋯ P-0012 ›」
  */
-function QRow({ row, n, extra = [] }) {
+function QRow({ row, n, on, extra = [] }) {
   const open = useOpen(row);
   return (
     <article className="qrow" {...open}>
       <i className="qrow-n">{n}</i>
       <b>{row.name}</b>
-      {/* 값이 없어도 셀은 항상 그린다 — 안 그리면 subgrid 에서 자식 수가
-          줄어 뒤 항목이 앞 컬럼으로 밀린다(환자 #108 처럼 나이·성별이
-          빈 행). 빈 <span> 이 그 열의 자리를 잡아 정렬이 유지된다. */}
-      <span className="qrow-meta">{row.meta}</span>
-      <span className="qrow-chip">
-        {row.chip ? <Chip tone={row.chipTone ?? "line"}>{row.chip}</Chip> : null}
-      </span>
-      <span className="qrow-sub">{row.sub}</span>
+      {/* 열이 있으면(on — 이 탭의 어느 줄에든 값이 있으면) 이 줄에 값이
+          없어도 셀은 그린다 — 안 그리면 subgrid 에서 자식 수가 줄어 뒤
+          항목이 앞 컬럼으로 밀린다(나이·성별이 빈 줄). 열이 통째로 없으면
+          머리 줄과 같이 셀도 안 그린다 */}
+      {on.meta && <span className="qrow-meta">{row.meta}</span>}
+      {on.chip && (
+        <span className="qrow-chip">
+          {row.chip ? <Chip tone={row.chipTone ?? "line"}>{row.chip}</Chip> : null}
+        </span>
+      )}
+      {on.sub && <span className="qrow-sub">{row.sub}</span>}
       {extra.map((c) => <span className="qrow-x" key={c.key}>{row[c.key]}</span>)}
-      <span aria-hidden="true" />
       <span className="qrow-r">
         {row.no && <i className="qrow-no">{row.no}</i>}
         {row.at && <time>{row.at}</time>}
@@ -453,16 +456,25 @@ function useOpen(row) {
 function Stuck({ items }) {
   const total = items.reduce((n, c) => n + c.count, 0);
   return (
-    <Card title="확인 필요" count={total}>
+    <Card title="확인 필요" count={total} className="hug">
+      {/* 줄들을 한 격자(.srows)에 넣는다 — 태그 폭이 달라도 문장이 같은
+          x 에서 시작한다(09-28, 「추적 기한」과 「검체」 뒤 문장이 들쭉날쭉) */}
       {items.length === 0
         ? <None>지금 확인할 것이 없습니다</None>
-        : items.map((c) => (
-          <Line key={c.tag} to={c.to} className="srow">
-            <span className="stag">{c.tag}</span>
-            <span className="srow-tx">{c.text}</span>
-            <span className="srow-n">{c.count}건</span>
-          </Line>
-        ))}
+        : <div className="srows">
+            {items.map((c) => (
+              <Line key={c.tag} to={c.to} className="srow">
+                <span className="stag">{c.tag}</span>
+                <span className="srow-tx">{c.text}</span>
+                <span className="srow-n">{c.count}건</span>
+              </Line>
+            ))}
+          </div>}
+      {/* 단 맨 아래 칸이면 남는 높이를 받는다 — 줄 밑이 그냥 비면 덜 그린
+          것처럼 보였다. 바닥 한 줄로 칸의 끝을 잡는다(인계 사항과 같은 꼴) */}
+      {items.length > 0 && (
+        <p className="hcard-foot">0건인 항목은 줄을 세우지 않습니다.</p>
+      )}
     </Card>
   );
 }

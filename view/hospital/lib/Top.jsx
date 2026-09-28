@@ -33,9 +33,23 @@ import { useMe } from "./useMe";
  *   없으면 뱃지를 안 단다 — 0 을 찍으면 「0건」인지 「모른다」인지
  *   구분이 안 된다.
  */
-/* 과마다 마지막으로 누른 메뉴 — deep 화면이 「어디서 왔나」를 고를 때 쓴다.
-   모듈 변수라 새로고침하면 비고, 그때는 parent 의 첫째로 켜진다 */
-const lastMenu = new Map();
+/* 과마다 마지막으로 거쳐 온 메뉴 — deep 화면이 「어디서 왔나」를 고를 때 쓴다.
+   탭을 누른 것만이 아니라 **그 화면이 떴으면** 적는다(아래 Top) — 대기 환자의
+   「환자 상세」 단추처럼 화면 안 링크로 넘어가도 온 곳이 남는다.
+   탭 세션(sessionStorage)에도 적어 둔다 — 상세 화면에서 새로고침해도 온 탭이
+   그대로 켜진다. 못 적으면(사생활 창 등) 메모리만 쓰고, 그것도 없으면
+   parent 의 첫째로 켜진다 */
+const LAST_KEY = "hospital.lastMenu";
+const lastMenu = new Map((() => {
+  try { return Object.entries(JSON.parse(sessionStorage.getItem(LAST_KEY)) ?? {}); }
+  catch { return []; }
+})());
+function rememberMenu(deptKey, menuKey) {
+  if (lastMenu.get(deptKey) === menuKey) return;
+  lastMenu.set(deptKey, menuKey);
+  try { sessionStorage.setItem(LAST_KEY, JSON.stringify(Object.fromEntries(lastMenu))); }
+  catch { /* 기억 못 해도 된다 — 첫째 parent 로 켜진다 */ }
+}
 
 /* 화면 줄에서 불을 켤 메뉴 key. NavLink 의 앞머리 맞춤에 맡기면
    patients/:id/review 가 「전체 환자(patients)」로 켜진다 — 주소 틀로 화면을
@@ -55,9 +69,8 @@ export default function Top({ dept, now, counts, summary }) {
   const depts = myDepts();
   const screens = dept ? menuScreens(dept).filter((s) => can(s.need)) : [];
   const onKey = activeMenu(dept, pathname);
-  if (dept && screenAt(dept, pathname) && !screenAt(dept, pathname).deep) {
-    lastMenu.set(dept.key, onKey);
-  }
+  const here = screenAt(dept, pathname);
+  if (here && !here.deep) rememberMenu(dept.key, onKey);
 
   return (
     <header className="top">

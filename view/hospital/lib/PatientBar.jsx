@@ -64,7 +64,9 @@ export default function PatientBar({ patient, right, children }) {
 
       {!shut && (age != null || sex) && (
         <span className="pb-who">
-          {age != null && `${age}세`}{age != null && sex && " · "}{sex}
+          {/* 「41 · 여」 — 목록·큐(dept/home.js 의 who)와 같은 꼴. 여기만
+              「41세」로 찍으면 같은 환자가 화면마다 다르게 읽힌다 */}
+          {age != null && `${age}`}{age != null && sex && " · "}{sex}
         </span>
       )}
 
@@ -87,7 +89,8 @@ export default function PatientBar({ patient, right, children }) {
         {!shut && right}
         <button className="pb-fold" onClick={() => setShut(!shut)}
                 aria-expanded={!shut}
-                title={shut ? "환자 정보 펼치기" : "접기 — 뷰어를 넓게 봅니다"}>
+                aria-label={shut ? "환자 정보 펼치기" : "환자 정보 접기"}
+                title={shut ? "환자 정보 펼치기" : "환자 정보 접기"}>
           {shut ? "▾" : "▴"}
         </button>
       </span>

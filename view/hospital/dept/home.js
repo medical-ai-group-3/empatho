@@ -41,8 +41,16 @@ export function who(r) {
 export function nameOf(r) {
   const name = r.patient_name || r.name;
   if (name) return name;
-  const id = r.patient ?? r.patient_id;
-  return id != null ? `환자 #${id}` : "이름 없음";
+  /* ⚠ 「환자 #50」 처럼 내부 id 를 찍지 않는다 — 사람이 쓰는 번호가 아니라
+     그 번호로는 아무 데서도 못 찾는다(09-28). 환자번호가 있으면 그것으로 */
+  return noOf(r) || "이름 없음";
+}
+
+/* 「간호·문진」 → 「간호 · 문진」. 서버 단계 글이 가운뎃점 앞뒤를 붙여 주고
+   (stage_detail), 화면이 지은 글(진행 판 칸 이름)은 띄어 쓴다 — 같은 단계가
+   화면마다 달리 보였다(09-28 환자 기록 vs 진행 판). 보여 줄 때 한 꼴로 */
+export function dots(text) {
+  return text == null ? text : String(text).replace(/\s*·\s*/g, " · ");
 }
 
 export function noOf(r) {

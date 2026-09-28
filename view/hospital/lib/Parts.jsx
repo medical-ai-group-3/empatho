@@ -54,14 +54,21 @@ export function Locked({ what = "이 화면", need }) {
 }
 
 /* ── 정렬 pill ────────────────────────────────────────────── */
-export function Sort({ items, value, onChange }) {
+/* label — 앞에 붙는 이름표. 기본 「정렬」. 거르개로 쓸 때는 「보기」처럼
+   바꾸거나 null 로 떼고(칩 글자가 곧 뜻일 때) aria 로 그룹 이름만 준다.
+   전에는 「정렬」이 박혀 있어 거르개 자리에서는 이 부품을 못 썼다(09-28) */
+export function Sort({ items, value, onChange, label = "정렬", aria }) {
   return (
-    <div className="sorts" role="group" aria-label="정렬">
-      <span className="sorts-k">정렬</span>
-      {items.map((it) => (
-        <button key={it.key ?? it} className={`pill ${value === (it.key ?? it) ? "on" : ""}`}
-                onClick={() => onChange?.(it.key ?? it)}>{it.label ?? it}</button>
-      ))}
+    <div className="sorts" role="group" aria-label={aria ?? label ?? undefined}>
+      {label && <span className="sorts-k">{label}</span>}
+      {items.map((it) => {
+        const k = it.key ?? it;
+        return (
+          <button type="button" key={k} className={`pill ${value === k ? "on" : ""}`}
+                  aria-pressed={value === k}
+                  onClick={() => onChange?.(k)}>{it.label ?? it}</button>
+        );
+      })}
     </div>
   );
 }
@@ -281,7 +288,9 @@ export function Viewer({
   return (
     <div className="vwrap">
       {info && (L
-        ? <aside className="vside">
+        /* vside-info — 내용만큼만 선다(hospital.css). 전체 높이로 세우면
+           검사 정보가 짧을 때 아래 절반이 빈 검은 판으로 남았다(09-28) */
+        ? <aside className="vside vside-info">
             <div className="vside-h"><b>{infoName}</b>
               <button className="x" onClick={() => setL(false)} aria-label="접기">‹</button></div>
             <div className="vside-b">{info}</div>

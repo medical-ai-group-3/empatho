@@ -233,7 +233,7 @@ const DOT = { done: "●", going: "◐", none: "○" };
 
 function Visit({ today, studies, timeline }) {
   const last = studies[0] ?? null;
-  const stage = today ? (today.stage_detail || today.stage) : null;
+  const stage = today ? H.dots(today.stage_detail || today.stage) : null;
   const todaySteps = today ? H.stageSteps(today.stage) : null;
 
   return (

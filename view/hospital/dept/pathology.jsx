@@ -71,7 +71,7 @@ function ago(v) {
 }
 
 /* 「김환자 (51/여)」. ⚠ 이름 · 나이 · 성별이 비어 오는 줄이 있다 — 그대로
-   이으면 「null (null/)」이 찍힌다. 이름은 H.nameOf 로(없으면 「환자 #id」),
+   이으면 「null (null/)」이 찍힌다. 이름은 H.nameOf 로(없으면 환자번호 · 「이름 없음」),
    괄호는 아는 것만 */
 function patientText(r) {
   if (!r) return "";

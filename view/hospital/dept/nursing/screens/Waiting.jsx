@@ -74,7 +74,7 @@ const staffName = (s) => s.full_name ?? s.name ?? `직원 ${staffId(s)}`;
    외래 차례는 홈 현황판(StageBoard)과 같은 말로, 끝난 것은 「진료 완료」 */
 const stageText = (r) => (r.stage_code === "outpatient" ? "유방외과 진료 대기"
   : r.stage_code === "completed" || r.stage === "completed" ? "진료 완료"
-    : label(ORDER_STATUS, r.stage) || r.stage_detail || null);
+    : H.dots(label(ORDER_STATUS, r.stage) || r.stage_detail) || null);
 
 /* 보낸 오더 — today-status 의 handed_at 이 찬 줄. 취소는 뺀다 */
 const handed = (r) => r.handed_at != null && r.stage_code !== "cancelled"
