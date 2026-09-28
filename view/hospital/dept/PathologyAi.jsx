@@ -106,7 +106,7 @@ export default function PathologyAi({ d }) {
                       <p className="muted small">
                         병리의사 sTIL과 척도가 달라 직접 비교할 수 없습니다.
                         세포 검출 누락으로 실제와 다르게 나올 수 있습니다.
-                        {band(r.stil_percent) && " ± 는 외부 검증 이미지 151장 중 80%가 들어간 오차 범위입니다."}
+                        {band(r.stil_percent) && " ± 는 학습에 쓰지 않은 검증 이미지 27장 중 80%가 들어간 오차 범위입니다."}
                       </p>
                     </>
                   )}
@@ -190,19 +190,17 @@ export default function PathologyAi({ d }) {
   );
 }
 
-/* 검증 오차 ± (09-28 · serving 1.1.0) — BCSS 151장(학습에 안 쓴 외부 ROI,
-   0.5µm/px)에서 AI 값 구간마다 |AI − 정답| 의 80 백분위를 잰 값이다.
+/* 검증 오차 ± (09-28 · serving 1.1.0) — BCSS 중 **학습에 안 쓴 환자 27장**
+   (0.5µm/px)에서 AI 값 구간마다 |AI − 정답| 의 80 백분위를 잰 값이다.
    정답 = 병리 인력이 칠한 림프구 침윤 면적 ÷ 간질 영역 면적.
-   전체 평균 오차 9.2 (1.0.0 핵 면적식 16.2), AI 평균 24.8 · 정답 평균 24.9.
-   ⚠ 병리의사 육안 sTIL 점수 기준이 아니다. 조직 모델·계산식이 바뀌면
-     다시 잰다 — 워크스테이션 ~/tmp_stil_rel/val11.py · band.py
+   ⚠ BCSS 151장 중 124장은 학습 데이터(TIGER)와 같은 환자 · 같은 영역이라 뺐다
+     (TIGER TCGA 크롭은 BCSS 영역에서 잘라 낸 조각이다). 27장이라 구간을 둘로만 나눈다.
+   ⚠ 병리의사 육안 sTIL 점수 기준이 아니다. 조직 모델·계산식이 바뀌면 다시 잰다
+     — 워크스테이션 ~/tmp_stil_rel/val11.json
    ponytail: 화면 상수. 모델 판마다 달라지면 서버 응답으로 옮긴다 */
 const ERROR_BAND = [
-  { upTo: 10, pm: 7.6 },
-  { upTo: 20, pm: 10.3 },
-  { upTo: 30, pm: 10.9 },
-  { upTo: 40, pm: 17.6 },
-  { upTo: Infinity, pm: 14.6 },
+  { upTo: 20, pm: 11.4 },          // 15장
+  { upTo: Infinity, pm: 20.5 },    // 12장
 ];
 
 function band(v) {
