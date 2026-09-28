@@ -535,7 +535,7 @@ export const pathology = {
         meta: H.who(r),
         chip: kindText(r.kind),
         sub: r.specimen_no ?? "",
-        wait: [H.at(r.collected_at), H.waited(r.collected_at)].filter(Boolean).join(" · "),
+        wait: [H.when(r.collected_at), H.waited(r.collected_at)].filter(Boolean).join(" · "),
         /* 접수 대기 줄이다 — 누르면 그 검체가 열린 접수 화면으로 간다.
            환자 화면으로 보내면 거기서 접수·업로드로 가는 길이 없어
            막다른 길이 된다(09-23 확인, 영상의학과와 같은 자리). */

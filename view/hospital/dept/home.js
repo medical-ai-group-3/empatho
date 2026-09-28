@@ -68,6 +68,13 @@ export function some(value) {
   return NONE.has(t) ? null : t;
 }
 
+/* 오늘이면 「14:27」, 아니면 「09-21」 — 며칠 지난 건에 시각만 적으면
+   오늘 새벽 일로 읽혔다(「02:23 · 5일」, 09-28). 큐 줄의 「언제」 칸이 쓴다 */
+export function when(value) {
+  if (!value) return null;
+  return isToday(value) ? at(value) : day(value);
+}
+
 /* 「2026-09-21T10:20:00+09:00」 → 「09-21」. 진료 이력·판독 줄이 쓴다.
    ⚠ toISOString 을 쓰면 UTC 라 오전 9시 이전이 어제가 된다 — 글자를 자른다 */
 export function day(value) {

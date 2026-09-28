@@ -547,7 +547,7 @@ export const radiology = {
               label(PURPOSE, r.exam_purpose) || r.exam_name].filter(Boolean).join(" · "),
         /* 시각과 기다린 시간을 한 칸에 — 따로 두니 눈이 끝에서 끝으로 오갔다.
            기다린 시간은 촬영한 뒤로. 오더 시각은 새 서버만 행에 싣는다 */
-        wait: [H.at(r.performed_at ?? r.ordered_at), H.waited(r.performed_at ?? r.ordered_at)].filter(Boolean).join(" · "),
+        wait: [H.when(r.performed_at ?? r.ordered_at), H.waited(r.performed_at ?? r.ordered_at)].filter(Boolean).join(" · "),
         modality: asModality(r.modality),
         exam_purpose: r.exam_purpose ?? null,
         /* 영상이 없으면 업로드, 있으면 판독 — 영상 없는 검사를 판독으로
@@ -565,13 +565,15 @@ export const radiology = {
         hint: "진행 순서",
         cols: { chip: "모달리티", sub: "내용" },
         pick: "doctor",
-        /* 시각 · 기다린 시간 한 칸. 오른쪽 끝은 환자번호만 */
-        extra: [{ key: "wait", name: "시각 · 대기" }],
+        /* 언제 · 기다린 시간 한 칸. 오른쪽 끝은 환자번호만.
+           칸 이름은 무슨 시각인지 말한다 — 촬영 대기 탭만 요청 시각이다 */
+        extra: [{ key: "wait", name: "촬영 · 대기" }],
         filters: HOME_FILTERS,
         tabs: [
           /* 유방외과가 낸 오더 — 집는 것은 촬영 대기 화면이 한다.
              줄을 누르면 그 오더가 골라진 채로 열린다(?pick=) */
           { key: "order", name: "촬영 대기", empty: "촬영 대기 중인 오더가 없습니다",
+            extra: [{ key: "wait", name: "요청 · 대기" }],
             rows: queue.map((o) => ({
               id: `o-${o.id}`,
               name: o.patient_name ?? H.nameOf(o),
@@ -580,7 +582,7 @@ export const radiology = {
               chip: o.modality ? label(MODALITY, asModality(o.modality)) : null,
               sub: [label(PURPOSE, o.exam_purpose) || null, o.purpose || null,
                     `${o.ordered_by_name ?? "유방외과"} 요청`].filter(Boolean).join(" · "),
-              wait: [H.at(o.ordered_at), H.waited(o.ordered_at)].filter(Boolean).join(" · "),
+              wait: [H.when(o.ordered_at), H.waited(o.ordered_at)].filter(Boolean).join(" · "),
               modality: asModality(o.modality),
               exam_purpose: o.exam_purpose ?? null,
               to: `${go.radiology.queue()}?pick=${o.id}`,
