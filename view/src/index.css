@@ -17,7 +17,7 @@
    단위로 흐려지면서 정렬이 오히려 어긋난다.
    ───────────────────────────────────────────────────────────── */
 @import url("./styles/tokens.css");
-@import url("https://fonts.googleapis.com/css2?family=Gothic+A1:wght@300;400;500;600;700&family=Gowun+Batang:wght@400;700&family=IBM+Plex+Mono:wght@400;500&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&family=Gothic+A1:wght@300;400;500;600;700&family=Gowun+Batang:wght@400;700&family=IBM+Plex+Mono:wght@400;500&display=swap");
 
 * {
   box-sizing: border-box;
@@ -97,7 +97,7 @@ a {
   align-items: center;
   gap: var(--top-gap);
   padding: var(--top-pad-y) var(--top-pad-x);
-  padding-top: calc(var(--top-pad-y) + env(safe-area-inset-top, 0px));
+  padding-top: calc(var(--top-pad-y) + var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
   border-bottom: var(--line-w) solid var(--line);
   flex: none;
   background: var(--surface);
@@ -199,7 +199,7 @@ a {
   /* env(safe-area-inset-bottom) — 아이폰 아래쪽 «홈 인디케이터» 막대 높이다.
      안 빼면 하단바가 그 밑에 깔려서 탭이 안 눌린다 */
   margin: 0 var(--nav-side)
-    calc(var(--nav-bottom) + env(safe-area-inset-bottom, 0px));
+    calc(var(--nav-bottom) + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
   border-radius: var(--nav-radius);
   border: var(--line-w) solid var(--card-line);
   box-shadow: var(--nav-shadow);
@@ -1248,7 +1248,7 @@ a {
   background: var(--bg);
   border-inline: var(--line-w) solid var(--line);
   padding: var(--wel-pad);
-  padding-bottom: calc(var(--wel-pad) + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(var(--wel-pad) + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
 }
 
 /* 로고 조합과 서식은 단추 위의 남는 자리를 받아 화면 가운데에 선다. */
@@ -1755,7 +1755,7 @@ a {
 /* 나가는 문은 늘 같은 자리에 — 오른쪽 위 */
 .coach-x {
   position: fixed;
-  top: calc(var(--screen-pad) + env(safe-area-inset-top, 0px));
+  top: calc(var(--screen-pad) + var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
   right: var(--screen-pad);
   width: var(--icon);
   height: var(--icon);
@@ -1948,7 +1948,7 @@ a {
   position: fixed;
   right: var(--fab-right);
   bottom: calc(
-    var(--nav-bottom) + env(safe-area-inset-bottom, 0px) + var(--fab-size) +
+    var(--nav-bottom) + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)) + var(--fab-size) +
       26px
   );
   display: flex;
@@ -2289,115 +2289,14 @@ a {
   gap: var(--hhead-gap);
   position: relative;
   z-index: 3;
-  padding-top: env(safe-area-inset-top, 0px);
+  padding-top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
 }
 
 /* 인사 왼쪽 · 틸리 오른쪽. 캐릭터는 배너 안에만 두어 아래 바로가기
    타일의 제목이나 그림을 가리지 않는다. */
-.hello {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--hhead-gap);
-  margin: calc(-1 * var(--screen-gap) / 2) 0 0;
-  pointer-events: none;
-  position: relative;
-  z-index: 1;
-  isolation: isolate;
-}
-.hello-bg {
-  position: absolute;
-  z-index: 0;
-  /* right 끝을 틸리의 중심에 놓고, 자기 폭의 반만큼 다시 밀어
-     배경 한가운데와 틸리 한가운데를 정확히 맞춘다. */
-  right: calc(var(--hello-tri-right) + (var(--tilly-lg) / 2));
-  bottom: 0;
-  width: 90%;
-  max-width: 390px;
-  height: auto;
-  transform: translateX(50%);
-  pointer-events: none;
-}
-.hello-tx {
-  flex: 1;
-  min-width: 0;
-  margin: 0;
-  display: flex;
-  position: relative;
-  z-index: 1;
-  flex-direction: column;
-  gap: var(--hello-gap);
-}
-.hello-message {
-  /* 09-28 — 흰 카드 · 날짜 알약 · 이름 강조(시안). 분홍 테두리를 걷고 그림자로 띄운다 */
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 6px;
-  padding: 16px 18px;
-  border-radius: 22px;
-  background: var(--surface);
-  box-shadow: 0 6px 20px light-dark(rgba(70, 35, 42, 0.10), rgba(0, 0, 0, 0.28));
-}
-.hello-date {
-  display: inline-block;
-  padding: 4px 12px;
-  border-radius: 999px;
-  background: var(--pink-bg);
-  font-size: var(--card-s-fs) !important;
-  color: var(--pink) !important;
-  font-weight: 700;
-}
-.hello-visit {
-  margin-top: 4px;
-  font-size: var(--card-v-fs) !important;
-  color: var(--ink) !important;
-  font-weight: 700;
-  line-height: 1.45;
-  word-break: keep-all;   /* 「방문예정이 / 에요」처럼 낱말 중간에서 끊지 않는다 */
-}
-.hello-health-label {
-  margin-top: 6px;
-  font-size: var(--card-s-fs) !important;
-  color: var(--pink-2) !important;
-  font-weight: 700;
-}
-.hello-health-tip {
-  font-size: var(--card-s-fs) !important;
-  color: var(--ink) !important;
-  opacity: 0.72;
-  font-weight: 500;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.hello-tri {
-  flex: none;
-  display: block;
-  margin-right: var(--hello-tri-right);
-  position: relative;
-  z-index: 1;
-}
 /* 그림자가 있어야 «얹혀 있다»로 읽힌다. 없으면 타일에 인쇄된 것처럼
    납작해진다. filter 라 투명한 윤곽선을 따라 그림자가 생긴다 */
-.hello-tri .tilly {
-  filter: drop-shadow(0 8px 12px rgba(28, 32, 36, 0.16));
-}
 
-.hello-tx b {
-  font-size: var(--hello-b-fs);
-  font-weight: 800;
-  color: var(--pink);
-  letter-spacing: -0.02em;
-  line-height: 1.2;
-}
-.hello-tx span {
-  font-size: var(--hello-s-fs);
-  color: var(--muted);
-}
-.hello-visit em {
-  font-style: normal;
-  color: var(--pink);
-}
 
 /* ── 챗봇 제안 줄 ────────────────────────────────
    넷이 세로로 선다. 각 줄이 하는 일은 다르지만(묻기 · 이동 · 입력)
@@ -2918,15 +2817,243 @@ a {
 }
 .search input:focus { outline: none; }
 .search .btn { flex: none; width: auto; padding: 8px 14px; }
-/* 09-28 — 인사 카드를 넓힌다. 틸리 옆에 끼어 폭이 좁아 방문 문장이 세 줄이
-   됐다. 카드를 한 줄에 들어갈 만큼 넓히고, 틸리는 카드 오른쪽 끝에 살짝 겹쳐 앉힌다 */
-.hello-message {
-  padding: 18px 20px;
-  /* 세로 flex 의 자식은 기본으로 부모 폭까지 늘어난다 — 그래서 글 오른쪽,
-     틸리 밑까지 빈 흰 칸이 이어졌다. 글 폭만큼만 차지하게 한다 */
-  align-self: flex-start;
+
+/* ════════════════════════════════════════════════════════════════
+   09-28 디자인 리뉴얼 (EMPATHO_환자앱_디자인_명세.md)
+   이전 디자인은 브랜치 backup/app-design-20260928 에 있다.
+   색 규칙: 같은 역할은 같은 색 · 청록(--done)은 완료 상태에만 ·
+   진한 핑크는 작은 면적에만, 넓은 면은 블러시 그라데이션(--hero)
+   ════════════════════════════════════════════════════════════════ */
+
+/* ── 홈 머리(hero) ── 화면 여백을 뚫고 가로 끝까지 */
+.hero {
+  position: relative;
+  margin: calc(-1 * var(--screen-pad)) calc(-1 * var(--screen-pad)) 0;
+  padding: var(--screen-pad) var(--screen-pad) 96px;
+  padding-top: calc(var(--screen-pad) + var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
+  background: var(--hero);
+  border-radius: 0 0 34px 34px;
+  overflow: hidden;
 }
-.hello-tri {
-  margin-left: calc(-56px * var(--sp, 1));
-  z-index: 2;
+.hero-dot {
+  position: absolute;
+  width: 140px; height: 140px;
+  left: -40px; bottom: -60px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.45);
+}
+.hero .hbar { position: relative; z-index: 2; justify-content: flex-end; }
+.hero .hbar .icon {
+  width: 34px; height: 34px;
+  background: #fff;
+  border: none;
+  color: var(--pink);
+  box-shadow: 0 2px 6px rgba(184, 67, 106, 0.12);
+}
+.hero .hbar .icon .new { background: var(--accent); }
+.hero-t {
+  position: relative; z-index: 2;
+  margin: 4px 0 0;
+  font-size: 27px; font-weight: 800; letter-spacing: -0.5px;
+  color: var(--heading);
+}
+.hero-s {
+  position: relative; z-index: 2;
+  margin: 4px 0 0;
+  font-size: 13px; color: var(--heading-sub);
+}
+/* 틸리는 인사 카드 **뒤** — 아래쪽이 카드에 가려 내다보는 모양 */
+.hero-tilly {
+  position: absolute; z-index: 1;
+  right: 26px; bottom: 62px;   /* 카드가 머리 아래 86px 을 덮는다 — 아래 24px 만 가려진다 */
+  width: 106px;
+  filter: drop-shadow(0 6px 10px rgba(184, 67, 106, 0.18));
+}
+.hero-tilly .tilly { width: 100%; height: auto; }
+
+/* ── 인사 카드 ── 머리 아래쪽에 반쯤 걸친다 */
+.hello-card {
+  position: relative; z-index: 2;
+  margin-top: calc(-86px - var(--screen-gap));
+  background: var(--surface);
+  border-radius: 20px;
+  padding: 16px 18px;
+  box-shadow: var(--hero-shadow);
+}
+.hello-row { display: flex; align-items: center; justify-content: space-between; }
+.badge {
+  display: inline-block;
+  font-size: 12px; font-weight: 700;
+  padding: 3px 10px; border-radius: 20px;
+  background: var(--pink-3); color: var(--pink);
+}
+.badge.strong { background: var(--pink); color: #fff; font-weight: 800; }
+.badge.done { background: var(--done-soft); color: var(--done); }
+.hello-card .hello-visit {
+  margin: 10px 0 2px;
+  font-size: 17px; font-weight: 700; line-height: 1.45;
+  color: var(--ink); word-break: keep-all;
+}
+.hello-card .hello-visit em { font-style: normal; color: var(--pink); }
+.hello-last { margin: 0 0 12px; font-size: 12.5px; color: var(--muted); }
+.tipbox {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--tip-bg); border-radius: 12px; padding: 9px 12px;
+}
+.tip-ic {
+  width: 28px; height: 28px; flex: none;
+  border-radius: 50%; background: #fff;
+  display: grid; place-items: center;
+  color: var(--tip-label);
+}
+.tipbox small { display: block; font-size: 11.5px; font-weight: 700; color: var(--tip-label); }
+.tipbox b { display: block; font-size: 13px; font-weight: 600; color: var(--ink); }
+
+/* ── 빠른 메뉴 ── 가로 카드: 연핑크 타일 + 제목 + 보조 문구 */
+.quick-head .svg-icon, .quick-head svg { color: var(--accent); }
+.tiles { gap: 12px; }
+.tile {
+  flex-direction: row; justify-content: flex-start; text-align: left;
+  gap: 12px; height: 86px; padding: 0 14px;
+  border-radius: 18px;
+}
+.tile .ic {
+  width: 48px; height: 48px; border-radius: 15px;
+  background: var(--pink-3); color: var(--pink);
+  font-size: 24px;
+}
+.tile b { display: block; font-size: 15px; font-weight: 700; }
+.tile small { display: block; font-size: 11px; font-weight: 500; color: var(--muted); margin-top: 2px; }
+
+/* ── 문진 완료 ── 청록은 **완료 상태에만** */
+.quest-card:not(.accent):has(.pill.ok) {
+  background: linear-gradient(120deg, var(--done-soft), light-dark(#F1FAF8, var(--done-soft)));
+}
+.quest-card .pill.ok { background: var(--done); color: #fff; }
+.quest-card .pill.ok::before { background: #fff; }
+
+/* ── 카드 · 버튼 공통 ── */
+.card { border-radius: 18px; }
+.btn.fill, button.primary, .btn-primary { box-shadow: var(--btn-shadow); border-radius: 14px; }
+
+/* ── 하단 탭 ── 떠 있는 흰 바 · 선택은 연핑크 알약, 비선택은 muted */
+.tabs { border-radius: 22px; padding: 7px; }
+.tabs a { color: var(--muted); border-radius: 16px; }
+.tabs a.on { color: var(--pink); background: var(--blossom); border-radius: 16px; }
+
+/* ── 떠 있는 틸리(FAB) ── 50px 원 · 흰 3px 테두리 · 연핑크 바탕 */
+.chatfab .tilly.fab {
+  width: 50px; height: 50px;
+  object-fit: cover; object-position: center 20%;
+  border-radius: 50%;
+  border: 3px solid #fff;
+  background: var(--pink-3);
+  filter: none;
+  box-shadow: 0 4px 12px rgba(184, 67, 106, 0.18);
+}
+
+/* ── 탭 화면 머리(결과 · 예약 · 내 정보) ── 큰 제목 + 부제, 블러시 그라데이션 */
+.top.hero-top {
+  position: relative; overflow: hidden;
+  align-items: flex-start;
+  padding: calc(18px + var(--safe-area-inset-top, env(safe-area-inset-top, 0px))) 20px 22px;
+  background: var(--hero);
+  border-bottom: none;
+  border-radius: 0 0 30px 30px;
+}
+.top.hero-top .back { position: relative; z-index: 1; margin-top: 4px; color: var(--heading); }
+.hero-tx { position: relative; z-index: 1; flex: 1; min-width: 0; }
+.hero-tx h2 { margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.5px; color: var(--heading); }
+.hero-tx p { margin: 4px 0 0; font-size: 13px; color: var(--heading-sub); }
+.top.hero-top .hero-dot { left: auto; right: -50px; bottom: 30px; }   /* 머리 아래끝에 잘리지 않게 */
+
+/* ── 배지(알약) ── 기본 연핑크 · 완료 청록 */
+.pill.new, .pill.lock { background: var(--pink-3); color: var(--pink); }
+.pill.done { background: var(--done-soft); color: var(--done); }
+.pill.ok { background: var(--done-soft); color: var(--done); }
+.pill.ok::before { background: var(--done); }
+
+/* ── 검사 결과 목록 ── 줄마다 떠 있는 카드 */
+.list { background: none; border: none; box-shadow: none; overflow: visible; gap: 12px; }
+.list > * {
+  background: var(--surface); border-radius: 18px; border-bottom: none;
+  box-shadow: var(--card-shadow); align-items: center;
+}
+.list a:hover { background: var(--surface); box-shadow: 0 4px 16px rgba(184, 67, 106, 0.12); }
+.list .dt { color: var(--muted); }
+
+/* ── 달력 ── 예약 가능일 연핑크, 선택일 진핑크 + 그림자, 일요일만 핑크 */
+.cal { border-radius: 18px; border: none; }
+.cal .wd { color: var(--muted); }
+.cal .wd > :first-child { color: var(--pink); }
+.cal .d { color: var(--ink); border-radius: 12px; }
+.cal .d.sun { color: var(--pink); }
+.cal .d.marked { background: var(--pink-3); color: var(--pink); }
+.cal .d.sel { background: var(--pink); color: #fff; box-shadow: 0 4px 10px rgba(184, 67, 106, 0.30); }
+
+/* ── 희망 시간 ── 3열 · 기본 흰 바탕 + 옅은 테두리 · 선택 진핑크 · 마감 회색 취소선 */
+.chips { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.chip { border-radius: 14px; padding: 12px 0; text-align: center; color: var(--ink); font-weight: 700; }
+.chip.on { background: var(--pink); color: #fff; box-shadow: var(--btn-shadow); }
+.chip:disabled { background: var(--off); color: var(--faint); text-decoration: line-through; box-shadow: none; }
+
+/* ── 내 정보 프로필 ── 흰 카드 · 연핑크 그라데이션 원 · 이름 핑크 */
+.pro {
+  flex-direction: row; text-align: left; align-items: center;
+  gap: 14px; padding: 16px 18px;
+  background: var(--surface); border-radius: 18px; box-shadow: var(--card-shadow);
+}
+.pro .ava {
+  width: 62px; height: 62px;
+  background: linear-gradient(140deg, var(--pink-3), var(--hero-3));
+  color: var(--pink);
+}
+.pro .nm b { color: var(--pink); }
+/* 안드로이드 WebView 는 env(safe-area-inset-*) 가 0 으로 나오는 판이 있다.
+   Capacitor(SystemBars)가 대신 --safe-area-inset-* 변수를 넣어 주므로 그것을 먼저 읽는다
+   — 위 규칙들의 var(--safe-area-inset-top, env(...)) 가 그 뜻이다(09-28) */
+
+/* 빠른 메뉴 아이콘 — 타일(48px) 안에 24px. 전역 `.tile .ic svg{100%}` 때문에 타일을 꽉 채웠다 */
+.tile .ic svg { width: 24px; height: 24px; }
+
+/* 에뮬레이터 확인 — 상태바 높이가 두 번 더해져(머리 + 그 안의 알림줄)
+   「안녕하세요!」가 너무 내려왔다. 머리에서만 한 번 더한다 */
+.hero { padding-top: calc(8px + var(--safe-area-inset-top, env(safe-area-inset-top, 0px))); }
+.hero .hbar { padding-top: 0; }
+
+/* 탭 화면 머리(결과 · 예약 · 내 정보)도 홈처럼 첫 카드가 머리 아래쪽에 걸쳐
+   올라오게 한다. 머리의 둥근 아래 모서리가 바탕에 그대로 드러나 끊겨 보였다.
+   본문을 위로 끌어 올리고 바탕을 비워, 그 띠에서 그라데이션이 비쳐 보이게 한다 */
+/* 첫 요소가 카드가 아닌 화면(예약의 「내 예약」 글자, 빈 결과)에서는 모서리가
+   그대로 보인다 — 모서리를 없애고 아래쪽을 바탕색으로 흐려 어떤 내용이 와도 이어지게 */
+.top.hero-top {
+  padding-bottom: 58px;
+  border-radius: 0;
+  background: linear-gradient(180deg, transparent 50%, var(--bg) 100%), var(--hero);
+}
+.top.hero-top + .pane {
+  position: relative; z-index: 1;
+  margin-top: -40px;
+  background: transparent;
+}
+
+/* 하단 탭이 두꺼웠다(약 95px) — 명세 높이 70px 쪽으로 줄인다 */
+.tabs { padding: 5px; }
+.tabs a { padding: 6px 2px; gap: 1px; }
+.tabs .ic { width: 26px; height: 26px; }
+
+/* ── 오늘 병원 안내 ── 진한 테두리를 걷고 연핑크 그라데이션 카드로(안내 카드 규칙) */
+.today-visit {
+  border: none;
+  border-radius: 18px;
+  background: linear-gradient(120deg, var(--pink-3), var(--surface));
+}
+
+/* ── 내 정보 ── 틸리 동그라미 · 로그아웃은 가운데 흐린 글자 단추 */
+.pro .ava { overflow: hidden; }
+.pro .ava .tilly { width: 100%; height: 100%; object-fit: cover; object-position: center 25%; }
+.btn.ghost.logout {
+  align-self: center;
+  background: none; border: none; box-shadow: none;
+  color: var(--muted); font-weight: 500;
 }

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { api } from "../api";
 import { useApi } from "../lib/useApi";
 import { Body, Head } from "../lib/Screen";
+import Tilly from "../lib/Tilly";
 import { deptLabel } from "../lib/dept";
 import { fmtDay, fmtDayKey } from "../lib/when";
 
@@ -40,7 +41,7 @@ export default function Me() {
 
   return (
     <>
-      <Head title="내 정보" />
+      <Head title="내 정보" back={false} sub="계정과 알림을 관리해요" />
       <Body loading={loading} error={error} onRetry={reload}>
         {data && <Inner me={data} />}
       </Body>
@@ -77,7 +78,8 @@ function Inner({ me }) {
           사람이다. */}
       <div className="pro">
         <span className="ava" aria-hidden="true">
-          {me.display_name?.[0] ?? "·"}
+          {/* 09-28 리뉴얼 — 이름 첫 글자 대신 틸리(시안) */}
+          <Tilly mood="hi" size="md" alt="" />
         </span>
         <p className="nm">
           <b>{me.display_name} 님</b>
@@ -115,7 +117,7 @@ function Inner({ me }) {
           안내하지 않는다 — 홈 톱니와 두 갈래가 되면 어느 쪽이 진짜인지
           헷갈린다 */}
 
-      <button className="btn ghost" disabled={busy} onClick={logout}>
+      <button className="btn ghost logout" disabled={busy} onClick={logout}>
         로그아웃
       </button>
 

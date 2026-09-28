@@ -33,7 +33,7 @@ export default function Book() {
 
   return (
     <>
-      <Head title="예약" />
+      <Head title="예약" back={false} sub="원하는 날짜와 시간을 골라주세요" />
       <Body loading={loading} error={error} onRetry={reload}>
         {data && <Inner d={data} reload={reload} />}
       </Body>
