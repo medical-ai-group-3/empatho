@@ -36,9 +36,49 @@ export const INGREDIENTS = [
 
 export const emptyDrug = () => ({
   name: "", ingredient: "", dose: "", times: [], days: "",
+  route: "", form: "",   /* 투여 경로(codes.js ROUTE) · 제형 — 둘 다 선택 */
   purpose: "", how: "", watch: "",
   hints: [],   /* 약 이름 검색 결과에서 뽑은 성분 — 보내지 않는다 */
 });
+
+/* 품목명 → 투여 경로 · 제형 짐작. 「타이레놀정500밀리그람(…)」의 「정」처럼
+ * 제형 글자는 함량 숫자 바로 앞이나 이름 끝에 온다.
+ *
+ * ⚠ **짐작일 뿐이다.** 빈 칸에만 채우고 사람이 고친다(Prescription.jsx).
+ * ⚠ 앞에서부터 본다 — 「점안」 「흡입」 「주사」가 「정」 「액」보다 먼저다.
+ *   「…주사액」을 액제로 읽으면 안 된다.
+ * ⚠ 「정」 「산」 「주」는 한 글자라 이름 속에도 흔하다(정로환 · 산부인과…).
+ *   그래서 **뒤에 숫자 · 공백 · 괄호 · 끝**이 올 때만 제형으로 본다. */
+const END = String.raw`(?=[\d\s(]|$)`;
+const FORM_RULES = [
+  [/점안/, "eye", "점안제"],
+  [/흡입|에어로|네뷸/, "inhalation", "흡입제"],
+  [new RegExp(`주사|프리필드|주${END}`), "injection", "주사제"],
+  [/크림/, "topical", "크림제"],
+  [/연고/, "topical", "연고제"],
+  [/겔|젤/, "topical", "겔제"],
+  [/패치|첩부|플라스타/, "topical", "첩부제"],
+  [/캡슐/, "oral", "캡슐제"],
+  [/시럽/, "oral", "시럽제"],
+  [/과립/, "oral", "과립제"],
+  [/현탁/, "oral", "현탁제"],
+  [new RegExp(`정${END}`), "oral", "정제"],
+  [new RegExp(`산${END}`), "oral", "산제"],
+];
+export function routeOf(name) {
+  /* 끝 괄호(성분) 는 뺀다 — 성분명에 「…산」 「…정」이 들어 있다 */
+  const base = String(name ?? "").replace(/\([^()]*\)\s*$/, "").trim();
+  if (!base) return null;
+  const hit = FORM_RULES.find(([re]) => re.test(base));
+  return hit ? { route: hit[1], form: hit[2] } : null;
+}
+
+/* DUR 에 보낼 성별 — 서버는 F · M 만 받는다. 모르면 보내지 않는다 */
+export function durSex(sex) {
+  const s = String(sex ?? "").trim().toLowerCase();
+  return s === "f" || s === "female" || s === "여" ? "F"
+    : s === "m" || s === "male" || s === "남" ? "M" : undefined;
+}
 
 /* e약은요 품목명은 끝 괄호에 성분을 적는다 — 「타이레놀정500밀리그람(아세트아미노펜)」.
  * 그 괄호만 꺼낸다. 수출명 같은 다른 괄호면 비워 둔다(틀린 성분보다 빈칸이 낫다). */

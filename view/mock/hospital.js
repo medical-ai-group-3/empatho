@@ -338,6 +338,45 @@ export default function hospitalMock() {
           });
         }
 
+        /* ── DUR 점검 ─────────────────────────────────────────────
+           **보낸 성분을 보고 답한다.** 고정 응답이면 약을 더하고 빼도 경고가
+           그대로라, 처방 화면의 금기 확인 표시가 풀리고 걸리는 것을 못 본다.
+             아스피린 + 메토트렉세이트 → 병용금기(taboo)
+             age ≥ 65                   → 성분마다 노인주의(caution)
+           나머지는 경고 없음. 진짜 서버는 core/api/drugs.py 의 DUR 경로다. */
+        if (path === `${PREFIX}/drugs/dur` && req.method === "POST") {
+          return readBody(req, (body) => {
+            const list = Array.isArray(body.ingredients)
+              ? body.ingredients.map((s) => String(s).trim()).filter(Boolean) : [];
+            if (!list.length) {
+              return fail(res, "VALIDATION_ERROR", "성분을 하나 이상 보내 주세요.", 400);
+            }
+            const find = (word) => list.find((s) => s.includes(word));
+            const alerts = [];
+            const asp = find("아스피린");
+            const mtx = find("메토트렉세이트");
+            if (asp && mtx) {
+              alerts.push({
+                type: "combo", level: "taboo", ingredient: asp, with: mtx,
+                message: "병용금기",
+                detail: "메토트렉세이트의 신장 배설을 줄여 독성(골수억제)이 커질 수 있습니다.",
+              });
+            }
+            if (Number(body.age) >= 65) {
+              list.forEach((s) => alerts.push({
+                type: "elderly", level: "caution", ingredient: s,
+                message: "노인주의",
+                detail: "65세 이상에서 신중히 투여합니다. 용량과 신기능을 확인하세요.",
+              }));
+            }
+            setTimeout(() => send(res, {
+              alerts, checked: list,
+              source: "식품의약품안전처 의약품안전사용서비스(DUR) 성분정보 (목업)",
+              disclaimer: "DUR 결과는 참고용입니다. 처방 판단은 담당 의료진이 합니다.",
+            }), 220);
+          });
+        }
+
         const hit = pick(db, req.method, req.url);
         if (hit === undefined) {
           return fail(res, "NOT_IN_MOCK",

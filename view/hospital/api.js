@@ -1429,6 +1429,17 @@ export const breast = {
    *   drugs.py 머리말: 약전 문장을 처방 설명칸에 넣는 순간 우리가 하는
    *   의학적 조언이 된다. */
   drugs:         (q) => get(`/drugs${qs({ q, page_size: 8 })}`),
+  /* DUR(의약품 안전사용) 점검 — 성분끼리 병용금기 · 연령 · 임부 · 노인.
+   *   POST /drugs/dur {ingredients, age?, sex?: "F"|"M"}
+   *   → {alerts:[{type, level: taboo|caution, ingredient, with?, message, detail}],
+   *      checked, partial?, failed?, source, disclaimer}
+   * 키가 없는 서버는 503(DUR_UNAVAILABLE). ⚠ 결과는 **알림일 뿐** 처방을
+   *   막지 않는다 — 금기여도 확인 표시를 받고 저장한다(Prescription.jsx). */
+  dur:           ({ ingredients, age, sex }) => post("/drugs/dur", {
+    ingredients,
+    ...(age != null && Number.isFinite(Number(age)) ? { age: Number(age) } : null),
+    ...(sex ? { sex } : null),
+  }),
 
   /* 4장 · 판정 불일치 처분 */
   discordance:  (id) => get(`/discordances/${id}`),

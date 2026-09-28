@@ -284,6 +284,17 @@ export const HER2 = { negative: "음성 (0)", low: "저발현 (1+ · 2+/ISH−)"
 /** Nottingham 등급 1~3 */
 export const NOTTINGHAM = { 1: "1 — 고분화", 2: "2 — 중분화", 3: "3 — 저분화" };
 
+/** 처방 약의 투여 경로. 서버 값(처방 약 한 줄의 route · 09-28 추가).
+ *  ⚠ 빈 값도 받는다 — 옛 처방에는 이 칸이 없다 */
+export const ROUTE = {
+  oral: "경구", injection: "주사", topical: "외용",
+  inhalation: "흡입", eye: "점안", other: "기타",
+};
+
+/** DUR 경고 종류 · 수준. 서버 값(POST /drugs/dur 의 alerts[].type · level) */
+export const DUR_TYPE = { combo: "병용금기", age: "연령금기", pregnancy: "임부금기", elderly: "노인주의" };
+export const DUR_LEVEL = { taboo: "금기", caution: "주의" };
+
 /* 리포트를 낸 소켓 → 어느 과가 낸 판독인가. 서버 models.py 의
    REPORT_SOCKET_ID 주석 그대로다 — 1 병리 · 3 MRI · 4b 맘모 · 5 초음파 ·
    7 종합. 유방외과 화면은 이 글자에 「영상」·「병리」가 들어 있는지로

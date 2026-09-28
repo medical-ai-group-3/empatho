@@ -1,11 +1,15 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { breast as api } from "../../../api";
-import { FREQ, emptyDrug, freqOf, HHMM, ingredientHints, ingredientOf, norm, sorted, timesProblem } from "../rx";
+import { DUR_TYPE, ROUTE, label } from "../../../codes";
+import { FREQ, durSex, emptyDrug, freqOf, HHMM, ingredientHints, ingredientOf, norm, routeOf, sorted, timesProblem } from "../rx";
+import RxHandout from "./RxHandout";
 
 /* ⑥ 처방 — 치료 방침 화면에서 떼어 냈다(09-28).
  *
  * 서버 계약(core/serializers/prescription.py PrescriptionDrugRowSerializer):
- *   { name, ingredient?, dose, times: ["HH:MM", …], days ≥ 1, purpose?, how?, watch? }
+ *   { name, ingredient?, dose, times: ["HH:MM", …], days ≥ 1, route?, form?,
+ *     purpose?, how?, watch? }
+ *   route ∈ codes.js ROUTE · form 은 제형 글(「정제」). 둘 다 빈 칸이면 보내지 않는다.
  *   times 는 HH:MM · 겹침 없음 · 하나 이상. 복약 기록(medication_log.slot_time)이
  *   이 값을 회차 열쇠로 쓴다 — 「아침」 같은 말이 섞이면 같은 회차인지 모른다.
  *
@@ -218,12 +222,143 @@ export function IngredientInput({ value, onChange, hints, id }) {
   );
 }
 
+/* 약 이름으로 투여 경로 · 제형을 짐작해 **빈 칸에만** 넣는다 */
+function fillRoute(drug, name) {
+  const g = routeOf(name);
+  if (!g || (drug.route && drug.form.trim())) return drug;
+  return { ...drug, route: drug.route || g.route, form: drug.form.trim() ? drug.form : g.form };
+}
+
+/* 성분명 칸 → DUR 에 보낼 성분들. 복합제(「트라마돌염산염 · 아세트아미노펜」)는
+   쪼갠다 — 한 덩어리로 보내면 서버가 어느 성분인지 못 찾는다 */
+function durIngredients(drugs) {
+  const out = drugs.flatMap((d) => d.ingredient.split(/\s*[·,/+]\s*/))
+    .map((s) => s.trim()).filter(Boolean);
+  return [...new Set(out)].sort();
+}
+
+/* DUR 점검(POST /drugs/dur). 성분 묶음이 바뀌면 600ms 뒤에 다시 묻는다.
+ * ⚠ 늦게 온 응답이 새 묶음의 결과를 덮지 않게 요청마다 번호를 매긴다.
+ * ⚠ 묶음이 바뀐 뒤 답이 오기 전에는 「점검 중」이다 — 옛 결과를 새 묶음의
+ *   결과처럼 보이면 금기가 걸린 약을 더하고도 「걸린 항목 없음」을 본다. */
+function useDur(ingredients, patient) {
+  const key = ingredients.join("\u0001");
+  const age = patient?.age ?? null;
+  const sex = durSex(patient?.sex);
+  const [res, setRes] = useState({ key: null });
+  const [again, setAgain] = useState(0);
+  const seq = useRef(0);
+
+  useEffect(() => {
+    if (!key) { seq.current += 1; return undefined; }
+    const n = ++seq.current;
+    const timer = setTimeout(async () => {
+      try {
+        const data = await api.dur({ ingredients: key.split("\u0001"), age, sex });
+        if (n === seq.current) setRes({ key, status: "ok", data: data ?? {} });
+      } catch (e) {
+        if (n !== seq.current) return;
+        setRes({ key, status: e.status === 503 || e.code === "DUR_UNAVAILABLE" ? "off" : "fail" });
+      }
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [key, age, sex, again]);
+
+  if (!key) return { status: "idle" };
+  if (res.key !== key) return { status: "loading" };
+  return { ...res, retry: () => { setRes({ key: null }); setAgain((x) => x + 1); } };
+}
+
+const durPair = (a) => (a.with ? `${a.ingredient} + ${a.with}` : a.ingredient);
+const durSig = (alerts) => alerts.map((a) => `${a.type}|${a.ingredient}|${a.with ?? ""}`).join(";");
+
+/* DUR 결과 — 저장 단추 바로 위. 금기는 채움 한 덩어리, 주의는 조용한 목록.
+ * ⚠ 금기여도 **막지 않는다.** 처방은 의사가 정한다 — 대신 확인 표시를
+ *   받아야 저장된다(말없이 지나가지 않게). 경고 목록이 바뀌면 표시를 푼다. */
+function DurPanel({ dur, missing, acked, onAck }) {
+  if (dur.status === "idle") {
+    return missing.length > 0
+      ? <p className="rx-dur-line">DUR 점검은 성분명으로 합니다 — 성분명을 적으면 점검합니다</p>
+      : null;
+  }
+  const data = dur.data ?? {};
+  const alerts = Array.isArray(data.alerts) ? data.alerts : [];
+  const taboos = alerts.filter((a) => a.level === "taboo");
+  const cautions = alerts.filter((a) => a.level !== "taboo");
+  const checked = Array.isArray(data.checked) ? data.checked : [];
+  const failed = Array.isArray(data.failed) ? data.failed : [];
+  return (
+    <section className="rx-dur" aria-label="DUR 점검" aria-live="polite">
+      {dur.status === "loading" && <p className="rx-dur-line">DUR 점검 중…</p>}
+      {dur.status === "off" && <p className="rx-dur-line">DUR 점검을 쓸 수 없습니다 — 서버에 키가 없습니다</p>}
+      {dur.status === "fail" && (
+        <p className="rx-dur-line">
+          DUR 점검에 실패했습니다
+          <button type="button" className="rx-dur-retry" onClick={dur.retry}>다시 시도</button>
+        </p>
+      )}
+      {dur.status === "ok" && (
+        <>
+          {taboos.length > 0 && (
+            <div className="rx-dur-taboo" role="alert">
+              <b className="rx-dur-h"><span aria-hidden="true">⚠</span> 금기 {taboos.length}건</b>
+              <ul>
+                {taboos.map((a, i) => (
+                  <li key={i}>
+                    <b>{durPair(a)} — {label(DUR_TYPE, a.type)}</b>
+                    {(a.detail || a.message) && <span>{a.detail || a.message}</span>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {cautions.length > 0 && (
+            <div className="rx-dur-caution">
+              <b className="rx-dur-h">주의 {cautions.length}건</b>
+              <ul>
+                {cautions.map((a, i) => (
+                  <li key={i}>
+                    <b>{durPair(a)} — {label(DUR_TYPE, a.type)}</b>
+                    {(a.detail || a.message) && <span>{a.detail || a.message}</span>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {!alerts.length && (
+            <p className="rx-dur-line">DUR 점검: 걸린 항목이 없습니다 (성분 {checked.length}개 확인)</p>
+          )}
+          {(data.partial || failed.length > 0) && (
+            <p className="rx-dur-line">
+              일부 점검을 하지 못했습니다{failed.length ? ` — ${failed.map((f) => label(DUR_TYPE, f)).join(" · ")}` : ""}
+            </p>
+          )}
+          {taboos.length > 0 && (
+            <label className="check-row rx-dur-ack">
+              <input type="checkbox" checked={acked} onChange={(e) => onAck(e.target.checked)} />
+              금기를 확인했고 그래도 처방합니다
+            </label>
+          )}
+        </>
+      )}
+      {missing.length > 0 && (
+        <p className="rx-dur-line">성분명이 없어 점검하지 못한 약: {missing.join(" · ")}</p>
+      )}
+      {dur.status === "ok" && (data.source || data.disclaimer) && (
+        <p className="rx-dur-src">{[data.source, data.disclaimer].filter(Boolean).join(" · ")}</p>
+      )}
+    </section>
+  );
+}
+
 /* ⑥ 처방. 저장된 처방을 **약까지** 먼저 보여 준다 */
 export default function PrescriptionDraft({ patient, report, saved, blocked }) {
   const [drugs, setDrugs] = useState([emptyDrug()]);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState(null);
   const [writing, setWriting] = useState(false);
+  const [handout, setHandout] = useState(null);
+  const [ack, setAck] = useState({ sig: null, on: false });
   const baseId = useId();
   const reportId = report?.report_id ?? null;
   const list = saved.data ?? [];
@@ -235,11 +370,17 @@ export default function PrescriptionDraft({ patient, report, saved, blocked }) {
   /* 자동완성에서 고른 약. 이름과, 비어 있으면 성분명까지만 채운다 —
      설명칸(purpose·how·watch)은 처방한 사람이 쓰는 자리라 건드리지 않는다 */
   function pick(index, item) {
-    setDrugs((rows) => rows.map((drug, i) => (i !== index ? drug : {
+    setDrugs((rows) => rows.map((drug, i) => (i !== index ? drug : fillRoute({
       ...drug,
       name: item.name,
       ingredient: drug.ingredient.trim() ? drug.ingredient : ingredientOf(item.name),
-    })));
+    }, item.name))));
+  }
+
+  /* 고르지 않고 손으로 적은 이름도 칸을 떠날 때 한 번 짐작한다.
+     ⚠ 치는 도중에 짐작하면 「…주」까지 친 순간 주사로 굳는다 */
+  function inferRoute(index) {
+    setDrugs((rows) => rows.map((drug, i) => (i !== index ? drug : fillRoute(drug, drug.name))));
   }
 
   function heard(index, items) {
@@ -257,7 +398,15 @@ export default function PrescriptionDraft({ patient, report, saved, blocked }) {
     : timesProblem(drug.times) ? "복용 시각을"
     : !(Number(drug.days) > 0) ? "처방 일수를" : null;
   const firstProblem = drugs.map(rowProblem).find(Boolean) ?? null;
-  const valid = Boolean(reportId) && !firstProblem;
+
+  const dur = useDur(writing ? durIngredients(drugs) : [], patient);
+  const durMissing = drugs.filter((d) => d.name.trim() && !d.ingredient.trim()).map((d) => d.name.trim());
+  const taboos = dur.status === "ok" ? (dur.data?.alerts ?? []).filter((a) => a.level === "taboo") : [];
+  const sig = durSig(taboos);
+  const acked = ack.on && ack.sig === sig;   /* 목록이 바뀌면 표시가 저절로 풀린다 */
+  const hold = dur.status === "loading" ? "DUR 점검이 끝나면 저장할 수 있습니다"
+    : taboos.length && !acked ? "금기 확인에 표시해 주세요" : null;
+  const valid = Boolean(reportId) && !firstProblem && !hold;
 
   async function save() {
     if (!valid || saving || blocked) return;
@@ -265,13 +414,17 @@ export default function PrescriptionDraft({ patient, report, saved, blocked }) {
       name: drug.name.trim(), ingredient: drug.ingredient.trim(),
       dose: drug.dose.trim(),
       times: sorted(drug.times),
-      days: Number(drug.days), purpose: drug.purpose.trim(),
+      days: Number(drug.days),
+      ...(drug.route ? { route: drug.route } : null),
+      ...(drug.form.trim() ? { form: drug.form.trim() } : null),
+      purpose: drug.purpose.trim(),
       how: drug.how.trim(), watch: drug.watch.trim(),
     }));
     setSaving(true); setMsg(null);
     try {
       await api.prescribe(patient.patient_id, { report_id: reportId, content: { drugs: cleaned } });
       setDrugs([emptyDrug()]);
+      setAck({ sig: null, on: false });
       setWriting(false);
       setMsg("처방을 저장했습니다. 환자 앱의 복약 관리에서 확인할 수 있습니다.");
       saved.reload(true);
@@ -294,6 +447,8 @@ export default function PrescriptionDraft({ patient, report, saved, blocked }) {
               <span className="bf-rx-h">
                 <b>{String(rx.prescribed_at ?? rx.created_at ?? "").slice(0, 10) || "날짜 없음"}</b>
                 {rx.prescriber && <span className="note">{rx.prescriber}</span>}
+                <button type="button" className="btn ghost sm rx-handout-open"
+                        onClick={() => setHandout(rx)}>복약 안내문</button>
               </span>
               {(rx.content?.drugs ?? []).map((d, j) => {
                 const times = Array.isArray(d.times) ? d.times : [];
@@ -301,7 +456,7 @@ export default function PrescriptionDraft({ patient, report, saved, blocked }) {
                 return (
                   <span className="bf-rx-d" key={j}>
                     <b>{d.name}</b>
-                    {[d.ingredient, d.dose,
+                    {[d.ingredient, [label(ROUTE, d.route), d.form].filter(Boolean).join(" ") || null, d.dose,
                       times.length ? `${f ? `${FREQ.find((x) => x.k === f).label}(${f})` : `1일 ${times.length}회`} ${times.join(" · ")}` : d.times,
                       d.days ? `${d.days}일` : null, d.purpose].filter(Boolean).join(" · ")}
                   </span>
@@ -331,15 +486,15 @@ export default function PrescriptionDraft({ patient, report, saved, blocked }) {
                   <b>약 {index + 1}</b>
                   {drugs.length > 1 && <button className="edit-btn" onClick={() => remove(index)}>삭제</button>}
                 </div>
-                <div className="prescription-grid">
-                  <div className="field">
+                <div className="prescription-grid rx-grid4">
+                  <div className="field rx-wide" onBlur={() => inferRoute(index)}>
                     <label htmlFor={`${fid}-name`}>약 이름 <span className="req">*</span></label>
                     <DrugNameInput id={`${fid}-name`} value={drug.name}
                       onChange={(value) => change(index, "name", value)}
                       onPick={(item) => pick(index, item)}
                       onResults={(items) => heard(index, items)} />
                   </div>
-                  <div className="field">
+                  <div className="field rx-wide">
                     <label htmlFor={`${fid}-ing`}>성분명</label>
                     <IngredientInput id={`${fid}-ing`} value={drug.ingredient} hints={drug.hints}
                       onChange={(value) => change(index, "ingredient", value)} />
@@ -351,6 +506,17 @@ export default function PrescriptionDraft({ patient, report, saved, blocked }) {
                   <div className="field">
                     <label htmlFor={`${fid}-days`}>처방 일수 <span className="req">*</span></label>
                     <input id={`${fid}-days`} type="number" min="1" value={drug.days} onChange={(e) => change(index, "days", e.target.value)} placeholder="일수" />
+                  </div>
+                  <div className="field">
+                    <label htmlFor={`${fid}-route`}>투여 경로</label>
+                    <select id={`${fid}-route`} value={drug.route} onChange={(e) => change(index, "route", e.target.value)}>
+                      <option value="">선택 안 함</option>
+                      {Object.entries(ROUTE).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                    </select>
+                  </div>
+                  <div className="field">
+                    <label htmlFor={`${fid}-form`}>제형</label>
+                    <input id={`${fid}-form`} value={drug.form} onChange={(e) => change(index, "form", e.target.value)} placeholder="예: 정제" />
                   </div>
                 </div>
                 <div className="field">
@@ -373,9 +539,12 @@ export default function PrescriptionDraft({ patient, report, saved, blocked }) {
             );
           })}
 
+          <DurPanel dur={dur} missing={durMissing} acked={acked}
+                    onAck={(on) => setAck({ sig, on })} />
+
           <div className="card-foot split prescription-actions">
             <button className="btn ghost sm" onClick={() => setDrugs((rows) => [...rows, emptyDrug()])}>+ 약 추가</button>
-            <span className="note">{msg ?? (firstProblem ? `${firstProblem} 입력해 주세요` : null)}</span>
+            <span className="note">{msg ?? (firstProblem ? `${firstProblem} 입력해 주세요` : hold)}</span>
             <button className="btn ghost" onClick={() => { setWriting(false); setDrugs([emptyDrug()]); }}>취소</button>
             <button className="btn" onClick={save} disabled={!valid || saving || blocked}>
               {saving ? "저장 중…" : "처방 저장"}
@@ -383,6 +552,7 @@ export default function PrescriptionDraft({ patient, report, saved, blocked }) {
           </div>
         </>
       )}
+      {handout && <RxHandout patient={patient} rx={handout} onClose={() => setHandout(null)} />}
     </div>
   );
 }

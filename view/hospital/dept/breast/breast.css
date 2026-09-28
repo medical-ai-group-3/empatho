@@ -954,3 +954,84 @@ button.bf-chip.on{box-shadow:inset 0 0 0 var(--focus-w) var(--cyan); color:var(-
 /* 팝업(다음 단계 안내) 안 단계 줄 — 840 폭에 열두 칸이면 「BI-RADS …」로
    잘렸다. 여섯 칸 두 줄로 */
 .modal .bf-steps{grid-template-columns:repeat(6, minmax(0, 1fr)); row-gap:var(--gap-sm)}
+
+/* ── 처방 · 투여 경로 · DUR · 복약 안내문 (09-28) ──────────────────────
+   components/Prescription.jsx · RxHandout.jsx. 한 덩어리로 둔다.
+
+   약 한 줄 — 넷 칸 격자. 이름 · 성분이 두 칸씩, 용량 · 일수 · 경로 · 제형이
+   한 칸씩이라 경로 · 제형을 더해도 줄은 두 줄 그대로다 */
+.breast .prescription-grid.rx-grid4{grid-template-columns:repeat(4, minmax(0, 1fr))}
+.breast .prescription-grid.rx-grid4 > .rx-wide{grid-column:span 2}
+@media (max-width:760px){
+  .breast .prescription-grid.rx-grid4{grid-template-columns:repeat(2, minmax(0, 1fr))}
+}
+
+/* DUR — 저장 단추 바로 위. ⚠ 색을 새로 만들지 않는다: 금기는 경고 줄
+   (.warnline)과 같은 soot 채움, 주의는 테두리만, 나머지는 흐린 한 줄 */
+.breast .rx-dur{display:flex; flex-direction:column; gap:var(--gap-xs);
+  padding:var(--gap-sm) 0; border-top:1px solid var(--line-2)}
+.breast .rx-dur-line{margin:0; font-size:12.5px; color:var(--muted);
+  display:flex; align-items:center; gap:8px; flex-wrap:wrap}
+.breast .rx-dur-retry{border:0; background:none; padding:0; cursor:pointer;
+  font-size:12.5px; font-weight:600; color:var(--accent)}
+.breast .rx-dur-taboo,.breast .rx-dur-caution{display:flex; flex-direction:column; gap:6px;
+  padding:var(--gap-sm) var(--card-pad-sm); border-radius:var(--radius-sm)}
+.breast .rx-dur-taboo{background:var(--soot); color:var(--soot-ink)}
+.breast .rx-dur-caution{border:1px solid var(--line); color:var(--ink-2)}
+.breast .rx-dur-h{font-size:12.5px; font-weight:700}
+.breast .rx-dur-taboo ul,.breast .rx-dur-caution ul{margin:0; padding:0; list-style:none;
+  display:flex; flex-direction:column; gap:6px}
+.breast .rx-dur-taboo li,.breast .rx-dur-caution li{display:flex; flex-direction:column; gap:2px; font-size:13px}
+.breast .rx-dur-taboo li span{font-size:12px; opacity:.8}
+.breast .rx-dur-caution li b{font-weight:600; color:var(--ink)}
+.breast .rx-dur-caution li span{font-size:12px; color:var(--muted)}
+.breast .rx-dur-src{margin:0; font-size:11.5px; color:var(--muted); line-height:1.5}
+.breast .check-row.rx-dur-ack{margin:4px 0 0; font-weight:600; color:var(--ink)}
+
+/* 저장된 처방 머리의 [복약 안내문] — 오른쪽 끝 */
+.breast .bf-rx-h .rx-handout-open{margin-left:auto}
+
+/* 복약 안내문 — 팝업은 body 에 포털로 붙어 .breast 밖이다. 그래서 여기만
+   .breast 없이 rxh- 머리로 가둔다.
+   ⚠ --muted · --line 은 .breast 안에서만 선다 — 여기서는 --warm · --border */
+.rxh{display:flex; flex-direction:column; gap:var(--gap-sm); color:var(--ink); font-size:13.5px; line-height:1.6}
+.rxh h2{margin:0; font-size:18px}
+.rxh h3{margin:0 0 6px; font-size:15px}
+.rxh h4{margin:10px 0 2px; font-size:12.5px; font-weight:700; color:var(--ink-2)}
+.rxh-head{display:flex; flex-direction:column; gap:6px; padding-bottom:var(--gap-sm);
+  border-bottom:1px solid var(--border)}
+.rxh-meta,.rxh-facts{margin:0; display:flex; flex-wrap:wrap; gap:4px 20px}
+.rxh-meta div,.rxh-facts div{display:flex; gap:6px}
+.rxh-meta dt,.rxh-facts dt{color:var(--warm); font-weight:600}
+.rxh-meta dd,.rxh-facts dd{margin:0}
+.rxh-drug{padding:var(--gap-sm) 0; border-bottom:1px solid var(--line-2)}
+.rxh-text{margin:0; white-space:pre-line}
+.rxh-watch{font-weight:600}
+.rxh-muted{margin:0; color:var(--warm); font-size:12.5px}
+/* ② 식약처 참고 — 처방 설명과 한눈에 갈라 보이게 테를 두른다 */
+.rxh-ref{margin-top:var(--gap-sm); padding:var(--gap-sm) var(--card-pad-sm);
+  border:1px dashed var(--border); border-radius:var(--radius-sm); font-size:12.5px}
+.rxh-ref h4{margin:0 0 4px; color:var(--warm)}
+.rxh-ref-item{margin:0 0 4px; color:var(--ink-2); font-weight:600}
+.rxh-ref-dl{margin:0; display:flex; flex-direction:column; gap:6px}
+.rxh-ref-dl dt{font-weight:600; color:var(--ink-2)}
+.rxh-ref-dl dd{margin:0; white-space:pre-line; color:var(--ink-2)}
+.rxh-src{margin:6px 0 0; font-size:11px; color:var(--warm)}
+.rxh-foot{font-size:12px; color:var(--warm)}
+
+/* 인쇄 — 안내문 팝업이 떠 있을 때만 그것만 A4 에.
+   ⚠ Dialog 가 body 에 overflow:hidden 을 걸고 팝업 몸통이 스크롤 칸이다.
+     그대로 찍으면 첫 화면 높이에서 잘린다 — 셋 다 푼다 */
+@media print{
+  @page{size:A4; margin:14mm}
+  body:has(.rxh-print){overflow:visible !important; background:#fff}
+  body:has(.rxh-print) > :not(.dlg-back){display:none !important}
+  .dlg-back:has(.rxh-print){position:static; display:block; padding:0; background:none; backdrop-filter:none}
+  .dlg:has(.rxh-print){max-width:none; max-height:none; overflow:visible; display:block;
+    border:0; border-radius:0; box-shadow:none; animation:none}
+  .dlg:has(.rxh-print) .dlg-head,.dlg:has(.rxh-print) .dlg-foot{display:none}
+  .dlg:has(.rxh-print) .dlg-body{overflow:visible; padding:0}
+  .rxh{color:#000; font-size:11pt}
+  .rxh-drug h3,.rxh h4{break-after:avoid}
+  .rxh-facts,.rxh-ref-dl > div{break-inside:avoid}
+}
