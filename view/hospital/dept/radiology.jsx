@@ -1037,8 +1037,10 @@ export const radiology = {
     detailTitle: (d) => [H.nameOf(d), label(MODALITY, asModality(d.modality))].filter(Boolean).join(" · "),
 
     sorts: [
+      /* 처음 여는 정렬은 최근 촬영이 위 — 오래된 순이면 새 환자가 맨 뒤에 묻혔다 */
+      { key: "-performed_at", label: "최근 촬영 순" },
       { key: "patient__name", label: "이름" },
-      { key: "performed_at", label: "촬영 순서" },
+      { key: "performed_at", label: "오래된 촬영 순" },
       { key: "read_status", label: "진행 상황" },
       { key: "modality", label: "모달리티" },
       { key: "report__viewed_at", label: "유방외과 열람" },

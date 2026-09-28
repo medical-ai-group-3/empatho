@@ -2233,6 +2233,10 @@ a.pevent:focus-visible{outline:var(--hair) solid var(--cyan); outline-offset:2px
 .plist-side{position:sticky; top:calc(var(--top-total) + var(--gap)); align-self:start;
   max-height:calc(100vh - var(--top-total) - var(--foot-h) - var(--gap) * 2);
   overflow-y:auto}
+/* ⚠ 칸 안 카드가 칸 높이로 **눌리면 안 된다** — 카드는 overflow:hidden 이라
+     줄어든 만큼 아래(인적 사항 정정)가 잘리고, 칸은 넘친 게 없으니 스크롤도
+     안 생겼다(09-28). 제 높이를 지키게 하고 넘치는 것은 칸이 굴린다 */
+.plist-side > *{flex:none}
 .plist-b{padding:var(--card-pad); display:flex; flex-direction:column; gap:var(--gap-sm)}
 /* 목록 칸은 남는 폭을 다 먹는다 — 오른쪽 상세는 --pane-side-wide 고정 */
 .plist{align-items:start}
