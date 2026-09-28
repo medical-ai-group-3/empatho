@@ -4016,7 +4016,7 @@
     "ref_type": "assessment",
     "ref_id": 1001,
     "patient": null,
-    "message": "김민지 환자 맘모그래피 판독이 확정되었습니다.",
+    "message": "김민지 환자 유방촬영 판독이 확정되었습니다.",
     "sent_at": "2026-09-28T10:40:00+09:00",
     "acknowledged_at": null
    },

@@ -256,8 +256,13 @@ input,select,textarea{font:inherit; color:inherit}
   font-size:var(--chip-fs); font-weight:700}
 
 .pb-r{display:flex; align-items:center; gap:var(--gap-sm); margin-left:auto}
-.pb-fold{color:var(--warm); font-size:var(--chip-fs); padding:0 var(--gap-xs)}
-.pb-fold:hover{color:var(--ink)}
+/* 접기 — 글자 크기의 ▴ 하나라 어디를 눌러야 하는지 안 보였다. 다른 작은
+   단추와 같은 동그라미 틀에 담는다 */
+.pb-fold{flex:none; width:var(--btn-h-sm); height:var(--btn-h-sm);
+  display:inline-flex; align-items:center; justify-content:center;
+  border-radius:var(--round); box-shadow:inset 0 0 0 var(--hair) var(--border);
+  color:var(--warm); font-size:var(--chip-fs); text-align:center}
+.pb-fold:hover{color:var(--ink); background:var(--canvas)}
 
 /* 띠가 붙은 쪽은 뷰포트를 꽉 채우는 자리에서 그만큼 더 뺀다.
    ⚠ 한 곳에서만 덮는다 — 화면마다 빼면 띠를 붙일 때 같이 고쳐야 하고
@@ -283,6 +288,15 @@ input,select,textarea{font:inherit; color:inherit}
 .state code{font-family:var(--font-ui); font-size:var(--hint-fs);
   background:var(--canvas); border-radius:var(--radius-xs);
   padding:0 var(--gap-xs)}
+/* 카드 **안의** 비었음 — 상자 안에 상자를 또 두르지 않는다. 테두리 · 바탕을
+   빼고 글씨도 한 단 낮춘다. 굵은 제목 크기로 「기록된 병변이 없습니다」가
+   서면 빈 것이 제일 크게 읽혔다(09-28 환자 기록). 쪽 한가운데의 비었음 ·
+   오류는 그대로 상자다 */
+.card .state, .hcard .state{border:none; background:transparent; border-radius:0;
+  padding:var(--card-pad-sm) 0}
+.card .state b, .hcard .state b{font-family:var(--font-ui); font-size:var(--state-fs);
+  font-weight:500; color:var(--warm)}
+.hcard .state{flex:1 1 auto; min-height:var(--hnone-h); padding:var(--hcard-pad-y) var(--hcard-pad-x)}
 
 /* 불러오는 중 — **움직이는 반짝임을 두지 않는다.** 하루 종일 보는
    화면이라 계속 움직이면 피로하다. 자리만 지킨다 */
@@ -327,7 +341,9 @@ input,select,textarea{font:inherit; color:inherit}
   margin-right:calc(var(--home-name-gap) - var(--home-act-gap))}
 .home-day{font-size:var(--home-day-fs); color:var(--ink-2); flex:none;
   line-height:1; font-variant-numeric:tabular-nums}
-.home-head .btn{height:var(--home-btn-h)}
+/* ⚠ 머리 줄에 **바로** 선 단추만 — 「배치 편집」 막대 안의 작은 단추까지
+   38px 로 늘어나 편집을 누를 때마다 제목 줄이 5px 내려앉았다(09-28) */
+.home-head > .btn{height:var(--home-btn-h)}
 
 /* ── 최근 본 환자 ────────────────────────────────────────────── */
 .recent{flex:none; display:flex; align-items:center; gap:var(--recent-gap);
@@ -352,7 +368,8 @@ input,select,textarea{font:inherit; color:inherit}
 
 /* ── 칸 ──────────────────────────────────────────────────────── */
 .hcard{background:var(--card); border:var(--hair) solid var(--border);
-  border-radius:var(--hcard-radius); overflow:hidden; flex:none;
+  border-radius:var(--hcard-radius); box-shadow:var(--card-shadow);
+  overflow:hidden; flex:none;
   display:flex; flex-direction:column; min-height:0}
 /* ⚠ **내용이 적으면 칸을 늘리지 않는다**(5.5). 단 높이를 꽉 채우려고
    늘이면 환자가 셋일 때 칸의 3분의 2가 빈다 — 빈 상자가 큰 것이 세 단
@@ -365,6 +382,10 @@ input,select,textarea{font:inherit; color:inherit}
    다른 칸은 아래에 빈 바탕이 조금 는다 — 상자 밖이 통째로 비는 것보다
    낫다는 판단이다. 위 「늘리지 않는다」를 뒤집은 것이다 */
 .pane > .hcard:last-child{flex-grow:1}
+/* 편집 중에는 칸이 틀(.arr-slot)에 싸인다 — 같은 규칙을 틀에 건다.
+   안 걸면 「배치 편집」을 누르는 순간 단 아래가 통째로 비었다 */
+.pane > .arr-slot:last-child{flex-grow:1}
+.arr-slot > .hcard.grow{flex:1 1 auto}
 .hcard-h{flex:none; display:flex; align-items:center; gap:var(--gap-sm);
   padding:var(--hcard-pad-y) var(--hcard-pad-x);
   border-bottom:var(--hair) solid var(--line-2)}
@@ -375,13 +396,13 @@ input,select,textarea{font:inherit; color:inherit}
    뜬다. 저장 · 취소하면 사라져 **줄을 따로 차지하지 않는다**(09-28) */
 .home-arr{display:inline-flex; align-items:center}
 .arr-edit{display:inline-flex; align-items:center; gap:var(--gap-xs);
-  height:calc(30px * var(--sp)); padding:0 calc(10px * var(--sp));
+  height:var(--btn-h-sm); padding:0 var(--chip-pad-x);
   border-radius:var(--round); font-size:var(--hcard-k-fs); color:var(--ink-2);
   border:var(--hair) solid var(--border); background:var(--card)}
 .arr-edit:hover{color:var(--ink); border-color:var(--faint)}
 .arr-edit svg{width:14px; height:14px; fill:none; stroke:currentColor; stroke-width:1.4}
-.arr-bar{display:inline-flex; align-items:center; gap:var(--gap-sm);
-  padding:calc(4px * var(--sp)) calc(6px * var(--sp)) calc(4px * var(--sp)) calc(12px * var(--sp));
+.arr-bar{display:inline-flex; align-items:center; gap:var(--gap-xs);
+  padding:var(--gap-xxs) var(--gap-xxs) var(--gap-xxs) var(--chip-pad-x);
   border-radius:var(--round); background:var(--canvas); border:var(--hair) solid var(--border)}
 .arr-hint{font-size:var(--hcard-k-fs); color:var(--warm); white-space:nowrap}
 .arr-slot{position:relative; display:flex; flex-direction:column; min-height:0;
@@ -408,18 +429,26 @@ input,select,textarea{font:inherit; color:inherit}
   font-variant-numeric:tabular-nums; flex:none}
 .hcard-k{font-size:var(--hcard-k-fs); color:var(--ink-2); flex:none}
 .hcard-h .btn{flex:none}
-.hcard-foot{margin:0; padding:var(--gap-sm) var(--hcard-pad-x);
+/* 칸 바닥 한 줄 — 칸이 늘어나면 **바닥에 붙는다**(margin-top:auto). 전에는
+   내용 바로 밑에 떠서 인계 칸 가운데에 설명 한 줄이 둥둥 떠 있었다 */
+.hcard-foot{margin:auto 0 0; padding:var(--gap-sm) var(--hcard-pad-x);
+  border-top:var(--hair) solid var(--line-2);
   font-size:var(--hcard-foot-fs); color:var(--warm)}
+/* 빈 칸 한 줄 — 칸 몸통 자리를 대신 차지하고 그 가운데에 선다. 칸이 단 끝까지
+   늘어나도 「없습니다」가 머리에 붙은 채 아래가 통째로 비지 않는다(09-28) */
+.hnone{flex:1 1 auto; margin:0; min-height:var(--hnone-h);
+  display:flex; align-items:center; justify-content:center; text-align:center;
+  padding:var(--hcard-pad-y) var(--hcard-pad-x);
+  font-size:var(--hcard-k-fs); color:var(--warm)}
 .hcard-err{margin:0; padding:0 var(--hcard-pad-x) var(--hcard-pad-y);
   font-size:var(--hcard-k-fs); color:var(--ink); font-weight:600}
 .hpad{padding:var(--hcard-pad-y) var(--hcard-pad-x)}
 
-/* 칸 머리의 점 — 채움과 외곽선으로만 가른다 */
+/* 칸 머리의 점 — **한 모양이다.** 시안 · 검정 · 빈 네모 셋이 칸마다 섞여
+   있었는데 뜻이 없는 차이라 무늬로만 읽혔고, 시안 점은 「시안은 화면당
+   하나」(주 동작 단추)와 겹쳤다(09-28). 제목 앞 자리표로만 둔다 */
 .hdot{flex:none; width:var(--hdot); height:var(--hdot);
-  border-radius:var(--hdot-radius); background:var(--cyan)}
-.hdot.ink{background:var(--soot)}
-.hdot.ring{background:transparent;
-  box-shadow:inset 0 0 0 var(--hair) var(--warm)}
+  border-radius:var(--hdot-radius); background:var(--soot)}
 
 /* ── 접수 카드 (원무만) ──────────────────────────────────────── */
 .intake-find{display:flex; gap:var(--gap-sm);
@@ -502,10 +531,12 @@ input,select,textarea{font:inherit; color:inherit}
 /* 좁으면 번호 밑으로 시각이 내려간다 — 칸 밖으로 밀려 잘리던 것 */
 .qrow-r{flex:none; display:flex; align-items:center; gap:0 var(--qrow-gap);
   flex-wrap:wrap; justify-content:flex-end}
+/* 번호 · 시각은 **안 끊는다** — 좁은 창에서 「09-」「21」로 하이픈에서
+   갈라졌다(간호 홈 1280). 줄이 모자라면 둘이 통째로 다음 줄로 간다 */
 .qrow-no{font-style:normal; font-size:var(--qrow-meta-fs); color:var(--warm);
-  font-variant-numeric:tabular-nums}
+  font-variant-numeric:tabular-nums; white-space:nowrap}
 .qrow time{font-size:var(--qrow-meta-fs); color:var(--warm);
-  font-variant-numeric:tabular-nums}
+  font-variant-numeric:tabular-nums; white-space:nowrap}
 .qrow-go{font-style:normal; color:var(--faint)}
 /* 과가 더 싣는 열(내원 · 담당의) — 요약보다 한 단 진하게, 한 줄로 */
 .qrow-x{font-size:var(--qrow-meta-fs); color:var(--ink-2); white-space:nowrap;
@@ -517,9 +548,12 @@ input,select,textarea{font:inherit; color:inherit}
   border-bottom:var(--hair) solid var(--line-2);
   transition:background var(--m-hover) var(--ease-tab)}
 a.srow:hover{background:var(--canvas)}
+/* 종류 태그 — 외곽선 칩이다. 검은 채움 네모가 일곱 줄 세로로 서면 칸에서
+   제일 무거운 것이 「종류」가 됐다 — 읽을 것은 문장과 건수다(09-28) */
 .stag{flex:none; padding:var(--stag-pad-y) var(--stag-pad-x);
-  border-radius:var(--stag-radius); background:var(--soot);
-  color:var(--soot-ink); font-size:var(--stag-fs); font-weight:600;
+  border-radius:var(--round); background:var(--card);
+  box-shadow:inset 0 0 0 var(--hair) var(--border);
+  color:var(--ink-2); font-size:var(--stag-fs); font-weight:600;
   white-space:nowrap}
 .srow-tx{flex:1; min-width:0; font-size:var(--srow-fs)}
 .srow-n{flex:none; font-size:var(--qrow-meta-fs); color:var(--warm);
@@ -653,7 +687,7 @@ a.lrow:hover{background:var(--canvas)}
    일 하나»라 여기 쓰면 주 동작이 둘이 된다 */
 .btn.dark{background:var(--soot); color:var(--soot-ink)}
 .btn.dark:hover{filter:brightness(1.35)}
-.btn.sm{padding:var(--gap-xs) var(--chip-pad-x); font-size:var(--chip-fs)}
+.btn.sm{padding:var(--gap-tight) var(--chip-pad-x); font-size:var(--chip-fs)}
 
 
 
@@ -750,6 +784,11 @@ a.lrow:hover{background:var(--canvas)}
   background:var(--card); border:var(--hair) solid var(--border);
   border-radius:var(--hcard-radius); overflow:hidden}
 .nwait > * + *{border-left:var(--hair) solid var(--border)}
+/* 1440 아래 창에서는 양옆 칸을 줄여 가운데(문진 · 배정)에 폭을 준다 —
+   1280 에서 가운데가 510px 로 눌려 문진이 세 줄씩 꺾였다(09-28 최종) */
+@media (max-width: 1439px){
+  .nwait{grid-template-columns:calc(290px * var(--sp)) minmax(0, 1fr) calc(300px * var(--sp))}
+}
 
 /* 왼쪽 — 내원한 대기 환자 */
 .nwait-q{display:flex; flex-direction:column; min-height:0; min-width:0}
@@ -819,7 +858,8 @@ a.nside-row:hover{background:var(--canvas)}
   white-space:nowrap}
 
 /* 가운데 — 고른 환자. 여기서 문진을 보고 배정까지 끝낸다 */
-.nwait-mid{display:flex; flex-direction:column; min-height:0; min-width:0}
+.nwait-mid{display:flex; flex-direction:column; min-height:0; min-width:0;
+  container-type:inline-size; container-name:nmid}
 .ndet-h{flex:none; display:flex; align-items:center; gap:var(--gap-sm);
   padding:var(--hcard-pad-y) var(--ndet-pad);
   border-bottom:var(--hair) solid var(--line-2)}
@@ -883,6 +923,24 @@ a.nside-row:hover{background:var(--canvas)}
 .nassign-go .note{margin:0}
 .ndet-b.one{grid-template-columns:minmax(0, 1fr)}
 .ndet-b.one .ndet-box.wide{padding-top:0; border-top:0}
+/* 검체 확인 탭 — 등록된 검체 줄(라벨 · 유형 · 채취일 · 상태)과 밑의 안내 */
+.nspec{width:100%; margin:0; padding:0; list-style:none; display:flex; flex-direction:column}
+.nspec li{display:flex; align-items:baseline; gap:var(--gap-sm); min-width:0;
+  padding:var(--gap-xs) 0; border-bottom:var(--hair) solid var(--line-2);
+  font-size:var(--qrow-meta-fs); color:var(--ink-2)}
+.nspec li:first-child{padding-top:0}
+.nspec b{flex:none; font-size:var(--srow-fs); font-weight:600; color:var(--ink)}
+.nspec span{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.nspec em{flex:none; font-style:normal; color:var(--warm)}
+.ndet-note{grid-column:1 / -1; margin:0; padding-top:var(--desk-gap);
+  border-top:var(--hair) solid var(--line-2); line-height:1.6}
+/* 09-28(최종) 가운데 칸이 좁으면(1280 창 · 곁 칸이 넓을 때) 방문 정보와 문진을
+   **위아래로.** 나란히 두면 문항이 「유방 관련 수술이 / 나 시술을 받은 적」처럼
+   세 줄로 꺾였다. 창 폭이 아니라 이 칸의 폭으로 가른다 */
+@container nmid (max-width: 760px){
+  .ndet-b{grid-template-columns:minmax(0, 1fr)}
+  .ndet-h{flex-wrap:wrap; row-gap:var(--gap-xs)}
+}
 /* 문진 — ⚠ 표시 줄이 위로 온다. 색 대신 굵기로 세운다 */
 /* 문항 글이 길어 dt 고정 폭에 넣으면 세 줄로 꺾였다 — 물음 위, 답 아래 */
 .nqa > div{flex-direction:column; align-items:stretch; gap:var(--gap-xxs)}
@@ -934,17 +992,27 @@ a.nside-row:hover{background:var(--canvas)}
    배치는 docs/mockup/NursingFollowups.html.
    BI-RADS 3 의 6·12·24개월 추적 — 이 시스템의 임상적 핵심이다.
    ⚠ 기한을 색으로 말하지 않는다. 지난 것만 soot 채움으로 세운다 */
-.fup-top{flex:none; display:flex; align-items:center; flex-wrap:wrap;
-  gap:var(--chip-gap); padding-bottom:var(--desk-gap)}
-.fup-chip{display:inline-flex; align-items:center; gap:var(--gap-xs);
-  padding:var(--chip-pad-y) var(--chip-pad-x); border-radius:var(--round);
-  box-shadow:inset 0 0 0 var(--hair) var(--border);
-  font-size:var(--chip-fs); color:var(--ink-2)}
-.fup-chip:hover{background:var(--canvas)}
-.fup-chip.on{background:var(--soot); color:var(--soot-ink); box-shadow:none}
-.fup-chip i{font-style:normal; font-weight:700;
+.fup-top{flex:none; display:flex; align-items:stretch; gap:var(--pane-gap);
+  padding-bottom:var(--desk-gap)}
+/* 구분 상자 다섯 — 수 + 이름이 한 줄. 누르면 표가 그 구분으로 걸러진다.
+   폭을 고르게 나눠 위 한 줄을 다 쓴다(09-28 최종 · 표 밑 칸별 수를 올렸다) */
+.fup-tiles{flex:1; min-width:0; display:grid; gap:var(--gap-sm);
+  grid-template-columns:repeat(5, minmax(0, 1fr))}
+.fup-tile{display:flex; align-items:baseline; gap:var(--gap-sm); min-width:0;
+  padding:calc(12px * var(--sp)) calc(16px * var(--sp)); border-radius:var(--in-radius);
+  background:var(--card); box-shadow:inset 0 0 0 var(--hair) var(--border); text-align:left}
+.fup-tile:hover{box-shadow:inset 0 0 0 var(--hair) var(--faint)}
+.fup-tile b{flex:none; font-size:calc(22px * var(--ft)); line-height:1; font-weight:700;
   font-variant-numeric:tabular-nums}
-.fup-find{display:flex; align-items:center; gap:var(--chip-gap)}
+.fup-tile{align-items:center}
+.fup-tile span{min-width:0; line-height:1.35; font-size:var(--qrow-meta-fs); color:var(--ink-2)}
+.fup-tile.on{background:var(--soot); box-shadow:none}
+.fup-tile.on b, .fup-tile.on span{color:var(--soot-ink)}
+/* 기한 지남이 있으면 수만 채움 — 색이 아니라 채움으로 세운다(위 규칙) */
+.fup-tile.warn:not(.on) b{padding:calc(3px * var(--sp)) calc(8px * var(--sp));
+  border-radius:var(--stag-radius); background:var(--soot); color:var(--soot-ink)}
+.fup-find{flex:none; width:420px; display:flex; align-items:center; gap:var(--chip-gap)}
+.fup-find input{flex:1; min-width:0}
 .fup-find span{font-size:var(--label-fs); color:var(--warm)}
 .fup-find input{height:var(--todo-in-h); padding:0 var(--in-pad-x);
   border:var(--hair) solid var(--faint); border-radius:var(--in-radius);
@@ -975,21 +1043,14 @@ a.nside-row:hover{background:var(--canvas)}
   border-radius:0; box-shadow:none}
 /* 오른쪽 안내 상자도 왼쪽과 같은 높이로 */
 .fup-side > .slot.big{height:100%; min-height:calc(240px * var(--sp))}
-@media (max-width:1280px){ .fup-nums{grid-template-columns:repeat(3, minmax(0, 1fr))} }
 .fup-list .tbl tbody tr{cursor:pointer}
 /* 표 밑 — 칸별 수 · 다가오는 회차(표가 짧을 때만, Followups.jsx Ahead) */
 .fup-more{flex:1; display:flex; flex-direction:column; gap:var(--gap);
   padding:calc(20px * var(--sp)) var(--hcard-pad-x); border-top:var(--hair) solid var(--border);
   background:var(--canvas)}
-.fup-more h3{font-size:var(--qrow-meta-fs); font-weight:600; color:var(--ink-2)}
-/* 칸별 수 — 여섯 칸이 폭을 **고르게** 나눈다(예전엔 최소 폭으로 왼쪽에 몰렸다) */
-.fup-nums{display:grid; grid-template-columns:repeat(6, minmax(0, 1fr)); gap:var(--gap-sm)}
-.fup-num{display:flex; flex-direction:column; align-items:flex-start; gap:var(--gap-xs);
-  padding:calc(16px * var(--sp)) calc(18px * var(--sp)); border-radius:var(--in-radius);
-  background:var(--card); box-shadow:inset 0 0 0 var(--hair) var(--border); text-align:left}
-.fup-num:hover{box-shadow:inset 0 0 0 var(--hair) var(--faint)}
-.fup-num b{font-size:calc(26px * var(--ft)); line-height:1; font-weight:700; font-variant-numeric:tabular-nums}
-.fup-num span{font-size:var(--qrow-meta-fs); color:var(--ink-2)}
+.fup-more h3{display:flex; align-items:baseline; gap:var(--gap-sm);
+  font-size:var(--qrow-meta-fs); font-weight:600; color:var(--ink-2)}
+.fup-more h3 .hcard-k{font-weight:400}
 .fup-next{margin:0; padding:0; list-style:none; background:var(--card);
   border-radius:var(--in-radius); box-shadow:inset 0 0 0 var(--hair) var(--border)}
 .fup-next li + li{border-top:var(--hair) solid var(--line-2)}
@@ -1023,6 +1084,8 @@ a.nside-row:hover{background:var(--canvas)}
   border:var(--hair) solid var(--faint); border-radius:var(--in-radius); font-size:var(--in-fs)}
 .fup-go{justify-content:flex-start}
 @media (max-width: 1180px){
+  .fup-top{flex-wrap:wrap}
+  .fup-find{width:100%}
   .fup-cols{grid-template-columns:minmax(0, 1fr)}
   .fup-side{position:static; max-height:none; overflow:visible}
 }
@@ -1670,7 +1733,7 @@ a.nside-row:hover{background:var(--canvas)}
 .resv-past p{margin:0; display:flex; align-items:baseline; gap:var(--gap-sm);
   font-size:var(--qrow-meta-fs); color:var(--warm)}
 .resv-past i{flex:none; font-style:normal; font-weight:600; color:var(--ink-2);
-  width:var(--resv-state-w)}
+  min-width:var(--resv-state-w); white-space:nowrap}
 .resv-past time{flex:none; font-variant-numeric:tabular-nums}
 .resv-past span{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis;
   white-space:nowrap}
@@ -1741,6 +1804,8 @@ a.nside-row:hover{background:var(--canvas)}
    카드도 쓴다 — 거기엔 라벨 단이 없어서 같이 들여쓰면 그 카드가 어긋난다 */
 .resv-new .resv-who, .resv-new .resv-quick, .resv-new .resv-hit{
   margin-left:calc(var(--resv-label-w) + var(--gap-sm))}
+/* 보기 전용 카드(내원한 예약)에는 이름표 단이 없다 — 들여 쓰면 이름만 떠 보였다 */
+.resv-new.resv-view .resv-who{margin-left:0}
 .pill-n{font-style:normal; margin-left:var(--gap-xs);
   font-variant-numeric:tabular-nums}
 
@@ -1760,7 +1825,7 @@ a.nside-row:hover{background:var(--canvas)}
      확인한 사람만 할 수 있는 말이다. 점자리는 1em 으로 잡아 두어 비어도
      이름이 안 밀린다 */
 .psteps{margin:0; display:flex; gap:var(--gap-sm);
-  font-size:var(--prow-3-fs); color:var(--faint)}
+  font-size:var(--qrow-meta-fs); color:var(--faint)}
 .pstep{display:inline-flex; align-items:center; gap:var(--gap-xs)}
 .pstep i{font-style:normal; width:1em; text-align:center}
 .pstep.done{color:var(--ink)}
@@ -1843,7 +1908,10 @@ a.pevent:focus-visible{outline:var(--hair) solid var(--cyan); outline-offset:2px
 .phead{display:flex; align-items:flex-end; gap:var(--gap);
   margin-top:calc(-1 * var(--gap-sm))}
 .phead-l{flex:1; min-width:0}
-.phead-r{flex:none}
+/* 오른쪽 단추 묶음은 **한 줄**이다. 블록으로 두면 「배치 편집」과 동작
+   단추 줄이 두 층으로 쌓여 머리가 한 줄 더 높아졌다(09-28 환자 기록) */
+.phead-r{flex:none; display:flex; align-items:center; justify-content:flex-end;
+  flex-wrap:wrap; gap:var(--btn-gap); max-width:100%}
 .phead h1{font-size:var(--h1-fs); display:flex; align-items:center;
   gap:var(--h1-gap); flex-wrap:wrap}
 .sub{margin:var(--sub-gap) 0 0; font-size:var(--sub-fs); color:var(--warm)}
@@ -1857,11 +1925,16 @@ a.pevent:focus-visible{outline:var(--hair) solid var(--cyan); outline-offset:2px
 .card{background:var(--card); border:var(--hair) solid var(--border);
   border-radius:var(--card-radius); box-shadow:var(--card-shadow);
   overflow:hidden}
-.card-h{display:flex; align-items:center; gap:var(--gap-sm);
+/* ⚠ 제목은 **줄어들지 않는다.** 오른쪽 묶음(거르는 pill 여럿)이 길면 제목이
+   한 글자 폭으로 눌려 「전 / 체 / 이 / 력」 세로로 섰다(1280 환자 기록).
+   이제 오른쪽 묶음이 다음 줄로 내려가고, 그 안에서 다시 접힌다 */
+.card-h{display:flex; align-items:center; flex-wrap:wrap; gap:var(--gap-sm);
   padding:var(--card-pad-sm) var(--card-pad);
-  border-bottom:var(--hair) solid var(--border)}
-.card-h h2{font-size:var(--card-h-fs); flex:1; min-width:0}
-.card-h-r{display:flex; align-items:center; gap:var(--chip-gap); flex:none}
+  border-bottom:var(--hair) solid var(--line-2)}
+.card-h h2{font-size:var(--card-h-fs); font-weight:700; flex:1 0 auto;
+  max-width:100%}
+.card-h-r{display:flex; align-items:center; justify-content:flex-end;
+  flex-wrap:wrap; gap:var(--chip-gap); flex:0 1 auto; min-width:0; margin-left:auto}
 .card-b{padding:var(--card-pad); display:flex; flex-direction:column;
   gap:var(--card-gap)}
 .card-b.flush{padding:0}
@@ -1883,16 +1956,20 @@ a.pevent:focus-visible{outline:var(--hair) solid var(--cyan); outline-offset:2px
 .slot.big{min-height:var(--slot-h); gap:var(--gap-sm)}
 
 /* ── 단추 — 전부 pill ───────────────────────────────────────── */
+/* 높이는 **줄 높이 + 위아래 여백**으로 정해진다 — 본문 줄 높이(1.64)를
+   물려받으면 글씨 크기가 조금만 달라도 단추 높이가 제각각이었다. 단추만
+   1.25 로 묶어 기본 36 · 작은 것 28 두 벌로 선다(--btn-h · --btn-h-sm) */
 .btn{display:inline-flex; align-items:center; justify-content:center;
   gap:var(--sub-gap); border-radius:var(--btn-radius);
   padding:var(--btn-pad-y) var(--btn-pad-x); font-size:var(--btn-fs);
-  font-weight:600; white-space:nowrap; transition:background var(--motion)}
+  line-height:1.25; font-weight:600; white-space:nowrap;
+  transition:background var(--motion)}
 .btn.line{box-shadow:inset 0 0 0 var(--hair) var(--border); background:var(--card)}
 .btn.line:hover{background:var(--canvas)}
 /* **화면당 하나.** 그 화면에서 할 일 하나를 가리킨다 */
 .btn.fill{background:var(--cyan); color:var(--cyan-ink)}
 .btn.fill:hover{filter:brightness(.95)}
-.btn:disabled{opacity:.45; cursor:not-allowed}
+.btn:disabled{opacity:var(--off); cursor:not-allowed}
 .rowb{display:flex; gap:var(--btn-gap); justify-content:flex-end}
 /* ⚠ 좁은 칸(예약 판 오른쪽 단)에서 단추 셋이 한 줄에 안 들어가 왼쪽이
    잘렸다(「환자 목록」이 「목록」으로). 넘치면 다음 줄로 내린다 */
@@ -2034,6 +2111,13 @@ a.pevent:focus-visible{outline:var(--hair) solid var(--cyan); outline-offset:2px
 .list-detail-viewer{min-width:0}
 @media (max-width:900px){.list-detail-cols{grid-template-columns:1fr}}
 .list-detail-info{display:flex; flex-direction:column; gap:var(--gap-sm)}
+/* 09-28 — 브라우저 기본 여백(p 1em · ul 40px 들여쓰기 · 점)이 그대로 살아
+   검사 이력 줄 사이가 70px 넘게 벌어졌다. 이 칸 안에서만 걷어 낸다 */
+.list-detail-info .section-label{margin:var(--gap-xs) 0 0; font-size:var(--stag-fs);
+  font-weight:600; color:var(--warm)}
+.list-detail-info .exam-history{margin:0; padding:0 4px 0 0; list-style:none}
+.list-detail-info .exam-history-detail{margin:2px 0 0}
+.list-detail-info .fold p{margin:0}
 .split-l,.split-r{min-width:0; display:flex; flex-direction:column;
   gap:var(--gap)}
 
@@ -2547,9 +2631,10 @@ td.none,tr.none td{text-align:center; padding:var(--card-pad) 0}
   border-top:var(--hair) solid var(--border)}
 
 /* 인용 — 유방외과 의뢰 문구, 판독문 본문 */
+/* ⚠ 한쪽만 굵은 선을 두르지 않는다(카드 규칙) — 1px 헤어라인 한 겹이다 */
 .quote{margin:0; padding:var(--gap-sm) var(--card-pad-sm);
   background:var(--canvas); border-radius:var(--in-radius);
-  border-left:2px solid var(--border);
+  border:var(--hair) solid var(--line-2);
   font-size:var(--kv-fs); line-height:var(--body-lh); white-space:pre-wrap}
 
 /* ── 1장 · 큐 바닥의 「다음은 누구」 ─────────────────────────
@@ -3170,7 +3255,7 @@ td.none,tr.none td{text-align:center; padding:var(--card-pad) 0}
 /* 표 안의 단추 둘. **줄 클릭과 겹치므로** 단추는 자기 일만 하게
    stopPropagation 을 건다(Patients.jsx) — 여기서는 크기만 줄인다 */
 .rowacts{display:flex; gap:var(--gap-xs); justify-content:flex-end}
-.rowacts .btn{padding:var(--gap-xxs) var(--chip-pad-x); font-size:var(--chip-fs)}
+.rowacts .btn{padding:var(--gap-5) var(--chip-pad-x); font-size:var(--chip-fs)}
 
 /* 같은 날 이미 잡힌 예약 — 경고 상자 안의 목록 */
 .dup{display:flex; flex-direction:column; gap:var(--gap-xs);
@@ -3255,30 +3340,41 @@ code{padding:0 var(--gap-xs); border-radius:var(--radius-xs);
    잠깐 뜨는 것이라 그 동안만 메모가 뒤로 간다. */
 .sticky-memo{position:fixed; z-index:35; display:flex; flex-direction:column;
   min-width:200px; min-height:160px; max-width:90vw; max-height:80vh;
-  background:#fef9c3; border:1px solid #eab30866; border-radius:10px;
-  box-shadow:0 10px 28px rgba(0,0,0,.2); overflow:hidden; resize:both}
+  background:var(--memo-bg); border:var(--hair) solid var(--memo-line);
+  border-radius:var(--card-radius); box-shadow:var(--memo-shadow);
+  overflow:hidden; resize:both}
 .sticky-memo-head{flex:0 0 auto; display:flex; align-items:center;
-  justify-content:space-between; gap:8px; padding:7px 10px;
-  font-size:12.5px; font-weight:700; color:#7c5e00; cursor:move;
-  user-select:none; background:rgba(0,0,0,.05);
+  justify-content:space-between; gap:var(--gap-sm);
+  padding:var(--gap-tight) var(--gap-sm);
+  font-size:var(--sub-fs); font-weight:700; color:var(--memo-head); cursor:move;
+  user-select:none; background:rgb(12 10 9 / .04);
   /* 손가락으로 끌 때 브라우저가 대신 화면을 스크롤해 버리지 않게 */
   touch-action:none}
-.sticky-memo-head button{border:none; background:none; font-size:17px;
-  line-height:1; cursor:pointer; color:inherit; padding:0 2px}
+.sticky-memo-head button{border:none; background:none; font-size:var(--card-h-fs);
+  line-height:1; cursor:pointer; color:inherit; padding:0 var(--gap-xxs)}
 .sticky-memo-head button:hover{opacity:.65}
 .sticky-memo textarea{flex:1; min-height:0; border:none; background:transparent;
-  resize:none; padding:10px 12px; font-size:13px; line-height:1.5;
-  font-family:var(--font-ui, inherit); color:#4a3c00; outline:none}
-.sticky-memo-tab{position:fixed; z-index:35; border:none; border-radius:999px;
-  background:#fde047; color:#4a3c00; box-shadow:0 6px 16px rgba(0,0,0,.2);
-  padding:9px 16px; font-size:13px; font-weight:700; cursor:pointer;
+  resize:none; padding:var(--gap-sm) var(--in-pad-x); font-size:var(--memo-fs);
+  line-height:1.5; font-family:var(--font-ui, inherit); color:var(--memo-ink); outline:none}
+/* 접힌 알약 — 다른 단추와 같은 흰 pill 이다. 노랑은 앞의 작은 네모 하나만
+   (메모지라는 표시). 노란 알약 + 이모지가 업무 화면 톤을 깨고, 왼쪽 아래
+   칸 위에서 제일 먼저 눈에 걸렸다(09-28) */
+.sticky-memo-tab{position:fixed; z-index:35; display:inline-flex; align-items:center;
+  gap:var(--gap-tight); height:var(--btn-h-sm); padding:0 var(--chip-pad-x);
+  border:none; border-radius:var(--round);
+  background:var(--card); color:var(--ink-2);
+  box-shadow:inset 0 0 0 var(--hair) var(--border), var(--card-shadow), 0 2px 8px rgb(12 10 9 / .08);
+  font-size:var(--chip-fs); font-weight:600; cursor:pointer;
   user-select:none; touch-action:none;
   /* ⚠ **줄바꿈을 막는다.** 이 알약은 left 만 잡힌 fixed 라 폭이 «화면
      오른쪽 끝까지 남은 자리»로 줄어든다 — 오른쪽으로 끌면 글자가
      「메 / 모」로 세로로 눌렸다. 게다가 폭이 줄면 다음 계산에서 더
      오른쪽까지 갈 수 있게 되어, 끌수록 더 눌리는 악순환이었다(09-23) */
   white-space:nowrap}
-.sticky-memo-tab:hover{filter:brightness(.97)}
+.sticky-memo-tab:hover{color:var(--ink); background:var(--canvas)}
+.memo-swatch{flex:none; width:calc(var(--hdot) + 2px); height:calc(var(--hdot) + 2px);
+  border-radius:var(--hdot-radius); background:var(--memo-swatch);
+  box-shadow:inset 0 0 0 var(--hair) var(--memo-line)}
 
 /* ── 내 업무(SideDashboard) — 목록 옆에 두는 캘린더·TODO·오늘 현황 ───
    공용 위젯이다(lib/SideDashboard.jsx, 2026-09-18) — 유방외과 대기
@@ -3536,8 +3632,9 @@ a.exam-history-pick{text-decoration:none}
 .ai-fail-t{display:flex; flex-direction:column; gap:var(--gap-xxs)}
 .ai-fail-t b{color:var(--v-ink)}
 .ai-fail-t span{color:var(--v-ink); overflow-wrap:anywhere}
-.ai-fail.compact .ai-fail-t{flex-direction:row; flex-wrap:wrap; column-gap:var(--gap-xs)}
-.ai-fail.compact .ai-fail-t b::after{content:" ·"; color:var(--v-warm); font-weight:400}
+/* 09-28 — 한 줄로 이으면 뜻 글이 다음 줄로 꺾이며 「판정 불가 ·」만 덩그러니
+   남았다. 제목 한 줄 · 뜻 한 줄로 쌓는다 */
+.ai-fail.compact .ai-fail-t span{color:var(--v-warm)}
 .ai-fail-act{display:flex; align-items:center; flex-wrap:wrap; gap:var(--gap-xs)}
 .ai-fail-act .warnline{margin:0}
 .ai-fail-raw{min-width:0}
@@ -3628,6 +3725,13 @@ a.exam-history-pick{text-decoration:none}
   font-variant-numeric:tabular-nums}
 /* 상용구 칸을 안 켠 과 — 세 단 */
 .work.no-say{grid-template-columns:var(--work-q) minmax(0, 1fr) var(--work-hist)}
+/* 09-28 최종 점검 (영상 · 병리 대기 큐)
+   · 큐 머리 「도착 순 · 순서 고정」이 어두운 바탕에 짙은 글자(ink-2)라 안 보였다
+   · 지난 검사 카드 — <p> 기본 여백(1em)이 살아 카드마다 위아래 26px 이 비었다
+   · 넓은 화면에서는 가운데 칸만 늘어 휑했다 — 이력 칸을 화면 폭에 맞춰 조금 넓힌다 */
+.wq-page .work-q-h .hcard-k{color:var(--v-warm)}
+.wq-page .work-ev p{margin:0}
+.wq-page .work.no-say{grid-template-columns:var(--work-q) minmax(0, 1fr) clamp(var(--work-hist), 24vw, 440px)}
 /* 가운데 맨 위 — 의뢰 질문 · 영상 대조 */
 .work-ask-q{display:flex; flex-direction:column; gap:var(--gap-xs)}
 .work-ask-q > .section-label{font-size:var(--stag-fs); font-weight:600; color:var(--warm)}

@@ -125,10 +125,14 @@
 
   /* ══ 단추 — 전부 pill ═════════════════════════════════════ */
   --btn-radius: 999px;
-  --btn-pad-y:  calc(8px * var(--sp));
+  --btn-pad-y:  calc(10px * var(--sp));   /* 13px × 1.25 + 20 = 36 = --btn-h */
   --btn-pad-x:  calc(16px * var(--sp));
   --btn-fs:     calc(13px * var(--ft));
   --btn-gap:    calc(8px * var(--sp));
+  /* 단추 높이 — 두 벌뿐이다. 쪽 머리 · 카드 머리 · 입력 옆 단추가 같은 높이로
+     서야 한 줄로 읽힌다(09-28 — 30 · 32 · 37 · 38 · 40 이 섞여 있었다) */
+  --btn-h:      calc(36px * var(--sp));
+  --btn-h-sm:   calc(28px * var(--sp));
 
   /* ══ 칩 · 정렬 pill ═══════════════════════════════════════ */
   --chip-pad-y:  calc(4px * var(--sp));
@@ -370,6 +374,18 @@
      않으면 세 줄짜리로 주저앉는다. 쓰는 자리라 읽는 자리보다 넉넉해야 한다 */
   --report-write-h: calc(220px * var(--sp));
 
+  /* ══ 스티커 메모 ═════════════════════════════════════════
+     펼친 메모지만 종이 색(노랑)이다 — 「내 메모」라는 것이 한눈에 보여야
+     해서 둔 **유일한 예외 색**이다. 접힌 알약은 다른 단추와 같은 흰 pill 에
+     작은 노란 네모만 얹는다(09-28 — 노란 알약 + 이모지가 화면 톤을 깼다) */
+  --memo-bg:     #FEF9C3;
+  --memo-line:   #EAB30866;
+  --memo-ink:    #4A3C00;
+  --memo-head:   #7C5E00;
+  --memo-swatch: #FDE047;
+  --memo-shadow: 0 10px 28px rgba(12,10,9,.18);
+  --memo-fs:     calc(13px * var(--ft));
+
   /* ══ 과 홈 ════════════════════════════════════════════════
      값은 전부 `docs/mockup/*Home.html` 에서 왔다. 다섯 과의 본문이 같은
      마크업이라 여기 한 벌이면 된다.
@@ -385,7 +401,7 @@
   --home-day-fs:  calc(13px * var(--ft));
   --home-name-gap: calc(10px * var(--sp)); /* 과 이름과 날짜 사이 */
   --home-act-gap: calc(16px * var(--sp));   /* 머리 줄 안의 간격 */
-  --home-btn-h:   calc(38px * var(--sp));
+  --home-btn-h:   var(--btn-h);
 
   /* ⚠ 칩 줄 토큰은 없앴다. 목업에는 칩 줄이 있지만 그건 목업 상단바가
      52px 한 줄이라 그 과 화면으로 가는 길이 칩뿐이었기 때문이다. 우리는
@@ -406,8 +422,9 @@
   --desk-gap:     calc(12px * var(--sp));
   --desk-r:       330px;
 
-  /* 칸 — 목업은 카드다. 흰 바탕 · 1px 테두리 · 라운드 10 */
-  --hcard-radius: 10px;
+  /* 칸 — 카드와 **같은 부품**이다. 라운드 · 그림자를 .card 와 맞춘다
+     (09-28 — 홈 10px · 그림자 없음, 환자 기록 12px · 그림자로 갈려 있었다) */
+  --hcard-radius: var(--card-radius);
   /* 목록 칸의 최소 높이 — 머리(40) + 다섯 줄(29×5). 그보다 적으면 그만큼만
      높다. 단을 꽉 채우려고 늘이지 않는다(5.5) */
   --hcard-min-h:  calc(185px * var(--sp));
@@ -417,6 +434,9 @@
   --hcard-n-fs:   calc(13px * var(--ft));   /* 제목 옆 건수 */
   --hcard-k-fs:   calc(12px * var(--ft));   /* 머리 오른쪽 작은 글씨 */
   --hcard-foot-fs: calc(11.5px * var(--ft));
+  /* 빈 칸의 한 줄 — 칸이 늘어나면 가운데에 선다. 짧은 칸에서도 이만큼은
+     자리를 잡아 「없습니다」 한 줄이 머리에 붙어 보이지 않게 */
+  --hnone-h:      calc(64px * var(--sp));
   --hdot:         8px;                      /* 칸 머리의 점 */
   --hdot-radius:  2px;
 
@@ -474,7 +494,7 @@
   --todo-in-h:    calc(32px * var(--sp));
 
   /* 접수 카드 (원무만) */
-  --intake-in-h:  calc(40px * var(--sp));
+  --intake-in-h:  var(--btn-h);
 
   /* ══ 접수 — 오늘 현황판 + 내원 대기 ══════════════════════
      칸 다섯을 가로로(Reception-오늘현황판), 아래에 내원 대기 줄

@@ -85,7 +85,6 @@ export default function Patient() {
   })), [id]);
 
   const p = data?.p;
-  const pii = p?.pii ?? {};
   /* 세 단 — 칸은 「배치 편집」으로 옮길 수 있다(lib/Arrange.jsx). 가운데
      히스토리가 이 화면의 본체라 기본은 가운데 한 칸 */
   const lay = useArrange("patient", PATIENT_BASE);
@@ -102,7 +101,11 @@ export default function Patient() {
   } : {};
 
   return (
-    <Page crumb={["환자"]} title={pii.name ?? p?.patient_number ?? "환자"}
+    /* 제목은 **화면 이름**이다(다른 화면과 같은 규칙 — 빵부스러기 [과, 화면]).
+       누구인지는 바로 위 환자 띠가 말한다. 전에는 띠의 이름을 26px 제목으로
+       한 번 더 적어 머리가 두 층이 됐다. 유방외과의 「환자 상세」(검사 종합)와
+       헷갈리지 않게 이 공용 화면은 「환자 기록」이다 */
+    <Page crumb={[homeDept()?.name, "환자 기록"].filter(Boolean)} title="환자 기록"
           patient={p}
           right={data && (
             <>
@@ -503,7 +506,7 @@ function History({ pid, events }) {
 
   return (
     <Card title="전체 이력" className="phistory"
-          right={(
+          right={kinds.length > 1 && (
             <span className="sorts">
               <button type="button" className={`pill${only ? "" : " on"}`}
                       onClick={() => setOnly(null)}>전체</button>

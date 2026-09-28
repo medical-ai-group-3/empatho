@@ -202,7 +202,7 @@ export default function StickyMemo() {
       <button type="button" ref={boxRef} className="sticky-memo-tab"
         style={{ left: s.x, top: s.y }}
         onPointerDown={(e) => startDrag(e, () => setS((v) => ({ ...v, open: true, picked: true })))}>
-        📝 메모
+        <i className="memo-swatch" aria-hidden="true" />메모
       </button>
     );
   }
@@ -212,7 +212,7 @@ export default function StickyMemo() {
       style={{ left: s.x, top: s.y, width: s.w, height: s.h }}
       onMouseUp={onResizeEnd}>
       <div className="sticky-memo-head" onPointerDown={(e) => startDrag(e)}>
-        <span>📝 메모</span>
+        <span>메모</span>
         <button type="button" aria-label="접기" onClick={() => setS((v) => ({ ...v, open: false, picked: true }))}>
           −
         </button>

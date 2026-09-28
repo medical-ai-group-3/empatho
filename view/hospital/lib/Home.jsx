@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { ArrangeBar, Panes, useArrange } from "./Arrange";
 import { Link, useNavigate } from "react-router-dom";
-import { Body, Empty } from "./Body";
+import { Body } from "./Body";
 import { Chip } from "./Parts";
 import { can } from "../perm";
 import { byDate, monthGrid, today } from "../dept/home";
@@ -203,14 +203,16 @@ function Desk({ cfg, home, bag, again, barEl }) {
 
 /* 칸 하나의 틀 — 점 + 제목 + 건수, 오른쪽에 작은 글씨나 단추.
    ⚠ 목업은 칸마다 점 색이 다르지만(파랑·주황·초록·보라) 이 판은 **상태
-     색을 새로 만들지 않는다**(tokens.css). 채움과 외곽선으로만 가른다 */
-function Card({ dot = "fill", title, count, right, grow, className = "", children }) {
+     색을 새로 만들지 않는다**(tokens.css). 점은 **한 모양**이다 — 시안 ·
+     검정 · 빈 네모로 갈라 두었더니 뜻 없는 무늬로 읽혔다(09-28).
+     dot="none" 은 제목이 곧 값인 칸(달력의 「2026년 9월」)만 쓴다 */
+function Card({ dot = "on", title, count, right, grow, className = "", children }) {
   /* 옮기기 손잡이는 배치 편집 중에만 lib/Arrange.jsx 의 틀이 단다 */
   const cls = ["hcard", grow && "grow", className].filter(Boolean).join(" ");
   return (
     <section className={cls}>
       <div className="hcard-h">
-        {dot !== "none" && <i className={`hdot ${dot}`} aria-hidden="true" />}
+        {dot !== "none" && <i className="hdot" aria-hidden="true" />}
         <h2>{title}</h2>
         {count != null && <b className="hcard-n">{count}</b>}
         <span className="home-fill" />
@@ -219,6 +221,14 @@ function Card({ dot = "fill", title, count, right, grow, className = "", childre
       {children}
     </section>
   );
+}
+
+/* 빈 칸 한 줄 — 칸 몸통 자리를 대신 차지하고 **그 가운데에** 선다(.hnone).
+   칸이 단 끝까지 늘어나도 「없습니다」가 머리 밑에 붙은 채 아래가 통째로
+   비지 않는다. 목록 그릇(.qrows · .drows …) 안에 두지 않는다 — 그릇은
+   격자 · 여백이 있어서 가운데를 못 잡는다 */
+function None({ children }) {
+  return <p className="hnone">{children}</p>;
 }
 
 /* ── 왼쪽 맨 위 — 접수 (원무만) ────────────────────────────────
@@ -329,14 +339,18 @@ function Queue({ queue }) {
      제 글자만큼은 받고(max-content) 나머지를 비율로 나눠 표처럼 퍼지게
      한다. 한 줄 요약(sub)이 가장 많이 받는다 */
   const spread = "minmax(max-content, 1fr)";
+  /* ⚠ 이 탭의 **어느 줄에도 값이 없는 열은 폭을 안 받는다**(0). 이름만 떼고
+     1fr 을 그대로 주면 빈 열이 표 한가운데 폭을 먹고, 정작 값이 있는
+     「할 일」 · 「기한」이 두 줄로 눌렸다(간호 홈 「전화 · 예약 확인」 1280) */
+  const col = (k, track) => (has(k) ? track : "0");
   const grid = {
     gridTemplateColumns: [
       "max-content",                                   // 번호
       "minmax(max-content, 1.2fr)",                    // 이름
-      spread,                                          // 나이·성별
-      spread,                                          // 칩
-      "minmax(6em, 2fr)",                              // 한 줄 요약(두 줄까지 접힌다)
-      ...extra.map(() => spread),                      // 과가 더 싣는 칸
+      col("meta", spread),                             // 나이·성별
+      col("chip", spread),                             // 칩
+      col("sub", "minmax(6em, 2fr)"),                  // 한 줄 요약(두 줄까지 접힌다)
+      ...extra.map((c) => col(c.key, spread)),         // 과가 더 싣는 칸
       "0",                                             // (예전 빈 칸 — 자리만)
       "minmax(min-content, max-content)",              // 환자번호 · 시각(좁으면 두 줄)
     ].join(" "),
@@ -359,10 +373,9 @@ function Queue({ queue }) {
         </nav>
       )}
       <Filters groups={queue?.filters} value={fv} onChange={setFv} />
-      <div className="qrows" style={grid}>
-        {rows.length === 0
-          ? <p className="hcard-k hpad">{tab.empty ?? "없습니다"}</p>
-          : <>
+      {rows.length === 0
+        ? <None>{tab.empty ?? "목록이 비어 있습니다"}</None>
+        : <div className="qrows" style={grid}>
               <div className="qrow-head" aria-hidden="true">
                 <i className="qrow-n" />
                 <b>이름</b>
@@ -376,8 +389,7 @@ function Queue({ queue }) {
                 <span className="qrow-r">{cols.r}</span>
               </div>
               {rows.map((r, i) => <QRow key={r.id} row={r} n={i + 1} extra={extra} />)}
-            </>}
-      </div>
+          </div>}
     </Card>
   );
 }
@@ -441,9 +453,9 @@ function useOpen(row) {
 function Stuck({ items }) {
   const total = items.reduce((n, c) => n + c.count, 0);
   return (
-    <Card dot="ring" title="확인 필요" count={total}>
+    <Card title="확인 필요" count={total}>
       {items.length === 0
-        ? <p className="hcard-k hpad">지금은 없습니다</p>
+        ? <None>지금 확인할 것이 없습니다</None>
         : items.map((c) => (
           <Line key={c.tag} to={c.to} className="srow">
             <span className="stag">{c.tag}</span>
@@ -473,12 +485,11 @@ function Flow({ flow }) {
   const items = flow?.items ?? [];
   const top = Math.max(1, ...items.map((i) => i.count));
   return (
-    <Card dot="ink" title={flow?.title ?? "오늘 흐름"}
+    <Card title={flow?.title ?? "오늘 흐름"}
           right={flow?.summary && <span className="hcard-k">{flow.summary}</span>}>
+      {items.length === 0 ? <None>오늘 내원한 환자가 없습니다</None> : (
       <div className="flows">
-        {items.length === 0
-          ? <p className="hcard-k hpad">오늘 내원한 환자가 없습니다</p>
-          : items.map((it) => (
+        {items.map((it) => (
             <Line key={it.name} to={it.to} className="frow">
               <span className="frow-k">{it.name}</span>
               <span className="frow-bar">
@@ -488,6 +499,7 @@ function Flow({ flow }) {
             </Line>
           ))}
       </div>
+      )}
     </Card>
   );
 }
@@ -500,12 +512,11 @@ function Flow({ flow }) {
 function Done({ done }) {
   const items = done?.items ?? [];
   return (
-    <Card dot="ink" title="오늘 한 일" grow
+    <Card title="오늘 한 일" grow
           right={done?.summary && <span className="hcard-k">{done.summary}</span>}>
+      {items.length === 0 ? <None>{done?.empty ?? "집계된 내용이 없습니다"}</None> : (
       <div className="drows">
-        {items.length === 0
-          ? <Empty title={done?.empty ?? "집계된 내용이 없습니다"} />
-          : items.map((it) => (
+        {items.map((it) => (
             <Line key={it.id} to={it.to} className="drow">
               <time>{it.at}</time>
               <i className="drow-dot" aria-hidden="true" />
@@ -513,6 +524,7 @@ function Done({ done }) {
             </Line>
           ))}
       </div>
+      )}
     </Card>
   );
 }
@@ -555,7 +567,7 @@ function Handover({ dept }) {
   }
 
   return (
-    <Card dot="ring" title="인계 사항"
+    <Card title="인계 사항"
           right={(
             <button type="button" className="btn line sm"
                     onClick={() => setOpen((v) => !v)}>인계 남기기</button>
@@ -573,9 +585,9 @@ function Handover({ dept }) {
         </form>
       )}
 
-      {remote.error && <p className="hcard-k hpad">인계 사항을 불러오지 못했습니다</p>}
+      {remote.error && <None>인계 사항을 불러오지 못했습니다</None>}
       {list.length === 0 && !open && !remote.error
-        ? <p className="hcard-k hpad">{remote.loading ? "불러오는 중…" : "인계 사항이 없습니다"}</p>
+        ? <None>{remote.loading ? "불러오는 중…" : "남긴 인계 사항이 없습니다"}</None>
         : list.map((it) => (
           <article className="hrow" key={it.id}>
             <div className="hrow-1">
@@ -603,12 +615,11 @@ function Handover({ dept }) {
 function Side({ side }) {
   const rows = side?.rows ?? [];
   return (
-    <Card dot="ring" title={side?.title ?? ""} count={rows.length} grow
+    <Card title={side?.title ?? ""} count={rows.length} grow
           right={side?.to && <Link className="btn line sm" to={side.to}>예약 관리</Link>}>
+      {rows.length === 0 ? <None>{side?.empty ?? "목록이 비어 있습니다"}</None> : (
       <div className="drows">
-        {rows.length === 0
-          ? <p className="hcard-k hpad">{side?.empty ?? "없습니다"}</p>
-          : rows.map((r) => (
+        {rows.map((r) => (
             <Line key={r.id} to={r.to} className="drow">
               <time>{r.at ?? "—"}</time>
               <i className="drow-dot" aria-hidden="true" />
@@ -618,6 +629,7 @@ function Side({ side }) {
             </Line>
           ))}
       </div>
+      )}
     </Card>
   );
 }
@@ -630,14 +642,12 @@ function Side({ side }) {
 function ListCard({ spec }) {
   const rows = spec.rows ?? [];
   return (
-    <Card dot="ring" title={spec.title} count={spec.count ?? rows.length} grow
+    <Card title={spec.title} count={spec.count ?? rows.length} grow
           right={spec.hint && <span className="hcard-k">{spec.hint}</span>}>
+      {spec.error ? <None>{spec.error}</None>
+        : rows.length === 0 ? <None>{spec.empty ?? "목록이 비어 있습니다"}</None> : (
       <div className="lrows">
-        {spec.error
-          ? <p className="hcard-k hpad">{spec.error}</p>
-          : rows.length === 0
-            ? <p className="hcard-k hpad">{spec.empty ?? "없습니다"}</p>
-            : rows.map((r) => (
+        {rows.map((r) => (
               <Line key={r.id} to={r.to} className={`lrow${r.off ? " off" : ""}`}>
                 <span className="lrow-1">
                   {r.chip && <Chip tone={r.chipTone ?? "line"}>{r.chip}</Chip>}
@@ -656,6 +666,7 @@ function ListCard({ spec }) {
               </Line>
             ))}
       </div>
+      )}
     </Card>
   );
 }
@@ -759,11 +770,11 @@ function Todo({ dept }) {
   const left = list.filter((it) => !it.done).length;
 
   return (
-    <Card dot="none" title="할 일" grow
-          count={`${left}개 남음`}
+    <Card title="할 일" grow
+          count={list.length > 0 ? `${left}개 남음` : null}
           right={<span className="hcard-k">나만 볼 수 있음</span>}>
+      {list.length === 0 ? <None>아래 칸에 적으면 여기에 쌓입니다</None> : (
       <div className="todos">
-        {list.length === 0 && <p className="hcard-k hpad">없습니다</p>}
         {list.map((it) => (
           <label className={`trow${it.done ? " done" : ""}`} key={it.id}>
             <input type="checkbox" checked={it.done}
@@ -774,6 +785,7 @@ function Todo({ dept }) {
           </label>
         ))}
       </div>
+      )}
       <form className="todo-add" onSubmit={submit}>
         <input value={text} onChange={(e) => setText(e.target.value)}
                onCompositionStart={() => setComposing(true)}

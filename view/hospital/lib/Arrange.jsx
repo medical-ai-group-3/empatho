@@ -168,10 +168,12 @@ export function ArrangeBar({ lay, className = "" }) {
   }
   return (
     <div className={`arr-bar ${className}`.trim()} role="toolbar" aria-label="칸 배치 편집">
-      <span className="arr-hint">⠿를 끌거나 방향키로 옮깁니다</span>
+      <span className="arr-hint">칸 왼쪽 위 ⠿ 를 끌거나 방향키로 옮깁니다</span>
       <button type="button" className="btn line sm" onClick={lay.reset}>기본 배치로</button>
       <button type="button" className="btn line sm" onClick={lay.cancel}>취소</button>
-      <button type="button" className="btn fill sm" onClick={lay.save}>저장</button>
+      {/* 검은 채움 — 시안은 그 화면의 주 동작(머리의 [다음 검사 시작] 등)
+          몫이라 여기까지 시안이면 한 줄에 주 동작이 둘로 읽혔다(09-28) */}
+      <button type="button" className="btn dark sm" onClick={lay.save}>저장</button>
     </div>
   );
 }
