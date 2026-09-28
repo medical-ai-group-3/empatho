@@ -3349,6 +3349,23 @@ code{padding:0 var(--gap-xs); border-radius:var(--radius-xs);
 .modal-head{flex:0 0 auto; display:flex; align-items:center; justify-content:space-between;
   gap:var(--gap-sm); padding:var(--card-pad); border-bottom:var(--hair) solid var(--border)}
 .modal-head h2{font-size:var(--h1-fs); font-family:var(--font-head)}
+/* 검체 등록 팝업(lib/SpecimenBindingModal.jsx) — 간호과 · 유방외과가 같이 띄운다.
+   ⚠ .breast 안에서는 입력칸이 글자색을 물려받아(breast.css) 병변 칸 글자가
+   cyan 으로 떴다 — 팝업 안은 늘 먹색 */
+.modal.spec-modal{color:var(--ink)}
+.modal.spec-modal select, .modal.spec-modal input{color:var(--ink)}
+.spec-who{display:flex; align-items:baseline; gap:var(--gap-sm); flex-wrap:wrap;
+  padding:calc(12px * var(--sp)) calc(16px * var(--sp)); border-radius:var(--in-radius);
+  background:var(--canvas); font-size:var(--in-fs)}
+.spec-who > b{font-size:var(--srow-fs); font-weight:700}
+.spec-who > span{color:var(--ink-2)}
+.spec-who .spec-who-k{font-size:var(--label-fs); color:var(--warm)}
+.spec-label{margin:0; min-height:var(--btn-h); display:flex; align-items:center;
+  padding:0 var(--in-pad-x); border-radius:var(--in-radius);
+  background:var(--canvas); font-size:var(--in-fs); font-weight:600; color:var(--ink)}
+.spec-label.off{font-weight:400; color:var(--faint)}
+.fields.spec-fields{grid-template-columns:repeat(3, minmax(0, 1fr))}
+@media (max-width: 720px){ .fields.spec-fields{grid-template-columns:minmax(0, 1fr)} }
 .modal-head button{color:var(--warm); font-size:18px; line-height:1}
 .modal-head button:hover{color:var(--ink)}
 .modal-body{flex:1; min-height:0; overflow-y:auto; padding:var(--card-pad);

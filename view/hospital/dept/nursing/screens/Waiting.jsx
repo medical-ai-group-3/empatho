@@ -10,7 +10,7 @@ import { DESK, go } from "../../../nav";
 import { specimens as specApi } from "../../../api";
 import SpecimenBindingModal from "../../../lib/SpecimenBindingModal";
 import * as H from "../../home";
-import { ORDER_STATUS, label } from "../../../codes";
+import { ORDER_STATUS, SPECIMEN_TYPE, label } from "../../../codes";
 
 /* 내원 대기 · 유방외과 배정 — `docs/mockup/Nursing-내원대기.html`
  * ════════════════════════════════════════════════════════════════
@@ -68,6 +68,13 @@ const TAB_ALIAS = { q: "q", questionnaire: "q", assign: "assign", specimen: "spe
 const idOf = (r) => r.exam_order_id ?? r.id;
 const staffId = (s) => s.staff_id ?? s.id;
 const staffName = (s) => s.full_name ?? s.name ?? `직원 ${staffId(s)}`;
+
+/* 보낸 사람의 지금 단계 — 서버 stage 는 외래 차례를 「접수 대기」로 뭉쳐 준다.
+   유방외과로 보낸 사람이 「접수 대기」로 적혀 거꾸로 읽혔다(09-28 최종).
+   외래 차례는 홈 현황판(StageBoard)과 같은 말로, 끝난 것은 「진료 완료」 */
+const stageText = (r) => (r.stage_code === "outpatient" ? "유방외과 진료 대기"
+  : r.stage_code === "completed" || r.stage === "completed" ? "진료 완료"
+    : label(ORDER_STATUS, r.stage) || r.stage_detail || null);
 
 /* 보낸 오더 — today-status 의 handed_at 이 찬 줄. 취소는 뺀다 */
 const handed = (r) => r.handed_at != null && r.stage_code !== "cancelled"
@@ -182,7 +189,11 @@ function Inner({ cfg, embedded, given }) {
             : <Empty title="왼쪽 목록에서 환자를 선택하세요"
                      hint="유방외과에서 검체를 채취하면 여기서 라벨을 확인하고 등록합니다" />
         ) : !cur
-          ? <Empty title="왼쪽 목록에서 환자를 선택하세요" />
+          /* 목록이 비었으면 「선택하세요」가 아니라 무엇을 하면 되는지를 말한다 */
+          ? (shown.length === 0
+            ? <Empty title="지금 문진 · 배정할 환자가 없습니다"
+                     hint="위에서 환자를 찾아 [접수]하면 「문진 대기」에 올라옵니다" />
+            : <Empty title="왼쪽 목록에서 환자를 선택하세요" />)
           : (
             <Body loading={detail.loading && !detail.data} error={detail.error}
                   onRetry={detail.reload}>
@@ -270,7 +281,7 @@ function Queue({ state, tab, setTab, lists, people, pick, onPick, bottom }) {
                     {tab === "specimen" ? (
                       <>
                         <span>→ {r.handed_to_name ?? nameOf(r.handed_to) ?? r.primary_staff_name ?? "유방외과"}</span>
-                        {r.stage_detail && <span>{r.stage_detail}</span>}
+                        {stageText(r) && <span>{stageText(r)}</span>}
                       </>
                     ) : (
                       <>
@@ -647,6 +658,13 @@ function Assign({ cfg, orderId, picked, people, load, may, onSent }) {
  *   「채취했는데 안 이은 것」을 거르는 경로가 서버에 없다. 그래서 오늘 보낸
  *   사람을 전부 두고, 이 환자에게 이미 이은 검체를 같이 보여 판단하게 한다.
  */
+/* 검체 한 줄의 상태 — 서버가 준 시각 · 접수 상태만 읽는다 */
+function specState(s) {
+  if (s.finalized_at) return "판독 완료";
+  if (s.accession_status === "accessioned" || s.accessioned_at) return "병리과 접수됨";
+  return "병리과 접수 전";
+}
+
 function Specimen({ r, people }) {
   const pid = r.patient_id ?? r.patient;
   const list = useApi(() => (pid != null ? H.soft(specApi.list(pid)) : Promise.resolve([])), [pid]);
@@ -671,26 +689,42 @@ function Specimen({ r, people }) {
           </span>
         </span>
         <span className="home-fill" />
-        {r.stage_detail && <Chip>{r.stage_detail}</Chip>}
+        {stageText(r) && <Chip>{stageText(r)}</Chip>}
       </header>
-      <div className="ndet-b one">
-        <section className="ndet-box wide">
-          <h3>이 환자에게 등록된 검체 <Chip>{items.length}</Chip></h3>
+      {/* 09-28(최종) 검체 줄 하나만 있고 가운데가 통째로 비었다 — 접수 탭과
+          같은 두 칸(왼쪽 오늘 진행 · 오른쪽 검체)으로 세운다. 값은 전부
+          today-status 한 줄과 검체 목록에서 온다 */}
+      <div className="ndet-b">
+        <section className="ndet-box">
+          <h3>오늘 진행</h3>
+          <dl className="kv">
+            {H.at(r.visited_at) && <div><dt>접수 시각</dt><dd className="num">{H.at(r.visited_at)}</dd></div>}
+            <div><dt>보낸 시각</dt><dd className="num">{H.at(r.handed_at) ?? "—"}</dd></div>
+            <div><dt>담당 의사</dt><dd>{to ?? "—"}</dd></div>
+            <div><dt>지금 단계</dt><dd>{stageText(r) ?? "—"}</dd></div>
+            {r.visit_type && <div><dt>방문 구분</dt><dd>{r.visit_type}</dd></div>}
+          </dl>
+        </section>
+        <section className="ndet-box">
+          <h3>등록된 검체 <Chip>{items.length}</Chip></h3>
           <Body loading={list.loading && !list.data} error={list.error} onRetry={list.reload}
                 empty={items.length === 0 && <p className="hcard-k">아직 등록된 검체가 없습니다</p>}>
-            <dl className="kv">
+            <ul className="nspec">
               {items.map((s, i) => (
-                <div key={s.specimen_id ?? s.id ?? i}>
-                  <dt>{s.specimen_label ?? s.label ?? `검체 ${i + 1}`}</dt>
-                  <dd>{[s.specimen_type, s.status, H.day(s.collected_at)].filter(Boolean).join(" · ")}</dd>
-                </div>
+                <li key={s.specimen_id ?? s.id ?? i}>
+                  <b className="num">{s.specimen_label ?? s.label ?? `검체 ${i + 1}`}</b>
+                  <span>{[label(SPECIMEN_TYPE, s.specimen_type ?? s.kind),
+                    s.collected_at && `${H.day(s.collected_at)} 채취`].filter(Boolean).join(" · ")}</span>
+                  <em>{specState(s)}</em>
+                </li>
               ))}
-            </dl>
+            </ul>
           </Body>
-          <p className="hcard-k">
-            채취 여부는 유방외과 진료에서 정합니다 — 라벨을 확인하고 등록해야 병리과로 넘어갑니다.
-          </p>
         </section>
+        <p className="hcard-k ndet-note">
+          채취 여부는 유방외과 진료에서 정합니다. 용기 라벨의 이름 · 환자번호를 확인한 뒤
+          [검체 등록]을 눌러야 병리과로 넘어갑니다.
+        </p>
       </div>
       <footer className="ndet-f">
         {msg && <span className="hcard-k" role="status">{msg}</span>}
@@ -728,7 +762,7 @@ function Load({ people, load }) {
     <section className="nside fit">
       <header className="bcol-h">
         <i className="hdot ring" aria-hidden="true" />
-        <b>배정 현황(오늘)</b>
+        <b>오늘 배정 현황</b>
         <span className="home-fill" />
         <span className="hcard-k">의사별</span>
       </header>
@@ -791,7 +825,7 @@ function Sent({ today }) {
                 <b>{H.nameOf(r)}</b>
                 <span className="nsent-to">→ {r.handed_to_name ?? r.primary_staff_name ?? "유방외과"}</span>
                 <span className="home-fill" />
-                {r.stage && <span>{label(ORDER_STATUS, r.stage)}</span>}
+                {stageText(r) && <span>{stageText(r)}</span>}
               </>
             );
             return pid != null

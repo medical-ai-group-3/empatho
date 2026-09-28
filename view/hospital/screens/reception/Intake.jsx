@@ -96,7 +96,7 @@ function Find({ api, onDone }) {
       await api.checkIn({ patient_id: p.patient_id });
       setFound((list) => list.filter((r) => r.patient_id !== p.patient_id));
       /* 줄이 조용히 사라지기만 하면 됐는지 모른다 — 어디로 갔는지 적는다 */
-      setOk(`${p.name ?? "환자"} 님을 접수했습니다 — 아래 내원 대기에 표시됩니다`);
+      setOk(`${p.name || "환자"} 님을 접수했습니다 — 아래 「문진 대기」에 표시됩니다`);
       onDone();
     } catch (e2) { setErr(e2); }
     finally { setBusy(null); }
@@ -134,7 +134,7 @@ function Find({ api, onDone }) {
       {(found ?? []).map((p) => (
         <div className="ifound" key={p.patient_id}>
           <span className="ifound-tx">
-            <span className="ifound-1"><b>{p.name}</b></span>
+            <span className="ifound-1"><b>{p.name || "이름 없음"}</b></span>
             <span className="ifound-2">
               {[p.patient_number, p.birth_date, p.phone].filter(Boolean).join(" · ")}
             </span>

@@ -45,11 +45,11 @@ export default function Followups({ cfg }) {
 /* 기한 칸 — 「며칠 지났나」가 아니라 「어느 칸에 드나」다 */
 const BUCKET = { over: "기한 지남", today: "오늘", week: "이번 주" };
 const CHIPS = [
-  { key: "over", label: "지난 기한" },
+  { key: "over", label: "기한 지남" },
   { key: "today", label: "오늘" },
   { key: "week", label: "이번 주" },
   { key: "all", label: "전체" },
-  { key: "cand", label: "추적 대상(회차 없음)" },
+  { key: "cand", label: "추적 대상 (회차 없음)" },
 ];
 const ROUND = { stable: "변화 없음", changed: "변화 있음", no_show: "미내원" };
 
@@ -120,15 +120,19 @@ function Inner({ cfg }) {
               + 추적 회차 만들기
             </Btn>
           )}>
+      {/* 09-28(최종) 위 알약 줄과 표 밑 「칸별 수」 상자 여섯이 **같은 수를 두 번**
+          보였다. 수 상자를 맨 위 한 줄(폭 전체)로 올려 그것이 곧 거르개가 되게
+          하고, 표 밑에는 다가오는 회차만 남긴다 */}
       <div className="fup-top">
-        {CHIPS.map((c) => (
-          <button type="button" key={c.key}
-                  className={`fup-chip${c.key === here ? " on" : ""}`}
-                  aria-pressed={c.key === here} onClick={() => setTab(c.key)}>
-            {c.label} <i>{count[c.key]}</i>
-          </button>
-        ))}
-        <span className="home-fill" />
+        <div className="fup-tiles" role="group" aria-label="추적 구분">
+          {CHIPS.map((c) => (
+            <button type="button" key={c.key}
+                    className={`fup-tile${c.key === here ? " on" : ""}${c.key === "over" && count.over > 0 ? " warn" : ""}`}
+                    aria-pressed={c.key === here} onClick={() => setTab(c.key)}>
+              <b>{count[c.key]}</b><span>{c.label}</span>
+            </button>
+          ))}
+        </div>
         <label className="fup-find">
           <span>검색</span>
           <input type="search" value={q} onChange={(e) => setQ(e.target.value)}
@@ -164,10 +168,9 @@ function Inner({ cfg }) {
           </Body>
           {/* 표가 짧으면 밑이 통째로 비었다(09-28) — 다른 칸의 다가오는 회차와
               칸별 수를 둔다. 표가 길면 안 그린다(표가 곧 일이다) */}
-          {list.data && shown.length < 8 && (
-            <Ahead open={open} live={live} count={count} here={here}
-                   onPick={(r) => { setTab("all"); setPick(keyOf(r)); }}
-                   onTab={setTab} />
+          {list.data && shown.length < 8 && open.length > 0 && (
+            <Ahead open={open} live={live} here={here}
+                   onPick={(r) => { setTab("all"); setPick(keyOf(r)); }} />
           )}
         </div>
 
@@ -177,10 +180,18 @@ function Inner({ cfg }) {
             ? <Detail key={keyOf(chosen)} cfg={cfg} f={chosen} rows={rows} onDone={again}
                       onPick={(k) => setPick(k)} />
             : (
-              <div className="slot big">
-                <b>왼쪽 목록에서 환자를 선택하세요</b>
-                <span>전화 후 콜 결과를 기록하고, 연결되면 여기서 바로 검사 예약까지 진행합니다.</span>
-              </div>
+              /* 고를 사람이 아예 없으면 「선택하세요」가 거짓말이다 */
+              rows.length === 0 && list.data ? (
+                <div className="slot big">
+                  <b>콜을 걸 회차가 없습니다</b>
+                  <span>BI-RADS 3으로 확정되면 「추적 대상」에 올라오고, 여기서 첫 회차를 만듭니다.</span>
+                </div>
+              ) : (
+                <div className="slot big">
+                  <b>왼쪽 목록에서 환자를 선택하세요</b>
+                  <span>전화 후 콜 결과를 기록하고, 연결되면 여기서 바로 검사 예약까지 진행합니다.</span>
+                </div>
+              )
             )}
         </aside>
       </div>
@@ -192,27 +203,20 @@ function Inner({ cfg }) {
  * 칸별 수(누르면 그 칸으로)와 **지금 칸에 없는** 열린 회차를 예정일 순으로
  * 여섯. 전부 위 목록(GET /followups/)을 다시 센 것이다 — 새 값이 없다.
  * ⚠ 「그 뒤」는 이번 주를 넘긴 열린 회차, 「종결」은 끝난 회차(연결 · 거부) */
-function Ahead({ open, live, count, here, onPick, onTab }) {
+function Ahead({ open, live, here, onPick }) {
   const later = open.filter((r) => !H.dueBucket(r.due_at)).length;
   const closed = live.length - open.length;
   const next = open
     .filter((r) => here === "all" || here === "cand" || H.dueBucket(r.due_at) !== here)
     .sort((a, b) => String(a.due_at ?? "9").localeCompare(String(b.due_at ?? "9")))
     .slice(0, 6);
-  const nums = [
-    ["over", "지난 기한", count.over], ["today", "오늘", count.today], ["week", "이번 주", count.week],
-    ["all", "이후", later], ["all", "종결", closed], ["cand", "추적 대상", count.cand],
-  ];
   return (
     <section className="fup-more" aria-label="다가오는 회차">
-      <div className="fup-nums">
-        {nums.map(([k, name, n]) => (
-          <button type="button" key={name} className="fup-num" onClick={() => onTab(k)}>
-            <b>{n}</b><span>{name}</span>
-          </button>
-        ))}
-      </div>
-      <h3>{here === "all" || here === "cand" ? "다가오는 회차" : "다른 구분의 다가오는 회차"}</h3>
+      <h3>
+        {here === "all" || here === "cand" ? "다가오는 회차" : "다른 구분의 다가오는 회차"}
+        <span className="home-fill" />
+        <span className="hcard-k">이번 주 이후 {later}건 · 종결 {closed}건</span>
+      </h3>
       {next.length === 0
         ? <p className="hcard-k">다가오는 회차가 없습니다</p>
         : (

@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { ALL_PATIENTS, reception as api, nursing as nur } from "../../api";
 import { Page, Card, Btn } from "../../lib/Page";
 import { Body, Empty } from "../../lib/Body";
-import { Chip, Search, Sort, Table } from "../../lib/Parts";
+import { Chip, Search, Table } from "../../lib/Parts";
 import { useApi } from "../../lib/useApi";
 import { can } from "../../perm";
 import { go } from "../../nav";
@@ -52,7 +52,10 @@ export default function Patients({ cfg, integrated: asked = false }) {
 
   const all = useMemo(() => list.data ?? [], [list.data]);
   const rows = useMemo(() => filter(all, only), [all, only]);
-  const chosen = all.find((r) => String(r.patient_id) === String(pick)) ?? null;
+  /* 09-28(최종) 아무도 안 골랐으면 **보이는 목록의 첫 사람**을 편다 — 오른쪽이
+     「선택하세요」 빈 상자로 서 있으면 화면 3분의 1이 비었다(접수 · 추적
+     관리와 같은 규칙) */
+  const chosen = all.find((r) => String(r.patient_id) === String(pick)) ?? rows[0] ?? null;
 
   /* 거르개마다 몇 명인지 — 누르기 전에 보인다. ⚠ 서버가 그 칸을 안 주면
      (has_account · primary_staff 가 목록에 없다) 그 거르개는 안 세운다 */
@@ -80,12 +83,20 @@ export default function Patients({ cfg, integrated: asked = false }) {
                 <Search placeholder="이름 · 전화 · 환자번호 · 생년월일"
                         value={q} onChange={setQ} />
               </form>
-              <Sort items={filters} value={only} onChange={setOnly} />
+              {/* ⚠ 공용 Sort 는 앞에 「정렬」을 단다 — 이건 거르개다. 같은 모양을
+                  이름표 없이 둔다(칩 글자가 곧 뜻이다) */}
+              <div className="sorts" role="group" aria-label="환자 거르기">
+                {filters.map((f) => (
+                  <button type="button" key={f.key} className={`pill${only === f.key ? " on" : ""}`}
+                          aria-pressed={only === f.key} onClick={() => setOnly(f.key)}>{f.label}</button>
+                ))}
+              </div>
             </div>
 
             <Body loading={list.loading} error={list.error} onRetry={list.reload}>
               {list.data && (
-                <Table cols={cols} rows={rows.map(row)} value={pick} onPick={setPick} />
+                <Table cols={cols} rows={rows.map(row)} value={chosen?.patient_id ?? pick}
+                       onPick={setPick} />
               )}
             </Body>
           </Card>
@@ -322,7 +333,7 @@ function Info({ patient, integrated, onSaved, reserveTo }) {
           {/* 오늘 · 최근 방문 요약 — 목록 한 줄보다 조금 더. 서버가 안 싣는
               값(최근 내원 · 다음 예약)은 줄을 안 세운다 */}
           <dl className="kv patient-facts">
-            <div><dt>환자번호</dt><dd className="num">{full.data.patient_number ?? patient.patient_number ?? "—"}</dd></div>
+            <div><dt>환자번호</dt><dd className="num">{patient.patient_number ?? full.data.patient_number ?? "—"}</dd></div>
             {(birthOf(full.data) ?? birthOf(patient)) && (
               <div><dt>생년월일</dt><dd className="num">{birthOf(full.data) ?? birthOf(patient)}</dd></div>
             )}
@@ -536,10 +547,16 @@ const ROUND = { stable: "변화 없음", changed: "변화 있음", no_show: "미
 function Follow({ pid }) {
   const list = useApi(() => nur.followupsOf(pid), [pid]);
   const rows = H.rows(list.data);
+  const live = rows.filter((r) => r.status !== "candidate");
   return (
     <>
       <div className="plist-act">
-        <span className="hcard-k">{rows.length === 0 ? "추적 회차가 없습니다" : `회차 ${rows.filter((r) => r.status !== "candidate").length}`}</span>
+        {/* 비었을 때는 아래 빈 상자가 말한다 — 같은 말을 두 번 하지 않는다 */}
+        {rows.length > 0 && (
+          <span className="hcard-k">
+            {live.length > 0 ? `추적 회차 ${live.length}건` : "추적 대상 · 회차 없음"}
+          </span>
+        )}
         <span className="home-fill" />
         <Btn to={`${go.nursing.followups()}?patient=${pid}`}>추적 관리에서 열기</Btn>
       </div>

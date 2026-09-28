@@ -108,7 +108,7 @@ export default function Register({ onClose, onDone }) {
 
   return (
     <Dialog
-      title="환자 등록"
+      title="신규 환자 등록"
       onClose={busy ? undefined : onClose}
       foot={
         <>
@@ -141,7 +141,7 @@ export default function Register({ onClose, onDone }) {
           <div className="slot bad" role="alert">
             <b>이 전화번호는 다른 이름으로 등록돼 있습니다</b>
             <span>
-              {clash.name ?? "—"} · {clash.patient_number}
+              {clash.name ?? "이름 없음"} · {clash.patient_number ?? "번호 없음"}
               {clash.birth_year && <> · {clash.birth_year}년생</>}
             </span>
             <Warn>

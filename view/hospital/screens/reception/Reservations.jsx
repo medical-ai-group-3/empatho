@@ -7,6 +7,7 @@ import { ArrangeBar, Panes, useArrange } from "../../lib/Arrange";
 import { useApi } from "../../lib/useApi";
 import { go } from "../../nav";
 import * as H from "../../dept/home";
+import { MODALITY, label, modality as asModality } from "../../codes";
 
 /* 예약 관리 — 왼쪽 할 일 · 가운데 예약 판 · 오른쪽 지금 쓰는 것 (6.1)
  * ════════════════════════════════════════════════════════════════
@@ -51,6 +52,10 @@ const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate(
 const dayOf = (s) => (s ? String(s).slice(0, 10) : "");
 const timeOf = (s) => (s ? String(s).slice(11, 16) : "");
 const WEEK = ["일", "월", "화", "수", "목", "금", "토"];
+
+/* 검사 종류 — 서버 코드(mammo · us …)를 화면 말로. 유방외과가 정하기 전에는 비어
+   온다(「검사 미정」) */
+const modalityText = (m) => (m ? label(MODALITY, asModality(m)) || String(m) : "검사 미정");
 
 /* 아직 확정 안 된 예약(requested) — 확정(scheduled)과 판에서 모양을 달리한다 */
 const isPending = (r) => r.order_status === "requested" && !r.visited_at;
@@ -104,7 +109,7 @@ const QUEUES = [
   { key: "requests", label: "앱 신청", empty: "확인할 신청이 없습니다" },
   { key: "next", label: "다음 예약 필요", empty: "다음 예약이 필요한 환자가 없습니다" },
   { key: "followup", label: "추적 예약 필요", empty: "예약을 기다리는 추적 회차가 없습니다" },
-  { key: "noshow", label: "미내원(7일)", empty: "지난 7일간 미내원 환자가 없습니다" },
+  { key: "noshow", label: "미내원 (최근 7일)", empty: "최근 7일간 미내원 환자가 없습니다" },
 ];
 
 /* 왼쪽 단의 칸 둘 — 할 일 · 작은 달력. 「배치 편집」으로 위아래를 바꾼다
@@ -200,7 +205,7 @@ export default function Reservations({ cfg }) {
   }
 
   return (
-    <Page crumb={[cfg.name, "예약"]} title="예약 관리" className="resv-page"
+    <Page crumb={[cfg.name, "예약 관리"]} title="예약 관리" className="resv-page"
           right={(
             <>
               <ArrangeBar lay={lay} />
@@ -554,12 +559,13 @@ function Row({ slot, days, byDay, today, onOrder, onSlot }) {
             ) : here.map((r) => (
               <button type="button" key={r.exam_order_id ?? r.id}
                       className={`resv-ev${isPending(r) ? " pending" : ""}${r.visited_at ? " came" : ""}`}
-                      title={[isPending(r) && "미확정 예약", r.visited_at && "내원함",
+                      title={[slot, isPending(r) && "미확정 예약", r.visited_at && "내원함",
                         r.primary_staff_name].filter(Boolean).join(" · ") || undefined}
                       onClick={() => onOrder(r)}>
                 {isPending(r) && <i className="resv-tag">미확정</i>}
                 {r.primary_staff_name && <i className="resv-doc" aria-hidden="true">{r.primary_staff_name[0]}</i>}
-                <time>{slot}</time>
+                {/* 시각은 줄 머리(왼쪽 08:00 …)가 이미 말한다 — 덩어리 안에 또 적으면
+                    주 보기 좁은 칸에서 이름이 두 글자로 잘렸다(09-28 최종) */}
                 <b>{r.patient_name ?? `#${r.patient}`}</b>
               </button>
             ))}
@@ -587,11 +593,12 @@ function Month({ days, byDay, onOrder }) {
             {here.slice(0, 3).map((r) => (
               <button type="button" key={r.exam_order_id ?? r.id}
                       className={`resv-mev${isPending(r) ? " pending" : ""}`}
-                      title={isPending(r) ? "미확정 예약" : undefined}
+                      title={[timeOf(r.scheduled_at), r.patient_name, isPending(r) && "미확정 예약",
+                        r.primary_staff_name].filter(Boolean).join(" · ")}
                       onClick={() => onOrder(r)}>
-                {isPending(r) && "(미확정) "}
-                {timeOf(r.scheduled_at)} {r.primary_staff_name ? `${r.primary_staff_name[0]} · ` : ""}
-                {r.patient_name ?? `#${r.patient}`}
+                {/* 월 칸은 80px 남짓이다 — 「(미확정) 13:20 서 · 최유나」가 잘렸다.
+                    미확정은 점선 상자가, 주치의는 위 거르개 · 풍선 글이 말한다 */}
+                {timeOf(r.scheduled_at)} {r.patient_name ?? `#${r.patient}`}
               </button>
             ))}
             {here.length > 3 && <span className="hcard-k">외 {here.length - 3}건</span>}
@@ -666,7 +673,7 @@ function Aside({ cfg, pick, rows, ver, onEdit, onNext, onDone, onDate, onClear }
                     <time>{dayOf(r.scheduled_at)}</time>
                     <span>{r.primary_staff_name ?? "주치의 미배정"}</span>
                     {/* 종류는 유방외과가 정하기 전까지 「미정」이다 */}
-                    <em>{r.modality ?? "미정"}</em>
+                    <em>{modalityText(r.modality)}</em>
                   </p>
                 ))}
               </div>
@@ -691,21 +698,19 @@ function Done({ order, onNext }) {
     ? (order.order_status === "completed" ? "내원 · 완료" : "내원 처리됨")
     : STATUS[order.order_status] ?? order.order_status ?? "—";
   return (
-    <Card title="예약 보기" className="resv-new">
+    <Card title="예약 보기" className="resv-new resv-view">
       <p className="resv-who">
         <b>{order.patient_name ?? `#${order.patient}`}</b>
         {order.patient_number && <span>{order.patient_number}</span>}
       </p>
-      <p className="resv-done">
-        이 예약은 {came ? "내원 처리됐습니다" : "진행 중입니다"}
-        <span>{dayOf(order.scheduled_at)} {timeOf(order.scheduled_at)} · {state}</span>
-      </p>
+      {/* 날짜 · 상태는 아래 표가 적는다 — 한 줄 요약에 또 적으면 같은 값이 세 번 보였다 */}
+      <p className="resv-done">이 예약은 {came ? "내원 처리됐습니다" : "진행 중입니다"}</p>
       <dl className="kv">
         <div><dt>예약</dt><dd className="num">{dayOf(order.scheduled_at) || "—"} {timeOf(order.scheduled_at)}</dd></div>
         {came && <div><dt>내원</dt><dd className="num">{dayOf(order.visited_at)} {timeOf(order.visited_at)}</dd></div>}
         <div><dt>상태</dt><dd>{state}</dd></div>
         <div><dt>주치의</dt><dd>{order.primary_staff_name ?? "미배정"}</dd></div>
-        <div><dt>검사</dt><dd>{order.modality ?? "미정"}</dd></div>
+        <div><dt>검사</dt><dd>{modalityText(order.modality)}</dd></div>
       </dl>
       <div className="rowb">
         <Btn kind="fill" onClick={onNext} {...may.attrs} disabled={!may.ok}>다음 예약 잡기</Btn>
@@ -817,12 +822,13 @@ function New({ cfg, pick, rows, ver, onEdit, onDone, onDate, onClear }) {
 
   async function cancel() {
     const name = order.patient_name ?? `#${order.patient}`;
+    const what = order.order_status === "requested" ? "예약 신청" : "예약";
     // eslint-disable-next-line no-alert
-    if (!window.confirm(`${name} · ${dayOf(order.scheduled_at)} ${timeOf(order.scheduled_at)} 예약을 취소할까요?`)) return;
+    if (!window.confirm(`${name} · ${dayOf(order.scheduled_at)} ${timeOf(order.scheduled_at)} ${what}을 취소할까요?`)) return;
     setBusy(true); setErr(null); setOk(null);
     try {
       await api.cancel(order.exam_order_id);
-      setOk(`${name} 예약을 취소했습니다`);
+      setOk(`${name} ${what}을 취소했습니다`);
       setWho(null);
       onClear();
       onDone();
@@ -878,7 +884,7 @@ function New({ cfg, pick, rows, ver, onEdit, onDone, onDate, onClear }) {
   }
 
   return (
-    <Card title={editable ? "예약 변경" : "새 예약"} className="resv-new"
+    <Card title={pending ? "예약 신청 확정" : editable ? "예약 변경" : "새 예약"} className="resv-new"
           right={editable && (
             /* 고른 예약을 놓고 빈 새 예약으로 */
             <Btn onClick={() => { setWho(null); setFound(null); onClear(); }}>새 예약</Btn>
@@ -967,16 +973,20 @@ function New({ cfg, pick, rows, ver, onEdit, onDone, onDate, onClear }) {
         && <p className="note err">{err.detail || err.message}</p>}
       {ok && <p className="hcard-k" role="status">{ok}</p>}
 
+      {/* 09-28(최종) 단추가 넷(환자 목록 · 확정 · 취소 · 변경 저장)이라 두 줄로
+          꺾였다. 「환자 목록」은 쪽 머리에 있다. 앱 신청은 **확정이 곧 날짜를
+          정하는 것**이라 [변경 저장]을 따로 두지 않는다 — 신청 · 취소 둘 */}
       <div className="rowb">
-        <Btn to={go.nursing.patients()}>환자 목록</Btn>
-        {pending && (
-          <Btn kind="fill" onClick={confirm} {...mayConfirm.attrs}
-               disabled={busy || !mayConfirm.ok || Boolean(clash)}>이 시간으로 예약 확정</Btn>
-        )}
-        {editable ? (
+        {pending ? (
+          <>
+            <Btn onClick={cancel} {...may.attrs} disabled={busy || !may.ok}>신청 취소</Btn>
+            <Btn kind="fill" onClick={confirm} {...mayConfirm.attrs}
+                 disabled={busy || !mayConfirm.ok || Boolean(clash)}>이 시간으로 확정</Btn>
+          </>
+        ) : editable ? (
           <>
             <Btn onClick={cancel} {...may.attrs} disabled={busy || !may.ok}>예약 취소</Btn>
-            <Btn kind={pending ? undefined : "fill"} onClick={reschedule} {...may.attrs}
+            <Btn kind="fill" onClick={reschedule} {...may.attrs}
                  disabled={busy || !may.ok || Boolean(clash) || unchanged}>변경 저장</Btn>
           </>
         ) : (

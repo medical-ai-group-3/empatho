@@ -93,8 +93,12 @@ export const nursing = {
 
     queue: ({ follow, asks }) => ({
       title: "전화 · 예약 확인",
-      hint: "누르면 해당 화면으로 이동",
-      cols: { chip: "구분", sub: "할 일", r: "기한" },
+      hint: "누르면 해당 화면으로 이동합니다",
+      /* ⚠ 09-28(최종) 이 칸은 가운데 좁은 단(1280 에서 360px)이라 오른쪽 끝
+         열이 눌려 날짜가 「09-/21」로 꺾였다. 칩은 짧게(지남 · 오늘 · 이번 주),
+         날짜는 한 줄 요약 안으로 — 요약 열은 두 줄까지 접히는 자리다.
+         오른쪽 끝에는 누르는 표시(›)만 남는다 */
+      cols: { chip: "기한", sub: "내용", r: "" },
       tabs: [
         /* 기한이 지났거나 이번 주 안인 회차만, 급한 순서로 */
         { key: "calls", name: "추적 콜",
@@ -105,11 +109,11 @@ export const nursing = {
             .map((r) => ({
               id: r.id ?? r.followup_id,
               name: H.nameOf(r),
-              chip: { over: "기한 지남", today: "오늘", week: "이번 주" }[H.dueBucket(r.due_at)],
+              chip: { over: "지남", today: "오늘", week: "이번 주" }[H.dueBucket(r.due_at)],
               chipTone: H.dueBucket(r.due_at) === "over" ? "fill" : "line",
-              sub: [r.round_no ? `${r.round_no}차 추적 콜` : "추적 콜",
+              sub: [r.round_no ? `${r.round_no}회차` : "추적",
+                    r.due_at && `${H.day(r.due_at)} 예정`,
                     r.call_result === "부재" ? "지난번 부재" : null].filter(Boolean).join(" · "),
-              at: H.day(r.due_at),
               /* 그 회차를 오른쪽에 펴 둔 채로 연다(Followups.jsx 가 ?followup= 을 읽는다) */
               to: `${go.nursing.followups()}?followup=${r.followup_id ?? r.id}`,
               pid: r.patient_id ?? null,
@@ -118,14 +122,13 @@ export const nursing = {
         /* 앱으로 들어온 신청 — 날짜·시간을 정해 줘야 한다 */
         { key: "asks", name: "예약 신청",
           empty: "확인할 신청이 없습니다",
+          /* 요약은 **희망 일시**다(예전엔 시각만 적어 어느 날인지 몰랐다).
+             환자번호 · 방문 구분은 뺐다 — 좁은 단에서 열이 넘쳤다. 예약 관리에서 본다 */
           rows: asks.map((r) => ({
             id: r.exam_order_id ?? r.id,
             name: H.nameOf(r),
-            no: H.noOf(r),
             meta: H.who(r),
-            chip: r.visit_type,
-            sub: "앱 신청 · 날짜를 정해야 합니다",
-            at: H.at(r.scheduled_at),
+            sub: r.scheduled_at ? `희망 ${H.day(r.scheduled_at)} ${H.at(r.scheduled_at)}` : "희망일 없음",
             /* ⚠ 예약 판이 아니라 왼쪽 「앱 신청」 줄을 펴서 연다 — 판만 열리면
                어느 신청인지 다시 찾아야 했다 */
             to: `${go.nursing.reservations()}?tab=requests`,
@@ -138,14 +141,16 @@ export const nursing = {
     stuck: ({ arrived, follow, asks, booked, bound }) => {
       const due = (k) => follow.filter((r) => H.dueBucket(r.due_at) === k).length;
       return [
+        /* 09-28(최종) 문장 끝을 맞췄다 — 몇 줄은 「…합니다」로 끝나고 몇 줄은
+           이름씨로 끝나 한 목록이 두 말투였다. 전부 「무엇 — 왜」의 이름씨 */
         { tag: "추적 기한", text: "기한이 지난 추적 콜",
           count: due("over"), to: go.nursing.followups() },
         { tag: "미내원", text: "예약 시간이 지났는데 아직 내원하지 않은 환자",
           count: booked.filter((r) => H.isPast(r.scheduled_at)).length,
           to: go.nursing.intake() },
-        { tag: "검체", text: "병리과가 아직 접수하지 않은 검체 — 라벨 확인이 필요합니다",
+        { tag: "검체", text: "라벨을 확인할 검체 — 병리과 접수 전",
           count: bound.total, to: `${go.nursing.intake()}?tab=specimen` },
-        { tag: "예약 확인", text: "앱으로 들어온 신청 — 날짜·시간을 정해야 합니다",
+        { tag: "예약 확인", text: "날짜 · 시간을 정할 앱 예약 신청",
           count: asks.total, to: `${go.nursing.reservations()}?tab=requests` },
         { tag: "추적 오늘", text: "오늘 걸어야 하는 추적 콜",
           count: due("today"), to: go.nursing.followups() },

@@ -1,3 +1,4 @@
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Chip } from "./Parts";
 import { go } from "../nav";
@@ -39,6 +40,16 @@ const LANES = [
   { key: "clinic", title: "외래 진료" },
 ];
 
+/* 빈 칸의 말 — 칸마다 그 칸이 기다리는 것을 말한다(전부 「대기 중인 환자가
+   없습니다」이면 검사 · 진료 칸에서 뜻이 어긋났다) */
+const EMPTY = {
+  booked: "오늘 남은 예약이 없습니다",
+  checkin: "문진을 기다리는 환자가 없습니다",
+  nurse: "배정을 기다리는 환자가 없습니다",
+  exam: "검사 중인 환자가 없습니다",
+  clinic: "진료를 기다리는 환자가 없습니다",
+};
+
 export default function StageBoard({ today = [], arrived = [], booked = null }) {
   const moved = (r) => EXAM_STAGE.includes(r.stage) || CLOSED_STAGE.includes(r.stage);
   /* 앞 두 칸은 누르면 접수 화면에서 그 오더를 골라 둔 채로 연다 — 문진 확인 ·
@@ -77,26 +88,57 @@ export default function StageBoard({ today = [], arrived = [], booked = null }) 
 
   return (
     <div className="board" style={{ "--board-cols": lanes.length }}>
-      {lanes.map((col, i) => {
-        const here = cols[col.key];
-        return (
-          <section className="bcol" key={col.key}>
-            <header className="bcol-h">
-              <i className="bcol-n" aria-hidden="true">{i + 1}</i>
-              <b>{col.title}</b>
-              <em>{here.length}</em>
-            </header>
-            <div className="bcol-b">
-              {here.length === 0
-                ? <p className="hcard-k hpad">
-                    {col.key === "booked" ? "오늘 남은 예약이 없습니다" : "대기 중인 환자가 없습니다"}
-                  </p>
-                : here.map((r) => <BRow key={r.exam_order_id ?? r.id ?? r.patient_id} row={r} />)}
-            </div>
-          </section>
-        );
-      })}
+      {lanes.map((col, i) => (
+        <Lane key={col.key} n={i + 1} col={col} rows={cols[col.key]} />
+      ))}
     </div>
+  );
+}
+
+/* 칸 하나 — 줄이 칸 높이를 넘으면 칸 안에서 굴리고, **바닥에 「아래로 n명 더」를
+ * 띄운다.** 09-28(최종) 칸 높이가 못 박혀 있어 1600 창에서 간호 · 문진 · 외래
+ * 칸의 마지막 줄이 반쯤 잘린 채 멈춰 있었다 — 더 있다는 것이 안 보였다.
+ * 누르면 한 칸만큼 내린다. 다 보이면 사라진다.
+ */
+function Lane({ n, col, rows }) {
+  const box = useRef(null);
+  const [more, setMore] = useState(0);
+  const measure = useCallback(() => {
+    const el = box.current;
+    if (!el) return;
+    const bottom = el.scrollTop + el.clientHeight;
+    /* 아래 끝이 보이는 영역 밖에 있는 줄만 센다(반쯤 걸친 줄도 「더」다) */
+    const hidden = [...el.children].filter((c) => c.offsetTop + c.offsetHeight > bottom + 2).length;
+    setMore(hidden);
+  }, []);
+  useEffect(() => {
+    measure();
+    const el = box.current;
+    if (!el || typeof ResizeObserver === "undefined") return undefined;
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [measure, rows.length]);
+
+  return (
+    <section className="bcol">
+      <header className="bcol-h">
+        <i className="bcol-n" aria-hidden="true">{n}</i>
+        <b>{col.title}</b>
+        <em>{rows.length}</em>
+      </header>
+      <div className="bcol-b" ref={box} onScroll={measure}>
+        {rows.length === 0
+          ? <p className="hcard-k hpad">{EMPTY[col.key]}</p>
+          : rows.map((r) => <BRow key={r.exam_order_id ?? r.id ?? r.patient_id} row={r} />)}
+      </div>
+      {more > 0 && (
+        <button type="button" className="bcol-more"
+                onClick={() => box.current?.scrollBy({ top: box.current.clientHeight * 0.8, behavior: "smooth" })}>
+          아래로 {more}명 더 <span aria-hidden="true">↓</span>
+        </button>
+      )}
+    </section>
   );
 }
 
