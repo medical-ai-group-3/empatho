@@ -35,6 +35,7 @@ from .nursing import (
     FollowupUpdateSerializer,
     PrimaryStaffAssignSerializer,
     PatientPiiCorrectSerializer,
+    PatientConsentSerializer,
 )
 
 from .radiology import (
@@ -55,6 +56,7 @@ from .surgery import (
     ReportSerializer,
     DiscordanceFlagSerializer,
     DiscordanceDetailSerializer,
+    DiscordanceListSerializer,
     SpecimenSerializer,
     LesionSerializer,
     ExamOrderRequestSerializer,

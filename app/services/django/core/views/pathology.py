@@ -56,9 +56,9 @@ def _apply_markers(specimen, data):
 def _notify_finalized(specimen):
     """확정이 **커밋된 뒤** 주치의에게 한 번. 주치의가 없으면 건너뛴다.
 
-    알림 종류는 새로 파지 않고 report_ready 를 쓴다(notification_type_ck
-    를 건드리면 마이그레이션이 생긴다). REF_TYPE 에 specimen 이 없어서
-    ref_type 은 비우고, 무엇이 확정됐는지는 문장에 담는다.
+    알림 종류는 새로 파지 않고 report_ready 를 쓴다. 가리키는 대상은
+    ref_type="specimen", ref_id=specimen_id — 화면이 눌러서 검체로 간다
+    (09-28 REF_TYPE 에 specimen 추가, 0028).
     """
     staff = specimen.patient.primary_staff
     if staff is None:
@@ -71,7 +71,8 @@ def _notify_finalized(specimen):
     def _send():
         from .. import notify
         try:
-            notify.send(staff=staff, type="report_ready", message=message)
+            notify.send(staff=staff, type="report_ready", message=message,
+                        ref_type="specimen", ref_id=specimen.pk)
         except Exception:
             logger.exception("[pathology] 확정 알림 실패 specimen=%s", specimen.pk)
 

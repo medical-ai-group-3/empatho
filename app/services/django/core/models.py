@@ -107,7 +107,9 @@ SEVERITY = ["sev1", "normal"]
 # sse 는 Go notify 허브가 I-3 으로 보내는 값이다 (cmd/notify/main.go 의
 # Channel: "sse"). 이미 보내고 있는데 목록에 없었다.
 NOTIFICATION_CHANNEL = ["app", "sms", "call_queue", "sse"]
-REF_TYPE = ["assessment", "discordance_flag", "report", "exam_order"]
+# specimen — 병리 확정 알림(views/pathology.py _notify_finalized)이 가리킨다.
+# 09-28 추가. ref_type 에는 DB CHECK 이 없어 choices 만 바뀐다.
+REF_TYPE = ["assessment", "discordance_flag", "report", "exam_order", "specimen"]
 # PersonalNote 용. v10 에도 §15 문서에도 없다 — 화면 쪽 임시 상태(브라우저
 # 저장만 되던 할일·스티키 메모)를 서버로 옮기며 새로 판 값이다.
 # handover — 인계 사항. todo · sticky 와 달리 **같은 과(역할) 전체가 본다**

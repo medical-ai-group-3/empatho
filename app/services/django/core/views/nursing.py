@@ -327,3 +327,28 @@ class PatientPiiView(AuditMixin, viewsets.ViewSet):
             raise ApiError("VALIDATION_ERROR", msg, details={"phone": [msg]})
         patient = models.Patient.objects.select_related("pii", "primary_staff").get(pk=patient.pk)
         return Response(serializers.PatientDetailSerializer(patient).data)
+
+
+class PatientConsentListView(viewsets.ViewSet):
+    """GET /patients/{id}/consents — 환자가 한 동의 목록(09-28, 창구 확인용).
+
+    consent 는 환자가 아니라 **계정**에 달린다. 앱 계정이 없는 환자는 동의를
+    할 길이 없었으니 빈 목록이다. 매트릭스 consent 행이 간호 · 원무에만 R 을
+    준다 — 나머지 의료진은 403. 환자 계정은 own_only 라 자기 것만.
+    """
+
+    resource = "consent"
+    permission_classes = [MatrixPermission]
+
+    def list(self, request, pk=None):
+        patient = get_object_or_404(models.Patient, pk=pk)
+        self.check_object_permissions(request, patient)
+        if patient.account_id is None:
+            return Response([])
+        qs = (models.Consent.objects.filter(account_id=patient.account_id)
+              .order_by("-agreed_at", "-consent_id"))
+        return Response(serializers.PatientConsentSerializer(qs, many=True).data)
+
+    def is_owned_by(self, obj, account):
+        return obj.account_id is not None and obj.account_id == account.account_id
+

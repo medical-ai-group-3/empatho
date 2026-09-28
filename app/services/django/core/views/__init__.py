@@ -31,6 +31,7 @@ from .nursing import (
     FollowupCallView,
     QuestionnaireFormView,
     PatientPiiView,
+    PatientConsentListView,
 )
 
 from .radiology import (

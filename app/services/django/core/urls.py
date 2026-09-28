@@ -252,6 +252,9 @@ urlpatterns += [
     # 의료진용 문진 문항(창구에서 종이 문진 옮겨 적기)
     path("questionnaire/form", views.QuestionnaireFormView.as_view({"get": "list"}),
          name="questionnaire-form"),
+    # 09-28 — 창구 동의 확인(간호 · 원무 R). views/nursing.py 의 PatientConsentListView
+    path("patients/<int:pk>/consents", views.PatientConsentListView.as_view({"get": "list"}),
+         name="patient-consents"),
     # 창구 인적 사항 정정(patient_pii U)
     path("patients/<int:pk>/pii", views.PatientPiiView.as_view({"patch": "partial_update"}),
          name="patient-pii"),

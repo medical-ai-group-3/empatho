@@ -610,15 +610,47 @@ class SpecimenUploadListView(viewsets.ViewSet):
         } for row in masks if row["object_key"])
         return Response({"specimen_id": specimen.specimen_id, "uploads": uploads})
 
-class DiscordanceListView(generics.ListAPIView):
-    """§1·§5 GET /discordances?patient={id}&status=open."""
+class DiscordanceListView(OwnedOnlyMixin, generics.ListAPIView):
+    """§1·§5 GET /discordances?patient={id}&status=open&primary_staff=me&assessed_by=me.
+
+    09-28 — 영상의학도 읽는다. **자기 판독(assessment.assessed_by)의 플래그만**
+    보인다 — 매트릭스의 discordance_review RADIOLOGY 가 own_only 라
+    OwnedOnlyMixin 이 owned_queryset 으로 거른다. 거르는 것은 서버다 —
+    화면이 assessed_by=me 를 빠뜨려도 남의 판독은 안 나온다.
+    """
 
     resource = "discordance_review"
     permission_classes = [MatrixPermission]
-    serializer_class = serializers.DiscordanceFlagSerializer
+    serializer_class = serializers.DiscordanceListSerializer
+    queryset = models.DiscordanceFlag.objects.all()
+
+    def owned_queryset(self, queryset, account):
+        staff = getattr(account, "staff", None)
+        if staff is None:
+            return queryset.none()
+        return queryset.filter(assessment__assessed_by=staff)
+
+    def is_owned_by(self, obj, account):
+        staff = getattr(account, "staff", None)
+        return (staff is not None and obj.assessment is not None
+                and obj.assessment.assessed_by_id == staff.pk)
 
     def get_queryset(self):
-        qs = models.DiscordanceFlag.objects.all()
+        # 목록 줄의 환자 · 판독 · 검체 칸을 한 번에 붙인다(N+1 방지)
+        qs = super().get_queryset().select_related(
+            "lesion__patient__pii", "specimen__patient__pii", "assessment__study")
+        # 09-28 — ?assessed_by=me | <직원 번호> — 그 사람이 판독한 플래그만
+        assessed_by = self.request.query_params.get("assessed_by")
+        if assessed_by:
+            if assessed_by == "me":
+                staff = getattr(self.request.user, "staff", None)
+                if staff is None:
+                    return qs.none()
+                qs = qs.filter(assessment__assessed_by=staff)
+            elif assessed_by.isdigit():
+                qs = qs.filter(assessment__assessed_by_id=int(assessed_by))
+            else:
+                raise ApiError("VALIDATION_ERROR", "assessed_by 는 me 또는 직원 번호여야 합니다.")
         patient_id = self.request.query_params.get("patient")
         status_param = self.request.query_params.get("status")
         if patient_id:

@@ -423,6 +423,20 @@ class PathologyGuardTests(_Base):
         kw = calls[0].kwargs
         self.assertEqual(kw["staff"], self.surgeon.staff)
         self.assertIn("S-B1-001", kw["message"])
+        # 09-28 — 알림이 검체를 가리킨다
+        self.assertEqual(kw["ref_type"], "specimen")
+        self.assertEqual(kw["ref_id"], self.specimen.pk)
+
+    def test_finalize_notification_row_points_at_specimen(self):
+        # 진짜 notify.send — ref_type="specimen" 이 DB 에 그대로 들어간다
+        from core.models import Notification
+        with patch("core.notify.urllib.request.urlopen", side_effect=OSError("no hub")),                 patch("core.tasks.deliver_external.delay"):
+            with self.captureOnCommitCallbacks(execute=True):
+                r = self._finalize({"b_category": "b3", "diagnosis": "benign"})
+        self.assertEqual(r.status_code, 200)
+        note = Notification.objects.get(staff=self.surgeon.staff,
+                                        notification_type="report_ready")
+        self.assertEqual((note.ref_type, note.ref_id), ("specimen", self.specimen.pk))
 
     @patch("core.notify.send")
     def test_draft_does_not_notify(self, send):

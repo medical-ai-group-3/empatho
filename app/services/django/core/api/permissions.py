@@ -114,14 +114,23 @@ MATRIX = {
         RECEPTION: _r("R"), NURSING: _r("R"), RADIOLOGY: _r("R"),
         PATHOLOGY: _r("CRU"), SURGERY: _r("R"), PATIENT: NONE,
     },
+    # 09-28 — 영상의학에 R 을 더한다(제품 책임자 승인). 자기 판독이 병리와
+    # 어떻게 맞았는지(처분 결과)를 본다. **본인 것만** — 여기서 「본인」은
+    # 환자 계정이 아니라 assessment.assessed_by 가 자기인 플래그다.
+    # 목록은 DiscordanceListView.owned_queryset 이 거른다.
     "discordance_review": {
         RECEPTION: NONE, NURSING: NONE,
-        RADIOLOGY: _r("CU", note="의견만 — 종결시키지 못한다"),
+        RADIOLOGY: _r("CRU", own_only=True,
+                      note="의견만 — 종결시키지 못한다 · 자기 판독의 불일치만 본다"),
         PATHOLOGY: _r("R"), SURGERY: _r("R"), PATIENT: NONE,
     },
+    # 09-28 — 유방외과 R → CR(제품 책임자 승인). 외래에서 BI-RADS 3 환자의
+    # 다음 회차를 바로 잡는다(POST /followups/new). U(통화 기록 · 종료)는
+    # 간호 일이라 주지 않는다.
     "followup": {
         RECEPTION: _r("R"), NURSING: _r("CRU"), RADIOLOGY: _r("CRU"),
-        PATHOLOGY: NONE, SURGERY: _r("R"), PATIENT: _r("R", own_only=True),
+        PATHOLOGY: NONE, SURGERY: _r("CR", note="회차 생성 — 외래"),
+        PATIENT: _r("R", own_only=True),
     },
     # 문서의 clinical_decision. v10 은 assessment.decision_* 에 흡수됐다.
     "clinical_decision": {
@@ -153,9 +162,12 @@ MATRIX = {
         SURGERY: _r("RU", own_only=True), PATIENT: _r("RU", own_only=True),
     },
     # v10 신설. 문서 §15 에 행이 없어 우리가 정한다 — 팀 확인 대상.
+    # 09-28 — 간호 · 원무에 R(제품 책임자 승인). 창구에서 동의 여부를 확인한다
+    # (GET /patients/{id}/consents). 읽기만 — 동의는 환자 본인만 한다.
     "consent": {
-        RECEPTION: NONE, NURSING: NONE, RADIOLOGY: NONE,
-        PATHOLOGY: NONE, SURGERY: NONE, PATIENT: _r("CR", own_only=True),
+        RECEPTION: _r("R"), NURSING: _r("R", note="창구 동의 확인"),
+        RADIOLOGY: NONE, PATHOLOGY: NONE, SURGERY: NONE,
+        PATIENT: _r("CR", own_only=True),
     },
     # v10 신설 (09-21, models.py 의 Prescription 참고). 처방은 유방외과만
     # 만든다. 원무는 서류 발급 화면에서 조회만 한다 — §11 리포트 발급과

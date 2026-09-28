@@ -111,3 +111,17 @@ class PrimaryStaffAssignSerializer(serializers.Serializer):
 
     primary_staff = serializers.IntegerField()
     
+
+
+class PatientConsentSerializer(serializers.ModelSerializer):
+    """GET /patients/{id}/consents 한 줄 — 창구 동의 확인(09-28). 읽기 전용.
+
+    doc_type · doc_version 이 「무슨 동의서의 몇 판」, agreed 가 동의(true) ·
+    거부(false), withdrawn_at 이 찍혀 있으면 철회된 것이다.
+    """
+
+    class Meta:
+        model = models.Consent
+        fields = ("consent_id", "doc_type", "doc_version", "agreed", "agreed_at",
+                  "withdrawn_at", "channel")
+        read_only_fields = fields

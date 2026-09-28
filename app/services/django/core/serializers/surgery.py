@@ -26,6 +26,53 @@ class DiscordanceFlagSerializer(serializers.ModelSerializer):
         exclude = AUDIT_FIELDS
 
 
+def _flag_patient(obj):
+    """플래그에는 환자 칸이 없다 — 병변으로 찾고, 병변이 빈 플래그는 검체로 받친다."""
+    if obj.lesion_id is not None and obj.lesion is not None:
+        return obj.lesion.patient
+    if obj.specimen_id is not None and obj.specimen is not None:
+        return obj.specimen.patient
+    return None
+
+
+class DiscordanceListSerializer(DiscordanceFlagSerializer):
+    """GET /discordances 목록 한 줄. 09-28 — 영상의학 「내 판독의 불일치」 화면이
+    행마다 환자 · 판독 · 검체를 따로 부르지 않게 납작한 읽기 전용 칸을 얹는다.
+    뷰(DiscordanceListView)가 select_related 로 한 번에 붙여 온다.
+
+    기존 칸(discordance_id · violated_rule · flag_status · disposition_type ·
+    flagged_at · closed_at …)은 DiscordanceFlagSerializer 그대로다.
+    """
+
+    patient_id = serializers.SerializerMethodField()
+    patient_name = serializers.SerializerMethodField()
+    patient_number = serializers.SerializerMethodField()
+    modality = serializers.SerializerMethodField()
+    category = serializers.CharField(source="assessment.category", read_only=True, default=None)
+    assessed_by = serializers.IntegerField(source="assessment.assessed_by_id",
+                                           read_only=True, default=None)
+    b_category = serializers.CharField(source="specimen.b_category", read_only=True, default=None)
+
+    def get_patient_id(self, obj):
+        p = _flag_patient(obj)
+        return p.patient_id if p is not None else None
+
+    def get_patient_name(self, obj):
+        p = _flag_patient(obj)
+        return getattr(getattr(p, "pii", None), "name", None) if p is not None else None
+
+    def get_patient_number(self, obj):
+        p = _flag_patient(obj)
+        return p.patient_number if p is not None else None
+
+    def get_modality(self, obj):
+        # 판독한 검사의 모달리티가 먼저, 판독이 빈 플래그는 병변 것
+        a = obj.assessment
+        if a is not None and a.study_id is not None:
+            return a.study.modality
+        return obj.lesion.modality if obj.lesion is not None else None
+
+
 def _staff_name(staff):
     return getattr(staff, "full_name", None) if staff else None
 
