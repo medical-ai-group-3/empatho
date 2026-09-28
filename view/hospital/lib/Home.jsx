@@ -387,7 +387,9 @@ function Queue({ queue }) {
                 {on.chip && <span className="qrow-chip">{cols.chip}</span>}
                 {on.sub && <span className="qrow-sub">{cols.sub}</span>}
                 {shown.map((c) => <span className="qrow-x" key={c.key}>{c.name}</span>)}
-                <span className="qrow-r">{cols.r}</span>
+                {/* 오른쪽 끝에 시각도 서는 탭이면 머리에 적는다 — 「환자번호」
+                    밑에 11:56 이 붙어 번호의 일부로 읽혔다(09-28) */}
+                <span className="qrow-r">{has("at") ? `${cols.r} · 시각` : cols.r}</span>
               </div>
               {rows.map((r, i) => <QRow key={r.id} row={r} n={i + 1} on={on} extra={shown} />)}
           </div>}
