@@ -523,7 +523,7 @@ class SpecimenListBindTests(_Base):
         sp = Specimen.objects.get(specimen_label="S-B1-NEW")
         self.assertEqual(sp.clinical_note, "좌측 상외측 종괴로 조직검사 의뢰")
         self.assertEqual(sp.target_snapshot,
-                         "MAMMO-1 · 좌측 UOQ · 12.3mm · BI-RADS 4B · 맘모그래피")
+                         "MAMMO-1 · 좌측 UOQ · 12.3mm · BI-RADS 4b · 유방촬영")
         self.assertEqual(_data(r)["target_snapshot"], sp.target_snapshot)
         self.assertEqual(_data(r)["bound_by_name"], "간호 B1")
 
@@ -544,4 +544,4 @@ class SpecimenListBindTests(_Base):
         self.assertEqual(r.status_code, 201, r.content)
         sp = Specimen.objects.get(specimen_label="S-B1-NEW")
         self.assertIsNone(sp.clinical_note)
-        self.assertEqual(sp.target_snapshot, "맘모그래피")   # 검사 모달리티만 안다
+        self.assertEqual(sp.target_snapshot, "유방촬영")   # 검사 모달리티만 안다

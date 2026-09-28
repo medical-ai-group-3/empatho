@@ -11,7 +11,8 @@
 
 from .. import models
 
-MODALITY_LABEL = {"mammo": "맘모그래피", "us": "초음파", "mri": "MRI"}
+# 화면 용어집과 같게 — 유방촬영(맘모그래피 아님), BI-RADS 세분류는 소문자(4b)
+MODALITY_LABEL = {"mammo": "유방촬영", "us": "초음파", "mri": "MRI"}
 SIDE_LABEL = {"left": "좌측", "right": "우측", "l": "좌측", "r": "우측"}
 MAX_LEN = 250
 
@@ -75,7 +76,7 @@ def build(lesion):
         lesion.label,
         _location(lesion),
         _size(lesion),
-        f"BI-RADS {birads.upper()}" if birads else None,
+        f"BI-RADS {birads.lower()}" if birads else None,
         MODALITY_LABEL.get(modality, modality) if modality else None,
     ]
     text = " · ".join(p for p in parts if p)
