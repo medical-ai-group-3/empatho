@@ -2915,8 +2915,10 @@ a {
 /* 09-28 — 인사 카드를 넓힌다. 틸리 옆에 끼어 폭이 좁아 방문 문장이 세 줄이
    됐다. 카드를 한 줄에 들어갈 만큼 넓히고, 틸리는 카드 오른쪽 끝에 살짝 겹쳐 앉힌다 */
 .hello-message {
-  min-width: calc(232px * var(--sp, 1));
   padding: 18px 20px;
+  /* 세로 flex 의 자식은 기본으로 부모 폭까지 늘어난다 — 그래서 글 오른쪽,
+     틸리 밑까지 빈 흰 칸이 이어졌다. 글 폭만큼만 차지하게 한다 */
+  align-self: flex-start;
 }
 .hello-tri {
   margin-left: calc(-56px * var(--sp, 1));
