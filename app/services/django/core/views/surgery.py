@@ -1,5 +1,7 @@
 """유방외과(surgery) view — 2026-09-14 화면명세 기준."""
 
+import re
+
 from rest_framework import viewsets, status, generics
 from rest_framework.response import Response
 
@@ -523,11 +525,11 @@ class SpecimenBindViewSet(AuditMixin, viewsets.ViewSet):
 
         from ..services import specimen_snapshot  # 09-28 B1
 
-        lesion = models.Lesion.objects.select_related("study").get(pk=data["lesion_id"])
+        lesion = models.Lesion.objects.select_related("study", "patient").get(pk=data["lesion_id"])
         specimen = models.Specimen.objects.create(
             lesion_id=data["lesion_id"],
             patient_id=lesion.patient_id,
-            specimen_label=data["specimen_label"],
+            specimen_label=data.get("specimen_label") or specimen_label_for(lesion, data["collected_at"]),
             specimen_type=data["specimen_type"],
             guidance_route=data["guidance_route"],
             collected_at=data["collected_at"],
@@ -548,6 +550,25 @@ class SpecimenBindViewSet(AuditMixin, viewsets.ViewSet):
         # ai 는 상세에서만 붙인다 — 목록(list)에 붙이면 행마다 크롭 조회가
         # 따라붙어 N+1 이 된다.
         return Response({**out.data, "ai": _specimen_ai(specimen)})
+
+def specimen_label_for(lesion, collected_at):
+    """검체 라벨 자동 생성 — S-{채취일}-{환자번호}-{병변} (09-28).
+
+    병변은 병변 이름(MRI-1 · US-1 · 맘모 모델 id)을 쓰고, 이름이 없는 옛
+    병변은 모달리티-순번, 그것도 없으면 L{병변번호}. 같은 날 같은 병변에서
+    두 번 채취하면 -2, -3 을 붙인다.
+    ponytail: 동시에 같은 라벨을 두 번 만들면 UK 가 IntegrityError 로 막는다(재시도 없음)
+    """
+    part = lesion.label or (
+        f"{lesion.modality.upper()}-{lesion.lesion_index + 1}"
+        if lesion.modality and lesion.lesion_index is not None else f"L{lesion.pk}")
+    part = re.sub(r"[^A-Za-z0-9-]", "", part)[:16] or f"L{lesion.pk}"
+    base = f"S-{timezone.localtime(collected_at):%Y%m%d}-{lesion.patient.patient_number}-{part}"[:46]
+    label, n = base, 2
+    while models.Specimen.objects.filter(specimen_label=label).exists():
+        label, n = f"{base}-{n}", n + 1
+    return label
+
 
 class SpecimenUploadListView(viewsets.ViewSet):
     resource = "specimen_pathology"

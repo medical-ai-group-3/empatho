@@ -143,6 +143,14 @@ class LesionSerializer(serializers.ModelSerializer):
         # 재수출하므로(radiology 것을 덮는다) 여기서도 반드시 뺀다
         exclude = AUDIT_FIELDS + ("malignancy_p",)
 
+    # 검체 바인딩 목록에서 「어느 검사의 병변인지」를 보인다(09-28)
+    study_date = serializers.SerializerMethodField()
+
+    def get_study_date(self, obj):
+        st = obj.study
+        when = st.performed_at or st.created_at if st else None
+        return timezone.localdate(when).isoformat() if when else None
+
     def get_mesh(self, obj):
         img = (obj.images.filter(kind="mesh_lesion", deleted_at__isnull=True)
                .order_by("-image_id").first())
@@ -186,7 +194,9 @@ class SpecimenBindSerializer(serializers.Serializer):
     """POST /specimens — §4 검체 바인딩. lesion_id NOT NULL."""
 
     lesion_id = serializers.IntegerField()
-    specimen_label = serializers.CharField(max_length=50)
+    # 09-28 — 비우면 서버가 만든다(views/surgery.py specimen_label_for). 사람마다
+    # 다르게 적어 같은 검체가 다른 이름이 되던 것을 막는다. 적어 보내면 그대로 쓴다
+    specimen_label = serializers.CharField(max_length=50, required=False, allow_blank=True)
     specimen_type = serializers.ChoiceField(choices=models.as_choices(models.SPECIMEN_TYPE))
     guidance_route = serializers.ChoiceField(choices=models.as_choices(models.GUIDANCE_ROUTE))
     collected_at = serializers.DateTimeField()
@@ -194,7 +204,7 @@ class SpecimenBindSerializer(serializers.Serializer):
     clinical_note = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
     def validate_specimen_label(self, value):
-        if models.Specimen.objects.filter(specimen_label=value).exists():
+        if value and models.Specimen.objects.filter(specimen_label=value).exists():
             raise serializers.ValidationError("이미 사용 중인 검체 라벨입니다.")
         return value
 
