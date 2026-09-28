@@ -134,7 +134,11 @@ export const B_CATEGORY = [
   { value: "b5", label: "B5 — 악성" },
 ];
 
-/** 서버 enum: ["0","1","2","3","4a","4b","4c","5","6"] */
+/** 서버 enum: ["0","1","2","3","4","4a","4b","4c","5","6"]
+ *  ⚠ 모달리티마다 고를 수 있는 값이 다르다 — ACR BI-RADS MRI 는 4 를
+ *    세분하지 않는다. 맘모 · 초음파는 BIRADS(4a · 4b · 4c), MRI 는
+ *    BIRADS_MRI(4). 선택지는 biradsFor(modality)로 고른다. 서버도 같은
+ *    규칙으로 막는다(core/services/birads.py) */
 export const BIRADS = [
   { value: "0", label: "0 — 추가 검사 필요" },
   { value: "1", label: "1 — 음성" },
@@ -146,6 +150,20 @@ export const BIRADS = [
   { value: "5", label: "5 — 악성 강력 시사" },
   { value: "6", label: "6 — 조직학적으로 확인된 악성" },
 ];
+
+/** MRI 판정 등급 — 4 에 세분이 없다 */
+export const BIRADS_MRI = [
+  { value: "0", label: "0 — 추가 검사 필요" },
+  { value: "1", label: "1 — 음성" },
+  { value: "2", label: "2 — 양성" },
+  { value: "3", label: "3 — 양성 가능성 높음" },
+  { value: "4", label: "4 — 악성 의심" },
+  { value: "5", label: "5 — 악성 강력 시사" },
+  { value: "6", label: "6 — 조직학적으로 확인된 악성" },
+];
+
+/** 이 검사의 모달리티에 맞는 BI-RADS 선택지 */
+export const biradsFor = (m) => (modality(m) === "mri" ? BIRADS_MRI : BIRADS);
 
 /** 서버 enum: ["benign", "malignant"] */
 export const DIAGNOSIS = { benign: "양성 (benign)", malignant: "악성 (malignant)" };
@@ -198,7 +216,8 @@ const flatten = (rows) =>
   Object.fromEntries(rows.map((r) => [r.value, r.label]));
 
 export const B_CATEGORY_LABEL = flatten(B_CATEGORY);
-export const BIRADS_LABEL = flatten(BIRADS);
+/* 글자 표는 두 목록을 합친다 — 「4」도 풀려야 한다 */
+export const BIRADS_LABEL = flatten([...BIRADS, ...BIRADS_MRI]);
 
 /* ── 진료 이력 한 줄 ───────────────────────────────────────────
  * PatientTimelineView(core/views/surgery.py)의 줄 아래 글. 유방외과 ·

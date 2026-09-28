@@ -124,6 +124,9 @@ function Inner({ cfg, id, d }) {
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
 
   const ready = f.decision_reason.trim() && f.category && f.finding_note.trim();
+  /* 선택지는 과마다 목록이거나, 검사에 따라 갈리면 함수다 — 영상은
+     MRI 면 4(세분 없음), 맘모 · 초음파면 4a~4c */
+  const categories = typeof c.categories === "function" ? c.categories(d) : c.categories;
 
   async function save() {
     if (!assessmentId) {
@@ -167,7 +170,7 @@ function Inner({ cfg, id, d }) {
             <span>{c.categoryLabel} <i className="req">*</i></span>
             <select value={f.category} onChange={(e) => set("category", e.target.value)}>
               <option value="">선택하세요</option>
-              {c.categories.map((o) => (
+              {categories.map((o) => (
                 <option key={o.value} value={o.value}>{o.label}</option>
               ))}
             </select>

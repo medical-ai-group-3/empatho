@@ -8,7 +8,7 @@ import RadiologyAi from "./RadiologyAi";
 import Stage, { boxesFromLesions, polygonsFromAi } from "../lib/Stage";
 import { useApi } from "../lib/useApi";
 import { useFile } from "../lib/files";
-import { BIRADS, MODALITY, READ_STATUS, SEX, eventDetail, label, modality as asModality, text, tone }
+import { MODALITY, biradsFor, READ_STATUS, SEX, eventDetail, label, modality as asModality, text, tone }
   from "../codes";
 
 /* 영상 판독(screens/Read.jsx)과 환자 목록(screens/List.jsx) 둘 다 같은
@@ -564,12 +564,11 @@ export const radiology = {
     /* 서버 확정(PATCH …/finalize)은 바디를 안 읽고 임시저장 행만 final 로
        올린다 — 화면의 지금 값을 먼저 임시저장하고 확정한다(screens/Read.jsx) */
     draftBeforeFinalize: true,
-    /* MRI는 등급(BI-RADS)을 안 낸다 — 모델 구조상 없는 값이고, AI
-       소견(RadiologyAi.jsx의 Mri())도 등급을 안 보여준다. 그래서 저장
-       가능 여부도 판독 소견 유무로 본다. 나머지 모달리티는 등급 선택이
-       곧 판독의 핵심이라 그대로 category로 가른다. */
+    /* 판정 등급(BI-RADS)은 모달리티와 상관없이 판독의 핵심이다 — MRI
+       도 적는다(ACR BI-RADS MRI · 4 는 세분 없음). MRI 는 AI 소견에
+       등급이 없는 경우가 많아 소견문이 곧 근거라 소견도 같이 요구한다. */
     ready: (f, d) => d?.unit?.modality === "mri"
-      ? Boolean(f.finding_note?.trim())
+      ? Boolean(f.category) && Boolean(f.finding_note?.trim())
       : Boolean(f.category),
 
     /* 뷰어에 무엇을 얹나 — 모달리티마다 다르다.
@@ -642,7 +641,6 @@ export const radiology = {
 
     Doctor: ({ d, f, set, pendingMark, onLesionCreated }) => {
       const add = useCan("radiology.lesion.add");
-      const isMri = d.unit?.modality === "mri";
       const [lesionBusy, setLesionBusy] = useState(false);
       const [lesionMsg, setLesionMsg] = useState(null);
 
@@ -663,23 +661,16 @@ export const radiology = {
 
       return (
         <>
-          {/* MRI 모델은 BI-RADS를 안 낸다 — 등급 선택도, 「영상에 박스를
-              그려 병변을 만든다」는 것도 2D 검출 모델(맘모·초음파) 얘기라
-              여기선 뺀다. 판독 소견만 쓴다. */}
-          {!isMri && (
-            <>
-              {/* ⚠ AI 가 낸 등급(lesion.birads_model)과 다른 컬럼이다.
-                  한 화면에 있지만 섞이지 않게 자리를 갈라 둔다 */}
-              <label className="field">
-                <span>판정 등급 (BI-RADS)</span>
-                <select value={f.category ?? ""} onChange={(e) => set("category", e.target.value)}>
-                  <option value="">선택하세요</option>
-                  {BIRADS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
-              </label>
-
-            </>
-          )}
+          {/* ⚠ AI 가 낸 등급(lesion.birads_model)과 다른 컬럼이다.
+              한 화면에 있지만 섞이지 않게 자리를 갈라 둔다.
+              선택지는 모달리티마다 다르다 — MRI 는 4 에 세분이 없다 */}
+          <label className="field">
+            <span>판정 등급 (BI-RADS)</span>
+            <select value={f.category ?? ""} onChange={(e) => set("category", e.target.value)}>
+              <option value="">선택하세요</option>
+              {biradsFor(d.unit?.modality).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          </label>
 
           <div className="stack">
             <button className="btn line" onClick={addLesion}
@@ -825,7 +816,8 @@ export const radiology = {
     title: "판독 정정",
     imageTitle: "주요 이미지",
     categoryLabel: "판정 등급 (BI-RADS)",
-    categories: BIRADS,
+    /* 검사의 모달리티마다 다르다 — MRI 는 4, 맘모 · 초음파는 4a~4c */
+    categories: (d) => biradsFor(d?.unit?.modality),
     saveHint: "저장하면 새 판독이 만들어지고 유방외과로 전달됩니다. 옛 판독은 지워지지 않습니다.",
     need: { view: "radiology.amend.view", save: "radiology.amend.save" },
 

@@ -296,10 +296,16 @@ function Mri({ a, pick, onPick }) {
      (맘모는 병변 id 문자열이라 모양으로 갈린다). */
   const evidence = (a.tumor?.evidence ?? []).filter((e) => e?.image?.slice_index != null);
   const onSlice = pick && typeof pick === "object" ? pick.slice : null;
+  /* 모델이 병변마다 등급(birads)을 낼 수도, 안 낼 수도 있다. 냈으면
+     참고로만 보여 준다 — 판정 등급 칸에 채워 넣지 않는다(맘모 · 초음파도
+     AI 등급을 판정 칸에 옮기지 않는다) */
+  const graded = lesions.some((l) => l.birads != null && l.birads !== "");
   return (
     <>
       <p className="muted small">
-        MRI 모델은 등급(BI-RADS)을 내지 않습니다. 위치 값은 근사치입니다.
+        {graded
+          ? "병변 등급(BI-RADS)은 AI 참고값입니다 — 판정 등급은 직접 고릅니다. 위치 값은 근사치입니다."
+          : "MRI 모델이 이 검사에 등급(BI-RADS)을 내지 않았습니다. 위치 값은 근사치입니다."}
       </p>
 
       {/* 치밀 조직 비율 한 값. BI-RADS 밀도 범주와 다른 축이다 —
@@ -362,6 +368,9 @@ function Mri({ a, pick, onPick }) {
             {l.centroid_z != null && (
               <div className="wide"><dt>중심 좌표</dt>
                 <dd>x {num(l.centroid_x, 0)} · y {num(l.centroid_y, 0)} · 장 {num(l.centroid_z, 0)}</dd></div>
+            )}
+            {l.birads != null && l.birads !== "" && (
+              <div className="wide"><dt>AI 등급 (참고)</dt><dd>BI-RADS {String(l.birads)}</dd></div>
             )}
           </dl>
         </section>
