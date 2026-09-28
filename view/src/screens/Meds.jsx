@@ -85,6 +85,9 @@ function Inner({ d }) {
   const done = slots.filter(({ g, t }) => taken[`${g.drug_id}-${t.time}`]).length;
   const percent = slots.length ? Math.round((done / slots.length) * 100) : 0;
   const remaining = slots.length - done;
+  /* 오늘 회차에 먹는 약이 아닌 것(바르는 약 · 주사…)이 섞였으면 「복용」 ·
+     「드셨습니다」라고 하지 않는다. 경로가 없는 약은 전처럼 먹는 약으로 본다 */
+  const allOral = slots.every(({ g }) => words(g).oral);
 
   async function toggle(g, time) {
     const key = `${g.drug_id}-${time}`;
@@ -126,7 +129,7 @@ function Inner({ d }) {
           하루 두 번 먹는 약이 있어서 종류로 세면 안 맞는다 */}
       <div className="card med-summary">
         <div className="med-summary-head">
-          <span className="k">오늘 복용</span>
+          <span className="k">{allOral ? "오늘 복용" : "오늘 약"}</span>
           <span className="med-summary-percent">{percent}%</span>
         </div>
         <span className="v">{done} / {slots.length} 회 완료</span>
@@ -135,7 +138,9 @@ function Inner({ d }) {
         </span>
         {slots.length > 0 && (
           <span className="s">
-            {remaining ? `오늘 ${remaining}회 복용이 남았습니다.` : "오늘 드실 약을 다 드셨습니다."}
+            {allOral
+              ? (remaining ? `오늘 ${remaining}회 복용이 남았습니다.` : "오늘 드실 약을 다 드셨습니다.")
+              : (remaining ? `오늘 ${remaining}회가 남았습니다.` : "오늘 챙기실 약을 다 챙기셨습니다.")}
           </span>
         )}
       </div>
@@ -203,11 +208,14 @@ function Rx({ rx, taken, busy, open, setOpen, onToggle, ended }) {
 
       {(rx.drugs ?? []).map((g) => {
         const on = open === g.drug_id;
+        const w = words(g);
+        const kind = [w.kind, g.form].filter(Boolean).join(" · ");
         return (
           <div className="drug" key={g.drug_id}>
             <div className="drug-h">
               <span className="tx">
                 <b>{g.name}</b>
+                {kind && <span className="drug-kind">{kind}</span>}
                 <span>
                   {g.ingredient ? `${g.ingredient} · ` : ""}
                   1회 {g.dose} · 하루 {g.per_day}회
@@ -232,7 +240,7 @@ function Rx({ rx, taken, busy, open, setOpen, onToggle, ended }) {
                             onClick={() => onToggle(g, t.time)}>
                       <i aria-hidden="true" />
                       <span>{t.time}</span>
-                      <em>{got ? "드셨어요" : "아직이에요"}</em>
+                      <em>{got ? w.done : "아직이에요"}</em>
                     </button>
                   );
                 })}
@@ -250,7 +258,7 @@ function Rx({ rx, taken, busy, open, setOpen, onToggle, ended }) {
             {on && (
               <dl className="drug-info">
                 {g.purpose && (<><dt>무엇에 쓰나요</dt><dd>{g.purpose}</dd></>)}
-                {g.how && (<><dt>어떻게 드시나요</dt><dd>{g.how}</dd></>)}
+                {g.how && (<><dt>{w.how}</dt><dd>{g.how}</dd></>)}
                 {g.watch && (
                   <><dt>이럴 땐 알려 주세요</dt><dd className="watch">{g.watch}</dd></>
                 )}
@@ -261,6 +269,28 @@ function Rx({ rx, taken, busy, open, setOpen, onToggle, ended }) {
       })}
     </div>
   );
+}
+
+/* 투여 경로 → 환자에게 하는 말. 서버 값(route)은 codes 와 같은 여섯 개다.
+ *
+ * ⚠ 경로가 없거나 모르는 값이면 **전처럼 먹는 약의 말**을 쓰되, 「먹는 약」
+ *   이라고 적지는 않는다 — 모르는 것을 안다고 하지 않는다.
+ * ⚠ 바르는 약 중 패치는 붙인다. 제형 글로만 가를 수 있어 form 을 본다. */
+const ROUTE_WORDS = {
+  oral:       { kind: "먹는 약",      done: "드셨어요",     how: "어떻게 드시나요" },
+  injection:  { kind: "주사",         done: "맞으셨어요",   how: "어떻게 맞으시나요" },
+  topical:    { kind: "바르는 약",    done: "바르셨어요",   how: "어떻게 바르시나요" },
+  inhalation: { kind: "흡입하는 약",  done: "흡입하셨어요", how: "어떻게 흡입하시나요" },
+  eye:        { kind: "눈에 넣는 약", done: "넣으셨어요",   how: "어떻게 넣으시나요" },
+  other:      { kind: "기타",         done: "쓰셨어요",     how: "어떻게 쓰시나요" },
+};
+const PATCH = { kind: "붙이는 약", done: "붙이셨어요", how: "어떻게 붙이시나요" };
+
+function words(g) {
+  const w = ROUTE_WORDS[g.route];
+  if (!w) return { ...ROUTE_WORDS.oral, kind: null, oral: true };
+  if (g.route === "topical" && /패치|첩부|플라스타/.test(g.form ?? "")) return { ...PATCH, oral: false };
+  return { ...w, oral: g.route === "oral" };
 }
 
 /* 날짜만 있는 처방일은 기기 시간대 영향을 받지 않게 직접 만든다. 수량을

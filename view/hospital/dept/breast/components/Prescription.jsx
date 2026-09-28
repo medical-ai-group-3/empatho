@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { breast as api } from "../../../api";
 import { DUR_TYPE, ROUTE, label } from "../../../codes";
-import { FREQ, durSex, emptyDrug, freqOf, HHMM, ingredientHints, ingredientOf, norm, routeOf, sorted, timesProblem } from "../rx";
+import { baseIngredient, FREQ, durSex, emptyDrug, formHints, freqOf, HHMM, ingredientHints, ingredientOf, norm, routeOf, sorted, splitIngredients, timesProblem } from "../rx";
 import RxHandout from "./RxHandout";
 
 /* ⑥ 처방 — 치료 방침 화면에서 떼어 냈다(09-28).
@@ -188,11 +188,14 @@ export function DrugNameInput({ value, onChange, onPick, onResults, id }) {
   );
 }
 
-/* 성분명 칸 + 제안. 적은 글자가 곧 값이다(목록 밖 성분도 적는다) */
-export function IngredientInput({ value, onChange, hints, id }) {
+/* 성분명 칸 + 제안. 적은 글자가 곧 값이다(목록 밖 성분도 적는다).
+ * used — 이 환자의 지난 처방에 쓴 성분(이미 불러온 것만 — 이것 때문에 묻지 않는다).
+ * ⚠ 염 꼬리가 붙은 값이면 기본 성분을 맨 앞에 낸다. 고르지 않아도 DUR 은
+ *   기본 성분으로 묻는다(durIngredients) — 저장되는 값은 적은 그대로다. */
+export function IngredientInput({ value, onChange, hints, used = [], id }) {
   const listId = useId();
   const [open, setOpen] = useState(false);
-  const items = ingredientHints(value, hints);
+  const items = ingredientHints(value, hints, used);
   const exact = items.length === 1 && norm(items[0].ko) === norm(value);
   function choose(item) { onChange(item.ko); setOpen(false); }
   const keys = useListKeys(items, open, setOpen, choose);
@@ -211,10 +214,43 @@ export function IngredientInput({ value, onChange, hints, id }) {
           onHover={keys.setActive}
           render={(item) => (
             <>
-              <span className="drug-suggest-name">{item.ko}</span>
-              {(item.en || item.from) && (
+              <span className="drug-suggest-name">{item.ko}{item.base && " (DUR 조회용 기본 성분)"}</span>
+              {!item.base && (item.en || item.from) && (
                 <span className="drug-suggest-maker">{[item.en, item.from].filter(Boolean).join(" · ")}</span>
               )}
+            </>
+          )} />
+      )}
+    </div>
+  );
+}
+
+/* 제형 칸 + 제안(rx.js FORMS). 고른 경로와 맞는 제형이 위에 온다.
+ * 적은 글자가 곧 값이다 — 목록 밖 제형도 적는다. 고르면 onPick 이 경로까지 본다 */
+function FormInput({ value, route, onChange, onPick, id }) {
+  const listId = useId();
+  const [open, setOpen] = useState(false);
+  const items = formHints(value, route);
+  const exact = items.length === 1 && items[0].form === value.trim();
+  function choose(item) { onPick(item); setOpen(false); }
+  const keys = useListKeys(items, open, setOpen, choose);
+  const showList = open && items.length > 0 && !exact;
+  return (
+    <div className="drug-suggest">
+      <input id={id} role="combobox" aria-expanded={showList} aria-controls={listId}
+        aria-autocomplete="list" autoComplete="off"
+        aria-activedescendant={keys.active >= 0 ? `${listId}-${keys.active}` : undefined}
+        value={value}
+        onChange={(e) => { setOpen(true); keys.setActive(-1); onChange(e.target.value); }}
+        onFocus={() => setOpen(true)} onBlur={() => setOpen(false)} onKeyDown={keys.onKeyDown}
+        placeholder="예: 정제" />
+      {showList && (
+        <SuggestList id={listId} items={items} active={keys.active} onPick={choose}
+          onHover={keys.setActive}
+          render={(item) => (
+            <>
+              <span className="drug-suggest-name">{item.form}</span>
+              <span className="drug-suggest-maker">{label(ROUTE, item.route)}</span>
             </>
           )} />
       )}
@@ -230,10 +266,12 @@ function fillRoute(drug, name) {
 }
 
 /* 성분명 칸 → DUR 에 보낼 성분들. 복합제(「트라마돌염산염 · 아세트아미노펜」)는
-   쪼갠다 — 한 덩어리로 보내면 서버가 어느 성분인지 못 찾는다 */
+   쪼갠다 — 한 덩어리로 보내면 서버가 어느 성분인지 못 찾는다.
+   ⚠ 염 · 수화물 꼬리를 떼고 보낸다(rx.js baseIngredient) — DUR 은 「메토트렉세이트
+     나트륨」을 못 찾고 「메토트렉세이트」는 찾는다. 뗀 뒤에 겹치는 것을 합친다.
+     저장되는 성분명은 사람이 적은 그대로다. */
 function durIngredients(drugs) {
-  const out = drugs.flatMap((d) => d.ingredient.split(/\s*[·,/+]\s*/))
-    .map((s) => s.trim()).filter(Boolean);
+  const out = drugs.flatMap((d) => splitIngredients(d.ingredient)).map(baseIngredient).filter(Boolean);
   return [...new Set(out)].sort();
 }
 
@@ -362,6 +400,9 @@ export default function PrescriptionDraft({ patient, report, saved, blocked }) {
   const baseId = useId();
   const reportId = report?.report_id ?? null;
   const list = saved.data ?? [];
+  /* 이 환자의 지난 처방에 쓴 성분 — 이미 불러온 목록에서만 뽑는다 */
+  const usedIngredients = [...new Set(list.flatMap((rx) => (rx.content?.drugs ?? [])
+    .map((d) => String(d.ingredient ?? "").trim())).filter(Boolean))];
 
   function change(index, key, value) {
     setDrugs((rows) => rows.map((drug, i) => (i === index ? { ...drug, [key]: value } : drug)));
@@ -381,6 +422,12 @@ export default function PrescriptionDraft({ patient, report, saved, blocked }) {
      ⚠ 치는 도중에 짐작하면 「…주」까지 친 순간 주사로 굳는다 */
   function inferRoute(index) {
     setDrugs((rows) => rows.map((drug, i) => (i !== index ? drug : fillRoute(drug, drug.name))));
+  }
+
+  /* 제형을 목록에서 고르면 경로가 **비어 있을 때만** 따라 채운다 */
+  function pickForm(index, item) {
+    setDrugs((rows) => rows.map((drug, i) => (i !== index ? drug
+      : { ...drug, form: item.form, route: drug.route || item.route })));
   }
 
   function heard(index, items) {
@@ -496,7 +543,7 @@ export default function PrescriptionDraft({ patient, report, saved, blocked }) {
                   </div>
                   <div className="field rx-wide">
                     <label htmlFor={`${fid}-ing`}>성분명</label>
-                    <IngredientInput id={`${fid}-ing`} value={drug.ingredient} hints={drug.hints}
+                    <IngredientInput id={`${fid}-ing`} value={drug.ingredient} hints={drug.hints} used={usedIngredients}
                       onChange={(value) => change(index, "ingredient", value)} />
                   </div>
                   <div className="field">
@@ -516,7 +563,9 @@ export default function PrescriptionDraft({ patient, report, saved, blocked }) {
                   </div>
                   <div className="field">
                     <label htmlFor={`${fid}-form`}>제형</label>
-                    <input id={`${fid}-form`} value={drug.form} onChange={(e) => change(index, "form", e.target.value)} placeholder="예: 정제" />
+                    <FormInput id={`${fid}-form`} value={drug.form} route={drug.route}
+                      onChange={(value) => change(index, "form", value)}
+                      onPick={(item) => pickForm(index, item)} />
                   </div>
                 </div>
                 <div className="field">
