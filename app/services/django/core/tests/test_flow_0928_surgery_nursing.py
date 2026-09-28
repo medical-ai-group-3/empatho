@@ -552,3 +552,20 @@ class DiscordancePrimaryStaffTests(_Base):
         self.assertEqual(self._ids("?status=open"), {mine.pk, theirs.pk})
         r = _client(self.surg_acc).get("/api/v1/discordances?primary_staff=bad")
         self.assertEqual(r.status_code, 400)
+
+
+# ── 09-28 환자 목록 최근 내원 · 다음 예약 ─────────────────────────────
+class PatientListVisitColumnsTests(_Base):
+    def test_최근_내원과_다음_예약(self):
+        p = self._patient(self.surg)
+        past = timezone.now() - timedelta(days=3)
+        future = timezone.now() + timedelta(days=5)
+        self._order(p, visited_at=past, order_status="completed")
+        self._order(p, scheduled_at=future, order_status="scheduled")
+        r = _client(self.nur_acc).get("/api/v1/patients/?status=all")
+        self.assertEqual(r.status_code, 200, r.content)
+        rows = _data(r)
+        rows = rows.get("results", rows) if isinstance(rows, dict) else rows
+        row = next(x for x in rows if x["patient_id"] == p.pk)
+        self.assertIsNotNone(row["last_visit_at"])
+        self.assertIsNotNone(row["next_visit_at"])

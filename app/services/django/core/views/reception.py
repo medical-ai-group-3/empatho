@@ -3,7 +3,7 @@
 from datetime import datetime, time, timedelta
 
 from django.db import IntegrityError, transaction
-from django.db.models import Exists, OuterRef, Q
+from django.db.models import Exists, OuterRef, Q, Subquery
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_datetime
@@ -107,6 +107,19 @@ class PatientViewSet(AuditMixin, OwnedOnlyMixin, viewsets.ModelViewSet):
                     closed_at__isnull=True,
                 )
             ),
+            # 09-28 — 간호 환자 목록의 「최근 내원 · 다음 예약」 칸. 행마다
+            # 오더를 다시 부르지 않게 서브쿼리 둘로 얹는다
+            last_visit_at=Subquery(
+                models.ExamOrder.objects.filter(
+                    patient_id=OuterRef("patient_id"), visited_at__isnull=False)
+                .exclude(order_status="cancelled")
+                .order_by("-visited_at").values("visited_at")[:1]),
+            next_visit_at=Subquery(
+                models.ExamOrder.objects.filter(
+                    patient_id=OuterRef("patient_id"), visited_at__isnull=True,
+                    order_status__in=("requested", "scheduled"),
+                    scheduled_at__gte=timezone.now())
+                .order_by("scheduled_at").values("scheduled_at")[:1]),
         )
 
         # retrieve · update · partial_update · destroy 는 pk 로 단건을

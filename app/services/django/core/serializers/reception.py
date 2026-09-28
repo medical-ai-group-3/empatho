@@ -154,6 +154,9 @@ class PatientListSerializer(serializers.ModelSerializer):
     )
     # 09-28 — 앱 가입 여부(account 가 붙어 있나). 창구가 「앱 안내」를 할지 가른다.
     has_account = serializers.SerializerMethodField()
+    # 09-28 — PatientViewSet.get_queryset 이 얹는다. 다른 데서 쓰면 없다
+    last_visit_at = serializers.DateTimeField(read_only=True, default=None)
+    next_visit_at = serializers.DateTimeField(read_only=True, default=None)
 
     def get_has_account(self, patient) -> bool:
         return patient.account_id is not None
@@ -162,7 +165,8 @@ class PatientListSerializer(serializers.ModelSerializer):
         model = models.Patient
         fields = ("patient_id", "patient_number", "name", "phone", "birth_date",
                   "birth_year", "sex", "has_allergy", "has_open_discordance",
-                  "primary_staff", "primary_staff_name", "has_account")
+                  "primary_staff", "primary_staff_name", "has_account",
+                  "last_visit_at", "next_visit_at")
 
 
 # ── 워크플로 액션 전용 (쓰기) ──────────────────────────────────
