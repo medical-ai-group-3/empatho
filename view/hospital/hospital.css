@@ -402,6 +402,8 @@ input,select,textarea{font:inherit; color:inherit}
 /* 편집 중 빈 단 — 끌어다 놓을 자리가 보이게 */
 .arr-on .arr-empty{min-height:calc(160px * var(--sp)); border-radius:var(--hcard-radius);
   outline:1px dashed var(--faint); outline-offset:3px}
+/* 두 단 밑에 폭을 다 쓰는 줄(Panes cols 의 null 자리) */
+.arr-span{grid-column:1 / -1}
 .hcard-n{font-size:var(--hcard-n-fs); font-weight:600; color:var(--ink-2);
   font-variant-numeric:tabular-nums; flex:none}
 .hcard-k{font-size:var(--hcard-k-fs); color:var(--ink-2); flex:none}
@@ -756,8 +758,23 @@ a.lrow:hover{background:var(--canvas)}
    줄어들며 제 안에서 굴린다(요약은 최소 높이를 지킨다) */
 .nwait-q-b{flex:0 1 auto; min-height:0; overflow-y:auto}
 .nwait-q > .state{flex:none}
-.nq-sum{flex:1 0 calc(210px * var(--sp)); min-height:0; display:flex; flex-direction:column;
-  border-top:var(--hair) solid var(--border); background:var(--canvas)}
+.nq-sum{flex:1 1 auto; min-height:0; display:flex; flex-direction:column;
+  overflow:hidden; background:var(--canvas)}
+/* 칸 배치(lib/Arrange.jsx) — 목록 밑 한 단 · 오른쪽 한 단. 칸은 단 사이로
+   옮겨진다. 목록 밑 단이 요약이 받던 높이(최소 210)와 윗선을 대신 갖는다 */
+.nw-arr{display:flex; flex-direction:column; min-height:0; min-width:0}
+.nw-arr-l{flex:1 0 calc(210px * var(--sp)); border-top:var(--hair) solid var(--border)}
+/* 목록 밑 칸을 다 옮겼으면 평소에는 그 단을 안 세운다 */
+.nw-arr-l:not(.arr-on):has(> .arr-empty){display:none}
+.nw-pane{flex:1; min-height:0; display:flex; flex-direction:column}
+.nw-pane > * + *{border-top:var(--hair) solid var(--border)}
+.nw-pane > .nside:not(.fit), .nw-pane > .nq-sum{flex:1 1 0}
+/* 한 단에 칸이 몰려도 어느 칸도 0 으로 눌려 사라지지 않게 */
+.nw-pane > *{min-height:calc(140px * var(--sp))}
+/* 편집 중 — 손잡이가 .nwait 의 overflow 에 안 잘리게 띄우고 칸 사이를 벌린다 */
+.nw-arr.arr-on{padding:var(--desk-gap) var(--desk-gap) var(--desk-gap) calc(var(--desk-gap) * 2)}
+.nw-arr.arr-on .nw-pane{gap:var(--desk-gap)}
+.nw-arr.arr-on .nw-pane > .arr-slot{flex:1 1 0; border-top:0; background:var(--card)}
 .nq-nums{margin:0; padding:var(--gap-sm) var(--bcol-pad); display:grid;
   grid-template-columns:repeat(2, minmax(0, 1fr)); gap:var(--gap-xs) var(--gap-sm)}
 .nq-nums > div{display:flex; align-items:baseline; gap:var(--gap-sm); min-width:0}
@@ -1192,8 +1209,11 @@ a.nside-row:hover{background:var(--canvas)}
 /* 가운데 단이 좁으면(1280 이하) 반씩 가르면 한 칸이 150px 남짓이라
    제목 · 칩 · 날짜가 한 줄에 못 든다 — 그때는 위아래로 쌓는다 */
 @container work-mid (max-width: 420px){
-  .work-reads{grid-template-columns:minmax(0, 1fr)}
+  /* !important — 칸 배치(lib/Arrange.jsx Panes)가 단 폭을 style 로 박는다 */
+  .work-reads{grid-template-columns:minmax(0, 1fr) !important}
 }
+/* 「배치 편집」으로 한 단에 둘을 모으면 위아래로 쌓인다 */
+.work-reads-col{display:flex; flex-direction:column; gap:var(--desk-gap); min-width:0}
 .work-read{display:flex; flex-direction:column; gap:var(--gap-sm);
   padding:var(--hcard-pad-y) var(--bcol-pad); background:var(--card);
   border:var(--hair) solid var(--border); border-radius:var(--hcard-radius)}
@@ -1292,12 +1312,19 @@ a.nside-row:hover{background:var(--canvas)}
 /* ⚠ **이 쪽은 뷰포트에 안 가둔다.** 「영상 보기」로 뷰어가 펴지면 제
    최소 높이를 요구한다 — 가두면 그 안이 짜부라진다. 쪽이 굴러간다 */
 .page.rev-page{padding-bottom:var(--home-pad)}
-.rev{display:grid; gap:0; align-content:start;
-  grid-template-columns:repeat(2, minmax(0, 1fr));
+.rev{display:flex; flex-direction:column;
   background:var(--card); border:var(--hair) solid var(--border);
   border-radius:var(--hcard-radius); overflow:hidden}
-.rev-l,.rev-r{display:flex; flex-direction:column; min-width:0}
-.rev-r{border-left:var(--hair) solid var(--border)}
+/* 칸 단(lib/Arrange.jsx Panes) — 영상 | 병리, 그 밑에 폭을 다 쓰는 줄.
+   「배치 편집」으로 칸을 옮기면 단 폭은 Panes 가 style 로 다시 짠다 */
+.rev-cols{display:grid; gap:0; align-content:start;
+  grid-template-columns:repeat(2, minmax(0, 1fr))}
+.rev-pane{display:flex; flex-direction:column; min-width:0}
+.rev-pane + .rev-pane{border-left:var(--hair) solid var(--border)}
+.rev-pane.arr-span{border-left:0; border-top:var(--hair) solid var(--border)}
+/* 편집 중에는 손잡이(칸 왼쪽 위 바깥)가 .rev 의 overflow 에 안 잘리게 띄운다 */
+.rev-cols.arr-on{gap:var(--desk-gap); padding:var(--desk-gap) var(--desk-gap) var(--desk-gap) calc(var(--desk-gap) * 2)}
+.rev-cols.arr-on .rev-pane{border:0}
 /* 뷰어와 결정 입력은 폭을 다 쓴다 */
 .rev-see,.rev-dec{grid-column:1 / -1;
   border-top:var(--hair) solid var(--border)}
@@ -1504,6 +1531,11 @@ a.nside-row:hover{background:var(--canvas)}
    셋이 단 높이에 맞춰 눌려서 「예약 정보」「지난 예약」「새 예약」 아래가
    잘렸다. 제 높이를 지키고 단이 굴린다 */
 .resv-side > *, .resv-aside > *{flex:none}
+/* 왼쪽 단의 칸 틀(lib/Arrange.jsx Panes) — 카드 사이 간격 · 안 줄어듦은 그대로 */
+.resv-side-p{display:flex; flex-direction:column; gap:var(--desk-gap); min-width:0}
+.resv-side-p > *{flex:none}
+/* 편집 중 — 손잡이(칸 왼쪽 위 바깥)가 단의 overflow 에 안 잘리게 */
+.resv-side.arr-on{padding:calc(var(--desk-gap) + 2px) 0 var(--desk-gap) calc(var(--desk-gap) + 2px)}
 .resv-mid{display:flex; flex-direction:column; gap:var(--gap-sm);
   min-width:0; min-height:0}
 

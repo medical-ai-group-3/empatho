@@ -3,6 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { Page, Btn } from "../../../lib/Page";
 import { Body, Empty } from "../../../lib/Body";
 import { Chip, Locked } from "../../../lib/Parts";
+import { ArrangeBar, Panes, useArrange } from "../../../lib/Arrange";
 import { useApi } from "../../../lib/useApi";
 import { can } from "../../../perm";
 import { DESK, go } from "../../../nav";
@@ -35,7 +36,13 @@ import { ORDER_STATUS, label } from "../../../codes";
  * ⚠ **칸을 카드로 띄우지 않는다.** 상자 하나를 1px 선으로 가른다(4.5).
  * ⚠ **쪽 머리가 없다.** 접수 화면 안에 들어가므로 제목을 또 달지 않는다.
  */
-export default function NursingWaiting({ cfg, embedded = false }) {
+/* 칸 배치 — 왼쪽 아래(목록 밑) 한 단 · 오른쪽 한 단. 「배치 편집」으로 칸을
+   옮긴다(lib/Arrange.jsx). 환자 목록 · 가운데 상세 · 배정 바닥 줄은 못 박는다.
+   접수 화면(Intake.jsx)이 이 화면을 끼워 쓰므로 막대는 그 머리에 선다 —
+   그쪽이 useArrange(...NursingWaiting.arrange) 로 lay 를 만들어 넘긴다 */
+const ARRANGE = ["nursing.intake", [["sum"], ["load", "sent"]]];
+
+export default function NursingWaiting({ cfg, embedded = false, lay = null }) {
   /* 간호과는 원무 일까지 하는 한 과다 — **보는 것**은 과 열쇠 하나면 된다.
      쓰는 동작은 아래에서 제 열쇠로 그대로 잠근다 */
   if (!can(DESK)) {
@@ -44,7 +51,7 @@ export default function NursingWaiting({ cfg, embedded = false }) {
       <Page crumb={[cfg.name, "내원 대기"]} title="내원 대기">{locked}</Page>
     );
   }
-  return <Inner cfg={cfg} embedded={embedded} />;
+  return <Inner cfg={cfg} embedded={embedded} given={lay} />;
 }
 
 /* 몇 초마다 조용히 다시 불러온다. 깜빡이면 고른 환자가 사라진다 */
@@ -66,8 +73,10 @@ const staffName = (s) => s.full_name ?? s.name ?? `직원 ${staffId(s)}`;
 const handed = (r) => r.handed_at != null && r.stage_code !== "cancelled"
   && r.order_status !== "cancelled";
 
-function Inner({ cfg, embedded }) {
+function Inner({ cfg, embedded, given }) {
   const api = cfg.api;
+  const own = useArrange(...ARRANGE);
+  const lay = given ?? own;
   /* 홈 현황판 줄은 ?order= 를, 홈 「검체」 줄은 ?tab=specimen 을 달고 온다.
      ⚠ 목업 번호는 글자(eo-w1)라 숫자로만 읽지 않는다 */
   const [params] = useSearchParams();
@@ -150,14 +159,21 @@ function Inner({ cfg, embedded }) {
   const srow = here === "specimen"
     ? lists.specimen.find((r) => String(idOf(r)) === String(scur)) ?? null : null;
 
+  /* 곁에 두고 보는 칸 셋 — 각자 따로 서는 칸이라 자리를 바꿔도 뜻이 같다 */
+  const cards = {
+    sum:  <Summary today={today} lists={lists} booked={H.notYetCame(H.rows(booked.data), rows, today)} />,
+    load: <Load people={people} load={load} />,
+    sent: <Sent today={today} />,
+  };
+
   const body = (
     <div className="nwait">
       {/* 탭을 바꾸면 고른 사람을 놓는다 — 다른 탭 사람이 가운데 남아 있으면 헷갈린다 */}
       <Queue state={arrived} tab={here} setTab={(t) => { setTab(t); setPick(null); }}
-             lists={lists} people={people} today={today}
-             booked={H.notYetCame(H.rows(booked.data), rows, today)}
+             lists={lists} people={people}
              pick={here === "specimen" ? scur : cur}
-             onPick={here === "specimen" ? setSpick : setPick} />
+             onPick={here === "specimen" ? setSpick : setPick}
+             bottom={<Panes lay={lay} cards={cards} only={[0]} className="nw-arr nw-arr-l" paneClass="nw-pane" />} />
 
       <div className="nwait-mid">
         {here === "specimen" ? (
@@ -184,12 +200,13 @@ function Inner({ cfg, embedded }) {
           )}
       </div>
 
-      <Load people={people} load={load} today={today} />
+      <Panes lay={lay} cards={cards} only={[1]} className="nwait-side nw-arr" paneClass="nw-pane" />
     </div>
   );
 
   return embedded ? body : (
-    <Page crumb={[cfg.name, "내원 대기"]} title="내원 대기">{body}</Page>
+    <Page crumb={[cfg.name, "내원 대기"]} title="내원 대기"
+          right={<ArrangeBar lay={lay} />}>{body}</Page>
   );
 }
 
@@ -203,7 +220,7 @@ function Inner({ cfg, embedded }) {
  * ⚠ **셋째 줄에 검사 진행 점을 못 찍는다.** 이 큐는 촬영 전 환자만 모아서
  *   네 모달리티가 다 ○ 로 같아진다 — 문진 유무를 적는다(홈 현황판과 같은 기준).
  */
-function Queue({ state, tab, setTab, lists, people, today, booked, pick, onPick }) {
+function Queue({ state, tab, setTab, lists, people, pick, onPick, bottom }) {
   const rows = lists[tab];
   const nameOf = (id) => {
     const s = people.find((p) => String(staffId(p)) === String(id));
@@ -268,7 +285,8 @@ function Queue({ state, tab, setTab, lists, people, today, booked, pick, onPick 
           })}
         </div>
       </Body>
-      <Summary today={today} lists={lists} booked={booked} />
+      {/* 목록 밑 — 기본은 「오늘 요약」(칸 배치의 왼쪽 단) */}
+      {bottom}
     </section>
   );
 }
@@ -697,7 +715,7 @@ function Specimen({ r, people }) {
  * ⚠ 09-28 전에는 「금일 내원 예정 · 오늘 추적 콜」을 두었다 — 홈과 같은 줄이라
  *   뺐다. 「검체 바인딩 필요」 칸은 늘 비어 있어서 왼쪽 검체 확인 탭이 됐다.
  */
-function Load({ people, load, today }) {
+function Load({ people, load }) {
   const known = new Set(people.map((s) => String(staffId(s))));
   /* 명단에 없는데 보낸 기록이 있는 사람(퇴사 · 다른 과 등)도 상자를 세운다 */
   const extra = [...load.entries()].filter(([k]) => !known.has(k));
@@ -707,44 +725,41 @@ function Load({ people, load, today }) {
   ];
 
   return (
-    <div className="nwait-side">
-      <section className="nside fit">
-        <header className="bcol-h">
-          <i className="hdot ring" aria-hidden="true" />
-          <b>배정 현황(오늘)</b>
-          <span className="home-fill" />
-          <span className="hcard-k">의사별</span>
-        </header>
-        <div className="nside-b nload-grid">
-          {rows.length === 0 && <p className="hcard-k hpad">의사 명단을 불러오지 못했습니다</p>}
-          {rows.map(({ key, name, l }) => {
-            const wait = l?.wait ?? [];
-            return (
-              <article className="nload-box" key={key}>
-                <header className="nload-h">
-                  <b>{name}</b>
-                  <span className="home-fill" />
-                  <span className="nload-stat">
-                    <em>{wait.length}</em><i>대기</i>
-                  </span>
-                  <span className="nload-stat muted">
-                    <em>{l?.sent ?? 0}</em><i>오늘 보냄</i>
-                  </span>
-                </header>
-                {wait.length > 0
-                  ? (
-                    <ul className="nload-chips">
-                      {wait.map((r) => <li key={idOf(r)}>{H.nameOf(r)}</li>)}
-                    </ul>
-                  )
-                  : <p className="nload-empty">대기 환자 없음</p>}
-              </article>
-            );
-          })}
-        </div>
-      </section>
-      <Sent today={today} />
-    </div>
+    <section className="nside fit">
+      <header className="bcol-h">
+        <i className="hdot ring" aria-hidden="true" />
+        <b>배정 현황(오늘)</b>
+        <span className="home-fill" />
+        <span className="hcard-k">의사별</span>
+      </header>
+      <div className="nside-b nload-grid">
+        {rows.length === 0 && <p className="hcard-k hpad">의사 명단을 불러오지 못했습니다</p>}
+        {rows.map(({ key, name, l }) => {
+          const wait = l?.wait ?? [];
+          return (
+            <article className="nload-box" key={key}>
+              <header className="nload-h">
+                <b>{name}</b>
+                <span className="home-fill" />
+                <span className="nload-stat">
+                  <em>{wait.length}</em><i>대기</i>
+                </span>
+                <span className="nload-stat muted">
+                  <em>{l?.sent ?? 0}</em><i>오늘 보냄</i>
+                </span>
+              </header>
+              {wait.length > 0
+                ? (
+                  <ul className="nload-chips">
+                    {wait.map((r) => <li key={idOf(r)}>{H.nameOf(r)}</li>)}
+                  </ul>
+                )
+                : <p className="nload-empty">대기 환자 없음</p>}
+            </article>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
@@ -787,3 +802,6 @@ function Sent({ today }) {
     </section>
   );
 }
+
+/* 칸 배치 이름 · 기본 배치 — 끼워 쓰는 쪽(Intake.jsx)이 같은 것을 쓴다 */
+NursingWaiting.arrange = ARRANGE;

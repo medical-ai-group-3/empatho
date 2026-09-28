@@ -181,19 +181,26 @@ export function ArrangeBar({ lay, className = "" }) {
  * cols — 단마다 격자 폭(["minmax(0,1.5fr)", …]). 주면 **빈 단을 접는다**:
  *   평소에는 칸이 하나도 없는 단을 안 그리고 남은 단이 폭을 나눠 갖는다 —
  *   칸을 다 옮긴 단이 빈 세로줄로 남던 것(09-28). 편집 중에는 다시 끌어다
- *   놓을 수 있게 빈 단도 세운다 */
-export function Panes({ lay, cards, className = "", paneClass = "", cols = null }) {
+ *   놓을 수 있게 빈 단도 세운다.
+ *   cols 의 한 자리가 null 이면 그 단은 세로줄이 아니라 **폭을 다 쓰는 줄**
+ *   이다(grid-column 1 / -1, .arr-span) — 두 단 밑에 가로로 긴 칸 하나.
+ *
+ * only — 이 자리에서 그릴 단 번호([0] 등). 단들이 화면의 서로 다른 곳에
+ *   흩어져 있으면(왼쪽 아래 · 오른쪽 단) 같은 lay 로 Panes 를 여러 번
+ *   부른다. 옮기기 · 저장은 lay 하나라 단 사이로 그대로 옮겨진다 */
+export function Panes({ lay, cards, className = "", paneClass = "", cols = null, only = null }) {
   const live = lay.panes.map((ids) => ids.filter((id) => cards[id]));
-  const show = live.map((ids) => lay.editing || ids.length > 0 || !cols);
+  const show = live.map((ids, p) => (!only || only.includes(p))
+    && (lay.editing || ids.length > 0 || !cols));
   const style = cols
-    ? { gridTemplateColumns: cols.filter((_, i) => show[i]).join(" ") }
+    ? { gridTemplateColumns: cols.filter((c, i) => show[i] && c != null).join(" ") || undefined }
     : undefined;
   return (
     <div className={`${className}${lay.editing ? " arr-on" : ""}`.trim()} style={style}>
       {lay.panes.map((ids, p) => show[p] && (
         <div className={`${paneClass}${lay.over?.pane === p && lay.over.id == null ? " drop-end" : ""}${
-               live[p].length === 0 ? " arr-empty" : ""}`.trim()}
-             key={p}
+               live[p].length === 0 ? " arr-empty" : ""}${cols && cols[p] == null ? " arr-span" : ""}`.trim()}
+             key={p} data-pane={p}
              onDragOver={(e) => lay.dragging && (e.preventDefault(), lay.hover(p, null))}
              onDrop={(e) => { e.preventDefault(); lay.drop(); }}>
           {ids.filter((id) => cards[id]).map((id) => (

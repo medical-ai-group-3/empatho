@@ -4,6 +4,7 @@ import { Page, Btn } from "../../lib/Page";
 import { useCan } from "../../lib/Parts";
 import { go, DESK } from "../../nav";
 import NursingWaiting from "../../dept/nursing/screens/Waiting";
+import { ArrangeBar, useArrange } from "../../lib/Arrange";
 import Register from "./Register";
 import * as H from "../../dept/home";
 
@@ -28,11 +29,15 @@ export default function Intake({ cfg }) {
      ⚠ 예전 「환자 목록 · 예약」은 환자 목록으로 갔는데 거기엔 이제 예약을
        잡는 자리가 없다(중복 막이가 없는 두 번째 길이라 뺐다) */
   const today = H.iso(new Date());
+  /* 아래 내원 대기의 곁 칸(오늘 요약 · 배정 현황 · 오늘 보낸 환자) 배치 —
+     막대는 이 머리에 선다(줄을 따로 안 차지하게) */
+  const lay = useArrange(...NursingWaiting.arrange);
 
   return (
     <Page crumb={[cfg.name, "접수"]} title="접수" className="intake-page"
           right={(
             <span className="rowb">
+              <ArrangeBar lay={lay} />
               <Btn to={go.nursing.patients()}>환자 목록</Btn>
               <Btn to={`${go.nursing.reservations()}?date=${today}`}>예약 관리</Btn>
             </span>
@@ -44,7 +49,7 @@ export default function Intake({ cfg }) {
       {/* 아래는 **내원 대기 화면 통째로**다. 목록만 다시 그리면 문진·배정을
           할 데가 없어진다 — 화면 줄에서 뺀 자리가 여기다(nav.js) */}
       <div className="intake-wq">
-        <NursingWaiting cfg={cfg} embedded />
+        <NursingWaiting cfg={cfg} embedded lay={lay} />
       </div>
     </Page>
   );

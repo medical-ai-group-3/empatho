@@ -721,11 +721,12 @@ button.bf-chip.on{box-shadow:inset 0 0 0 var(--focus-w) var(--cyan); color:var(-
 .rev-odd.k1 .btn.line:hover{background:var(--v-line)}
 
 /* 환자 상세 둘째 줄 · 발 — 두 단 격자(.rev)를 가로질러 선다 */
-.bf-run{grid-column:1 / -1; border-top:var(--hair) solid var(--border)}
+/* 줄 위 선은 칸 단(.rev-pane.arr-span · .rev-box + .rev-box)이 긋는다 */
+.bf-run{min-width:0}
 .bf-run-b{display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:var(--desk-gap)}
 .bf-run-b > div{display:flex; flex-direction:column; gap:var(--gap-xs); min-width:0}
 .bf-run-k{font-size:var(--label-fs); font-weight:600; color:var(--warm)}
-.bf-rev-f{grid-column:1 / -1; display:flex; align-items:center; flex-wrap:wrap;
+.bf-rev-f{display:flex; align-items:center; flex-wrap:wrap;
   gap:var(--gap-sm); padding:var(--hcard-pad-y) var(--bcol-pad);
   border-top:var(--hair) solid var(--border); background:var(--canvas)}
 

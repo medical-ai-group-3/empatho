@@ -5,6 +5,7 @@ import { useApi } from "../../../lib/useApi";
 import { Page, Btn } from "../../../lib/Page";
 import { Body, Empty } from "../../../lib/Body";
 import { Chip } from "../../../lib/Parts";
+import { ArrangeBar, Panes, useArrange } from "../../../lib/Arrange";
 import { go } from "../../../nav";
 import * as H from "../../home";
 import "../breast.css";
@@ -60,6 +61,9 @@ export default function Waiting() {
   const [examModality, setExamModality] = useState(null);
   const [openWait, setOpenWait] = useState(false);
   const [, bump] = useState(0);              /* handled.js 가 바뀌면 다시 그린다 */
+  /* 가운데 영상 · 병리 판독 두 칸은 「배치 편집」으로 옮긴다(lib/Arrange.jsx).
+     머리 · 흐름 · 단추 줄은 진료 순서라 못 박는다 */
+  const lay = useArrange("breast.waiting", READS_BASE);
 
   const items = useMemo(() => {
     const m = new Map();
@@ -134,7 +138,12 @@ export default function Waiting() {
   return (
     <Page className="surgery-page" crumb={["유방외과", "대기 환자"]}
           title="대기 환자"
-          right={<Btn to={go.breast.patients()}>전체 환자</Btn>}>
+          right={(
+            <>
+              {p && <ArrangeBar lay={lay} />}
+              <Btn to={go.breast.patients()}>전체 환자</Btn>
+            </>
+          )}>
       <div className="work bf-work">
         <Queue state={list} rows={shown} parked={byNext ? [] : parked} odd={odd} all={active}
                tab={tab} onTab={setTab} pick={picked} onPick={setPick}
@@ -149,7 +158,7 @@ export default function Waiting() {
                     onRetry={detail.reload}>
                 {p && (
                   <Mid p={p} flow={flow} onNext={next} onRun={run} onOpen={setModal}
-                       waiting={waitingOn(p)} />
+                       waiting={waitingOn(p)} lay={lay} />
                 )}
               </Body>
             )}
@@ -189,6 +198,10 @@ export default function Waiting() {
     </Page>
   );
 }
+
+/* 판독 두 칸 — 기본은 나란히(왼쪽 영상 · 오른쪽 병리) */
+const READS_BASE = [["rad"], ["path"]];
+const READS_COLS = ["minmax(0, 1fr)", "minmax(0, 1fr)"];
 
 /* 재진 권하는 간격 — BI-RADS 3 은 6개월 추적, 그 밖은 2주 */
 function suggestDays(flow) {
@@ -289,7 +302,7 @@ function QRow({ r, it, on, onPick, dim = false }) {
 }
 
 /* ── 가운데 — 고른 환자 ───────────────────────────────────────── */
-function Mid({ p, flow, onNext, onRun, onOpen, waiting }) {
+function Mid({ p, flow, onNext, onRun, onOpen, waiting, lay }) {
   const d = p.open_discordance;
   const readings = p.readings ?? { radiology: [], pathology: [] };
   const key = flow?.next?.key;
@@ -349,25 +362,30 @@ function Mid({ p, flow, onNext, onRun, onOpen, waiting }) {
         <Btn kind={key === "wait_results" ? "fill" : "line"} onClick={onNext}>다음 환자 →</Btn>
       </div>
 
-      <div className="work-reads">
-        <section className="work-read">
-          <header>
-            <h3>영상 판독</h3>
-            <span className="home-fill" />
-            <span className="hcard-k">{readings.radiology.length}건 확정</span>
-          </header>
-          <PendingLine orders={p.orders} />
-          <RadRows rows={readings.radiology} />
-        </section>
-        <section className="work-read">
-          <header>
-            <h3>병리 판독</h3>
-            <span className="home-fill" />
-            <span className="hcard-k">{readings.pathology.length}건 확진</span>
-          </header>
-          <PathRows rows={readings.pathology} />
-        </section>
-      </div>
+      <Panes lay={lay} className="work-reads" paneClass="work-reads-col" cols={READS_COLS}
+             cards={{
+               rad: (
+                 <section className="work-read">
+                   <header>
+                     <h3>영상 판독</h3>
+                     <span className="home-fill" />
+                     <span className="hcard-k">{readings.radiology.length}건 확정</span>
+                   </header>
+                   <PendingLine orders={p.orders} />
+                   <RadRows rows={readings.radiology} />
+                 </section>
+               ),
+               path: (
+                 <section className="work-read">
+                   <header>
+                     <h3>병리 판독</h3>
+                     <span className="home-fill" />
+                     <span className="hcard-k">{readings.pathology.length}건 확진</span>
+                   </header>
+                   <PathRows rows={readings.pathology} />
+                 </section>
+               ),
+             }} />
     </>
   );
 }

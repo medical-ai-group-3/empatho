@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { Page, Card, Btn } from "../../lib/Page";
 import { Body, Empty } from "../../lib/Body";
 import { Chip, useCan } from "../../lib/Parts";
+import { ArrangeBar, Panes, useArrange } from "../../lib/Arrange";
 import { useApi } from "../../lib/useApi";
 import { go } from "../../nav";
 import * as H from "../../dept/home";
@@ -106,9 +107,14 @@ const QUEUES = [
   { key: "noshow", label: "미내원(7일)", empty: "지난 7일간 미내원 환자가 없습니다" },
 ];
 
+/* 왼쪽 단의 칸 둘 — 할 일 · 작은 달력. 「배치 편집」으로 위아래를 바꾼다
+   (lib/Arrange.jsx). 가운데 판 · 오른쪽 예약 칸은 못 박는다 */
+const SIDE_BASE = [["work", "mini"]];
+
 export default function Reservations({ cfg }) {
   const api = cfg.api;
   const today = ymd(new Date());
+  const lay = useArrange("reception.reservations", SIDE_BASE);
 
   /* 홈 달력 · 환자 목록 · 추적 관리에서 ?date= ?patient= ?followup= ?tab= 을
      달고 온다. **첫 값으로만** 쓴다 — 사람이 고친 뒤에 주소가 되돌리면 안 된다 */
@@ -195,9 +201,14 @@ export default function Reservations({ cfg }) {
 
   return (
     <Page crumb={[cfg.name, "예약"]} title="예약 관리" className="resv-page"
-          right={<Btn to={go.nursing.patients()}>환자 목록</Btn>}>
+          right={(
+            <>
+              <ArrangeBar lay={lay} />
+              <Btn to={go.nursing.patients()}>환자 목록</Btn>
+            </>
+          )}>
       <div className="resv">
-        <Side anchor={anchor} onPick={(d) => { setAnchor(d); setSpan("day"); }}
+        <Side lay={lay} anchor={anchor} onPick={(d) => { setAnchor(d); setSpan("day"); }}
               cfg={cfg} ver={ver} work={work} queue={queue} setQueue={setQueue}
               onTake={take} />
 
@@ -323,7 +334,7 @@ function useWork(api, today, ver) {
 }
 
 /* ── 왼쪽 — 할 일 · 작은 달력 ───────────────────────────────────── */
-function Side({ anchor, onPick, cfg, ver, work, queue, setQueue, onTake }) {
+function Side({ lay, anchor, onPick, cfg, ver, work, queue, setQueue, onTake }) {
   const d = new Date(`${anchor}T00:00:00`);
 
   /* 한 달 치 예약을 받아 **날마다 몇 건인지**만 센다. 못 불러도 달력은 선다 */
@@ -340,8 +351,8 @@ function Side({ anchor, onPick, cfg, ver, work, queue, setQueue, onTake }) {
     return m;
   }, [booked.data]);
 
-  return (
-    <div className="resv-side">
+  const cards = {
+    work: (
       <section className="resv-work" aria-label="예약 할 일">
         {QUEUES.map((q) => {
           const list = work[q.key];
@@ -371,12 +382,15 @@ function Side({ anchor, onPick, cfg, ver, work, queue, setQueue, onTake }) {
           );
         })}
       </section>
-
-      {/* 작은 달력은 **하루**를 고른다 — 주·월로 넓히는 것은 가운데 머리의 단추다 */}
+    ),
+    /* 작은 달력은 **하루**를 고른다 — 주·월로 넓히는 것은 가운데 머리의 단추다 */
+    mini: (
       <Mini y={d.getFullYear()} m={d.getMonth()} anchor={anchor} onPick={onPick}
             counts={counts} />
-    </div>
-  );
+    ),
+  };
+
+  return <Panes lay={lay} cards={cards} className="resv-side" paneClass="resv-side-p" />;
 }
 
 /* 할 일 한 줄의 둘째 줄 — 왜 이 사람이 여기 있나 */

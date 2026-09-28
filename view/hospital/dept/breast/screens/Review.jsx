@@ -5,6 +5,7 @@ import { useApi } from "../../../lib/useApi";
 import { Page, Btn } from "../../../lib/Page";
 import { Body } from "../../../lib/Body";
 import { Chip } from "../../../lib/Parts";
+import { ArrangeBar, Panes, useArrange } from "../../../lib/Arrange";
 import { MODALITY, BIRADS_LABEL, EXAM_PURPOSE, label, modality as asModality } from "../../../codes";
 import { go } from "../../../nav";
 import * as H from "../../home";
@@ -58,25 +59,34 @@ export default function Review() {
     ? { key: "study_id", id: q.get("study"), assessment: q.get("assessment") }
     : q.get("specimen") != null ? { key: "specimen_id", id: q.get("specimen") }
     : null;
+  /* 영상 · 병리 · 진행 중 오더 세 칸은 「배치 편집」으로 옮긴다(lib/Arrange.jsx).
+     머리 띠 · 흐름 · 바닥 단추 줄은 못 박는다 */
+  const lay = useArrange("breast.review", REV_BASE);
 
   return (
     <Page className="rev-page" crumb={["유방외과", "환자 상세"]}
           title="환자 상세" patient={p.data}
           right={(
             <>
+              {p.data && <ArrangeBar lay={lay} />}
               {/* 제목이 「환자 상세」라 공용 환자 페이지는 그 중심인 히스토리 이름으로 */}
               <Btn to={go.patient(id)}>환자 기록</Btn>
               <Btn to={go.breast.waiting()}>대기 환자</Btn>
             </>
           )}>
       <Body loading={p.loading && !p.data} error={p.error} onRetry={p.reload}>
-        {p.data && <Inner key={p.data.patient_id} pid={id} p={p.data} focus={focus} onReload={() => p.reload(true)} />}
+        {p.data && <Inner key={p.data.patient_id} pid={id} p={p.data} focus={focus} lay={lay}
+                             onReload={() => p.reload(true)} />}
       </Body>
     </Page>
   );
 }
 
-function Inner({ pid, p, focus, onReload }) {
+/* 기본 — 영상 | 병리 나란히, 그 밑에 폭을 다 쓰는 진행 중 오더 줄(null) */
+const REV_BASE = [["rad"], ["path"], ["run"]];
+const REV_COLS = ["minmax(0, 1fr)", "minmax(0, 1fr)", null];
+
+function Inner({ pid, p, focus, lay, onReload }) {
   const nav = useNavigate();
   const [seeing, setSeeing] = useState(false);
   const [modal, setModal] = useState(null);
@@ -182,20 +192,23 @@ function Inner({ pid, p, focus, onReload }) {
       <FlowBar flow={flow} run={run} />
 
       <div className="rev">
-        <div className="rev-l">
-          {/* key — 다른 건을 고르고 오면 접힘 상태를 새로 잡는다.
-              판(assessment)도 key 에 넣는다 — 지난 판에서 「현재 판독 보기」로
-              오면 같은 검사라도 새로 펴고 그 줄로 내려가야 한다 */}
-          <Readings key={`${want ?? "top"}-${focus?.assessment ?? ""}`} title="영상 판독" gradeLabel="BI-RADS" items={radRows}
-                    focus={want} miss={radTop}
-                    lines={[["병변", lesionLine(p.lesions)]]} />
-        </div>
-        <div className="rev-r">
-          <Readings key={want ?? "top"} title="병리 결과" gradeLabel="" items={patRows}
-                    focus={want} miss={patMiss}
-                    lines={[["검체", specimenLine]]} />
-        </div>
-        <Running p={p} events={H.rows(line.data)} />
+        <Panes lay={lay} className="rev-cols" paneClass="rev-pane" cols={REV_COLS}
+               cards={{
+                 /* key — 다른 건을 고르고 오면 접힘 상태를 새로 잡는다.
+                    판(assessment)도 key 에 넣는다 — 지난 판에서 「현재 판독 보기」로
+                    오면 같은 검사라도 새로 펴고 그 줄로 내려가야 한다 */
+                 rad: (
+                   <Readings key={`${want ?? "top"}-${focus?.assessment ?? ""}`} title="영상 판독" gradeLabel="BI-RADS" items={radRows}
+                             focus={want} miss={radTop}
+                             lines={[["병변", lesionLine(p.lesions)]]} />
+                 ),
+                 path: (
+                   <Readings key={want ?? "top"} title="병리 결과" gradeLabel="" items={patRows}
+                             focus={want} miss={patMiss}
+                             lines={[["검체", specimenLine]]} />
+                 ),
+                 run: <Running p={p} events={H.rows(line.data)} />,
+               }} />
         <footer className="bf-rev-f">
           <Btn kind={key === "exam" && flow.next.act === "exam" ? "fill" : "line"}
                onClick={() => run({ act: "exam", modality: flow.next?.modality })}>추가 촬영</Btn>
