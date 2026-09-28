@@ -35,7 +35,7 @@ import { flowOf } from "../flow";
  *   ├─────────────────────────────┴────────────────────────────────┤
  *   │ 진행 중 오더 · AI 상태                                           │
  *   ├──────────────────────────────────────────────────────────────┤
- *   │ [추가 촬영] [검체 등록]                    [리포트 · 방침으로 →] │
+ *   │ [촬영 요청] [검체 등록]                    [리포트 · 방침으로 →] │
  *   └──────────────────────────────────────────────────────────────┘
  *
  * ⚠ 판독은 **한 건씩 접는다.** 가장 최근 한 건만 편다.
@@ -166,14 +166,15 @@ function Inner({ pid, p, focus, lay, onReload }) {
         <dl className="rev-who">
           <div className="rev-name"><dd>{H.nameOf(p)}</dd></div>
           {[
-            ["나이/성별", H.who(p)],
+            ["나이 · 성별", H.who(p)],
             ["환자번호", H.noOf(p)],
             ["내원", p.visit_type],
             /* 서버 코드(screening · diagnostic)를 그대로 찍던 자리 */
             ["의뢰", label(EXAM_PURPOSE, p.visit_purpose) || null],
             ["주치의", p.primary_staff_name],
-          ].map(([k, v]) => (
-            <div key={k}><dt>{k}</dt><dd>{v ?? "—"}</dd></div>
+            /* 값 없는 칸(내원 · 의뢰가 비는 재진)은 「—」로 자리를 먹지 않게 뺀다 */
+          ].filter(([, v]) => v != null && v !== "").map(([k, v]) => (
+            <div key={k}><dt>{k}</dt><dd>{v}</dd></div>
           ))}
         </dl>
         {/* 일치 여부 — 서버가 불일치를 걸었는지로만 말한다. BI-RADS 와 B
@@ -211,7 +212,7 @@ function Inner({ pid, p, focus, lay, onReload }) {
                }} />
         <footer className="bf-rev-f">
           <Btn kind={key === "exam" && flow.next.act === "exam" ? "fill" : "line"}
-               onClick={() => run({ act: "exam", modality: flow.next?.modality })}>추가 촬영</Btn>
+               onClick={() => run({ act: "exam", modality: flow.next?.modality })}>촬영 요청</Btn>
           <Btn kind={key === "exam" && flow.next.act === "specimen" ? "fill" : "line"}
                onClick={() => setModal("specimen")}>검체 등록</Btn>
           <span className="home-fill" />

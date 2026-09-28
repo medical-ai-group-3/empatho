@@ -1334,7 +1334,10 @@ export const breast = {
     ]);
 
     const found = await Promise.all(
-      studies.map((s) => radCurrentAssessment(s.study_id ?? s.id)),
+      /* 번호 없는 검사 줄은 묻지 않는다 — study 없이 부르면 GET /assessments
+         (과 전체 목록)가 되어 404 · 헛요청이었다 */
+      studies.map((s) => ((s.study_id ?? s.id) != null
+        ? radCurrentAssessment(s.study_id ?? s.id) : null)),
     );
 
     const radiology = studies

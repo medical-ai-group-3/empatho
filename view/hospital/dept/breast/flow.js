@@ -47,7 +47,7 @@ export const NEXT = {
   wait_results: { step: "read",         label: "결과 대기 중",      name: "결과 대기" },
   review:       { step: "read",         label: "새 결과 확인",      name: "새 결과 미확인" },
   discordance:  { step: "discordance",  label: "불일치 처분하기",   name: "판정 불일치" },
-  report:       { step: "report",       label: "종합 리포트 만들기", name: "리포트 미생성" },
+  report:       { step: "report",       label: "종합 리포트 만들기", name: "리포트 작성 전" },
   decision:     { step: "decision",     label: "치료 방침 결정",    name: "방침 미결정" },
   explain:      { step: "explain",      label: "환자 설명",         name: "설명 대기" },
   prescription: { step: "prescription", label: "처방",              name: "처방 대기" },

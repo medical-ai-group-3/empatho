@@ -174,7 +174,7 @@ function Inner({ patient, onReload, focus, onNextPatient }) {
         : blocked ? "불일치 처분 후" : "수술 시행 · 안 함 · 보류 중 하나" },
     { n: 5, id: "explain", title: "환자 설명 → 잠금 해제",
       state: unlocked ? "done" : explained ? "now" : blocked ? "lock" : st("explain"),
-      pill: unlocked ? "공개됨" : explained ? "설명함 · 잠김" : blocked ? "잠김" : "설명 전",
+      pill: unlocked ? "공개됨" : explained ? "설명 완료 · 잠김" : blocked ? "잠김" : "설명 전",
       summary: unlocked ? `환자 앱 공개${target?.unlocked_at ? ` · ${day(target.unlocked_at)}` : ""}`
         : !target ? "종합 리포트(③) 생성 후"
         : `잠금 조건 ${metCount}/3${explained ? " · 설명 기록됨" : ""}` },
@@ -461,7 +461,7 @@ function PatientReport({ report, reports }) {
       <div className="card-head">
         <p className="section-label">{report ? "환자용 리포트" : "환자 리포트 열람"}</p>
         <span className={`pill ${report?.is_unlocked ? "ok" : report ? "wait" : "warn"}`}>
-          {report ? (report.is_unlocked ? "열람 가능" : "잠금 상태") : "작성 대기"}
+          {report ? (report.is_unlocked ? "열람 가능" : "잠김") : "작성 대기"}
         </span>
       </div>
       {reports.loading ? <p className="note">리포트를 불러오는 중입니다.</p>
@@ -533,7 +533,7 @@ function FinalReport({ patient, reports, onCreated, again = false }) {
   if (again && !open) {
     return (
       <div className="bf-block">
-        <button className="edit-btn" onClick={() => setOpen(true)}>판독이 추가됐다면 다시 만들기 ›</button>
+        <button className="edit-btn" onClick={() => setOpen(true)}>새 판독이 있으면 다시 만들기 ›</button>
       </div>
     );
   }

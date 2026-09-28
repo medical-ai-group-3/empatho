@@ -20,7 +20,7 @@ export default function CareGuideModal({ patient, flow, onClose, onRun }) {
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal wide" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
-          <h2>다음 진료 안내 — {patient.name}</h2>
+          <h2>다음 단계 안내 — {patient.name}</h2>
           <button aria-label="닫기" onClick={onClose}>×</button>
         </div>
         <div className="modal-body">

@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate, useSearchParams } from "react-router-do
 import { breast as api } from "../../../api";
 import { useApi } from "../../../lib/useApi";
 import { Page, Btn } from "../../../lib/Page";
-import { Body, Empty } from "../../../lib/Body";
+import { Body } from "../../../lib/Body";
 import { Chip } from "../../../lib/Parts";
 import { ArrangeBar, Panes, useArrange } from "../../../lib/Arrange";
 import { go } from "../../../nav";
@@ -152,7 +152,14 @@ export default function Waiting() {
 
         <div className="work-mid">
           {!picked
-            ? <Empty title="지금 기다리는 환자가 없습니다" />
+            ? (
+              /* 전에는 가운데 위에 한 줄 상자만 뜨고 단 전체가 비었다 */
+              <div className="bf-mid-empty">
+                <b>{want ? "이 단계에 해당하는 환자가 없습니다" : "지금 기다리는 환자가 없습니다"}</b>
+                <span>간호 접수에서 내원을 받으면 도착한 순서대로 왼쪽 목록에 들어옵니다.</span>
+                <Btn to={go.breast.patients()}>전체 환자 보기</Btn>
+              </div>
+            )
             : (
               <Body loading={detail.loading && !detail.data} error={detail.error}
                     onRetry={detail.reload}>
@@ -282,7 +289,9 @@ function Queue({ state, rows, parked, all, odd, tab, onTab, pick, onPick, itemOf
 
 function QRow({ r, it, on, onPick, dim = false }) {
   const odd = r.has_open_discordance || it?.open_discordance;
-  const say = it?.next_step ? NEXT[it.next_step]?.name : odd ? "판정 불일치" : (r.status ?? "");
+  /* 서버 상태 글자는 「대기중」처럼 붙어 온다 — 화면에서만 띄운다 */
+  const say = it?.next_step ? NEXT[it.next_step]?.name : odd ? "판정 불일치"
+    : String(r.status ?? "").replace(/(\S)중$/, "$1 중");
   return (
     <button type="button"
             className={`work-row${on ? " on" : ""}${dim ? " bf-dim" : ""}`}
@@ -409,7 +418,8 @@ function History({ id, line }) {
       </header>
       <div className="work-hist-b">
         {rows.length === 0
-          ? <p className="hcard-k hpad">{line.loading ? "불러오는 중…" : "아직 없습니다"}</p>
+          ? <p className="hcard-k hpad">{!id ? "환자를 고르면 진료 이력이 여기에 표시됩니다"
+            : line.loading ? "불러오는 중…" : "아직 진료 이력이 없습니다"}</p>
           : rows.map((r, i) => {
             const to = historyTo(id, r);
             const open = () => nav(to);

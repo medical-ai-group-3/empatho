@@ -148,7 +148,7 @@ function MyOpen({ here }) {
     <section className="bf-odds">
       <header className="bcol-h">
         <i className="hdot ring" aria-hidden="true" />
-        <b>처분 대기 불일치</b>
+        <b>처분을 기다리는 불일치</b>
         <em>{rows.length}</em>
       </header>
       <Body loading={list.loading && !list.data} error={list.error} onRetry={list.reload}>

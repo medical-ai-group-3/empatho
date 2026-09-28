@@ -60,11 +60,11 @@ export default function FollowupRounds({ patient, months = 6 }) {
     try {
       /* due_at 은 DateTimeField 다 — 간호 추적 관리와 같이 오전 9시로 */
       await nursing.createFollowup({ patient_id: pid, round_no: next, due_at: `${due}T09:00:00` });
-      setOk(`${next}회차 · ${due} 추적을 만들었습니다 — 간호과 추적 관리에 표시됩니다`);
+      setOk(`${next}회차 · ${due} 추적을 등록했습니다 — 간호과 추적 관리에 표시됩니다`);
       list.reload(true);
     } catch (e) {
       if (denied(e)) setLocked(true);
-      else setErr(e?.detail || e?.message || "추적 회차를 만들지 못했습니다");
+      else setErr(e?.detail || e?.message || "추적 회차를 등록하지 못했습니다");
     } finally { setBusy(false); sending.current = false; }
   }
 
@@ -112,7 +112,7 @@ export default function FollowupRounds({ patient, months = 6 }) {
             <span className="home-fill" />
             <button type="button" className="btn line ghost" onClick={make}
                     disabled={busy || !due || Boolean(ok)}>
-              {busy ? "만드는 중…" : ok ? "만들었습니다" : `${next}회차 만들기`}
+              {busy ? "등록하는 중…" : ok ? "등록했습니다" : `${next}회차 등록`}
             </button>
           </div>
           {open.length > 0 && !ok && (

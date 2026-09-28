@@ -86,6 +86,7 @@ export default function Patients() {
                     <Sort items={SORTS} value={sort} onChange={setSort} />
                   </div>
                   <Table cols={COLS} value={picked} onPick={setPickedId}
+                    emptyText={patients.length ? "검색에 맞는 환자가 없습니다" : "아직 등록된 환자가 없습니다"}
                     rows={visible.map((p) => toRow(p, items.get(String(p.patient_id))))} />
                   <div className="tbl-foot">
                     <span>{patients.length}건 중 {visible.length}건 표시</span>
@@ -93,7 +94,20 @@ export default function Patients() {
                   </div>
                 </Card>
               }
-              right={picked && <PatientDetail id={picked} item={items.get(String(picked))} />}
+              right={picked
+                ? <PatientDetail id={picked} item={items.get(String(picked))} />
+                /* 고를 사람이 없을 때 — 전에는 오른쪽 위에 점선 띠 하나만 뜨고
+                   나머지가 통째로 비었다. 요약 카드 자리를 그대로 두고 까닭을 적는다 */
+                : (
+                  <Card title="환자 요약" className="patients-detail-card">
+                    <div className="bf-pl-empty">
+                      <b>{patients.length ? "검색에 맞는 환자가 없습니다" : "아직 등록된 환자가 없습니다"}</b>
+                      <span>{patients.length
+                        ? "이름 · 등록번호 · 연락처 중 하나로 다시 찾아 주세요."
+                        : "간호 접수에서 환자를 등록하면 이 목록에 나타납니다. 환자를 고르면 진료 단계와 검사 이력이 여기에 표시됩니다."}</span>
+                    </div>
+                  </Card>
+                )}
             />
           )}
         </Body>
@@ -156,7 +170,7 @@ function PatientDetail({ id, item }) {
           right={(
             <>
               <Btn to={go.breast.decision(id)}>치료 방침</Btn>
-              <Btn kind="fill" to={go.breast.review(id)}>환자 상세</Btn>
+              <Btn to={go.breast.review(id)}>환자 상세</Btn>
             </>
           )}>
       <Body loading={loading && !patient} error={error} onRetry={reload}>
@@ -206,7 +220,7 @@ function PatientDetailBody({ patient, item }) {
             <span className="home-fill" />
             {/* 팝업으로 하는 일(촬영 요청 · 진료 완료 · 재진)은 대기 환자에서 한다 */}
             <Btn kind="fill" onClick={() => nav(flow.next.to ?? go.breast.waiting())}>
-              {flow.next.to ? "열기 →" : "대기 환자에서 열기 →"}
+              {flow.next.to ? "바로 가기 →" : "대기 환자에서 열기 →"}
             </Btn>
           </div>
         )}

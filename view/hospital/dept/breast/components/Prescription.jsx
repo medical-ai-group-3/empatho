@@ -251,10 +251,11 @@ export default function PrescriptionDraft({ patient, report, saved, blocked }) {
     setDrugs((rows) => (rows.length === 1 ? rows : rows.filter((_, i) => i !== index)));
   }
 
-  const rowProblem = (drug) => !drug.name.trim() ? "약 이름"
-    : !drug.dose.trim() ? "1회 복용량"
-    : timesProblem(drug.times) ? "복용 시각"
-    : !(Number(drug.days) > 0) ? "처방 일수" : null;
+  /* 조사까지 붙여 둔다 — 「약 이름을(를)」처럼 괄호로 둘 다 적지 않게 */
+  const rowProblem = (drug) => !drug.name.trim() ? "약 이름을"
+    : !drug.dose.trim() ? "1회 복용량을"
+    : timesProblem(drug.times) ? "복용 시각을"
+    : !(Number(drug.days) > 0) ? "처방 일수를" : null;
   const firstProblem = drugs.map(rowProblem).find(Boolean) ?? null;
   const valid = Boolean(reportId) && !firstProblem;
 
@@ -374,7 +375,7 @@ export default function PrescriptionDraft({ patient, report, saved, blocked }) {
 
           <div className="card-foot split prescription-actions">
             <button className="btn ghost sm" onClick={() => setDrugs((rows) => [...rows, emptyDrug()])}>+ 약 추가</button>
-            <span className="note">{msg ?? (firstProblem ? `${firstProblem}을(를) 입력해 주세요` : null)}</span>
+            <span className="note">{msg ?? (firstProblem ? `${firstProblem} 입력해 주세요` : null)}</span>
             <button className="btn ghost" onClick={() => { setWriting(false); setDrugs([emptyDrug()]); }}>취소</button>
             <button className="btn" onClick={save} disabled={!valid || saving || blocked}>
               {saving ? "저장 중…" : "처방 저장"}

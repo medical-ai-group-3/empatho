@@ -24,32 +24,28 @@
    --topbar-bg 라는 별도 변수를 써서 두 판 모두 늘 짙은 남색이다 — 회사
    로고 바가 테마 따라 밝아졌다 어두워졌다 하면 오히려 «상단바가 고장났나»
    싶어진다. */
+/* ⚠ 09-28 마지막 손질 — 팔레트를 hospital 토큰으로 돌렸다.
+   예전 값(파랑 #2f5fe0 · 초록 · 주황 · 빨강 상태색)이 이 판 안에서만
+   살아서 치료 방침 · 전체 환자 · 팝업만 다른 제품처럼 보였다. 이름은
+   그대로 두고 값만 tokens.css 에 잇는다 — 상태 색을 따로 두지 않는다는
+   판 규칙(tokens.css 머리)대로 ok · warn · danger 는 무채색이다.
+   --ink · --ink-2 · --line-2 · --font-ui 는 hospital 것과 이름이 같아서
+   여기서 다시 적지 않는다(적으면 제 자신을 부르는 고리가 된다).
+   다크 판도 없앴다 — hospital 쪽에 다크 판이 없어서 이 판만 어두워졌다. */
 .breast {
   color-scheme:light;
-  --bg:#f4f5f7; --surface:#ffffff; --surface-2:#fafbfc;
-  --ink:#171a1f; --ink-2:#4b5262; --muted:#8a93a6;
-  --line:#e3e6ec; --line-2:#eceef2;
-  --accent:#2f5fe0; --accent-ink:#ffffff; --accent-weak:#eaf0ff;
-  --danger:#d0362f; --danger-weak:#fdecec;
-  --warn:#b8720a; --warn-weak:#fdf3e0;
-  --ok:#1c8a4c; --ok-weak:#e8f7ee;
-  --topbar-bg:#171a1f; --topbar-bg-2:#0e1116;
-  --radius:10px; --radius-sm:6px;
-  --gap:16px; --pad:16px;
-  --font-ui: -apple-system, "Segoe UI", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+  --bg:var(--canvas); --surface:var(--card); --surface-2:var(--canvas);
+  --muted:var(--warm);
+  --line:var(--border);
+  --accent:var(--cyan); --accent-ink:var(--cyan-ink);
+  --accent-weak:color-mix(in srgb, var(--wash) 40%, var(--card));
+  --danger:var(--ink); --danger-weak:var(--line-2);
+  --warn:var(--ink); --warn-weak:color-mix(in srgb, var(--wash) 40%, var(--card));
+  --ok:var(--ink-2); --ok-weak:var(--line-2);
+  --topbar-bg:var(--soot); --topbar-bg-2:var(--soot);
+  --radius:var(--card-radius); --radius-sm:var(--in-radius);
+  --pad:16px;
   --font-mono: "SFMono-Regular", Consolas, monospace;
-}
-
-[data-theme="dark"] .breast {
-  color-scheme:dark;
-  --bg:#121417; --surface:#1b1e23; --surface-2:#22262c;
-  --ink:#edeef0; --ink-2:#b7bcc4; --muted:#7d8590;
-  --line:#2c3036; --line-2:#262a2f;
-  --accent:#6488ff; --accent-ink:#0b1020; --accent-weak:#1d2740;
-  --danger:#ef6a63; --danger-weak:#3a1f1f;
-  --warn:#e2a94c; --warn-weak:#3a2e17;
-  --ok:#57c087; --ok-weak:#183226;
-  --topbar-bg:#0b0d10; --topbar-bg-2:#000;
 }
 
 .breast * {box-sizing:border-box}
@@ -124,9 +120,9 @@
 .breast .pane {padding:24px}
 
 /* ── 카드 · 공통 ───────────────────────────── */
-.breast .card {background:var(--surface); border:1px solid var(--line);
-  border-radius:var(--radius); padding:16px}
-.breast .card.flag {border-color:var(--danger); background:var(--danger-weak); color:var(--danger)}
+.breast .card {background:var(--surface); border:var(--hair) solid var(--line);
+  border-radius:var(--radius); padding:var(--card-pad); box-shadow:var(--card-shadow)}
+.breast .card.flag {border-color:var(--soot); background:var(--soot); color:var(--soot-ink)}
 .breast .card + .card {margin-top:12px}
 .breast .card h3 {font-size:14px; font-weight:700; margin-bottom:10px}
 
@@ -134,22 +130,27 @@
   justify-content:center; gap:8px; padding:48px 0; color:var(--muted)}
 .breast .empty .ic {font-size:22px}
 
+/* 단추 — hospital .btn 과 같은 모양(pill). 채움은 시안, ghost 는 선 */
 .breast .btn {display:inline-flex; align-items:center; justify-content:center; gap:6px;
-  height:36px; padding:0 16px; border-radius:var(--radius-sm);
-  font-size:13px; font-weight:600; background:var(--accent); color:var(--accent-ink);
-  border:1px solid transparent; white-space:nowrap}
-.breast .btn:hover:not(:disabled) {filter:brightness(1.06)}
-.breast .btn.ghost {background:var(--surface); color:var(--ink); border-color:var(--line)}
-.breast .btn.ghost:hover:not(:disabled) {background:var(--surface-2)}
-.breast .btn.danger {background:var(--danger); color:#fff}
-.breast .btn.sm {height:30px; padding:0 12px; font-size:12.5px}
+  height:var(--btn-h); line-height:1; padding:0 var(--btn-pad-x); border-radius:var(--btn-radius);
+  font-size:var(--btn-fs); font-weight:600; background:var(--accent); color:var(--accent-ink);
+  border:0; white-space:nowrap; transition:background var(--motion)}
+.breast .btn:hover:not(:disabled) {filter:brightness(.95)}
+.breast .btn.ghost {background:var(--surface); color:var(--ink);
+  box-shadow:inset 0 0 0 var(--hair) var(--border)}
+.breast .btn.ghost:hover:not(:disabled) {background:var(--surface-2); filter:none}
+.breast .btn.danger {background:var(--soot); color:var(--soot-ink)}
+.breast .btn.sm {height:var(--btn-h-sm); padding:0 var(--chip-pad-x); font-size:var(--chip-fs)}
+.breast .btn:disabled {opacity:var(--off)}
 
 .breast .pill {display:inline-flex; align-items:center; height:22px; padding:0 9px;
   border-radius:999px; font-size:12px; font-weight:600; line-height:1}
+/* 상태는 모양으로 — 할 일이 남음(danger · warn)은 soot 채움, 끝남(ok)은
+   선, 기다림(wait)은 옅은 바탕. 색을 따로 들이지 않는다 */
 .breast .pill.wait {background:var(--line-2); color:var(--ink-2)}
-.breast .pill.danger {background:var(--danger-weak); color:var(--danger)}
-.breast .pill.warn {background:var(--warn-weak); color:var(--warn)}
-.breast .pill.ok {background:var(--ok-weak); color:var(--ok)}
+.breast .pill.danger, .breast .pill.warn {background:var(--soot); color:var(--soot-ink)}
+.breast .pill.ok {background:var(--card); color:var(--ink-2);
+  box-shadow:inset 0 0 0 var(--hair) var(--border)}
 
 /* ── 영상-병리 불일치 처분 ─────────────────────────────────── */
 .breast .discordance-summary {margin-bottom:16px}
@@ -222,7 +223,7 @@
 .breast .field .err {color:var(--danger); font-size:12px}
 
 /* ── 모달 ──────────────────────────────────── */
-.breast .modal-backdrop {position:fixed; inset:0; background:rgba(20,22,28,.42);
+.breast .modal-backdrop {position:fixed; inset:0; background:rgba(12,10,9,.42);
   display:flex; align-items:center; justify-content:center; z-index:40; padding:24px}
 .breast .modal {background:var(--surface); border-radius:var(--radius); width:100%;
   max-width:560px; max-height:90vh; display:flex; flex-direction:column;
@@ -257,7 +258,7 @@
    같은 왼쪽 선. 색 채움을 안 쓴다.
    ⚠ 상단바 세 층과 환자 띠가 sticky 라 머리로 맞추면 칸 제목이 그 밑에
      숨는다(처방 칸에서 확인) — 그만큼 띄운다 */
-.breast .card.here {box-shadow:inset 2px 0 0 var(--cyan);
+.breast .card.here {border-color:var(--cyan);
   scroll-margin-top:calc(var(--top-total) + var(--pb-h) + var(--gap))}
 @media (max-width:1080px) {
   .breast .decision-grid {grid-template-columns:1fr}
@@ -375,7 +376,7 @@
 .breast .tumor-item .head .lesion {font-size:11.5px; color:var(--muted)}
 
 .breast .abstain-notice {display:flex; gap:8px; align-items:flex-start; background:var(--warn-weak);
-  border:1px solid #eddcb0; border-radius:var(--radius-sm); padding:8px 10px; font-size:12.5px;
+  border:var(--hair) solid var(--border); border-radius:var(--radius-sm); padding:8px 10px; font-size:12.5px;
   color:var(--warn); margin-top:6px}
 
 .breast .not-supported-item {display:flex; align-items:baseline; gap:8px; margin-top:8px}
@@ -565,8 +566,8 @@
   padding:11px 12px; background:var(--surface-2); border:1px solid var(--line); font-size:13px}
 .breast .notice .ic {flex:none; font-size:14px; line-height:1.3}
 .breast .notice b {display:block; font-size:12.5px; margin-bottom:2px}
-.breast .notice.danger {background:var(--danger-weak); border-color:#f3c6c3; color:var(--danger)}
-.breast .notice.danger .hint {color:#b23a34; font-size:12px; margin-top:4px}
+.breast .notice.danger {background:var(--soot); border-color:var(--soot); color:var(--soot-ink)}
+.breast .notice.danger .hint {color:var(--v-warm); font-size:12px; margin-top:4px}
 .breast .notice.muted {color:var(--muted)}
 
 /* 버튼 줄 — 다음 환자는 왼쪽, 나머지 동작은 오른쪽에 몰아서 고정.
@@ -632,8 +633,10 @@
 .bf-steps.col .bf-step.done i{background:var(--soot); color:var(--soot-ink); box-shadow:none}
 .bf-steps.col .bf-step.now i{background:var(--cyan); color:var(--cyan-ink); box-shadow:none}
 .bf-steps.col .bf-step.wait i{box-shadow:inset 0 0 0 2px var(--warm)}
-/* 가운데 단이 좁으면(1280 이하) 열두 칸이 글자를 못 담는다 — 두 줄로 */
-@container work-mid (max-width: 640px){
+/* 가운데 단이 좁으면 열두 칸이 글자를 못 담는다 — 두 줄로.
+   ⚠ 640 이었을 때 1440 창(가운데 단 ~700)에서 「BI-RADS 4c」 · 「판정 불일치」가
+     칸(49px)을 넘었다(npm run check). 칸마다 60px 는 되어야 한다 */
+@container work-mid (max-width: 780px){
   .bf-steps{grid-template-columns:repeat(6, minmax(0, 1fr)); row-gap:var(--gap-sm)}
 }
 
@@ -686,19 +689,20 @@
 
 /* 재진 예약 */
 .bf-book{display:flex; flex-direction:column; gap:var(--gap-sm)}
-.bf-book-q{display:flex; flex-wrap:wrap; gap:var(--gap-xs)}
+/* 09-28 칩 사이 4px · 칩 높이 20px 로 몰려 있었다 — 칩 토큰대로 넓힌다 */
+.bf-book-q{display:flex; flex-wrap:wrap; gap:var(--chip-gap)}
 /* button. 을 붙인다 — .breast 안의 `.breast button{padding:0; background:none}`
    와 같은 무게여야 뒤에 실린 이쪽이 이긴다 */
-button.bf-chip{padding:var(--gap-xxs) var(--chip-pad-x); border-radius:999px;
+button.bf-chip{padding:var(--chip-pad-y) var(--chip-pad-x); border-radius:999px;
   font-size:var(--chip-fs); background:var(--card); color:var(--ink-2);
   box-shadow:inset 0 0 0 var(--hair) var(--border); cursor:pointer}
 button.bf-chip:hover{background:var(--canvas)}
 button.bf-chip.on{box-shadow:inset 0 0 0 var(--focus-w) var(--cyan); color:var(--ink);
   font-weight:600}
 .bf-book-f{display:flex; align-items:flex-end; flex-wrap:wrap; gap:var(--gap-sm)}
-.bf-book-f label{display:flex; flex-direction:column; gap:var(--gap-xxs);
+.bf-book-f label{display:flex; flex-direction:column; gap:var(--gap-xs);
   font-size:var(--label-fs); color:var(--ink-2)}
-.bf-book-f input{height:34px; padding:0 var(--in-pad-x); border:var(--hair) solid var(--faint);
+.bf-book-f input{height:var(--btn-h); padding:0 var(--in-pad-x); border:var(--hair) solid var(--faint);
   border-radius:var(--in-radius); font-size:var(--in-fs); background:var(--card); color:var(--ink)}
 /* 추적 회차(FollowupRounds) — 재진 예약 밑에 선 하나로 가른다 */
 .bf-fup{display:flex; flex-direction:column; gap:var(--gap-sm);
@@ -807,8 +811,9 @@ button.bf-chip.on{box-shadow:inset 0 0 0 var(--focus-w) var(--cyan); color:var(-
 .breast .bf-sc-body[hidden]{display:none}
 /* 레일이 상단바 · 환자 띠(sticky) 밑으로 들어가 목차 첫 줄이 가렸다 */
 @media (min-width:1081px){
+  /* 바닥 목업 띠(--foot-h)만큼 더 뺀다 — 레일 끝 줄이 그 띠 밑에 깔렸다 */
   .breast .bf-rail{top:calc(var(--top-total) + var(--pb-h) + 12px);
-    max-height:calc(100vh - var(--top-total) - var(--pb-h) - 24px)}
+    max-height:calc(100vh - var(--top-total) - var(--pb-h) - var(--foot-h) - 24px)}
 }
 /* 카드 발의 .split 이 아래 두 단 격자(.breast .split — 목록 · 상세)에 걸려
    단추가 2/3 폭으로 늘어났다. 발은 한 줄 flex 다 */
@@ -899,3 +904,81 @@ button.bf-chip.on{box-shadow:inset 0 0 0 var(--focus-w) var(--cyan); color:var(-
 /* 쪽을 뷰포트에 가둔다 — 오른쪽 요약에 단계 줄이 들어오며 길어져서, 안
    가두면 쪽 전체가 굴렀다. 요약 칸(.list-detail-info)이 안에서 굴린다 */
 .page.breast-patients-page{flex:none; height:calc(100vh - var(--top-total) - var(--foot-h))}
+
+/* ── 09-28 마지막 손질 — 쪽 틀 ───────────────────────────────────
+ * · .pane 의 24px 가 한 겹 더 들어가 카드가 제목 · 경로보다 안쪽에서
+ *   시작했다(다른 과 쪽은 제목 선에 맞춰 선다)
+ * · 뒤로 단추가 제목 밑줄에 붙어 떠 보였다 — 제목 가운데에 맞춘다
+ * · 오른쪽 레일(치료 방침) — 안의 카드가 레일 높이에 눌려 환자 칸 ·
+ *   목차 끝이 잘렸다. 카드는 제 키를 지키고 레일이 굴린다 */
+.page.breast > .pane{padding:0}
+.page.breast .phead{align-items:center}
+.page.breast .phead-back{display:inline-flex; align-items:center; justify-content:center;
+  width:32px; height:32px; border-radius:var(--round); font-size:20px; color:var(--ink-2)}
+.page.breast .phead-back:hover{background:var(--line-2); color:var(--ink)}
+.breast .bf-rail > *{flex:none}
+.breast .bf-rail{scrollbar-width:thin}
+/* 시안 채움은 화면당 하나(tokens.css) — 치료 방침은 카드마다 저장 단추가
+   있어서 파란 단추가 예닐곱 개 떴다. **지금 단계(.now) 카드의 단추만**
+   채우고, 나머지 카드와 레일의 「다음 할 일」 단추는 선 단추로 둔다 */
+.breast .bf-sc:not(.now) .btn:not(.ghost),
+.breast .bf-rail .btn:not(.ghost){background:var(--card); color:var(--ink);
+  box-shadow:inset 0 0 0 var(--hair) var(--border)}
+.breast .bf-sc:not(.now) .btn:not(.ghost):hover:not(:disabled),
+.breast .bf-rail .btn:not(.ghost):hover:not(:disabled){background:var(--canvas); filter:none}
+/* 아바타 — 다른 과 환자 머리처럼 옅은 바탕 · 먹 글자 */
+.breast .avatar{background:var(--line-2); color:var(--ink)}
+
+/* ── 전체 환자 (09-28 마지막 손질) ──────────────────────────────
+ * · hospital Card(card-h · card-b 가 제 여백을 갖는다)에 .breast .card 의
+ *   여백이 한 겹 더 붙어 제목이 안쪽으로 밀렸다
+ * · Btn(kind="line")이 .breast .btn 의 채움을 받아 시안 단추가 셋이었다
+ * · 뷰어 — 판독 뷰어와 같은 어두운 판(v-토큰). 흰 판 위 흰 탭이었다
+ * · 「다음 할 일」 이름표가 세 줄로 꺾였다 */
+.breast .card:has(> .card-h), .breast .card:has(> .card-b){padding:0}
+.breast .btn.line{background:var(--card); color:var(--ink);
+  box-shadow:inset 0 0 0 var(--hair) var(--border)}
+.breast .btn.line:hover:not(:disabled){background:var(--canvas); filter:none}
+.breast .viewer-shell{background:var(--v-bg); border-color:var(--v-line); border-radius:var(--v-radius)}
+.breast .viewer-tabs{background:var(--v-card); border-bottom-color:var(--v-line)}
+.breast .viewer-tabs button{color:var(--v-warm)}
+.breast .viewer-tabs button.on{background:var(--v-line); color:var(--v-ink); font-weight:600}
+.breast .viewer-tabs button:disabled{color:var(--v-warm); opacity:.45}
+/* 영상 없음 — 뷰어 판(어두운 바탕) 위의 빈 상태. ReviewViewer 안의 <style>
+   에도 같은 이름이 있지만 판의 검사(npm run check)는 CSS 파일만 읽는다 */
+.generic-empty{width:100%; height:100%; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:var(--gap-sm); text-align:center;
+  padding:var(--card-pad); color:var(--v-warm); font-size:var(--row-fs)}
+.generic-empty-icon{font-size:var(--h1-fs); opacity:.5}
+.generic-empty-sub{color:var(--v-warm); font-size:var(--hint-fs); opacity:.8}
+.breast .bf-pl-next{flex-wrap:wrap; gap:var(--gap-sm); padding:var(--gap-sm) var(--card-pad-sm)}
+.breast .bf-pl-next .muted{white-space:nowrap}
+.breast .bf-pl-next b{white-space:nowrap}
+.breast .bf-pl-empty{flex:1; min-height:var(--slot-h); display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:var(--gap-xs); text-align:center;
+  padding:var(--card-pad); color:var(--warm); font-size:var(--row-fs)}
+.breast .bf-pl-empty b{color:var(--ink-2); font-size:var(--card-h-fs)}
+.breast .bf-pl-empty span{max-width:32em; line-height:1.6}
+
+/* 대기 환자 — 고를 사람이 없을 때 가운데 단 */
+.bf-mid-empty{flex:1; min-height:var(--slot-h); display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:var(--gap-sm); text-align:center;
+  color:var(--warm); font-size:var(--row-fs)}
+.bf-mid-empty b{color:var(--ink); font-size:var(--card-h-fs)}
+
+/* 진료 이력(대기 환자 오른쪽) — 줄마다 카드가 두 줄 글에 100px 넘게 먹었다.
+   p 의 기본 바깥 여백이 머리와 본문 사이를 벌렸다. 한 화면에 더 들게 좁힌다 */
+.bf-work .work-ev{gap:var(--gap-xs); padding:var(--gap-sm) var(--card-pad-sm)}
+.bf-work .work-ev p{margin:0}
+.bf-work .work-hist-b{gap:var(--gap-5)}
+/* 넓은 창 — 레일 320 이 1920 에서 몸통(1500+)에 비해 좁아 목차 요약이
+   두 줄로 잘렸다. 넓을 때만 레일을 늘린다 */
+@media (min-width:1600px){.breast .bf-dec{grid-template-columns:minmax(0, 1fr) 380px}}
+
+/* 처방 — 두 단 격자 안의 칸끼리 위 여백이 달라(.field + .field) 오른쪽 칸이
+   12px 내려앉았다 */
+.breast .prescription-grid > .field{margin-top:0}
+.breast .prescription-drug:first-of-type{margin-top:var(--gap-sm)}
+/* 팝업(다음 단계 안내) 안 단계 줄 — 840 폭에 열두 칸이면 「BI-RADS …」로
+   잘렸다. 여섯 칸 두 줄로 */
+.modal .bf-steps{grid-template-columns:repeat(6, minmax(0, 1fr)); row-gap:var(--gap-sm)}

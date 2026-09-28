@@ -205,7 +205,16 @@ export default function ReviewViewer({
         >
           {tab === "pathology" ? (
             <SpecimenView key={specimenIds.join(",")} specimenIds={specimenIds} />
-          ) : tab === null ? null : study ? (
+          ) : tab === null ? (
+            /* 영상도 병리도 없는 환자 — 전에는 빈 검은 판만 떴다 */
+            Array.isArray(studies) ? (
+              <div className="generic-empty">
+                <div className="generic-empty-icon">◫</div>
+                <div>아직 볼 수 있는 영상 · 병리 이미지가 없습니다.</div>
+                <div className="generic-empty-sub">촬영이나 검체가 올라오면 여기에 표시됩니다.</div>
+              </div>
+            ) : null
+          ) : study ? (
             <StudyView study={study} lesions={lesions} />
           ) : null}
         </Body>

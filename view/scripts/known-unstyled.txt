@@ -41,9 +41,6 @@ nifti-slice-control       hospital/dept/breast/components/NiftiSliceViewer.jsx:1
 nifti-count               hospital/dept/breast/components/NiftiSliceViewer.jsx:111
 viewer-content            hospital/dept/breast/components/ReviewViewer.jsx:102
 png-overlay-viewer        hospital/dept/breast/components/ReviewViewer.jsx:500
-generic-empty             hospital/dept/breast/components/ReviewViewer.jsx:501
-generic-empty-icon        hospital/dept/breast/components/ReviewViewer.jsx:502
-generic-empty-sub         hospital/dept/breast/components/ReviewViewer.jsx:504
 png-overlay-stage         hospital/dept/breast/components/ReviewViewer.jsx:512
 image-label               hospital/dept/breast/components/ReviewViewer.jsx:513
 image-label-dot           hospital/dept/breast/components/ReviewViewer.jsx:514
