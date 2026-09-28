@@ -43,8 +43,10 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
+import cv2
 import numpy as np
 import torch  # cupy 보다 먼저 (libcudart.so.12 로드 순서)
+import torch.nn.functional as F
 from PIL import Image
 
 _CODE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # .../code
@@ -88,6 +90,16 @@ DEFAULT_CONFIG: dict = {
     "til_threshold": 0.5,     # P(TIL) >= 이 값이면 면역세포로 카운트
     "nc_ratio": 1.5,          # 핵면적 -> 세포면적 보정계수 (한계 2-1)
     "mpp": 0.5,               # µm/px. sTIL 비율엔 무관, µm² 환산·sanity 용
+    # --- 1.1.0 (09-28) 조직분할 타일링 · 면역세포 영역 분자 ---
+    #   tissue_tile: 크롭을 224 로 통째로 줄이지 않고 원본 배율 타일(반 겹침)로
+    #     판정 → 로짓 평균 → bilinear 확대. 0 이면 1.0.0 처럼 축소 1장.
+    #     BCSS 151장(외부 · 큰 ROI): 간질 Dice 0.548 → 0.762, 순위상관 0.63 → 0.76.
+    #   til_region_radius_um: 분자를 핵 면적 × nc_ratio 대신 「간질 안 면역세포
+    #     주변 반경 r 영역」 면적으로 잰다(병리의 면적 단위 판단에 맞춤). 0 이면 1.0.0 식.
+    #     BCSS: 반경 4µm 평균오차 10.9 · 6µm 11.3 (핵 면적식 16.2) → 5µm.
+    #   면적 분자는 MC 구간을 내지 않는다(stil_interval_* = None).
+    "tissue_tile": 224,
+    "til_region_radius_um": 5.0,
     "mc_samples": 50,         # MC Dropout 반복 횟수 (0 이면 구간 계산 안 함)
     "mc_drop_rate": 0.5,      # 소켓2 헤드 학습 시 drop_rate (= 0.5, 바꾸지 말 것)
     "mc_ci": 95.0,            # 신뢰구간 % -> 2.5/97.5 백분위수
@@ -103,7 +115,7 @@ DEFAULT_CONFIG: dict = {
 TISSUE_MASK_LEGEND = {0: "other", 1: "tumor", 2: "stroma"}
 
 # model_version 에 박히는 파이프라인 정의 버전. 로직/공식이 바뀌면 올린다.
-PIPELINE_VERSION = "stil-serving-1.0.0"
+PIPELINE_VERSION = "stil-serving-1.1.0"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -279,6 +291,42 @@ def _to_pil_and_np(image) -> tuple[Image.Image, np.ndarray]:
     return pil, np.asarray(pil, dtype=np.uint8)
 
 
+def _starts(L: int, T: int) -> list[int]:
+    if L <= T:
+        return [0]
+    xs = list(range(0, L - T + 1, T // 2))
+    return xs if xs[-1] == L - T else xs + [L - T]
+
+
+@torch.inference_mode()
+def _tissue_mask_tiled(model, pil, mean, std, image_size, device, tile, batch=64):
+    """원본 배율 tile px 타일 · 반 겹침 → 칸 로짓(16x16)을 타일 크기로 bilinear →
+    겹친 자리 평균 → argmax. 반환 (H,W) uint8 0/1/2.
+    작은 크롭은 흰 배경으로 채워 타일 1장이 된다."""
+    W, H = pil.size
+    PW, PH = max(W, tile), max(H, tile)
+    pad = Image.new("RGB", (PW, PH), (255, 255, 255))
+    pad.paste(pil)
+    mt = torch.tensor(mean).view(3, 1, 1)
+    st = torch.tensor(std).view(3, 1, 1)
+    dtype = next(model.parameters()).dtype
+    pos = [(x, y) for y in _starts(PH, tile) for x in _starts(PW, tile)]
+    acc = torch.zeros(3, PH, PW, device=device)
+    cnt = torch.zeros(1, PH, PW, device=device)
+    for i in range(0, len(pos), batch):
+        b = pos[i:i + batch]
+        t = torch.stack([
+            (torch.from_numpy(np.array(pad.crop((x, y, x + tile, y + tile))
+                                       .resize((image_size, image_size), Image.BILINEAR)))
+             .permute(2, 0, 1).float() / 255.0 - mt) / st
+            for x, y in b]).to(device, dtype)
+        lg = F.interpolate(model(t).float(), size=(tile, tile), mode="bilinear", align_corners=False)
+        for (x, y), l in zip(b, lg):
+            acc[:, y:y + tile, x:x + tile] += l
+            cnt[:, y:y + tile, x:x + tile] += 1
+    return (acc / cnt)[:, :H, :W].argmax(0).cpu().numpy().astype(np.uint8)
+
+
 @torch.inference_mode()
 def predict(bundle: dict, image, *, return_tissue_mask: bool | None = None) -> dict:
     """이미지 1장 -> sTIL 결과 dict. 스레드 안전하지 않음(단일 워커/큐 가정).
@@ -310,8 +358,12 @@ def predict(bundle: dict, image, *, return_tissue_mask: bool | None = None) -> d
     H, W = img_np.shape[:2]
 
     # 1) 조직분할 -> 간질/종양 마스크 (소켓1)
-    mask, _pred16 = sip.tissue_stroma_mask(
-        tissue_model, pil, mean, std, image_size, device, W, H)
+    tile = int(cfg["tissue_tile"])
+    if tile > 0:
+        mask = _tissue_mask_tiled(tissue_model, pil, mean, std, image_size, device, tile)
+    else:
+        mask, _pred16 = sip.tissue_stroma_mask(
+            tissue_model, pil, mean, std, image_size, device, W, H)
     stroma_area_px = int((mask == sip.STROMA_CLASS_IDX).sum())
     tumor_area_px = int((mask == sip.TUMOR_CLASS_IDX).sum())
     stroma_ok = stroma_area_px > 0
@@ -332,7 +384,19 @@ def predict(bundle: dict, image, *, return_tissue_mask: bool | None = None) -> d
     immune_nuc_px = float(sum(c["area_px"] for c in intra))
     immune_cell_px = immune_nuc_px * nc_ratio
 
-    stil_percent = (immune_cell_px / stroma_area_px * 100) if stroma_ok else None
+    stil_nucleus_percent = (immune_cell_px / stroma_area_px * 100) if stroma_ok else None
+    radius_um = float(cfg["til_region_radius_um"])
+    immune_region_px = None
+    if radius_um > 0 and stroma_ok:
+        r_px = max(1, int(round(radius_um / float(cfg["mpp"]))))
+        disk = np.zeros((H, W), np.uint8)
+        for c in intra:
+            cv2.circle(disk, (int(c["cx"]), int(c["cy"])), r_px, 1, -1)
+        immune_region_px = int(((disk > 0) & (mask == sip.STROMA_CLASS_IDX)).sum())
+        stil_percent = immune_region_px / stroma_area_px * 100
+        do_mc = False   # 면적 분자는 MC 구간을 내지 않는다
+    else:
+        stil_percent = stil_nucleus_percent
 
     # 4) MC Dropout v1: 소켓2 분류 불확실성 -> stil 구간 (조직분할 불확실성은 제외; 한계 2-8)
     stil_lo = stil_hi = stil_mc_mean = stil_mc_std = None
@@ -358,6 +422,11 @@ def predict(bundle: dict, image, *, return_tissue_mask: bool | None = None) -> d
         #   (크롭 값에 곱하면 100% 초과). 임상 sTIL 은 병리의 직접 입력
         #   (specimen.stil_calibrated, stil_source='manual').
         "stil_percent": _r(stil_percent),
+        # 1.1.0 — stil_percent 는 면역세포 주변 영역 기준. 1.0.0 식(핵 면적 × nc_ratio)은 참고로 남긴다
+        "stil_nucleus_percent": _r(stil_nucleus_percent),
+        "immune_region_area_px": immune_region_px,
+        "til_region_radius_um": radius_um,
+        "tissue_tile": tile,
         # ⚠ "신뢰구간"으로 표기 금지 — 소켓2 분류기 재현성 하한일 뿐, 조직분할·검출·
         #   캘리브레이션 불확실성은 미포함(§2-8). UI 라벨은 "재현성 범위" 등으로.
         "stil_interval_low": _r(stil_lo),
