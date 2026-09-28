@@ -272,11 +272,16 @@ class ReservationRequestViewSet(AuditMixin, viewsets.ViewSet):
         except ValueError:
             raise ApiError("VALIDATION_ERROR", "날짜/시간 형식이 올바르지 않습니다.")
         scheduled = timezone.make_aware(naive, timezone.get_current_timezone())
-        order = models.ExamOrder.objects.create(
-            patient=patient, scheduled_at=scheduled, order_status="requested",
-            modality=None, exam_purpose=None, ordered_by=None,
-            created_by=request.user, updated_by=request.user,
-        )
+        # 09-28 — 그날 이미 예약(신청 · 확정 · 내원)이 있으면 또 세우지 않는다.
+        #   앱에서 신청을 두 번 보내면 원무 예약 판에 같은 사람이 두 줄로 섰다.
+        with transaction.atomic():
+            _lock_patient(patient.pk)
+            _refuse_same_day(patient.pk, scheduled)
+            order = models.ExamOrder.objects.create(
+                patient=patient, scheduled_at=scheduled, order_status="requested",
+                modality=None, exam_purpose=None, ordered_by=None,
+                created_by=request.user, updated_by=request.user,
+            )
         q = (request.data or {}).get("questionnaire") or {}
         answers = q.get("answers")
         if isinstance(answers, dict) and answers:
@@ -323,6 +328,10 @@ class ExamOrderConfirmView(AuditMixin, viewsets.ViewSet):
 
         with transaction.atomic():
             # .get() 은 없는 번호에 DoesNotExist 로 500 이었다 → 404
+            pid = (models.ExamOrder.objects.filter(pk=pk)
+                   .values_list("patient_id", flat=True).first())
+            if pid is not None:
+                _lock_patient(pid)   # 환자 → 오더 차례(_refuse_same_day 주석)
             order = get_object_or_404(
                 models.ExamOrder.objects.select_for_update(), pk=pk)
 
@@ -332,6 +341,10 @@ class ExamOrderConfirmView(AuditMixin, viewsets.ViewSet):
             serializer = serializers.ExamOrderConfirmSerializer(data=request.data)
             serializer.is_valid(raise_exception=True)
 
+            # 09-28 — 확정할 날에 이 환자의 다른 예약이 있으면 409. 신청을
+            # 그날로 확정하면 같은 사람이 한 날에 둘이 선다.
+            _refuse_same_day(order.patient_id, serializer.validated_data["scheduled_at"],
+                             exclude_pk=order.pk)
             order.scheduled_at = serializer.validated_data["scheduled_at"]
             order.order_status = "scheduled"
             order.updated_by = self._current_account()
@@ -552,6 +565,58 @@ class PatientRegisterView(AuditMixin, viewsets.ViewSet):
         data = {**out.data, "created": created}
         return Response(data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
     
+# ── 같은 날 예약은 하나 ──────────────────────────────────────────────
+# 09-28 — 예약 판에서 **이미 내원한 예약을 눌러 [예약]** 을 누르면 같은
+# 날 · 같은 시각에 새 예약이 또 섰다. 예전 검사(ea6b2c4)는 「안 온 예약」
+# 만 봐서 내원한 것(visited_at 이 찬 requested · completed)은 못 막았다.
+# 이제 **취소 안 된 오더가 그날 scheduled_at 으로 하나라도 있으면** 새로
+# 세우지도, 그날로 옮기지도 않는다. 날짜를 바꾸려면 그 예약을 고친다
+# (PATCH /exam-orders/{id}/reschedule).
+#
+# ⚠ 부르기 전에 환자 행을 select_for_update 로 잠가야 한다 — 두 요청이
+#   동시에 와도 하나만 선다. 잠그는 차례는 늘 **환자 → 오더**(CheckInView
+#   와 같다). 반대로 잡으면 서로를 기다리다 교착된다.
+def _local_day(when):
+    return timezone.localtime(when).date() if timezone.is_aware(when) else when.date()
+
+
+def _same_day_order(patient_id, when, exclude_pk=None):
+    """그날(병원 시간대) 이 환자의 취소 안 된 예약 오더. 없으면 None."""
+    qs = (models.ExamOrder.objects
+          .filter(patient_id=patient_id, scheduled_at__date=_local_day(when))
+          .exclude(order_status="cancelled"))
+    if exclude_pk is not None:
+        qs = qs.exclude(pk=exclude_pk)
+    return qs.order_by("scheduled_at", "exam_order_id").first()
+
+
+def _refuse_same_day(patient_id, when, exclude_pk=None):
+    """그날 이미 예약(또는 내원 기록)이 있으면 409 DUPLICATE_RESERVATION.
+
+    details 에 그 오더 번호를 싣는다 — 화면이 새로 만들지 않고 그 예약을
+    고치는 자리로 넘어갈 수 있게."""
+    dup = _same_day_order(patient_id, when, exclude_pk=exclude_pk)
+    if dup is None:
+        return
+    at = timezone.localtime(dup.scheduled_at).strftime("%H:%M")
+    live = dup.visited_at is None and dup.order_status in ("requested", "scheduled")
+    if live:
+        msg = f"이 환자는 그날 {at} 에 이미 예약이 있습니다. 바꾸려면 그 예약을 고쳐 주세요."
+    else:
+        msg = f"이 환자는 그날 {at} 예약으로 이미 내원했습니다. 다른 날을 골라 주세요."
+    raise ApiError("DUPLICATE_RESERVATION", msg, details={
+        "exam_order_id": dup.exam_order_id,
+        "scheduled_at": timezone.localtime(dup.scheduled_at).isoformat(),
+        "order_status": dup.order_status,
+        "visited": dup.visited_at is not None,
+        "editable": live,
+    })
+
+
+def _lock_patient(patient_id):
+    return models.Patient.objects.select_for_update().filter(pk=patient_id).first()
+
+
 def _todays_booking(patient_id, now):
     """오늘 날짜로 잡혀 있고 아직 안 온 예약. 없으면 None."""
     return (models.ExamOrder.objects
@@ -660,24 +725,14 @@ class ExamOrderScheduleView(AuditMixin, viewsets.ViewSet):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
-        # ⚠ **같은 날 살아 있는 예약이 있으면 새로 안 만든다.** [예약] 을
-        #   여러 번 누르면(연타 · 다시 골라 또 누름) 같은 예약이 계속 쌓였고,
-        #   그 사람이 접수해도 나머지가 「안 오심」 으로 남았다(09-28).
-        #   날짜를 바꾸려면 PATCH /exam-orders/{id}/reschedule 을 쓴다.
+        # ⚠ **같은 날 예약이 있으면 새로 안 만든다.** [예약] 을 여러 번
+        #   누르면(연타 · 다시 골라 또 누름 · 내원한 예약을 눌러 또 누름) 같은
+        #   예약이 계속 쌓였고, 그 사람이 접수해도 나머지가 「안 오심」 으로
+        #   남았다(09-28). 날짜를 바꾸려면 PATCH /exam-orders/{id}/reschedule.
         #   환자 행을 잠가 두 요청이 동시에 와도 하나만 선다.
         with transaction.atomic():
-            models.Patient.objects.select_for_update().filter(pk=data["patient_id"]).first()
-            day = timezone.localtime(data["scheduled_at"]).date()                 if timezone.is_aware(data["scheduled_at"]) else data["scheduled_at"].date()
-            dup = models.ExamOrder.objects.filter(
-                patient_id=data["patient_id"],
-                order_status__in=("requested", "scheduled"),
-                visited_at__isnull=True,
-                scheduled_at__date=day,
-            ).order_by("scheduled_at").first()
-            if dup is not None:
-                at = timezone.localtime(dup.scheduled_at).strftime("%H:%M")
-                raise ApiError("DUPLICATE_RESERVATION",
-                               f"이 환자는 그날 {at} 에 이미 예약이 있습니다. 바꾸려면 그 예약을 고쳐 주세요.")
+            _lock_patient(data["patient_id"])
+            _refuse_same_day(data["patient_id"], data["scheduled_at"])
             order = self._create_booking(data)
         out = serializers.ExamOrderSerializer(order)
         return Response(out.data, status = status.HTTP_201_CREATED)
@@ -723,12 +778,25 @@ class ExamOrderRescheduleView(AuditMixin, viewsets.ViewSet):
 
         serializer = serializers.ExamOrderConfirmSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        when = serializer.validated_data["scheduled_at"]
         with transaction.atomic():
+            # 환자 → 오더 차례로 잠근다(_refuse_same_day 주석). 옮겨 갈 날에
+            # 이 환자의 다른 예약이 있으면 409 — 옮기다가 한 날에 둘이 선다.
+            _lock_patient(self._patient_of(pk))
             order = self._locked_order(pk)
-            order.scheduled_at = serializer.validated_data["scheduled_at"]
+            _refuse_same_day(order.patient_id, when, exclude_pk=order.pk)
+            order.scheduled_at = when
             order.updated_by = self._current_account()
             order.save(update_fields=["scheduled_at", "updated_by", "updated_at"])
         return Response(serializers.ExamOrderSerializer(order).data)
+
+    @staticmethod
+    def _patient_of(pk):
+        pid = (models.ExamOrder.objects.filter(pk=pk)
+               .values_list("patient_id", flat=True).first())
+        if pid is None:
+            raise ApiError("NOT_FOUND")
+        return pid
 
     def cancel(self, request, pk=None):
         from django.db import transaction
