@@ -202,6 +202,8 @@ ADMIN_PROBES = {
 
 # 연결 하나를 기다리는 시간.
 ADMIN_PROBE_TIMEOUT_SEC = float(os.environ.get("ADMIN_PROBE_TIMEOUT_SEC", "1.5"))
+# 관리자 상태의 celery 칸 — 답을 기다릴 워커 수(worker-gpu · worker-io). 워커를 늘리면 같이 바꾼다
+ADMIN_WORKER_COUNT = int(os.environ.get("ADMIN_WORKER_COUNT", "2"))
 
 # 화면 전체의 마감. 위 값만으로는 안 지켜진다 —
 #   · 이름 조회(getaddrinfo)는 소켓 타임아웃 밖이라 실패에 2~3초가 든다
