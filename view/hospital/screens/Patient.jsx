@@ -8,7 +8,7 @@ import { reception, breast, nursing, specimens } from "../api";
 import { go } from "../nav";
 import { can } from "../perm";
 import * as H from "../dept/home";
-import { historyTo } from "../dept/breast/history";
+import { historyDetail, historyTo, toDecision } from "../dept/breast/history";
 
 /* 환자 상세 — 모든 과가 같은 화면을 본다 (6.5)
  * ════════════════════════════════════════════════════════════════
@@ -266,6 +266,7 @@ function Survey({ patient }) {
 const MARK = {
   "촬영": "촬", "AI 분석 완료": "AI", "판독": "판",
   "검체 채취": "검", "병리 확진": "병",
+  "치료 결정": "결", "리포트": "리", "결과 설명": "설", "처방": "처",
 };
 
 /* 줄 하나가 어디로 가나. 갈 곳이 없으면 null 을 돌려주고, 부르는 쪽이
@@ -274,6 +275,9 @@ const MARK = {
      눌렸다**(09-28 사용자 지적). 제 과의 환자 상세가 같은 결과(확정 판독 ·
      병리)를 다 들고 있으니 그리로 보낸다 — 그 건을 펴서 연다 */
 function eventTo(e, may, pid) {
+  /* ⚠ 치료 결정은 study_id 를 싣는다 — 번호보다 먼저 본다. 영상 · 병리
+     사람에게는 서버가 이 줄들을 안 주지만, 와도 판독 화면으로 새지 않게 */
+  if (toDecision(e)) return may.decision ? historyTo(pid, e) : null;
   if (e.specimen_id != null && may.pathology) return go.pathology.read(e.specimen_id);
   if (e.study_id != null && may.radiology) return go.radiology.read(e.study_id);
   if (may.breast) return historyTo(pid, e);
@@ -288,6 +292,7 @@ function History({ pid, events }) {
     radiology: useCan("radiology.read.view").ok,
     pathology: useCan("pathology.read.view").ok,
     breast: useCan("breast.review.view").ok,
+    decision: useCan("breast.decision.view").ok,
   };
 
   const kinds = useMemo(
@@ -326,12 +331,13 @@ function History({ pid, events }) {
             <h3>{day || "날짜 없음"}</h3>
             {list.map((e, i) => {
               const to = eventTo(e, may, pid);
+              const say = historyDetail(e);
               const body = (
                 <>
                   <i className="pevent-m" aria-hidden="true">{MARK[e.type] ?? "·"}</i>
                   <time>{H.at(e.at)}</time>
                   <b>{e.type}</b>
-                  {e.detail && <span>{e.detail}</span>}
+                  {say && <span>{say}</span>}
                   {to && <span className="pevent-go" aria-hidden="true">›</span>}
                 </>
               );

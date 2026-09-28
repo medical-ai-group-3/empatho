@@ -253,6 +253,12 @@
 /* 공통 카드의 세로 여백 규칙은 그리드 안에서는 적용하지 않는다.
    행 간격은 grid gap 하나로 관리해 세 열의 윗선과 아랫선이 정확히 맞는다. */
 .breast .decision-grid > .card {height:100%; margin-top:0}
+/* 진료 이력에서 골라 온 칸(?focus=) — 환자 상세의 고른 줄(.rev-list li.here)과
+   같은 왼쪽 선. 색 채움을 안 쓴다.
+   ⚠ 상단바 세 층과 환자 띠가 sticky 라 머리로 맞추면 칸 제목이 그 밑에
+     숨는다(처방 칸에서 확인) — 그만큼 띄운다 */
+.breast .card.here {box-shadow:inset 2px 0 0 var(--cyan);
+  scroll-margin-top:calc(var(--top-total) + var(--pb-h) + var(--gap))}
 @media (max-width:1080px) {
   .breast .decision-grid {grid-template-columns:1fr}
 }
@@ -568,3 +574,15 @@
 .breast .pt-actions {display:flex; justify-content:space-between; align-items:center;
   flex-wrap:wrap; gap:8px; margin-top:14px}
 .breast .pt-actions .right-group {display:flex; flex-wrap:wrap; gap:8px}
+
+/* ⚠ 전체 환자 목록의 글자가 잘리던 것(2026-09-28).
+   · 목록이 1:2 비율이라 좁은 창에서 목록 칸이 표보다 좁아져 가로로
+     밀렸다 — 목록 칸의 바닥 폭을 둔다(960px 아래는 한 단이라 그대로)
+   · 칸 글자는 hospital.css 의 .split.third 규칙대로 한 줄로 둔다 — 첫 칸
+     (환자 이름)만 띄어쓰기에서 접는다. 「방문 이력 있음」을 접게 두면
+     「방문/이력/있음」 세 줄로 쪼개졌다
+   · 검색칸이 안내 문구(환자명 · 등록번호 · 연락처)보다 좁아 끝이 잘렸다 */
+@media (min-width:961px) {
+  .breast-patients-page .split.third {grid-template-columns:minmax(410px,1fr) minmax(0,2fr)}
+}
+.breast-patients-page .split-l .card-h-r .search {min-width:15em}

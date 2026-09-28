@@ -82,6 +82,7 @@ function Inner({ cfg, id, d }) {
   const [pick, setPick] = useState(null);          // 고른 병변
   const [pendingMark, setPendingMark] = useState(null);
   const [slide, setSlide] = useState(0);           // 고른 크롭 · 시리즈
+  const [inst, setInst] = useState(null);          // 스택 뷰어가 지금 보여 주는 장(SOP UID)
   const [f, setF] = useState(d.doctor ?? {});
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState(null);
@@ -97,7 +98,9 @@ function Inner({ cfg, id, d }) {
                MRIReviewGrid(3D 병변 위치·3D 병변 + Axial/Coronal/
                Sagittal)를 그린다.
      화면은 어느 쪽인지 몰라도 된다 — 셋 다 같은 자리에 겹쳐 놓는다 */
-  const view = c.stage ? c.stage(d, slide) : {};
+  /* 세 번째 값은 스택 뷰어의 지금 장 — 초음파처럼 장마다 AI 결과가
+     따로인 과가 그 장의 것을 고른다(dept/radiology.jsx radStage) */
+  const view = c.stage ? c.stage(d, slide, inst) : {};
   const isVolume = Boolean(view.volumeManifest);
   const isStack = Boolean(view.stackManifest);
   const isCornerstone = isVolume || isStack;
@@ -114,26 +117,49 @@ function Inner({ cfg, id, d }) {
 
   /* 임시저장은 여기 머문다. 저장은 다른 과로 나간다 — 둘의 차이가
      버튼 위 한 줄에 적혀 있어야 한다 */
+  /* 09-28 추가 — 과마다 임시저장 바디 모양이 다르다(영상은 lesion_id·
+     category, 병리는 b_category·diagnosis·stil_calibrated). c.draftPayload
+     가 있으면 그걸 쓰고, 없는 과(영상)는 기존 모양 그대로 쓴다 —
+     cfg/dept/pathology.jsx 의 draftPayload 참고. */
+  const payload = () => (c.draftPayload ? c.draftPayload(f) : {
+    lesion_id: f.lesion_id ?? null,
+    finding_note: f.finding_note ?? "",
+    category: f.category ?? null,
+  });
+
   async function draft() {
     setBusy(true); setMsg(null);
-    /* 09-28 추가 — 과마다 임시저장 바디 모양이 다르다(영상은 lesion_id·
-       category, 병리는 b_category·diagnosis·stil_calibrated). c.draftPayload
-       가 있으면 그걸 쓰고, 없는 과(영상)는 기존 모양 그대로 쓴다 —
-       cfg/dept/pathology.jsx 의 draftPayload 참고. */
-    const payload = c.draftPayload ? c.draftPayload(f) : {
-      lesion_id: f.lesion_id ?? null,
-      finding_note: f.finding_note ?? "",
-      category: f.category ?? null,
-    };
-    try { await cfg.api.draft(id, payload); setMsg("임시저장했습니다."); }
+    try { await cfg.api.draft(id, payload()); setMsg("임시저장했습니다."); }
     catch (e) { setMsg(e.detail || "임시저장에 실패했습니다."); }
     finally { setBusy(false); }
   }
 
+  /* ⚠ **영상 확정은 바디를 안 읽는다.** 서버(StudyFinalizeView)는 이미
+       있는 임시저장 행을 final 로 올릴 뿐이다. 그래서 마지막 [임시저장]
+       뒤에 바꾼 BI-RADS·소견은 버려졌고, 한 번도 임시저장을 안 했으면
+       「확정할 판정이 없습니다」로 막혔다. c.draftBeforeFinalize 인 과는
+       지금 화면의 값을 먼저 임시저장한 뒤 확정한다 — 두 단계 중 어느
+       쪽이 실패했는지 말해 준다.
+     병리는 확정이 바디를 읽는다 — 임시저장과 같은 모양(draftPayload)을
+       보낸다. 날것의 f 를 보내면 비운 sTIL 칸("")이 숫자 검증에 걸린다. */
   async function finalize() {
     setBusy(true); setMsg(null);
-    try { await cfg.api.finalize(id, f); nav(cfg.go.list()); }
-    catch (e) { setMsg(e.detail || "저장에 실패했습니다."); setBusy(false); }
+    const body = payload();
+    if (c.draftBeforeFinalize) {
+      try { await cfg.api.draft(id, body); }
+      catch (e) {
+        setMsg(`확정 전 임시저장에 실패해 확정하지 않았습니다 — ${e.detail || e.message || "다시 시도해 주세요."}`);
+        setBusy(false);
+        return;
+      }
+    }
+    try { await cfg.api.finalize(id, body); nav(cfg.go.list()); }
+    catch (e) {
+      setMsg(c.draftBeforeFinalize
+        ? `임시저장은 됐지만 확정에 실패했습니다 — ${e.detail || e.message || "다시 시도해 주세요."}`
+        : e.detail || "저장에 실패했습니다.");
+      setBusy(false);
+    }
   }
 
   return (
@@ -176,7 +202,7 @@ function Inner({ cfg, id, d }) {
              자리(boxesFromLesions)는 진작 같은 id 로 맞춰져 있었는데,
              **패널에 손잡이를 안 줘서 서로 말을 못 하고 있었다.** */
           ai={can(c.need.ai)
-            ? <c.Ai d={d} pick={pick} onPick={setPick} />
+            ? <c.Ai d={d} view={view} pick={pick} onPick={setPick} />
             : null}
           aiOpen={false}
 
@@ -229,6 +255,10 @@ function Inner({ cfg, id, d }) {
                   baseUrl={view.stackBase}
                   mode="diagnostic"
                   onAnnotation={setPendingMark}
+                  overlay={view.overlay}
+                  pick={pick}
+                  focusSop={pick != null ? view.where?.(pick)?.sop ?? null : null}
+                  onInstance={setInst}
                 />
               </Suspense>
             </div>

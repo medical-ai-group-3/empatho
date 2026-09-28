@@ -9,6 +9,7 @@ import * as notes from "./notes";
 import { notes as notesApi } from "../api";
 import { useApi } from "./useApi";
 import Register from "../screens/reception/Register";
+import StageBoard from "./StageBoard";
 
 /* 과 홈 — 배치는 `docs/mockup/*Home.html` 이 정한다
  * ════════════════════════════════════════════════════════════════
@@ -159,18 +160,21 @@ function Desk({ cfg, home, bag, again }) {
     side:     home.side && <Side side={side} />,
   };
 
-  /* 기본 배치. 「오늘 한 일」을 안 쓰는 과(home.done 이 없다)는 그 자리에
+  /* 기본 배치 — 과가 home.layout 으로 바꿀 수 있다. 「오늘 한 일」을 안 쓰는 과(home.done 이 없다)는 그 자리에
      할 일이 올라온다 — 오른쪽 단은 달력과 오늘 예약이 쓴다 */
-  const base = [
+  const base = (home.layout ?? [
     ["intake", "queue", "stuck"],
     ["flow", home.done ? "done" : "todo", "handover"],
     ["calendar", "side", ...(home.done ? ["todo"] : [])],
-  ].map((pane) => pane.filter((id) => cards[id]));
+  ]).map((pane) => pane.filter((id) => cards[id]));
 
   const lay = useLayout(cfg.key, base);
 
   return (
     <>
+      {/* 과가 오늘 현황판을 주면 격자 위에 가로로 한 줄(간호과). 끌어 옮기는
+          칸이 아니다 — 흐름은 왼쪽에서 오른쪽으로 읽혀야 한다 */}
+      {home.board && bag && <StageBoard {...home.board(bag)} />}
       {lay.custom && (
         <p className="desk-reset">
           <button type="button" className="btn line sm" onClick={lay.reset}>
@@ -444,6 +448,12 @@ function Queue({ queue }) {
      칸인지 묻게 된다(유방외과 09-28). 셀 자리는 그대로 둔다(subgrid) */
   const cols = { ...COLS, ...queue?.cols };
   const has = (k) => rows.some((r) => r[k]);
+  /* 과가 더 싣는 열(유방외과: 내원 · 담당의). 「진행」 뒤, 환자번호 앞에 선다.
+     격자 열 수가 달라지므로 틀을 여기서 다시 짠다(.qrows 의 기본 7열) */
+  const extra = queue?.extra ?? [];
+  const grid = extra.length
+    ? { gridTemplateColumns: `max-content auto auto auto auto ${"auto ".repeat(extra.length)}1fr auto` }
+    : undefined;
 
   return (
     <Card title={queue?.title ?? "목록"} count={rows.length} grow
@@ -461,7 +471,7 @@ function Queue({ queue }) {
           ))}
         </nav>
       )}
-      <div className="qrows">
+      <div className="qrows" style={grid}>
         {rows.length === 0
           ? <p className="hcard-k hpad">{tab.empty ?? "없습니다"}</p>
           : <>
@@ -471,10 +481,13 @@ function Queue({ queue }) {
                 <span className="qrow-meta">{has("meta") ? cols.meta : null}</span>
                 <span className="qrow-chip">{has("chip") ? cols.chip : null}</span>
                 <span className="qrow-sub">{has("sub") ? cols.sub : null}</span>
+                {extra.map((c) => (
+                  <span className="qrow-x" key={c.key}>{has(c.key) ? c.name : null}</span>
+                ))}
                 <span aria-hidden="true" />
                 <span className="qrow-r">{cols.r}</span>
               </div>
-              {rows.map((r, i) => <QRow key={r.id} row={r} n={i + 1} />)}
+              {rows.map((r, i) => <QRow key={r.id} row={r} n={i + 1} extra={extra} />)}
             </>}
       </div>
     </Card>
@@ -487,7 +500,7 @@ const COLS = { meta: "나이·성별", chip: "구분", sub: "상태", r: "환자
  *   (유방외과처럼 요약이 아예 없는 과)에서 가운데가 통째로 빈다.
  *   양 끝을 잡아야 표로 읽힌다 — 「1 김민지 47·여 ⋯⋯ P-0012 ›」
  */
-function QRow({ row, n }) {
+function QRow({ row, n, extra = [] }) {
   const open = useOpen(row);
   return (
     <article className="qrow" {...open}>
@@ -501,6 +514,7 @@ function QRow({ row, n }) {
         {row.chip ? <Chip tone={row.chipTone ?? "line"}>{row.chip}</Chip> : null}
       </span>
       <span className="qrow-sub">{row.sub}</span>
+      {extra.map((c) => <span className="qrow-x" key={c.key}>{row[c.key]}</span>)}
       <span aria-hidden="true" />
       <span className="qrow-r">
         {row.no && <i className="qrow-no">{row.no}</i>}

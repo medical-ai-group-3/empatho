@@ -9,7 +9,7 @@ import { Facts, Search, Sort, Split, Table } from "../../../lib/Parts";
 import { useApi } from "../../../lib/useApi";
 import "../breast.css";
 import ReviewViewer from "../components/ReviewViewer";
-import { historyTo } from "../history";
+import { historyDetail, historyTo, toDecision } from "../history";
 
 /* 유방외과 전체 환자 목록 ("/breast/patients")
  *
@@ -157,13 +157,17 @@ function PatientDetailBody({ patient }) {
  * 그 밖의 줄(검체 채취 · 병리 확진 · 번호 없는 줄)은 환자 상세로 가서
  * 그 건의 결과를 펴 본다(history.js). 전에는 이 줄들을 글자로만 두어
  * 병리 결과를 이력에서 열 길이 없었다.
- * 검사 줄도 판독 소견은 뷰어에 안 나온다 — 「판독 보기」로 따로 간다. */
+ * 검사 줄도 판독 소견은 뷰어에 안 나온다 — 「판독 보기」로 따로 간다.
+ * 치료 결정 · 리포트 · 결과 설명 · 처방은 치료 방침으로 간다.
+ * ⚠ 치료 결정도 study_id 를 싣지만 뷰어로 열 검사가 아니다 — 번호로
+ *   가르면 「판독 보기」가 붙는다. 종류로 먼저 가른다(toDecision). */
 function PatientTimeline({ pid, events, pick, onPick }) {
   if (events.length === 0) return <p className="muted small">아직 검사 이력이 없습니다.</p>;
   return (
     <ul className="exam-history">
       {events.map((event, index) => {
-        const id = event.study_id ?? null;
+        const id = toDecision(event) ? null : event.study_id ?? null;
+        const say = historyDetail(event);
         const on = id != null && String(id) === String(pick);
         const body = (
           <>
@@ -171,7 +175,7 @@ function PatientTimeline({ pid, events, pick, onPick }) {
               <span className="exam-history-type">{event.type}</span>
               <span className="exam-history-at">{event.at?.replace("T", " ").slice(0, 16)}</span>
             </div>
-            {event.detail && <p className="exam-history-detail">{event.detail}</p>}
+            {say && <p className="exam-history-detail">{say}</p>}
           </>
         );
         const to = historyTo(pid, event);

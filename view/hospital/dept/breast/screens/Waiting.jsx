@@ -13,7 +13,7 @@ import CloseVisitModal from "../components/CloseVisitModal";
 import CareGuideModal from "../components/CareGuideModal";
 import SpecimenBindingModal from "../../../lib/SpecimenBindingModal";
 import { isHandled, markHandled } from "../handled";
-import { historyTo } from "../history";
+import { historyDetail, historyTo } from "../history";
 
 /* 유방외과 · 내 환자 — `docs/mockup/Surgery.html`
  * ════════════════════════════════════════════════════════════════
@@ -395,7 +395,8 @@ function Read({ title, r, v = null, gradeLabel, to }) {
 
    ⚠ **줄마다 누르는 자리다.** 전에는 글자만 그려서 눌러도 아무 데도 안
      갔다 — 서버는 줄마다 검사 · 검체 번호를 실어 주는데(history.js) 받는
-     쪽이 버리고 있었다. 누르면 환자 상세가 그 건의 판독을 펴서 연다 */
+     쪽이 버리고 있었다. 누르면 환자 상세가 그 건의 판독을 펴서 연다.
+     치료 결정 · 리포트 · 결과 설명 · 처방은 치료 방침의 그 칸으로 간다 */
 function History({ id }) {
   const nav = useNavigate();
   const line = useApi(
@@ -415,6 +416,7 @@ function History({ id }) {
           : rows.map((r, i) => {
             const to = historyTo(id, r);
             const open = () => nav(to);
+            const say = historyDetail(r);
             return (
               <article className="work-ev" key={`${r.at}-${i}`}
                        role="button" tabIndex={0}
@@ -427,7 +429,7 @@ function History({ id }) {
                   <span className="home-fill" />
                   <i className="work-ev-go" aria-hidden="true">›</i>
                 </div>
-                {r.detail && <p>{r.detail}</p>}
+                {say && <p>{say}</p>}
               </article>
             );
           })}

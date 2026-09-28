@@ -354,6 +354,11 @@ input,select,textarea{font:inherit; color:inherit}
    (flex-shrink:1) 그 안에서 굴린다. 늘어나지는 않는다.
    최소 높이는 머리 + 다섯 줄이다 — 그보다 적으면 그만큼만 */
 .hcard.grow{flex:0 1 auto; min-height:var(--hcard-min-h)}
+/* 09-28 — 「홈이 비어 보인다」. 단마다 **맨 아래 칸이 남는 높이를 받아**
+   세 단 아랫변이 화면 끝에서 맞는다. 목록 칸(grow)은 안에서 굴리고,
+   다른 칸은 아래에 빈 바탕이 조금 는다 — 상자 밖이 통째로 비는 것보다
+   낫다는 판단이다. 위 「늘리지 않는다」를 뒤집은 것이다 */
+.pane > .hcard:last-child{flex-grow:1}
 .hcard-h{flex:none; display:flex; align-items:center; gap:var(--gap-sm);
   padding:var(--hcard-pad-y) var(--hcard-pad-x);
   border-bottom:var(--hair) solid var(--line-2)}
@@ -465,6 +470,9 @@ input,select,textarea{font:inherit; color:inherit}
 .qrow time{font-size:var(--qrow-meta-fs); color:var(--warm);
   font-variant-numeric:tabular-nums}
 .qrow-go{font-style:normal; color:var(--faint)}
+/* 과가 더 싣는 열(내원 · 담당의) — 요약보다 한 단 진하게, 한 줄로 */
+.qrow-x{font-size:var(--qrow-meta-fs); color:var(--ink-2); white-space:nowrap;
+  font-variant-numeric:tabular-nums}
 
 /* ── 확인이 필요한 것 ────────────────────────────────────────── */
 .srow{display:flex; align-items:center; gap:var(--qrow-gap);
@@ -650,6 +658,17 @@ a.frow:hover .frow-k{color:var(--ink)}
 /* 끼워 넣은 내원 대기 화면 — 제 높이를 그대로 쓴다.
    ⚠ 그 화면은 embedded 로 들어와 제 쪽 머리를 안 그린다(Waiting.jsx) */
 .intake-wq{flex:none; min-width:0}
+
+/* 홈 위의 오늘 현황판(간호과, lib/StageBoard.jsx) — 아래 격자와 한 칸 띄우고,
+   줄을 누르면 그 사람을 연다 */
+.home .board{margin-bottom:var(--desk-gap); height:calc(260px * var(--sp))}
+/* ⚠ 현황판이 위를 쓰는 홈은 **격자에 최소 높이를 준다.** 홈은 화면
+   높이에 맞추게 되어 있는데(.page.home), 현황판 밑에 두 칸씩 쌓으면
+   900px 대 화면에서 아래 칸이 한 줄도 안 남을 만큼 눌렸다. 최소 높이를
+   넘치면 쪽이 늘어 문서가 굴러간다 — 화면이 크면 여전히 화면 끝에 맞는다 */
+.page.home:has(.board) .desk{flex:1 0 auto; min-height:calc(560px * var(--sp))}
+.brow[role="button"]{cursor:pointer}
+.brow[role="button"]:hover{background:var(--canvas)}
 
 /* ── 내원 대기 · 유방외과 배정 (dept/nursing/screens/Waiting.jsx) ──
    배치는 docs/mockup/Nursing-내원대기.html.
@@ -899,6 +918,10 @@ a.frow:hover .frow-k{color:var(--ink)}
   background:var(--card); border:var(--hair) solid var(--border);
   border-radius:var(--hcard-radius); overflow:hidden}
 .work > * + *{border-left:var(--hair) solid var(--border)}
+/* ⚠ 가운데 단이 1280 에서 340px 남짓이라 한글이 음절마다 꺾였다 —
+   「김민/지」 「영/상/판/독」 「09-/12」(2026-09-28). 낱말은 띄어쓰기에서만
+   꺾고, 이름 · 제목 · 날짜는 한 줄로 두고 모자라면 줄째로 내린다 */
+.work{word-break:keep-all; overflow-wrap:break-word}
 
 /* 왼쪽 — 내 환자. 큐는 어둡게 둔다(뷰어와 같은 규칙): 하루 종일 같은
    자리에 있는 목록이라 본문과 갈려 보여야 손이 안 헤맨다 */
@@ -947,9 +970,10 @@ a.frow:hover .frow-k{color:var(--ink)}
 
 /* 가운데 — 고른 환자. 여기만 굴린다(스크롤은 한 칸에 하나) */
 .work-mid{min-height:0; min-width:0; overflow-y:auto;
+  container:work-mid / inline-size;
   padding:var(--ndet-pad); display:flex; flex-direction:column;
   gap:var(--desk-gap); background:var(--canvas)}
-.work-head{flex:none; display:flex; align-items:center; gap:var(--gap-sm);
+.work-head{flex:none; display:flex; align-items:center; flex-wrap:wrap; gap:var(--gap-sm);
   padding:var(--hcard-pad-y) var(--bcol-pad); background:var(--card);
   border:var(--hair) solid var(--border); border-radius:var(--hcard-radius)}
 .work-ava{flex:none; width:var(--work-ava); height:var(--work-ava);
@@ -958,8 +982,8 @@ a.frow:hover .frow-k{color:var(--ink)}
   font-weight:700; font-size:var(--hcard-h-fs)}
 .work-who{display:flex; flex-direction:column; gap:var(--gap-xxs); min-width:0}
 .work-1{display:flex; align-items:baseline; gap:var(--gap-sm)}
-.work-1 b{font-size:var(--work-nm-fs); font-weight:700}
-.work-1 span{font-size:var(--in-fs); color:var(--ink-2)}
+.work-1 b{font-size:var(--work-nm-fs); font-weight:700; white-space:nowrap}
+.work-1 span{font-size:var(--in-fs); color:var(--ink-2); white-space:nowrap}
 .work-2{font-size:var(--qrow-meta-fs); color:var(--warm);
   font-variant-numeric:tabular-nums}
 
@@ -974,14 +998,19 @@ a.frow:hover .frow-k{color:var(--ink)}
 /* 영상·병리 두 칸 — 폭을 반씩 */
 .work-reads{flex:none; display:grid; gap:var(--desk-gap);
   grid-template-columns:repeat(2, minmax(0, 1fr))}
+/* 가운데 단이 좁으면(1280 이하) 반씩 가르면 한 칸이 150px 남짓이라
+   제목 · 칩 · 날짜가 한 줄에 못 든다 — 그때는 위아래로 쌓는다 */
+@container work-mid (max-width: 420px){
+  .work-reads{grid-template-columns:minmax(0, 1fr)}
+}
 .work-read{display:flex; flex-direction:column; gap:var(--gap-sm);
   padding:var(--hcard-pad-y) var(--bcol-pad); background:var(--card);
   border:var(--hair) solid var(--border); border-radius:var(--hcard-radius)}
 .work-read header,.work-read footer{display:flex; align-items:center;
-  gap:var(--chip-gap)}
-.work-read h3{font-size:var(--hcard-h-fs); font-weight:700}
+  flex-wrap:wrap; gap:var(--chip-gap)}
+.work-read h3{font-size:var(--hcard-h-fs); font-weight:700; white-space:nowrap}
 .work-read time{font-size:var(--qrow-meta-fs); color:var(--warm);
-  font-variant-numeric:tabular-nums}
+  font-variant-numeric:tabular-nums; white-space:nowrap}
 .work-read-b{font-size:var(--work-read-fs); line-height:var(--work-read-lh);
   color:var(--ink-2)}
 
@@ -1150,6 +1179,16 @@ a.frow:hover .frow-k{color:var(--ink)}
   padding:var(--gap-sm); border-radius:var(--radius-sm);
   box-shadow:inset 0 0 0 var(--hair) var(--line-2)}
 .rev-miss .hcard-k{flex:1; min-width:0}
+/* 이력에서 고른 지난 판독 한 판(초안 · 정정으로 덮인 판) — 고른 줄과 같은
+   왼쪽 선으로 짚는다 */
+.rev-ver{flex-direction:column; align-items:stretch;
+  box-shadow:inset 2px 0 0 var(--cyan), inset 0 0 0 var(--hair) var(--line-2)}
+.rev-ver-h{display:flex; align-items:center; flex-wrap:wrap; gap:var(--chip-gap)}
+.rev-ver-h b{font-size:var(--row-fs); font-weight:700}
+.rev-ver-h time{margin-left:auto; color:var(--warm); font-size:var(--label-fs);
+  font-variant-numeric:tabular-nums}
+.rev-ver-f{display:flex; align-items:center; flex-wrap:wrap; gap:var(--gap-sm)}
+.rev-ver-f .hcard-k{flex:1; min-width:0}
 
 /* 화상 보기 팝업 */
 .rev-pop-back{position:fixed; inset:0; z-index:60; display:grid; place-items:center;
@@ -1605,8 +1644,11 @@ a.pevent:focus-visible{outline:var(--hair) solid var(--cyan); outline-offset:2px
 .chip.dot::before{content:""; width:var(--chip-dot); height:var(--chip-dot);
   border-radius:50%; background:var(--cyan); flex:none}            /* 기계가 도는 중 */
 
-.sorts{display:flex; align-items:center; gap:var(--chip-gap)}
-.sorts-k{font-size:var(--chip-fs); color:var(--warm)}
+/* ⚠ 목록 칸(380~440px)에서 정렬 단추가 한 줄에 안 들어가면 앞의
+   「정렬」 글자가 눌려 「정/렬」로 세로로 갈라졌다. 단추를 다음 줄로
+   넘기고 이름표는 한 줄로 둔다(2026-09-28) */
+.sorts{display:flex; align-items:center; flex-wrap:wrap; gap:var(--chip-gap)}
+.sorts-k{font-size:var(--chip-fs); color:var(--warm); white-space:nowrap}
 .search{display:flex; align-items:center; gap:var(--gap-tight); flex:1; min-width:0;
   background:var(--canvas); border-radius:var(--in-radius);
   padding:0 var(--in-pad-x); box-shadow:inset 0 0 0 var(--hair) var(--border)}
@@ -1627,6 +1669,19 @@ a.pevent:focus-visible{outline:var(--hair) solid var(--cyan); outline-offset:2px
    전부 상세(뷰어)에 준다. 비율로 두면 넓은 화면에서 목록만 커졌다 */
 .split.third{grid-template-columns:minmax(300px, var(--list-w)) minmax(0,1fr);
   align-items:stretch}
+/* ⚠ 목록 칸이 좁아 글자가 칸 폭에 맞춰 아무 데서나 꺾였다 — 「김하/늘」
+   「S-/2026-/0142」「2026-/09-15」, 마지막 칸은 아예 밖으로 밀려 잘렸다
+   (병리·영상의학과·유방외과 환자 목록, 2026-09-28).
+   · 번호 · 날짜 · 칩은 **한 줄로** 둔다 — 쪼개진 번호는 못 읽는다
+   · 첫 칸(환자 이름)만 접되, 낱말 가운데가 아니라 띄어쓰기에서만 꺾는다
+     — 「김하늘」 / 「(44/여)」
+   · 칸 안쪽 여백을 조금 줄여 목록 폭(--list-w) 안에 다 들게 한다 */
+.split.third .split-l .tbl{--row-pad-x:calc(10px * var(--sp))}
+.split.third .split-l .tbl td{white-space:nowrap}
+.split.third .split-l .tbl td:first-child{white-space:normal; word-break:keep-all}
+/* 목록 옆 상세(뷰어 · 환자 정보 · 판독 소견)도 한글 낱말을 가운데서
+   끊지 않는다. 한 낱말이 칸보다 길 때만 어쩔 수 없이 끊는다 */
+.split.third .split-r{word-break:keep-all; overflow-wrap:break-word}
 
 /* 상세 안을 뷰어(가운데)·환자 상세정보(오른쪽)로 한 번 더 가른다 —
    목록·뷰어·상세 3단 설계(2026-09-18). 뷰어를 살짝 더 넓게 둔다. */

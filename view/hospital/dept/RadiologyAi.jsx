@@ -28,9 +28,16 @@ import { Gauge, GradeBars } from "./AiViz";
  *      판독을 끌고 가는 숫자라 띄우지 않기로 했다.
  */
 
-export default function RadiologyAi({ d, pick, onPick }) {
-  const ai = d.ai;
-  if (!ai) return <p className="muted">AI 결과가 없습니다.</p>;
+export default function RadiologyAi({ d, view, pick, onPick }) {
+  /* 판독 화면은 뷰어가 지금 보여 주는 장의 결과를 view.ai 로 준다 —
+     초음파는 장마다 AI 결과가 따로라, 검사의 «최신» 하나를 쓰면 다른 장
+     결과를 이 장 것처럼 읽게 된다(dept/radiology.jsx radStage) */
+  const ai = view && "ai" in view ? view.ai : d.ai;
+  if (!ai) {
+    return <p className="muted">
+      {view?.aiMissing ? "이 영상에는 AI 결과가 없습니다." : "AI 결과가 없습니다."}
+    </p>;
+  }
 
   /* ⚠ `??` 를 쓰면 안 된다. 봉투의 abstained 는 「추론 서버가 거부했나」이고
      summary.abstained 는 「모델이 판정을 못 했나」로 **뜻이 다르다.** 맘모가
@@ -57,7 +64,7 @@ export default function RadiologyAi({ d, pick, onPick }) {
       {/* ⚠ 서버 모달리티 코드는 `us` 다 — `ultrasound` 로 비교하면
           초음파 소견이 통째로 안 뜬다. asModality 가 철자를 맞춰 준다 */}
       {m === "us" && <Ultrasound a={ai} />}
-      {m === "mammo" && <Mammo a={ai} pick={pick} onPick={onPick} />}
+      {m === "mammo" && <Mammo a={ai} pick={pick} onPick={onPick} where={view?.where} />}
       {m === "mri" && <Mri a={ai} />}
     </div>
   );
@@ -90,10 +97,10 @@ function Ultrasound({ a }) {
           ? `애매함 ${num(a.grade.ambiguity, 2)} — 값이 클수록 인접 등급과 갈린다`
           : null} />
 
-      {(a.n_detections != null || a.mask_confidence) && (
+      {/* 마스크 신뢰도는 바로 위 칸에 있다 — 칩으로 한 번 더 적지 않는다 */}
+      {(a.n_detections != null || a.shape?.area != null) && (
         <div className="chips">
           {a.n_detections != null && <Chip tone="line">검출 {a.n_detections}건</Chip>}
-          {a.mask_confidence && <Chip tone="line">마스크 신뢰도 {a.mask_confidence}</Chip>}
           {a.shape?.area != null && <Chip tone="line">면적 {num(a.shape.area, 0)} px²</Chip>}
         </div>
       )}
@@ -129,7 +136,7 @@ function Ultrasound({ a }) {
  *   빈칸으로 두지 않고 「등급 없음」이라고 적는다 — 빈칸은 «0» 이나
  *   «정상» 으로 읽힌다.
  */
-function Mammo({ a, pick, onPick }) {
+function Mammo({ a, pick, onPick, where }) {
   const lesions = a.lesions ?? [];
   const s = a.summary ?? a;          /* 봉투가 한 겹 더 있을 수도 */
 
@@ -152,6 +159,12 @@ function Mammo({ a, pick, onPick }) {
            붙인다. 한쪽만 바꾸면 눌러도 아무 도형도 안 밝는다 */
         const sid = l.id ?? `b${i}`;
         const on = pick != null && pick === sid;
+        /* 스택 뷰어(DICOM)에서는 병변이 나온 장을 찾아가야 한다. 못 찾으면
+           버튼을 끄고 까닭을 붙인다 — 캘리퍼 버튼과 같은 규칙 */
+        const at = where ? where(sid) : null;
+        const lost = Boolean(at && !at.sop);
+        /* 서버 모델은 확신도를 confidence(0~1)로 낸다. certainty 는 옛 이름 */
+        const sure = l.certainty ?? l.confidence;
         /* 서버는 descriptors 를 {축키: {value, confidence…}} 딕셔너리로 준다
            (목업만 배열). ?? [] 는 null 만 막아 딕셔너리에 .map 이 없어 터진다 */
         const dsc = Array.isArray(l.descriptors)
@@ -167,8 +180,9 @@ function Mammo({ a, pick, onPick }) {
             </div>
 
             <dl className="ai-m two">
-              <div><dt>크기</dt><dd>{num(l.size_mm)} <i>mm</i></dd></div>
-              <div><dt>확신도</dt><dd>{pct(l.certainty)}</dd></div>
+              {/* 맘모 모델은 크기를 안 낸다 — 없으면 칸을 두지 않는다 */}
+              {l.size_mm != null && <div><dt>크기</dt><dd>{num(l.size_mm)} <i>mm</i></dd></div>}
+              <div><dt>확신도</dt><dd>{pct(sure)}</dd></div>
               <div><dt>생검</dt><dd>{l.biopsy ? "권고" : "해당 없음"}</dd></div>
             </dl>
 
@@ -183,7 +197,8 @@ function Mammo({ a, pick, onPick }) {
                       <td>{label(DESCRIPTOR_AXIS, x.axis)}</td>
                       <td>{x.value}</td>
                       <td>{pct(x.confidence)}</td>
-                      <td>{x.validated ? "됨" : "안 됨"}</td>
+                      {/* 값이 안 왔으면 「안 됨」이 아니라 모르는 것이다 */}
+                      <td>{x.validated == null ? "—" : x.validated ? "됨" : "안 됨"}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -195,8 +210,8 @@ function Mammo({ a, pick, onPick }) {
                   Stage 가 고른 것에 .on 을 준다 — 여기서는 어느 것인지만
                   알려 주면 된다 */}
               <button className="btn ghost" aria-pressed={on}
-                      disabled={!onPick}
-                      title={onPick ? undefined : "뷰어와 연결되지 않았습니다"}
+                      disabled={!onPick || lost}
+                      title={!onPick ? "뷰어와 연결되지 않았습니다" : lost ? at.why : undefined}
                       onClick={() => onPick?.(on ? null : sid)}>
                 {on ? "선택 해제" : "영상에서 보기"}
               </button>

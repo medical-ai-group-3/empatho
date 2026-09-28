@@ -1105,6 +1105,20 @@
    }
   ]
  },
+ "GET /api/v1/hospital/specimens/?patient=P-1001": {
+  "count": 1,
+  "results": [
+   {
+    "specimen_id": 3001,
+    "patient": "P-1001",
+    "specimen_label": "SP-3001",
+    "b_category": "b2",
+    "diagnosis": "양성 — 섬유선종",
+    "collected_at": "2026-09-10T11:20:00+09:00",
+    "finalized_at": "2026-09-11T16:05:00+09:00"
+   }
+  ]
+ },
  "GET /api/v1/hospital/ai-results?specimen={id}": {
   "status": "done",
   "pct": 100
@@ -1424,6 +1438,179 @@
     "finding_note": "좌측 미세석회, 추가 확대 촬영 권고."
    }
   ]
+ },
+ "GET /api/v1/hospital/assessments?study=7101": {
+  "count": 2,
+  "next": null,
+  "previous": null,
+  "results": [
+   {
+    "assessment_id": 1001,
+    "study": 7101,
+    "lesion": null,
+    "read_stage": "final",
+    "category": "4c",
+    "category_model": null,
+    "category_rule": null,
+    "path_agreement": null,
+    "recommendation": "조직검사",
+    "recommendation_reason": null,
+    "rule_table_version": null,
+    "assessed_by": 21,
+    "ai_revealed_at": null,
+    "finalized_at": "2026-09-12T11:20:00+09:00",
+    "superseded_by": null,
+    "finding_note": "좌측 상외측 14mm 불규칙 종괴. 확대 촬영에서 미세석회가 같이 보여 4c 로 올린다.",
+    "decision_type": "surgery",
+    "decision_value": "yes",
+    "decision_reason": "영상 4c · 병리 B2 불일치 — 절제 생검으로 확인",
+    "decided_by": 31,
+    "decided_at": "2026-09-12T14:00:00+09:00"
+   },
+   {
+    "assessment_id": 1000,
+    "study": 7101,
+    "lesion": null,
+    "read_stage": "final",
+    "category": "4a",
+    "category_model": null,
+    "category_rule": null,
+    "path_agreement": null,
+    "recommendation": "조직검사",
+    "recommendation_reason": null,
+    "rule_table_version": null,
+    "assessed_by": 21,
+    "ai_revealed_at": null,
+    "finalized_at": "2026-09-09T10:20:00+09:00",
+    "superseded_by": 1001,
+    "finding_note": "좌측 상외측 12mm 종괴, 경계 불분명. 조직검사 권고.",
+    "decision_type": null,
+    "decision_value": null,
+    "decision_reason": null,
+    "decided_by": null,
+    "decided_at": null
+   }
+  ]
+ },
+ "GET /api/v1/hospital/assessments?study=7102": {
+  "count": 1,
+  "next": null,
+  "previous": null,
+  "results": [
+   {
+    "assessment_id": 1004,
+    "study": 7102,
+    "lesion": null,
+    "read_stage": "draft",
+    "category": "3",
+    "category_model": null,
+    "category_rule": null,
+    "path_agreement": null,
+    "recommendation": null,
+    "recommendation_reason": null,
+    "rule_table_version": null,
+    "assessed_by": 21,
+    "ai_revealed_at": null,
+    "finalized_at": null,
+    "superseded_by": null,
+    "finding_note": "우측 9시 방향 6mm 낭종성 병변 — 작성 중",
+    "decision_type": null,
+    "decision_value": null,
+    "decision_reason": null,
+    "decided_by": null,
+    "decided_at": null
+   }
+  ]
+ },
+ "GET /api/v1/hospital/assessments?study=7103": {
+  "count": 0,
+  "next": null,
+  "previous": null,
+  "results": []
+ },
+ "GET /api/v1/hospital/assessments?study=7201": {
+  "count": 0,
+  "next": null,
+  "previous": null,
+  "results": []
+ },
+ "GET /api/v1/hospital/assessments?study=7202": {
+  "count": 1,
+  "next": null,
+  "previous": null,
+  "results": [
+   {
+    "assessment_id": 1002,
+    "study": 7202,
+    "lesion": null,
+    "read_stage": "final",
+    "category": "3",
+    "category_model": null,
+    "category_rule": null,
+    "path_agreement": null,
+    "recommendation": "6개월 추적",
+    "recommendation_reason": null,
+    "rule_table_version": null,
+    "assessed_by": 21,
+    "ai_revealed_at": null,
+    "finalized_at": "2026-09-08T14:30:00+09:00",
+    "superseded_by": null,
+    "finding_note": "우측 유방 9시 방향 8mm 타원형 종괴, 경계 명확. 6개월 추적.",
+    "decision_type": null,
+    "decision_value": null,
+    "decision_reason": null,
+    "decided_by": null,
+    "decided_at": null
+   }
+  ]
+ },
+ "GET /api/v1/hospital/assessments?study=7203": {
+  "count": 0,
+  "next": null,
+  "previous": null,
+  "results": []
+ },
+ "GET /api/v1/hospital/assessments?study=7301": {
+  "count": 1,
+  "next": null,
+  "previous": null,
+  "results": [
+   {
+    "assessment_id": 1003,
+    "study": 7301,
+    "lesion": null,
+    "read_stage": "final",
+    "category": "5",
+    "category_model": null,
+    "category_rule": null,
+    "path_agreement": null,
+    "recommendation": "조직검사",
+    "recommendation_reason": null,
+    "rule_table_version": null,
+    "assessed_by": 21,
+    "ai_revealed_at": null,
+    "finalized_at": "2026-09-10T14:00:00+09:00",
+    "superseded_by": null,
+    "finding_note": "좌측 유방 2시 방향 22mm 침상 종괴. 악성 강력 시사.",
+    "decision_type": null,
+    "decision_value": null,
+    "decision_reason": null,
+    "decided_by": null,
+    "decided_at": null
+   }
+  ]
+ },
+ "GET /api/v1/hospital/assessments?study=7302": {
+  "count": 0,
+  "next": null,
+  "previous": null,
+  "results": []
+ },
+ "GET /api/v1/hospital/assessments?study=7303": {
+  "count": 0,
+  "next": null,
+  "previous": null,
+  "results": []
  },
  "POST /api/v1/hospital/tickets": {
   "ticket": "mock-ticket",
@@ -2404,66 +2591,88 @@
   {
    "at": "2026-09-10T09:20:00+09:00",
    "type": "촬영",
-   "detail": "mammo"
+   "detail": "mammo",
+   "study_id": 7301,
+   "modality": "mammo"
   },
   {
    "at": "2026-09-10T09:34:00+09:00",
    "type": "AI 분석 완료",
-   "detail": null
+   "detail": null,
+   "study_id": 7301,
+   "specimen_id": null
   },
   {
    "at": "2026-09-10T10:05:00+09:00",
    "type": "촬영",
-   "detail": "us"
+   "detail": "us",
+   "study_id": 7302,
+   "modality": "us"
   },
   {
    "at": "2026-09-10T10:18:00+09:00",
    "type": "AI 분석 완료",
-   "detail": null
+   "detail": null,
+   "study_id": 7302,
+   "specimen_id": null
   },
   {
    "at": "2026-09-10T14:00:00+09:00",
    "type": "판독",
    "detail": "BI-RADS 5",
-   "assessment_id": 1003
+   "assessment_id": 1003,
+   "study_id": 7301,
+   "modality": "mammo",
+   "read_stage": "final"
   },
   {
    "at": "2026-09-11T11:00:00+09:00",
    "type": "검체 채취",
-   "detail": "SP-3003"
+   "detail": "SP-3003",
+   "specimen_id": 3003
   },
   {
    "at": "2026-09-12T09:40:00+09:00",
    "type": "병리 확진",
-   "detail": "침윤성 유관암"
+   "detail": "침윤성 유관암",
+   "specimen_id": 3003
   }
  ],
  "GET /api/v1/hospital/patients/P-1002/timeline": [
   {
    "at": "2026-09-08T14:10:00+09:00",
    "type": "촬영",
-   "detail": "us"
+   "detail": "us",
+   "study_id": 7202,
+   "modality": "us"
   },
   {
    "at": "2026-09-08T14:22:00+09:00",
    "type": "AI 분석 완료",
-   "detail": null
+   "detail": null,
+   "study_id": 7202,
+   "specimen_id": null
   },
   {
    "at": "2026-09-08T14:30:00+09:00",
    "type": "판독",
    "detail": "BI-RADS 3",
-   "assessment_id": 1002
+   "assessment_id": 1002,
+   "study_id": 7202,
+   "modality": "us",
+   "read_stage": "final"
   },
   {
    "at": "2026-09-09T09:10:00+09:00",
    "type": "검체 채취",
-   "detail": "SP-3002"
+   "detail": "SP-3002",
+   "specimen_id": 3002
   },
   {
    "at": "2026-09-10T11:00:00+09:00",
    "type": "병리 확진",
-   "detail": "양성 — 섬유낭포성 변화"
+   "detail": "양성 — 섬유낭포성 변화",
+   "specimen_id": 3002
   }
  ],
  "GET /api/v1/hospital/patients/501/timeline": [
@@ -2515,28 +2724,100 @@
   {
    "at": "2026-09-08T09:00:00+09:00",
    "type": "촬영",
-   "detail": "mammo"
+   "detail": "mammo",
+   "study_id": 7101,
+   "modality": "mammo"
   },
   {
    "at": "2026-09-08T09:15:00+09:00",
    "type": "AI 분석 완료",
-   "detail": null
+   "detail": null,
+   "study_id": 7101,
+   "specimen_id": null
+  },
+  {
+   "at": "2026-09-08T09:40:00+09:00",
+   "type": "촬영",
+   "detail": "us",
+   "study_id": 7102,
+   "modality": "us"
   },
   {
    "at": "2026-09-09T10:20:00+09:00",
    "type": "판독",
-   "detail": "BI-RADS 4",
-   "assessment_id": 1001
+   "detail": "BI-RADS 4a",
+   "assessment_id": 1000,
+   "study_id": 7101,
+   "modality": "mammo",
+   "read_stage": "final"
+  },
+  {
+   "at": "2026-09-09T11:05:00+09:00",
+   "type": "판독",
+   "detail": "BI-RADS 3",
+   "assessment_id": 1004,
+   "study_id": 7102,
+   "modality": "us",
+   "read_stage": "draft"
   },
   {
    "at": "2026-09-10T11:20:00+09:00",
    "type": "검체 채취",
-   "detail": "SP-3001"
+   "detail": "SP-3001",
+   "specimen_id": 3001
   },
   {
    "at": "2026-09-11T16:05:00+09:00",
    "type": "병리 확진",
-   "detail": "양성 — 섬유선종"
+   "detail": "양성 — 섬유선종",
+   "specimen_id": 3001
+  },
+  {
+   "at": "2026-09-12T11:20:00+09:00",
+   "type": "판독",
+   "detail": "BI-RADS 4c",
+   "assessment_id": 1001,
+   "study_id": 7101,
+   "modality": "mammo",
+   "read_stage": "final"
+  },
+  {
+   "at": "2026-09-12T14:00:00+09:00",
+   "type": "치료 결정",
+   "detail": "영상 4c · 병리 B2 불일치 — 절제 생검으로 확인",
+   "assessment_id": 1001,
+   "study_id": 7101,
+   "decision_type": "surgery",
+   "decision_value": "yes"
+  },
+  {
+   "at": "2026-09-12T15:00:00+09:00",
+   "type": "리포트",
+   "detail": null,
+   "report_id": "R-9001",
+   "report_type": "final",
+   "audience": "clinician"
+  },
+  {
+   "at": "2026-09-12T15:00:00+09:00",
+   "type": "리포트",
+   "detail": null,
+   "report_id": "R-9003",
+   "report_type": "final",
+   "audience": "patient"
+  },
+  {
+   "at": "2026-09-12T15:30:00+09:00",
+   "type": "결과 설명",
+   "detail": "대면",
+   "report_id": "R-9001"
+  },
+  {
+   "at": "2026-09-12T15:40:00+09:00",
+   "type": "처방",
+   "detail": "타이레놀정 500mg",
+   "prescription_id": "RX-5001",
+   "report_id": "R-9001"
   }
  ],
  "PUT /api/v1/hospital/reports/R-9101/": {
@@ -2556,6 +2837,7 @@
  },
  "GET /api/v1/hospital/patients/P-1001/studies": [
   {
+   "study_id": 7101,
    "modality": "mammo",
    "performed_at": "2026-09-08T09:00:00+09:00",
    "device": "Mammomat",
@@ -2565,6 +2847,7 @@
    "annotations": []
   },
   {
+   "study_id": 7102,
    "modality": "us",
    "performed_at": "2026-09-08T09:40:00+09:00",
    "device": "LOGIQ",
@@ -2572,6 +2855,7 @@
    "annotations": []
   },
   {
+   "study_id": 7103,
    "modality": "mri",
    "performed_at": null,
    "device": null,
@@ -2588,6 +2872,7 @@
  ],
  "GET /api/v1/hospital/patients/P-1002/studies": [
   {
+   "study_id": 7201,
    "modality": "mammo",
    "performed_at": null,
    "device": null,
@@ -2595,6 +2880,7 @@
    "annotations": []
   },
   {
+   "study_id": 7202,
    "modality": "us",
    "performed_at": "2026-09-08T14:10:00+09:00",
    "device": "LOGIQ",
@@ -2602,6 +2888,7 @@
    "annotations": []
   },
   {
+   "study_id": 7203,
    "modality": "mri",
    "performed_at": null,
    "device": null,
@@ -2618,6 +2905,7 @@
  ],
  "GET /api/v1/hospital/patients/P-1003/studies": [
   {
+   "study_id": 7301,
    "modality": "mammo",
    "performed_at": "2026-09-10T09:20:00+09:00",
    "device": "Mammomat",
@@ -2627,6 +2915,7 @@
    "annotations": []
   },
   {
+   "study_id": 7302,
    "modality": "us",
    "performed_at": "2026-09-10T10:05:00+09:00",
    "device": "LOGIQ",
@@ -2634,6 +2923,7 @@
    "annotations": []
   },
   {
+   "study_id": 7303,
    "modality": "mri",
    "performed_at": "2026-09-10T08:40:00+09:00",
    "device": "3T MRI",

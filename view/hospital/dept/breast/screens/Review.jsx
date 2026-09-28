@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
-import { breast as api } from "../../../api";
+import { breast as api, currentAssessment } from "../../../api";
 import { useApi } from "../../../lib/useApi";
 import { Page, Btn } from "../../../lib/Page";
 import { Body } from "../../../lib/Body";
 import { Chip } from "../../../lib/Parts";
-import { MODALITY, label } from "../../../codes";
+import { MODALITY, BIRADS_LABEL, label } from "../../../codes";
 import { go } from "../../../nav";
 import * as H from "../../home";
 import "../breast.css";
@@ -36,13 +36,16 @@ import ReviewViewer from "../components/ReviewViewer";
  * 진료 이력에서 들어오면(?study= · ?specimen=, dept/breast/history.js)
  * 그 건을 펴서 그 자리로 내려간다. 과거 기록을 보는 길이 이것이다 —
  * 판독 화면으로 보내면 잠긴 화면만 뜬다.
+ * 판독 줄에서 오면 ?assessment= 도 붙는다. 그 판이 지금 판독이 아니면
+ * (정정으로 덮인 판 · 초안) 영상 칸 위에 따로 보여 준다 — Version.
  */
 export default function Review() {
   const { id } = useParams();
   const [q] = useSearchParams();
   const p = useApi(() => api.patient(id), [id]);
   /* 고른 한 건. 판독 줄 id(rows() 의 `${key}-${번호}`)와 같은 모양으로 둔다 */
-  const focus = q.get("study") != null ? { key: "study_id", id: q.get("study") }
+  const focus = q.get("study") != null
+    ? { key: "study_id", id: q.get("study"), assessment: q.get("assessment") }
     : q.get("specimen") != null ? { key: "specimen_id", id: q.get("specimen") }
     : null;
 
@@ -58,13 +61,13 @@ export default function Review() {
             </>
           )}>
       <Body loading={p.loading && !p.data} error={p.error} onRetry={p.reload}>
-        {p.data && <Inner p={p.data} focus={focus} />}
+        {p.data && <Inner pid={id} p={p.data} focus={focus} />}
       </Body>
     </Page>
   );
 }
 
-function Inner({ p, focus }) {
+function Inner({ pid, p, focus }) {
   const [seeing, setSeeing] = useState(false);
   const rep = p.other_reports ?? [];
   const of = (want) => rep.filter((r) => (r.dept ?? "").includes(want));
@@ -97,6 +100,12 @@ function Inner({ p, focus }) {
       <Btn onClick={() => setSeeing(true)}>이 검사 영상 보기</Btn>
     </div>
   );
+  /* 판 하나를 골라 왔으면 그 판을 먼저 본다. 지금 판이면 Version 이
+     radMiss 로 물러난다 — 판독 줄에 그대로 있다 */
+  const radTop = focus?.assessment
+    ? <Version pid={pid} studyId={focus.id} assessmentId={focus.assessment}
+               fallback={radMiss} onSee={() => setSeeing(true)} />
+    : radMiss;
   const patMiss = miss(patRows, "specimen_id") && (
     <div className="rev-miss">
       <p className="hcard-k">고른 검체(#{focus.id})는 아직 병리 확진 전입니다.</p>
@@ -140,8 +149,10 @@ function Inner({ p, focus }) {
       <div className="rev">
         <div className="rev-l">
           {/* key — 다른 건을 고르고 오면 접힘 상태를 새로 잡는다 */}
-          <Readings key={want ?? "top"} title="영상 판독" gradeLabel="BI-RADS" items={radRows}
-                    focus={want} miss={radMiss}
+          {/* 판(assessment)도 key 에 넣는다 — 지난 판에서 「현재 판독 보기」로
+              오면 같은 검사라도 새로 펴고 그 줄로 내려가야 한다 */}
+          <Readings key={`${want ?? "top"}-${focus?.assessment ?? ""}`} title="영상 판독" gradeLabel="BI-RADS" items={radRows}
+                    focus={want} miss={radTop}
                     lines={[["병변", lesionLine(p.lesions)]]} />
         </div>
         <div className="rev-r">
@@ -253,6 +264,76 @@ function Readings({ title, gradeLabel, items, lines = [], focus = null, miss = n
         })}
       </ul>
     </section>
+  );
+}
+
+/* 이력에서 고른 판독 한 판.
+ *
+ * ⚠ 판독 줄은 검사마다 **지금 유효한 확정 한 판**뿐이다(api.js 의 readings).
+ *   정정으로 덮인 판이나 초안을 골라 왔는데 지금 판을 펴 두면 「고른 게
+ *   이것」으로 읽힌다 — 고른 판을 따로, 무엇인지 적어서 보여 준다.
+ * ⚠ 판 목록은 ?assessment= 가 있을 때만 부른다. 검사마다 부르면 환자
+ *   상세 한 번에 검사 수만큼 더 나간다.
+ * 판독의 이름은 못 적는다 — 응답의 assessed_by 가 직원 번호뿐이다. */
+function Version({ pid, studyId, assessmentId, fallback, onSee }) {
+  const list = useApi(() => api.assessments(studyId), [studyId]);
+  const here = useRef(null);
+  const rows = list.data ?? [];
+  const a = rows.find((x) => String(x.assessment_id) === String(assessmentId)) ?? null;
+  const now = currentAssessment(rows);
+  const same = a != null && now != null && String(now.assessment_id) === String(a.assessment_id);
+  const show = a != null && !same;
+  useEffect(() => {
+    if (show) here.current?.scrollIntoView({ block: "center" });
+  }, [show]);
+
+  if (list.loading || list.error || !a) {
+    return (
+      <div className="rev-miss">
+        <p className="hcard-k">
+          {list.loading ? `고른 판독(#${assessmentId})을 불러오는 중입니다.`
+            : list.error ? "고른 판독을 불러오지 못했습니다."
+            : `고른 판독(#${assessmentId})을 이 검사에서 찾지 못했습니다.`}
+        </p>
+        {list.error && <Btn onClick={list.reload}>다시 시도</Btn>}
+      </div>
+    );
+  }
+  if (same) return fallback;
+
+  const what = a.read_stage === "draft" ? "초안"
+    : a.superseded_by != null ? "이전 판독 · 대체됨" : "이전 판독";
+  return (
+    <div className="rev-miss rev-ver" ref={here} aria-current="true">
+      <div className="rev-ver-h">
+        <Chip tone={a.read_stage === "draft" ? "fill" : "line"}>{what}</Chip>
+        <b>{a.category ? `BI-RADS ${label(BIRADS_LABEL, a.category)}` : "등급 없음"}</b>
+        <time>{a.finalized_at ? String(a.finalized_at).replace("T", " ").slice(0, 16) : "확정 전"}</time>
+      </div>
+      <dl className="kv">
+        {[
+          ["권고", a.recommendation],
+          ["대체한 판독", a.superseded_by != null ? `#${a.superseded_by}` : null],
+          ["판독 번호", `#${a.assessment_id}`],
+        ].filter(([, v]) => v).map(([k, v]) => (
+          <div key={k}><dt>{k}</dt><dd>{v}</dd></div>
+        ))}
+      </dl>
+      {a.finding_note
+        ? <p className="rev-find">{a.finding_note}</p>
+        : <p className="hcard-k">소견이 없습니다</p>}
+      <div className="rev-ver-f">
+        <p className="hcard-k">
+          {a.read_stage === "draft"
+            ? "판독의가 아직 확정하지 않은 값입니다."
+            : "지금 유효한 판독이 아닙니다."}
+          {!now && " 이 검사는 아직 확정된 판독이 없습니다."}
+        </p>
+        {now
+          ? <Btn to={go.breast.review(pid, { study: studyId })}>현재 판독 보기</Btn>
+          : <Btn onClick={onSee}>이 검사 영상 보기</Btn>}
+      </div>
+    </div>
   );
 }
 

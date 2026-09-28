@@ -64,7 +64,13 @@ applyScale(readScale());
 
 /* Boom 이 제일 바깥이다 — 라우터가 터져도 받아 내야 한다.
    하는 일은 하나, **하얀 화면 대신 나갈 길을 남기는 것**이다(lib/Boom). */
-createRoot(document.getElementById("root")).render(
+/* ⚠ **뿌리는 한 번만 만든다.** 개발 서버에서 이 파일이 다시 돌면(HMR —
+   다른 파일을 고치면 가끔 여기까지 올라온다) createRoot 가 같은 칸에 두 번
+   붙어 React 둘이 한 DOM 을 나눠 그렸다. 홈의 「할 일」 칸이 셋으로 늘고
+   removeChild 오류가 났다(09-28). 만든 뿌리를 칸에 걸어 두고 다시 쓴다 */
+const mount = document.getElementById("root");
+mount.__root ??= createRoot(mount);
+mount.__root.render(
   <StrictMode>
     <Boom>
     <BrowserRouter>

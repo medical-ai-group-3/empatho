@@ -73,31 +73,20 @@ export const nursing = {
     primary: { label: "문진 · 배정", to: go.nursing.intake(),
                need: "nursing.waiting.view" },
 
-    queue: ({ arrived, today, booked, asks }) => ({
-      title: "접수 대기 환자",
-      hint: "접수 순 · 순서 고정",
-      tabs: [
-        { key: "waiting", name: "내원 대기",
-          empty: "내원한 대기 환자가 없습니다",
-          /* 유방외과로 보낸 사람은 서버가 뺀다(waitingArrived 의 handed=none) */
-          rows: arrived.map((r) => ({
-            id: r.exam_order_id ?? r.id,
-            name: H.nameOf(r),
-            no: H.noOf(r),
-            meta: H.who(r),
-            chip: r.visit_type,
-            /* 문진은 오더에 실려 온다(questionnaire). 있으면 배정 차례다 */
-            sub: r.questionnaire ? "문진 완료 · 배정 대기" : "문진 대기",
-            at: H.at(r.visited_at),
-            /* 누르면 접수 화면에서 그 사람을 골라 둔 채로 연다 — 문진 확인 ·
-               유방외과 배정 · 검체 바인딩을 거기서 바로 한다 */
-            to: `${go.nursing.intake()}?order=${r.exam_order_id ?? r.id}`,
-            /* ⚠ 위 id 는 **오더 번호**다 — 「최근 본 환자」는 환자 번호로
-               담아야 한다(lib/recent.js) */
-            pid: r.patient ?? null,
-            why: "문진 · 배정",
-          })) },
+    /* ── 맨 위 — 오늘 현황판(lib/StageBoard.jsx) ──────────────
+     * 09-28 접수 화면에서 홈으로 옮겼다. 「내원 대기」·「오늘 접수」 탭과
+     * 「오늘 흐름」 칸은 현황판과 같은 사람을 다시 세는 것이라 뺐다 */
+    board: ({ today, arrived }) => ({ today, arrived }),
 
+    /* 배치 — 현황판이 위를 가로로 쓰므로 아래 세 단은 한 칸씩 가볍게.
+       칸은 끌어서 옮길 수 있다(lib/Home.jsx) */
+    layout: [["intake", "queue"], ["stuck", "todo"], ["calendar", "handover"]],
+
+    /* 주 큐 — 아직 안 온 사람과 앱 신청. 온 사람은 위 현황판에 있다 */
+    queue: ({ booked, asks }) => ({
+      title: "예약 · 신청",
+      hint: "누르면 접수 화면",
+      tabs: [
         /* ⚠ **지금 전화할 사람.** 오늘 예약인데 그 시각이 이미 지났고 아직
            안 왔다. 예약 시각과 지금 시각을 견주는 것이라 「몇 분 기다렸나」
            와는 다르다 — 둘 다 서버가 주는 값이다 */
@@ -116,22 +105,6 @@ export const nursing = {
             /* ⚠ 위 id 는 **오더 번호**다 — 「최근 본 환자」는 환자 번호로
                담아야 한다(lib/recent.js) */
             pid: r.patient ?? null,
-          })) },
-
-        /* ⚠ 이 탭의 줄에는 나이·성별·번호·시각이 없다.
-           `/patients/today-status` 응답이 네 칸뿐이다(8장 9번) */
-        { key: "today", name: "오늘 접수",
-          empty: "오늘 온 환자가 없습니다",
-          rows: today.map((r) => ({
-            id: r.exam_order_id ?? r.patient_id,
-            name: H.nameOf(r),
-            /* 09-27 — stage 는 「접수 대기」 하나로 뭉쳐 온다. 서버가 가른
-               stage_detail(간호·문진 · 외래 진료 …)이 있으면 그것을 쓴다 */
-            sub: r.stage_detail ?? r.stage,
-            to: r.patient_id != null ? go.patient(r.patient_id) : null,
-            /* ⚠ 위 id 는 **오더 번호**다 — 「최근 본 환자」는 환자 번호로
-               담아야 한다(lib/recent.js) */
-            pid: r.patient_id ?? null,
           })) },
 
         /* 오늘 오기로 했는데 아직 안 온 사람 전부(시각이 안 지난 것도) */
@@ -168,25 +141,6 @@ export const nursing = {
           })) },
       ],
     }),
-
-    /* ── 가운데 위 — 오늘 흐름 ────────────────────────────────
-     * 지금 병원 어디에 사람이 몰려 있는지. today-status 의 stage 를 세기만
-     * 하면 나오는 값이라 **지어낸 것이 하나도 없다.**
-     *
-     * ⚠ 단계 이름은 서버가 쓰는 말 그대로다. 옮겨 부르면 서버가 단계를
-     *   하나 늘렸을 때 그 사람들이 어느 줄에도 안 잡힌다 */
-    flow: ({ today }) => {
-      const by = new Map();
-      for (const r of today) {
-        const k = r.stage_detail || r.stage || "그 밖";
-        by.set(k, (by.get(k) ?? 0) + 1);
-      }
-      return {
-        title: "오늘 흐름",
-        summary: `오늘 온 사람 ${today.total}`,
-        items: [...by].map(([name, count]) => ({ name, count })),
-      };
-    },
 
     /* **기한이 지난 것이 제일 위다.** 오늘 해야 하는 순서 그대로 내려간다 */
     stuck: ({ arrived, follow, asks, booked, bound }) => {
@@ -227,20 +181,8 @@ export const nursing = {
        했는지 세어 주는 자리가 서버에 없어(8장 1번) 늘 비어 있었다.
        done 이 없으면 홈이 그 자리에 할 일을 올린다(lib/Home.jsx) */
 
-    /* 달력 밑 — 오늘 올 사람. 아직 안 온 예약만(visited=none) 시각 순 */
-    side: ({ booked }) => ({
-      title: "오늘 예약 환자",
-      empty: "오늘 남은 예약이 없습니다",
-      to: go.nursing.reservations(),
-      rows: booked.map((r) => ({
-        id: r.exam_order_id ?? r.id,
-        name: H.nameOf(r),
-        meta: H.who(r),
-        sub: H.isPast(r.scheduled_at) ? "시각 지남" : r.visit_type,
-        at: H.at(r.scheduled_at),
-        to: `${go.nursing.intake()}?find=${encodeURIComponent(H.noOf(r) ?? H.nameOf(r))}`,
-      })),
-    }),
+    /* ⚠ 「오늘 예약 환자」 칸(side)은 뺐다 — 주 큐의 「오늘 예약」 탭과
+       같은 줄이다(09-28 재배치) */
 
     /* 달력의 날을 누르면 그날 예약 판으로 */
     calTo: (iso) => `${go.nursing.reservations()}?date=${iso}`,

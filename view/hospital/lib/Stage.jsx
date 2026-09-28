@@ -367,7 +367,7 @@ function Annotation({ mark }) {
  *
  * ⚠ 선 굵기와 글자 크기를 **배율로 나눈다.** 안 나누면 확대할수록 선이
  *   같이 두꺼워져서, 작은 병변이 제 테두리에 덮여 안 보인다. */
-function Shape({ s, on, onPick, scale }) {
+export function Shape({ s, on, onPick, scale }) {
   const sw = 2 / scale;
   const fs = 13 / scale;
   const cls = `shp ${on ? "on" : ""}`;

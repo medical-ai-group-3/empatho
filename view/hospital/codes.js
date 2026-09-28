@@ -150,6 +150,24 @@ export const BIRADS = [
 /** 서버 enum: ["benign", "malignant"] */
 export const DIAGNOSIS = { benign: "양성 (benign)", malignant: "악성 (malignant)" };
 
+/** 판독 단계. 서버 enum: ["draft", "final"] — READ_STATUS(검사의 상태)와 다르다.
+ *  이쪽은 Assessment 한 행의 단계다 */
+export const READ_STAGE = { draft: "초안", final: "확정" };
+
+/* ── 치료 결정 · 리포트 ────────────────────────────────────────
+   진료 이력의 「치료 결정」「리포트」 줄이 코드로 온다 */
+
+/** 서버 enum: ["surgery", "biopsy", "imaging", "rebiopsy"] */
+export const DECISION_TYPE = {
+  surgery: "수술", biopsy: "조직검사", imaging: "추가 영상", rebiopsy: "재생검",
+};
+/** 서버 enum: ["yes", "no", "defer"] — 종류(위)와 붙여 「수술 · 시행」으로 읽는다 */
+export const DECISION_VALUE = { yes: "시행", no: "하지 않음", defer: "보류" };
+/** 서버 enum: ["stage", "final"] */
+export const REPORT_TYPE = { stage: "검사별 판독문", final: "종합 리포트" };
+/** 서버 enum: ["clinician", "patient"] */
+export const AUDIENCE = { clinician: "의료진용", patient: "환자용" };
+
 /** 서버 enum: ["low", "mid", "high"] */
 export const STIL_LEVEL = { low: "낮음", mid: "중등도", high: "높음" };
 
@@ -161,6 +179,10 @@ export const DESCRIPTOR_AXIS = {
   shape: "모양", margin: "경계", calctype: "석회 종류",
   calcdist: "석회 분포", finding: "소견",
 };
+
+/** 검사 목적. 서버 enum: ["screening", "diagnostic"] (ExamOrder.exam_purpose).
+ *  글자는 유방외과 오더 창(ExamOrderModal)의 선택지와 같게 둔다 */
+export const EXAM_PURPOSE = { screening: "정기 검진", diagnostic: "이상 소견 확인" };
 
 /* 목록 표로 만들어 쓰는 자리 — {value,label} 을 코드→글자로 */
 const flatten = (rows) =>
@@ -249,6 +271,11 @@ const TABLES = {
   diagnosis: DIAGNOSIS,
   stil_level: STIL_LEVEL,
   lesion_kind: LESION_KIND,
+  read_stage: READ_STAGE,
+  decision_type: DECISION_TYPE,
+  decision_value: DECISION_VALUE,
+  report_type: REPORT_TYPE,
+  audience: AUDIENCE,
 };
 
 export function adopt(payload = {}) {

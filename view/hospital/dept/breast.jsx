@@ -32,25 +32,28 @@ export const breast = {
 
   /* ── 홈 (docs/mockup/SurgeryHome.html) ──────────────
    *
-   * 오늘 내 대기 환자 · 내 담당 전체 두 탭과 월간 예약 캘린더.
+   * 대기 중인 환자(내 담당 · 과 전체) · 할 일 · 인계 · 달력 · 오늘 예약.
    *
-   * ⚠ 09-28 전까지 이 큐는 patients()(status=all) 를 불렀다 — **과 전체
-   *   목록**이라 유방외과 계정 누구로 들어가도 같은 줄이 「내 환자」로
-   *   떴다. 09-27 서버가 primary_staff=me 와 status 를 같이 보게 고쳐서
-   *   이제 「내 것」과 「오늘 온 것」을 따로 부를 수 있다.
+   * ⚠ 09-28 전까지 이 큐는 patients()(status=all) 를 「내 환자」라는 이름으로
+   *   불렀다 — **과 전체 목록**이라 유방외과 누구로 들어가도 같은 줄이었다.
+   *   이 칸은 「지금 기다리는 사람」을 보는 자리라는 말을 듣고(09-28) 대기로
+   *   바꿨다. 09-27 서버가 primary_staff=me 와 status 를 같이 봐서 내 담당
+   *   대기와 과 전체 대기를 따로 부를 수 있다.
    *
-   * 줄의 접수 시각 · 진행 단계는 today-status 에서 붙인다. 환자 목록
+   * 줄의 내원 시각 · 진행 단계는 today-status 에서 붙인다. 환자 목록
    * 응답에는 그 칸이 없고, 환자마다 오더를 따로 부르면 대기 인원만큼
    * 요청이 난다. today-status 는 오늘 온 오더 전부를 한 번에 준다.
    */
   home: {
     load: () => Promise.all([
       api.waiting(),
+      H.soft(api.waitingAll()),
       H.soft(api.mine()),
       H.soft(reception.todayStatus()),
       H.soft(reception.schedule(...monthBounds())),
-    ]).then(([waiting, mine, status, schedule]) => ({
+    ]).then(([waiting, all, mine, status, schedule]) => ({
       waiting: H.rows(waiting),
+      all: H.rows(all),
       mine: H.rows(mine),
       status: lastVisitByPatient(H.rows(status)),
       schedule: H.rows(schedule),
@@ -59,23 +62,45 @@ export const breast = {
     primary: { label: "다음 환자 진료", to: go.breast.waiting(),
                need: "breast.waiting.view" },
 
-    queue: ({ waiting, mine, status }) => ({
-      title: "내 환자",
+    /* 기본 배치. 큐가 왼쪽 단을 통째로 쓰고, 오른쪽 단은 달력 밑에 오늘
+       예약과 확인할 것을 받쳐 세 단 아랫변이 화면 끝에서 맞는다(09-28
+       「홈이 비어 보인다」). 칸은 끌어서 옮길 수 있다(lib/Home.jsx) */
+    layout: [["queue"], ["todo", "handover"], ["calendar", "side", "stuck"]],
+
+    queue: ({ waiting, all, status }) => ({
+      title: "대기 중인 환자",
       hint: "누르면 환자 상세",
       /* 열 이름. 공통 머리(「구분」·「상태」)로는 이 과 줄이 무엇인지
          안 읽힌다는 말을 들었다(09-28) */
-      cols: { chip: "주의", sub: "진행", r: "환자번호 · 접수" },
+      cols: { chip: "주의", sub: "진행" },
+      extra: [{ key: "visit", name: "내원" }, { key: "doctor", name: "담당의" }],
       tabs: [
-        { key: "waiting", name: "오늘 대기",
+        { key: "mine", name: "내 담당",
+          empty: "지금 기다리는 내 담당 환자가 없습니다",
+          rows: byVisit(waiting, status) },
+        { key: "all", name: "과 전체",
           empty: "지금 기다리는 환자가 없습니다",
-          /* 먼저 온 사람이 위다 — 「다음 환자 진료」와 같은 순서 */
-          rows: [...waiting]
-            .sort((a, b) => visitKey(status, a).localeCompare(visitKey(status, b)))
-            .map((r) => row(r, status.get(String(r.patient_id)))) },
-        { key: "mine", name: "담당 전체",
-          empty: "배정된 환자가 없습니다",
-          rows: mine.map((r) => row(r, null)) },
+          rows: byVisit(all, status) },
       ],
+    }),
+
+    /* 달력 밑 — 오늘 예약했고 아직 안 온 사람. 내원하면 위 대기로 넘어간다 */
+    side: ({ schedule }) => ({
+      title: "오늘 예약",
+      empty: "오늘 남은 예약이 없습니다",
+      rows: schedule
+        .filter((r) => H.isToday(r.scheduled_at) && !r.visited_at)
+        .map((r) => {
+          const pid = r.patient ?? r.patient_id;
+          return {
+            id: r.exam_order_id ?? r.id,
+            name: H.nameOf(r),
+            meta: H.who(r),
+            sub: H.isPast(r.scheduled_at) ? "시각 지남" : null,
+            at: H.at(r.scheduled_at),
+            to: pid != null ? go.breast.review(pid) : null,
+          };
+        }),
     }),
 
     stuck: ({ mine }) => [
@@ -89,17 +114,14 @@ export const breast = {
          표가 없다 */
     ],
 
-    /* 오늘 한 일은 별도 목록으로 제공하지 않는다. 홈의 이 영역은
-       공용 Todo(할 일) 카드가 차지한다. */
-
     marks: ({ schedule }) => (schedule ?? [])
       .filter((row) => row.scheduled_at)
       .map((row) => ({ date: row.scheduled_at, kind: "예약 있음" })),
   },
 };
 
-/* 큐 한 줄. visit 은 그 환자의 오늘 오더(today-status 한 줄) — 담당 전체
-   탭처럼 오늘 안 온 사람은 null 이라 시각·진행 칸이 빈다 */
+/* 큐 한 줄. visit 은 그 환자의 오늘 오더(today-status 한 줄) — 없으면
+   내원 · 진행 칸이 빈다 */
 function row(r, visit) {
   return {
     id: r.patient_id,
@@ -109,7 +131,10 @@ function row(r, visit) {
     chip: H.allergy(r) ? "알레르기" : null,
     sub: [visit ? (visit.stage_detail ?? visit.stage) : null,
           r.has_open_discordance ? "판정 불일치" : null].filter(Boolean).join(" · "),
-    at: visit ? H.at(visit.visited_at) : null,
+    /* 「09-28 10:20」 — 날짜까지 적는다. 자정을 넘겨 남은 줄이 오늘 온 것처럼
+       읽히지 않게 */
+    visit: visit?.visited_at ? `${H.day(visit.visited_at)} ${H.at(visit.visited_at)}` : null,
+    doctor: r.primary_staff_name ?? null,
     /* 유방외과가 이 줄에서 할 일이 검사 종합 확인이고, 그 화면이 이 과에
        따로 있다(09-23). 권한이 없으면 그 화면이 Locked 로 알려 준다 */
     to: go.breast.review(r.patient_id),
@@ -118,8 +143,13 @@ function row(r, visit) {
   };
 }
 
-/* 환자별 오늘 마지막 오더. 서버가 visited_at 순으로 주므로 뒤에 온 것이
-   남는다 — 하루에 두 번 접수된 환자는 지금 진행 중인 쪽을 본다 */
+/* 먼저 온 사람이 위다 — 「다음 환자 진료」와 같은 순서 */
+function byVisit(list, status) {
+  return [...list]
+    .sort((a, b) => visitKey(status, a).localeCompare(visitKey(status, b)))
+    .map((r) => row(r, status.get(String(r.patient_id))));
+}
+
 function lastVisitByPatient(list) {
   const out = new Map();
   for (const r of list) if (r.patient_id != null) out.set(String(r.patient_id), r);

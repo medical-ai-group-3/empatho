@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { breast as api } from "../../../api";
 import { SEX, label } from "../../../codes";
 import { useApi } from "../../../lib/useApi";
@@ -29,10 +29,16 @@ const EXPLAIN_METHODS = ["대면", "유선", "영상"];
  *
  * 잠금 해제 3조건(①전 레코드 확정 ②대조 종결 ③대면 설명 완료)은 서버가
  * 판단해서 GET /reports/{id}/unlock-status 로 내려준다 — 화면은 그 결과를
- * 그대로 보여주고 셋 다 참일 때만 [잠금 해제] 버튼을 켠다. */
+ * 그대로 보여주고 셋 다 참일 때만 [잠금 해제] 버튼을 켠다.
+ *
+ * 진료 이력의 치료 결정 · 리포트 · 결과 설명 · 처방 줄에서 오면 ?focus= 가
+ * 붙는다(dept/breast/history.js). 그 칸(id="dec-…")으로 내려가 왼쪽 선으로
+ * 짚는다. ⚠ 지난 결정 · 설명의 **그때 값**을 보여 주지는 못한다 — 서버가
+ * 결정을 판독 행에 덮어쓰고(decision_*), 설명도 리포트 행에 덮어쓴다. */
 export default function Decision() {
   const { id } = useParams();
   const nav = useNavigate();
+  const [q] = useSearchParams();
   const { loading, data: patient, error, reload } = useApi(() => api.patient(id), [id]);
 
   return (
@@ -42,14 +48,14 @@ export default function Decision() {
             back={() => nav(go.breast.waiting(), { state: { advance: true, from: id } })}>
       <div className="pane">
         <Body loading={loading} error={error} onRetry={reload}>
-          {patient && <Inner patient={patient} onReload={reload} />}
+          {patient && <Inner patient={patient} onReload={reload} focus={q.get("focus")} />}
         </Body>
       </div>
     </Page>
   );
 }
 
-function Inner({ patient, onReload }) {
+function Inner({ patient, onReload, focus }) {
   const report = patient.report;
   const reportId = report?.report_id ?? null;
   const reports = useApi(() => api.reports(patient.patient_id), [patient.patient_id]);
@@ -66,6 +72,13 @@ function Inner({ patient, onReload }) {
   const timeline = useApi(() => api.timeline(patient.patient_id), [patient.patient_id]);
   const reads = (timeline.data ?? []).filter((e) => e.type === "판독" && e.assessment_id != null);
   const assessmentId = reads.length ? reads[reads.length - 1].assessment_id : null;
+
+  /* 이력에서 골라 온 칸. Inner 는 환자가 온 뒤에 서므로 칸이 이미 있다.
+     ⚠ 리포트 칸은 뒤늦게 차며 길어진다 — 가운데가 아니라 머리로 맞춘다 */
+  const at = (key) => focus === key;
+  useEffect(() => {
+    if (focus) document.getElementById(`dec-${focus}`)?.scrollIntoView({ block: "start" });
+  }, [focus]);
 
   /* 배치는 `docs/mockup/SurgeryDecision.html` — **두 단이다.**
      왼쪽이 «지금 하는 일»(결정·리포트·처방·소견), 오른쪽이 «보면서 하는
@@ -85,21 +98,24 @@ function Inner({ patient, onReload }) {
       )}
       <div className="decision-grid">
       <div className="dec-col">
-        <DecisionForm assessmentId={assessmentId} assessmentIdLoading={timeline.loading} />
+        <DecisionForm assessmentId={assessmentId} assessmentIdLoading={timeline.loading}
+                      here={at("decision")} />
         {/* 만든 뒤에도 생성 칸을 남긴다 — 전에는 리포트가 있으면 이 칸이
             사라져서 판독이 더 들어와도 다시 만들 길이 없었다 */}
-        {report && <AiSummaryCard report={report} />}
-        <FinalReportCard patient={patient} reports={reports} onCreated={onReload} again={Boolean(report)} />
+        {report && <AiSummaryCard report={report} here={at("report")} />}
+        <FinalReportCard patient={patient} reports={reports} onCreated={onReload} again={Boolean(report)}
+                         here={!report && at("report")} />
         {report ? <DoctorSummaryCard report={report} /> : <PendingReportCard title="의사 종합 리포트" />}
-        <PrescriptionDraft patient={patient} report={report} />
+        <PrescriptionDraft patient={patient} report={report} here={at("prescription")} />
       </div>
 
       <div className="dec-col">
         <PatientInfoCard patient={patient} />
-        <PatientReportCard report={patient.patient_report} reports={reports} unlock={unlock} />
+        <PatientReportCard report={patient.patient_report} reports={reports} unlock={unlock}
+                           here={at("patient-report")} />
         {report
-          ? <ExplainForm report={report} onSaved={onReload} unlock={unlock} />
-          : <PendingReportCard title="의사 최종 소견" />}
+          ? <ExplainForm report={report} onSaved={onReload} unlock={unlock} here={at("explain")} />
+          : <PendingReportCard title="의사 최종 소견" here={at("explain")} />}
       </div>
       </div>
     </>
@@ -110,14 +126,20 @@ function Inner({ patient, onReload }) {
    리포트가 왼쪽 작성 카드 안에만 있어, 결정 기록과 환자 정보 아래에서
    최종 결과를 찾기 어려웠다. 최종 리포트가 없으면 확정된 검사별 리포트
    목록을 보여 주고, 잠금 상태는 서버의 unlock-status를 그대로 표시한다. */
-function PatientReportCard({ report, reports }) {
+/* 이력에서 골라 온 칸의 뿌리 속성 — id 는 스크롤 자리, here 는 표시 */
+const spot = (key, here, cls = "card") => ({
+  id: here ? `dec-${key}` : undefined,
+  className: here ? `${cls} here` : cls,
+});
+
+function PatientReportCard({ report, reports, here = false }) {
   const stageReports = (reports.data ?? []).filter((row) => row.report_type === "stage");
   const content = report?.content_json ?? {};
   const title = report ? "최종 환자 리포트" : "환자 리포트 열람";
   const status = report ? (report.is_unlocked ? "열람 가능" : "잠금 상태") : "작성 대기";
 
   return (
-    <div className="card patient-report-card">
+    <div {...spot("patient-report", here, "card patient-report-card")}>
       <div className="card-head">
         <h3>{title}</h3>
         <span className={`pill ${report?.is_unlocked ? "ok" : report ? "wait" : "warn"}`}>{status}</span>
@@ -160,16 +182,16 @@ function PatientReportCard({ report, reports }) {
   );
 }
 
-function PendingReportCard({ title }) {
+function PendingReportCard({ title, here = false }) {
   return (
-    <div className="card">
+    <div {...spot("explain", here)}>
       <div className="card-head"><h3>{title}</h3></div>
       <p className="card-text">아직 생성된 종합 리포트가 없습니다. 판독 확정 후 작성할 수 있습니다.</p>
     </div>
   );
 }
 
-function FinalReportCard({ patient, reports, onCreated, again = false }) {
+function FinalReportCard({ patient, reports, onCreated, again = false, here = false }) {
   const [selected, setSelected] = useState(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState(null);
@@ -195,7 +217,7 @@ function FinalReportCard({ patient, reports, onCreated, again = false }) {
   }
 
   return (
-    <div className="card">
+    <div {...spot("report", here)}>
       <div className="card-head"><h3>{again ? "AI 종합 리포트 다시 만들기" : "AI 종합 리포트"}</h3></div>
       <p className="card-text">
         {again
@@ -221,9 +243,9 @@ function FinalReportCard({ patient, reports, onCreated, again = false }) {
   );
 }
 
-function AiSummaryCard({ report }) {
+function AiSummaryCard({ report, here = false }) {
   return (
-    <div className="card">
+    <div {...spot("report", here)}>
       <div className="card-head">
         <h3>AI 종합 리포트</h3>
         <span className="pill" style={{ background: "var(--accent-weak)", color: "var(--accent)" }}>
@@ -306,7 +328,7 @@ function DoctorSummaryCard({ report }) {
   );
 }
 
-function DecisionForm({ assessmentId, assessmentIdLoading }) {
+function DecisionForm({ assessmentId, assessmentIdLoading, here = false }) {
   /* ⚠ report.decision 은 서버에 없는 필드다(Report 모델엔 decision_*
    * 이 없다 — 그건 Assessment 쪽이다). 예전엔 여기서 그 값으로 초깃값을
    * 채웠는데, 있지도 않은 이전 결정을 읽는 척하던 것이라 뺐다. 저장된
@@ -333,7 +355,7 @@ function DecisionForm({ assessmentId, assessmentIdLoading }) {
   }
 
   return (
-    <div className="card">
+    <div {...spot("decision", here)}>
       <h3>수술 여부</h3>
       <div className="radio-group" style={{ marginTop: 12 }}>
         {DECISIONS.map((d) => (
@@ -485,7 +507,7 @@ function DrugNameInput({ value, onChange, onPick }) {
   );
 }
 
-function PrescriptionDraft({ patient, report }) {
+function PrescriptionDraft({ patient, report, here = false }) {
   const [drugs, setDrugs] = useState([emptyDrug()]);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState(null);
@@ -539,7 +561,7 @@ function PrescriptionDraft({ patient, report }) {
     drug.name.trim() && drug.dose.trim() && drug.times.trim() && Number(drug.days) > 0);
 
   return (
-    <div className="card prescription-draft">
+    <div {...spot("prescription", here, "card prescription-draft")}>
       <div className="card-head">
         <div>
           <h3>환자 처방</h3>
@@ -609,7 +631,7 @@ function PrescriptionDraft({ patient, report }) {
   );
 }
 
-function ExplainForm({ report, onSaved, unlock }) {
+function ExplainForm({ report, onSaved, unlock, here = false }) {
   const [method, setMethod] = useState(report.explain_method ?? EXPLAIN_METHODS[0]);
   const [content, setContent] = useState(report.explain_content ?? "");
   const [confirmed, setConfirmed] = useState(report.patient_confirmed ?? false);
@@ -633,7 +655,7 @@ function ExplainForm({ report, onSaved, unlock }) {
   }
 
   return (
-    <div className="card">
+    <div {...spot("explain", here)}>
       <div className="card-head">
         <h3>의사 최종 소견</h3>
         <span className="meta">환자 설명</span>

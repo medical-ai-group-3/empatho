@@ -74,6 +74,7 @@ dicom-stack-count         hospital/lib/dicom/DicomStackViewer.jsx:178
 dicom-stack-cell          hospital/lib/dicom/DicomStackViewer.jsx:183
 dicom-stack-message       hospital/lib/dicom/DicomStackViewer.jsx:184
 dicom-stack-error         hospital/lib/dicom/DicomStackViewer.jsx:186
+dicom-stack-overlay       hospital/lib/dicom/DicomStackViewer.jsx:294
 mri-review-grid           hospital/lib/dicom/MRIReviewGrid.jsx:44
 mri-review-panel          hospital/lib/dicom/MRIReviewGrid.jsx:45
 anatomy-panel             hospital/lib/dicom/MRIReviewGrid.jsx:45

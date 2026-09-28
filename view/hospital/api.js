@@ -45,6 +45,7 @@
  *       GET /specimens/{id}          1·3·4·5장
  *       GET /specimens/{id}/upload   2·3장 (올린 파일 목록은 여기에만 있다)
  */
+import { EXAM_PURPOSE, MODALITY, label, modality as modalityCode } from "./codes";
 
 /* ⚠1 ── 주소 앞머리 ───────────────────────────────────────────
  *
@@ -544,6 +545,14 @@ function radPatient(source = {}, order = {}) {
   };
 }
 
+/* 검사명 — 서버에 이름 칸이 없어 목적 코드(screening·diagnostic)가
+   그대로 화면에 찍혔다. 모달리티와 목적을 한글로 묶는다 */
+function examName(purpose, mod) {
+  if (!purpose) return "";
+  const m = MODALITY[modalityCode(mod)];
+  return [m, label(EXAM_PURPOSE, purpose)].filter(Boolean).join(" · ");
+}
+
 function radOrderRow(raw = {}) {
   const patient = radPatient(raw);
   return {
@@ -556,7 +565,7 @@ function radOrderRow(raw = {}) {
     sex: patient.sex,
     contrast_allergy: patient.contrast_allergy,
     device: raw.device ?? raw.device_name ?? "",
-    exam_name: raw.exam_name ?? raw.exam_purpose ?? "",
+    exam_name: raw.exam_name ?? examName(raw.exam_purpose, raw.modality),
     purpose: raw.purpose ?? raw.order_note ?? "",
     finalized: raw.finalized ?? raw.order_status === "completed",
   };
@@ -585,13 +594,26 @@ function radFile(raw = {}) {
   };
 }
 
+/* 맘모 뷰 이름 — 파일의 laterality(left·right) · view_position(CC·MLO) */
+function radViewName(file) {
+  const lat = { left: "L", right: "R", l: "L", r: "R" }[String(file.laterality ?? "").toLowerCase()];
+  const view = String(file.view_position ?? "").trim().toUpperCase();
+  return lat && view ? `${lat}-${view}` : null;
+}
+
 function radSeries(files = []) {
   const groups = new Map();
   files.forEach((file) => {
-    const key = file.series_uid ?? file.orthanc_series_id ?? file.id;
+    /* ⚠ 맘모 네 뷰는 한 시리즈(series_uid)로 올 수 있다 — 시리즈로만 묶으면
+       「촬영 뷰 1」 한 줄에 UID 가 이름으로 찍혔다. 좌우·방향이 있으면
+       뷰마다 따로 세우고 R-CC 처럼 부른다 */
+    const view = radViewName(file);
+    const key = view
+      ? `${file.series_uid ?? file.orthanc_series_id ?? ""}:${view}`
+      : file.series_uid ?? file.orthanc_series_id ?? file.id;
     const group = groups.get(key) ?? {
       id: key,
-      name: file.series_uid ?? file.series_role ?? file.name,
+      name: view ?? file.series_uid ?? file.series_role ?? file.name,
       count: 0,
       files: [],
     };
@@ -628,6 +650,8 @@ function radAi(raw, modality) {
     abstain_reason: result.abstain_reason ?? envelope.reason ?? envelope.abstain_reason ?? raw.abstain_reason,
     run_status: raw.run_status ?? envelope.run_status ?? result.run_status,
     ai_result_id: raw.ai_result_id ?? envelope.ai_result_id ?? result.ai_result_id,
+    /* 어느 저장 파일에 돌린 결과인가 — 초음파는 장마다 결과가 따로다 */
+    source_object: raw.source_object ?? null,
 
     /* 초음파 서빙 값은 화면 표기명과 조금 다르다. 원본 키도 보존하면서
        화면에서 쓰는 별칭을 붙여 두면 AI 소견과 영상 위 윤곽이 함께 나온다. */
@@ -672,7 +696,7 @@ function radStudyRow(raw = {}, order = {}, assessment = null) {
     age: patient.age,
     sex: patient.sex,
     contrast_allergy: patient.contrast_allergy,
-    exam_name: order.exam_name ?? order.exam_purpose ?? raw.exam_name ?? "",
+    exam_name: order.exam_name ?? (examName(order.exam_purpose, order.modality ?? raw.modality) || (raw.exam_name ?? "")),
     purpose: order.purpose ?? order.order_note ?? raw.purpose ?? "",
     device: raw.device ?? raw.device_name ?? "",
     exam_order_id: raw.exam_order_id ?? raw.exam_order ?? order.exam_order_id,
@@ -751,6 +775,9 @@ function radRead(raw = {}, upload = {}, order = {}) {
     images: files,
     series: raw.series ?? radSeries(files),
     ai: raw.ai ?? radAi(raw.latest_ai_result, row.modality),
+    /* 검사의 AI 결과 전부(서버 09-28~). 옛 서버는 칸이 없어 null — 그때
+       화면은 latest_ai_result(위 ai) 하나로 버틴다(radStage) */
+    ais: Array.isArray(raw.ai_results) ? raw.ai_results.map((r) => radAi(r, row.modality)) : null,
     doctor: raw.doctor ?? current ?? {},
     finalized: raw.finalized ?? row.finalized,
   };
@@ -761,6 +788,12 @@ function radRead(raw = {}, upload = {}, order = {}) {
 async function radCurrentAssessment(studyId) {
   const hist = await rad.history(studyId).catch(() => []);
   const rows = Array.isArray(hist) ? hist : (hist?.results ?? hist?.items ?? []);
+  return currentAssessment(rows);
+}
+
+/* 판 목록에서 지금 유효한 한 판. 유방외과 환자 상세가 지난 판과 견줄 때도
+   이것을 쓴다 — 규칙이 두 곳이 되면 「현재」가 화면마다 달라진다 */
+export function currentAssessment(rows) {
   return rows.find((a) => a.read_stage === "final" && !a.superseded_by)
     ?? rows.find((a) => a.read_stage === "final")
     ?? null;
@@ -1009,6 +1042,12 @@ export const breast = {
   /* 내가 주치의인 환자 전부 — 오늘 왔는지와 상관없이. 홈의 「담당 전체」 탭.
      09-27 부터 서버가 primary_staff 와 status 를 같이 보므로 status 를 빼면
      담당 전체다(views/reception.py PatientViewSet.get_queryset) */
+  /* 과 전체 대기 — 누구 담당이든 오늘 와서 아직 안 끝난 환자. 홈의 「과 전체」 탭 */
+  waitingAll:   ()   => get(`/patients/${qs({ status: "waiting", page_size: PAGE_ALL })}`)
+    .then((raw) => {
+      const rows = raw?.results ?? raw?.items ?? (Array.isArray(raw) ? raw : []);
+      return rows.map(normalizePatient);
+    }),
   mine:         ()   => get(`/patients/${qs({ primary_staff: "me", page_size: PAGE_ALL })}`)
     .then((raw) => {
       const rows = raw?.results ?? raw?.items ?? (Array.isArray(raw) ? raw : []);
@@ -1138,8 +1177,12 @@ export const breast = {
    * 잡힘), "촬영 후 종결"과 "안 찍고 종결"도 completed 하나로 안 갈린다.
    * 둘 다 팀이 합의한 알려진 한계다 — 나중 과제로 미뤘다. */
   /* 실서버는 목록을 { count, results } 봉투로 감싼다. 목업의 배열과
-     모양이 달라 종결 팝업에서 .filter 오류가 나던 자리다. */
-  ordersOf:        (patientId) => get(`/exam-orders${qs({ patient: patientId, ordering: "scheduled_at" })}`).then(unwrapList),
+     모양이 달라 종결 팝업에서 .filter 오류가 나던 자리다.
+     ⚠ 09-28 — page_size 가 없어 20건에서 잘렸다. 창구 접수 오더는
+     scheduled_at 이 비어 있어 이 정렬에서 **맨 뒤**로 가므로(PostgreSQL
+     NULLS LAST), 오더가 많은 환자는 오늘 방문이 첫 쪽에서 빠져 「진료
+     완료」가 「종결할 오더를 찾지 못했습니다」로 떨어졌다 */
+  ordersOf:        (patientId) => get(`/exam-orders${qs({ patient: patientId, ordering: "scheduled_at", page_size: PAGE_ALL })}`).then(unwrapList),
   completeExamOrder: (examOrderId) => patch(`/exam-orders/${examOrderId}/complete`, {}),
 
   /* 2장 · 검사 종합 확인 */
@@ -1186,8 +1229,10 @@ export const breast = {
       })
       .filter(Boolean);
 
+    /* 글자로 견준다 — 번호는 같게 나오고, 목업의 「P-1001」 같은 번호도
+       맞는다(Number 로 견주면 NaN 끼리라 늘 빠졌다) */
     const pathology = specimenRows
-      .filter((row) => Number(row.patient_id ?? row.patient) === Number(pid))
+      .filter((row) => String(row.patient_id ?? row.patient) === String(pid))
       .filter((row) => row.finalized_at && (row.diagnosis || row.b_category))
       .map((row) => ({
         specimen_id: row.specimen_id ?? row.id,
@@ -1205,6 +1250,11 @@ export const breast = {
     const newest = (a, b) => String(b.at ?? "").localeCompare(String(a.at ?? ""));
     return { radiology: radiology.sort(newest), pathology: pathology.sort(newest) };
   },
+
+  /* 한 검사의 판독 전부 — 초안 · 정정으로 덮인 것까지(AssessmentSerializer,
+     -created_at 순). 진료 이력에서 지난 판독 한 판을 골라 왔을 때만 부른다
+     (Review.jsx 의 ?assessment=). readings 는 확정 한 판만 남긴다 */
+  assessments: (studyId) => rad.history(studyId),
 
   /* 유방외과 진료를 열기 전 다음 단계를 판단할 최소 이력. 서버에 별도
      workflow API가 없어서, 이미 있는 검사·오더·검체 조회를 한 번에 묶는다. */

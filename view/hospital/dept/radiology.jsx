@@ -5,7 +5,7 @@ import * as H from "./home";
 import { Chip, Facts, Fold, Warn, useCan } from "../lib/Parts";
 import { Body } from "../lib/Body";
 import RadiologyAi from "./RadiologyAi";
-import Stage, { polygonsFromAi } from "../lib/Stage";
+import Stage, { boxesFromLesions, polygonsFromAi } from "../lib/Stage";
 import { useApi } from "../lib/useApi";
 import { useFile } from "../lib/files";
 import { BIRADS, MODALITY, READ_STATUS, SEX, label, modality as asModality, text, tone }
@@ -28,29 +28,113 @@ const DicomStackViewer = lazy(() => import("../lib/dicom/DicomStackViewer"));
      시작하면(09-23) 이름으로 거르는 쪽은 그것을 못 받는다. 주소가 왔다는
      것은 그 뷰어가 열 수 있다는 뜻이다 — 아래 <img> 길은 DICOM 원본을
      못 푼다. */
-export function radStage(d, i = 0) {
+export function radStage(d, i = 0, sop = null) {
   if (d.volume_manifest) {
-    return { volumeManifest: d.volume_manifest, volumeBase: d.volume_base };
+    return { volumeManifest: d.volume_manifest, volumeBase: d.volume_base, ai: d.ai ?? null };
   }
+
+  const files = d.files ?? [];
+  const isUs = asModality(d.unit?.modality ?? d.modality ?? d.ai?.modality) === "us";
+
   if (d.stack_manifest) {
-    return { stackManifest: d.stack_manifest, stackBase: d.stack_base };
+    /* 스택 뷰어는 장마다 도형을 따로 얹는다 — 지금 장이 무엇인지는 뷰어가
+       SOP UID 로 알려 준다(onInstance). 맘모 병변은 image.{laterality,view}
+       로, 초음파 결과는 source_object 로 그 장을 찾는다 */
+    const cur = sop ? files.find((f) => f.sop_instance_uid === sop) ?? null : null;
+    const ai = isUs ? (cur ? aiForFiles(d, [cur]) : null) : d.ai ?? null;
+    return {
+      stackManifest: d.stack_manifest, stackBase: d.stack_base,
+      ai,
+      aiMissing: isUs && Boolean(cur) && !ai,
+      overlay: (at) => {
+        const f = files.find((x) => x.sop_instance_uid === at);
+        if (!f) return null;
+        if (isUs) return { shapes: usShapes(aiForFiles(d, [f])) };
+        return { shapes: boxesFromLesions(mammoLesions(d).filter((l) => fileOfLesion(files, l) === f), f.w, f.h) };
+      },
+      where: isUs ? undefined : (id) => whereLesion(d, files, id),
+    };
   }
 
   const s = (d.series ?? [])[i];
-  const ai = d.ai;
+  const sFiles = s?.files?.length ? s.files : s ? [s] : [];
+  const ai = isUs ? aiForFiles(d, sFiles) : d.ai ?? null;
   let shapes = [];
-  /* 기권 판정은 RadiologyAi 와 같은 규칙이어야 한다 — 봉투와 summary 중
-     하나라도 참이면 기권. `??` 로는 봉투의 false 에서 멈춘다. */
-  const abstained = Boolean(ai?.abstained || ai?.summary?.abstained);
-  if (ai && !abstained && ai.lesion_found !== false) {
-    if (asModality(ai.modality) === "us") shapes = polygonsFromAi(ai);
+  if (isUs) shapes = usShapes(ai);
+  else if (asModality(ai?.modality) === "mammo") {
+    /* 한 장짜리 원본으로 온 맘모(옛 자료·목업) — 파일에 좌우·방향이 있으면
+       그 장의 병변만, 없으면 전부 얹는다 */
+    const known = sFiles.some((f) => latOf(f.laterality) && viewOf(f.view_position));
+    const ls = mammoLesions(d);
+    shapes = boxesFromLesions(
+      known ? ls.filter((l) => sFiles.includes(fileOfLesion(files, l))) : ls, s?.w, s?.h);
   }
   return {
     image: s?.image,
     maskImage: null,
     w: s?.w, h: s?.h, alt: s?.name,
     shapes,
+    ai,
+    aiMissing: isUs && Boolean(s) && !ai,
   };
+}
+
+/* 기권 판정은 RadiologyAi 와 같은 규칙이어야 한다 — 봉투와 summary 중
+   하나라도 참이면 기권. `??` 로는 봉투의 false 에서 멈춘다. */
+const usable = (ai) => Boolean(ai) && !(ai.abstained || ai.summary?.abstained) && ai.lesion_found !== false;
+const usShapes = (ai) => (usable(ai) && asModality(ai.modality) === "us" ? polygonsFromAi(ai) : []);
+
+/* 이 영상(파일들)에 돌린 AI 결과.
+   초음파는 영상 한 장이 판독 한 번이라 한 검사에 AiResult 가 여럿이다.
+   서버가 ai_results(전부, source_object = 저장 파일 번호)를 주면 거기서
+   고른다(api.js 가 d.ais 로 정리). 옛 서버는 latest_ai_result 하나뿐이라
+   그것을 쓰되, 그 결과가 **다른 장** 것이라고 적혀 있으면 안 얹는다 —
+   A 장의 윤곽이 B 장 위에 그려지는 것보다 안 그리는 편이 낫다. */
+function aiForFiles(d, files) {
+  const ids = new Set(files.map((f) => f?.id).filter((v) => v != null).map(String));
+  const mine = (r) => r?.source_object != null && ids.has(String(r.source_object));
+  if (Array.isArray(d.ais)) {
+    const hit = d.ais.filter(mine);
+    return hit.find((r) => r.run_status === "done") ?? hit[0] ?? null;
+  }
+  const ai = d.ai ?? null;
+  return ai && (ai.source_object == null || mine(ai)) ? ai : null;
+}
+
+/* 맘모 병변 — 뷰어 도형 id 와 AI 패널이 같은 규칙(l.id ?? b{i})을 쓰도록
+   걸러 내기 **전에** id 를 박아 둔다. 거른 뒤에 붙이면 번호가 밀린다 */
+function mammoLesions(d) {
+  if (!usable(d.ai)) return [];
+  return (d.ai.lesions ?? []).map((l, i) => ({ ...l, id: l.id ?? `b${i}` }));
+}
+
+const latOf = (v) => ({ l: "L", left: "L", r: "R", right: "R" })[String(v ?? "").toLowerCase()] ?? null;
+const viewOf = (v) => String(v ?? "").trim().toUpperCase() || null;
+
+/* 병변이 나온 장 — 병변의 image.{laterality, view}(tasks.py _mammo)와
+   파일의 laterality · view_position(DICOM 헤더에서 읽은 값, I-2)을 맞춘다 */
+function fileOfLesion(files, l) {
+  const lat = latOf(l.image?.laterality);
+  const v = viewOf(l.image?.view);
+  if (!lat || !v) return null;
+  return files.find((f) => latOf(f.laterality) === lat && viewOf(f.view_position) === v) ?? null;
+}
+
+/* 「영상에서 보기」가 갈 곳. 못 가면 이유를 준다 — 버튼이 그 이유로 꺼진다 */
+function whereLesion(d, files, id) {
+  const l = mammoLesions(d).find((x) => x.id === id);
+  if (!l) return { why: "이 병변을 결과에서 찾지 못했습니다" };
+  if (!Array.isArray(l.box ?? l.bbox)) return { why: "이 병변의 박스 좌표가 결과에 없습니다" };
+  if (!l.image?.laterality || !l.image?.view) {
+    return { why: "이 병변이 어느 영상(좌우 · CC/MLO)에서 나왔는지 결과에 없습니다" };
+  }
+  if (!files.some((f) => latOf(f.laterality) && viewOf(f.view_position))) {
+    return { why: "업로드된 영상에 좌우 · 촬영 방향(laterality · view_position) 값이 없어 어느 장인지 찾지 못합니다" };
+  }
+  const f = fileOfLesion(files, l);
+  if (!f) return { why: `${latOf(l.image.laterality)}-${viewOf(l.image.view)} 영상이 이 검사에 없습니다` };
+  if (!f.sop_instance_uid) return { why: "그 영상의 DICOM 번호(SOP UID)가 없어 뷰어에서 찾지 못합니다" };
+  return { sop: f.sop_instance_uid };
 }
 
 /* 영상의학과 설정 — 공통 화면 다섯 장에 끼워 넣는 «다른 점»만 모은 파일
@@ -477,6 +561,9 @@ export const radiology = {
       draft: "radiology.read.draft",
       finalize: "radiology.read.finalize",
     },
+    /* 서버 확정(PATCH …/finalize)은 바디를 안 읽고 임시저장 행만 final 로
+       올린다 — 화면의 지금 값을 먼저 임시저장하고 확정한다(screens/Read.jsx) */
+    draftBeforeFinalize: true,
     /* MRI는 등급(BI-RADS)을 안 낸다 — 모델 구조상 없는 값이고, AI
        소견(RadiologyAi.jsx의 Mri())도 등급을 안 보여준다. 그래서 저장
        가능 여부도 판독 소견 유무로 본다. 나머지 모달리티는 등급 선택이

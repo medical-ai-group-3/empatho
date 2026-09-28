@@ -305,6 +305,14 @@ const R = `${ROOT}/radiology`;
 const B = `${ROOT}/breast`;
 const N = `${ROOT}/nursing`;
 
+/* { a: 1, b: null } → 「?a=1」. 빈 값은 뺀다 — 「?assessment=null」이 되면
+   받는 쪽이 그 글자를 번호로 읽는다 */
+function query(o) {
+  const q = new URLSearchParams(Object.entries(o).filter(([, v]) => v != null && v !== ""));
+  const s = q.toString();
+  return s ? `?${s}` : "";
+}
+
 export const go = {
   /* ⚠ 과 바깥이다. 사람은 과에 딸린 것이 아니라서 /hospital/me 로 둔다 */
   me: () => `${ROOT}/me`,
@@ -340,12 +348,18 @@ export const go = {
     queue:       () => `${B}/waiting`,
     waiting:     () => `${B}/waiting`,
     patients:    () => `${B}/patients`,
-    /* at — 진료 이력에서 고른 한 건({ study } · { specimen }). 주면 환자
-       상세가 그 검사 · 검체의 판독을 펴고 그 자리로 내려간다 */
-    review:      (id, at = null) => `${B}/patients/${id}/review${
-      at?.study != null ? `?study=${encodeURIComponent(at.study)}`
-      : at?.specimen != null ? `?specimen=${encodeURIComponent(at.specimen)}` : ""}`,
-    decision:    (id) => `${B}/patients/${id}/decision`,
+    /* at — 진료 이력에서 고른 한 건({ study, assessment? } · { specimen }).
+       주면 환자 상세가 그 검사 · 검체의 판독을 펴고 그 자리로 내려간다.
+       assessment 는 판독 **한 판**이다 — 정정 전 · 초안 판독을 고르면 그
+       판을 따로 보여 준다. ⚠ study 를 같이 싣는다: 판 목록을 검사로
+       받아서(GET /assessments?study=) 검사 없이는 찾을 수가 없다 */
+    review:      (id, at = null) => `${B}/patients/${id}/review${query(
+      at?.study != null ? { study: at.study, assessment: at.assessment }
+      : at?.specimen != null ? { specimen: at.specimen } : {})}`,
+    /* focus — 이력의 치료 결정 · 리포트 · 결과 설명 · 처방 줄에서 오면 그
+       칸으로 내려간다(decision · report · patient-report · explain ·
+       prescription, dept/breast/history.js) */
+    decision:    (id, focus = null) => `${B}/patients/${id}/decision${query({ focus })}`,
     discordance: (id) => `${B}/discordances/${id}`,
   },
 
