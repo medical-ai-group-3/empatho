@@ -1238,9 +1238,12 @@ a.nside-row:hover{background:var(--canvas)}
    꺾고, 이름 · 제목 · 날짜는 한 줄로 두고 모자라면 줄째로 내린다 */
 .work{word-break:keep-all; overflow-wrap:break-word}
 
-/* 왼쪽 — 내 환자. 큐는 어둡게 둔다(뷰어와 같은 규칙): 하루 종일 같은
-   자리에 있는 목록이라 본문과 갈려 보여야 손이 안 헤맨다 */
-.work-q{display:flex; flex-direction:column; min-height:0; min-width:0;
+/* 왼쪽 — 내 환자. ⚠ 전에는 뷰어처럼 어둡게 두었는데 뷰어가 없는 화면에서
+   이 단만 검어 다른 화면과 결이 어긋났다(09-28). 아래 규칙들이 쓰는 v-*
+   토큰을 이 단 안에서만 밝은 값으로 갈아 끼운다 — 줄은 목록과 같은 옅은 줄 */
+.work-q{--v-card:var(--card); --v-bg:var(--canvas); --v-line:var(--line-2);
+  --v-ink:var(--ink); --v-warm:var(--warm);
+  display:flex; flex-direction:column; min-height:0; min-width:0;
   background:var(--v-card); color:var(--v-ink)}
 .work-q-h{flex:none; display:flex; flex-direction:column; gap:var(--gap-sm);
   padding:var(--hcard-pad-y) var(--work-q-pad);
@@ -1494,6 +1497,14 @@ a.nside-row:hover{background:var(--canvas)}
 .rev-list button span{margin-left:auto; font-weight:700}
 .rev-list-b{display:flex; flex-direction:column; gap:var(--gap-xs);
   padding:0 0 var(--gap-sm) calc(1em + var(--gap-sm))}
+/* 등급 옆 악성 가능성 — 등급보다 한 톤 낮게 */
+.rev-list button span em{font-style:normal; font-weight:400; color:var(--warm);
+  margin-left:var(--gap-sm); font-size:var(--hint-fs)}
+/* 판독의 소견 / 영상 요약 — 누가 쓴 글인지 머리를 달아 가른다 */
+.rev-part{display:flex; flex-direction:column; gap:var(--gap-xxs)}
+.rev-part p{margin:0}
+.rev-part + .rev-part{margin-top:var(--gap-xs)}
+.rev-k{font-size:var(--hint-fs); color:var(--warm); font-weight:600}
 /* 진료 이력에서 골라 온 한 건 — 왼쪽 선 하나로 짚는다(.exam-history li.on
    과 같은 표시). 색 채움을 안 쓴다 */
 .rev-list li.here{box-shadow:inset var(--row-mark) 0 0 var(--cyan)}
@@ -2254,6 +2265,8 @@ a.pevent:focus-visible{outline:var(--hair) solid var(--cyan); outline-offset:2px
 .tbl td{font-size:var(--row-fs); padding:var(--row-pad-y) var(--row-pad-x);
   border-bottom:var(--hair) solid var(--line-2)}
 .tbl tbody tr{cursor:pointer}
+/* 표 안 칩은 줄 높이를 정하지 않게 얇게 — 칩 하나 때문에 줄이 부풀었다(09-28) */
+.tbl td .chip{padding-block:calc(2px * var(--sp)); line-height:1.4}
 .tbl tbody tr:hover{background:var(--canvas)}
 .tbl tbody tr.on{background:var(--canvas)}
 .tbl tbody tr.on td:first-child{box-shadow:inset var(--row-mark) 0 0 var(--cyan)}

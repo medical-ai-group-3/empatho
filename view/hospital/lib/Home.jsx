@@ -196,7 +196,7 @@ function Desk({ cfg, home, bag, again, barEl }) {
       {home.board && bag && <StageBoard {...home.board(bag)} />}
       {barEl && createPortal(<ArrangeBar lay={lay} />, barEl)}
       <Panes lay={lay} cards={cards} className="desk" paneClass="pane"
-             cols={["minmax(0, 1.5fr)", "minmax(0, 1fr)", "var(--desk-r)"]} />
+             cols={home.cols ?? ["minmax(0, 1.5fr)", "minmax(0, 1fr)", "var(--desk-r)"]} />
     </>
   );
 }

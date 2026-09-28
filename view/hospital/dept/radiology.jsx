@@ -16,7 +16,7 @@ import { MODALITY, biradsFor, READ_STATUS, SEX, eventDetail, label, modality as 
 import { currentAssessment } from "../api";
 import { RadiologyAiSummary } from "./RadiologyAi";
 import { Phrases } from "../lib/Parts";
-import { BIRADS_LABEL, DENSITY_CATEGORY, EXAM_PURPOSE, RECOMMENDATION } from "../codes";
+import { BIRADS_LABEL, DENSITY_CATEGORY, EXAM_PURPOSE, RECOMMENDATION, biradsLine, biradsNoteWarn, biradsRisk } from "../codes";
 import { can, getMe } from "../perm";
 import { DISPOSITION_TYPE, FLAG_STATUS } from "../codes";
 
@@ -461,7 +461,9 @@ export const radiology = {
        「확인이 필요한 것」도 뺀다 — 탭 머리 숫자가 같은 말을 한다.
        09-28 「판독 현황」 밑에 「내 판독 불일치 결과」를 둔다 — 큐가 짧으면
        그 밑이 통째로 비었다. 둘 다 줄어드는 칸이라 큐가 길면 나눠 굴린다 */
-    layout: [["queue", "flags"], ["done", "handover"], ["todo"]],
+    /* 09-28 큐가 좁아 답답했다 — 두 단으로: 큐를 넓게, 나머지는 오른쪽 한 줄로 */
+    layout: [["queue", "flags"], ["done", "handover", "todo"]],
+    cols: ["minmax(0, 2.4fr)", "minmax(0, 1fr)"],
 
     cards: {
       /* ── 내 판독 불일치 결과 ──────────────────────────────────
@@ -537,14 +539,15 @@ export const radiology = {
         name: H.nameOf(r),
         no: H.noOf(r),
         meta: H.who(r),
+        /* 줄마다 검은 채움 칩이 서 있으면 목록이 무겁다 — 선 칩으로 */
         chip: r.modality ? label(MODALITY, asModality(r.modality)) : null,
-        chipTone: "fill",
-        sub: [AI_NOTE[r.ai_status] ?? (hasImg(r) ? "AI 없음" : null),
+        /* 「AI 완료」는 거의 모든 줄의 같은 말이라 뺀다 — 다를 때만 적는다 */
+        sub: [r.ai_status === "done" ? null : AI_NOTE[r.ai_status] ?? (hasImg(r) ? "AI 없음" : null),
               /* 모달리티는 칩이 말한다 — 목적만 */
               label(PURPOSE, r.exam_purpose) || r.exam_name].filter(Boolean).join(" · "),
-        at: H.at(r.performed_at),
-        /* 기다린 시간 — 촬영한 뒤로. 오더 시각은 새 서버만 행에 싣는다 */
-        wait: H.waited(r.performed_at ?? r.ordered_at),
+        /* 시각과 기다린 시간을 한 칸에 — 따로 두니 눈이 끝에서 끝으로 오갔다.
+           기다린 시간은 촬영한 뒤로. 오더 시각은 새 서버만 행에 싣는다 */
+        wait: [H.at(r.performed_at ?? r.ordered_at), H.waited(r.performed_at ?? r.ordered_at)].filter(Boolean).join(" · "),
         modality: asModality(r.modality),
         exam_purpose: r.exam_purpose ?? null,
         /* 영상이 없으면 업로드, 있으면 판독 — 영상 없는 검사를 판독으로
@@ -562,8 +565,8 @@ export const radiology = {
         hint: "진행 순서",
         cols: { chip: "모달리티", sub: "내용" },
         pick: "doctor",
-        /* 기다린 시간은 별도 열 — 시각(at)과 나란히 */
-        extra: [{ key: "wait", name: "대기" }],
+        /* 시각 · 기다린 시간 한 칸. 오른쪽 끝은 환자번호만 */
+        extra: [{ key: "wait", name: "시각 · 대기" }],
         filters: HOME_FILTERS,
         tabs: [
           /* 유방외과가 낸 오더 — 집는 것은 촬영 대기 화면이 한다.
@@ -577,8 +580,7 @@ export const radiology = {
               chip: o.modality ? label(MODALITY, asModality(o.modality)) : null,
               sub: [label(PURPOSE, o.exam_purpose) || null, o.purpose || null,
                     `${o.ordered_by_name ?? "유방외과"} 요청`].filter(Boolean).join(" · "),
-              at: H.at(o.ordered_at),
-              wait: H.waited(o.ordered_at),
+              wait: [H.at(o.ordered_at), H.waited(o.ordered_at)].filter(Boolean).join(" · "),
               modality: asModality(o.modality),
               exam_purpose: o.exam_purpose ?? null,
               to: `${go.radiology.queue()}?pick=${o.id}`,
@@ -843,6 +845,7 @@ export const radiology = {
         <>
           <Facts items={[
             ["판정 등급", fin.category ? `BI-RADS ${label(BIRADS_LABEL, fin.category)}` : "—"],
+            fin.category && biradsRisk(fin.category) && ["악성 가능성(ACR)", biradsRisk(fin.category).replace(/^악성 가능성 /, "")],
             d.density_category && ["밀도", densityText(d)],
             fin.recommendation && ["권고", label(RECOMMENDATION, fin.recommendation)],
             fin.recommendation_reason && ["권고 사유", fin.recommendation_reason],
@@ -957,7 +960,7 @@ export const radiology = {
             <span>판정 등급 (BI-RADS)</span>
             <select value={f.category ?? ""} onChange={(e) => set("category", e.target.value)}>
               <option value="">선택하세요</option>
-              {biradsFor(d.unit?.modality).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              {biradsFor(d.unit?.modality).map((o) => <option key={o.value} value={o.value}>{[o.label, biradsRisk(o.value)].filter(Boolean).join(" · ")}</option>)}
             </select>
           </label>
 
@@ -998,6 +1001,11 @@ export const radiology = {
             <textarea className="lg" rows={8} value={f.finding_note ?? ""}
                       onChange={(e) => set("finding_note", e.target.value)} />
           </label>
+          {/* 등급과 어긋난 소견 — 막지는 않는다. 「양성인 것 같음」처럼 등급의
+              근거가 안 되는 말이 그대로 확정되지 않게 알려 준다 */}
+          {biradsNoteWarn(f.category, f.finding_note) && (
+            <p className="hint warn">{biradsNoteWarn(f.category, f.finding_note)}</p>
+          )}
           {/* 상용구 — ⚠ label 밖에 둔다. label 안의 단추는 그 label 의 대상이 되어
               소견 칸을 눌러도 첫 상용구가 눌린다 */}
           <Phrases groups={phrases} onPick={insert} />
@@ -1115,7 +1123,7 @@ export const radiology = {
               <Fold title="판독 결과" open={Boolean(d.finalized)}>
                 {d.finalized ? (
                   <>
-                    <Facts items={[["판정 등급", `BI-RADS ${d.category}`]]} />
+                    <Facts items={[["판정 등급", biradsLine(d.category)]]} />
                     <p className="quote">{d.finding_note || "—"}</p>
                   </>
                 ) : <p className="muted small">아직 확정된 판독이 없습니다.</p>}
@@ -1137,9 +1145,10 @@ export const radiology = {
     title: "판독 정정",
     categoryLabel: "판정 등급 (BI-RADS)",
     /* 검사의 모달리티마다 다르다 — MRI 는 4, 맘모 · 초음파는 4a~4c */
-    categories: (d) => biradsFor(d?.unit?.modality),
+    categories: (d) => biradsFor(d?.unit?.modality)
+      .map((o) => ({ ...o, label: [o.label, biradsRisk(o.value)].filter(Boolean).join(" · ") })),
     /* 코드 → 「4b — 중등도 악성 의심」 (기존 판독 · 이력 칸) */
-    categoryText: (v) => (v ? `BI-RADS ${label(BIRADS_LABEL, v)}` : "—"),
+    categoryText: (v) => (v ? [`BI-RADS ${label(BIRADS_LABEL, v)}`, biradsRisk(v)].filter(Boolean).join(" · ") : "—"),
     saveHint: "저장하면 새 판독이 만들어지고 유방외과로 전달됩니다. 이전 판독은 삭제되지 않습니다.",
     need: { view: "radiology.amend.view", save: "radiology.amend.save" },
 

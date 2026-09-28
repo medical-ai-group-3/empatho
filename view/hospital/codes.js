@@ -162,6 +162,36 @@ export const BIRADS_MRI = [
   { value: "6", label: "6 — 조직학적으로 확인된 악성" },
 ];
 
+/** ACR BI-RADS(5판)가 정한 등급별 악성 가능성 — 판독의가 적는 말이
+ *  「양성인 것 같음」 같은 인상이 아니라 이 범위로 읽히게 등급 옆에 붙인다.
+ *  ⚠ AI 의 malignancy_p 가 아니다(그 값은 화면에 내지 않는다) */
+const BIRADS_RISK = {
+  "0": "추가 검사 필요", "1": "악성 가능성 0%", "2": "악성 가능성 0%",
+  "3": "악성 가능성 2% 이하", "4": "악성 가능성 2–95%", "4a": "악성 가능성 2–10%",
+  "4b": "악성 가능성 10–50%", "4c": "악성 가능성 50–95%", "5": "악성 가능성 95% 이상",
+  "6": "조직검사로 악성 확인",
+};
+export const biradsRisk = (c) => BIRADS_RISK[String(c ?? "").toLowerCase()] ?? null;
+
+/** 「BI-RADS 4c · 악성 가능성 50–95%」 */
+export const biradsLine = (c) => c == null || c === "" ? "—"
+  : [`BI-RADS ${String(c).toLowerCase()}`, biradsRisk(c)].filter(Boolean).join(" · ");
+
+/** 소견문이 등급과 어긋나는지 — 막지 않고 알려만 준다. 없으면 null */
+export function biradsNoteWarn(c, note) {
+  const n = String(note ?? "").replace(/\s/g, "");
+  const cat = String(c ?? "").toLowerCase();
+  if (!cat || !n) return null;
+  const high = /^(4|4a|4b|4c|5|6)$/.test(cat), low = /^(1|2)$/.test(cat);
+  if (high && /양성(인|일|으로)?(것|거)?같|양성으로보|양성소견/.test(n) && !/악성/.test(n))
+    return `등급은 BI-RADS ${cat}(${biradsRisk(cat)})인데 소견은 양성으로 읽힙니다. 등급을 고른 근거(모양 · 경계 · 석회화 등)를 적어 주세요.`;
+  if (low && /악성(의심|가능|같)/.test(n))
+    return `등급은 BI-RADS ${cat}(양성)인데 소견에 악성 의심이 적혀 있습니다. 등급을 다시 확인해 주세요.`;
+  if (n.length < 15)
+    return "소견이 너무 짧습니다. 병변 위치 · 크기 · 모양 · 경계처럼 등급을 고른 근거를 적어 주세요.";
+  return null;
+}
+
 /** 이 검사의 모달리티에 맞는 BI-RADS 선택지 */
 export const biradsFor = (m) => (modality(m) === "mri" ? BIRADS_MRI : BIRADS);
 

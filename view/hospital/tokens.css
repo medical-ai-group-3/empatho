@@ -142,7 +142,7 @@
   --chip-gap:    calc(6px * var(--sp));
 
   /* ══ 목록 · 표 ════════════════════════════════════════════ */
-  --row-pad-y:  calc(11px * var(--sp));
+  --row-pad-y:  calc(8px * var(--sp));    /* 09-28 11→8 — 목록이 쓸데없이 성겼다 */
   --row-pad-x:  calc(14px * var(--sp));
   --row-fs:     calc(13px * var(--ft));
   --th-fs:      calc(11.5px * var(--ft));

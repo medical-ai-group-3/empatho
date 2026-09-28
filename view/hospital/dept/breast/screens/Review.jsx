@@ -6,7 +6,7 @@ import { Page, Btn } from "../../../lib/Page";
 import { Body } from "../../../lib/Body";
 import { Chip } from "../../../lib/Parts";
 import { ArrangeBar, Panes, useArrange } from "../../../lib/Arrange";
-import { MODALITY, BIRADS_LABEL, EXAM_PURPOSE, label, modality as asModality } from "../../../codes";
+import { MODALITY, BIRADS_LABEL, EXAM_PURPOSE, biradsRisk, label, modality as asModality } from "../../../codes";
 import { go } from "../../../nav";
 import * as H from "../../home";
 import "../breast.css";
@@ -348,6 +348,10 @@ function Readings({ title, gradeLabel, items, lines = [], focus = null, miss = n
     here.current?.scrollIntoView({ block: "center" });
   }, [focus]);
   const top = items.find((x) => x.grade);
+  /* 「2」 하나만 덩그러니 서 있으면 무슨 숫자인지 모른다 — 등급 이름을
+     붙이고, BI-RADS 면 ACR 이 정한 악성 가능성도 같이 적는다 */
+  const gradeOf = (g) => (gradeLabel ? `${gradeLabel} ${g}` : g);
+  const riskOf = (g) => (gradeLabel === "BI-RADS" ? biradsRisk(g) : null);
   const toggle = (id) => setOpen((s) => {
     const n = new Set(s);
     if (n.has(id)) n.delete(id); else n.add(id);
@@ -359,7 +363,7 @@ function Readings({ title, gradeLabel, items, lines = [], focus = null, miss = n
       <header className="rev-box-h">
         <h3>{title}</h3>
         <span className="home-fill" />
-        {top && <Chip tone="fill">{gradeLabel ? `${gradeLabel} ${top.grade}` : top.grade}</Chip>}
+        {top && <Chip tone="fill">{gradeOf(top.grade)}</Chip>}
         {items.length > 0 ? <Chip>확정 {items.length}건</Chip> : <span className="hcard-k">아직 없습니다</span>}
       </header>
       {lines.some(([, x]) => x) && (
@@ -382,7 +386,9 @@ function Readings({ title, gradeLabel, items, lines = [], focus = null, miss = n
                 <i aria-hidden="true">{on ? "▾" : "▸"}</i>
                 <time>{H.day(x.at) ?? "—"}</time>
                 <b>{x.what}</b>
-                {x.grade && <span>{x.grade}</span>}
+                {x.grade && (
+                  <span>{gradeOf(x.grade)}{riskOf(x.grade) && <em>{riskOf(x.grade)}</em>}</span>
+                )}
               </button>
               {on && (
                 <div className="rev-list-b">
@@ -390,8 +396,14 @@ function Readings({ title, gradeLabel, items, lines = [], focus = null, miss = n
                     <span className="bf-rcp">{x.extra.map((c) => <Chip key={c}>{c}</Chip>)}</span>
                   )}
                   {/* 판독의가 쓴 소견이 먼저다. 소견문은 그것을 풀어 쓴 글이다 */}
-                  {x.note && <p className="rev-find">{x.note}</p>}
-                  {x.summaries.map((s, i) => <p className="rev-find muted" key={i}>{s}</p>)}
+                  {x.note && (
+                    <div className="rev-part"><span className="rev-k">판독 소견</span>
+                      <p className="rev-find">{x.note}</p></div>
+                  )}
+                  {x.summaries.length > 0 && (
+                    <div className="rev-part"><span className="rev-k">영상 요약</span>
+                      {x.summaries.map((s, i) => <p className="rev-find muted" key={i}>{s}</p>)}</div>
+                  )}
                   {!x.note && x.summaries.length === 0 && <p className="hcard-k">소견이 없습니다</p>}
                 </div>
               )}

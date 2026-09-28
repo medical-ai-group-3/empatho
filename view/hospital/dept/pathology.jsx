@@ -491,7 +491,9 @@ export const pathology = {
                need: "pathology.queue.view" },
 
     /* 달력은 뺀다 — 찍을 점이 없어 늘 빈 달이었다. 맨 위는 흐름 한 줄 */
-    layout: [["flow", "queue", "stuck"], ["done", "handover"], ["todo"]],
+    /* 09-28 영상의학과와 같이 두 단 — 큐를 넓게, 나머지는 오른쪽 한 줄로 */
+    layout: [["flow", "queue", "stuck"], ["done", "handover", "todo"]],
+    cols: ["minmax(0, 2.4fr)", "minmax(0, 1fr)"],
 
     /* 흐름 — 접수 대기 → 내 판독중 → 오늘 확정 → 불일치. 줄을 누르면
        걸러진 목록(?f=)으로 간다 */
