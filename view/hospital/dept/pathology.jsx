@@ -229,6 +229,11 @@ function pathAiRow(row = {}) {
     tumor_area_px: r.tumor_area_px ?? null,
     stroma_area_px: r.stroma_area_px ?? null,
     immune_cell_area_px: r.immune_cell_area_px ?? null,
+    /* serving 1.1.0(09-28) — 분자가 「간질 안 면역세포 주변 5µm 영역」이 됐다.
+       1.0.0 식(핵 면적 × 1.5)은 stil_nucleus_percent 로 따로 온다 */
+    immune_region_area_px: r.immune_region_area_px ?? null,
+    stil_nucleus_percent: r.stil_nucleus_percent ?? null,
+    til_region_radius_um: r.til_region_radius_um ?? null,
     mpp: r.mpp ?? null,
 
     /* 마스크 픽셀값의 뜻 — {"0":"other","1":"tumor","2":"stroma"} 꼴.

@@ -243,6 +243,7 @@ function Inner({ cfg, id, d }) {
                   lesions={d.lesions}
                   study={{ volume_manifest: view.volumeManifest, volume_base: view.volumeBase, anatomy_meshes: d.anatomy_meshes }}
                   issue={cfg.api.ticket}
+                  focusSlice={pick && typeof pick === "object" ? pick.slice : null}
                   mode="diagnostic"
                   onAnnotation={setPendingMark}
                 />

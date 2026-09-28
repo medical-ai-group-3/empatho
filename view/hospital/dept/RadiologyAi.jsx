@@ -1,6 +1,6 @@
 import { Chip, Fold } from "../lib/Parts";
 import { DESCRIPTOR_AXIS, LESION_KIND, label, modality as asModality } from "../codes";
-import { Gauge, GradeBars } from "./AiViz";
+import { Bars, BreastMap, Gauge, GradeBars, Radar } from "./AiViz";
 
 /* 영상의학과 AI 소견 — 모달리티마다 내용이 다르다
  * ────────────────────────────────────────────────────────────────
@@ -65,7 +65,7 @@ export default function RadiologyAi({ d, view, pick, onPick }) {
           초음파 소견이 통째로 안 뜬다. asModality 가 철자를 맞춰 준다 */}
       {m === "us" && <Ultrasound a={ai} />}
       {m === "mammo" && <Mammo a={ai} pick={pick} onPick={onPick} where={view?.where} />}
-      {m === "mri" && <Mri a={ai} />}
+      {m === "mri" && <Mri a={ai} pick={pick} onPick={onPick} />}
     </div>
   );
 }
@@ -104,6 +104,31 @@ function Ultrasound({ a }) {
           {a.shape?.area != null && <Chip tone="line">면적 {num(a.shape.area, 0)} px²</Chip>}
         </div>
       )}
+
+      {/* 형태 지표 네 개를 한 도형으로 — 축마다 값 범위를 정해 0~1 로 편다.
+          판정 문장은 만들지 않는다(지킬 것 2). 값은 도형 옆 글자로도 적는다 */}
+      <Radar
+        label="형태 프로필"
+        axes={[
+          { name: "원형도", value: a.shape?.circularity, lo: 0, hi: 1 },
+          { name: "볼록성", value: a.shape?.convexity, lo: 0, hi: 1 },
+          { name: "종횡비", value: a.shape?.aspect_ratio, lo: 0, hi: 1.5 },
+          { name: "요철도", value: a.shape?.roughness, lo: 1, hi: 2 },
+        ]}
+        note="축 범위: 원형도·볼록성 0~1 · 종횡비(세로/가로) 0~1.5 · 요철도 1~2(1이 매끈함)" />
+
+      <div className="viz-chips">
+        {a.score != null && <Chip tone="line">검출 점수 {pct(a.score)}</Chip>}
+        {a.shape?.bbox_w_px != null && (
+          <Chip tone="line">가로 {num(a.shape.bbox_w_px, 0)} × 세로 {num(a.shape.bbox_h_px, 0)} px</Chip>
+        )}
+        {a.shape?.taller_than_wide != null && (
+          <Chip tone={a.shape.taller_than_wide ? "fill" : "line"}>
+            {a.shape.taller_than_wide ? "세로로 긴 병변" : "세로로 길지 않음"}
+          </Chip>
+        )}
+        {a.shape?.n_components != null && <Chip tone="line">조각 {a.shape.n_components}개</Chip>}
+      </div>
 
       <Fold title="형태 지표">
         <dl className="ai-m two">
@@ -153,6 +178,20 @@ function Mammo({ a, pick, onPick, where }) {
         </div>
       </dl>
 
+      {/* 병변끼리 검출 점수 비교 — 어디부터 볼지. 누르면 영상에서 밝힌다 */}
+      {lesions.length > 1 && (
+        <Bars
+          label="병변별 검출 점수"
+          max={1}
+          fmtVal={(v) => pct(v)}
+          items={lesions.map((l, i) => ({
+            name: `${l.id ?? `병변 ${i + 1}`} · BI-RADS ${l.birads ?? "—"}`,
+            value: l.score,
+            on: pick != null && pick === (l.id ?? `b${i}`),
+          }))}
+          note="모델 검출 점수(0~100%). 등급과 다른 축입니다." />
+      )}
+
       {lesions.map((l, i) => {
         /* ⚠ 뷰어 도형의 id 와 **같은 규칙**이어야 한다.
            lib/Stage.jsx 의 boxesFromLesions 가 `l.id ?? \`b${i}\`` 로
@@ -180,11 +219,22 @@ function Mammo({ a, pick, onPick, where }) {
             </div>
 
             <dl className="ai-m two">
-              {/* 맘모 모델은 크기를 안 낸다 — 없으면 칸을 두지 않는다 */}
-              {l.size_mm != null && <div><dt>크기</dt><dd>{num(l.size_mm)} <i>mm</i></dd></div>}
-              <div><dt>확신도</dt><dd>{pct(sure)}</dd></div>
+              {/* 크기: 모델은 ai_size_mm 로 준다(09-28 — size_mm 만 보던 동안 늘 「—」). 둘 다 없으면 칸을 두지 않는다 */}
+              {(l.size_mm ?? l.ai_size_mm) != null && <div><dt>크기</dt><dd>{num(l.size_mm ?? l.ai_size_mm)} <i>mm</i></dd></div>}
+              <div><dt>확신도</dt><dd>{pct(sure)}{l.certainty != null && l.confidence ? ` · ${CONF[l.confidence] ?? l.confidence}` : ""}</dd></div>
+              <div><dt>검출 점수</dt><dd>{pct(l.score)}</dd></div>
               <div><dt>생검</dt><dd>{l.biopsy ? "권고" : "해당 없음"}</dd></div>
+              {l.aspect_ratio != null && <div><dt>종횡비</dt><dd>{num(l.aspect_ratio, 2)}</dd></div>}
             </dl>
+
+            <Bars
+              label="서술어 확신도"
+              max={1}
+              fmtVal={(v) => pct(v)}
+              items={dsc.map((x) => ({
+                name: `${label(DESCRIPTOR_AXIS, x.axis)} · ${x.value}`,
+                value: x.confidence,
+              }))} />
 
             {/* 서술어 5축 — 값 · 확신도 · 검증 여부를 그대로 낸다.
                 문장으로 바꾸지 않는다 */}
@@ -239,7 +289,13 @@ function Mammo({ a, pick, onPick, where }) {
 }
 
 /* ── MRI ─────────────────────────────────────────────────────── */
-function Mri({ a }) {
+function Mri({ a, pick, onPick }) {
+  const lesions = a.lesions ?? [];
+  /* 근거 단면 — 모델이 병변마다 「축상 몇 번째 장의 어디」를 준다(tumor.evidence).
+     누르면 MPR 뷰어 축상면이 그 장으로 간다. pick 은 {slice} 로 넘긴다
+     (맘모는 병변 id 문자열이라 모양으로 갈린다). */
+  const evidence = (a.tumor?.evidence ?? []).filter((e) => e?.image?.slice_index != null);
+  const onSlice = pick && typeof pick === "object" ? pick.slice : null;
   return (
     <>
       <p className="muted small">
@@ -263,7 +319,39 @@ function Mri({ a }) {
         </dl>
       </Fold>
 
-      {(a.lesions ?? []).map((l, i) => (
+      {lesions.length > 0 && (
+        <BreastMap
+          label={`병변 위치 ${lesions.length}개`}
+          lesions={lesions.map((l) => ({ quadrant: l.quadrant, dist: l.nipple_distance_mm }))}
+          note={`사분면과 유두 거리로 찍은 상대 위치입니다(가장 먼 병변을 가장자리로). 좌우 정보가 없어 한쪽만 그립니다.${a.tumor?.location_note ? ` · ${a.tumor.location_note}` : ""}`} />
+      )}
+
+      {lesions.length > 1 && (
+        <Bars
+          label="병변별 부피"
+          fmtVal={(v) => `${num(v, 2)} cm³`}
+          items={lesions.map((l, i) => ({ name: `병변 ${i + 1} · ${num(l.max_diameter_mm)}mm`, value: l.volume_cm3 }))} />
+      )}
+
+      {evidence.length > 0 && (
+        <div className="viz viz-lg">
+          <div className="viz-h">근거 단면 {evidence.length}장<b>누르면 축상면이 그 장으로 갑니다</b></div>
+          <div className="viz-jump">
+            {evidence.map((e) => {
+              const s = e.image.slice_index;
+              return (
+                <button key={e.id ?? s} className="btn ghost" aria-pressed={onSlice === s}
+                        disabled={!onPick}
+                        onClick={() => onPick?.(onSlice === s ? null : { slice: s, box: e.box })}>
+                  {e.id ?? "근거"} · 축상 {s + 1}번째 장
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {lesions.map((l, i) => (
         <section className="ai-card" key={l.id ?? i}>
           <div className="ai-h"><b>병변 {i + 1}</b></div>
           <dl className="ai-m two">
@@ -271,10 +359,11 @@ function Mri({ a }) {
             <div><dt>최대 직경</dt><dd>{num(l.max_diameter_mm)} <i>mm</i></dd></div>
             <div><dt>유두 거리</dt><dd>{num(l.nipple_distance_mm)} <i>mm</i></dd></div>
             <div className="wide"><dt>사분면</dt><dd>{l.quadrant ?? "—"}</dd></div>
+            {l.centroid_z != null && (
+              <div className="wide"><dt>중심 좌표</dt>
+                <dd>x {num(l.centroid_x, 0)} · y {num(l.centroid_y, 0)} · 장 {num(l.centroid_z, 0)}</dd></div>
+            )}
           </dl>
-          <p className="muted small">
-            현재 분석 결과에는 2D 단면 좌표가 없어 위치 표시는 제공하지 않습니다.
-          </p>
         </section>
       ))}
     </>
@@ -297,6 +386,8 @@ function boundaries(grade) {
     on: Number.isFinite(now) && now >= i + 2,
   }));
 }
+
+const CONF = { high: "높음", medium: "보통", low: "낮음" };
 
 function num(n, digits = 1) {
   if (n == null) return "—";

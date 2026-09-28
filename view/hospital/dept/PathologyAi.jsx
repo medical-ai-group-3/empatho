@@ -1,5 +1,5 @@
 import { Chip } from "../lib/Parts";
-import { PartBar, SplitBar, StripPlot } from "./AiViz";
+import { Gauge, PartBar, SplitBar, StripPlot } from "./AiViz";
 
 /* 병리 AI 소견 — 등급이 아니라 정량 지표다
  * ────────────────────────────────────────────────────────────────
@@ -89,7 +89,11 @@ export default function PathologyAi({ d }) {
               <div>
                 <dt>
                   AI 계측값{" "}
-                  <span className="muted small">(간질 대비 면역세포 면적 비율)</span>
+                  <span className="muted small">
+                    ({r.immune_region_area_px != null
+                      ? `간질 중 면역세포 주변 ${r.til_region_radius_um ?? 5}µm 영역 비율`
+                      : "간질 대비 면역세포 면적 비율"})
+                  </span>
                 </dt>
                 <dd className="muted">
                   {r.stroma_status === "absent" ? (
@@ -98,10 +102,11 @@ export default function PathologyAi({ d }) {
                     <span className="ai-na inline">값 없음</span>
                   ) : (
                     <>
-                      {fmt1(r.stil_percent)}<i>%</i>
+                      {fmt1(r.stil_percent)}<i>%</i>{band(r.stil_percent)}
                       <p className="muted small">
                         병리의사 sTIL과 척도가 달라 직접 비교할 수 없습니다.
-                        세포 검출 누락으로 실제보다 낮게 나올 수 있습니다.
+                        세포 검출 누락으로 실제와 다르게 나올 수 있습니다.
+                        {band(r.stil_percent) && " ± 는 외부 검증 이미지 151장 중 80%가 들어간 오차 범위입니다."}
                       </p>
                     </>
                   )}
@@ -142,6 +147,12 @@ export default function PathologyAi({ d }) {
               비율·세포 구성이 뜻을 잃으므로 통째로 건너뛴다. */}
           {!r.abstained && r.stroma_status !== "absent" && (
             <>
+              {/* AI 계측값이 어떻게 나왔는지 — 분자 ÷ 분모를 그대로 보인다 */}
+              <Gauge
+                label="AI 계측값 풀이"
+                percent={r.stil_percent}
+                note={`${r.immune_region_area_px != null ? "면역세포 영역" : "면역세포 면적"} ${fmt(r.immune_region_area_px ?? r.immune_cell_area_px)} px ÷ 간질 ${fmt(r.stroma_area_px)} px`} />
+
               <SplitBar
                 label="조직 구성 (TSR)"
                 parts={[
@@ -164,7 +175,8 @@ export default function PathologyAi({ d }) {
                 parts={[
                   { name: "종양", value: r.tumor_area_px },
                   { name: "간질", value: r.stroma_area_px },
-                  { name: "면역세포", value: r.immune_cell_area_px },
+                  { name: r.immune_region_area_px != null ? "면역세포 영역" : "면역세포",
+                    value: r.immune_region_area_px ?? r.immune_cell_area_px },
                 ]} />
             </>
           )}
@@ -176,6 +188,27 @@ export default function PathologyAi({ d }) {
       </p>
     </div>
   );
+}
+
+/* 검증 오차 ± (09-28 · serving 1.1.0) — BCSS 151장(학습에 안 쓴 외부 ROI,
+   0.5µm/px)에서 AI 값 구간마다 |AI − 정답| 의 80 백분위를 잰 값이다.
+   정답 = 병리 인력이 칠한 림프구 침윤 면적 ÷ 간질 영역 면적.
+   전체 평균 오차 9.2 (1.0.0 핵 면적식 16.2), AI 평균 24.8 · 정답 평균 24.9.
+   ⚠ 병리의사 육안 sTIL 점수 기준이 아니다. 조직 모델·계산식이 바뀌면
+     다시 잰다 — 워크스테이션 ~/tmp_stil_rel/val11.py · band.py
+   ponytail: 화면 상수. 모델 판마다 달라지면 서버 응답으로 옮긴다 */
+const ERROR_BAND = [
+  { upTo: 10, pm: 7.6 },
+  { upTo: 20, pm: 10.3 },
+  { upTo: 30, pm: 10.9 },
+  { upTo: 40, pm: 17.6 },
+  { upTo: Infinity, pm: 14.6 },
+];
+
+function band(v) {
+  if (typeof v !== "number" || !(v > 0)) return null;
+  const pm = ERROR_BAND.find((b) => v <= b.upTo).pm;
+  return <span className="muted small"> ± {pm.toFixed(1)}%p</span>;
 }
 
 function fmt(n) {

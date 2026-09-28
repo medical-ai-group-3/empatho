@@ -22,6 +22,8 @@ export default function MRIReviewGrid({
   study,
   mode = "diagnostic",
   onAnnotation,
+  /* AI 소견 「근거 단면」에서 고른 축상 장 번호 — MPR 이 그 장으로 간다 */
+  focusSlice = null,
   /* 파생물(메시 JSON) 티켓 발급 — rad.ticket. 없으면 메시를 안 받는다 */
   issue,
 }) {
@@ -161,6 +163,7 @@ export default function MRIReviewGrid({
           baseUrl={study?.volume_base}
           mode={mode}
           onAnnotation={onAnnotation}
+          focusSlice={focusSlice}
         />
       </div>
 

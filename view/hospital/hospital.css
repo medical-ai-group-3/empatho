@@ -3108,3 +3108,12 @@ a.exam-history-pick{text-decoration:none}
 .vside .viz-fill.t1,.vside .viz-seg.t1,.vside .viz-dot.t1,
 .vside .viz-range{background:var(--v-warm)}
 .vside .viz-fill.t2,.vside .viz-seg.t2,.vside .viz-dot.t2{background:var(--wash)}
+
+/* 09-28 AI 소견 그래프 — 작게 보이지 않게 크게 그린다 */
+.viz-lg{margin:calc(14px * var(--sp)) 0}
+.viz-lg .viz-row{grid-template-columns:minmax(0,9em) 1fr auto; margin-bottom:calc(8px * var(--sp))}
+.viz-lg .viz-track{height:calc(14px * var(--sp))}
+.viz-lg .viz-name, .viz-lg .viz-val{font-size:var(--qrow-meta-fs)}
+.viz-svg{display:block; width:100%; max-width:360px; height:auto; margin:0 auto}
+.viz-chips{display:flex; flex-wrap:wrap; gap:var(--gap-sm); margin:calc(8px * var(--sp)) 0}
+.viz-jump{display:flex; flex-wrap:wrap; gap:var(--gap-sm); margin:calc(8px * var(--sp)) 0}
