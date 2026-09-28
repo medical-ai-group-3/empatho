@@ -97,7 +97,7 @@ a {
   align-items: center;
   gap: var(--top-gap);
   padding: var(--top-pad-y) var(--top-pad-x);
-  padding-top: calc(var(--top-pad-y) + env(safe-area-inset-top, 0px));
+  padding-top: calc(var(--top-pad-y) + var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
   border-bottom: var(--line-w) solid var(--line);
   flex: none;
   background: var(--surface);
@@ -199,7 +199,7 @@ a {
   /* env(safe-area-inset-bottom) — 아이폰 아래쪽 «홈 인디케이터» 막대 높이다.
      안 빼면 하단바가 그 밑에 깔려서 탭이 안 눌린다 */
   margin: 0 var(--nav-side)
-    calc(var(--nav-bottom) + env(safe-area-inset-bottom, 0px));
+    calc(var(--nav-bottom) + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
   border-radius: var(--nav-radius);
   border: var(--line-w) solid var(--card-line);
   box-shadow: var(--nav-shadow);
@@ -1248,7 +1248,7 @@ a {
   background: var(--bg);
   border-inline: var(--line-w) solid var(--line);
   padding: var(--wel-pad);
-  padding-bottom: calc(var(--wel-pad) + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(var(--wel-pad) + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
 }
 
 /* 로고 조합과 서식은 단추 위의 남는 자리를 받아 화면 가운데에 선다. */
@@ -1755,7 +1755,7 @@ a {
 /* 나가는 문은 늘 같은 자리에 — 오른쪽 위 */
 .coach-x {
   position: fixed;
-  top: calc(var(--screen-pad) + env(safe-area-inset-top, 0px));
+  top: calc(var(--screen-pad) + var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
   right: var(--screen-pad);
   width: var(--icon);
   height: var(--icon);
@@ -1948,7 +1948,7 @@ a {
   position: fixed;
   right: var(--fab-right);
   bottom: calc(
-    var(--nav-bottom) + env(safe-area-inset-bottom, 0px) + var(--fab-size) +
+    var(--nav-bottom) + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)) + var(--fab-size) +
       26px
   );
   display: flex;
@@ -2289,7 +2289,7 @@ a {
   gap: var(--hhead-gap);
   position: relative;
   z-index: 3;
-  padding-top: env(safe-area-inset-top, 0px);
+  padding-top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
 }
 
 /* 인사 왼쪽 · 틸리 오른쪽. 캐릭터는 배너 안에만 두어 아래 바로가기
@@ -2824,7 +2824,7 @@ a {
   position: relative;
   margin: calc(-1 * var(--screen-pad)) calc(-1 * var(--screen-pad)) 0;
   padding: var(--screen-pad) var(--screen-pad) 96px;
-  padding-top: calc(var(--screen-pad) + env(safe-area-inset-top, 0px));
+  padding-top: calc(var(--screen-pad) + var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
   background: var(--hero);
   border-radius: 0 0 34px 34px;
   overflow: hidden;
@@ -2950,7 +2950,7 @@ a {
 .top.hero-top {
   position: relative; overflow: hidden;
   align-items: flex-start;
-  padding: calc(18px + env(safe-area-inset-top, 0px)) 20px 22px;
+  padding: calc(18px + var(--safe-area-inset-top, env(safe-area-inset-top, 0px))) 20px 22px;
   background: var(--hero);
   border-bottom: none;
   border-radius: 0 0 30px 30px;
@@ -3003,3 +3003,9 @@ a {
   color: var(--pink);
 }
 .pro .nm b { color: var(--pink); }
+/* 안드로이드 WebView 는 env(safe-area-inset-*) 가 0 으로 나오는 판이 있다.
+   Capacitor(SystemBars)가 대신 --safe-area-inset-* 변수를 넣어 주므로 그것을 먼저 읽는다
+   — 위 규칙들의 var(--safe-area-inset-top, env(...)) 가 그 뜻이다(09-28) */
+
+/* 빠른 메뉴 아이콘 — 타일(48px) 안에 24px. 전역 `.tile .ic svg{100%}` 때문에 타일을 꽉 채웠다 */
+.tile .ic svg { width: 24px; height: 24px; }
