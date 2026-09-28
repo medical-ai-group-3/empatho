@@ -125,6 +125,7 @@ class SurgeryWorklistTests(_Base):
             "patient_id", "patient_name", "patient_number", "age", "sex", "has_allergy",
             "last_visit_at", "today_stage", "pending_orders", "unseen_results",
             "open_discordance", "final_report_id", "report_explained", "decision",
+            "latest_birads", "latest_b_category",
             "prescription_count", "next_step"})
         self.assertEqual(item["patient_name"], "환자1")
         self.assertIsInstance(item["age"], int)
@@ -134,6 +135,18 @@ class SurgeryWorklistTests(_Base):
             self.assertIn(step, data["counts"])
         self.assertEqual(data["counts"]["exam"], 1)
         self.assertEqual(data["counts"]["total"], 1)
+
+    def test_최근_BIRADS_와_B(self):
+        p = self._patient(self.surg)
+        item = self._item(self._get(), p) or {}
+        self.assertIsNone(item.get("latest_birads"))
+        study = self._final_study(p)
+        lesion = models.Lesion.objects.create(study=study, patient=p)
+        models.Specimen.objects.create(patient=p, lesion=lesion, accession_status="bound",
+                                       b_category="b5", finalized_at=timezone.now())
+        item = self._item(self._get(), p)
+        self.assertEqual(item["latest_birads"], "4a")
+        self.assertEqual(item["latest_b_category"], "b5")
 
     def test_유방외과만(self):
         for acc in (self.nur_acc, self.rad_acc):

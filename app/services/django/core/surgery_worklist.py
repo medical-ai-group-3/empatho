@@ -183,6 +183,16 @@ def build(patients_qs):
                   models.Assessment.objects.filter(study__patient_id=P, read_stage="final",
                                                    finalized_at__isnull=False),
                   "finalized_at", "-finalized_at"),
+              # 09-28 — 전체 환자 표의 「최근 BI-RADS · B」 칸. 정정으로 덮인
+              # 판정은 뺀다(superseded_by 가 찬 것)
+              latest_birads=_latest(
+                  models.Assessment.objects.filter(study__patient_id=P, read_stage="final",
+                                                   finalized_at__isnull=False,
+                                                   superseded_by__isnull=True),
+                  "category", "-finalized_at"),
+              latest_b_category=_latest(
+                  models.Specimen.objects.filter(patient_id=P, finalized_at__isnull=False),
+                  "b_category", "-finalized_at"),
               last_specimen_final_at=_latest(
                   models.Specimen.objects.filter(patient_id=P, finalized_at__isnull=False),
                   "finalized_at", "-finalized_at"),
@@ -284,6 +294,8 @@ def build(patients_qs):
             "final_report_id": p.final_report_id,
             "report_explained": p.explained_at is not None,
             "decision": p.decision,
+            "latest_birads": p.latest_birads,
+            "latest_b_category": p.latest_b_category,
             "prescription_count": p.prescription_count,
             "next_step": step,
         })
