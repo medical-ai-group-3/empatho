@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { breast as api } from "../../../api";
-import { SEX, label } from "../../../codes";
+import { REPORT_DEPT, SEX, label } from "../../../codes";
 import { useApi } from "../../../lib/useApi";
 import { Page } from "../../../lib/Page";
 import { Body } from "../../../lib/Body";
@@ -171,7 +171,7 @@ function PatientReportCard({ report, reports, here = false }) {
             <div className="report-stage-list">
               {stageReports.map((row) => (
                 <div className="report-stage-row" key={row.report_id}>
-                  <b>{row.title ?? row.modality ?? "검사 판독문"}</b>
+                  <b>{stageName(row)}</b>
                   <span>{row.narrative_text || row.ai_summary || "내용 없음"}</span>
                 </div>
               ))}
@@ -180,6 +180,15 @@ function PatientReportCard({ report, reports, here = false }) {
         ) : <p className="note">확정된 리포트가 없습니다. 검사 판독 확정 후 열람할 수 있습니다.</p>}
     </div>
   );
+}
+
+/* 검사별 판독문 이름. ⚠ Report 에는 title · modality 가 없다 — 어느 과가
+   냈는지는 socket_id 로만 안다(codes.js REPORT_DEPT). 고르는 칸은 같은 과
+   판독문이 둘일 수 있어 번호를 붙인다 */
+function stageName(row, withId = false) {
+  const dept = REPORT_DEPT[row.socket_id];
+  if (!dept) return `검사 판독문 #${row.report_id}`;
+  return withId ? `${dept} 판독문 #${row.report_id}` : `${dept} 판독문`;
 }
 
 function PendingReportCard({ title, here = false }) {
@@ -231,7 +240,7 @@ function FinalReportCard({ patient, reports, onCreated, again = false, here = fa
             {sources.map((source) => (
               <label key={source.report_id} className="check-row">
                 <input type="checkbox" checked={effectiveSelected.includes(source.report_id)} onChange={() => toggle(source.report_id)} />
-                <span>{source.title ?? source.modality ?? `검사 판독문 #${source.report_id}`}</span>
+                <span>{stageName(source, true)}</span>
               </label>
             ))}
           </div>}

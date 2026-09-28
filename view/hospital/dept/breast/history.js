@@ -1,5 +1,5 @@
 import { go } from "../../nav";
-import { AUDIENCE, DECISION_TYPE, DECISION_VALUE, READ_STAGE, REPORT_TYPE, label } from "../../codes";
+import { eventDetail } from "../../codes";
 
 /* 진료 이력 한 줄이 어디로 가나 — 유방외과 화면들이 같이 쓴다.
  *
@@ -56,17 +56,5 @@ export function historyTo(pid, e) {
   return go.breast.review(pid, historyAt(e));
 }
 
-/* 줄 아래 한 줄 글. 코드로 오는 칸은 한글로 푼다(codes.js).
-   ⚠ 판독은 초안도 「판독」으로 온다 — 확정으로 읽히지 않게 단계를 붙인다 */
-export function historyDetail(e) {
-  const parts = e?.type === "치료 결정"
-    ? [[label(DECISION_TYPE, e.decision_type), label(DECISION_VALUE, e.decision_value)]
-      .filter(Boolean).join(" · "), e.detail]
-    : e?.type === "리포트"
-      ? [label(REPORT_TYPE, e.report_type), label(AUDIENCE, e.audience), e.detail]
-      : e?.type === "판독" && e.read_stage === "draft"
-        ? [e.detail, label(READ_STAGE, e.read_stage)]
-        : [e?.detail];
-  const out = [...new Set(parts.filter(Boolean).map(String))].join(" · ");
-  return out || null;
-}
+/* 줄 아래 한 줄 글 — 영상 · 공용 화면과 같이 쓰려고 codes.js 로 옮겼다 */
+export const historyDetail = eventDetail;

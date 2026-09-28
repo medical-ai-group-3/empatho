@@ -5,7 +5,7 @@ import { useApi } from "../../../lib/useApi";
 import { Page, Btn } from "../../../lib/Page";
 import { Body } from "../../../lib/Body";
 import { Chip } from "../../../lib/Parts";
-import { MODALITY, BIRADS_LABEL, label } from "../../../codes";
+import { MODALITY, BIRADS_LABEL, label, modality as asModality } from "../../../codes";
 import { go } from "../../../nav";
 import * as H from "../../home";
 import "../breast.css";
@@ -192,13 +192,21 @@ function rows(readings, reports, key, what) {
   return out;
 }
 
+/* ⚠ 크기는 DecimalField 라 「18.70」 같은 글로 온다 — 숫자로 바꿔 끝의 0 을
+     지운다(18.7 mm). 판독의가 오탐으로 뺀 병변(is_false_positive)은 안 싣는다.
+     p.lesions 는 환자 전체라 여러 검사 것이 섞인다 — 모달리티가 둘 이상이면
+     어느 검사에서 나온 병변인지 앞에 붙인다 */
 function lesionLine(lesions) {
-  return (Array.isArray(lesions) ? lesions : [lesions])
-    .filter(Boolean)
+  const list = (Array.isArray(lesions) ? lesions : [lesions])
+    .filter((l) => l && !l.is_false_positive);
+  const mods = new Set(list.map((l) => asModality(l.modality)).filter(Boolean));
+  return list
     .map((l) => {
       const site = l.label ?? l.site ?? null;
-      const mm = l.measured_size_mm ?? l.ai_size_mm ?? null;
-      return [site, mm != null ? `${mm}mm` : null].filter(Boolean).join(" · ");
+      const raw = l.measured_size_mm ?? l.ai_size_mm ?? l.size_mm ?? null;
+      const mm = raw != null && raw !== "" && Number.isFinite(Number(raw)) ? `${Number(raw)} mm` : null;
+      const mod = mods.size > 1 ? label(MODALITY, asModality(l.modality)) : null;
+      return [mod, site, mm].filter(Boolean).join(" · ");
     })
     .filter(Boolean).join(", ") || null;
 }

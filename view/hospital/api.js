@@ -45,7 +45,7 @@
  *       GET /specimens/{id}          1·3·4·5장
  *       GET /specimens/{id}/upload   2·3장 (올린 파일 목록은 여기에만 있다)
  */
-import { EXAM_PURPOSE, MODALITY, label, modality as modalityCode } from "./codes";
+import { EXAM_PURPOSE, MODALITY, REPORT_DEPT, label, modality as modalityCode } from "./codes";
 
 /* ⚠1 ── 주소 앞머리 ───────────────────────────────────────────
  *
@@ -402,9 +402,12 @@ async function pathSpecimenRow(raw = {}) {
   return {
     ...raw,
     id: raw.specimen_id ?? raw.id,
-    patient_name: patient?.name ?? (patientId == null ? "" : `환자 #${patientId}`),
-    age: patient?.age ?? null,
-    sex: patient?.sex ?? "",
+    /* ⚠ 서버(SpecimenSerializer)가 patient_name · age · sex 를 이미 싣는다.
+       전에는 그것을 위 조회 결과로 덮었는데, 병리과는 /patients/{id}/ 가
+       막히거나 비어 목록 이름이 「환자 #id (null/)」로 떴다 — 준 것을 먼저 쓴다 */
+    patient_name: raw.patient_name || patient?.name || (patientId == null ? "" : `환자 #${patientId}`),
+    age: raw.age ?? patient?.age ?? null,
+    sex: raw.sex || patient?.sex || "",
     patient_no: patient?.patient_number ?? "",
     birth: patient?.birth_date ?? null,
     phone: patient?.phone ?? null,
@@ -1019,14 +1022,6 @@ function ageFromBirthDate(value) {
   if (beforeBirthday) age -= 1;
   return age >= 0 ? age : null;
 }
-
-/* 리포트를 낸 소켓 → 어느 과가 낸 판독인가. 서버 models.py 의
-   REPORT_SOCKET_ID 주석 그대로다 — 1 병리 · 3 MRI · 4b 맘모 · 5 초음파 ·
-   7 종합. 유방외과 화면은 이 글자에 「영상」·「병리」가 들어 있는지로
-   두 칸을 가른다(Review.jsx 의 of("영상") / of("병리")). */
-const REPORT_DEPT = {
-  "1": "병리", "3": "영상 · MRI", "4b": "영상 · 유방촬영", "5": "영상 · 초음파",
-};
 
 export const breast = {
   /* 1장 · 대기 환자 */

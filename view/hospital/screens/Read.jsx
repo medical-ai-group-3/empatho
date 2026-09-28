@@ -8,6 +8,7 @@ import { useFile } from "../lib/files";
 import { useApi } from "../lib/useApi";
 import { can } from "../perm";
 import * as H from "../dept/home";
+import { eventDetail } from "../codes";
 
 /* MRI 뷰어(유방외과 검사 종합 확인에서 쓰는 것과 같은 컴포넌트) — 병리에는
  * 안 쓰고, 영상의학과라도 맘모·초음파만 보면 필요 없다. 늦게 불러온다
@@ -315,7 +316,7 @@ function PastRail({ cfg, patientId }) {
                 <article className="prail-day" key={`${r.at}-${i}`}>
                   <time>{H.day(r.at)}</time>
                   <span className="prail-k">{r.type}</span>
-                  {r.detail && <b>{r.detail}</b>}
+                  {eventDetail(r) && <b>{eventDetail(r)}</b>}
                 </article>
               ))}
           </div>

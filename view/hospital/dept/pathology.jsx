@@ -33,6 +33,16 @@ import { ACCESSION_STATUS, B_CATEGORY, B_CATEGORY_LABEL, DIAGNOSIS, SEX,
  *   "병리의가 입력한 sTIL"이다.
  */
 
+/* 「김환자 (51/여)」. ⚠ 이름 · 나이 · 성별이 비어 오는 줄이 있다 — 그대로
+   이으면 「null (null/)」이 찍힌다. 이름은 H.nameOf 로(없으면 「환자 #id」),
+   괄호는 아는 것만 */
+function patientText(r) {
+  if (!r) return "";
+  const bits = [r.age != null && r.age !== "" ? String(r.age) : null, label(SEX, r.sex) || null]
+    .filter(Boolean).join("/");
+  return bits ? `${H.nameOf(r)} (${bits})` : H.nameOf(r);
+}
+
 /* ── 서버 부르는 자리를 공통 이름으로 맞춘다 ──────────────────
    공통 화면은 cfg.api.detail(id) 처럼 부른다. 실제 경로가 과마다
    달라도 화면은 몰라도 된다 */
@@ -382,7 +392,7 @@ export const pathology = {
       id: it.id,
       /* 이 환자의 이력 칸이 이 번호로 부른다 */
       patientId: it.patient_id ?? it.patient ?? null,
-      title: `${it.patient_name} (${it.age}/${label(SEX, it.sex)})`,
+      title: patientText(it),
       sub: `${it.specimen_no} · ${it.site}`,
       chip: it.method,
       chipTone: "line",
@@ -391,7 +401,7 @@ export const pathology = {
     Detail: ({ d }) => (
       <>
         <Facts items={[
-          ["환자", `${d.patient_name} (${d.age}/${label(SEX, d.sex)})`],
+          ["환자", patientText(d)],
           ["생년월일", d.birth],
           ["연락처", d.phone],
           ["알레르기", d.allergy || "없음"],
@@ -456,7 +466,7 @@ export const pathology = {
     Info: ({ d }) => (
       <>
         <Facts items={[
-          ["환자", `${d.patient_name} (${d.age}/${label(SEX, d.sex)})`],
+          ["환자", patientText(d)],
           ["생년월일", d.birth],
           ["연락처", d.phone],
           ["알레르기", d.allergy || "없음"],
@@ -528,7 +538,7 @@ export const pathology = {
     Info: ({ d, slide, onSlide }) => (
       <>
         <Facts items={[
-          ["환자", `${d.patient.name} (${d.patient.age}/${label(SEX, d.patient.sex)})`],
+          ["환자", patientText(d.patient)],
           ["생년월일", d.patient.birth],
           ["연락처", d.patient.phone],
           ["알레르기", d.patient.allergy || "없음"],
@@ -642,7 +652,7 @@ export const pathology = {
        unbound 는 이 목록에 안 뜬다 — 바인딩 전 검체다 */
     row: (r) => ({
       id: r.id,
-      patient: `${r.patient_name} (${r.age}/${label(SEX, r.sex)})`,
+      patient: patientText(r),
       specimen: r.specimen_no,
       collected: r.collected_at,
       status: <Chip tone={tone("accession", r.accession_status)}>
@@ -677,7 +687,7 @@ function PathologyListDetail({ d, cfg }) {
       </div>
       <div className="list-detail-info">
         <Facts items={[
-          ["환자", `${d.patient_name} (${d.age}/${label(SEX, d.sex)})`],
+          ["환자", patientText(d)],
           ["생년월일", d.birth],
           ["연락처", d.phone],
           ["알레르기", d.allergy || "없음"],

@@ -618,11 +618,18 @@ function StudyView({ study, lesions }) {
   const view = d ? radStage(d, 0) : {};
   /* 티켓이 여는 범위 — 영상은 검사 단위다(lib/files.js) */
   const img = useFile(view.image, rad.ticket, { kind: "study", id });
+  /* ⚠ 넘어오는 lesions 는 **환자 전체**다(/lesions?patient=). 그대로 주면
+     다른 MRI 검사의 병변이 이 검사 3D 에 같이 뜬다. Lesion.study(FK)로
+     거른다 — 검사 번호가 없는 행(목업)은 어느 검사인지 몰라 남겨 둔다 */
+  const mine = lesions.filter((l) => {
+    const sid = l?.study ?? l?.study_id;
+    return sid == null || id == null || String(sid) === String(id);
+  });
 
   return (
     <Body loading={read.loading} error={read.error} onRetry={read.reload}>
       {!d ? null : view.volumeManifest ? (
-        <MRIReviewGrid lesions={lesions} study={d} mode="review" issue={rad.ticket} />
+        <MRIReviewGrid lesions={mine} study={d} mode="review" issue={rad.ticket} />
       ) : view.stackManifest ? (
         <DicomStackViewer manifestUrl={view.stackManifest}
                           baseUrl={view.stackBase} mode="review" />

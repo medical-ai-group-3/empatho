@@ -184,12 +184,50 @@ export const DESCRIPTOR_AXIS = {
  *  글자는 유방외과 오더 창(ExamOrderModal)의 선택지와 같게 둔다 */
 export const EXAM_PURPOSE = { screening: "정기 검진", diagnostic: "이상 소견 확인" };
 
+/* 리포트를 낸 소켓 → 어느 과가 낸 판독인가. 서버 models.py 의
+   REPORT_SOCKET_ID 주석 그대로다 — 1 병리 · 3 MRI · 4b 맘모 · 5 초음파 ·
+   7 종합. 유방외과 화면은 이 글자에 「영상」·「병리」가 들어 있는지로
+   두 칸을 가른다(Review.jsx 의 of("영상") / of("병리")).
+   ⚠ Report 에는 title · modality 칸이 없다 — 판독문 이름은 이것뿐이다 */
+export const REPORT_DEPT = {
+  "1": "병리", "3": "영상 · MRI", "4b": "영상 · 유방촬영", "5": "영상 · 초음파",
+};
+
 /* 목록 표로 만들어 쓰는 자리 — {value,label} 을 코드→글자로 */
 const flatten = (rows) =>
   Object.fromEntries(rows.map((r) => [r.value, r.label]));
 
 export const B_CATEGORY_LABEL = flatten(B_CATEGORY);
 export const BIRADS_LABEL = flatten(BIRADS);
+
+/* ── 진료 이력 한 줄 ───────────────────────────────────────────
+ * PatientTimelineView(core/views/surgery.py)의 줄 아래 글. 유방외과 ·
+ * 영상 · 공용 환자 화면이 같이 쓴다.
+ *
+ * ⚠ 「촬영」은 `detail` 에 모달리티 **코드**(mammo · us · mri)를,
+ *   「판독」은 BI-RADS 코드(4b)만 싣는다. 그대로 찍으면 「us」「4b」가
+ *   화면에 뜬다. 둘 다 `modality` 를 같이 주므로 그것으로 푼다.
+ * ⚠ 판독은 초안도 「판독」으로 온다 — 확정으로 읽히지 않게 단계를 붙인다 */
+/* 이미 「BI-RADS …」로 온 글(목업 · 옛 서버)은 두 번 붙이지 않는다 */
+const birads = (v) => (v == null || v === "" ? null
+  : /^BI-RADS/i.test(String(v)) ? String(v) : `BI-RADS ${v}`);
+
+export function eventDetail(e) {
+  const mod = label(MODALITY, modality(e?.modality ?? (e?.type === "촬영" ? e?.detail : null)));
+  const parts = e?.type === "촬영"
+    ? [mod || e.detail]
+    : e?.type === "판독"
+      ? [mod, birads(e.detail),
+        e.read_stage === "draft" ? label(READ_STAGE, e.read_stage) : null]
+      : e?.type === "치료 결정"
+        ? [[label(DECISION_TYPE, e.decision_type), label(DECISION_VALUE, e.decision_value)]
+          .filter(Boolean).join(" · "), e.detail]
+        : e?.type === "리포트"
+          ? [label(REPORT_TYPE, e.report_type), label(AUDIENCE, e.audience), e.detail]
+          : [e?.detail];
+  const out = [...new Set(parts.filter(Boolean).map(String))].join(" · ");
+  return out || null;
+}
 
 /* ── 상태 색 ───────────────────────────────────────────────────
  *

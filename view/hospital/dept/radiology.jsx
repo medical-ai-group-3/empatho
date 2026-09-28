@@ -8,7 +8,7 @@ import RadiologyAi from "./RadiologyAi";
 import Stage, { boxesFromLesions, polygonsFromAi } from "../lib/Stage";
 import { useApi } from "../lib/useApi";
 import { useFile } from "../lib/files";
-import { BIRADS, MODALITY, READ_STATUS, SEX, label, modality as asModality, text, tone }
+import { BIRADS, MODALITY, READ_STATUS, SEX, eventDetail, label, modality as asModality, text, tone }
   from "../codes";
 
 /* 영상 판독(screens/Read.jsx)과 환자 목록(screens/List.jsx) 둘 다 같은
@@ -282,7 +282,7 @@ function ListTimeline({ events }) {
             <span className="exam-history-type">{e.type}</span>
             <span className="exam-history-at">{e.at?.replace("T", " ").slice(0, 16)}</span>
           </div>
-          {e.detail && <p className="exam-history-detail">{e.detail}</p>}
+          {eventDetail(e) && <p className="exam-history-detail">{eventDetail(e)}</p>}
         </li>
       ))}
     </ul>
