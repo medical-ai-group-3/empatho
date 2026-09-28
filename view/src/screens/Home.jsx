@@ -66,7 +66,7 @@ function visitGreeting(home) {
   const visits = Number(home.visit_count);
 
   if (Number.isFinite(visits) && visits > 0) {
-    return { name, rest: `${visitOrdinal(visits)} 방문예정이에요.` };
+    return { name, rest: `${visitOrdinal(visits)} 방문예정이에요.`, upcoming: true };
   }
   return { name, rest: "방문 일정을 확인해봐요." };
 }
@@ -141,49 +141,46 @@ function Inner({ d, prescriptions }) {
       {/* 맨 위는 **아이콘만** 둔다. 이름은 아래 큰 인사가 맡는다 —
           브랜드 가이드의 홈이 인사를 크게 세우는 구조라, 작은 이름표와
           큰 인사가 같이 있으면 같은 말이 두 번 나온다 */}
-      <div className="hbar">
-        <Link className="icon" to="/notis" aria-label="알림" data-coach="bell">
-          <Bell />
-          {/* 몇 개인지보다 «있다»가 중요하다. 숫자를 안 쓴다 */}
-          {d.new_reports?.length > 0 && <i className="new" />}
-        </Link>
-        <Link className="icon" to="/settings" aria-label="설정">
-          <Gear />
-        </Link>
-      </div>
-
-      {/* 큰 인사 + 틸리.
-          alt 를 비운 것은 바로 옆에 같은 인사가 글로 있어서다 — 읽어 주는
-          기계가 두 번 말하면 성가시다 */}
-      {/* 인사는 왼쪽, 틸리는 오른쪽. 그리고 **틸리가 아래 타일에
-          걸터앉는다** — 이 덩어리가 아래로 음수 여백만큼 내려앉아
-          「검사 결과」 칸 위에 겹친다.
-
-          가운데에 세웠더니 캐릭터만 동떨어져 보였다. 걸쳐 두면 인사 ·
-          캐릭터 · 타일이 한 덩어리로 읽히고 화면에 깊이가 생긴다. */}
-      <div className="hello">
-        <p className="hello-tx">
-          <b>안녕하세요!</b>
-          <span className="hello-message">
-            <span className="hello-date">{todayLabel()}</span>
-            <span className="hello-visit">
-              <em>{visit.name}</em> 님,<br />{visit.rest}
-            </span>
-            <span className="hello-health-label">오늘의 건강 한마디</span>
-            <span className="hello-health-tip">
-              식후 약은 꼭 식후에 드세요.
-            </span>
-          </span>
-        </p>
-        <img
-          className="hello-bg"
-          src="/tilly/tily_background.png"
-          alt=""
-          aria-hidden="true"
-        />
-        <span className="hello-tri" aria-hidden="true">
+      {/* 09-28 리뉴얼 — 블러시 그라데이션 머리(hero) 위에 알림 · 설정 · 인사,
+          틸리는 인사 카드 **뒤**에서 내다본다(카드가 아래를 살짝 가린다).
+          인사 카드는 머리 아래쪽에 반쯤 걸쳐 올린다 */}
+      <section className="hero">
+        <i className="hero-dot" aria-hidden="true" />
+        <div className="hbar">
+          <Link className="icon" to="/notis" aria-label="알림" data-coach="bell">
+            <Bell />
+            {/* 몇 개인지보다 «있다»가 중요하다. 숫자를 안 쓴다 */}
+            {d.new_reports?.length > 0 && <i className="new" />}
+          </Link>
+          <Link className="icon" to="/settings" aria-label="설정">
+            <Gear />
+          </Link>
+        </div>
+        <h1 className="hero-t">안녕하세요!</h1>
+        <p className="hero-s">오늘도 건강한 하루 보내세요</p>
+        <span className="hero-tilly" aria-hidden="true">
           <Tilly mood="hi" size="lg" alt="" />
         </span>
+      </section>
+
+      <div className="hello-card">
+        <div className="hello-row">
+          <span className="badge">{todayLabel()}</span>
+          {visit.upcoming && <span className="badge strong">방문 예정</span>}
+        </div>
+        <p className="hello-visit"><em>{visit.name}</em> 님, {visit.rest}</p>
+        {d.last_visit_at && (
+          <p className="hello-last">
+            마지막 내원 {fmtDay(d.last_visit_at)}{deptSuffix(d.last_visit_dept)}
+          </p>
+        )}
+        <div className="tipbox">
+          <span className="tip-ic" aria-hidden="true"><Bulb /></span>
+          <span>
+            <small>오늘의 건강 한마디</small>
+            <b>식후 약은 꼭 식후에 드세요.</b>
+          </span>
+        </div>
       </div>
 
       {d.today_visit?.active && <TodayVisit visit={d.today_visit} />}
@@ -194,30 +191,25 @@ function Inner({ d, prescriptions }) {
         <b>빠른 메뉴</b>
       </div>
       <div className="tiles">
+        {/* 09-28 리뉴얼 — 네 칸 모두 같은 연핑크 타일 · 선 아이콘(색 규칙 1) */}
         <Link className="tile" to="/book">
-          <MenuIcon file="exam_schedule_icon.png" />
-          <b>검사 일정</b>
+          <span className="ic"><Icon name="calendar" /></span>
+          <span><b>검사 일정</b><small>{next ? `다음 ${fmtMD(next.scheduled_at)}` : "예약 확인"}</small></span>
         </Link>
         <Link className="tile" to="/results">
-          <MenuIcon file="exam_results_icon.png" />
-          <b>검사 결과</b>
+          <span className="ic"><Icon name="results" /></span>
+          <span><b>검사 결과</b><small>리포트 확인</small></span>
         </Link>
         <Link className="tile" to="/meds">
-          <MenuIcon file="medication_icon.png" />
-          <b>복약 관리</b>
+          <span className="ic"><Icon name="pill" /></span>
+          <span><b>복약 관리</b><small>복약 기록</small></span>
         </Link>
         <Link className="tile" to="/hospitals">
-          <MenuIcon file="hospital_finder_icon.png" />
-          <b>병원 찾기</b>
+          <span className="ic"><Icon name="hospital" /></span>
+          <span><b>병원 찾기</b><small>길 안내</small></span>
         </Link>
       </div>
 
-      {d.last_visit_at && (
-        <p className="note">
-          마지막 내원 <b>{fmtDay(d.last_visit_at)}</b>
-          {deptSuffix(d.last_visit_dept)}
-        </p>
-      )}
 
       {/* ── 문진 — 맨 위. 다 쓰기 전에는 강조 바탕이다 ── */}
       <Link
@@ -448,6 +440,22 @@ function findNextMedication(prescriptions) {
 }
 
 /* 톱니 — 설정. 종과 같은 굵기·같은 모서리로 그려야 둘이 한 벌로 보인다. */
+/* 건강 한마디 전구 — 선 아이콘(stroke 1.9) */
+function Bulb() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"
+         strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
+      <path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.1V17h6v-.2c0-.8.4-1.6 1-2.1A7 7 0 0 0 12 2z" />
+    </svg>
+  );
+}
+
+/* 10.02 */
+function fmtMD(iso) {
+  const t = new Date(iso);
+  return `${String(t.getMonth() + 1).padStart(2, "0")}.${String(t.getDate()).padStart(2, "0")}`;
+}
+
 function Gear() {
   return (
     <svg

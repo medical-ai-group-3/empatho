@@ -30,7 +30,7 @@ export default function Results() {
 
   return (
     <>
-      <Head title="검사 결과" />
+      <Head title="검사 결과" sub="리포트는 의료진 설명 후 공개돼요" />
       <Body loading={loading} error={error} onRetry={reload}>
         {data?.items?.length ? (
         <div className="list">
@@ -49,10 +49,11 @@ export default function Results() {
                     {locked ? r.locked_hint : labels(r.studies)}
                   </span>
                 </span>
+                {/* 09-28 리뉴얼 — 잠김은 연핑크(공개 전), 읽음은 청록(완료 상태) */}
                 {locked ? (
-                  <span className="pill read">잠김</span>
+                  <span className="pill lock">잠김</span>
                 ) : r.read_at ? (
-                  <span className="pill read">읽음</span>
+                  <span className="pill done">읽음</span>
                 ) : (
                   <span className="pill new">새 안내</span>
                 )}

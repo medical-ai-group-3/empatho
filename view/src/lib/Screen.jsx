@@ -18,13 +18,15 @@ import Tilly from "./Tilly";
  * 받아 둔다(up). 기본은 홈이고, 안내문처럼 목록이 뚜렷한 화면은
  * up="/results" 를 준다.
  * ───────────────────────────────────────────────────────────── */
-export function Head({ title, back = true, up = "/", right }) {
+/* sub — 09-28 리뉴얼. 부제가 있으면 블러시 그라데이션 큰 머리(hero)로 낸다.
+   탭 화면(결과 · 예약 · 내 정보)이 쓴다. 없으면 예전 작은 머리말 그대로 */
+export function Head({ title, back = true, up = "/", right, sub }) {
   const nav = useNavigate();
   const loc = useLocation();
   const orphan = loc.key === "default";   // 되짚을 이력이 없다
 
   return (
-    <div className="top">
+    <div className={sub ? "top hero-top" : "top"}>
       {back && (
         <button
           className="back"
@@ -34,13 +36,16 @@ export function Head({ title, back = true, up = "/", right }) {
           <Icon name="chevronRight" className="back-icon" />
         </button>
       )}
-      <h2>{title}</h2>
+      {sub
+        ? <div className="hero-tx"><h2>{title}</h2><p>{sub}</p></div>
+        : <h2>{title}</h2>}
       {/* 오른쪽 끝에 작은 로고. 제목 옆에 붙이면 제목과 겨루고, 왼쪽은
           뒤로가기 자리다 — 남는 자리는 여기뿐이다.
           right 가 있는 화면에서는 양보한다. 한 자리에 둘을 밀어 넣으면
           둘 다 작아진다 */}
       {right ? <div className="right">{right}</div>
-             : <Logo size="sm" />}
+             : !sub && <Logo size="sm" />}
+      {sub && <i className="hero-dot" aria-hidden="true" />}
     </div>
   );
 }

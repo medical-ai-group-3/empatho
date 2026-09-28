@@ -60,12 +60,12 @@
    *   본문 글자로 쓸 수 있는데, 연하게 만들면 그 선을 넘는다.
    *   외침을 줄이려면 채도를, 읽힘을 지키려면 명도를 — 둘은 다른
    *   손잡이다. */
-  --pink: light-dark(#7b1e3a, #e184a0); /* Primary — 핵심 포인트 · 선택 */
-  --pink-2: light-dark(#b04a6a, #b54f6f); /* Muted   — 버튼 · 강조 요소 */
-  --pink-3: light-dark(#fbdae0, #b54f6f); /* Soft    — 배지 · 아이콘 · 차트 */
-  --pink-bg: light-dark(#fbdae0, #25040a); /* 강조 배경 · 알림 배경 */
+  --pink: light-dark(#B8436A, #e184a0); /* Primary — 핵심 포인트 · 선택 */
+  --pink-2: light-dark(#B8436A, #b54f6f); /* Muted   — 버튼 · 강조 요소 */
+  --pink-3: light-dark(#FCE8EC, #b54f6f); /* Soft    — 배지 · 아이콘 · 차트 */
+  --pink-bg: light-dark(#FCE8EC, #25040a); /* 강조 배경 · 알림 배경 */
   --blush: light-dark(
-    #fbdae0,
+    #FCE8EC,
     #25040a
   ); /* 섹션 배경 — 어두운 값은
                                                 Pink Tint 를 Surface 쪽으로
@@ -92,26 +92,26 @@
 
   /* 초록 — 주요 동작. 어두운 판은 밝혀 쓴다(#0A522C 는 어두운 바탕에서
      글자로 안 읽힌다). 어두운 값은 #121317 위 대비 6.57:1 */
-  --green: light-dark(#b04a6a, #e184a0);
-  --green-deep: light-dark(#7b1e3a, #b54f6f); /* 더 깊은 면 — 앱 아이콘 판 */
+  --green: light-dark(#B8436A, #e184a0);
+  --green-deep: light-dark(#7E2C43, #b54f6f); /* 더 깊은 면 — 앱 아이콘 판 */
   --green-ink: light-dark(#ffffff, #d0c3c4); /* 초록 위에 얹는 글자 */
 
   /* 리본 분홍 — **면에만** 쓴다. 글자로 쓰지 말 것(위 ⚠ 참고) */
-  --blossom: light-dark(#fbdae0, #25040a);
+  --blossom: light-dark(#FCE3E9, #25040a);
 
   /* 모래빛 — 구분선 · 가라앉은 면. 회색 선보다 따뜻하다 */
-  --sand: light-dark(#fbdae0, #25040a);
+  --sand: light-dark(#F3ECEF, #25040a);
 
   /* 무채색 */
-  --ink: light-dark(#3c2f30, #d0c3c4); /* 주요 텍스트 */
-  --ink-2: light-dark(#7b1e3a, #d0c3c4); /* 제목 · 강조 텍스트 */
-  --muted: light-dark(#7b1e3a, #d0c3c4); /* 설명 · 보조 텍스트 */
-  --faint: light-dark(#b04a6a, #b54f6f); /* 비활성 · 플레이스홀더 */
-  --line: light-dark(#fbdae0, #b54f6f); /* 테두리 · 구분선 */
-  --line-soft: light-dark(#fbdae0, #25040a); /* 목록 사이 — Border 를 옅게 */
+  --ink: light-dark(#2B2226, #d0c3c4); /* 주요 텍스트 */
+  --ink-2: light-dark(#7E2C43, #d0c3c4); /* 제목 · 강조 텍스트 */
+  --muted: light-dark(#6E6468, #d0c3c4); /* 설명 · 보조 텍스트 */
+  --faint: light-dark(#B9AEB2, #b54f6f); /* 비활성 · 플레이스홀더 */
+  --line: light-dark(#F3ECEF, #b54f6f); /* 테두리 · 구분선 */
+  --line-soft: light-dark(#F3ECEF, #25040a); /* 목록 사이 — Border 를 옅게 */
   --surface: light-dark(#ffffff, #25040a); /* 카드 · 모달 */
   --bg: light-dark(
-    #f7efe9,
+    #FBF8F9,
     #160e08
   ); /* 전체 배경 — 가이드의
                                                 아이보리 쪽으로 살짝 덥혔다 */
@@ -123,17 +123,34 @@
   --ok: #4caf8a;
   --warn: #e6c46a;
   --error: #e08c8c;
-  --info: light-dark(#b04a6a, #e184a0);
-  --off: light-dark(#fbdae0, #25040a);
+  --info: light-dark(#B8436A, #e184a0);
+  --off: light-dark(#F3EEF0, #25040a);
 
   /* 그림자는 어두운 판에서 안 보인다. 색을 투명으로 두어 끈다 */
   /* 테두리 대신 옅은 그림자로 면을 띄운다. 어두운 판에서는 그림자가
      안 보이므로 **가는 테두리**가 대신 선다 — 두 판이 같은 두께로
      보이도록 한쪽이 꺼지면 다른 쪽이 켜진다 */
-  --shadow: light-dark(rgba(28, 32, 36, 0.07), transparent);
+  --shadow: light-dark(rgba(184, 67, 106, 0.07), transparent);
   --card-line: light-dark(transparent, #b54f6f);
-  --card-shadow: 0 2px 10px var(--shadow);
-  --nav-shadow: 0 6px 24px var(--shadow);
+  --card-shadow: 0 3px 12px var(--shadow);
+  --nav-shadow: 0 -2px 16px light-dark(rgba(184, 67, 106, 0.10), transparent);
+
+  /* ══ 09-28 리뉴얼 — 새로 생긴 역할 (EMPATHO_환자앱_디자인_명세.md) ══
+     어두운 판은 아직 새 시안이 없어 기존 값 쪽으로 둔다 */
+  --heading: light-dark(#7E2C43, #d0c3c4);       /* 상단 큰 제목 */
+  --heading-sub: light-dark(#9C6B77, #d0c3c4);   /* 상단 부제 */
+  --accent: light-dark(#E8839A, #e184a0);        /* 작은 장식 · 알림 점 */
+  --done: light-dark(#2A9A92, #6fcfc6);          /* **완료 상태에만** */
+  --done-soft: light-dark(#E2F2F0, #0f2a28);
+  --tip-bg: light-dark(#FFF4E8, #2a1d10);        /* 건강 한마디 */
+  --tip-label: light-dark(#C26A1E, #e5a15f);
+  /* light-dark() 는 색만 받는다 — 그라데이션은 색 멈춤마다 나눠 둔다 */
+  --hero-1: light-dark(#F7CFD9, #3a0f1c);
+  --hero-2: light-dark(#FADFE6, #2e0c17);
+  --hero-3: light-dark(#FDF0F3, #25040a);
+  --hero: linear-gradient(160deg, var(--hero-1) 0%, var(--hero-2) 50%, var(--hero-3) 100%);
+  --hero-shadow: 0 10px 26px light-dark(rgba(184, 67, 106, 0.12), transparent);
+  --btn-shadow: 0 6px 14px light-dark(rgba(184, 67, 106, 0.25), transparent);
 
   /* ══ 선 · 모션 ════════════════════════════════════════════ */
   --line-w: 1px;
@@ -141,7 +158,7 @@
   --motion: 0.12s;
 
   /* ══ 글꼴 ═════════════════════════════════════════════════ */
-  --font-ui: "Gothic A1", system-ui, sans-serif;
+  --font-ui: "Noto Sans KR", "Gothic A1", system-ui, sans-serif;   /* 09-28 리뉴얼 */
   --font-read: "Gowun Batang", "Nanum Myeongjo", serif; /* 안내문 전용 */
   --font-num: "IBM Plex Mono", monospace;
 

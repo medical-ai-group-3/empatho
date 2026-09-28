@@ -40,7 +40,7 @@ export default function Me() {
 
   return (
     <>
-      <Head title="내 정보" />
+      <Head title="내 정보" sub="계정과 알림을 관리해요" />
       <Body loading={loading} error={error} onRetry={reload}>
         {data && <Inner me={data} />}
       </Body>
