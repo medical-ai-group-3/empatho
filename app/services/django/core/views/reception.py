@@ -511,8 +511,10 @@ class PatientTodayStatusView(viewsets.ViewSet):
             return "영상의학과 대기", "radiology_wait", "영상의학과 대기"
         if o.assigned_to_id:
             if getattr(o, "has_study", False):
-                return "AI 분석중", "ai_analysis", "AI 분석중"
-            return "영상의학과 촬영중", "radiology_in_progress", "영상의학과 촬영중"
+                # 화면 표시(stage_detail)만 띄어 쓴다 — stage 는 화면이 칸을 가르는
+                # 열쇠(dept/home.js STAGE · StageBoard)라 그대로 둔다
+                return "AI 분석중", "ai_analysis", "AI 분석 중"
+            return "영상의학과 촬영중", "radiology_in_progress", "영상의학과 촬영 중"
         return o.order_status, o.order_status, o.order_status
 
     def list(self, request):

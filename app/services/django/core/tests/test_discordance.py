@@ -68,7 +68,7 @@ class DiscordanceRuleTests(TestCase):
         self.assertEqual(DiscordanceFlag.objects.count(), 1)
         self.assertEqual(flag.violated_rule, "rule1")
         self.assertEqual(
-            flag.review_note, "영상 의심(BI-RADS 4B) · 병리 B2 — 위양성 검토")
+            flag.review_note, "영상 의심(BI-RADS 4b) · 병리 B2 — 위양성 검토")
         # 「열림」은 closed_at 이 비어 있다는 뜻이다
         self.assertIsNone(flag.closed_at)
         # 환자로 찾으려면 lesion 이 있어야 한다

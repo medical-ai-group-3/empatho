@@ -126,7 +126,8 @@ def evaluate(patient, specimen):
         logger.info("[discordance] 검체 %s 이미 열린 플래그가 있다", specimen.pk)
         return None
 
-    note = template.format(birads=birads.upper(), b=b_category.upper())
+    # BI-RADS 세분류는 소문자(4b) — 화면 용어와 같게. B 분류는 대문자(B2)가 표기다
+    note = template.format(birads=birads.lower(), b=b_category.upper())
 
     flag = models.DiscordanceFlag.objects.create(
         # ⚠ **lesion 을 반드시 채운다.** 목록 API 가 lesion__patient 로
