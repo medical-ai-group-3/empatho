@@ -1447,6 +1447,9 @@ a.frow:hover .frow-k{color:var(--ink)}
   font-variant-numeric:tabular-nums}
 /* 안 오신 적 — **「부도」라고 쓰지 않는다.** 창구에서 내원을 안 찍었을
    수도 있어 단정할 수 없다. 횟수와 날짜만 보이고 판단은 사람이 한다 */
+/* 겹침 안내 안의 [그 예약 고치기] — 새로 잡지 않고 그 예약을 고치는 자리로 */
+.resv-jump{border:0; background:none; padding:0; font:inherit; color:inherit;
+  text-decoration:underline; text-underline-offset:2px; cursor:pointer; font-weight:600}
 .resv-miss{margin:0; font-size:var(--srow-fs); color:var(--ink)}
 .resv-miss span{display:block; font-size:var(--stag-fs); color:var(--warm);
   font-variant-numeric:tabular-nums}

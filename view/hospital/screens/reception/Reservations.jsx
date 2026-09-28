@@ -19,8 +19,13 @@ import { go } from "../../nav";
  *   한 명씩 더 부르면 줄 수만큼 요청이 나간다. 칸을 하나로 두고 왼쪽
  *   「보는 사람」에 그 사실을 적어 두었다(8장 12번).
  *
- * ⚠ **만든 예약을 여기서 못 지운다.** 취소·변경 경로가 서버에 없다
- *   (8장 7번). 화면에 한 줄로 적어 둔다.
+ * ── 한 사람 · 한 날 · 예약 하나 (09-28) ──────────────────────────
+ * 고칠 수 있는 예약(안 옴 · 신청/확정)을 고르면 오른쪽은 **고치는 자리**다
+ * — [변경 저장](PATCH /exam-orders/{id}/reschedule) · [예약 취소]. 판의 빈
+ * 칸을 누르면 그 예약이 그 칸으로 옮겨 갈 자리가 된다. 새로 만드는 [예약]
+ * 은 그날 이 환자에게 취소 안 된 오더가 **하나라도**(내원한 것 포함) 있으면
+ * 잠기고 [그 예약 고치기]로 넘어간다. 서버도 같은 기준으로 409
+ * DUPLICATE_RESERVATION 을 준다(core/views/reception.py _refuse_same_day).
  *
  * ⚠ **메모 칸을 내지 않는다.** `schedule` 이 `patient_id`·`scheduled_at`
  *   둘만 받아서 쓴 글이 그냥 버려진다. 칸을 만들어 놓고 버리는 것이
@@ -41,6 +46,12 @@ const WEEK = ["일", "월", "화", "수", "목", "금", "토"];
    같은 사람이 확정 예약을 두고 다른 날 또 신청했을 때 어느 쪽이 진짜인지
    한눈에 갈라야 한다 */
 const isPending = (r) => r.order_status === "requested" && !r.visited_at;
+
+/* 고칠 수 있는 예약 — 아직 안 왔고(visited_at 빈) 신청 · 확정인 것. 서버
+   ExamOrderRescheduleView.EDITABLE 과 같은 기준이다. 내원했거나 진행 중인
+   오더는 서버가 409 RESERVATION_LOCKED 로 막는다 */
+const isEditable = (r) => Boolean(r) && r.exam_order_id != null && !r.visited_at
+  && ["requested", "scheduled"].includes(r.order_status);
 
 /* 08:00–18:00 을 30분으로 끊는다(6.1) */
 const SLOTS = [];
@@ -117,7 +128,12 @@ export default function Reservations({ cfg }) {
           {tab === "board" ? (
             <Board span={span} setSpan={setSpan} anchor={anchor} setAnchor={setAnchor}
                    range={range} state={board} rows={rows}
-                   onSlot={(at) => setPick({ at })}
+                   /* 고칠 수 있는 예약을 고른 채 빈 칸을 누르면 **그 예약을
+                      그 칸으로 옮기는 자리**다. 예전엔 고른 예약이 떨어지고
+                      환자만 남아 [예약] 이 떴다 — 옮기려던 사람이 누르면 같은
+                      사람 예약이 하나 더 섰다(09-28) */
+                   onSlot={(at) => setPick((p) => (isEditable(p?.order)
+                     ? { at, order: p.order } : { at }))}
                    onOrder={(r) => setPick({ at: r.scheduled_at, order: r })} />
           ) : (
             <Requests state={requests} rows={asks}
@@ -126,7 +142,9 @@ export default function Reservations({ cfg }) {
           )}
         </div>
 
-        <Aside cfg={cfg} pick={pick} rows={rows} onDone={(changed) => {
+        <Aside cfg={cfg} pick={pick} rows={rows} ver={ver}
+               onEdit={(order, at) => setPick({ at, order })}
+               onDone={(changed) => {
           board.reload(true);
           requests.reload(true);
           setVer((n) => n + 1);
@@ -252,9 +270,17 @@ function Board({ span, setSpan, anchor, setAnchor, range, state, rows,
                  onSlot, onOrder }) {
   const byDay = useMemo(() => {
     const m = new Map();
+    /* 한 오더는 한 덩어리 — 같은 번호가 두 번 오면 두 덩어리로 그려져
+       중복 예약처럼 보인다. 판의 두 덩어리는 언제나 서로 다른 오더다 */
+    const seen = new Set();
     for (const r of rows) {
       const day = dayOf(r.scheduled_at);
       if (!day) continue;
+      const id = r.exam_order_id ?? r.id;
+      if (id != null) {
+        if (seen.has(id)) continue;
+        seen.add(id);
+      }
       const list = m.get(day) ?? [];
       list.push(r);
       m.set(day, list);
@@ -415,14 +441,14 @@ function Requests({ state, rows, onOpen }) {
 }
 
 /* ── 오른쪽 340 — 지금 쓰는 것 ────────────────────────────────── */
-function Aside({ cfg, pick, rows, onDone, onDate, onClear }) {
+function Aside({ cfg, pick, rows, ver, onEdit, onDone, onDate, onClear }) {
   const api = cfg.api;
   const order = pick?.order ?? null;
   const patientId = order?.patient ?? null;
 
   const past = useApi(
     () => (patientId == null ? Promise.resolve([]) : api.ordersOf(patientId)),
-    [patientId]);
+    [patientId, ver]);
   const list = Array.isArray(past.data) ? past.data : [];
 
   /* 안 오신 적 — 지난 예약인데 내원 기록이 없는 것.
@@ -438,8 +464,8 @@ function Aside({ cfg, pick, rows, onDone, onDate, onClear }) {
     <div className="resv-aside">
       {/* 새 예약이 맨 위다 — 창구에서 제일 많이 누르는 것이 여기라 스크롤
           아래에 두면 매번 내려가야 했다 */}
-      <New cfg={cfg} at={pick?.at} order={order} rows={rows}
-           onDone={onDone} onDate={onDate} onClear={onClear} />
+      <New cfg={cfg} pick={pick} rows={rows} ver={ver}
+           onEdit={onEdit} onDone={onDone} onDate={onDate} onClear={onClear} />
 
       <Card title="예약 정보">
         {order ? (
@@ -492,8 +518,10 @@ function Aside({ cfg, pick, rows, onDone, onDate, onClear }) {
   );
 }
 
-function New({ cfg, at, order, rows, onDone, onDate, onClear }) {
+function New({ cfg, pick, rows, ver, onEdit, onDone, onDate, onClear }) {
   const api = cfg.api;
+  const at = pick?.at;
+  const order = pick?.order ?? null;
   /* ⚠ 간호 계정도 예약을 잡는다 — 한 과다(Patients.jsx 의 integrated).
      reception.reserve 만 보면 간호 열쇠만 가진 사람은 [예약] 이 늘 잠겼다 */
   const may = useCan(["reception.reserve", "nursing.waiting.view"]);
@@ -509,13 +537,18 @@ function New({ cfg, at, order, rows, onDone, onDate, onClear }) {
   const [ok, setOk] = useState(null);
 
   /* 달력에서 고른 자리가 바뀌면 날짜·시각을 따라간다. 고른 예약이 있으면
-     그 환자도 같이 들어온다 — 화면을 옮기지 않는다는 것이 이 판의 규칙이다 */
-  const slot = `${dayOf(at)}T${timeOf(at)}`;
-  const [seen, setSeen] = useState(slot);
-  if (at && slot !== seen) {
-    setSeen(slot);
-    setDate(dayOf(at));
-    setTime(timeOf(at));
+     그 환자도 같이 들어온다 — 화면을 옮기지 않는다는 것이 이 판의 규칙이다.
+     ⚠ **고른 것(pick) 자체로 가른다.** 예전엔 날짜·시각 글자로 갈라서 같은
+       칸의 다른 덩어리를 누르면 오른쪽 환자가 안 바뀌었다 — 오른쪽 이름은
+       A 인데 고치는 오더는 B 였다. 누를 때마다 새 pick 이 오므로 같은
+       덩어리를 다시 누르면 고치던 날짜·시각이 그 예약 값으로 돌아간다 */
+  const [seen, setSeen] = useState(pick);
+  if (pick && pick !== seen) {
+    setSeen(pick);
+    if (at) {
+      setDate(dayOf(at));
+      setTime(timeOf(at));
+    }
     if (order) {
       setWho({ patient_id: order.patient, name: order.patient_name,
                patient_number: order.patient_number });
@@ -527,37 +560,50 @@ function New({ cfg, at, order, rows, onDone, onDate, onClear }) {
      찾아 [예약] 이 그대로 눌렸다 */
   const mine = useApi(
     () => (who?.patient_id != null ? api.ordersOf(who.patient_id) : Promise.resolve([])),
-    [who?.patient_id]);
+    [who?.patient_id, ver]);
 
-  /* 같은 날 **살아 있는**(안 왔고 취소 안 된) 예약. 고치는 중이면 그 오더
-     자신은 뺀다 */
+  /* 고른 예약이 아직 안 온 것이면 **고치는 자리**가 된다. 예전엔 여기서
+     [예약] 을 누르면 같은 사람 예약이 또 하나 생겼다 — 바꾸려던 것이
+     늘어나기만 했다 */
+  const editable = isEditable(order);
+
+  /* 그날 이 환자에게 **취소 안 된 오더**가 이미 있는가 — 서버
+     _refuse_same_day 와 같은 기준이다(409 DUPLICATE_RESERVATION).
+     ⚠ 내원한 것도 센다. 예전엔 「안 온 것」만 봐서, 내원한 예약을 눌러
+       [예약] 을 누르면 같은 날 · 같은 시각에 새 예약이 또 섰다(09-28).
+     ⚠ 고치는 중(editable)일 때만 그 오더 자신을 뺀다. 고칠 수 없는 예약을
+       고른 채면 오른쪽은 **새 예약**이라 고른 그 오더도 겹침이다 */
   const clash = useMemo(() => {
     if (!who) return null;
-    const live = (r) => !r.visited_at && ["requested", "scheduled"].includes(r.order_status);
     const pool = [...(Array.isArray(mine.data) ? mine.data : []), ...rows];
     return pool.find((r) => String(r.patient) === String(who.patient_id)
-      && dayOf(r.scheduled_at) === date && live(r)
-      && (!order || r.exam_order_id !== order.exam_order_id)) ?? null;
-  }, [mine.data, rows, who, date, order]);
+      && dayOf(r.scheduled_at) === date && r.order_status !== "cancelled"
+      && !(editable && r.exam_order_id === order.exam_order_id)) ?? null;
+  }, [mine.data, rows, who, date, order, editable]);
+  const clashLive = isEditable(clash);
+  /* 고칠 것이 없다 — 날짜 · 시각이 그대로면 [변경 저장] 은 「바꿨습니다」만
+     띄우고 아무것도 안 바꾼다. 사람은 저장이 안 된 줄 안다 */
+  const unchanged = editable && dayOf(order.scheduled_at) === date
+    && timeOf(order.scheduled_at) === time;
 
   /* 연타 막기 — busy 는 다음 그림에서야 단추를 잠그므로 그 사이 두 번째
      클릭이 또 나갔다. 이 표시는 바로 선다 */
   const sending = useRef(false);
 
-  /* 고른 예약이 아직 안 온 것이면 **고치는 자리**가 된다. 예전엔 여기서
-     [예약] 을 누르면 같은 사람 예약이 또 하나 생겼다 — 바꾸려던 것이
-     늘어나기만 했다 */
-  const editable = order && order.exam_order_id != null && !order.visited_at
-    && ["requested", "scheduled"].includes(order.order_status);
-
   async function reschedule() {
+    if (sending.current || clash || unchanged) return;
+    sending.current = true;
     setBusy(true); setErr(null); setOk(null);
     try {
       const changed = await api.reschedule(order.exam_order_id, `${date}T${time}:00`);
       setOk(`${order.patient_name ?? `#${order.patient}`} · ${date} ${time} 로 바꿨습니다`);
       onDone(changed ?? { exam_order_id: order.exam_order_id, scheduled_at: `${date}T${time}:00` });
-    } catch (e2) { setErr(e2); }
-    finally { setBusy(false); }
+    } catch (e2) {
+      setErr(e2);
+      /* 409 — 그새 누가 그날 예약을 잡았거나(겹침) 환자가 와 버렸다(잠김).
+         판과 이 사람 예약을 다시 불러 겹침 안내가 서게 한다 */
+      if (e2?.status === 409) onDone();
+    } finally { setBusy(false); sending.current = false; }
   }
 
   async function cancel() {
@@ -596,8 +642,12 @@ function New({ cfg, at, order, rows, onDone, onDate, onClear }) {
       setOk(`${who.name ?? `#${who.patient_id}`} · ${date} ${time} 로 잡았습니다`);
       setWho(null); setFound(null); setQ("");
       onDone();
-    } catch (e2) { setErr(e2); }
-    finally { setBusy(false); sending.current = false; mine.reload(true); }
+    } catch (e2) {
+      setErr(e2);
+      /* 409 DUPLICATE_RESERVATION — 판이 낡아 못 본 같은 날 예약이 서버에
+         있다. 다시 불러 겹침 안내([그 예약 고치기])가 서게 한다 */
+      if (e2?.status === 409) onDone();
+    } finally { setBusy(false); sending.current = false; mine.reload(true); }
   }
 
   /* 앱 신청(requested · 아직 안 옴)을 고른 경우 — **새로 만들지 않고 그
@@ -613,7 +663,7 @@ function New({ cfg, at, order, rows, onDone, onDate, onClear }) {
       const changed = await api.confirm(order.exam_order_id, `${date}T${time}:00`);
       setOk(`${order.patient_name ?? `#${order.patient}`} · ${date} ${time} 로 확정했습니다`);
       onDone(changed ?? { exam_order_id: order.exam_order_id, order_status: "scheduled" });
-    } catch (e2) { setErr(e2); }
+    } catch (e2) { setErr(e2); if (e2?.status === 409) onDone(); }
     finally { setBusy(false); }
   }
 
@@ -677,26 +727,41 @@ function New({ cfg, at, order, rows, onDone, onDate, onClear }) {
 
       <p className="hcard-k">검사 종류는 여기서 안 정합니다 — 진료 뒤 유방외과가 오더를 냅니다.</p>
 
-      {clash && (
-        <p className="note err">
-          같은 날 이미 예약이 있습니다 — {timeOf(clash.scheduled_at)}.
-          시간을 바꾸려면 판에서 그 예약을 눌러 [변경 저장]으로 고쳐 주세요.
-        </p>
+      {editable && !clash && (
+        <p className="hcard-k">판의 빈 칸을 누르면 이 예약을 그 시각으로 옮깁니다.</p>
       )}
-      {err && <p className="note err">{err.detail || err.message}</p>}
+      {clash && (clashLive ? (
+        <p className="note err">
+          {date} 에 이 환자 예약이 이미 있습니다 — {timeOf(clash.scheduled_at)}.
+          {editable ? " 한 날에 둘을 둘 수 없습니다." : " 새로 잡지 않고 그 예약을 고칩니다."}
+          {" "}
+          <button type="button" className="resv-jump"
+                  onClick={() => { setErr(null); setOk(null);
+                                   onEdit(clash, `${date}T${time}:00`); }}>
+            그 예약 고치기
+          </button>
+        </p>
+      ) : (
+        <p className="note err">
+          {date} {timeOf(clash.scheduled_at)} 예약으로 이미 내원했습니다 — 다른 날을 골라 주세요.
+        </p>
+      ))}
+      {/* 겹침 안내가 이미 선 409 는 같은 말을 두 번 하지 않는다 */}
+      {err && !(clash && err.code === "DUPLICATE_RESERVATION")
+        && <p className="note err">{err.detail || err.message}</p>}
       {ok && <p className="hcard-k" role="status">{ok}</p>}
 
       <div className="rowb">
         <Btn to={go.nursing.patients()}>환자 목록</Btn>
         {pending && (
           <Btn kind="fill" onClick={confirm} {...mayConfirm.attrs}
-               disabled={busy || !mayConfirm.ok}>이 시각으로 신청 확정</Btn>
+               disabled={busy || !mayConfirm.ok || Boolean(clash)}>이 시각으로 신청 확정</Btn>
         )}
         {editable ? (
           <>
             <Btn onClick={cancel} {...may.attrs} disabled={busy || !may.ok}>예약 취소</Btn>
             <Btn kind={pending ? undefined : "fill"} onClick={reschedule} {...may.attrs}
-                 disabled={busy || !may.ok}>변경 저장</Btn>
+                 disabled={busy || !may.ok || Boolean(clash) || unchanged}>변경 저장</Btn>
           </>
         ) : (
           <Btn kind="fill" onClick={save} {...may.attrs}
