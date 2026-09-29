@@ -5,7 +5,8 @@ from django.db import transaction
 from django.utils import timezone
 
 from .. import models
-from core.api.perms import perms_for_role
+from core.api.perms import perms_for
+from core.api.permissions import extra_depts_of
 from ..services import discordance
 
 AUDIT_FIELDS = ("created_at", "created_by", "updated_at", "updated_by")
@@ -432,6 +433,10 @@ class MeSerializer(serializers.Serializer):
     dept = serializers.CharField(source="role")
     dept_name = serializers.SerializerMethodField()
     perms = serializers.SerializerMethodField()
+    # 09-29 — 소속 말고 한 벌로 더 보는 과. 화면은 perms 만 보고 메뉴를
+    # 그리므로 이것이 없어도 돌지만, 「왜 이 사람에게 영상 탭이 있나」를
+    # 화면과 로그에서 바로 읽으려고 같이 내린다. 없으면 빈 배열이다
+    extra_depts = serializers.SerializerMethodField()
 
     DEPT_NAMES = {
         "reception": "원무과", "nursing": "간호과", "radiology": "영상의학과",
@@ -451,7 +456,10 @@ class MeSerializer(serializers.Serializer):
         return self.DEPT_NAMES.get(account.role, account.role)
 
     def get_perms(self, account):
-        return perms_for_role(account.role)
+        return perms_for(account)
+
+    def get_extra_depts(self, account) -> list:
+        return extra_depts_of(account)
     
 class MePatientSerializer(serializers.Serializer):
     """GET /me — 환자용. 같은 경로에서 역할로 갈린다.

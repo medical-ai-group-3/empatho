@@ -87,3 +87,25 @@ def perms_for_role(role):
     # report.view.all 없이 유지하며, Django admin 접근은 core/admin.py 에서
     # 별도로 막는다.
     return ROLE_PERMS.get(role, [])
+
+
+def perms_for(account):
+    """소속 과 + 추가 과(staff.extra_depts)의 화면 권한을 합친다.
+
+    ⚠ **admin 은 합칠 수 없다.** extra_depts_of 가 줄 수 있는 과만 남기고,
+      거기에 admin 은 없다. 관리자 문(admin.console.open)은 부서로 열리는
+      것이 아니라 role='admin' 으로만 열린다.
+
+    차례를 지킨다 — 소속 과의 권한이 앞이다. 화면이 순서를 보지는 않지만
+    로그에 찍힐 때 「무엇이 본래 것이고 무엇이 더한 것인가」가 보인다.
+    """
+    from .permissions import extra_depts_of      # 순환 import 를 피해 여기서
+
+    out = list(perms_for_role(getattr(account, "role", None)))
+    seen = set(out)
+    for dept in extra_depts_of(account):
+        for perm in ROLE_PERMS.get(dept, []):
+            if perm not in seen:
+                seen.add(perm)
+                out.append(perm)
+    return out

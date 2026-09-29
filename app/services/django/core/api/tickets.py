@@ -35,7 +35,8 @@ from rest_framework.views import APIView
 from ..models import Account, Report, Specimen, Study
 from .errors import ApiError
 from .permissions import (ADMIN, IsAuthenticatedAccount, NURSING, PATHOLOGY,
-                          PATIENT, RADIOLOGY, RECEPTION, SURGERY, rule_for)
+                          PATIENT, RADIOLOGY, RECEPTION, SURGERY,
+                          effective_rule)
 from .trace import get_trace_id
 
 logger = logging.getLogger(__name__)
@@ -336,7 +337,9 @@ class TicketView(APIView):
 
         역할만 보면 「영상의학이면 아무 검사에나 티켓을 낸다」가 된다.
         """
-        rule = rule_for(SCOPE_RESOURCE[scope_kind], account.role)
+        # 과별 권한(staff.extra_depts)도 센다 — 여기만 역할로 보면 화면은
+        # 열리는데 그 안의 영상이 안 뜬다
+        rule = effective_rule(account, SCOPE_RESOURCE[scope_kind])
         if not rule.allows("R"):
             raise ApiError("ROLE_FORBIDDEN",
                            details={"resource": SCOPE_RESOURCE[scope_kind]})
