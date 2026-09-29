@@ -46,6 +46,7 @@
  *       GET /specimens/{id}/upload   2·3장 (올린 파일 목록은 여기에만 있다)
  */
 import { EXAM_PURPOSE, MODALITY, REPORT_DEPT, label, modality as modalityCode } from "./codes";
+import { emitChange } from "./lib/refresh";
 
 /* ⚠1 ── 주소 앞머리 ───────────────────────────────────────────
  *
@@ -243,7 +244,7 @@ async function call(method, path, body, opt = {}) {
   }
 
   const traceId = res.headers.get("X-Trace-Id");
-  if (res.status === 204) return null;
+  if (res.status === 204) { changed(method, path); return null; }
 
   let payload = null;
   try { payload = await res.json(); } catch { /* 본문 없음 */ }
@@ -254,7 +255,17 @@ async function call(method, path, body, opt = {}) {
   if (payload && payload.success === false) {
     throw unwrapError(payload, res.status, res.statusText, traceId);
   }
+  changed(method, path);
   return unwrap(payload);
+}
+
+/* 저장이 성공했다 — 살아 있는 화면들이 다시 부르게 알린다(lib/refresh.js).
+   ⚠ 읽기인데 POST 인 길(DUR 점검)과 로그인 · 토큰 길은 뺀다 — 알리면
+   다시 부르기 → 또 알림으로 돌 수 있고, 적어도 헛걸음이다 */
+const QUIET = [/^\/login/, /^\/logout/, /^\/token\//, /^\/admin-session/, /^\/drugs\//, /^\/me\/notes/];
+function changed(method, path) {
+  if (method === "GET" || QUIET.some((re) => re.test(path))) return;
+  emitChange();
 }
 
 const get   = (p)    => call("GET", p);

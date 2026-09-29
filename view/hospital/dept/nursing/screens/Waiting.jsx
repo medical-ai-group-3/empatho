@@ -11,6 +11,7 @@ import { specimens as specApi } from "../../../api";
 import SpecimenBindingModal from "../../../lib/SpecimenBindingModal";
 import * as H from "../../home";
 import { ORDER_STATUS, SPECIMEN_TYPE, label } from "../../../codes";
+import { useLive } from "../../../lib/refresh";
 
 /* 내원 대기 · 유방외과 배정 — `docs/mockup/Nursing-내원대기.html`
  * ════════════════════════════════════════════════════════════════
@@ -111,10 +112,9 @@ function Inner({ cfg, embedded, given }) {
   const booked = useApi(() => H.soft(api.scheduledToday()), [slow]);
   /* 문항 말 — 못 부르면 null 이고 화면은 코드 그대로 적는다 */
   const form = useApi(() => api.questionnaireForm().catch(() => null), []);
-  useEffect(() => {
-    const t = setInterval(() => setTick((n) => n + 1), POLL_MS);
-    return () => clearInterval(t);
-  }, []);
+  /* 박자 — 보일 때만 POLL_MS 마다, 이 브라우저에서 저장되면(접수 · 문진 ·
+     배정) 바로, 탭으로 돌아오면 바로(lib/refresh.js) */
+  useLive(() => setTick((n) => n + 1), POLL_MS);
 
   /* 유방외과로 보낸 오더는 서버가 뺀다(waitingArrived 의 handed=none) */
   const rows = H.rows(arrived.data);

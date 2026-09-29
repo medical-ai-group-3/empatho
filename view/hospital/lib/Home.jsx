@@ -13,6 +13,7 @@ import { useMe } from "./useMe";
 import Register from "../screens/reception/Register";
 import StageBoard from "./StageBoard";
 import { Filters, applyFilters } from "./Filters";
+import { useLive } from "./refresh";
 
 /* 과 홈 — 배치는 `docs/mockup/*Home.html` 이 정한다
  * ════════════════════════════════════════════════════════════════
@@ -64,10 +65,8 @@ export default function Home({ cfg }) {
     return () => { live = false; };
   }, [home, tick]);
 
-  useEffect(() => {
-    const t = setInterval(() => setTick((n) => n + 1), REFRESH_MS);
-    return () => clearInterval(t);
-  }, []);
+  /* 보일 때만 주기로 · 이 브라우저에서 저장되면 바로 · 돌아오면 바로(lib/refresh.js) */
+  useLive(() => setTick((n) => n + 1), REFRESH_MS);
 
   const again = () => setTick((n) => n + 1);
   const [barEl, setBarEl] = useState(null);
@@ -95,7 +94,7 @@ export default function Home({ cfg }) {
 }
 
 /* 몇 초마다 조용히 다시 불러온다 (5.6) */
-const REFRESH_MS = 30000;
+const REFRESH_MS = 15000;
 
 const NO_HOME = { load: () => Promise.resolve(null) };
 
@@ -573,7 +572,7 @@ function handAt(iso) {
 }
 
 function Handover({ dept }) {
-  const remote = useApi(() => notesApi.list("handover"), [dept]);
+  const remote = useApi(() => notesApi.list("handover"), [dept], { live: true });
   const me = useMe();
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");

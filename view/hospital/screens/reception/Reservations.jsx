@@ -148,8 +148,9 @@ export default function Reservations({ cfg }) {
   const range = useMemo(() => rangeOf(span, anchor), [span, anchor]);
   const [ver, setVer] = useState(0);   /* 예약을 잡으면 할 일 · 달력 점도 다시 */
 
+  /* 새로고침 없이 따라간다 — 앱 신청 · 다른 창구의 예약이 판에 바로 선다 */
   const board = useApi(
-    () => api.schedule(range.from, range.to), [range.from, range.to]);
+    () => api.schedule(range.from, range.to), [range.from, range.to], { live: true });
 
   /* ?patient= 로 왔으면 그 사람을 새 예약에 싣는다. 이름을 모르면 번호로
      부르게 되니 상세를 한 번 받아 온다 — 못 받아도 번호로 연다 */

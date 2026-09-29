@@ -52,9 +52,9 @@ export default function Patients() {
   const [sort, setSort] = useState(SORTS[0].key);
   const [query, setQuery] = useState("");
   const [pickedId, setPickedId] = useState(null);
-  const { loading, data: patients, error, reload } = useApi(() => api.patients());
+  const { loading, data: patients, error, reload } = useApi(() => api.patients(), [], { live: true });
   /* 서버 worklist — 없으면 null 이고 진료 칸이 「—」로 빈다 */
-  const wl = useApi(() => api.worklist("all").catch(() => null), []);
+  const wl = useApi(() => api.worklist("all").catch(() => null), [], { live: true });
   const items = useMemo(() => new Map(H.rows(wl.data).map((it) => [String(it.patient_id), it])),
     [wl.data]);
 
