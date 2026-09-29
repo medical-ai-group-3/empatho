@@ -7,13 +7,13 @@ import { Chip } from "./Parts";
 import { can } from "../perm";
 import { byDate, monthGrid, today } from "../dept/home";
 import { seen, useRecent } from "./recent";
-import * as notes from "./notes";
 import { notes as notesApi } from "../api";
 import { useApi } from "./useApi";
 import { useMe } from "./useMe";
 import Register from "../screens/reception/Register";
 import StageBoard from "./StageBoard";
 import { Filters, applyFilters } from "./Filters";
+import { useLive } from "./refresh";
 
 /* 과 홈 — 배치는 `docs/mockup/*Home.html` 이 정한다
  * ════════════════════════════════════════════════════════════════
@@ -65,10 +65,8 @@ export default function Home({ cfg }) {
     return () => { live = false; };
   }, [home, tick]);
 
-  useEffect(() => {
-    const t = setInterval(() => setTick((n) => n + 1), REFRESH_MS);
-    return () => clearInterval(t);
-  }, []);
+  /* 보일 때만 주기로 · 이 브라우저에서 저장되면 바로 · 돌아오면 바로(lib/refresh.js) */
+  useLive(() => setTick((n) => n + 1), REFRESH_MS);
 
   const again = () => setTick((n) => n + 1);
   const [barEl, setBarEl] = useState(null);
@@ -96,7 +94,7 @@ export default function Home({ cfg }) {
 }
 
 /* 몇 초마다 조용히 다시 불러온다 (5.6) */
-const REFRESH_MS = 30000;
+const REFRESH_MS = 15000;
 
 const NO_HOME = { load: () => Promise.resolve(null) };
 
@@ -574,7 +572,7 @@ function handAt(iso) {
 }
 
 function Handover({ dept }) {
-  const remote = useApi(() => notesApi.list("handover"), [dept]);
+  const remote = useApi(() => notesApi.list("handover"), [dept], { live: true });
   const me = useMe();
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
@@ -826,20 +824,58 @@ function dotClass(kindsHere, kinds) {
 }
 
 /* ── 오른쪽 아래 — 할 일 ───────────────────────────────────────
- * 내 것만 본다. ⚠ 지금은 이 브라우저에만 남는다(8장 2번)
+ * 내 것만 본다 — 서버 개인 메모(/me/notes?type=todo, 계정별).
+ * ⚠ 09-29 전에는 브라우저(localStorage, 키에 과만)에 두어 같은 컴퓨터의
+ *   다른 계정에도 보였다(lib/notes.js). content = { text, done } — 모델
+ *   PersonalNote 가 정한 모양이다. 완료 칸을 따로 두지 않는다.
+ * 과마다 따로 두지 않는다 — 계정 하나가 곧 과 하나다(dept 는 다시 부르는 열쇠)
  */
 function Todo({ dept }) {
-  const [list, setList] = useState(() => notes.read("todo", dept));
+  const remote = useApi(() => notesApi.list("todo"), [dept]);
+  /* 누르는 즉시 바뀌어 보이게 — 서버 답을 기다리면 체크가 반 박자 늦다.
+     실패하면 서버 것으로 되돌린다(reload) */
+  const [local, setLocal] = useState(null);
   const [text, setText] = useState("");
   const [composing, setComposing] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => { setLocal(null); }, [remote.data]);
+
+  /* 서버는 -updated_at 순이다. 체크만 해도 맨 위로 올라가 목록이 뒤섞인다 —
+     적은 순서(created_at)로 둔다 */
+  const list = local ?? (remote.data ?? [])
+    .map((n) => ({ id: n.personal_note_id, at: n.created_at,
+                   body: n.content?.text ?? "", done: Boolean(n.content?.done),
+                   raw: n.content ?? {} }))
+    .sort((a, b) => String(a.at).localeCompare(String(b.at)));
 
   /* ⚠ 한글 조합 중 Enter 는 제출하지 않는다 — 조합을 끝내는 Enter 와 진짜
      Enter 가 따로 와서 같은 할 일이 두 개(끝 글자 잘린 것까지) 생겼다 */
-  function submit(e) {
+  async function submit(e) {
     e.preventDefault();
     if (composing || e.nativeEvent?.isComposing) return;
-    setList(notes.add("todo", dept, text));
-    setText("");
+    const v = text.trim();
+    if (!v || busy) return;
+    setBusy(true);
+    try {
+      await notesApi.create("todo", { text: v, done: false });
+      setText("");
+      remote.reload(true);
+    } catch { /* 글은 지우지 않는다 — 다시 누르면 된다 */ }
+    finally { setBusy(false); }
+  }
+
+  /* PATCH 는 content 를 통째로 덮는다 — 원래 것을 펼쳐 담는다 */
+  async function toggle(it) {
+    setLocal(list.map((x) => (x.id === it.id ? { ...x, done: !x.done } : x)));
+    try { await notesApi.update(it.id, { ...it.raw, text: it.body, done: !it.done }); }
+    finally { remote.reload(true); }
+  }
+
+  async function remove(it) {
+    setLocal(list.filter((x) => x.id !== it.id));
+    try { await notesApi.remove(it.id); }
+    finally { remote.reload(true); }
   }
 
   const left = list.filter((it) => !it.done).length;
@@ -848,15 +884,17 @@ function Todo({ dept }) {
     <Card title="할 일" grow
           count={list.length > 0 ? `${left}개 남음` : null}
           right={<span className="hcard-k">나만 볼 수 있음</span>}>
-      {list.length === 0 ? <None>아래 칸에 적으면 여기에 쌓입니다</None> : (
+      {remote.error && !remote.data ? <None>할 일을 불러오지 못했습니다</None>
+        : list.length === 0
+          ? <None>{remote.loading && !remote.data ? "불러오는 중…" : "아래 칸에 적으면 여기에 쌓입니다"}</None>
+          : (
       <div className="todos">
         {list.map((it) => (
           <label className={`trow${it.done ? " done" : ""}`} key={it.id}>
-            <input type="checkbox" checked={it.done}
-                   onChange={() => setList(notes.toggle("todo", dept, it.id))} />
+            <input type="checkbox" checked={it.done} onChange={() => toggle(it)} />
             <span>{it.body}</span>
             <button className="note-x" aria-label="지우기"
-                    onClick={() => setList(notes.remove("todo", dept, it.id))}>×</button>
+                    onClick={(e) => { e.preventDefault(); remove(it); }}>×</button>
           </label>
         ))}
       </div>
@@ -866,7 +904,7 @@ function Todo({ dept }) {
                onCompositionStart={() => setComposing(true)}
                onCompositionEnd={() => setComposing(false)}
                placeholder="할 일 추가" aria-label="할 일 추가" />
-        <button className="btn dark" type="submit" disabled={!text.trim()}>추가</button>
+        <button className="btn dark" type="submit" disabled={!text.trim() || busy}>추가</button>
       </form>
     </Card>
   );

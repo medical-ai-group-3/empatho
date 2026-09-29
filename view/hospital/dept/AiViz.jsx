@@ -1,3 +1,4 @@
+import { useId } from "react";
 /* AI 산출값 시각화 조각 — 이미지 오버레이가 아닌 표·그래프 쪽
  * ────────────────────────────────────────────────────────────────
  *
@@ -183,31 +184,50 @@ export function Bars({ label, items, max, note, fmtVal = (v) => round(v, 2) }) {
    축 값이 없으면 그 축은 중심(0)에 둔다 — 없는 값을 지어내지 않고, 글자로 「—」 */
 export function Radar({ label, axes, note }) {
   const use = (axes ?? []);
+  const id = useId().replace(/:/g, "");
   if (use.filter((a) => isNum(a.value)).length < 3) return null;
-  const N = use.length, R = 90, C = 130;
+  /* ⚠ 09-29 글자가 var(--ink)(짙은 색) 고정이라 판독 화면의 어두운 칸(.vside)에서
+     묻혔고, 아래 축 글자는 viewBox 밖으로 잘렸다. 색은 --viz-* 로 받아 칸마다
+     바꾸고(hospital.css), 둘레 글자 자리를 넉넉히 둔다 */
+  const N = use.length, R = 84, C = 150;
   const pt = (i, f) => {
     const t = -Math.PI / 2 + (2 * Math.PI * i) / N;
     return [C + Math.cos(t) * R * f, C + Math.sin(t) * R * f];
   };
   const norm = (a) => isNum(a.value) ? Math.max(0, Math.min(1, (a.value - a.lo) / (a.hi - a.lo))) : 0;
+  const ring = (f) => use.map((_, i) => pt(i, f).join(",")).join(" ");
   const poly = use.map((a, i) => pt(i, norm(a)).join(",")).join(" ");
   return (
-    <div className="viz viz-lg">
+    <div className="viz viz-lg viz-radar">
       {label && <div className="viz-h">{label}</div>}
-      <svg className="viz-svg" viewBox="0 0 260 260" role="img" aria-label={label}>
+      <svg className="viz-svg" viewBox="0 0 300 300" role="img" aria-label={label}>
+        <defs>
+          <radialGradient id={`rg${id}`} cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="var(--cyan)" stopOpacity="0.55" />
+            <stop offset="100%" stopColor="var(--cyan)" stopOpacity="0.12" />
+          </radialGradient>
+        </defs>
+        {/* 바깥 판 — 가장 바깥 고리만 옅게 채워 영역을 잡는다 */}
+        <polygon points={ring(1)} className="rd-plate" />
         {[0.25, 0.5, 0.75, 1].map((f) => (
-          <polygon key={f} points={use.map((_, i) => pt(i, f).join(",")).join(" ")}
-                   fill="none" stroke="var(--line-2)" />
+          <polygon key={f} points={ring(f)} className={f === 1 ? "rd-ring out" : "rd-ring"} />
         ))}
-        {use.map((_, i) => <line key={i} x1={C} y1={C} x2={pt(i, 1)[0]} y2={pt(i, 1)[1]} stroke="var(--line-2)" />)}
-        <polygon points={poly} fill="var(--cyan)" fillOpacity="0.28" stroke="var(--cyan)" strokeWidth="2" />
+        {use.map((_, i) => (
+          <line key={i} x1={C} y1={C} x2={pt(i, 1)[0]} y2={pt(i, 1)[1]} className="rd-axis" />
+        ))}
+        <polygon points={poly} fill={`url(#rg${id})`} className="rd-shape" />
         {use.map((a, i) => {
-          const [x, y] = pt(i, 1.22);
+          const [x, y] = pt(i, norm(a));
+          return <circle key={a.name} cx={x} cy={y} r="3.2" className="rd-dot" />;
+        })}
+        {use.map((a, i) => {
+          const [x, y] = pt(i, 1.3);
+          const anchor = Math.abs(x - C) < 4 ? "middle" : x > C ? "start" : "end";
+          const top = y < C - 4;
           return (
-            <text key={a.name} x={x} y={y} textAnchor="middle" dominantBaseline="middle"
-                  fontSize="12" fill="var(--ink)">
+            <text key={a.name} x={x} y={top ? y - 8 : y} textAnchor={anchor} className="rd-k">
               {a.name}
-              <tspan x={x} dy="14" fontSize="11" fill="var(--warm)">{isNum(a.value) ? round(a.value, 2) : "—"}</tspan>
+              <tspan x={x} dy="15" className="rd-v">{isNum(a.value) ? round(a.value, 2) : "—"}</tspan>
             </text>
           );
         })}

@@ -2457,6 +2457,20 @@ a.pevent:focus-visible{outline:var(--hair) solid var(--cyan); outline-offset:2px
 .stage-annotation line{stroke:#74d4ff;stroke-width:2}
 .stage-annotation circle{fill:#74d4ff;stroke:none}
 .stage-annotation text{fill:#ffffff;stroke:#171514;stroke-width:3;paint-order:stroke;font-size:15px;font-weight:700}
+/* 고른 표시 — 노랗게. AI 도형(.shp.on)과 헷갈리지 않는 색이다 */
+.stage-annotation.on{fill:rgba(255,216,77,.14);stroke:#ffd84d;stroke-width:3}
+.stage-annotation.on line{stroke:#ffd84d;stroke-width:3}
+.stage-annotation.on circle{fill:#ffd84d}
+/* 고르는 손잡이 — 보이지 않는 굵은 테두리. 판(svg)은 마우스를 통과시키고
+   이것만 받는다. 굵기는 Stage.jsx 가 배율로 나눠 style 로 준다 */
+.stage-annotation .stage-annotation-hit{fill:none;stroke:transparent;pointer-events:stroke;cursor:pointer}
+/* 글자 단추(선택 지우기 · 모두 지우기) — 네모 단추에 안 들어간다 */
+.vtool.vtool-text{width:auto; min-width:var(--v-tool); padding:0 var(--gap-sm);
+  font-size:var(--v-fs); white-space:nowrap}
+.vtool:disabled{opacity:.4; cursor:default}
+.vtool:disabled:hover{background:var(--v-bg); color:var(--v-ink)}
+.stage-box:focus{outline:none}
+.stage-box:focus-visible{box-shadow:inset 0 0 0 var(--focus-w) var(--cyan)}
 
 /* 판독은 한 화면에서 오래 비교하는 작업이므로, 제목과 저장줄을 뺀 세로
    공간을 뷰어·AI 소견·의사 소견 카드가 전부 사용한다. */
@@ -3912,3 +3926,46 @@ a.exam-history-pick{text-decoration:none}
 .vside-grip{position:absolute; left:0; top:0; bottom:0; width:8px; cursor:col-resize;
   z-index:5; touch-action:none}
 .vside-grip:hover, .vside-grip:active{background:linear-gradient(to right, var(--cyan) 0, var(--cyan) 2px, transparent 2px)}
+
+/* ── 판독 칸 — 등록된 병변 목록(dept/radiology.jsx Doctor) · 09-29 ──────
+   병변 등록을 누를 때마다 몇 개가 들어갔는지 바로 보이게 */
+.rad-les{display:flex; flex-direction:column; gap:var(--gap-xs);
+  padding:var(--gap-sm) 0; border-top:var(--hair) solid var(--line-2)}
+.rad-les-h{margin:0; display:flex; align-items:baseline; gap:var(--gap-sm)}
+.rad-les-l{margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:var(--gap-xxs)}
+.rad-les-l li{display:flex; align-items:center; gap:var(--gap-sm); font-size:var(--row-fs)}
+.rad-les-l .num{color:var(--warm); font-variant-numeric:tabular-nums; min-width:4em}
+.rad-les-l .chip{margin-left:auto}
+
+/* ── 형태 프로필 레이더(dept/AiViz.jsx Radar) · 09-29 ──────────────────
+   색은 칸마다 --viz-* 로 바꾼다 — 판독 화면 오른쪽 칸(.vside)은 어둡다 */
+.viz-radar{--viz-ink:var(--ink); --viz-sub:var(--warm); --viz-grid:var(--border);
+  --viz-plate:var(--canvas)}
+.vside .viz-radar{--viz-ink:var(--v-ink); --viz-sub:var(--v-warm); --viz-grid:var(--v-line);
+  --viz-plate:var(--v-bg)}
+.viz-radar .viz-svg{display:block; width:100%; max-width:340px; margin:0 auto; overflow:visible}
+.viz-radar .rd-plate{fill:var(--viz-plate); stroke:none}
+.viz-radar .rd-ring{fill:none; stroke:var(--viz-grid); stroke-width:1}
+.viz-radar .rd-ring.out{stroke-width:1.2}
+.viz-radar .rd-axis{stroke:var(--viz-grid); stroke-width:1; stroke-dasharray:2 3}
+.viz-radar .rd-shape{stroke:var(--cyan); stroke-width:1.6; stroke-linejoin:round}
+.viz-radar .rd-dot{fill:var(--cyan); stroke:var(--viz-plate); stroke-width:1.5}
+.viz-radar .rd-k{font-size:12px; font-weight:600; fill:var(--viz-ink); letter-spacing:-.01em}
+.viz-radar .rd-v{font-size:12px; font-weight:500; fill:var(--cyan);
+  font-variant-numeric:tabular-nums}
+.vside .viz-radar .viz-h,.vside .viz-radar .viz-note{color:var(--v-warm)}
+
+/* ── 판독 화면 — 검사 정보 · 뷰어 · 소견을 한 판으로 · 09-29 ─────────────
+   09-17 에 네 조각을 따로 떨어진 카드로 갈랐는데(위 .vwrap 주석), 판독 화면
+   에서는 칸마다 상자 · 간격 · 모서리가 따로 서서 조각나 보였다 — 「하나의
+   큰 박스에 모두 넣어 일체감」. 판독 화면에서만 바깥 테두리 하나로 감싸고
+   칸 사이는 가는 선으로만 가른다. 다른 화면(유방외과 등)의 뷰어는 그대로 */
+.read-page .read-workspace > .card{background:transparent; border:none; box-shadow:none}
+.read-page .vwrap{gap:0; background:var(--v-card);
+  border:var(--hair) solid var(--v-line); border-radius:var(--v-radius); overflow:hidden}
+.read-page .vwrap > .viewer,
+.read-page .vwrap > .vside,
+.read-page .vwrap > .vtab{border:none; border-radius:0; min-height:0}
+.read-page .vwrap > * + *{border-left:var(--hair) solid var(--v-line)}
+/* 왼쪽 검사 정보가 내용만큼만 짧게 서 있어 아래가 흰 바탕으로 비었다 */
+.read-page .vside-info{align-self:stretch; max-height:none}

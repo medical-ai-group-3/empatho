@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useLive } from "./refresh";
 
 /* 서버를 부르고 세 가지 상태를 돌려준다 — 부르는 중 · 오류 · 자료.
  *
@@ -19,7 +20,11 @@ import { useCallback, useEffect, useState } from "react";
  * 실패해도 **있던 자료를 지우지 않는다** — 네트워크가 한 번 끊겼다고
  * 보고 있던 큐를 치워 버리면 안 된다.
  */
-export function useApi(fn, deps = []) {
+/* opt.live — 새로고침 없이 따라간다(lib/refresh.js): 이 브라우저에서 무엇이
+ * 저장되면 바로, 다른 컴퓨터의 변경은 보이는 동안 주기로. 늘 조용히 부른다.
+ * true 면 기본 주기, 숫자면 그 ms. ⚠ 목록 · 대기열 · 판에만 — 입력 양식에는
+ * 켜지 않는다(받아 온 값으로 칸을 채우면 쓰던 글을 덮는다) */
+export function useApi(fn, deps = [], opt = {}) {
   const [state, set] = useState({ loading: true, data: null, error: null });
   const run = useCallback((quiet) => {
     /* ⚠ **정확히 true 일 때만** 조용하다. reload 를 onClick 에 그대로
@@ -40,5 +45,6 @@ export function useApi(fn, deps = []) {
   }, deps);
 
   useEffect(run, [run]);
+  useLive(() => run(true), typeof opt.live === "number" ? opt.live : undefined, Boolean(opt.live));
   return { ...state, reload: run };
 }

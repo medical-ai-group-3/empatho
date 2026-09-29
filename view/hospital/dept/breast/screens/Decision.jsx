@@ -98,12 +98,35 @@ const upper = (v) => (v == null ? null : String(v).toUpperCase());
 /* ?focus= 값 → 카드. patient-report 는 ⑤ 안의 칸이다 */
 const FOCUS_CARD = { "patient-report": "explain" };
 
+const WRITING_POLL = 4000;          /* 소견문 채워졌나 보는 박자 */
+const WRITING_MAX = 180000;         /* 3분 넘으면 멈추고 [다시 확인] */
+
 function Inner({ patient, onReload, focus, onNextPatient }) {
   const pid = patient.patient_id;
   const report = patient.report;                           /* 의사용 — ③ 이 읽고 쓴다 */
   const target = patient.patient_report ?? report;         /* 환자용 — ⑤ 설명 · 잠금 해제 */
   const targetId = target?.report_id ?? null;
   const reports = useApi(() => api.reports(pid), [pid]);
+
+  /* 종합 리포트 — 행은 바로 서고 소견문(narrative)은 리포트 서버가 뒤에
+     채운다(수십 초). ⚠ 09-29 전에는 「잠시 뒤 새로고침해 주세요」라고만 했다.
+     소견문이 빈 리포트가 있는 동안은 여기서 조용히 다시 불러 채워지는 순간
+     뜨게 한다. 너무 오래 걸리면(WRITING_MAX) 멈추고 [다시 확인]을 준다 —
+     서버가 실패해 영영 안 채워지는 리포트를 끝없이 두드리지 않게 */
+  const writing = Boolean(report && !report.ai_summary);
+  const [waited, setWaited] = useState(0);
+  useEffect(() => { setWaited(0); }, [report?.report_id]);
+  useEffect(() => {
+    if (!writing || waited >= WRITING_MAX) return undefined;
+    const t = setTimeout(() => {
+      onReload();
+      reports.reload(true);
+      setWaited((n) => n + WRITING_POLL);
+    }, WRITING_POLL);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [writing, waited]);
+  const writingLate = writing && waited >= WRITING_MAX;
   const unlock = useApi(
     () => (targetId ? api.unlockStatus(targetId) : Promise.resolve(null)),
     [targetId],
@@ -111,6 +134,8 @@ function Inner({ patient, onReload, focus, onNextPatient }) {
   const timeline = useApi(() => api.timeline(pid), [pid]);
   const saved = useApi(() => api.prescriptions(pid), [pid]);
   const [closing, setClosing] = useState(false);
+  const [noRevisit, setNoRevisit] = useState(false);
+  const [noFollow, setNoFollow] = useState(false);
 
   const events = H.rows(timeline.data);
   const flow = useMemo(() => flowOf({ p: patient, timeline: events, rx: saved.data ?? undefined }),
@@ -259,7 +284,8 @@ function Inner({ patient, onReload, focus, onNextPatient }) {
           </StepCard>
 
           <StepCard {...S.report} here={at("report")}>
-            {report && <AiSummary report={report} />}
+            {report && <AiSummary report={report} late={writingLate}
+                                  onRecheck={() => { setWaited(0); onReload(); }} />}
             {/* 만든 뒤에도 생성 칸을 남긴다 — 판독이 더 들어와도 다시 만들 길 */}
             <FinalReport patient={patient} reports={reports} onCreated={onReload} again={Boolean(report)} />
             {report
@@ -298,11 +324,24 @@ function Inner({ patient, onReload, focus, onNextPatient }) {
                   ? "진료를 완료하면 대기 목록과 환자 앱 예약에서 빠집니다."
                   : "진행 중인 방문이 없습니다. 다음 예약만 잡으면 됩니다."}
               </p>
-              <p className="section-label">재진 예약</p>
-              <BookForm patient={patient} suggest={flow.facts.grade === "3" ? 182 : 14} />
+              {/* 재진 없음 · 추적 없음 — 안 잡는 것도 결정이다. 고르면 입력 칸을 접는다.
+                  ⚠ 서버에 저장할 칸이 아직 없어 이 화면에서만 산다 */}
+              <div className="bf-none-row">
+                <p className="section-label">재진 예약</p>
+                <label className="check-row"><input type="checkbox" checked={noRevisit}
+                  onChange={(e) => setNoRevisit(e.target.checked)} /><span>재진 없음</span></label>
+              </div>
+              {noRevisit ? <p className="note">재진 없음으로 표시했습니다.</p>
+                : <BookForm patient={patient} suggest={flow.facts.grade === "3" ? 182 : 14} />}
+              <div className="bf-none-row">
+                <p className="section-label">추적</p>
+                <label className="check-row"><input type="checkbox" checked={noFollow}
+                  onChange={(e) => setNoFollow(e.target.checked)} /><span>추적 없음</span></label>
+              </div>
               {/* 추적 회차도 여기서 건다 — 서버가 안 열어 준 배포본이면
                   칸이 스스로 사라진다(FollowupRounds) */}
-              <FollowupRounds patient={patient} />
+              {noFollow ? <p className="note">추적 없음으로 표시했습니다.</p>
+                : <FollowupRounds patient={patient} />}
               <div className="card-foot split">
                 <button className="btn ghost" onClick={onNextPatient}>다음 환자 →</button>
                 <button className="btn" onClick={() => setClosing(true)}
@@ -381,7 +420,7 @@ function Results({ patient }) {
   );
 }
 
-/* 오른쪽 320px — 붙박이. 환자 · 진료 단계 목차 · 다음 할 일 · 잠금 조건.
+/* 오른쪽 320px — 붙박이. 환자 · 환자 리포트 잠금 · 진료 단계 목차 · 다음 할 일.
  * 목차 줄을 누르면 그 카드를 펴고 내려간다 */
 function Rail({ patient, flow, steps, conds, unlockLoading, unlocked, onJump }) {
   const sex = label(SEX, patient.sex) || null;
@@ -404,6 +443,20 @@ function Rail({ patient, flow, steps, conds, unlockLoading, unlocked, onJump }) 
           {H.some(patient.family_history) && <span className="pill wait">가족력 · {H.some(patient.family_history)}</span>}
           {patient.primary_staff_name && <span className="pill wait">주치의 {patient.primary_staff_name}</span>}
         </div>
+      </div>
+
+      {/* ⚠ 09-29 맨 아래(진료 단계 일곱 줄 밑)에 있어 첫 화면에서 안 보였다 —
+          수시로 확인하는 값이라 환자 카드 바로 밑으로 올린다 */}
+      <div className="card bf-rail-lock">
+        <div className="card-head"><h3>환자 리포트</h3>
+          <span className={`pill ${unlocked ? "ok" : conds?.every((c) => c.met) ? "wait" : "warn"}`}>
+            {unlocked ? "공개됨" : conds?.every((c) => c.met) ? "해제 가능" : "잠김"}
+          </span></div>
+        {!conds && !unlockLoading
+          ? <p className="note">종합 리포트가 생성되면 잠금 조건을 확인합니다.</p>
+          : !conds ? <p className="note">조건을 확인하는 중…</p>
+          : <CondList conds={conds} patient={patient} compact
+                      onExplain={() => onJump("explain", "dec-explain-content")} />}
       </div>
 
       <nav className="card bf-idx" aria-label="진료 단계">
@@ -436,15 +489,6 @@ function Rail({ patient, flow, steps, conds, unlockLoading, unlocked, onJump }) 
         )}
       </nav>
 
-      <div className="card bf-rail-lock">
-        <div className="card-head"><h3>잠금 조건</h3>
-          <span className="meta">{unlocked ? "공개됨" : conds?.every((c) => c.met) ? "해제 가능" : "잠김"}</span></div>
-        {!conds && !unlockLoading
-          ? <p className="note">종합 리포트가 생성되면 잠금 조건을 확인합니다.</p>
-          : !conds ? <p className="note">조건을 확인하는 중…</p>
-          : <CondList conds={conds} patient={patient} compact
-                      onExplain={() => onJump("explain", "dec-explain-content")} />}
-      </div>
     </aside>
   );
 }
@@ -565,7 +609,7 @@ function FinalReport({ patient, reports, onCreated, again = false }) {
   );
 }
 
-function AiSummary({ report }) {
+function AiSummary({ report, late = false, onRecheck }) {
   return (
     <div className="bf-block">
       <div className="card-head">
@@ -576,7 +620,16 @@ function AiSummary({ report }) {
         </span>
       </div>
       {/* 리포트 행은 바로 서고 소견문은 리포트 서버가 뒤에 채운다(수십 초) */}
-      <p className="card-text">{report.ai_summary || "소견문을 만드는 중입니다. 잠시 뒤 새로고침해 주세요."}</p>
+      {report.ai_summary ? <p className="card-text">{report.ai_summary}</p>
+        : late ? (
+          <p className="note">
+            소견문이 3분 넘게 만들어지지 않고 있습니다.{" "}
+            <button type="button" className="edit-btn" onClick={onRecheck}>다시 확인</button>
+          </p>
+        ) : (
+          /* 화면이 알아서 다시 확인한다(Inner 의 writing) — 새로고침을 시키지 않는다 */
+          <p className="note" role="status">소견문을 만드는 중입니다. 다 되면 여기에 바로 표시됩니다.</p>
+        )}
       {report.ai_evidence?.length > 0 && (
         <>
           <p className="section-label">근거</p>

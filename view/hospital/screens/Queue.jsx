@@ -10,6 +10,7 @@ import { go } from "../nav";
 import { ERR } from "../api";
 import { eventDetail } from "../codes";
 import * as H from "../dept/home";
+import { useLive } from "../lib/refresh";
 
 /* 1장 · 대기 큐 — `docs/mockup/Radiology.html` · `Pathology.html`
  * ════════════════════════════════════════════════════════════════
@@ -73,10 +74,7 @@ function Inner({ cfg }) {
   /* 남이 집어 가면 줄어든다. 가만히 두면 화면이 거짓말을 한다.
      ⚠ **reload(true) 다** — 그냥 reload() 면 7초마다 화면이 「불러오는
        중」으로 돌아가 보고 있던 것이 통째로 사라졌다 온다 */
-  useEffect(() => {
-    const t = setInterval(() => again(true), POLL_MS);
-    return () => clearInterval(t);
-  }, [again]);
+  useLive(() => again(true), POLL_MS);
 
   const all = H.rows(list.data);
   const rows = applyFilters(all, c.filters, fv);

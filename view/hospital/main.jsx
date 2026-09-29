@@ -285,9 +285,25 @@ function deptRoutes(key) {
             `nav.js: ${key} 의 "${s.key}" 가 use:"${s.use}" 라고 적었는데 ` +
             `main.jsx 의 SCREENS 표에 그런 이름이 없다`);
         }
+        /* ⚠ **화면에 과 이름으로 key 를 박는다.** 과 탭을 바꾸면 라우터는
+           같은 자리에 같은 컴포넌트(예: Home)를 그리므로, key 가 없으면
+           React 가 **언마운트하지 않고 다시 쓴다** — useState 가 그대로
+           남는다. 그러면 새 과의 설정에 **옛 과의 자료**가 물린 채로 한 번
+           그려진다. 자료를 다시 부르는 효과는 렌더 **다음에** 돌아서 늦다.
+
+           간호과 홈의 marks({schedule, follow}) 가 영상의학과 bag 을 받아
+           undefined.filter 로 터졌다(09-29). 빨리 바꾸면 멀쩡한 이유는
+           옛 과의 load() 가 아직 안 끝나 bag 이 null 이라 가드가 걸려서다.
+
+           List 도 같은 병이었다 — 그쪽은 안 터지고 **옛 과 목록을 그대로
+           보여 줬다.** 터지지 않아서 더 나빴다.
+
+           ⚠ 과 하나짜리 계정만 있을 때는 과를 바꿀 수가 없어 안 보였다.
+             과별 권한이 들어오면서 이 길이 처음 열렸다. */
+        const el = <El key={key} cfg={cfg} />;
         return s.key
-          ? <Route key={s.key} path={s.key} element={<El cfg={cfg} />} />
-          : <Route key="_index" index element={<El cfg={cfg} />} />;
+          ? <Route key={s.key} path={s.key} element={el} />
+          : <Route key="_index" index element={el} />;
       })}
     </Route>
   );

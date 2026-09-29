@@ -5,6 +5,7 @@ import { can } from "../perm";
 import { acknowledgeNotification, apiInfo, noticeRef, notifications, path } from "../api";
 import * as H from "../dept/home";
 import { openNotifications } from "./live";
+import { emitChange } from "./refresh";
 import { useMe } from "./useMe";
 
 /* 상단바 — 세 층
@@ -263,6 +264,10 @@ function Bell({ on }) {
         }
         last = key;
         load();
+        /* 알림은 곧 무엇이 바뀌었다는 뜻이다 — 다른 컴퓨터의 변경(결과 도착 ·
+           판독 확정 …)을 열어 둔 목록 · 판이 주기를 기다리지 않고 바로
+           다시 부르게 한다(lib/refresh.js) */
+        emitChange();
       },
       onResync: load,
     });

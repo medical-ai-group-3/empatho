@@ -8,13 +8,12 @@ import { useApi } from "./useApi";
  * 마운트한다 — Shell은 <Outlet/>을 감싸는 자리라 라우트가 바뀌어도
  * 다시 마운트되지 않는다.
  *
- * ⚠ 저장할 서버 자리가 없다(대시보드 TODO와 같은 사정, 2026-09-18
- *   확정 — DB·API는 필요할 때 만든다). 이건 애초에 "내 컴퓨터에서만
- *   보이는 메모"라는 성격상 서버에 안 올려도 이상하지 않다 — localStorage
- *   에 둔다. 새로고침·재접속에도 남고, 다른 기기에서는 안 보인다.
+ * ⚠ 09-29 글은 **서버 개인 메모**(/me/notes?type=sticky, 계정별)에 둔다.
+ *   전에는 localStorage 에 두어 같은 컴퓨터의 다른 계정에게 앞 사람 메모가
+ *   보였다. 자리 · 크기 · 펼침만 이 기기(localStorage)에 남긴다.
  *
  * 접었다 펼 수 있다 — 늘 펴져 있으면 화면을 가린다. 위치·크기·펼침
- * 상태·글 내용을 전부 localStorage에 따로 저장해 다음에 열 때 그대로
+ * 상태는 localStorage에, 글은 서버에 저장해 다음에 열 때 그대로
  * 돌아온다.
  *
  * ⚠ **처음엔 접힌 알약으로, 왼쪽 아래에 뜬다**(09-28 점검). 펼친 채
@@ -69,15 +68,19 @@ function loadState() {
   }
 }
 
+/* ⚠ 09-29 **글은 여기 안 둔다.** 전에는 글까지 저장해 같은 컴퓨터로 들어온
+   다른 계정에 앞 사람 메모가 보였다. 글은 서버(/me/notes?type=sticky)만,
+   여기는 이 기기 화면에 맞춘 자리 · 크기 · 펼침만 */
 function saveState(s) {
-  try { localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* 못 쓰면 그냥 이번 세션만 산다 */ }
+  const { text: _drop, ...view } = s;
+  try { localStorage.setItem(KEY, JSON.stringify(view)); } catch { /* 못 쓰면 그냥 이번 세션만 산다 */ }
 }
 
 /* picked — 사람이 펴거나 접거나 옮긴 적이 있다. 있으면 그 자리·펼침을 믿는다 */
 const DEFAULT = { text: "", open: false, x: null, y: null, w: 260, h: 220, picked: false };
 
 export default function StickyMemo() {
-  const [s, setS] = useState(() => ({ ...DEFAULT, ...loadState() }));
+  const [s, setS] = useState(() => ({ ...DEFAULT, ...loadState(), text: "" }));
   const [noteId, setNoteId] = useState(null);
   const boxRef = useRef(null);
   const dragRef = useRef(null);
@@ -87,26 +90,50 @@ export default function StickyMemo() {
 
   /* 서버 메모는 다른 기기에서도 이어 보는 내용만 맡고, 창 위치·크기는
      각 기기의 화면 크기에 맞게 로컬에 둔다. */
+  /* ⚠ 서버 번호 칸은 personal_note_id 다. 전에는 note_id ?? id 로 읽어
+     번호를 못 잡았고, 그래서 저장할 때마다 메모가 새로 하나씩 생겼다.
+     여러 개 쌓였으면 가장 최근(목록 맨 앞 — 서버가 -updated_at 순) 것을 쓴다 */
+  const loaded = useRef(false);
+  const saving = useRef(null);
+  const lastSaved = useRef(null);
   useEffect(() => {
-    const note = remote.data?.[0];
-    if (!note || noteId) return;
-    setNoteId(note.note_id ?? note.id);
-    const text = note.content?.text;
-    if (typeof text === "string") setS((v) => ({ ...v, text }));
-  }, [remote.data, noteId]);
+    if (!remote.data || loaded.current) return;
+    loaded.current = true;
+    const note = remote.data[0];
+    /* 불러온 그대로는 다시 저장하지 않는다(빈 메모면 만들지도 않는다) */
+    lastSaved.current = typeof note?.content?.text === "string" ? note.content.text : "";
+    if (!note) return;
+    setNoteId(note.personal_note_id);
+    setS((v) => ({ ...v, text: lastSaved.current }));
+  }, [remote.data]);
 
-  async function saveRemote() {
-    const content = { text: s.text, color: "yellow" };
-    try {
-      if (noteId) await notesApi.update(noteId, content);
-      else {
-        const out = await notesApi.create("sticky", content);
-        setNoteId(out.note_id ?? out.id);
-      }
-    } catch {
-      /* 입력을 지우지 않는다. 다음 수정 때 다시 저장을 시도한다. */
-    }
+  async function saveRemote(text = s.text) {
+    if (!loaded.current || text === lastSaved.current) return;
+    /* 한 번에 하나만 — 만드는 중에 또 부르면 메모가 둘 생긴다 */
+    if (saving.current) { saving.current.then(() => saveRemote(text)); return; }
+    const content = { text, color: "yellow" };
+    saving.current = (async () => {
+      try {
+        if (noteId) await notesApi.update(noteId, content);
+        else {
+          const out = await notesApi.create("sticky", content);
+          setNoteId(out.personal_note_id);
+        }
+        lastSaved.current = text;
+      } catch {
+        /* 입력을 지우지 않는다. 다음 수정 때 다시 저장을 시도한다. */
+      } finally { saving.current = null; }
+    })();
+    await saving.current;
   }
+
+  /* 손을 멈추면 저장한다 — 칸에서 안 나간 채 탭을 닫아도 남게 */
+  useEffect(() => {
+    if (!loaded.current) return undefined;
+    const t = setTimeout(() => saveRemote(s.text), 800);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [s.text, noteId]);
 
   /* 좌표를 가둘 때 쓸 «지금 떠 있는 것»의 크기.
    *
@@ -220,7 +247,7 @@ export default function StickyMemo() {
       <textarea
         value={s.text}
         onChange={(e) => setS((v) => ({ ...v, text: e.target.value }))}
-        onBlur={saveRemote}
+        onBlur={() => saveRemote(s.text)}
         placeholder="여기에 적은 메모는 다른 화면으로 이동해도 유지됩니다"
       />
     </div>

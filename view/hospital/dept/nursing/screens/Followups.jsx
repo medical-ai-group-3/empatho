@@ -59,7 +59,7 @@ const keyOf = (r) => (r.followup_id != null ? String(r.followup_id) : `c-${pidOf
 
 function Inner({ cfg }) {
   const [params] = useSearchParams();
-  const list = useApi(() => cfg.api.followups(), []);
+  const list = useApi(() => cfg.api.followups(), [], { live: true });
   /* 홈 「추적 콜」 줄은 ?followup= 을, 환자 목록 「추적」 탭은 ?patient= 를
      달고 온다 — 그 회차를 오른쪽에 편 채로 연다 */
   const [pick, setPick] = useState(() => params.get("followup") || null);

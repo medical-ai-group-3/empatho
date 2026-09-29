@@ -48,6 +48,7 @@ export default function Patients({ cfg, integrated: asked = false }) {
   const list = useApi(
     () => api.list(sent ? { q: sent } : ALL_PATIENTS),
     [sent],
+    { live: true },
   );
 
   const all = useMemo(() => list.data ?? [], [list.data]);

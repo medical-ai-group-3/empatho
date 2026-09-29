@@ -269,7 +269,10 @@ export default function hospitalMock() {
                아이디에 한글 이름을 넣어도 그대로 토큰으로 쓰면 다음 /me
                요청 자체가 브라우저에서 막힌다. 실제 JWT도 ASCII이므로,
                목업은 로그인 아이디 대신 영문 역할값으로 고정한다. */
-            send(res, { access: `mock.${roleOf(id) || "staff"}` });
+            /* 아이디도 붙인다(ASCII 만) — 같은 과 두 계정의 개인 메모(/me/notes)를
+               가르려면 누가 부르는지 알아야 한다. /me 는 앞머리(과)만 본다 */
+            const who = id.replace(/[^!-~]/g, "") || "x";
+            send(res, { access: `mock.${roleOf(id) || "staff"}.${who}` });
           });
         }
 
@@ -336,6 +339,75 @@ export default function hospitalMock() {
               ordered_by: null,
             });
           });
+        }
+
+        /* ── 병변 등록 · 검사별 병변 목록 ───────────────────────────
+           **등록한 것을 돌려준다.** 고정 응답이면 병변을 몇 개 등록해도
+           판독 칸의 「등록한 병변」 수가 늘지 않는다. 메모리에만 둔다 */
+        if (path === `${PREFIX}/lesions/` && (req.method === "POST" || req.method === "GET")) {
+          const store = (globalThis.__mockLesions ??= { seq: 9001, rows: [] });
+          if (req.method === "POST") {
+            return readBody(req, (body) => {
+              const n = { lesion_id: store.seq++, study: Number(body.study_id ?? body.study),
+                lesion_source: "manual", lesion_kind: body.detail?.kind === "length" ? null : "mass",
+                label: null, detail: body.detail ?? null, is_false_positive: false,
+                created_at: new Date().toISOString() };
+              store.rows.push(n);
+              send(res, n, 201);
+            });
+          }
+          const sid = new URL(req.url, "http://mock").searchParams.get("study");
+          if (sid) {
+            const rows = store.rows.filter((n) => String(n.study) === String(sid));
+            return send(res, { count: rows.length, results: rows });
+          }
+        }
+
+        /* ── 개인 메모(/me/notes) ────────────────────────────────
+           **계정마다 따로 든다.** 할 일 · 스티키는 본인 것만, 인계는 같은
+           과(역할) 것까지 보인다 — 진짜 서버 views/personal_note.py 와 같은 규칙.
+           메모리에만 둔다(목업 서버를 다시 켜면 비어 있다) */
+        if (path === `${PREFIX}/me/notes` || path.startsWith(`${PREFIX}/me/notes/`)) {
+          const me = bearerId(req);
+          const url = new URL(req.url, "http://mock");
+          if (!me) return fail(res, "UNAUTHENTICATED", "로그인이 필요합니다.", 401);
+          const role = roleOf(me);
+          const store = (globalThis.__mockNotes ??= { seq: 1, rows: [] });
+          const view = (n) => ({ ...n, owner_name: n.owner, owner_staff_id: null });
+          const seen = (n) => n.owner === me || (n.note_type === "handover" && roleOf(n.owner) === role);
+          const idm = path.match(/\/me\/notes\/(\d+)$/);
+          if (!idm && req.method === "GET") {
+            const type = url.searchParams.get("type");
+            const rows = store.rows
+              .filter((n) => (type === "handover" ? seen(n) : n.owner === me))
+              .filter((n) => !type || n.note_type === type)
+              .sort((a, b) => b.updated_at.localeCompare(a.updated_at));
+            return send(res, rows.map(view));
+          }
+          if (!idm && req.method === "POST") {
+            return readBody(req, (body) => {
+              const now = new Date().toISOString();
+              const n = { personal_note_id: store.seq++, owner: me,
+                note_type: body.note_type || url.searchParams.get("type"),
+                content: body.content ?? null, created_at: now, updated_at: now };
+              store.rows.push(n);
+              send(res, view(n), 201);
+            });
+          }
+          const n = idm && store.rows.find((x) => x.personal_note_id === Number(idm[1]) && seen(x));
+          if (!n) return fail(res, "NOT_FOUND", "메모를 찾을 수 없습니다.", 404);
+          if (req.method === "PATCH") {
+            return readBody(req, (body) => {
+              n.content = body.content ?? null;
+              n.updated_at = new Date().toISOString();
+              send(res, view(n));
+            });
+          }
+          if (req.method === "DELETE") {
+            if (n.owner !== me) return fail(res, "ROLE_FORBIDDEN", "쓴 사람만 지울 수 있습니다.", 403);
+            store.rows = store.rows.filter((x) => x !== n);
+            res.statusCode = 204; return res.end();
+          }
         }
 
         /* ── DUR 점검 ─────────────────────────────────────────────

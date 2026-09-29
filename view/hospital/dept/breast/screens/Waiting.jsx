@@ -52,9 +52,10 @@ export default function Waiting() {
   const nav = useNavigate();
   const [q, setQ] = useSearchParams();
   const want = q.get("next");               /* 홈 「진료 흐름」에서 온 거르개 */
-  const list = useApi(() => api.waiting(), []);
+  /* 새로고침 없이 따라간다 — 간호가 보낸 환자 · 결과가 바로 선다(lib/refresh.js) */
+  const list = useApi(() => api.waiting(), [], { live: true });
   /* 서버 worklist — 없으면(404 · 옛 서버) null 로 두고 되짚는다 */
-  const wl = useApi(() => api.worklist().catch(() => null), []);
+  const wl = useApi(() => api.worklist().catch(() => null), [], { live: true });
   const [tab, setTab] = useState("all");
   const [pick, setPick] = useState(null);
   const [modal, setModal] = useState(null);
@@ -88,9 +89,9 @@ export default function Waiting() {
     ? pick : (shown[0]?.patient_id ?? parked[0]?.patient_id ?? null);
 
   const detail = useApi(
-    () => (picked ? api.patient(picked) : Promise.resolve(null)), [picked]);
+    () => (picked ? api.patient(picked) : Promise.resolve(null)), [picked], { live: true });
   const line = useApi(
-    () => (picked ? H.soft(api.timeline(picked)) : Promise.resolve([])), [picked]);
+    () => (picked ? H.soft(api.timeline(picked)) : Promise.resolve([])), [picked], { live: true });
   const rx = useApi(
     () => (picked ? api.prescriptions(picked).catch(() => undefined) : Promise.resolve(undefined)), [picked]);
 

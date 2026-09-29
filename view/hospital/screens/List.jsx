@@ -83,7 +83,8 @@ function Inner({ cfg }) {
     /* ⚠ 09-28 page_size 가 없어 서버 기본 한 쪽(20건)에서 잘렸다 — 스크롤도
        「더 보기」도 없이 늘 같은 스무 명만 보였다. 서버 상한(200)까지 받고,
        그보다 많으면 아래 「n건 중 m건」이 말한다(검색은 서버가 거른다) */
-    useApi(() => cfg.api.list({ ordering: sort, q: koServerQuery(qq), page_size: 200, ...fq }), [sort, qq, fqKey]);
+    useApi(() => cfg.api.list({ ordering: sort, q: koServerQuery(qq), page_size: 200, ...fq }), [sort, qq, fqKey],
+      { live: true });
   /* 거르기에 쓰는 곁자료(병리: 열린 불일치) — 한 번만 */
   const ctx = useApi(() => (c.context ? c.context() : Promise.resolve({})), []);
   const shown = data

@@ -54,6 +54,10 @@ export default function Stage({
   const [tool, setTool] = useState("pan");
   const [draftMark, setDraftMark] = useState(null);
   const [marks, setMarks] = useState([]);
+  /* 고른 표시 — 테두리를 누르면 고르고, 방금 그린 것도 골라 둔다.
+     AI 도형(shapes)은 여기 들지 않는다 — 지울 수 있는 것은 의사가 그린 것뿐이다 */
+  const [selId, setSelId] = useState(null);
+  const reportedRef = useRef(null);   // 판독 화면에 마지막으로 올린 표시 id
   /* 깨진 «주소»를 담는다 — true/false 가 아니다.
    *
    * ⚠ 참·거짓으로 두면 **한 장이 깨진 판정을 다음 장까지 끌고 간다.**
@@ -135,8 +139,41 @@ export default function Stage({
     return { x: clamp((e.clientX - r.left - t.x) / t.z, 0, w), y: clamp((e.clientY - r.top - t.y) / t.z, 0, h) };
   }
 
+  /* 지우기 — 마지막으로 올린 표시가 지워지면 null 을 올려 「병변 등록」을 끈다.
+     ⚠ 남은 앞 표시를 대신 올리지 않는다. 이미 병변으로 등록했을 수 있어
+       다시 올리면 같은 병변이 두 번 등록된다(lib/dicom/useMarkEraser.js 와 같다) */
+  function erase(ids) {
+    if (ids.length === 0) return;
+    setMarks((items) => items.filter((m) => !ids.includes(m.id)));
+    if (ids.includes(selId)) setSelId(null);
+    if (ids.includes(reportedRef.current)) {
+      reportedRef.current = null;
+      onAnnotation?.(null);
+    }
+  }
+  const eraseSelected = () => { if (selId) erase([selId]); };
+  function eraseAll() {
+    if (marks.length === 0) return;
+    if (marks.length > 1 && !window.confirm(`그린 표시 ${marks.length}개를 모두 지웁니다. 지운 것은 되돌릴 수 없습니다.`)) return;
+    erase(marks.map((m) => m.id));
+  }
+
+  /* Delete · Backspace — 영상 칸에 초점이 있을 때만(누르면 초점이 온다) */
+  function onKey(e) {
+    if (!annotationTools || (e.key !== "Delete" && e.key !== "Backspace")) return;
+    if (e.altKey || e.ctrlKey || e.metaKey || !selId) return;
+    const tag = e.target?.tagName;
+    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+    e.preventDefault();
+    eraseSelected();
+  }
+
   function down(e) {
     if (e.button !== 0) return;
+    if (annotationTools) {
+      boxRef.current?.focus({ preventScroll: true });
+      setSelId(null);   // 빈 곳을 누르면 고른 것을 푼다. 표시 테두리는 pickMark 가 먼저 받는다
+    }
     if (annotationTools && tool !== "pan") {
       const start = imagePoint(e);
       if (start) setDraftMark({ kind: tool, start, end: start });
@@ -161,6 +198,8 @@ export default function Stage({
       if (Math.hypot(dx, dy) > 2) {
         const mark = { ...draftMark, id: crypto.randomUUID?.() ?? String(Date.now()) };
         setMarks((items) => [...items, mark]);
+        setSelId(mark.id);
+        reportedRef.current = mark.id;
         onAnnotation?.(mark);
       }
       setDraftMark(null);
@@ -179,6 +218,10 @@ export default function Stage({
           <button className={`vtool ${tool === "pan" ? "on" : ""}`} onClick={() => setTool("pan")} title="이동">이동</button>
           <button className={`vtool ${tool === "length" ? "on" : ""}`} onClick={() => setTool("length")} title="길이 측정">길이</button>
           <button className={`vtool ${tool === "rect" ? "on" : ""}`} onClick={() => setTool("rect")} title="박스 그리기">박스</button>
+          <button className="vtool vtool-text" disabled={!selId} onClick={eraseSelected}
+                  title={selId ? "고른 표시를 지웁니다 (Delete)" : "지울 표시의 테두리를 눌러 고르세요"}>선택 지우기</button>
+          <button className="vtool vtool-text" disabled={marks.length === 0} onClick={eraseAll}
+                  title="그린 표시를 모두 지웁니다">모두 지우기</button>
         </>}
         {both && <>
           <button className={`vtool ${showMask ? "on" : ""}`} aria-pressed={showMask}
@@ -199,6 +242,8 @@ export default function Stage({
       <div
         ref={boxRef}
         className={`stage-box ${drag ? "grabbing" : ""}`}
+        tabIndex={annotationTools ? 0 : undefined}
+        onKeyDown={onKey}
         onMouseDown={down} onMouseMove={move}
         onMouseUp={up} onMouseLeave={up}
       >
@@ -244,7 +289,17 @@ export default function Stage({
             )}
             {annotationTools && (marks.length > 0 || draftMark) && (
               <svg className="stage-svg stage-annotations" viewBox={`0 0 ${w} ${h}`} width={w} height={h}>
-                {[...marks, ...(draftMark ? [{ ...draftMark, id: "draft" }] : [])].map((mark) => <Annotation key={mark.id} mark={mark} />)}
+                {[...marks, ...(draftMark ? [{ ...draftMark, id: "draft" }] : [])].map((mark) => (
+                  <Annotation key={mark.id} mark={mark} on={mark.id === selId} scale={t.z}
+                              onPick={mark.id === "draft" ? undefined : (e) => {
+                                /* ⚠ 상자의 down 까지 가면 고른 것을 풀고 새 박스를 그리기
+                                   시작한다 — 여기서 멈춘다 */
+                                if (e.button !== 0) return;
+                                e.stopPropagation();
+                                boxRef.current?.focus({ preventScroll: true });
+                                setSelId(mark.id);
+                              }} />
+                ))}
               </svg>
             )}
           </div>
@@ -370,13 +425,32 @@ function MaskOverlay({ src, w, h, opacity, colors = MASK_COLORS }) {
   );
 }
 
-function Annotation({ mark }) {
+/* 의사가 그린 표시 하나. 고르는 손잡이는 **테두리**다(보이지 않는 굵은 선).
+   ⚠ 속을 누르면 고르게 하면, 박스 안에서 새 박스를 그리기 시작할 수가 없다 */
+function Annotation({ mark, on, scale = 1, onPick }) {
   const { start, end } = mark;
+  const cls = `stage-annotation${on ? " on" : ""}`;
+  const hw = 12 / scale;   // 화면에서 12px 쯤 — 확대해도 잡기 쉽게
   if (mark.kind === "length") {
     const length = Math.hypot(end.x - start.x, end.y - start.y).toFixed(1);
-    return <g className="stage-annotation"><line x1={start.x} y1={start.y} x2={end.x} y2={end.y} /><circle cx={start.x} cy={start.y} r="4" /><circle cx={end.x} cy={end.y} r="4" /><text x={(start.x + end.x) / 2} y={(start.y + end.y) / 2 - 6}>{length} px</text></g>;
+    return (
+      <g className={cls}>
+        <line x1={start.x} y1={start.y} x2={end.x} y2={end.y} />
+        <circle cx={start.x} cy={start.y} r="4" /><circle cx={end.x} cy={end.y} r="4" />
+        <text x={(start.x + end.x) / 2} y={(start.y + end.y) / 2 - 6}>{length} px</text>
+        {onPick && <line className="stage-annotation-hit" x1={start.x} y1={start.y} x2={end.x} y2={end.y}
+                         style={{ strokeWidth: hw }} onMouseDown={onPick} />}
+      </g>
+    );
   }
-  return <rect className="stage-annotation" x={Math.min(start.x, end.x)} y={Math.min(start.y, end.y)} width={Math.abs(end.x - start.x)} height={Math.abs(end.y - start.y)} />;
+  const box = { x: Math.min(start.x, end.x), y: Math.min(start.y, end.y),
+    width: Math.abs(end.x - start.x), height: Math.abs(end.y - start.y) };
+  return (
+    <g className={cls}>
+      <rect {...box} />
+      {onPick && <rect className="stage-annotation-hit" {...box} style={{ strokeWidth: hw }} onMouseDown={onPick} />}
+    </g>
+  );
 }
 
 /* 도형 하나.
