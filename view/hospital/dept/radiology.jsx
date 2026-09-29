@@ -7,7 +7,7 @@ import { Body } from "../lib/Body";
 import { Seen, Two } from "../lib/ListCells";
 import { shortAt } from "../lib/shortAt";
 import RadiologyAi from "./RadiologyAi";
-import Stage, { boxesFromLesions, polygonsFromAi } from "../lib/Stage";
+import Stage, { US_MASK_COLORS, boxesFromLesions, polygonsFromAi } from "../lib/Stage";
 import { useApi } from "../lib/useApi";
 import { useFile } from "../lib/files";
 import { MODALITY, biradsFor, READ_STATUS, SEX, eventDetail, label, modality as asModality, text, tone }
@@ -116,7 +116,11 @@ export function radStage(d, i = 0, sop = null) {
   }
   return {
     image: s?.image,
-    maskImage: null,
+    /* 초음파 병변 마스크 — 앱 서버가 파생물로 옮기고 result.mask 에 주소만
+       남긴다(tasks._store_mask). 윤곽선과 같이 그린다 */
+    maskImage: isUs && usable(ai) && ai?.mask?.object_key
+      ? { key: ai.mask.object_key, derived: true } : null,
+    maskColors: isUs ? US_MASK_COLORS : undefined,
     w: s?.w, h: s?.h, alt: s?.name,
     shapes,
     ai,
@@ -322,7 +326,7 @@ function ListViewer({ d, cfg, slide, onSlide, bright, contrast, mask }) {
           src={img.src} w={view.w} h={view.h} alt={view.alt}
           loading={img.loading} loadError={img.error}
           bright={bright} contrast={contrast}
-          mask={msk.src} shapes={view.shapes ?? []}
+          mask={msk.src} maskColors={view.maskColors} shapes={view.shapes ?? []}
           opacity={mask}
         />
       )}

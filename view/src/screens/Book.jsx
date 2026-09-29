@@ -68,6 +68,12 @@ function Inner({ d, reload }) {
     label: `예약 가능 ${s.times.length}칸`,
   }));
   const times = slots.find((s) => s.date === date)?.times ?? [];
+  // 오늘은 지금 시간대까지 막는다 — 15시 몇 분이면 15:00 · 15:30 도 안 된다.
+  // 서버도 같은 기준으로 거절한다(ReservationRequestViewSet)
+  const now = new Date();
+  const p2 = (n) => String(n).padStart(2, "0");
+  const todayKey = `${now.getFullYear()}-${p2(now.getMonth() + 1)}-${p2(now.getDate())}`;
+  const closed = (t) => date === todayKey && Number(t.slice(0, 2)) <= now.getHours();
 
   function pickDate(key) {
     setDate(key);
@@ -204,6 +210,7 @@ function Inner({ d, reload }) {
                   <button key={t} type="button"
                           className={time === t ? "chip on" : "chip"}
                           aria-pressed={time === t}
+                          disabled={closed(t)}
                           onClick={() => setTime(t)}>
                     {t}
                   </button>
