@@ -1,7 +1,5 @@
 import { useState } from "react";
 import { breast as api } from "../../../api";
-import { BookForm } from "./BookVisit";
-import FollowupRounds from "./FollowupRounds";
 
 /* "진료 완료" 확인 팝업 — 촬영 없이 방문을 닫는다.
  *
@@ -16,10 +14,8 @@ import FollowupRounds from "./FollowupRounds";
  * 종결할 오더는 patient_id 로 못 찾는다 — 이 환자의 exam-orders 목록에서
  * 아직 끝나지 않은 것 중 가장 최근 것을 고른다.
  *
- * ⚠ 09-28 — 닫고 나서 **막다른 길이었다.** 진료 흐름의 끝은 추적 · 재진이라
- *   닫은 자리에서 바로 다음 방문을 잡게 한다(둘째 걸음). 안 잡고 넘어가도
- *   된다 — 그때 [다음 환자]. suggest 는 권하는 간격(일).
- *   09-28 추적 회차도 둘째 걸음에서 만든다(FollowupRounds). */
+ * ⚠ 09-29 — 닫은 뒤 재진 · 추적 예약도 여기서 받았는데 치료 방침 ⑦과 같은
+ *   일이 두 자리였다. 예약은 ⑦ 한 곳에서만 하고, 여기는 [다음 환자]만 둔다. */
 export default function CloseVisitModal({ patient, suggest = 14, onClose, onDone }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -78,13 +74,14 @@ export default function CloseVisitModal({ patient, suggest = 14, onClose, onDone
             </div>
           </>
         ) : (
-          <div className="modal-body">
-            <p className="bf-lead">다음 방문을 지금 예약할까요? 원무 예약 화면에 바로 표시됩니다.</p>
-            <BookForm patient={patient} suggest={suggest}
-                      onSkip={() => onDone?.()} skipLabel="다음 환자 →" />
-            {/* 추적(6 · 12 · 24개월)도 같은 자리에서 — 못 쓰는 서버면 안 뜬다 */}
-            <FollowupRounds patient={patient} />
-          </div>
+          <>
+            <div className="modal-body">
+              <p className="bf-lead">진료를 마쳤습니다. 재진 · 추적 예약은 치료 방침 ⑦에서 합니다.</p>
+            </div>
+            <div className="modal-foot">
+              <button className="btn" onClick={() => onDone?.()}>다음 환자 →</button>
+            </div>
+          </>
         )}
       </div>
     </div>

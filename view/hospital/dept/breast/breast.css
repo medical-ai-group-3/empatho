@@ -1037,3 +1037,6 @@ button.bf-chip.on{box-shadow:inset 0 0 0 var(--focus-w) var(--cyan); color:var(-
   .rxh-drug h3,.rxh h4{break-after:avoid}
   .rxh-facts,.rxh-ref-dl > div{break-inside:avoid}
 }
+/* 재진 · 추적 머리 줄 — 오른쪽에 「없음」 체크 (09-29) */
+.breast .bf-none-row{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:12px}
+.breast .bf-none-row .section-label{margin:0}

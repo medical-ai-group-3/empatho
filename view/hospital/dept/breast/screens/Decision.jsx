@@ -134,6 +134,8 @@ function Inner({ patient, onReload, focus, onNextPatient }) {
   const timeline = useApi(() => api.timeline(pid), [pid]);
   const saved = useApi(() => api.prescriptions(pid), [pid]);
   const [closing, setClosing] = useState(false);
+  const [noRevisit, setNoRevisit] = useState(false);
+  const [noFollow, setNoFollow] = useState(false);
 
   const events = H.rows(timeline.data);
   const flow = useMemo(() => flowOf({ p: patient, timeline: events, rx: saved.data ?? undefined }),
@@ -322,11 +324,24 @@ function Inner({ patient, onReload, focus, onNextPatient }) {
                   ? "진료를 완료하면 대기 목록과 환자 앱 예약에서 빠집니다."
                   : "진행 중인 방문이 없습니다. 다음 예약만 잡으면 됩니다."}
               </p>
-              <p className="section-label">재진 예약</p>
-              <BookForm patient={patient} suggest={flow.facts.grade === "3" ? 182 : 14} />
+              {/* 재진 없음 · 추적 없음 — 안 잡는 것도 결정이다. 고르면 입력 칸을 접는다.
+                  ⚠ 서버에 저장할 칸이 아직 없어 이 화면에서만 산다 */}
+              <div className="bf-none-row">
+                <p className="section-label">재진 예약</p>
+                <label className="check-row"><input type="checkbox" checked={noRevisit}
+                  onChange={(e) => setNoRevisit(e.target.checked)} /><span>재진 없음</span></label>
+              </div>
+              {noRevisit ? <p className="note">재진 없음으로 표시했습니다.</p>
+                : <BookForm patient={patient} suggest={flow.facts.grade === "3" ? 182 : 14} />}
+              <div className="bf-none-row">
+                <p className="section-label">추적</p>
+                <label className="check-row"><input type="checkbox" checked={noFollow}
+                  onChange={(e) => setNoFollow(e.target.checked)} /><span>추적 없음</span></label>
+              </div>
               {/* 추적 회차도 여기서 건다 — 서버가 안 열어 준 배포본이면
                   칸이 스스로 사라진다(FollowupRounds) */}
-              <FollowupRounds patient={patient} />
+              {noFollow ? <p className="note">추적 없음으로 표시했습니다.</p>
+                : <FollowupRounds patient={patient} />}
               <div className="card-foot split">
                 <button className="btn ghost" onClick={onNextPatient}>다음 환자 →</button>
                 <button className="btn" onClick={() => setClosing(true)}
