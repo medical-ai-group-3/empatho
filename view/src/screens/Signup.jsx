@@ -91,7 +91,10 @@ export default function Signup() {
         storeId: import.meta.env.VITE_PORTONE_STORE_ID,
         channelKey: import.meta.env.VITE_PORTONE_CHANNEL_KEY,
         identityVerificationId: ivid,
-        redirectUrl: `${location.origin}/signup`,
+        // 앱은 서버 리다이렉트로 localhost 에 못 돌아와 중계 페이지를 거친다
+        redirectUrl: location.origin === "https://localhost"
+          ? `${import.meta.env.VITE_API_ORIGIN}/signup-return.html`
+          : `${location.origin}/signup`,
         bypass: { inicisUnified: { flgFixedUser: "N" } },
       });
     } catch (e2) {
