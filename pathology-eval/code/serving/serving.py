@@ -116,6 +116,18 @@ DEFAULT_CONFIG: dict = {
     "glass_s_max": 0.06,
     "glass_sd_max": 4.0,
     "glass_min_um2": 8000.0,
+    # --- 1.3.0 (09-30) 핵 없는 종양 걷어내기 ---
+    #   종양은 핵이 빽빽하다. 모델이 종양으로 칠했는데 win_um 칸 안에 검출된
+    #   핵(모든 종류)이 min_nuclei 개 미만이면 기타(0)로 돌린다 — 출혈 · 괴사 ·
+    #   섬유소처럼 핵 없는 분홍 영역이 종양으로 칠해졌다(BCSS D8-A142 왼쪽 아래).
+    #   BCSS 30장(출혈 · 괴사 많은 것, ROI 안): 50µm 칸 · 2개 미만 →
+    #   진짜 종양 오삭제 0.15% · 종양으로 칠해진 괴사 · 출혈 51% 제거.
+    #   (3개 0.61%/57% · 4개 1.7%/61%.) 진짜 종양 칸의 핵 수 중앙값 13.5, 하위 1% 5.
+    #   ⚠ 간질에는 걸지 않는다 — 간질은 원래 핵이 성겨서(하위 5% 3.5개) 1개만
+    #     기준으로 해도 진짜 간질 1.1% 를 지우고 출혈은 4% 밖에 못 뺐다.
+    #   tumor_min_nuclei = 0 이면 끈다.
+    "tumor_min_nuclei": 2,
+    "tumor_nuclei_win_um": 50.0,
     "mc_samples": 50,         # MC Dropout 반복 횟수 (0 이면 구간 계산 안 함)
     "mc_drop_rate": 0.5,      # 소켓2 헤드 학습 시 drop_rate (= 0.5, 바꾸지 말 것)
     "mc_ci": 95.0,            # 신뢰구간 % -> 2.5/97.5 백분위수
@@ -131,7 +143,7 @@ DEFAULT_CONFIG: dict = {
 TISSUE_MASK_LEGEND = {0: "other", 1: "tumor", 2: "stroma"}
 
 # model_version 에 박히는 파이프라인 정의 버전. 로직/공식이 바뀌면 올린다.
-PIPELINE_VERSION = "stil-serving-1.2.0"
+PIPELINE_VERSION = "stil-serving-1.3.0"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -414,19 +426,34 @@ def predict(bundle: dict, image, *, return_tissue_mask: bool | None = None) -> d
         mask[g] = 0
         del g
     stroma_area_px = int((mask == sip.STROMA_CLASS_IDX).sum())
-    tumor_area_px = int((mask == sip.TUMOR_CLASS_IDX).sum())
     stroma_ok = stroma_area_px > 0
-
-    # 2) TSR (사양서 Q6 미확정 -> 두 관점 다)
-    tsr_denom = tumor_area_px + stroma_area_px
-    tsr_tumor = (tumor_area_px / tsr_denom * 100) if tsr_denom > 0 else None
-    tsr_stroma = (stroma_area_px / tsr_denom * 100) if tsr_denom > 0 else None
 
     # 3) 세포 검출 + 분류 (소켓2). 점추정은 dropout off.
     if do_mc:
         head.dropout.eval()
     cells, T_kept = sip.detect_and_classify(
         img_np, cellvit, postproc, head, device, int(cfg["batch_size"]), return_tokens=True)
+    # 3-1) 핵 없는 종양 → 기타 (1.3.0). 종양 면적 · TSR 은 이것 뒤에 센다
+    tumor_no_nuclei_px = 0
+    t_min = float(cfg["tumor_min_nuclei"])
+    if t_min > 0:
+        pts = np.zeros((H, W), np.float32)
+        for c in cells:
+            pts[min(int(c["cy"]), H - 1), min(int(c["cx"]), W - 1)] += 1
+        win = max(1, int(round(float(cfg["tumor_nuclei_win_um"]) / float(cfg["mpp"]))))
+        dens = cv2.boxFilter(pts, -1, (win, win), normalize=False,
+                             borderType=cv2.BORDER_CONSTANT)
+        low = (mask == sip.TUMOR_CLASS_IDX) & (dens < t_min)
+        tumor_no_nuclei_px = int(low.sum())
+        mask[low] = 0
+        del pts, dens, low
+    tumor_area_px = int((mask == sip.TUMOR_CLASS_IDX).sum())
+
+    # 2) TSR (사양서 Q6 미확정 -> 두 관점 다)
+    tsr_denom = tumor_area_px + stroma_area_px
+    tsr_tumor = (tumor_area_px / tsr_denom * 100) if tsr_denom > 0 else None
+    tsr_stroma = (stroma_area_px / tsr_denom * 100) if tsr_denom > 0 else None
+
     immune = [c for c in cells if c["p_til"] >= thr]
     intra = [c for c in immune
              if mask[min(int(c["cy"]), H - 1), min(int(c["cx"]), W - 1)] == sip.STROMA_CLASS_IDX]
@@ -497,6 +524,8 @@ def predict(bundle: dict, image, *, return_tissue_mask: bool | None = None) -> d
         #   stroma_on_glass_px / (stroma_area_px + stroma_on_glass_px) 가 크면
         #   분할이 유리를 간질로 많이 읽은 크롭이다(신뢰도 판단에 쓸 수 있다)
         "glass_area_px": glass_px,
+        # 1.3.0 — 종양으로 칠했지만 핵이 없어 기타로 돌린 면적
+        "tumor_no_nuclei_px": tumor_no_nuclei_px,
         "stroma_on_glass_px": stroma_on_glass_px,
         "immune_nucleus_area_px": _r(immune_nuc_px, 1),
         "immune_cell_area_px": _r(immune_cell_px, 1),
