@@ -299,8 +299,12 @@ class ReservationRequestViewSet(AuditMixin, viewsets.ViewSet):
         except ValueError:
             raise ApiError("VALIDATION_ERROR", "날짜/시간 형식이 올바르지 않습니다.")
         scheduled = timezone.make_aware(naive, timezone.get_current_timezone())
-        if scheduled <= timezone.now():
-            raise ApiError("VALIDATION_ERROR", "이미 지난 시간입니다.")
+        # 지금 시간대까지는 안 받는다 — 15시 몇 분이면 15:00 · 15:30 도 불가
+        from datetime import timedelta
+        next_hour = (timezone.localtime().replace(minute=0, second=0, microsecond=0)
+                     + timedelta(hours=1))
+        if scheduled < next_hour:
+            raise ApiError("VALIDATION_ERROR", "지금 시간대 이전은 예약할 수 없습니다.")
         # 09-28 — 그날 이미 예약(신청 · 확정 · 내원)이 있으면 또 세우지 않는다.
         #   앱에서 신청을 두 번 보내면 원무 예약 판에 같은 사람이 두 줄로 섰다.
         with transaction.atomic():
@@ -1074,11 +1078,11 @@ OPEN_TIMES = ["09:00", "09:30", "10:00", "10:30", "11:00", "11:30",
               "14:00", "14:30", "15:00", "15:30", "16:00", "16:30"]
 
 
-def _open_slots(weekdays=65):
-    """예약 가능 자리 — 오늘부터 평일 기준 약 3달치.
+def _open_slots(weekdays=10):
+    """예약 가능 자리 — 오늘부터 평일 기준 2주치.
 
-    09-29 — 내일부터 2주치만 열어서 달을 넘길 수 없었고 당일 예약이 안 됐다.
-    오늘은 지금 이후의 시간만 연다(다 지났으면 오늘은 빠진다).
+    09-29 — 당일 예약을 연다. 오늘은 시간을 다 주고, 지금 시간대까지는
+    화면이 막고 서버가 거절한다. 남은 시간대가 없으면 오늘은 빠진다.
 
     ponytail: 병원 일정표(슬롯) 모델이 없다. 화면이 달력·시간칸을 그리려면
     [{date, times[]}] 가 있어야 해서 여기서 만들어 준다 — 일정표가 생기면
@@ -1091,12 +1095,9 @@ def _open_slots(weekdays=65):
         day += timedelta(days=1)
         if day.weekday() >= 5:          # 토·일은 안 연다
             continue
-        times = list(OPEN_TIMES)
-        if day == now.date():
-            times = [t for t in times if t > f"{now:%H:%M}"]
-            if not times:
-                continue
-        out.append({"date": day.isoformat(), "times": times})
+        if day == now.date() and not any(int(t[:2]) > now.hour for t in OPEN_TIMES):
+            continue
+        out.append({"date": day.isoformat(), "times": list(OPEN_TIMES)})
     return out
 
 
