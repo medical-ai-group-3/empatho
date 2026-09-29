@@ -1,0 +1,135 @@
+# 문진 문항 v2
+#
+# v1 을 대신한다. v1.yaml 은 **지우지 않는다** — 그 판으로 받은 답을 읽어야 한다.
+#
+# ── v1 에서 무엇이 달라졌나 ────────────────────────────────────────
+#
+#   has_symptom       → 없앴다. 「증상이 있습니까」 하나로는 무엇이 있는지
+#                       모른다. lump · nipple_discharge · breast_pain 셋으로
+#                       쪼갠다
+#   past_history      → benign_breast_disease · cancer_history 둘로 쪼갠다.
+#                       양성 종양과 암 과거력은 위험도가 다르다
+#   menopause_status  → menstrual_status 로 바꾼다. 「폐경 전/이행기/후」로는
+#                       수술·항암으로 월경이 없는 경우를 못 적는다
+#   family_history    → 남긴다. 코드도 선택지 id 도 그대로라 v1 답이 그대로
+#                       읽힌다
+#   (새로) hrt · oral_contraceptive · parity · breastfeeding
+#
+# ⚠ **선택지 id 는 한 번 정하면 바꾸지 않는다.** 답이 id 로 저장되므로
+#   id 를 바꾸면 이미 저장된 답의 뜻이 달라진다. 문항을 그만 쓸 때는
+#   지우지 말고 active: false 로 둔다.
+#
+# ── 아직 못 담은 것 ────────────────────────────────────────────────
+#
+# 지금 스키마는 **선택지 하나 고르기**만 받는다(api/questionnaire.py 의
+# validate 가 `chosen not in options` 로 본다). 그래서 아래는 뺐다 —
+# 넣으려면 스키마 · validate · 앱 화면을 같이 고쳐야 한다.
+#
+#   중복 선택   피부·유두 변화(함몰 · 보조개 · 오렌지껍질 · 습진),
+#               가족력의 관계(어머니 · 자매 · 딸 · 조모 · 이모)
+#   숫자 입력   초경 나이 · 폐경 나이 · 첫 출산 나이 · 출산 횟수
+#   자유 입력   양성 질환명 · 수술 시기
+#   조건 분기   폐경을 골랐을 때만 폐경 나이를 묻는 식
+#
+# 저장 모양
+#   {"form_version": "v2", "answers": {"lump": "left"}}
+#   form_version 은 서버가 찍는다. 앱은 answers 만 보낸다.
+
+form_version: v2
+
+questions:
+  # ── 1. 지금 있는 증상 ──────────────────────────────────────────
+  - code: lump
+    text: 양쪽 유방이나 겨드랑이에 만져지는 멍울(덩어리)이 있습니까?
+    active: true
+    options:
+      - {id: "none", text: 없다}
+      - {id: "left", text: 왼쪽 유방}
+      - {id: "right", text: 오른쪽 유방}
+      - {id: "both", text: 양쪽 유방 모두}
+      - {id: "axilla", text: 겨드랑이 주변}
+
+  - code: nipple_discharge
+    text: 유두에서 비정상적인 분비물이 나온 적이 있습니까?
+    active: true
+    options:
+      - {id: "none", text: 없다}
+      - {id: "one_side", text: 한쪽 — 맑거나 진물 같다}
+      - {id: "both_sides", text: 양쪽 — 맑거나 진물 같다}
+      - {id: "bloody", text: 피가 섞여 나온다}
+
+  - code: breast_pain
+    text: 생리 주기와 무관하게 한 곳이 계속 아픕니까?
+    active: true
+    options:
+      - {id: "none", text: 없다 — 또는 생리 전에만 잠깐 아프다}
+      - {id: "mild", text: 가끔 찌릿하거나 둔하게 아프다}
+      - {id: "severe", text: 한 곳이 심하게 계속 아프다}
+
+  # ── 2. 월경과 호르몬 ───────────────────────────────────────────
+  - code: menstrual_status
+    text: 지금 월경 상태를 골라 주세요.
+    active: true
+    options:
+      - {id: "active", text: 월경 중이다 — 규칙적이든 아니든}
+      - {id: "natural_menopause", text: 자연 폐경했다}
+      - {id: "induced", text: 수술이나 항암 치료로 월경이 없다}
+
+  - code: hrt
+    text: 폐경 뒤 여성호르몬 대체요법 약을 드신 적이 있습니까?
+    active: true
+    options:
+      - {id: "none", text: 없다}
+      - {id: "under_2y", text: 있다 — 2년 미만}
+      - {id: "2y_to_5y", text: 있다 — 2년 이상 5년 미만}
+      - {id: "over_5y", text: 있다 — 5년 이상}
+
+  - code: oral_contraceptive
+    text: 피임약을 1년 이상 드시고 있거나 드신 적이 있습니까?
+    active: true
+    options:
+      - {id: "none", text: 없다}
+      - {id: "yes", text: 있다}
+
+  # ── 3. 임신과 수유 ─────────────────────────────────────────────
+  - code: parity
+    text: 임신이나 출산(유산 포함) 경험이 있습니까?
+    active: true
+    options:
+      - {id: "none", text: 없다}
+      - {id: "yes", text: 있다}
+
+  - code: breastfeeding
+    text: 모유 수유를 하신 적이 있습니까? (여러 명이면 기간을 합해서)
+    active: true
+    options:
+      - {id: "none", text: 없다}
+      - {id: "under_6m", text: 있다 — 6개월 미만}
+      - {id: "6m_to_12m", text: 있다 — 6개월 이상 1년 미만}
+      - {id: "over_1y", text: 있다 — 1년 이상}
+
+  # ── 4. 과거력과 가족력 ─────────────────────────────────────────
+  - code: benign_breast_disease
+    text: 유방에 양성 종양(섬유선종 · 낭종 등)이나 조직검사 이상 소견을 진단받은 적이 있습니까?
+    active: true
+    options:
+      - {id: "none", text: 없다}
+      - {id: "yes", text: 있다}
+
+  - code: cancer_history
+    text: 유방암이나 난소암을 진단받고 치료받은 적이 있습니까?
+    active: true
+    options:
+      - {id: "none", text: 없다}
+      - {id: "breast", text: 유방암}
+      - {id: "ovarian", text: 난소암}
+      - {id: "both", text: 둘 다}
+
+  # v1 과 코드 · 선택지 id 가 같다. 옛 답이 그대로 읽힌다
+  - code: family_history
+    text: 직계 가족(어머니 · 자매 · 딸 · 할머니 · 이모) 중 유방암이나 난소암 환자가 있습니까?
+    active: true
+    options:
+      - {id: "yes", text: 있다}
+      - {id: "no", text: 없다}
+      - {id: "unknown", text: 모른다}

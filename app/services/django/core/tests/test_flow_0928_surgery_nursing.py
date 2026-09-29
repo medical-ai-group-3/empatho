@@ -22,6 +22,7 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from core import models, surgery_worklist
+from core.api import questionnaire
 from core.api.auth import issue_access
 
 
@@ -416,7 +417,9 @@ class QuestionnaireStaffTests(_Base):
             r = _client(acc).get("/api/v1/questionnaire/form")
             self.assertEqual(r.status_code, 200, r.content)
             d = _data(r)
-            self.assertEqual(d["form_version"], "v1")
+            # 판 번호를 박지 않는다 — 문항을 고칠 때마다 여기가 깨진다.
+            # 이 시험의 주제는 「의료진은 읽고 환자는 못 읽는다」다
+            self.assertEqual(d["form_version"], questionnaire.CURRENT_VERSION)
             self.assertEqual(d["total"], len(d["questions"]))
             q = d["questions"][0]
             self.assertEqual(set(q), {"id", "question", "choices", "critical", "hint"})
