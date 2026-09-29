@@ -27,7 +27,13 @@ from prompts import base
 # 2026-09-20.a  환자용은 facts() 가 아니라 plain() 을 넘긴다
 # 2026-09-20.b  환자용 뼈대도 plain() 으로 · must_keep() — 등급 문장 보존
 # 2026-09-21.a  등급 문장을 「· 그대로」 줄로 따로 넘긴다 — 매번 되돌아가던 것
-VERSION = "summary-2026-09-21.a"
+# 2026-09-29.a  환자용 — 검사별 문단 배열로 받고 등급 문장 · 맺음말은 코드가 붙인다.
+#               「· 그대로」 표시가 본문에 새어 나갔다(리포트 163). 어미 반복 규칙 추가
+VERSION = "summary-2026-09-29.a"
+
+# 뼈대를 잇는 문자 — 검사마다 문단(빈 줄). 앱은 빈 줄로 문단을 나눈다
+JOIN = "\n\n"
+CLOSING = "자세한 내용은 담당 의사의 설명으로 확인해 주십시오."
 
 SOCKET_IDS = {"7"}
 REQUIRED = ("stages",)
@@ -48,14 +54,22 @@ SYSTEM_PATIENT = """
   판독값에 없는 소견을 지어내지 않는다.
   「없다」 · 「정상이다」로 단정하지 않는다. 확인되지 않은 것과 다르다.
   장기 이름을 바꿔 쓰지 않는다. 모르는 용어는 옮기지 말고 빼라.
-  이름이 「· 그대로」로 끝나는 줄은 글자 하나 바꾸지 말고 문장에 그대로 넣는다.
-  쉽게 풀어 쓰는 것은 나머지 줄에만 한다.
-  그 줄은 검사의 정도를 담고 있어 조금만 바꿔도 뜻이 달라진다.
   악성 여부를 말하지 않는다. 진단하지 않고 치료를 권하지 않는다.
-  검사마다 문장을 끊는다.
-  존댓말로 쓴다. 머리말 없이 내용부터 쓴다.
-  마지막 문장은 자세한 내용을 담당 의사에게 듣도록 안내한다.
+  존댓말로 쓴다. 머리말 없이 내용부터 쓴다. 맺음말은 쓰지 않는다.
+  같은 어미를 연달아 쓰지 않는다. 「~입니다」만 반복하지 말고
+  「~있었습니다」 「~보였습니다」 「~확인되었습니다」처럼 섞어 쓴다.
+
+쓰는 모양
+  「문단」 배열에 검사 하나당 문단 하나를 판독값의 순서대로 넣는다.
+  한 문단은 두세 문장으로 쓴다. 검사 이름으로 문단을 시작한다.
 """
+
+# 환자용 응답 — 검사별 문단. 문단 수가 검사 수와 다르면 text() 가 버린다
+SCHEMA_PATIENT = {
+    "type": "object",
+    "properties": {"문단": {"type": "array", "items": {"type": "string"}}},
+    "required": ["문단"],
+}
 
 NOTES = {
     "SU-N01": "검사별 소견문을 묶은 것입니다. 각 검사의 수치는 해당 판독 화면에서 확인하십시오.",
@@ -115,10 +129,10 @@ def values(r) :
         if not _patient(r) :
             out.append((name, " ".join(p.facts(res))))
             continue
-        free, fixed = _split_band(p, res)
+        # 등급 문장(fixed)은 넘기지 않는다 — text() 가 문단 끝에 붙인다.
+        # 「· 그대로」 줄로 넘겼더니 모델이 표시까지 본문에 옮겼다(09-29)
+        free, _fixed = _split_band(p, res)
         out.append((name, " ".join(free) or "결과가 나왔습니다."))
-        for s in fixed :
-            out.append((name + " · 그대로", s))
     return out or [("검사", "묶을 판독 결과가 없습니다.")]
 
 def facts(r) :
@@ -130,7 +144,7 @@ def facts(r) :
                for socket, p, res in _stages(r)]
         if not out :
             return ["묶을 검사 결과가 없습니다."]
-        out.append("자세한 내용은 담당 의사의 설명으로 확인해 주십시오.")
+        out.append(CLOSING)
         return out
 
     out = []
@@ -189,3 +203,27 @@ def must_keep(r) :
 
 def system(r) :
     return SYSTEM_PATIENT if _patient(r) else base.SYSTEM
+
+
+def schema(r) :
+    return SCHEMA_PATIENT if _patient(r) else base.SCHEMA
+
+
+def text(r, out) :
+    """모델 응답 → 본문. 의사용은 「소견」 그대로다.
+
+    환자용은 검사마다 문단을 하나씩 받아, 문단 끝에 그 검사의 등급 문장을
+    코드가 붙이고 맺음말을 따로 한 문단으로 둔다. 문단 수가 검사 수와
+    다르면 어느 문단이 어느 검사인지 모르므로 버린다(→ 뼈대).
+    """
+    if not _patient(r) :
+        return out.get("소견") or ""
+    paras = [str(s).strip() for s in (out.get("문단") or [])]
+    stages = _stages(r)
+    if len(paras) != len(stages) or not all(paras) :
+        raise ValueError(f"문단 {len(paras)}개 · 검사 {len(stages)}개")
+    body = []
+    for para, (_socket, p, res) in zip(paras, stages) :
+        fixed = _split_band(p, res)[1]
+        body.append(" ".join([para] + fixed))
+    return JOIN.join(body + [CLOSING])

@@ -83,6 +83,9 @@ def _done(socket_id: str, p, text:str, notes:list[str], fallback,
     검사가 아직 없다 — 지금은 수치 검사에서 걸리면 출력을 통째로 버린다.
     앱 서버의 dropped_sentence_log 자리를 비워 두는 것이라 키는 남긴다.
     """
+    # 병변마다 줄을 바꾼다. 모델에 맡기면 매번 달랐다 — 빈 줄로 흩거나
+    # 한 줄로 붙였다(09-29). 문장 사이 공백만 바꾸므로 수치 검사와 무관하다
+    text = re.sub(r"(?<=[.])[ \t]+(?=병변 )", "\n", text)
     return {
         "socket_id": socket_id,
         "abstained": False,
@@ -172,7 +175,8 @@ def report(socket_id: str, result: dict, evidence: list[str] = []):
     # skeleton    모델이 없거나 수치를 바꿨을 때 대신 내보낼 완성 문장.
     fact_lines = p.facts(result)
     note_lines = p.notes(result)
-    skeleton = " ".join(fact_lines)
+    # 뼈대를 잇는 문자. 종합 소견서는 검사마다 문단을 나눈다(summary.JOIN)
+    skeleton = getattr(p, "JOIN", " ").join(fact_lines)
     
     # 지킬 수치가 하나도 없으면 모델 출력을 검사할 방법이 없다. 맘모 기권 ·
     # 초음파 병변 없음 · 병리 간질 없음이 그렇다. 그대로 모델을 태우면
@@ -187,8 +191,11 @@ def report(socket_id: str, result: dict, evidence: list[str] = []):
     try :
         # 청중이 둘인 소켓은 규칙이 다르게 적용
         system = p.system(result) if hasattr(p, "system") else base.SYSTEM
-        out = _ask(system, base.build(p.values(result)), base.SCHEMA)
-        text = (out.get("소견") or "").strip()
+        schema = p.schema(result) if hasattr(p, "schema") else base.SCHEMA
+        out = _ask(system, base.build(p.values(result)), schema)
+        # 환자용 종합 소견서는 검사별 문단을 받아 코드가 잇는다(summary.text)
+        text = (p.text(result, out) if hasattr(p, "text")
+                else (out.get("소견") or "")).strip()
     except Exception as exc :
         return _done(socket_id, p, skeleton, note_lines, f"llm_failed:{type(exc).__name__}")
 
