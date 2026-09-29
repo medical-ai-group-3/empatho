@@ -34,6 +34,8 @@ c = json.load(open(p, encoding="utf-8"))
 #   웹의 / 는 의료진 화면이라(커밋 ceebfbf) 서버 주소를 열면 안 된다.
 # 서버는 api.js 가 VITE_API_ORIGIN 으로 박아 둔 주소로 부른다.
 c.pop("server", None)
+# 본인인증 복귀 중계 페이지(signup-return.html)를 앱 안에서 연다
+c["server"] = {"allowNavigation": ["empatho.example.com"]}
 # CapacitorHttp — fetch 를 네이티브 요청으로 보낸다. 앱의 출처는
 # https://localhost 라 브라우저로 부르면 CORS 에 걸리는데, 네이티브로 가면
 # 그 검사 자체가 없다. 서버의 허용 출처 목록을 안 건드려도 된다.
