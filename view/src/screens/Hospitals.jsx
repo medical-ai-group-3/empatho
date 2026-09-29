@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { api } from "../api";
 import { useApi } from "../lib/useApi";
 import Tilly from "../lib/Tilly";
 import { Body, Head } from "../lib/Screen";
-import { distanceKm, fmtKm, nearestRegion, routeUrl, useNear } from "../lib/near";
+import { distanceKm, fmtKm, routeUrl, useNear } from "../lib/near";
 import Call from "../lib/Call";
 import Icon from "../lib/Icon";
 
@@ -42,14 +42,6 @@ export default function Hospitals() {
     () => api.hospitals({ q: asked.q, region: asked.region }),
     [asked.q, asked.region]);
   const near = useNear();
-  /* 위치를 받았는데 「전체」면 가장 가까운 시도로 옮긴다 — 전국 첫 장
-     20건 안에서는 가까운 순이 의미가 없다. 한 번만 한다: 그 뒤에 사람이
-     「전체」를 다시 누르면 그대로 둔다 */
-  useEffect(() => {
-    if (near.state !== "ready" || asked.region) return;
-    const r = nearestRegion(near.me);
-    if (r) { setRegion(r); setAsked((a) => ({ ...a, region: r })); }
-  }, [near.state]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <>
