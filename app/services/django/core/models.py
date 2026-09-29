@@ -188,6 +188,16 @@ class Staff(AuditBase):
     # 역할 기본 권한에 개인별로 더하는 권한. {"assessment": ["R"], "report": ["R"]}
     # 더하기만 한다 — 역할이 준 권한을 개인이 잃지 않는다.
     extra_permissions = models.JSONField(blank=True, null=True)
+    # 이 사람이 소속 말고 **한 벌로 더 보는 과**. ["radiology"] 처럼 과 코드만
+    # 담는다. 그 과의 MATRIX 행과 화면 권한 키를 통째로 더한다
+    # (api/permissions.py 의 effective_rule · api/perms.py 의 perms_for).
+    #
+    # extra_permissions 와 목적이 다르다 — 저쪽은 칸 하나, 이쪽은 과 한 벌이다.
+    # 병원 웹 메뉴가 화면 권한 키로 도는 탓에 칸 하나로는 화면이 안 열린다.
+    #
+    # ⚠ admin 은 담을 수 없다 — extra_depts_of 가 걸러 낸다. 값이 망가져도
+    #   권한이 열리지 않는 쪽으로 떨어진다.
+    extra_depts = models.JSONField(blank=True, null=True)
     approved_by = models.ForeignKey('self', models.PROTECT, blank=True, null=True,
                                     related_name='+', db_column='approved_by')
     approved_at = models.DateTimeField(blank=True, null=True)

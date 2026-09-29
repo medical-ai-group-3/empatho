@@ -226,6 +226,80 @@ def rule_for(resource, role):
     return table.get(role, NONE)
 
 
+# ── 과 단위 추가 권한 ────────────────────────────────────────────────────
+#
+# staff.extra_depts 에 과 코드를 담으면 **그 과의 역할 권한을 통째로** 더한다.
+# 리소스 × CRUD 를 한 칸씩 고르는 extra_permissions 와 목적이 다르다.
+#
+#   extra_permissions   「이 사람에게 report U 하나만 더」 — 칸 하나
+#   extra_depts         「이 사람은 간호도 하고 영상도 본다」 — 과 한 벌
+#
+# 왜 과 단위가 필요한가 — 병원 웹 메뉴는 MATRIX 가 아니라 화면 권한 키
+# ({과}.{화면}.{동작}, api/perms.py)로 돈다. 칸 하나를 더해 봐야 메뉴는
+# 그대로다. 사람이 「영상의학과 화면도 쓴다」를 뜻할 때 실제로 필요한 것은
+# 그 과의 MATRIX 행 **과** 화면 권한 키 한 벌이고, 둘을 따로 고르게 하면
+# 반쪽만 준 계정이 생긴다.
+#
+# ⚠ **admin 은 줄 수 없다.** 관리자 권한은 부서가 아니라 문(admin.console.open)
+#   이고, 그 문은 Django admin 세션이 role='admin' 을 다시 본다.
+# ⚠ **단독 권한 셋은 이걸로도 안 열린다.** 검체 바인딩 · 불일치 해소 처분 ·
+#   리포트 잠금 해제는 IsRole 계열이라 account.role 만 본다 — 아래 어느
+#   함수도 거치지 않는다.
+#: 더해 줄 수 있는 과. 원무는 없다 — 과가 아니라 간호과가 하는 일 중
+#: 하나이고(09-27 통합), 직원 가입 목록에서도 빠졌다.
+GRANTABLE_DEPTS = (NURSING, RADIOLOGY, SURGERY, PATHOLOGY)
+
+#: 과를 **받을 수 있는** 사람. 관리자 · 환자는 없다.
+#: 원무는 아직 남아 있는 계정이 있어 받을 수는 있게 둔다(줄 수는 없다).
+DEPT_ROLES = GRANTABLE_DEPTS + (RECEPTION,)
+
+
+def extra_depts_of(account):
+    """staff.extra_depts 를 **줄 수 있는 과만** 골라 정렬해서 준다.
+
+    값이 망가져 있어도 권한이 열리지 않게, 아는 과가 아니면 버린다.
+    본인 역할이 섞여 있어도 버린다 — 더할 것이 없다.
+
+    ⚠ **받는 쪽도 다섯 과 사람이어야 한다.** 관리자 계정에 간호과를 붙이면
+      ADMIN_IN_MATRIX = False 가 옆문으로 뚫린다 — 매트릭스에 열이 없기로
+      한 역할이 남의 열을 빌려 쓰게 된다. 환자도 같은 이유로 막는다.
+    """
+    role = getattr(account, "role", None)
+    if role not in DEPT_ROLES:
+        return []
+    staff = getattr(account, "staff", None)      # 환자 계정은 staff 행이 없다
+    depts = getattr(staff, "extra_depts", None)
+    if not isinstance(depts, (list, tuple)):
+        return []
+    return sorted({d for d in depts if d in GRANTABLE_DEPTS and d != role})
+
+
+def _union(left, right):
+    """두 규칙을 더한다. 빼는 방향은 없다.
+
+    own_only 는 **둘 다 「본인만」일 때만** 남는다 — 한쪽이 전체를 주면
+    전체다. (_merge_reception_into_nursing 과 같은 셈법이다.)
+    """
+    if not right.actions:
+        return left
+    if not left.actions:
+        return right
+    return Rule(
+        actions="".join(a for a in "CRUD"
+                        if a in left.actions or a in right.actions),
+        own_only=left.own_only and right.own_only,
+        note=" · ".join(n for n in (left.note, right.note) if n),
+    )
+
+
+def effective_rule(account, resource):
+    """역할 + 추가 과를 합친 규칙. 판정은 전부 여기를 본다."""
+    rule = rule_for(resource, getattr(account, "role", None))
+    for dept in extra_depts_of(account):
+        rule = _union(rule, rule_for(resource, dept))
+    return rule
+
+
 def action_for(method):
     return _METHOD_ACTION.get(method.upper(), "")
 
@@ -288,13 +362,13 @@ class MatrixPermission(IsAuthenticatedAccount):
         super().has_permission(request, view)
         resource = self._resource(view)
         action = action_for(request.method)
-        rule = rule_for(resource, request.user.role)
+        rule = effective_rule(request.user, resource)
         if rule.allows(action) or action in extra_actions_for(request.user, resource):
             return True
         raise ApiError("ROLE_FORBIDDEN")
 
     def has_object_permission(self, request, view, obj):
-        rule = rule_for(self._resource(view), request.user.role)
+        rule = effective_rule(request.user, self._resource(view))
         if not rule.own_only:
             return True
 
@@ -323,8 +397,9 @@ class OwnedOnlyMixin:
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        role = self.request.user.role
-        if not rule_for(getattr(self, "resource", ""), role).own_only:
+        # 추가 과가 전체를 주면 목록도 전체다 — 여기를 role 로만 보면
+        # 판정은 통과한 사람이 목록에서는 자기 것만 보게 된다
+        if not effective_rule(self.request.user, getattr(self, "resource", "")).own_only:
             return queryset
         return self.owned_queryset(queryset, self.request.user)
 

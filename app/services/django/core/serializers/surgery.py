@@ -166,6 +166,10 @@ class SpecimenSerializer(serializers.ModelSerializer):
         source="patient.patient_number", read_only=True, default=None)
     bound_by_name = serializers.CharField(
         source="bound_by.full_name", read_only=True, default=None, allow_null=True)
+    # 09-28 — 이 검체를 집은 병리의. 오더 쪽과 같은 사정이다(assigned_to 가
+    # FK 라 번호로만 나가서 목록의 담당자 칸이 비어 있었다).
+    assigned_to_name = serializers.CharField(
+        source="assigned_to.full_name", read_only=True, default=None, allow_null=True)
     # 「유방외과 열람」 — 목록 쿼리셋이 얹는 값(core/viewed.py)
     viewed_at = serializers.DateTimeField(read_only=True, default=None)
 

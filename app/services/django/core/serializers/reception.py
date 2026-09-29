@@ -5,7 +5,8 @@ from django.db import transaction
 from django.utils import timezone
 
 from .. import models
-from core.api.perms import perms_for_role
+from core.api.perms import perms_for
+from core.api.permissions import extra_depts_of
 from ..services import discordance
 
 AUDIT_FIELDS = ("created_at", "created_by", "updated_at", "updated_by")
@@ -23,6 +24,31 @@ class PatientSerializer(serializers.ModelSerializer):
     primary_staff_name = serializers.CharField(
         source="primary_staff.full_name", read_only=True, default=None
     )
+    # 09-28 — 유방외과 목록·결정 화면이 patient.family_history 를 읽는데 그런
+    # 칸이 없었다. 값은 questionnaire JSON 안에 있고 화면은 평평한 칸으로
+    # 찾아서, 가족력 칩이 한 번도 안 떴다(오류는 안 난다).
+    #
+    # 뜻을 여기서 한글로 바꿔 내보낸다 — 화면이 값을 그대로 찍는 자리라
+    # 날것을 주면 「가족력 · yes」가 뜬다. 판이 올라가도 화면을 안 고치게
+    # 문진 정의(options)에서 이름을 가져온다.
+    family_history = serializers.SerializerMethodField()
+
+    def get_family_history(self, patient) -> str | None:
+        from core.api import questionnaire as qm
+
+        wrapper = patient.questionnaire if isinstance(patient.questionnaire, dict) else {}
+        answers = wrapper.get("answers")
+        chosen = answers.get("family_history") if isinstance(answers, dict) else None
+        if not chosen:
+            return None
+        # 답이 어느 판으로 저장됐는지는 그 답이 들고 있다. 지금 판으로 읽으면
+        # 옛 판에서 이름이 바뀐 선택지를 못 찾는다.
+        version = wrapper.get("form_version") or qm.CURRENT_VERSION
+        try:
+            options = qm.form(version)["questions"]["family_history"]["options"]
+        except Exception:
+            return None
+        return options.get(chosen)
 
     class Meta:
         model = models.Patient
@@ -88,6 +114,11 @@ class ExamOrderSerializer(serializers.ModelSerializer):
     )
     primary_staff_name = serializers.CharField(
         source="patient.primary_staff.full_name", read_only=True, default=None
+    )
+    # 09-28 — 이 오더를 집은 영상의학과 사람. assigned_to 는 FK 라 번호로만
+    # 나가는데 목록은 이름을 찍는다 — 없어서 담당자 칸이 늘 비어 있었다.
+    assigned_to_name = serializers.CharField(
+        source="assigned_to.full_name", read_only=True, default=None, allow_null=True
     )
     # 09-27 — 간호 → 유방외과 인계(handed_at · handed_to 는 모델 칸이라 저절로
     # 나간다). 이름만 얹는다.
@@ -402,6 +433,10 @@ class MeSerializer(serializers.Serializer):
     dept = serializers.CharField(source="role")
     dept_name = serializers.SerializerMethodField()
     perms = serializers.SerializerMethodField()
+    # 09-29 — 소속 말고 한 벌로 더 보는 과. 화면은 perms 만 보고 메뉴를
+    # 그리므로 이것이 없어도 돌지만, 「왜 이 사람에게 영상 탭이 있나」를
+    # 화면과 로그에서 바로 읽으려고 같이 내린다. 없으면 빈 배열이다
+    extra_depts = serializers.SerializerMethodField()
 
     DEPT_NAMES = {
         "reception": "원무과", "nursing": "간호과", "radiology": "영상의학과",
@@ -421,7 +456,10 @@ class MeSerializer(serializers.Serializer):
         return self.DEPT_NAMES.get(account.role, account.role)
 
     def get_perms(self, account):
-        return perms_for_role(account.role)
+        return perms_for(account)
+
+    def get_extra_depts(self, account) -> list:
+        return extra_depts_of(account)
     
 class MePatientSerializer(serializers.Serializer):
     """GET /me — 환자용. 같은 경로에서 역할로 갈린다.

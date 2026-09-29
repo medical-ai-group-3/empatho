@@ -23,7 +23,7 @@ from rest_framework.authentication import BaseAuthentication, get_authorization_
 
 from ..models import Account
 from .errors import ApiError
-from .permissions import PATIENT
+from .permissions import PATIENT, extra_depts_of
 
 ACCESS = "access"
 REFRESH = "refresh"
@@ -59,6 +59,10 @@ def _encode(account, token_type, lifetime):
         "typ": token_type,
         "scope": scope_for(account.role),
         "role": account.role,
+        # 발급 당시의 추가 과. role 과 같은 이유로 싣는다 — 권한 판정이
+        # 이 값으로도 돌기 때문에, 관리자가 과를 빼도 옛 토큰이 계속 쓰이면
+        # 뺀 과가 그대로 열린다. 아래 _account_for 가 매 요청 견준다.
+        "depts": extra_depts_of(account),
         "iss": cfg["ISSUER"],
         "iat": int(now.timestamp()),
         "exp": int((now + lifetime).timestamp()),
@@ -145,6 +149,14 @@ class AccountJWTAuthentication(BaseAuthentication):
         # 토큰 발급 뒤에 역할이 바뀌었으면 그 토큰은 더 못 쓴다 — 권한 판정이
         # 전부 role 로 도는데 토큰 안의 role 이 낡으면 뚫린다.
         if payload.get("role") != account.role:
+            raise ApiError("UNAUTHENTICATED", "권한이 변경되었습니다. 다시 로그인해야 합니다.")
+
+        # 추가 과도 같다 — role 과 같은 무게의 값이다.
+        #
+        # ⚠ 클레임이 **없는** 옛 토큰은 「추가 과 없음」으로 읽는다. 없는 것을
+        #   불일치로 보면 이 판을 올리는 순간 모두가 튕긴다. 추가 과가 실제로
+        #   있는 사람만 다시 로그인하면 된다.
+        if list(payload.get("depts") or []) != extra_depts_of(account):
             raise ApiError("UNAUTHENTICATED", "권한이 변경되었습니다. 다시 로그인해야 합니다.")
 
         return account

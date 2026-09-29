@@ -21,8 +21,10 @@ from django.apps import apps
 from django.contrib import admin, messages
 from django.db.models import Count
 from django.utils import timezone
+from django.utils.html import format_html
 
-from .perms import PermissionGrid
+from .perms import DeptGrid, PermissionGrid, dept_words
+from ..api.permissions import extra_depts_of
 # 주요 표 일곱을 등록한다. @admin.register 가 불러오는 순간 붙으므로 모듈만
 # 들여오면 된다 — 아래 「나머지 모델」 반복문보다 먼저 와야 그쪽이 안 덮는다.
 from ..models import Account, Staff
@@ -245,8 +247,20 @@ class StaffInline(admin.StackedInline):
     extra = 0
     verbose_name = "직원 신원"
     verbose_name_plural = "직원 신원"
-    fields = ("full_name", "staff_number", "extra_permissions",
-              "approver", "approved")
+    # ⚠ CRUD 격자(extra_permissions)를 지우지 않고 **접어 둔다.** 스물몇
+    #   리소스 × 네 칸짜리 표가 늘 펼쳐져 있으면 정작 자주 쓰는 과별 권한이
+    #   화면 아래로 밀린다. 칸 하나를 손보는 일은 드물지만 필요할 때는 있다
+    fieldsets = (
+        (None, {"fields": ("full_name", "staff_number", "extra_depts",
+                           "approver", "approved")}),
+        ("세부 권한 (고급)", {
+            "classes": ("collapse",),
+            "description": "리소스 한 칸씩 더합니다. 보통은 위의 「과별 권한」"
+                           "으로 충분합니다 — 여기서 칸을 더해도 <b>병원 웹 "
+                           "메뉴는 열리지 않습니다</b>(메뉴는 과 단위로 갈립니다).",
+            "fields": ("extra_permissions",),
+        }),
+    )
     # 승인 기록은 손으로 고치지 않는다. 아래 승인 액션이 찍는다
     readonly_fields = ("approver", "approved")
 
@@ -256,6 +270,7 @@ class StaffInline(admin.StackedInline):
     def get_formset(self, request, obj=None, **kwargs):
         formset = super().get_formset(request, obj, **kwargs)
         for name, text in (("full_name", "이름"), ("staff_number", "사번"),
+                           ("extra_depts", "과별 권한"),
                            ("extra_permissions", "개인 추가 권한")):
             if name in formset.form.base_fields:
                 formset.form.base_fields[name].label = text
@@ -354,6 +369,28 @@ class AccountAdmin(admin.ModelAdmin):
 
     actions = ("approve", "reject", "suspend", "restore")
 
+    # ── 과별 권한을 바꾸면 남긴다 ─────────────────────────────────
+    #
+    # 「누가 언제 이 사람에게 영상의학과를 열어 줬나」를 되짚을 수 있어야
+    # 한다. LogEntry 는 auth_user 로 찍히고 그 계정의 이력 화면에서 바로
+    # 보인다 — 승인 액션이 쓰는 자리와 같다.
+    def save_formset(self, request, form, formset, change):
+        # 저장 **전에** DB 값을 떠 둔다. formset 이 인스턴스를 제자리에서
+        # 고치므로 저장한 뒤에는 옛 값을 알 길이 없다
+        before = dict(
+            Staff.objects.filter(
+                pk__in=[f.instance.pk for f in formset.forms if f.instance.pk]
+            ).values_list("pk", "extra_depts"))
+
+        super().save_formset(request, form, formset, change)
+
+        for form_ in formset.forms:
+            staff = form_.instance
+            # 갓 만든 줄은 before 에 없다 — 그때는 「없음 → 준 것」으로 남는다
+            if staff.pk:
+                _log_dept_change(self, request, staff,
+                                 before.get(staff.pk), staff.extra_depts)
+
     # 이 화면에서만 쓴다 — base_site.html 에 넣으면 스물두 표가 다 받는다
     class Media:
         js = ("empatho/approvals.js",)
@@ -368,9 +405,16 @@ class AccountAdmin(admin.ModelAdmin):
         staff = getattr(obj, "staff", None)
         return staff.staff_number if staff else "—"
 
+    # 「간호과 +1」 — 소속 말고 더 보는 과가 있다는 표시. 목록에서 과별
+    # 권한을 준 사람을 한눈에 찾는 자리다(몇 개인지까지는 상세에서 본다)
     @admin.display(description="부서", ordering="role")
     def dept(self, obj):
-        return dict(DEPT_NAMES).get(obj.role, obj.role)
+        name = dict(DEPT_NAMES).get(obj.role, obj.role)
+        extra = extra_depts_of(obj)
+        if not extra:
+            return name
+        return format_html('{} <span class="e-dept-plus" title="{}">+{}</span>',
+                           name, dept_words(extra), len(extra))
 
     @admin.display(description="신청 일시", ordering="created_at")
     def signed_up(self, obj):
@@ -529,6 +573,33 @@ class AccountAdmin(admin.ModelAdmin):
             request.GET = original
 
 
+def _norm_depts(value):
+    """저장 모양이 무엇이든 견줄 수 있는 목록으로. NULL 도 빈 목록이다."""
+    return sorted(value) if isinstance(value, (list, tuple)) else []
+
+
+def _log_dept_change(model_admin, request, staff, before, after):
+    """과별 권한이 바뀌었으면 그 계정의 이력에 한 줄 남긴다.
+
+    ⚠ 이름 · 사번은 안 찍는다 — 로그만 모아도 누가 있는지 드러난다.
+      되짚기에는 행 번호로 충분하다(승인 액션의 로그와 같은 규칙).
+    """
+    old, new = _norm_depts(before), _norm_depts(after)
+    if old == new:
+        return
+
+    added = [d for d in new if d not in old]
+    removed = [d for d in old if d not in new]
+    words = " · ".join(
+        w for w in (("더함: " + dept_words(added)) if added else "",
+                    ("뺌: " + dept_words(removed)) if removed else "") if w)
+
+    account = staff.account
+    model_admin.log_change(request, account, "과별 권한 — " + words)
+    logger.info("admin 과별 권한 account_id=%s role=%s %s → %s",
+                account.account_id, account.role, old, new)
+
+
 DEPT_NAMES = (
     ("admin", "관리자"), ("reception", "원무과"), ("nursing", "간호과"),
     ("radiology", "영상의학과"), ("surgery", "유방외과"),
@@ -538,7 +609,7 @@ DEPT_NAMES = (
 
 # ── 직원 신원과 개인 추가 권한 ────────────────────────────────────────
 class StaffForm(forms.ModelForm):
-    """extra_permissions 를 체크박스 격자로 바꾼다.
+    """JSON 글상자 둘을 격자로 바꾼다 — 과별 권한과 리소스 × CRUD.
 
     격자는 **그 사람의 역할을 알아야** 그린다 — 역할이 이미 주는 칸을 회색으로
     잠가야 해서다. 역할은 staff 가 아니라 account 에 있으므로 여기서 꺼내
@@ -551,15 +622,39 @@ class StaffForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        field = self.fields.get("extra_permissions")
-        if field is None:
-            return
         account = getattr(self.instance, "account", None)
-        field.widget = PermissionGrid(role=getattr(account, "role", None))
-        field.required = False
-        # JSONField 의 기본 검증은 «문자열이 JSON 인가» 를 본다. 격자는 이미
-        # dict 를 주므로 그대로 통과시킨다
-        field.clean = lambda value: value
+        role = getattr(account, "role", None)
+        for name, widget in (("extra_depts", DeptGrid(role=role)),
+                             ("extra_permissions", PermissionGrid(role=role))):
+            field = self.fields.get(name)
+            if field is not None:
+                _take_widget_value_as_is(field, widget)
+
+
+def _take_widget_value_as_is(field, widget):
+    """격자가 준 값을 JSONField 의 문자열 검증을 거치지 않고 그대로 쓴다.
+
+    forms.JSONField 는 «문자열이 JSON 인가» 를 보게 만들어져 있다. 격자는
+    이미 dict · list 를 준다.
+
+    바꿔야 할 자리가 셋이다. 하나만 바꾸면 어디선가 문자열이 새어 든다.
+
+    clean          받을 때. 안 바꾸면 «JSON 으로 못 읽는다» 고 막는다
+    bound_data     바인딩된 채 다시 그릴 때. 안 바꾸면 json.loads(dict) 가
+                   TypeError 를 낸다 — JSONDecodeError 가 아니라서 Django 가
+                   못 받아내고, 오류 표시 대신 **500** 이 뜬다
+    prepare_value  그릴 때. 안 바꾸면 json.dumps 로 **문자열**이 되어 격자에
+                   닿는다. 격자는 dict · list 가 아니면 빈 것으로 보므로,
+                   저장은 됐는데 **다시 열면 체크가 전부 풀려 보인다**
+
+    ⚠ 마지막 것이 09-29 「권한을 줘도 저장이 안 된다」의 정체였다. DB 에는
+      들어가 있었다.
+    """
+    field.widget = widget
+    field.required = False
+    field.clean = lambda value: value
+    field.bound_data = lambda data, initial: data
+    field.prepare_value = lambda value: value
 
 
 # 계정 상세 안의 직원 신원도 같은 격자로 — 전에는 JSON 글상자로 떠서
@@ -606,11 +701,22 @@ class StaffAdmin(admin.ModelAdmin):
 
     @admin.display(description="부서", ordering="account__role")
     def dept(self, obj):
-        return dict(DEPT_NAMES).get(obj.account.role, obj.account.role)
+        name = dict(DEPT_NAMES).get(obj.account.role, obj.account.role)
+        extra = extra_depts_of(obj.account)
+        if not extra:
+            return name
+        return format_html('{} <span class="e-dept-plus" title="{}">+{}</span>',
+                           name, dept_words(extra), len(extra))
 
     @admin.display(description="추가 권한", boolean=True)
     def has_extra(self, obj):
-        return bool(obj.extra_permissions)
+        return bool(obj.extra_permissions) or bool(extra_depts_of(obj.account))
+
+    def save_model(self, request, obj, form, change):
+        before = (Staff.objects.filter(pk=obj.pk)
+                  .values_list("extra_depts", flat=True).first()) if change else None
+        super().save_model(request, obj, form, change)
+        _log_dept_change(self, request, obj, before, obj.extra_depts)
 
 
 from django.contrib import admin

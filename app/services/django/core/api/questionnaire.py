@@ -26,9 +26,9 @@ logger = logging.getLogger(__name__)
 
 DEFINITION_DIR = Path(__file__).resolve().parent.parent / "questionnaire"
 
-#: 지금 쓰는 판. 문항을 바꾸면 v2.yaml 을 만들고 여기를 올린다.
+#: 지금 쓰는 판. 문항을 바꾸면 다음 판 파일을 만들고 여기를 올린다.
 #: 옛 판 파일은 지우지 않는다 — 그 판으로 받은 답을 읽어야 한다.
-CURRENT_VERSION = "v1"
+CURRENT_VERSION = "v2"
 
 
 @functools.lru_cache(maxsize=None)

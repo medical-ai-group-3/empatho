@@ -235,6 +235,16 @@ body,
 }
 .e-pill.bad i { background: var(--e-pink); box-shadow: 0 0 0 4px rgba(255, 143, 168, .18); }
 
+/* 목록 「부서」 칸의 «+1» — 소속 말고 더 보는 과가 있다는 표시.
+   몇 개인지만 띄우고 무슨 과인지는 title 로 둔다 — 줄이 길어지면
+   다섯 칸짜리 표가 무너진다 */
+.e-dept-plus {
+  display: inline-block; margin-left: 4px; padding: 1px 6px;
+  border-radius: 999px; font-size: 11px; font-weight: 600;
+  background: var(--e-mint-bg); border: 1px solid var(--e-mint-br);
+  color: var(--e-mint-fg); cursor: help;
+}
+
 .e-avatar-form { margin: 0; }
 .e-avatar {
   width: 40px; height: 40px; border-radius: 50%; border: none;
