@@ -9,6 +9,13 @@ AUDIT_FIELDS = ("created_at", "created_by", "updated_at", "updated_by")
 
 
 class ReportSerializer(serializers.ModelSerializer):
+    # 환자 앱 안내문에 찍는 의사는 **주치의**다. 발급한 사람(issued_by)은
+    # 판독의라서, 이름만 주면 앱이 판독의를 담당 의사로 보여 줬다(09-29).
+    primary_staff_name = serializers.CharField(
+        source="patient.primary_staff.full_name", read_only=True, default=None)
+    primary_staff_dept = serializers.CharField(
+        source="patient.primary_staff.account.role", read_only=True, default=None)
+
     class Meta:
         model = models.Report
         exclude = AUDIT_FIELDS

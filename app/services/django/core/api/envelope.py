@@ -52,6 +52,12 @@ class EnvelopeJSONRenderer(JSONRenderer):
     """성공 응답에 봉투를 씌운다. 실패는 이미 씌워져 오므로 그대로 통과."""
 
     def render(self, data, accepted_media_type=None, renderer_context=None):
+        # 204 는 본문이 없어야 한다. 봉투를 씌워 보내면 앱(CapacitorHttp)이
+        # 없는 끝을 기다리다 72초 뒤 「unexpected end of stream」 으로 실패했다
+        # — 서버는 지웠는데 앱은 실패로 알아 복약 체크가 되살아났다(09-29).
+        response = (renderer_context or {}).get("response")
+        if response is not None and response.status_code == 204:
+            return b""
         if not is_envelope(data):
             data = ok(data)
         return super().render(data, accepted_media_type, renderer_context)

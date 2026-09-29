@@ -211,6 +211,20 @@ class PatientViewSet(AuditMixin, OwnedOnlyMixin, viewsets.ModelViewSet):
     #     return Response(out.data, status=status.HTTP_201_CREATED)
 
 
+def _notify_booked(order, verb):
+    """예약이 서거나 날짜가 바뀌면 커밋 뒤 바로 환자에게 알린다.
+
+    09-29 — 창구 예약 · 앱 신청 확정 · 날짜 변경에 알림이 없어서, 한 시간마다
+    도는 「하루 전 안내」(reservation_reminders)가 몇 분 ~ 한 시간 뒤에 대신
+    나갔다. 앱 알림과 문자가 늦게 온다고 보인 것이 그것이다.
+    """
+    from .. import notify
+    when = timezone.localtime(order.scheduled_at)
+    notify.send(patient=order.patient, type="reservation_created",
+                message=f"{when:%m월 %d일 %H시 %M분} 검사 예약이 {verb}되었습니다.",
+                ref_type="exam_order", ref_id=order.pk, severity="normal")
+
+
 class ReservationViewSet(AuditMixin, OwnedOnlyMixin, viewsets.ViewSet):
     """§5-3 예약 생성. exam_order 로 1:N 생성.
 
@@ -285,6 +299,8 @@ class ReservationRequestViewSet(AuditMixin, viewsets.ViewSet):
         except ValueError:
             raise ApiError("VALIDATION_ERROR", "날짜/시간 형식이 올바르지 않습니다.")
         scheduled = timezone.make_aware(naive, timezone.get_current_timezone())
+        if scheduled <= timezone.now():
+            raise ApiError("VALIDATION_ERROR", "이미 지난 시간입니다.")
         # 09-28 — 그날 이미 예약(신청 · 확정 · 내원)이 있으면 또 세우지 않는다.
         #   앱에서 신청을 두 번 보내면 원무 예약 판에 같은 사람이 두 줄로 섰다.
         with transaction.atomic():
@@ -362,6 +378,7 @@ class ExamOrderConfirmView(AuditMixin, viewsets.ViewSet):
             order.order_status = "scheduled"
             order.updated_by = self._current_account()
             order.save()
+            _notify_booked(order, "확정")
 
         out = serializers.ExamOrderSerializer(order)
         return Response(out.data, status=status.HTTP_200_OK)
@@ -749,6 +766,7 @@ class ExamOrderScheduleView(AuditMixin, viewsets.ViewSet):
             _lock_patient(data["patient_id"])
             _refuse_same_day(data["patient_id"], data["scheduled_at"])
             order = self._create_booking(data)
+            _notify_booked(order, "확정")
         out = serializers.ExamOrderSerializer(order)
         return Response(out.data, status = status.HTTP_201_CREATED)
 
@@ -805,6 +823,7 @@ class ExamOrderRescheduleView(AuditMixin, viewsets.ViewSet):
             order.scheduled_at = when
             order.updated_by = self._current_account()
             order.save(update_fields=["scheduled_at", "updated_by", "updated_at"])
+            _notify_booked(order, "변경")
         return Response(serializers.ExamOrderSerializer(order).data)
 
     @staticmethod
@@ -1055,20 +1074,29 @@ OPEN_TIMES = ["09:00", "09:30", "10:00", "10:30", "11:00", "11:30",
               "14:00", "14:30", "15:00", "15:30", "16:00", "16:30"]
 
 
-def _open_slots(weekdays=10):
-    """예약 가능 자리 — 내일부터 평일 기준 2주치.
+def _open_slots(weekdays=65):
+    """예약 가능 자리 — 오늘부터 평일 기준 약 3달치.
+
+    09-29 — 내일부터 2주치만 열어서 달을 넘길 수 없었고 당일 예약이 안 됐다.
+    오늘은 지금 이후의 시간만 연다(다 지났으면 오늘은 빠진다).
 
     ponytail: 병원 일정표(슬롯) 모델이 없다. 화면이 달력·시간칸을 그리려면
     [{date, times[]}] 가 있어야 해서 여기서 만들어 준다 — 일정표가 생기면
     이 함수만 쿼리로 바꾸면 화면은 그대로 돈다.
     """
     from datetime import timedelta
-    out, day = [], timezone.localdate()
+    now = timezone.localtime()
+    out, day = [], now.date() - timedelta(days=1)
     while len(out) < weekdays:
         day += timedelta(days=1)
         if day.weekday() >= 5:          # 토·일은 안 연다
             continue
-        out.append({"date": day.isoformat(), "times": list(OPEN_TIMES)})
+        times = list(OPEN_TIMES)
+        if day == now.date():
+            times = [t for t in times if t > f"{now:%H:%M}"]
+            if not times:
+                continue
+        out.append({"date": day.isoformat(), "times": times})
     return out
 
 
