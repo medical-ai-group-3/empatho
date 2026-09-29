@@ -98,12 +98,35 @@ const upper = (v) => (v == null ? null : String(v).toUpperCase());
 /* ?focus= 값 → 카드. patient-report 는 ⑤ 안의 칸이다 */
 const FOCUS_CARD = { "patient-report": "explain" };
 
+const WRITING_POLL = 4000;          /* 소견문 채워졌나 보는 박자 */
+const WRITING_MAX = 180000;         /* 3분 넘으면 멈추고 [다시 확인] */
+
 function Inner({ patient, onReload, focus, onNextPatient }) {
   const pid = patient.patient_id;
   const report = patient.report;                           /* 의사용 — ③ 이 읽고 쓴다 */
   const target = patient.patient_report ?? report;         /* 환자용 — ⑤ 설명 · 잠금 해제 */
   const targetId = target?.report_id ?? null;
   const reports = useApi(() => api.reports(pid), [pid]);
+
+  /* 종합 리포트 — 행은 바로 서고 소견문(narrative)은 리포트 서버가 뒤에
+     채운다(수십 초). ⚠ 09-29 전에는 「잠시 뒤 새로고침해 주세요」라고만 했다.
+     소견문이 빈 리포트가 있는 동안은 여기서 조용히 다시 불러 채워지는 순간
+     뜨게 한다. 너무 오래 걸리면(WRITING_MAX) 멈추고 [다시 확인]을 준다 —
+     서버가 실패해 영영 안 채워지는 리포트를 끝없이 두드리지 않게 */
+  const writing = Boolean(report && !report.ai_summary);
+  const [waited, setWaited] = useState(0);
+  useEffect(() => { setWaited(0); }, [report?.report_id]);
+  useEffect(() => {
+    if (!writing || waited >= WRITING_MAX) return undefined;
+    const t = setTimeout(() => {
+      onReload();
+      reports.reload(true);
+      setWaited((n) => n + WRITING_POLL);
+    }, WRITING_POLL);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [writing, waited]);
+  const writingLate = writing && waited >= WRITING_MAX;
   const unlock = useApi(
     () => (targetId ? api.unlockStatus(targetId) : Promise.resolve(null)),
     [targetId],
@@ -259,7 +282,8 @@ function Inner({ patient, onReload, focus, onNextPatient }) {
           </StepCard>
 
           <StepCard {...S.report} here={at("report")}>
-            {report && <AiSummary report={report} />}
+            {report && <AiSummary report={report} late={writingLate}
+                                  onRecheck={() => { setWaited(0); onReload(); }} />}
             {/* 만든 뒤에도 생성 칸을 남긴다 — 판독이 더 들어와도 다시 만들 길 */}
             <FinalReport patient={patient} reports={reports} onCreated={onReload} again={Boolean(report)} />
             {report
@@ -565,7 +589,7 @@ function FinalReport({ patient, reports, onCreated, again = false }) {
   );
 }
 
-function AiSummary({ report }) {
+function AiSummary({ report, late = false, onRecheck }) {
   return (
     <div className="bf-block">
       <div className="card-head">
@@ -576,7 +600,16 @@ function AiSummary({ report }) {
         </span>
       </div>
       {/* 리포트 행은 바로 서고 소견문은 리포트 서버가 뒤에 채운다(수십 초) */}
-      <p className="card-text">{report.ai_summary || "소견문을 만드는 중입니다. 잠시 뒤 새로고침해 주세요."}</p>
+      {report.ai_summary ? <p className="card-text">{report.ai_summary}</p>
+        : late ? (
+          <p className="note">
+            소견문이 3분 넘게 만들어지지 않고 있습니다.{" "}
+            <button type="button" className="edit-btn" onClick={onRecheck}>다시 확인</button>
+          </p>
+        ) : (
+          /* 화면이 알아서 다시 확인한다(Inner 의 writing) — 새로고침을 시키지 않는다 */
+          <p className="note" role="status">소견문을 만드는 중입니다. 다 되면 여기에 바로 표시됩니다.</p>
+        )}
       {report.ai_evidence?.length > 0 && (
         <>
           <p className="section-label">근거</p>
