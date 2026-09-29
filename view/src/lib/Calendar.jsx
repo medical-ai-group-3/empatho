@@ -36,7 +36,7 @@ function todayKey() {
 }
 
 export default function Calendar({
-  month, marks = [], footer, onPick, selected,
+  month, marks = [], footer, onPick, selected, onPrev, onNext,
 }) {
   if (!month) return null;
 
@@ -65,7 +65,19 @@ export default function Calendar({
 
   return (
     <div className="cal">
-      <div className="mhead">{y}년 {m}월</div>
+      {/* 달 넘기기는 예약에서만 준다(onPrev · onNext). 넘길 달이 없으면
+          null 이 와서 단추가 눌리지 않는다 */}
+      <div className="mhead">
+        <span>{y}년 {m}월</span>
+        {(onPrev !== undefined || onNext !== undefined) && (
+          <span className="mnav">
+            <button type="button" aria-label="이전 달"
+                    disabled={!onPrev} onClick={onPrev || undefined}>‹</button>
+            <button type="button" aria-label="다음 달"
+                    disabled={!onNext} onClick={onNext || undefined}>›</button>
+          </span>
+        )}
+      </div>
 
       <div className="wd" aria-hidden="true">
         {WD.map((w) => <span key={w}>{w}</span>)}

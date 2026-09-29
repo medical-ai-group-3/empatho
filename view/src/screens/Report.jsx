@@ -74,16 +74,13 @@ function Letter({ r }) {
 
       <article className="letter">
         <h3>검사 결과를 안내드립니다</h3>
-        {/* 판독의와 주치의는 **다른 사람**이다. 사진을 읽은 사람과
-            진료를 보는 사람이라, 이름만 나란히 두면 누가 누군지
-            모른다. 줄을 나누고 각각에 이름표를 붙인다 */}
+        {/* 환자에게 찍는 의사는 **담당 주치의**다. 판독의(발급한 사람)를
+            찍었더니 영상의학과 의사가 담당 의사처럼 보였다(09-29) */}
         <p className="by">
-          {fmtDay(r.issued_at)} · 영상의학과 ·
-          {" "}판독의 {r.issued_by_name}
+          {fmtDay(r.issued_at)}
           {r.primary_staff_name && (
             <>
-              <br />
-              담당 주치의 {r.primary_staff_name}
+              {" "}· 담당 주치의 {r.primary_staff_name}
               {deptSuffix(r.primary_staff_dept)}
             </>
           )}

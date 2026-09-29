@@ -57,9 +57,11 @@ function Inner({ d, reload }) {
   const [calling, setCalling] = useState(false);
 
   const slots = d.open_slots ?? [];
-  // 열린 자리를 달력 표시로 바꾼다. 여러 달에 걸치면 첫 달만 보여준다 —
-  // 지금 병원이 2주치만 열어 두고 있어서 그걸로 충분하다.
-  const month = slots[0]?.date.slice(0, 7);
+  // 열린 자리를 달력 표시로 바꾼다. 여러 달에 걸치면 한 달씩 넘겨 본다
+  // (09-29 — 첫 달만 그려서 다음 달 예약을 할 수 없었다).
+  const months = [...new Set(slots.map((s) => s.date.slice(0, 7)))];
+  const [mi, setMi] = useState(0);
+  const month = months[Math.min(mi, months.length - 1)];
   const marks = slots.map((s) => ({
     date: s.date,
     kind: "open",
@@ -190,7 +192,9 @@ function Inner({ d, reload }) {
       ) : (
         <>
           <Calendar month={month} marks={marks}
-                    onPick={pickDate} selected={date} />
+                    onPick={pickDate} selected={date}
+                    onPrev={mi > 0 ? () => setMi(mi - 1) : null}
+                    onNext={mi < months.length - 1 ? () => setMi(mi + 1) : null} />
 
           {date && (
             <div className="card">
