@@ -19,6 +19,7 @@
  */
 import { useSyncExternalStore } from "react";
 import { setToken, setOnRefreshed, setOnAuthLost } from "../api";
+import { purgeLocalNotes } from "./notes";
 
 const KEY = "empatho_staff_token";
 
@@ -89,11 +90,18 @@ function set(next) {
 let refreshToken = null;
 export const getRefresh = () => refreshToken;
 
+/* ⚠ 09-29 계정이 바뀌는 모든 자리에서 예전 브라우저 메모(할 일 · 스티키 글)를
+   지운다 — 키에 계정이 없어 다음 사람에게 보였다(lib/notes.js). 앱을 처음
+   불러올 때도 한 번(아래) */
+purgeLocalNotes();
+
 export const signIn = ({ access, refresh }) => {
+  purgeLocalNotes();
   refreshToken = refresh ?? null;
   set(access);
 };
 export const signOut = () => {
+  purgeLocalNotes();
   refreshToken = null;
   set(null);
 };
@@ -104,7 +112,7 @@ export const signOut = () => {
 setOnRefreshed((access) => set(access));
 
 /* 토큰이 끊기면(갱신 실패) 세션을 비운다 → Gate 가 로그인 화면으로. */
-setOnAuthLost(() => set(null));
+setOnAuthLost(() => { purgeLocalNotes(); set(null); });
 
 /* 로그인했나. 토큰이 있느냐로만 본다 — 화면이 스스로 「로그인함」을 적어
    두고 그걸 믿으면, 만료된 뒤에도 화면은 열리고 요청만 하나씩 실패한다. */
