@@ -16,7 +16,7 @@ import { MODALITY, biradsFor, READ_STATUS, SEX, eventDetail, label, modality as 
 import { currentAssessment } from "../api";
 import { RadiologyAiSummary } from "./RadiologyAi";
 import { Phrases } from "../lib/Parts";
-import { BIRADS_LABEL, DENSITY_CATEGORY, EXAM_PURPOSE, RECOMMENDATION, biradsLine, biradsNoteWarn, biradsRisk } from "../codes";
+import { BIRADS_LABEL, DENSITY_CATEGORY, EXAM_PURPOSE, LESION_KIND, RECOMMENDATION, biradsLine, biradsNoteWarn, biradsRisk } from "../codes";
 import { can, getMe } from "../perm";
 import { DISPOSITION_TYPE, FLAG_STATUS } from "../codes";
 
@@ -285,6 +285,7 @@ const api = {
   list:       (o, w)  => rad.list(o, w),
   amend:      (id, b) => rad.amend(id, b),
   addLesion:  (b)     => rad.addLesion(b),
+  lesionsOf:  (sid)   => rad.lesionsOf(sid),
   /* 환자 목록(4장) 상세에 검사 이력을 붙이려고 추가했다(2026-09-18) */
   timeline:   (pid)   => rad.timeline(pid),
 };
@@ -937,6 +938,14 @@ export const radiology = {
       const add = useCan("radiology.lesion.add");
       const [lesionBusy, setLesionBusy] = useState(false);
       const [lesionMsg, setLesionMsg] = useState(null);
+      /* 이 검사에 들어간 병변 — 등록할 때마다 몇 개가 들어갔는지 보여야
+         같은 것을 두 번 넣거나 빠뜨린 것을 안다(09-29). 못 읽으면 칸만 감춘다 */
+      const [seenAt, setSeenAt] = useState(0);
+      const lesions = useApi(
+        () => (d?.id ? api.lesionsOf(d.id).catch(() => null) : Promise.resolve(null)),
+        [d?.id, seenAt], { live: true });
+      const rows = (lesions.data ?? []).filter((l) => !l.is_false_positive);
+      const manual = rows.filter((l) => l.lesion_source === "manual");
 
       async function addLesion() {
         if (!pendingMark) return;
@@ -947,6 +956,7 @@ export const radiology = {
             detail: { ...pendingMark },
           });
           setLesionMsg(`병변 #${out.lesion_id ?? out.id}을 등록했습니다.`);
+          setSeenAt((n) => n + 1);
           onLesionCreated?.();
         } catch (e) {
           setLesionMsg(e.detail || "병변 등록에 실패했습니다.");
@@ -997,6 +1007,26 @@ export const radiology = {
             </span>
             {lesionMsg && <span className="hint">{lesionMsg}</span>}
           </div>
+          {lesions.data && (
+            <div className="rad-les">
+              <p className="rad-les-h">
+                <b>등록된 병변 {rows.length}개</b>
+                <span className="muted small">직접 등록 {manual.length} · AI {rows.length - manual.length}</span>
+              </p>
+              {rows.length > 0 && (
+                <ol className="rad-les-l">
+                  {rows.map((l) => (
+                    <li key={l.lesion_id ?? l.id}>
+                      <span className="num">#{l.lesion_id ?? l.id}</span>
+                      <span>{l.label || label(LESION_KIND, l.lesion_kind) || "병변"}</span>
+                      {l.birads_model && <span className="muted">BI-RADS {l.birads_model}</span>}
+                      <Chip>{l.lesion_source === "manual" ? "직접" : "AI"}</Chip>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </div>
+          )}
 
           <label className="field">
             <span>판독 소견</span>

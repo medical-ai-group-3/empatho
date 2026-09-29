@@ -341,6 +341,28 @@ export default function hospitalMock() {
           });
         }
 
+        /* ── 병변 등록 · 검사별 병변 목록 ───────────────────────────
+           **등록한 것을 돌려준다.** 고정 응답이면 병변을 몇 개 등록해도
+           판독 칸의 「등록한 병변」 수가 늘지 않는다. 메모리에만 둔다 */
+        if (path === `${PREFIX}/lesions/` && (req.method === "POST" || req.method === "GET")) {
+          const store = (globalThis.__mockLesions ??= { seq: 9001, rows: [] });
+          if (req.method === "POST") {
+            return readBody(req, (body) => {
+              const n = { lesion_id: store.seq++, study: Number(body.study_id ?? body.study),
+                lesion_source: "manual", lesion_kind: body.detail?.kind === "length" ? null : "mass",
+                label: null, detail: body.detail ?? null, is_false_positive: false,
+                created_at: new Date().toISOString() };
+              store.rows.push(n);
+              send(res, n, 201);
+            });
+          }
+          const sid = new URL(req.url, "http://mock").searchParams.get("study");
+          if (sid) {
+            const rows = store.rows.filter((n) => String(n.study) === String(sid));
+            return send(res, { count: rows.length, results: rows });
+          }
+        }
+
         /* ── 개인 메모(/me/notes) ────────────────────────────────
            **계정마다 따로 든다.** 할 일 · 스티키는 본인 것만, 인계는 같은
            과(역할) 것까지 보인다 — 진짜 서버 views/personal_note.py 와 같은 규칙.

@@ -4,6 +4,7 @@ import * as cornerstoneTools from "@cornerstonejs/tools";
 import { ensureCornerstoneInit } from "./cornerstoneInit";
 import { loadManifest } from "./manifest";
 import { Shape } from "../Stage";
+import { useMarkEraser } from "./useMarkEraser";
 
 /* 맘모 DICOM을 Cornerstone3D STACK 뷰포트로 보여준다 — 공통 영상 Viewer
  * 설계(2026-09-17) 3단계.
@@ -140,17 +141,17 @@ export default function DicomStackViewer({
   const [viewIndex, setViewIndex] = useState(0);
   const [viewCount, setViewCount] = useState(0);
 
-  useEffect(() => {
-    if (!onAnnotation || mode === "review") return;
-    const done = (event) => {
-      const annotation = event.detail?.annotation;
-      const tool = annotation?.metadata?.toolName;
-      if (tool !== "Length" && tool !== "RectangleROI") return;
-      onAnnotation({ kind: tool === "Length" ? "length" : "rect", handles: annotation.data?.handles?.points ?? [] });
-    };
-    cornerstone.eventTarget.addEventListener(cornerstoneTools.Enums.Events.ANNOTATION_COMPLETED, done);
-    return () => cornerstone.eventTarget.removeEventListener(cornerstoneTools.Enums.Events.ANNOTATION_COMPLETED, done);
-  }, [mode, onAnnotation]);
+  /* 그린 표시 — 올리기(onAnnotation) · 지우기(lib/dicom/useMarkEraser.js).
+     이 뷰어 것 = 지금 스택의 장에 그린 것. ⚠ 주석은 전역에 남아 있어서
+     안 가리면 전에 연 다른 검사의 표시까지 세고 지운다 */
+  const eraser = useMarkEraser({
+    enabled: !isReview,
+    ready: status === "ready",
+    mine: (a) => imageIds.includes(a.metadata?.referencedImageId),
+    viewportIds: [VIEWPORT_ID],
+    segmentationId: SEGMENTATION_ID,
+    onAnnotation,
+  });
 
   useEffect(() => {
     if (!manifestUrl || !baseUrl) {
@@ -227,7 +228,10 @@ export default function DicomStackViewer({
 
         /* 마스크(Brush) — 스택 하나짜리 라벨맵. diagnostic만 만든다.
          * ⚠ 실 맘모 DICOM으로 아직 검증 못 했다 — 실패해도 나머지
-         *   도구(창값·이동·확대·측정·ROI)는 그대로 쓸 수 있게 감싼다. */
+         *   도구(창값·이동·확대·측정·ROI)는 그대로 쓸 수 있게 감싼다.
+         * ⚠ (09-29 확인) cornerstoneTools 에는 volumeLoader 가 없어 아래 줄은
+         *   아무것도 안 하고, addSegmentations 도 없다 — 지금 맘모의 「마스크」는
+         *   칠해지지 않는다. 그래서 「모두 지우기」도 여기선 마스크를 셀 게 없다. */
         if (!isReview) {
           try {
             try { cornerstoneTools.segmentation.state.removeSegmentation(SEGMENTATION_ID); }
@@ -321,7 +325,9 @@ export default function DicomStackViewer({
   }, []);
 
   function onKey(e) {
-    if (status !== "ready" || viewCount < 2) return;
+    if (status !== "ready") return;
+    if (!isReview && !grid && eraser.onEraseKey(e)) return;
+    if (viewCount < 2) return;
     if (e.altKey || e.ctrlKey || e.metaKey) return;
     const tag = e.target?.tagName;
     if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
@@ -363,14 +369,16 @@ export default function DicomStackViewer({
   const visibleTools = isReview ? TOOLS.filter((t) => ["wl", "pan", "zoom"].includes(t.key)) : TOOLS;
 
   const multi = status === "ready" && viewCount > 1;
+  /* 초점을 받을 까닭 — 뷰 넘기기(←/→) 또는 지우기(Delete) */
+  const focusable = multi || (status === "ready" && !isReview);
 
   return (
     /* 초점을 받는 자리 — 뷰어를 한 번 누르면 ←/→ 로 넘긴다. cornerstone 가
        mousedown 을 막아 초점이 안 옮겨 오므로 눌릴 때 직접 준다 */
-    <div className="dicom-stack-wrap" ref={wrapRef} tabIndex={multi ? 0 : undefined}
+    <div className="dicom-stack-wrap" ref={wrapRef} tabIndex={focusable ? 0 : undefined}
          onKeyDown={onKey}
          onPointerDownCapture={(e) => {
-           if (multi && e.target.closest?.(".dicom-stack-cell")) wrapRef.current?.focus({ preventScroll: true });
+           if (focusable && e.target.closest?.(".dicom-stack-cell")) wrapRef.current?.focus({ preventScroll: true });
          }}
          aria-label={multi ? `DICOM 뷰어 — ${names[viewIndex] ?? ""}. ←/→ 키로 뷰를 넘깁니다` : undefined}>
       {status === "ready" && (
@@ -387,6 +395,23 @@ export default function DicomStackViewer({
               {t.label}
             </button>
           ))}
+          {!isReview && (
+            <>
+              <button type="button"
+                      disabled={grid || eraser.selected === 0}
+                      title={grid ? "한 장 보기에서 사용할 수 있습니다"
+                        : eraser.selected ? "고른 표시를 지웁니다 (Delete)" : "지울 표시를 눌러 고르세요"}
+                      onClick={eraser.removeSelected}>
+                선택 지우기
+              </button>
+              <button type="button"
+                      disabled={grid || eraser.total === 0}
+                      title={grid ? "한 장 보기에서 사용할 수 있습니다" : "그린 표시를 모두 지웁니다"}
+                      onClick={eraser.removeAll}>
+                모두 지우기
+              </button>
+            </>
+          )}
           {multi && (
             <span className="dicom-stack-nav">
               {canGrid && (

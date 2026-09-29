@@ -976,6 +976,8 @@ export const rad = {
        200 을 받고도 아무것도 안 바뀌는 모양이 된다.
        일단 적어 주신 그대로 따른다. */
   addLesion:  (b)      => post("/lesions/", b),
+  /* 이 검사의 병변 — 판독 칸 「등록한 병변 n개」(AI · 직접 등록 모두) */
+  lesionsOf:  (sid)    => get(`/lesions/${qs({ study: sid })}`).then(unwrapList),
   falsePos:   (id)     => patch(`/lesions/${id}/`, { is_false_positive: true }),
 
   /* ⚠ GET /studies/{id}/ 에는 patient_name 등은 이제 오지만(2026-09-18

@@ -3,6 +3,7 @@ import * as cornerstone from "@cornerstonejs/core";
 import * as cornerstoneTools from "@cornerstonejs/tools";
 import { ensureCornerstoneInit } from "./cornerstoneInit";
 import { loadManifest } from "./manifest";
+import { useMarkEraser } from "./useMarkEraser";
 
 /* DICOM Series를 Cornerstone3D Volume으로 읽어 Axial/Coronal/Sagittal
  * 세 방향(ORTHOGRAPHIC)으로 보여준다. CrosshairsTool이 세 뷰포트를 같은
@@ -73,17 +74,19 @@ export default function DicomMprPanel({ manifestUrl, baseUrl, mode = "diagnostic
   const [error, setError] = useState(null);
   const [activeTool, setActiveTool] = useState("crosshairs");
 
-  useEffect(() => {
-    if (!onAnnotation || mode === "review") return;
-    const done = (event) => {
-      const annotation = event.detail?.annotation;
-      const tool = annotation?.metadata?.toolName;
-      if (tool !== "Length" && tool !== "RectangleROI") return;
-      onAnnotation({ kind: tool === "Length" ? "length" : "rect", handles: annotation.data?.handles?.points ?? [] });
-    };
-    cornerstone.eventTarget.addEventListener(cornerstoneTools.Enums.Events.ANNOTATION_COMPLETED, done);
-    return () => cornerstone.eventTarget.removeEventListener(cornerstoneTools.Enums.Events.ANNOTATION_COMPLETED, done);
-  }, [mode, onAnnotation]);
+  /* 그린 표시 — 올리기 · 지우기(lib/dicom/useMarkEraser.js). 이 뷰어 것 =
+     이 볼륨의 FrameOfReferenceUID 위에 그린 것. 세 방향이 한 볼륨이라
+     축상면에 그린 박스도, 관상면에 그린 선도 다 같이 센다 */
+  const forRef = useRef(null);
+  const wrapRef = useRef(null);
+  const eraser = useMarkEraser({
+    enabled: !isReview,
+    ready: status === "ready",
+    mine: (a) => Boolean(forRef.current) && a.metadata?.FrameOfReferenceUID === forRef.current,
+    viewportIds: [IDS.axial, IDS.coronal, IDS.sagittal],
+    segmentationId: SEGMENTATION_ID,
+    onAnnotation,
+  });
 
   useEffect(() => {
     if (!manifestUrl || !baseUrl) {
@@ -137,6 +140,7 @@ export default function DicomMprPanel({ manifestUrl, baseUrl, mode = "diagnostic
           [IDS.axial, IDS.coronal, IDS.sagittal]
         );
         if (cancelled) return;
+        forRef.current = renderingEngine.getViewport(IDS.axial)?.getFrameOfReferenceUID?.() ?? null;
 
         /* ⚠ TOOL_GROUP_ID는 모드에 상관없이 같은 전역 상수다 — 판독
          * 화면(diagnostic)을 한 번 열고 나면 조회 화면(review)이 나중에
@@ -273,7 +277,16 @@ export default function DicomMprPanel({ manifestUrl, baseUrl, mode = "diagnostic
   /* review 모드는 등록된 도구가 탐색(Crosshairs)뿐이라 고를 게 없다 —
    * 버튼 하나짜리 Toolbar를 보여주는 대신 아예 숨긴다. */
   return (
-    <div className="dicom-mpr-wrap">
+    /* 초점을 받는 자리 — 뷰어를 누른 뒤 Delete 로 고른 표시를 지운다.
+       cornerstone 가 mousedown 을 막아 초점이 안 옮겨 오므로 직접 준다 */
+    <div className="dicom-mpr-wrap" ref={wrapRef}
+         tabIndex={status === "ready" && !isReview ? 0 : undefined}
+         onKeyDown={(e) => { if (status === "ready" && !isReview) eraser.onEraseKey(e); }}
+         onPointerDownCapture={(e) => {
+           if (status === "ready" && !isReview && e.target.closest?.(".dicom-mpr-cell")) {
+             wrapRef.current?.focus({ preventScroll: true });
+           }
+         }}>
       {status === "ready" && !isReview && (
         <div className="dicom-mpr-toolbar">
           {TOOLS.map((t) => (
@@ -286,6 +299,17 @@ export default function DicomMprPanel({ manifestUrl, baseUrl, mode = "diagnostic
               {t.label}
             </button>
           ))}
+          <button type="button"
+                  disabled={eraser.selected === 0}
+                  title={eraser.selected ? "고른 표시를 지웁니다 (Delete)" : "지울 표시를 눌러 고르세요"}
+                  onClick={eraser.removeSelected}>
+            선택 지우기
+          </button>
+          <button type="button" disabled={eraser.total === 0}
+                  title="그린 표시와 마스크를 모두 지웁니다"
+                  onClick={eraser.removeAll}>
+            모두 지우기
+          </button>
         </div>
       )}
 
@@ -332,6 +356,24 @@ export default function DicomMprPanel({ manifestUrl, baseUrl, mode = "diagnostic
           background: #343a40;
           border-color: #6488ff;
           color: #ffffff;
+        }
+
+        .dicom-mpr-toolbar button:disabled {
+          opacity: .4;
+          cursor: default;
+        }
+
+        .dicom-mpr-toolbar button:disabled:hover {
+          border-color: #343a40;
+          color: #aeb4ba;
+        }
+
+        .dicom-mpr-wrap:focus {
+          outline: none;
+        }
+
+        .dicom-mpr-wrap:focus-visible .dicom-mpr-cell {
+          border-color: #6488ff;
         }
 
         .dicom-mpr-rows {
