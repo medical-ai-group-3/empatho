@@ -62,6 +62,12 @@ export default function Stage({
    *   담아 두면 지금 보는 주소와 같을 때만 깨진 것이라, 장을 넘기는
    *   순간 저절로 풀린다 */
   const [broke, setBroke] = useState(null);
+  /* 마스크 · 윤곽선 따로 끄고 켜기. 둘 다 있을 때(초음파)만 단추를 단다 —
+     병리(마스크만) · 맘모(상자만)는 하나뿐이라 투명도로 충분하다.
+     투명도처럼 저장하지 않는다 */
+  const [showMask, setShowMask] = useState(true);
+  const [showShapes, setShowShapes] = useState(true);
+  const both = Boolean(mask) && shapes.length > 0;
 
   /* 상자에 딱 맞게 — 처음 열 때와 [맞춤] 을 눌렀을 때 */
   const fit = useCallback(() => {
@@ -174,6 +180,12 @@ export default function Stage({
           <button className={`vtool ${tool === "length" ? "on" : ""}`} onClick={() => setTool("length")} title="길이 측정">길이</button>
           <button className={`vtool ${tool === "rect" ? "on" : ""}`} onClick={() => setTool("rect")} title="박스 그리기">박스</button>
         </>}
+        {both && <>
+          <button className={`vtool ${showMask ? "on" : ""}`} aria-pressed={showMask}
+                  onClick={() => setShowMask((v) => !v)} title="마스크 보기">마스크</button>
+          <button className={`vtool ${showShapes ? "on" : ""}`} aria-pressed={showShapes}
+                  onClick={() => setShowShapes((v) => !v)} title="외곽선 보기">외곽선</button>
+        </>}
         <span className="vzoom">{Math.round(t.z * 100)}%</span>
         {/* 전체화면을 넘겨받은 화면에서만 단다 — 검사 종합 팝업처럼 onFull 이
             없는 자리에서는 눌러도 아무 일이 없는 단추였다 */}
@@ -215,12 +227,12 @@ export default function Stage({
                      style={{ filter: `brightness(${bright}%) contrast(${contrast}%)` }} />}
 
             {/* ── PNG 마스크 (병리) ─────────────────────────── */}
-            {mask && (
+            {mask && (!both || showMask) && (
               <MaskOverlay src={mask} w={w} h={h} opacity={opacity} colors={maskColors} />
             )}
 
             {/* ── SVG 도형 (초음파 폴리곤 · 맘모 박스) ───────── */}
-            {shapes.length > 0 && (
+            {shapes.length > 0 && (!both || showShapes) && (
               <svg className="stage-svg" viewBox={`0 0 ${w} ${h}`}
                    width={w} height={h} style={{ opacity: opacity / 100 }}>
                 {shapes.map((s) => (
