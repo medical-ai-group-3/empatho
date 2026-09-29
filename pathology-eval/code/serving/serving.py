@@ -102,6 +102,20 @@ DEFAULT_CONFIG: dict = {
     #   면적 분자는 MC 구간을 내지 않는다(stil_interval_* = None).
     "tissue_tile": 224,
     "til_region_radius_um": 5.0,
+    # --- 1.2.0 (09-29) 유리 가리기 ---
+    #   빈 유리 · 큰 내강이 간질로 칠해져 분모가 부풀었다(학습 크롭은 작고 조직으로
+    #   꽉 차 있어 유리를 거의 못 봤다). 밝고(max RGB ≥ v) · 채도가 낮고(≤ s) ·
+    #   **결이 없는**(9×9 밝기 표준편차 ≤ sd) 픽셀 덩어리 가운데 min_um2 이상만
+    #   기타(0)로 덮어쓴다.
+    #   ⚠ 결 조건이 핵심이다. 밝기 · 채도만 보면(220/0.10) 성긴 간질(부종성 ·
+    #     림프구가 흩어진 곳)이 통째로 유리로 잡혔다 — BCSS GT 간질의 0.85%,
+    #     눈으로 보면 TIL 이 있는 간질이 지워졌다. 유리는 섬유도 핵도 없이 매끈하다.
+    #   BCSS 151장(0.5 µm/px): 235/0.06/sd4/8000 → GT 간질 0.007% · 종양 0.001% · 림프 0%.
+    #   glass_min_um2 = 0 이면 끈다.
+    "glass_v_min": 235,
+    "glass_s_max": 0.06,
+    "glass_sd_max": 4.0,
+    "glass_min_um2": 8000.0,
     "mc_samples": 50,         # MC Dropout 반복 횟수 (0 이면 구간 계산 안 함)
     "mc_drop_rate": 0.5,      # 소켓2 헤드 학습 시 drop_rate (= 0.5, 바꾸지 말 것)
     "mc_ci": 95.0,            # 신뢰구간 % -> 2.5/97.5 백분위수
@@ -117,7 +131,7 @@ DEFAULT_CONFIG: dict = {
 TISSUE_MASK_LEGEND = {0: "other", 1: "tumor", 2: "stroma"}
 
 # model_version 에 박히는 파이프라인 정의 버전. 로직/공식이 바뀌면 올린다.
-PIPELINE_VERSION = "stil-serving-1.1.0"
+PIPELINE_VERSION = "stil-serving-1.2.0"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -293,6 +307,29 @@ def _to_pil_and_np(image) -> tuple[Image.Image, np.ndarray]:
     return pil, np.asarray(pil, dtype=np.uint8)
 
 
+def _glass_mask(img_np: np.ndarray, mpp: float, v_min: int, s_max: float,
+                min_um2: float, sd_max: float = 4.0) -> np.ndarray:
+    """빈 유리 · 큰 내강 — 밝고 채도 낮은 픽셀의 큰 덩어리. (H,W) bool.
+
+    원본 픽셀로 판정하므로 타일 모양으로 각지지 않는다. 결(9×9 표준편차)이
+    있는 곳은 성긴 간질이라 뺀다. 3×3 열기로 잡티를 떼고 min_um2 보다 작은
+    덩어리(지방 틈 · 핵 주변 빈틈)는 남긴다.
+    """
+    mx = img_np.max(2)
+    diff = mx.astype(np.int16) - img_np.min(2)
+    raw = (mx >= v_min) & (diff <= (s_max * mx.astype(np.float32)))
+    gray = cv2.cvtColor(img_np, cv2.COLOR_RGB2GRAY).astype(np.float32)
+    mu = cv2.blur(gray, (9, 9))
+    var = cv2.blur(gray * gray, (9, 9)) - mu * mu
+    raw = (raw & (var <= sd_max * sd_max)).astype(np.uint8)
+    del gray, mu, var
+    raw = cv2.morphologyEx(raw, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
+    n, lab, st, _ = cv2.connectedComponentsWithStats(raw, 8)
+    keep = st[:, cv2.CC_STAT_AREA] >= min_um2 / (mpp * mpp)
+    keep[0] = False
+    return keep[lab]
+
+
 def _starts(L: int, T: int) -> list[int]:
     if L <= T:
         return [0]
@@ -366,6 +403,16 @@ def predict(bundle: dict, image, *, return_tissue_mask: bool | None = None) -> d
     else:
         mask, _pred16 = sip.tissue_stroma_mask(
             tissue_model, pil, mean, std, image_size, device, W, H)
+    # 1-1) 유리 가리기 (1.2.0) — 간질 · 종양으로 칠해진 빈 유리를 기타로
+    glass_px = stroma_on_glass_px = 0
+    if float(cfg["glass_min_um2"]) > 0:
+        g = _glass_mask(img_np, float(cfg["mpp"]), int(cfg["glass_v_min"]),
+                        float(cfg["glass_s_max"]), float(cfg["glass_min_um2"]),
+                        float(cfg["glass_sd_max"]))
+        glass_px = int(g.sum())
+        stroma_on_glass_px = int((g & (mask == sip.STROMA_CLASS_IDX)).sum())
+        mask[g] = 0
+        del g
     stroma_area_px = int((mask == sip.STROMA_CLASS_IDX).sum())
     tumor_area_px = int((mask == sip.TUMOR_CLASS_IDX).sum())
     stroma_ok = stroma_area_px > 0
@@ -446,6 +493,11 @@ def predict(bundle: dict, image, *, return_tissue_mask: bool | None = None) -> d
         "n_cells_til_stromal": len(intra),
         "tumor_area_px": tumor_area_px,
         "stroma_area_px": stroma_area_px,
+        # 1.2.0 — 유리로 판정해 기타로 덮은 면적과, 그중 모델이 간질로 칠했던 면적.
+        #   stroma_on_glass_px / (stroma_area_px + stroma_on_glass_px) 가 크면
+        #   분할이 유리를 간질로 많이 읽은 크롭이다(신뢰도 판단에 쓸 수 있다)
+        "glass_area_px": glass_px,
+        "stroma_on_glass_px": stroma_on_glass_px,
         "immune_nucleus_area_px": _r(immune_nuc_px, 1),
         "immune_cell_area_px": _r(immune_cell_px, 1),
 
