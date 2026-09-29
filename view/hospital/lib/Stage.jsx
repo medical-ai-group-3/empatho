@@ -224,9 +224,9 @@ export default function Stage({
                   title="그린 표시를 모두 지웁니다">모두 지우기</button>
         </>}
         {both && <>
-          <button className={`vtool ${showMask ? "on" : ""}`} aria-pressed={showMask}
+          <button className={`vtool vtool-text ${showMask ? "on" : ""}`} aria-pressed={showMask}
                   onClick={() => setShowMask((v) => !v)} title="마스크 보기">마스크</button>
-          <button className={`vtool ${showShapes ? "on" : ""}`} aria-pressed={showShapes}
+          <button className={`vtool vtool-text ${showShapes ? "on" : ""}`} aria-pressed={showShapes}
                   onClick={() => setShowShapes((v) => !v)} title="외곽선 보기">외곽선</button>
         </>}
         <span className="vzoom">{Math.round(t.z * 100)}%</span>
