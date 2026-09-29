@@ -405,7 +405,7 @@ function Results({ patient }) {
   );
 }
 
-/* 오른쪽 320px — 붙박이. 환자 · 진료 단계 목차 · 다음 할 일 · 잠금 조건.
+/* 오른쪽 320px — 붙박이. 환자 · 환자 리포트 잠금 · 진료 단계 목차 · 다음 할 일.
  * 목차 줄을 누르면 그 카드를 펴고 내려간다 */
 function Rail({ patient, flow, steps, conds, unlockLoading, unlocked, onJump }) {
   const sex = label(SEX, patient.sex) || null;
@@ -428,6 +428,20 @@ function Rail({ patient, flow, steps, conds, unlockLoading, unlocked, onJump }) 
           {H.some(patient.family_history) && <span className="pill wait">가족력 · {H.some(patient.family_history)}</span>}
           {patient.primary_staff_name && <span className="pill wait">주치의 {patient.primary_staff_name}</span>}
         </div>
+      </div>
+
+      {/* ⚠ 09-29 맨 아래(진료 단계 일곱 줄 밑)에 있어 첫 화면에서 안 보였다 —
+          수시로 확인하는 값이라 환자 카드 바로 밑으로 올린다 */}
+      <div className="card bf-rail-lock">
+        <div className="card-head"><h3>환자 리포트</h3>
+          <span className={`pill ${unlocked ? "ok" : conds?.every((c) => c.met) ? "wait" : "warn"}`}>
+            {unlocked ? "공개됨" : conds?.every((c) => c.met) ? "해제 가능" : "잠김"}
+          </span></div>
+        {!conds && !unlockLoading
+          ? <p className="note">종합 리포트가 생성되면 잠금 조건을 확인합니다.</p>
+          : !conds ? <p className="note">조건을 확인하는 중…</p>
+          : <CondList conds={conds} patient={patient} compact
+                      onExplain={() => onJump("explain", "dec-explain-content")} />}
       </div>
 
       <nav className="card bf-idx" aria-label="진료 단계">
@@ -460,15 +474,6 @@ function Rail({ patient, flow, steps, conds, unlockLoading, unlocked, onJump }) 
         )}
       </nav>
 
-      <div className="card bf-rail-lock">
-        <div className="card-head"><h3>잠금 조건</h3>
-          <span className="meta">{unlocked ? "공개됨" : conds?.every((c) => c.met) ? "해제 가능" : "잠김"}</span></div>
-        {!conds && !unlockLoading
-          ? <p className="note">종합 리포트가 생성되면 잠금 조건을 확인합니다.</p>
-          : !conds ? <p className="note">조건을 확인하는 중…</p>
-          : <CondList conds={conds} patient={patient} compact
-                      onExplain={() => onJump("explain", "dec-explain-content")} />}
-      </div>
     </aside>
   );
 }
