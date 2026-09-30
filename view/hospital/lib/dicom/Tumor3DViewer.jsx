@@ -94,8 +94,6 @@ export default function Tumor3DViewer({
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
     controls.enablePan = false;
-    controls.minPolarAngle = Math.PI * 0.20;
-    controls.maxPolarAngle = Math.PI * 0.80;
 
     const geometries = [];
     const materials = [];
