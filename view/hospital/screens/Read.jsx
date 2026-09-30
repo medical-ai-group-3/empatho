@@ -249,8 +249,34 @@ function Inner({ cfg, id, d, onStale, onRefresh }) {
   const rerun = canRun ? { run: rerunAi, busy: (rr.busy && rr.at === d) || running, msg: rr.msg } : null;
   const amendTo = cfg.amend && cfg.go.amend && can(cfg.amend.need.view) ? cfg.go.amend(id) : null;
 
+  /* 나가는 길 — 전에는 없었다. 환자 목록에서 판독으로 들어오면 상단 메뉴가
+     「판독」에 걸려 있고 목록으로 돌아가는 단추가 화면 어디에도 없었다.
+     ⚠ 히스토리를 먼저 쓴다 — 대기 큐에서 왔는지 환자 목록에서 왔는지는
+       여기서 알 수 없고, 온 곳으로 돌려보내는 것이 맞다. 다만 이전 검사를
+       눌러 들어온 판독이나 주소를 직접 친 경우는 돌아갈 데가 없으므로
+       (idx === 0) 그 과의 목록으로 보낸다. */
+  const leave = () => {
+    if (window.history.state?.idx > 0) nav(-1);
+    else nav(cfg.go.list?.() ?? cfg.go.home());
+  };
+
+  /* 이전 검사 — **이 화면에서 옮겨 간다.** 전에는 새 탭이었는데, 탭이
+     쌓이고 어느 것이 지금 보던 것인지 헷갈렸다. 이제 위의 ‹ 로 돌아온다.
+
+     ⚠ 새 탭이었던 원래 이유는 「쓰던 소견이 날아가면 안 된다」였다. 확정된
+       판독은 읽기 전용이라 잃을 것이 없지만, 작성 중이면 여전히 날아간다.
+       이 화면은 아직 고쳤는지를 추적하지 않아서(임시저장 여부만 있다)
+       한 번 물어보는 것으로 막는다. 추적이 생기면 이 확인은 지운다. */
+  const openPrior = (sid) => {
+    if (!isFinal
+        && !window.confirm("쓰던 소견이 저장되지 않았다면 사라집니다. 이전 검사로 이동할까요?")) {
+      return;
+    }
+    nav(cfg.go.read(sid));
+  };
+
   return (
-    <Page className="read-page" title={c.title}
+    <Page className="read-page" title={c.title} back={leave}
           right={<Strip cfg={cfg} d={d} priors={priors} events={events} isFinal={isFinal} />}>
       {msg && <div className="notice">{msg}</div>}
       {isFinal && (
@@ -268,7 +294,8 @@ function Inner({ cfg, id, d, onStale, onRefresh }) {
           infoName={c.infoName}
           info={<>
             <c.Info d={d} cfg={cfg} slide={slide} onSlide={setSlide} />
-            {c.priors && <Priors cfg={cfg} rows={priors} loading={line.loading} />}
+            {c.priors && <Priors rows={priors} loading={line.loading}
+                                 open={openPrior} />}
           </>}
 
           /* AI 소견은 **권한이 없으면 칸 자체가 없다.** 접힌 게 아니라 없는
@@ -412,25 +439,22 @@ function priorsOf(rows, currentId) {
 }
 
 /* ── 왼쪽 · 이전 검사 (영상) ──────────────────────────────────
- * 누르면 **새 탭**에서 그 검사의 판독을 연다 — 쓰던 소견이 날아가면 안 된다.
- * ⚠ window.open 에 noopener 를 주지 않는다. 주면 sessionStorage(로그인)가
- *   새 탭으로 안 넘어가 로그인 화면이 뜬다. 같은 출처라 opener 는 바로 끊는다 */
-function Priors({ cfg, rows, loading }) {
-  const open = (sid) => {
-    const w = window.open(cfg.go.read(sid), "_blank");
-    if (w) w.opener = null;
-  };
+ * 누르면 **이 화면에서** 그 검사의 판독으로 옮겨 간다(09-29). 돌아오는 길은
+ * 제목 앞의 ‹ 다. 전에는 새 탭이었는데 탭이 쌓여서 지금 보던 것을 잃었다.
+ * 옮겨도 되는지 판단(확정인가 · 쓰던 소견이 있나)은 부르는 쪽이 한다 */
+function Priors({ rows, loading, open }) {
   return (
     <section className="priors" aria-label="이전 검사">
       <h3>이전 검사 <em>{loading ? "…" : rows.length}</em></h3>
       {!loading && rows.length === 0 && <p className="muted small">이전 검사가 없습니다</p>}
       {rows.map((p) => (
         <button type="button" key={p.id} className="prior" onClick={() => open(p.id)}
-                title="새 탭에서 이 검사의 판독을 엽니다">
+                title="이 검사의 판독으로 이동합니다">
           <time>{H.day(p.at)}</time>
           <span>{label(MODALITY, asModality(p.modality)) || "검사"}</span>
           <b>{p.birads ? `BI-RADS ${String(p.birads).replace(/^BI-RADS\s*/i, "")}` : "판독 없음"}</b>
-          <i aria-hidden="true">↗</i>
+          {/* ↗(새 창)이 아니라 ›(이동) — 화살표가 동작을 말한다 */}
+          <i aria-hidden="true">›</i>
         </button>
       ))}
     </section>
@@ -440,7 +464,7 @@ function Priors({ cfg, rows, loading }) {
 /* ── 지난 기록 (전체 타임라인) ─────────────────────────────────
  * 날짜를 크게, 그 아래 그날 무슨 일이 있었는지. 색을 쓰지 않는다.
  * ⚠ 눌러도 화면을 안 옮긴다 — 쓰던 소견이 날아가면 안 된다. 검사로 가는
- *   길은 왼쪽 「이전 검사」(새 탭)다 */
+ *   길은 왼쪽 「이전 검사」다 */
 function PastRail({ events }) {
   const [open, setOpen] = useState(false);
   const rows = [...events].reverse();

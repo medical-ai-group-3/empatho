@@ -2559,11 +2559,25 @@ a.pevent:focus-visible{outline:var(--hair) solid var(--cyan); outline-offset:2px
   width:100%; padding:var(--slide-pad); border-radius:var(--file-radius);
   font-size:var(--kv-fs); position:relative;
   box-shadow:inset 0 0 0 var(--hair) var(--border)}
-.slides button:hover{background:var(--canvas)}
-.slides .on button{background:var(--wash); box-shadow:none}
+/* ⚠ 이 목록은 **뷰어 옆 어두운 패널(.vside) 안**이다 — 라이트 토큰
+   (--canvas · --wash)을 쓰면 어두운 바탕에 흰 카드 · 하늘색 카드가 떠서
+   글자가 안 읽힌다(흰 글자 ⟋ #C1E1F7 = 명암비 1.25:1, 09-29 확인).
+   .vside 안의 다른 조각들은 전부 --v-* 로 덮어 두었는데 여기만 빠져
+   있었다. 같은 패널의 「이전 검사」(.prior)와 같은 계열로 맞춘다.
+
+   밝기 차례 —  기본 0  <  선택 45%  <  hover 100%
+   선택이 더 어두운 것은 일부러다. 선택은 **색**(왼쪽 시안 막대)과 굵은
+   글자로 말하고, hover 는 **밝기**로 말한다. 둘이 같은 채널로 겨루면
+   커서가 놓인 줄이 선택된 줄보다 선택돼 보인다. */
+.slides button:hover{background:var(--v-line)}
+.slides .on button{background:color-mix(in srgb, var(--v-line) 45%, transparent);
+  color:var(--v-ink); font-weight:600; box-shadow:none}
+/* ⚠ 위 :hover 와 우선순위가 같다(0,2,1). 이 줄이 없으면 선택된 줄에
+   마우스를 올려도 아무 반응이 없다 — 나중에 쓰인 .on 이 이기기 때문이다 */
+.slides .on button:hover{background:var(--v-line)}
 .slides .on button::before{content:""; position:absolute; left:0; top:var(--sub-gap);
-  bottom:var(--sub-gap); width:var(--slide-mark); border-radius:var(--round);
-  background:var(--cyan)}
+  bottom:var(--sub-gap); width:calc(var(--slide-mark) + 1px);
+  border-radius:var(--round); background:var(--cyan)}
 
 /* MRI Phase 목록 — 누른다고 화면이 안 바뀌니 버튼처럼 안 보이게 한다.
    같은 자리·같은 간격은 유지해서 다른 모달리티와 «구조는» 같아 보이게 */
