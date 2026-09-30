@@ -211,10 +211,17 @@ function Inner({ pid, p, focus, lay, onReload }) {
                  run: <Running p={p} events={H.rows(line.data)} />,
                }} />
         <footer className="bf-rev-f">
-          <Btn kind={key === "exam" && flow.next.act === "exam" ? "fill" : "line"}
-               onClick={() => run({ act: "exam", modality: flow.next?.modality })}>촬영 요청</Btn>
-          <Btn kind={key === "exam" && flow.next.act === "specimen" ? "fill" : "line"}
-               onClick={() => setModal("specimen")}>검체 등록</Btn>
+          {/* 보조 길 — 다음 할 일과 같은 것이면 안 겹쳐 둔다(CareGuideModal 과
+              같은 규칙). 겹치면 같은 일을 하는 파란 단추가 위아래로 둘이 떠서
+              어느 쪽이 「지금 할 일」인지 알 수 없다. 주 단추는 위 FlowBar 의
+              「다음 할 일」 하나뿐이다(Stepper.jsx) */}
+          {flow.next?.act !== "exam" && (
+            <Btn kind="line"
+                 onClick={() => run({ act: "exam", modality: flow.next?.modality })}>촬영 요청</Btn>
+          )}
+          {flow.next?.act !== "specimen" && (
+            <Btn kind="line" onClick={() => setModal("specimen")}>검체 등록</Btn>
+          )}
           <span className="home-fill" />
           <span className="hcard-k">
             {toDecision ? `다음 할 일 · ${flow.next.label}` : "결과 확인을 마쳤다면"}
