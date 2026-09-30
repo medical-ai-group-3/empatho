@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Body } from "../lib/Body";
 import { Btn, Card, Page } from "../lib/Page";
 import { Bar, Chip, Locked, useCan } from "../lib/Parts";
 import { useApi } from "../lib/useApi";
+import { useLive } from "../lib/refresh";
 import { uploadFile } from "../lib/files";
 import { can } from "../perm";
 import { RUN_STATUS, label, tone } from "../codes";
@@ -120,14 +121,11 @@ function Work({ cfg, id, d, reload }) {
   const running = prog && (prog.status === "queued" || prog.status === "running");
   const done = prog?.status === "done";
 
-  /* 분석이 도는 동안만 물어본다. 끝나면 멈춘다 */
-  useEffect(() => {
-    if (!running) return;
-    const t = setInterval(async () => {
-      try { setProg(await cfg.api.progress(id)); } catch { /* 다음 차례에 */ }
-    }, POLL_MS);
-    return () => clearInterval(t);
-  }, [running, id, cfg]);
+  /* 분석이 도는 동안만 물어본다. 끝나면 멈춘다. 알림이 오면(lib/Top.jsx 의
+     emitChange) 주기를 기다리지 않고 바로 묻는다 — 버튼이 알림보다 늦게 켜졌다 */
+  useLive(async () => {
+    try { setProg(await cfg.api.progress(id)); } catch { /* 다음 차례에 */ }
+  }, POLL_MS, Boolean(running));
 
   async function choose(e) {
     const fs = [...(e.target.files ?? [])];
