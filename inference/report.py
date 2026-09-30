@@ -15,6 +15,7 @@ import urllib.request
 
 from fastapi import FastAPI
 
+import replay
 from prompts import PROMPTS, base
 
 # Ollama 주소. 이 서버와 같은 워크스테이션에 있으므로 기본이 127.0.0.1 이다.
@@ -119,6 +120,26 @@ def healthz() :
     
 @app.post("/report/{socket_id}")
 def report(socket_id: str, result: dict, evidence: list[str] = []):
+    """시연용 재생을 거쳐 _report 로 간다 (REPLAY_DIR 이 있을 때만 — replay.py).
+
+    같은 판독값으로 전에 쓴 소견문이 있으면 LLM 을 건너뛰고 그 응답을 준다.
+    본문 인자 둘(result · evidence)은 아래 _report 주석 때문에 그대로 둔다.
+    """
+    k = replay.key(socket_id, json.dumps(result, sort_keys=True, ensure_ascii=False),
+                   json.dumps(evidence, ensure_ascii=False)) if replay.enabled() else None
+    cached = replay.load("report", k) if k else None
+    if cached is not None:
+        return cached
+    out = _report(socket_id, result, evidence)
+    if k and not out.get("abstained"):
+        try:                                  # 저장이 실패해도 소견문은 나간다
+            replay.save("report", k, out)
+        except Exception as exc:
+            print(f"[replay_save_failed] {type(exc).__name__}: {exc}", flush=True)
+    return out
+
+
+def _report(socket_id: str, result: dict, evidence: list[str]):
     """판독 결과 한 벌 → 소견문 + 안내.
 
     Go 의 llm-proxy 가 부른다. 본문은 열쇠 둘이다.

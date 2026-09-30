@@ -37,6 +37,7 @@ from fastapi import FastAPI, File, UploadFile
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 
+import replay
 from sockets import gpu, mammo, mri, pathology, us
 from starlette.formparsers import MultiPartParser
 
@@ -240,6 +241,17 @@ def analyze(socket_id: str, image: UploadFile = File(...), post: UploadFile | No
         "content_type": image.content_type,
         "bytes": len(data),
     }
+    # MRI 만 두 번째 파일(조영 후)이 있다. 재생 열쇠에도 들어가서 여기서 읽는다
+    post_data = post.file.read() if post is not None else None
+
+    # ②-1 시연용 재생 (REPLAY_DIR 이 있을 때만). 같은 입력을 전에 판독했으면
+    #      GPU 를 건너뛰고 그 응답을 돌려준다 — replay.py 머리말 참고
+    replay_key = replay.key(socket_id, data, post_data) if replay.enabled() else None
+    cached = replay.load("analyze", replay_key) if replay_key else None
+    if cached is not None:
+        cached["image"] = info
+        cached["replayed"] = True
+        return JSONResponse(content=cached)
 
     # ③ 판독할 수 있는 상태일 때만 모델을 올린다.
     #    파일이 없는데 올리려 들면 매 요청 실패 기록만 쌓인다.
@@ -284,7 +296,7 @@ def analyze(socket_id: str, image: UploadFile = File(...), post: UploadFile | No
         # 모르는 인자가 들어가면 거기서 터진다.
         extra = {}
         if post is not None:
-            extra["post"] = post.file.read()
+            extra["post"] = post_data
             extra["post_filename"] = post.filename
         result = mod.predict(data, filename=image.filename, **extra, **(THRESHOLDS.get(mod.NAME) or {}))
         
@@ -331,7 +343,13 @@ def analyze(socket_id: str, image: UploadFile = File(...), post: UploadFile | No
     # 수거자가 유휴로 보고 응답 전에 프로세스를 끝낸다(gpu.py 수거자).
     gpu.touch()
     try :
-        return JSONResponse(content=jsonable_encoder(payload))
+        encoded = jsonable_encoder(payload)
+        if replay_key:
+            try:                       # 저장이 실패해도 판독 응답은 나간다
+                replay.save("analyze", replay_key, encoded)
+            except Exception:
+                traceback.print_exc()
+        return JSONResponse(content=encoded)
     except Exception as exc :
         print(f"[encode_failed] socket={socket_id} file={image.filename}", flush=True)
         traceback.print_exc()
