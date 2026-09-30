@@ -45,6 +45,16 @@ const AXIS_COLOR = {
 const TOOL_GROUP_ID = "dicomMpr2dToolGroup";
 const SEGMENTATION_ID = "dicomMprSegmentation";
 
+/* ⚠ 볼륨 · 라벨맵 ID 가 고정이라 캐시에 남으면 다음 마운트가 옛것을 받는다 —
+ *   다른 검사를 열어도 앞 검사 볼륨이 뜨고, 한 번 실패한 로드(메타데이터 없음 →
+ *   「reading 'rows'」)가 새로고침 전까지 되풀이되고, 라벨맵은 「putVolumeSync:
+ *   volumeId already in cache」로 막힌다. 열 때와 닫을 때 둘 다 비운다 */
+function dropCached() {
+  for (const id of [SEGMENTATION_ID, VOLUME_ID]) {
+    try { cornerstone.cache.removeVolumeLoadObject(id); } catch { /* 없으면 그만 */ }
+  }
+}
+
 /* 판독 도구 모음 — key는 내부 상태값, toolName은 cornerstoneTools가 아는
  * 이름, cursor는 활성화됐을 때 캔버스 커서(사용자가 «지금 그리는 중»을
  * 알 수 있게). 탐색(Crosshairs)이 기본이고, 나머지는 골라야 켜진다 —
@@ -126,6 +136,7 @@ export default function DicomMprPanel({ manifestUrl, baseUrl, mode = "diagnostic
             defaultOptions: { orientation: OrientationAxis.SAGITTAL, background: [0, 0, 0] } },
         ]);
 
+        dropCached();
         const volume = await cornerstone.volumeLoader.createAndCacheVolume(VOLUME_ID, { imageIds });
         if (cancelled) return;
 
@@ -252,6 +263,7 @@ export default function DicomMprPanel({ manifestUrl, baseUrl, mode = "diagnostic
         cornerstoneTools.ToolGroupManager.getToolGroup(TOOL_GROUP_ID)?.removeViewports(RENDERING_ENGINE_ID);
       } catch { /* 툴그룹이 아직 없을 수 있다 */ }
       cornerstone.getRenderingEngine(RENDERING_ENGINE_ID)?.destroy();
+      dropCached();
     };
   }, [manifestUrl, baseUrl, isReview]);
 
