@@ -103,8 +103,6 @@ export default function Anatomy3DViewer({
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
     controls.enablePan = false;
-    controls.minPolarAngle = Math.PI * 0.20;
-    controls.maxPolarAngle = Math.PI * 0.80;
 
     const json = Boolean(bodyMesh) || lesions.some((l) => l?.mesh_data);
     const clipPlanes = json ? [] : [
