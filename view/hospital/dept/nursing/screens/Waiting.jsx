@@ -376,9 +376,21 @@ function answersOf(q) {
 }
 const hasAnswers = (q) => answersOf(q) != null;
 
+/* ⚠ 서버는 id · question · choices[{id,label}] 로 준다(views/reception.py 의
+   question_defs). 이 파일은 code · text · options[{id,text}] 로 읽는다 —
+   환자 앱과 이름이 갈린 자리다. 여기 한 곳에서 맞춘다: Paper(입력칸)와
+   qaRows(답 표시)가 둘 다 이걸 거친다.
+   안 맞추면 오류 없이 **문항 글자도 선택지 버튼도 안 그려진다** — 종이 문진
+   입력이 빈 상자로 뜨던 원인이다(09-30). */
 function questionsOf(form) {
   const list = Array.isArray(form) ? form : form?.questions ?? form?.items ?? [];
-  return Array.isArray(list) ? list : [];
+  if (!Array.isArray(list)) return [];
+  return list.map((q) => ({
+    ...q,
+    code: q.code ?? q.id,
+    text: q.text ?? q.question,
+    options: (q.options ?? q.choices ?? []).map((o) => ({ ...o, text: o.text ?? o.label })),
+  }));
 }
 
 function qaRows(answers, form) {
