@@ -503,7 +503,9 @@ def _mammo(ai, socket, busy_raise=False) :
     busy_raise 는 _analyze 로 그대로 넘긴다 — 한 장이라도 GPU 메모리 부족이면
     넷을 통째로 다시 건다(한 장만 빠진 합본을 남기지 않는다).
     """
-    rows = (StorageObject.objects.filter(study_id=ai.study_id, sop_instance_uid__isnull=False, deleted_at__isnull=True).order_by("storage_object_id"))
+    # 좌우 → CC/MLO 순서로 고정한다. 업로드는 여러 장을 동시에 보내 먼저 끝나는 장이
+    # 그때그때 달라서, 업로드 순서로 합치면 같은 영상이어도 병변 순서가 바뀌었다
+    rows = (StorageObject.objects.filter(study_id=ai.study_id, sop_instance_uid__isnull=False, deleted_at__isnull=True).order_by("laterality", "view_position", "storage_object_id"))
     if not rows :
         raise ValueError("이 검사에 맘모 영상이 없다")
     
