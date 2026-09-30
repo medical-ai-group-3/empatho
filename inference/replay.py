@@ -54,6 +54,19 @@ def key(*parts) -> str:
     return h.hexdigest()
 
 
+# 앱이 판독값에 끼워 넣는 저장 주소 — 환자(판독 행)마다 달라서 소견문 열쇠에서 뺀다
+_VOLATILE = {"bucket", "object_key", "stored"}
+
+
+def stable(obj):
+    """소견문 열쇠용 — 저장 주소를 걷어낸 판독값. 소견문은 주소를 읽지 않는다."""
+    if isinstance(obj, dict):
+        return {k: stable(v) for k, v in obj.items() if k not in _VOLATILE}
+    if isinstance(obj, list):
+        return [stable(v) for v in obj]
+    return obj
+
+
 def load(kind: str, k: str):
     if not enabled():
         return None

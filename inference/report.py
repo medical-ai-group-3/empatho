@@ -125,7 +125,7 @@ def report(socket_id: str, result: dict, evidence: list[str] = []):
     같은 판독값으로 전에 쓴 소견문이 있으면 LLM 을 건너뛰고 그 응답을 준다.
     본문 인자 둘(result · evidence)은 아래 _report 주석 때문에 그대로 둔다.
     """
-    k = replay.key(socket_id, json.dumps(result, sort_keys=True, ensure_ascii=False),
+    k = replay.key(socket_id, json.dumps(replay.stable(result), sort_keys=True, ensure_ascii=False),
                    json.dumps(evidence, ensure_ascii=False)) if replay.enabled() else None
     cached = replay.load("report", k) if k else None
     if cached is not None:
