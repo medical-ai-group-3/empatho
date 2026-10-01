@@ -339,7 +339,7 @@ function Mid({ p, flow, onNext, onRun, onOpen, waiting, lay }) {
           </span>
         </span>
         <span className="home-fill" />
-        {H.some(p.family_history) && <Chip>가족력 {H.some(p.family_history)}</Chip>}
+        {H.familyTag(p.family_history) && <Chip>{H.familyTag(p.family_history)}</Chip>}
         {H.some(p.allergy) && <span className="pb-warn"><i aria-hidden="true">⚠</i>{H.some(p.allergy)}</span>}
         <Btn onClick={() => onOpen("guide")}>다음 단계 안내</Btn>
       </header>

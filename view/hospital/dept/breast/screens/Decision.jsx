@@ -440,7 +440,9 @@ function Rail({ patient, flow, steps, conds, unlockLoading, unlocked, onJump }) 
         </div>
         <div className="bf-rail-facts">
           {H.some(patient.allergy) && <span className="pill warn">알레르기 · {H.some(patient.allergy)}</span>}
-          {H.some(patient.family_history) && <span className="pill wait">가족력 · {H.some(patient.family_history)}</span>}
+          {H.familyTag(patient.family_history) && (
+            <span className="pill wait">{H.familyTag(patient.family_history)}</span>
+          )}
           {patient.primary_staff_name && <span className="pill wait">주치의 {patient.primary_staff_name}</span>}
         </div>
       </div>

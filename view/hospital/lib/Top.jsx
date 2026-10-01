@@ -290,6 +290,16 @@ function Bell({ on }) {
     acknowledgeNotification(n.notification_id).catch(load);
   }
 
+  /* 전부 확인 — 줄마다 누르지 않아도 되게. 서버에 한꺼번에 처리하는
+     경로가 없어 줄마다 보낸다. 한 줄이라도 실패하면 목록을 다시 받아
+     남은 것이 되살아나게 한다(화면에서 먼저 빼 두었으므로) */
+  function readAll() {
+    const gone = unreadList;
+    if (gone.length === 0) return;
+    setItems((all) => (all ?? []).filter((x) => x.acknowledged_at));
+    Promise.all(gone.map((n) => acknowledgeNotification(n.notification_id))).catch(load);
+  }
+
   /* 확인하고 그 건으로 간다. 못 풀면(권한 · 지워진 행) 확인만 된다 */
   async function follow(n) {
     setOpen(false);
@@ -315,21 +325,35 @@ function Bell({ on }) {
         <div className="notice-pop" role="dialog" aria-label="알림">
           <header>
             <b>알림</b>
+            {/* 전부 확인 — 줄마다 × 를 누르지 않아도 되게. 확인할 것이
+                없으면 안 띄운다(눌러 봐야 아무 일도 안 일어나는 단추) */}
+            {unread > 0 && (
+              <button type="button" className="notice-all" onClick={readAll}>
+                전체 확인
+              </button>
+            )}
+            <span className="home-fill" />
             <button type="button" onClick={() => setOpen(false)} aria-label="닫기">×</button>
           </header>
           {items == null ? <p className="notice-state">불러오는 중…</p>
             : unread === 0 ? <p className="notice-state">새 알림이 없습니다</p>
             : (
               <ul>
+                {/* 줄마다 두 가지를 할 수 있어야 한다 — **가 보기**와 **확인만
+                    하기**. 전에는 한 단추에 묶여 있어서, 지금 보던 화면을
+                    떠나지 않고 알림만 치우는 길이 없었다(09-30) */}
                 {unreadList.map((n) => (
                   <li key={n.notification_id}>
                     <button type="button" className="new"
                             onClick={() => { read(n); follow(n); }}
-                            title="누르면 읽음으로 표시되고 해당 화면으로 이동합니다">
+                            title="확인하고 해당 화면으로 이동합니다">
                       <b>{n.message}</b>
                       <span>{H.at(n.sent_at || n.created_at)}</span>
-                      <em>확인</em>
+                      <em>이동 →</em>
                     </button>
+                    <button type="button" className="notice-x" onClick={() => read(n)}
+                            title="확인만 합니다 — 화면은 그대로 둡니다"
+                            aria-label="이 알림 확인">×</button>
                   </li>
                 ))}
               </ul>

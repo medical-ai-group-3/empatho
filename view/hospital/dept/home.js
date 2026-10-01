@@ -101,6 +101,21 @@ export function allergyTag(v) {
   return { label: /조영제/.test(t) ? "조영제 알레르기" : "알레르기", note };
 }
 
+/* 가족력 칩 — 서버는 문진 선택지 글자를 그대로 준다(「있다」 · 「없다」 ·
+   「모른다」). 그걸 칩에 이어 붙이면 「가족력 있다」처럼 말끝이 어긋난다.
+   칩은 **상태 이름**이지 문장이 아니다.
+
+   ⚠ 「없다」는 칩을 안 띄운다 — 알레르기와 같은 규칙이다(위 allergy 참고).
+     「모른다」는 띄운다. **확인했는데 모르는 것**과 **없는 것**은 다르다.
+   ⚠ 옛 서버가 「없음」처럼 딴 글을 주던 때가 있어 some() 도 같이 거친다. */
+const FAMILY = { "있다": "가족력 있음", "모른다": "가족력 모름", "없다": null };
+
+export function familyTag(v) {
+  const t = some(v);
+  if (!t) return null;
+  return t in FAMILY ? FAMILY[t] : `가족력 ${t}`;
+}
+
 /* 기다린 시간 — 「41분」 「3시간」 「2일」. 서버가 준 시각(요청 · 채취)과
    지금을 견준다. 못 읽는 값 · 앞날이면 안 그린다 */
 export function waited(from, now = Date.now()) {

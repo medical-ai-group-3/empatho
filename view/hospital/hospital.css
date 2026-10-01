@@ -181,9 +181,21 @@ input,select,textarea{font:inherit; color:inherit}
 .notice-pop ul{margin:0; padding:0; list-style:none;
   max-height:min(60vh, 320px); overflow:auto}
 .notice-pop li + li{border-top:var(--hair) solid var(--line-2)}
+/* 줄마다 단추 둘 — 「이동」(줄 전체)과 「확인만」(×). 줄을 flex 로 두고
+   왼쪽 단추가 남는 폭을 다 먹는다 */
+.notice-pop li{display:flex; align-items:stretch}
+.notice-pop li > button.new{flex:1; min-width:0}
 .notice-pop li button{width:100%; display:grid; grid-template-columns:1fr auto; gap:var(--gap-xs);
   padding:var(--row-pad-y) var(--row-pad-x)}
 .notice-pop li button:hover{background:var(--canvas)}
+/* 확인만 — 줄 오른쪽 끝. 파란 「이동 →」과 색으로 갈라 둔다 */
+.notice-pop li button.notice-x{flex:none; width:auto; display:flex; align-items:center;
+  padding:0 var(--row-pad-x); color:var(--warm); font-size:var(--card-h-fs); line-height:1;
+  border-left:var(--hair) solid var(--line-2)}
+.notice-pop li button.notice-x:hover{background:var(--line-2); color:var(--ink)}
+/* 전체 확인 — 머리의 글자 단추. 닫기(×)와 헷갈리지 않게 글자로 둔다 */
+.notice-pop header button.notice-all{font-size:var(--crumb-fs); color:var(--cyan);
+  margin-left:var(--gap-sm)}
 .notice-pop li button b{font-size:var(--row-fs); font-weight:500; min-width:0; overflow:hidden;
   text-overflow:ellipsis; white-space:nowrap}
 .notice-pop li button span{grid-row:2; font-size:var(--crumb-fs); color:var(--warm)}
@@ -991,15 +1003,29 @@ a.nside-row:hover{background:var(--canvas)}
   .ndet-b{grid-template-columns:minmax(0, 1fr)}
   .ndet-h{flex-wrap:wrap; row-gap:var(--gap-xs)}
 }
-/* 문진 — ⚠ 표시 줄이 위로 온다. 색 대신 굵기로 세운다 */
-/* 문항 글이 길어 dt 고정 폭에 넣으면 세 줄로 꺾였다 — 물음 위, 답 아래 */
-.nqa > div{flex-direction:column; align-items:stretch; gap:var(--gap-xxs)}
-.nqa dt{width:auto}
-.nqa dd{font-weight:600}
+/* 문진 — ⚠ 표시 줄이 위로 온다. 색 대신 굵기로 세운다.
+   ⚠ 전에는 물음 위 · 답 아래로 쌓았다. 문항 글이 묻는 문장 그대로라
+     dt 고정 폭에 안 들어갔기 때문이다. v2 부터 서버가 짧은 이름(short)을
+     같이 줘서 **한 줄에 이름 | 답** 두 칸으로 선다 — 열한 문항이 스물두
+     줄로 늘어나던 것이 열한 줄이 된다. 묻는 문장 전체는 title 로 남는다.
+   줄마다 옅은 선을 둔다 — 이름과 답이 어느 줄끼리 짝인지 눈으로 잇는다 */
+.nqa{gap:0}
+.nqa > div{align-items:baseline; gap:var(--gap-sm);
+  padding:var(--gap-xxs) 0; border-top:var(--hair) solid var(--line-2)}
+.nqa > div:first-child{border-top:none}
+.nqa dt{width:var(--kv-k); flex:none; cursor:help}
+.nqa dd{flex:1; min-width:0; font-weight:600; text-align:right}
 .nqa .warn dt, .nqa .warn dd{color:var(--ink); font-weight:700}
-.npaper{width:100%; display:flex; flex-direction:column; gap:var(--gap-sm)}
-.npaper-q{display:flex; flex-direction:column; gap:var(--gap-xs)}
-.npaper-q > span{font-size:var(--label-fs); color:var(--ink-2)}
+/* 종이 문진 옮겨 적기 — 문항마다 이름 · 묻는 문장 · 선택지 줄.
+   줄 사이에 선을 둬서 열한 문항이 어디서 끊기는지 보이게 한다 */
+.npaper{width:100%; display:flex; flex-direction:column; gap:0}
+.npaper-q{display:flex; flex-direction:column; gap:var(--gap-xs);
+  padding:var(--gap-sm) 0; border-top:var(--hair) solid var(--line-2)}
+.npaper-q:first-child{border-top:none; padding-top:0}
+.npaper-q > span{font-size:var(--in-fs); font-weight:600; color:var(--ink)}
+/* 묻는 문장 — 이름만으로 헷갈릴 때 맞춰 보는 자리라 작고 옅게 */
+.npaper-full{font-style:normal; font-size:var(--hint-fs); color:var(--warm);
+  margin-top:calc(-1 * var(--gap-xxs))}
 /* 오른쪽 배정 현황 — 선생님마다 상자 하나(09-28). 이름 · 큰 숫자 둘 · 이름 칩 */
 .nload-grid{display:flex; flex-direction:column; gap:var(--gap-sm);
   padding:var(--gap-sm) var(--bcol-pad)}
