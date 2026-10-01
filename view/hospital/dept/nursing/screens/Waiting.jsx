@@ -10,7 +10,7 @@ import { DESK, go } from "../../../nav";
 import { specimens as specApi } from "../../../api";
 import SpecimenBindingModal from "../../../lib/SpecimenBindingModal";
 import * as H from "../../home";
-import { ORDER_STATUS, SPECIMEN_TYPE, label } from "../../../codes";
+import { ORDER_STATUS, SPECIMEN_TYPE, label, qaRows, questionsOf } from "../../../codes";
 import { useLive } from "../../../lib/refresh";
 
 /* 내원 대기 · 유방외과 배정 — `docs/mockup/Nursing-내원대기.html`
@@ -375,71 +375,6 @@ function answersOf(q) {
   return Object.keys(out).length ? out : null;
 }
 const hasAnswers = (q) => answersOf(q) != null;
-
-/* ⚠ 서버는 id · question · choices[{id,label}] 로 준다(views/reception.py 의
-   question_defs). 이 파일은 code · text · options[{id,text}] 로 읽는다 —
-   환자 앱과 이름이 갈린 자리다. 여기 한 곳에서 맞춘다: Paper(입력칸)와
-   qaRows(답 표시)가 둘 다 이걸 거친다.
-   안 맞추면 오류 없이 **문항 글자도 선택지 버튼도 안 그려진다** — 종이 문진
-   입력이 빈 상자로 뜨던 원인이다(09-30). */
-/* 목록에 쓸 짧은 이름 — 서버가 주는 question 은 **환자에게 묻는 문장**이라
-   길다("유방에 양성 종양(섬유선종 · 낭종 등)이나 조직검사 이상 소견을
-   진단받은 적이 있습니까?"). 반쪽 칸에 열한 개 쌓으면 글자 벽이 된다.
-
-   ⚠ 여기에 없는 코드는 묻는 문장 그대로 쓴다 — 문항이 늘면 목록이 길어질
-     뿐 깨지지는 않는다. 새 문항을 넣었는데 목록이 답답해지면 여기 한 줄
-     더한다. 문항 정의는 서버(core/questionnaire/*.yaml)가 갖고 있고 이
-     표는 **보여 주는 이름**일 뿐이다 */
-const SHORT = {
-  lump: "멍울",
-  nipple_discharge: "유두 분비물",
-  breast_pain: "유방 통증",
-  menstrual_status: "월경 상태",
-  hrt: "호르몬 대체요법",
-  oral_contraceptive: "피임약 1년+",
-  parity: "임신 · 출산력",
-  breastfeeding: "모유 수유",
-  benign_breast_disease: "양성 유방질환",
-  cancer_history: "암 과거력",
-  family_history: "가족력",
-  /* v1 문항 — 옛 답을 읽을 때 쓴다 */
-  has_symptom: "증상",
-  past_history: "과거력",
-  menopause_status: "폐경",
-};
-
-function questionsOf(form) {
-  const list = Array.isArray(form) ? form : form?.questions ?? form?.items ?? [];
-  if (!Array.isArray(list)) return [];
-  return list.map((q) => {
-    const code = q.code ?? q.id;
-    const text = q.text ?? q.question;
-    return {
-      ...q,
-      code,
-      text,
-      short: SHORT[code] ?? text,
-      options: (q.options ?? q.choices ?? []).map((o) => ({ ...o, text: o.text ?? o.label })),
-    };
-  });
-}
-
-function qaRows(answers, form) {
-  const defs = new Map(questionsOf(form).map((q) => [q.code, q]));
-  return Object.entries(answers ?? {}).map(([code, val]) => {
-    const q = defs.get(code);
-    const opt = (q?.options ?? []).find((o) => String(o.id) === String(val));
-    const warn = q?.warn != null
-      ? [].concat(q.warn).map(String).includes(String(val))
-      : String(val) === "yes";
-    /* 목록은 짧은 이름으로. 묻는 문장 전체는 제목(title)에 둔다 —
-       열한 문항을 문장째로 쌓으면 반쪽 칸이 글자 벽이 된다 */
-    /* 문항 정의를 못 받아도(form 요청 실패) 이름은 나오게 SHORT 를 한 번
-       더 본다 — 없으면 예전처럼 코드가 그대로 뜬다 */
-    return { code, label: q?.short ?? SHORT[code] ?? code, full: q?.text ?? null,
-             value: opt?.text ?? String(val), warn };
-  }).sort((a, b) => Number(b.warn) - Number(a.warn));
-}
 
 /* ── 가운데 — 고른 환자 ────────────────────────────────────────
  * 머리(누구인가) · 방문 정보 · 문진 · 간호 메모 · **바닥 줄 = 배정과 보내기**.

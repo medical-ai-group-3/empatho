@@ -439,3 +439,71 @@ export function adopt(payload = {}) {
     Object.assign(table, rows);
   }
 }
+
+/* ── 문진 ────────────────────────────────────────────────────────
+ *
+ * 서버가 주는 문항 정의(GET /questionnaire/form)와 환자에게 저장된 답
+ * ({코드: 선택지 id})을 맞춰 사람 말로 바꾼다.
+ *
+ * ⚠ 서버는 id · question · choices[{id,label}] 로 주는데 화면들은
+ *   code · text · options[{id,text}] 로 읽는다. 여기 한 곳에서 맞춘다 —
+ *   안 맞추면 오류 없이 **문항 글자도 선택지도 안 그려진다.**
+ *
+ * ⚠ 쓰는 곳이 둘이다 — 간호 내원 대기(목록 · 종이 문진 입력)와 환자 기록.
+ *   화면마다 따로 두면 이 파일 머리말의 modality 사고가 그대로 반복된다.
+ */
+
+/* 목록에 쓸 짧은 이름. 서버의 question 은 **환자에게 묻는 문장**이라 길다
+   ("유방에 양성 종양(섬유선종 · 낭종 등)이나 … 있습니까?"). 좁은 칸에
+   열한 개를 문장째로 쌓으면 글자 벽이 된다.
+   ⚠ 여기 없는 코드는 묻는 문장 그대로 쓴다 — 문항이 늘어도 깨지지 않고
+     목록만 길어진다. 답답해지면 한 줄 더한다. */
+export const QUESTION_SHORT = {
+  lump: "멍울",
+  nipple_discharge: "유두 분비물",
+  breast_pain: "유방 통증",
+  menstrual_status: "월경 상태",
+  hrt: "호르몬 대체요법",
+  oral_contraceptive: "피임약 1년+",
+  parity: "임신 · 출산력",
+  breastfeeding: "모유 수유",
+  benign_breast_disease: "양성 유방질환",
+  cancer_history: "암 과거력",
+  family_history: "가족력",
+  /* v1 문항 — 그 판으로 받은 옛 답을 읽을 때 쓴다 */
+  has_symptom: "증상",
+  past_history: "과거력",
+  menopause_status: "폐경",
+};
+
+/* 문항 정의를 화면이 읽는 모양으로. 못 받았으면 빈 목록이다 */
+export function questionsOf(form) {
+  const list = Array.isArray(form) ? form : form?.questions ?? form?.items ?? [];
+  if (!Array.isArray(list)) return [];
+  return list.map((q) => {
+    const code = q.code ?? q.id;
+    const text = q.text ?? q.question;
+    return {
+      ...q,
+      code,
+      text,
+      short: QUESTION_SHORT[code] ?? text,
+      options: (q.options ?? q.choices ?? []).map((o) => ({ ...o, text: o.text ?? o.label })),
+    };
+  });
+}
+
+/* 답 + 문항 정의 → 화면 줄. ⚠ 표시가 위로 온다.
+   정의를 못 받아도 이름은 나오게 QUESTION_SHORT 를 한 번 더 본다 */
+export function qaRows(answers, form) {
+  const defs = new Map(questionsOf(form).map((q) => [q.code, q]));
+  return Object.entries(answers ?? {}).map(([code, val]) => {
+    const q = defs.get(code);
+    const opt = (q?.options ?? []).find((o) => String(o.id) === String(val));
+    const warn = q?.warn != null
+      ? [].concat(q.warn).map(String).includes(String(val))
+      : String(val) === "yes";
+    return { code, label: q?.short ?? QUESTION_SHORT[code] ?? code,
+             full: q?.text ?? null, value: opt?.text ?? String(val), warn };
+  }).sort((a, b) => Number(b.warn) - Number(a.warn));
+}

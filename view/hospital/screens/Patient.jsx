@@ -10,7 +10,7 @@ import { reception, breast, nursing, specimens } from "../api";
 import { DESK, go, homeDept } from "../nav";
 import {
   AUDIENCE, EXAM_PURPOSE, MODALITY, ORDER_STATUS, REPORT_DEPT, REPORT_TYPE,
-  label, modality as modalityCode,
+  label, modality as modalityCode, qaRows,
 } from "../codes";
 import * as H from "../dept/home";
 import { historyDetail, historyTo, toDecision } from "../dept/breast/history";
@@ -357,26 +357,32 @@ function Lesions({ lesions, studies }) {
 }
 
 /* ── 왼쪽 아래 — 문진 ─────────────────────────────────────────
- * ⚠ **문항 이름이 없다.** questionnaire 는 `{form_version, answers:{코드: 값}}`
- *   인데 코드를 사람 말로 바꾸는 표(8장 3번의 questionnaire/v1.yaml)가 아직
- *   없다. 코드를 그대로 적는다 — 없는 이름을 지어내지 않는다.
+ * ⚠ 전에는 코드와 선택지 id 를 날것으로 적었다(「hrt · 2y_to_5y」). 옛
+ *   주석이 「코드를 사람 말로 바꾸는 표가 아직 없다」고 했는데, 그 표는
+ *   생겼다 — GET /questionnaire/form 이다. 간호 내원 대기가 쓰던 것을
+ *   codes.js 로 옮겨 여기서도 같이 쓴다(10-01).
+ * ⚠ 정의를 못 받으면(권한 · 경로 없음) 짧은 이름까지는 나오고 선택지는
+ *   id 그대로다 — 비우는 것보다 낫다.
  */
 function Survey({ patient }) {
   const q = patient?.questionnaire;
   const answers = q?.answers && typeof q.answers === "object" ? q.answers : null;
-  const keys = answers ? Object.keys(answers) : [];
+  /* 문항 정의는 환자와 무관하다 — 한 번만 받는다 */
+  const form = useApi(() => nursing.questionnaireForm().catch(() => null), []);
+  const rows = qaRows(answers, form.data);
 
   return (
     <Card title="문진"
           right={q?.form_version && <span className="src">{q.form_version}</span>}>
-      {keys.length === 0
+      {rows.length === 0
         ? <Empty title="받은 문진이 없습니다" />
         : (
-          <dl className="kv">
-            {keys.map((k) => (
-              <div key={k}>
-                <dt>{k}</dt>
-                <dd>{String(answers[k])}</dd>
+          <dl className="kv nqa">
+            {rows.map((r) => (
+              <div key={r.code} className={r.warn ? "warn" : undefined}
+                   title={r.full ?? undefined}>
+                <dt>{r.warn && <i aria-hidden="true">⚠ </i>}{r.label}</dt>
+                <dd>{r.value}</dd>
               </div>
             ))}
           </dl>
