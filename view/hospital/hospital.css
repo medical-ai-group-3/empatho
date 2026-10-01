@@ -438,7 +438,7 @@ input,select,textarea{font:inherit; color:inherit}
   box-shadow:0 0 0 2px var(--canvas);
   display:inline-grid; place-items:center; width:calc(26px * var(--sp)); height:calc(26px * var(--sp));
   border-radius:var(--in-radius); background:var(--soot); color:var(--soot-ink);
-  cursor:grab; user-select:none; font-size:14px; line-height:1}
+  cursor:grab; user-select:none; font-size:calc(14px * var(--ft)); line-height:1}
 .arr-grip:active{cursor:grabbing}
 .arr-grip:focus-visible{outline:2px solid var(--cyan); outline-offset:2px}
 .arr-slot.dragging{opacity:.4}
@@ -1807,7 +1807,7 @@ a.nside-row:hover{background:var(--canvas)}
   padding:var(--gap-sm) calc(12px * var(--sp)); border-bottom:var(--hair) solid var(--line-2)}
 .resv-mpop > header b{font-size:var(--qrow-meta-fs)}
 .resv-mpop > header em{font-style:normal; font-size:var(--stag-fs); color:var(--warm)}
-.resv-mpop-x{margin-left:auto; color:var(--warm); font-size:16px; line-height:1}
+.resv-mpop-x{margin-left:auto; color:var(--warm); font-size:calc(16px * var(--ft)); line-height:1}
 .resv-mpop-x:hover{color:var(--ink)}
 .resv-mpop-b{overflow-y:auto; padding:var(--gap-xs) calc(8px * var(--sp));
   display:flex; flex-direction:column; gap:calc(4px * var(--sp))}
@@ -2482,7 +2482,7 @@ a.pevent:focus-visible{outline:var(--hair) solid var(--cyan); outline-offset:2px
 .stage-annotation{fill:rgba(116,212,255,.12);stroke:#74d4ff;stroke-width:2}
 .stage-annotation line{stroke:#74d4ff;stroke-width:2}
 .stage-annotation circle{fill:#74d4ff;stroke:none}
-.stage-annotation text{fill:#ffffff;stroke:#171514;stroke-width:3;paint-order:stroke;font-size:15px;font-weight:700}
+.stage-annotation text{fill:#ffffff;stroke:#171514;stroke-width:3;paint-order:stroke;font-size:calc(15px * var(--ft));font-weight:700}
 /* 고른 표시 — 노랗게. AI 도형(.shp.on)과 헷갈리지 않는 색이다 */
 .stage-annotation.on{fill:rgba(255,216,77,.14);stroke:#ffd84d;stroke-width:3}
 .stage-annotation.on line{stroke:#ffd84d;stroke-width:3}
@@ -3259,7 +3259,7 @@ td.none,tr.none td{text-align:center; padding:var(--card-pad) 0}
 
 .dlg-x{flex:none; width:30px; height:30px; border:none; background:none;
   border-radius:var(--radius-sm); cursor:pointer;
-  font-size:19px; line-height:1; color:var(--warm);
+  font-size:calc(19px * var(--ft)); line-height:1; color:var(--warm);
   transition:background var(--motion), color var(--motion)}
 .dlg-x:hover{background:var(--canvas); color:var(--ink)}
 .dlg-x:focus-visible{outline:var(--focus-w) solid var(--cyan); outline-offset:2px}
@@ -3516,7 +3516,7 @@ code{padding:0 var(--gap-xs); border-radius:var(--radius-xs);
 .modal-head{flex:0 0 auto; display:flex; align-items:center; justify-content:space-between;
   gap:var(--gap-sm); padding:var(--card-pad); border-bottom:var(--hair) solid var(--border)}
 .modal-head h2{font-size:var(--h1-fs); font-family:var(--font-head)}
-.modal-head button{color:var(--warm); font-size:18px; line-height:1}
+.modal-head button{color:var(--warm); font-size:calc(18px * var(--ft)); line-height:1}
 .modal-head button:hover{color:var(--ink)}
 .modal-body{flex:1; min-height:0; overflow-y:auto; padding:var(--card-pad);
   display:flex; flex-direction:column; gap:var(--card-gap)}
@@ -3589,12 +3589,12 @@ code{padding:0 var(--gap-xs); border-radius:var(--radius-xs);
 .b-dash-label{font-size:var(--label-fs); color:var(--warm)}
 
 .b-cal{display:flex; flex-direction:column; gap:6px}
-.b-cal-head{display:flex; align-items:center; justify-content:center; gap:10px; font-size:13px}
-.b-cal-nav{border:none; background:none; color:var(--warm); font-size:15px;
+.b-cal-head{display:flex; align-items:center; justify-content:center; gap:10px; font-size:calc(13px * var(--ft))}
+.b-cal-nav{border:none; background:none; color:var(--warm); font-size:calc(15px * var(--ft));
   cursor:pointer; line-height:1; padding:2px 6px; border-radius:var(--radius-xs)}
 .b-cal-nav:hover{background:var(--canvas); color:var(--ink)}
 .b-cal-grid{display:grid; grid-template-columns:repeat(7,1fr); gap:2px;
-  text-align:center; font-size:11.5px}
+  text-align:center; font-size:calc(11.5px * var(--ft))}
 .b-cal-week span{color:var(--warm); font-weight:600; padding-bottom:2px}
 .b-cal-grid span{padding:4px 0; border-radius:var(--radius-xs); color:var(--ink)}
 .b-cal-grid span:empty{visibility:hidden}
@@ -3603,15 +3603,15 @@ code{padding:0 var(--gap-xs); border-radius:var(--radius-xs);
 .b-todo{display:flex; flex-direction:column; gap:8px; min-height:0}
 .b-todo-head{display:flex; align-items:center; justify-content:space-between;
   gap:10px; flex-wrap:wrap}
-.b-todo-head > span{font-size:12.5px; font-weight:700; color:var(--warm)}
+.b-todo-head > span{font-size:calc(12.5px * var(--ft)); font-weight:700; color:var(--warm)}
 .b-todo-add{display:flex; gap:6px; flex:1; min-width:160px; justify-content:flex-end}
 .b-todo-add input{flex:1; max-width:220px; min-width:0; border:var(--hair) solid var(--border);
-  border-radius:var(--radius-sm); padding:6px 9px; font-size:12.5px}
-.b-todo-empty{font-size:12.5px; color:var(--warm); text-align:center; padding:10px 0}
+  border-radius:var(--radius-sm); padding:6px 9px; font-size:calc(12.5px * var(--ft))}
+.b-todo-empty{font-size:calc(12.5px * var(--ft)); color:var(--warm); text-align:center; padding:10px 0}
 
-.b-todo-table{width:100%; border-collapse:collapse; font-size:12.5px}
+.b-todo-table{width:100%; border-collapse:collapse; font-size:calc(12.5px * var(--ft))}
 .b-todo-table thead th{text-align:left; font-weight:700; color:var(--warm);
-  font-size:11px; padding:0 6px 6px; border-bottom:var(--hair) solid var(--border)}
+  font-size:calc(11px * var(--ft)); padding:0 6px 6px; border-bottom:var(--hair) solid var(--border)}
 .b-todo-table thead th:first-child{width:22px}
 .b-todo-table tbody td{padding:7px 6px; border-bottom:var(--hair) solid var(--border);
   vertical-align:middle}
@@ -3619,19 +3619,19 @@ code{padding:0 var(--gap-xs); border-radius:var(--radius-xs);
 .b-todo-name{max-width:0; width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 .b-todo-actions{display:flex; gap:2px; white-space:nowrap}
 .b-todo-actions button{flex:none; border:none; background:none; color:var(--warm);
-  font-size:13px; line-height:1; cursor:pointer; padding:3px 5px; border-radius:var(--radius-xs)}
+  font-size:calc(13px * var(--ft)); line-height:1; cursor:pointer; padding:3px 5px; border-radius:var(--radius-xs)}
 .b-todo-actions button:hover{background:var(--canvas); color:var(--ink)}
 
 /* 상태 뱃지 — 색뿐 아니라 테두리로도 갈려서 색맹에도 구분된다 */
 .b-todo-pill{display:inline-block; padding:2px 9px; border-radius:999px;
-  font-size:11px; font-weight:700; border:var(--hair) solid var(--border); color:var(--warm)}
+  font-size:calc(11px * var(--ft)); font-weight:700; border:var(--hair) solid var(--border); color:var(--warm)}
 .b-todo-pill.doing{border-color:#eab30877; background:#fef9c3; color:#946800}
 .b-todo-pill.done{border-color:#16a34a55; background:#dcfce7; color:#15803d}
 
 .b-todo-edit-text{width:100%; border:1px solid var(--cyan); border-radius:var(--radius-xs);
-  padding:4px 6px; font-size:12.5px}
+  padding:4px 6px; font-size:calc(12.5px * var(--ft))}
 .b-todo-table td > select{border:var(--hair) solid var(--border); border-radius:var(--radius-xs);
-  padding:3px 4px; font-size:11.5px; background:var(--card)}
+  padding:3px 4px; font-size:calc(11.5px * var(--ft)); background:var(--card)}
 
 /* ── 검사 이력(리스트) — 환자 목록 상세에 붙인다(2026-09-18).
    처음엔 타임라인(점+세로선)이었는데 리스트 형태로 바꿔 달라고 해서
@@ -3644,9 +3644,9 @@ code{padding:0 var(--gap-xs); border-radius:var(--radius-xs);
 .exam-history li:last-child{border-bottom:none; padding-bottom:0}
 .exam-history li:first-child{padding-top:0}
 .exam-history-head{display:flex; align-items:baseline; justify-content:space-between; gap:8px}
-.exam-history-type{font-size:13px; font-weight:600; color:var(--ink)}
-.exam-history-at{font-size:11.5px; color:var(--warm); font-variant-numeric:tabular-nums; flex:none}
-.exam-history-detail{font-size:12.5px; color:var(--ink-2); margin-top:2px}
+.exam-history-type{font-size:calc(13px * var(--ft)); font-weight:600; color:var(--ink)}
+.exam-history-at{font-size:calc(11.5px * var(--ft)); color:var(--warm); font-variant-numeric:tabular-nums; flex:none}
+.exam-history-detail{font-size:calc(12.5px * var(--ft)); color:var(--ink-2); margin-top:2px}
 
 /* 고를 수 있는 줄 — 검사 번호가 실려 온 것만. 누르면 위 뷰어가 그 검사를
    연다. 고른 줄은 왼쪽에 선을 세워 어느 것을 보고 있는지 알린다. */
@@ -3659,7 +3659,7 @@ code{padding:0 var(--gap-xs); border-radius:var(--radius-xs);
 /* 검체 줄 등은 <a> 로 그린다 — 환자 상세로 간다(dept/breast/history.js) */
 a.exam-history-pick{text-decoration:none}
 /* 검사 줄의 둘째 길 — 뷰어는 영상만 연다. 판독 소견은 환자 상세에 있다 */
-.exam-history-go{display:inline-block; margin-top:2px; font-size:11.5px;
+.exam-history-go{display:inline-block; margin-top:2px; font-size:calc(11.5px * var(--ft));
   color:var(--warm); text-decoration:none}
 .exam-history-go:hover{color:var(--ink); text-decoration:underline}
 .exam-history-go:focus-visible{outline:var(--hair) solid var(--cyan); outline-offset:2px}
@@ -3680,7 +3680,7 @@ a.exam-history-pick{text-decoration:none}
 .list-viewer .stage-box{height:100%}
 .list-viewer-slides{display:flex; gap:6px; flex-wrap:wrap; padding:8px}
 .list-viewer-slides button{border:var(--hair) solid var(--border); border-radius:var(--radius-sm);
-  padding:4px 10px; font-size:12px; background:var(--card); color:var(--warm); cursor:pointer}
+  padding:4px 10px; font-size:calc(12px * var(--ft)); background:var(--card); color:var(--warm); cursor:pointer}
 .list-viewer-slides button.on{background:var(--soot); color:var(--soot-ink); border-color:var(--soot)}
 
 /* ── AI 산출값 시각화 (dept/AiViz.jsx) ──────────────────────────
@@ -3990,8 +3990,8 @@ a.exam-history-pick{text-decoration:none}
 .viz-radar .rd-axis{stroke:var(--viz-grid); stroke-width:1; stroke-dasharray:2 3}
 .viz-radar .rd-shape{stroke:var(--cyan); stroke-width:1.6; stroke-linejoin:round}
 .viz-radar .rd-dot{fill:var(--cyan); stroke:var(--viz-plate); stroke-width:1.5}
-.viz-radar .rd-k{font-size:12px; font-weight:600; fill:var(--viz-ink); letter-spacing:-.01em}
-.viz-radar .rd-v{font-size:12px; font-weight:500; fill:var(--cyan);
+.viz-radar .rd-k{font-size:calc(12px * var(--ft)); font-weight:600; fill:var(--viz-ink); letter-spacing:-.01em}
+.viz-radar .rd-v{font-size:calc(12px * var(--ft)); font-weight:500; fill:var(--cyan);
   font-variant-numeric:tabular-nums}
 .vside .viz-radar .viz-h,.vside .viz-radar .viz-note{color:var(--v-warm)}
 

@@ -59,7 +59,7 @@
    보였던 원인이 이거였다 — body 기본 margin(8px) 초기화용으로 넣어둔
    흔적인데 지금은 .breast 가 body가 아니라서 필요 없다. */
 .breast {background:var(--bg); color:var(--ink);
-  font-family:var(--font-ui); font-size:14px; line-height:1.5;
+  font-family:var(--font-ui); font-size:calc(14px * var(--ft)); line-height:1.5;
   -webkit-font-smoothing:antialiased}
 .breast button {font:inherit; color:inherit; background:none; border:none; padding:0; cursor:pointer}
 .breast button:disabled {cursor:not-allowed; opacity:.5}
@@ -76,32 +76,32 @@
 .breast .topbar {flex:none; background:var(--topbar-bg); color:#fff}
 .breast .topbar-row {display:flex; align-items:center; gap:14px; padding:0 20px; height:56px}
 .breast .topbar .brand-btn {display:flex; align-items:center; gap:10px; flex:none}
-.breast .topbar .logo {font-weight:800; font-size:13px; letter-spacing:.03em;
+.breast .topbar .logo {font-weight:800; font-size:calc(13px * var(--ft)); letter-spacing:.03em;
   border:1.5px solid rgba(255,255,255,.55); border-radius:5px; padding:3px 9px; color:#fff}
 .breast .topbar .brand-btn:hover .logo {border-color:#fff; background:rgba(255,255,255,.08)}
 .breast .topbar .hospital {display:flex; flex-direction:column; align-items:flex-start; line-height:1.25}
-.breast .topbar .hospital .h1 {font-size:13px; font-weight:600}
-.breast .topbar .hospital .h2 {font-size:11.5px; color:rgba(255,255,255,.6)}
+.breast .topbar .hospital .h1 {font-size:calc(13px * var(--ft)); font-weight:600}
+.breast .topbar .hospital .h2 {font-size:calc(11.5px * var(--ft)); color:rgba(255,255,255,.6)}
 
 .breast .topbar .right {margin-left:auto; display:flex; align-items:center; gap:16px}
 .breast .topbar .theme-btn {width:30px; height:30px; border-radius:999px;
-  display:flex; align-items:center; justify-content:center; font-size:15px; color:#fff}
+  display:flex; align-items:center; justify-content:center; font-size:calc(15px * var(--ft)); color:#fff}
 .breast .topbar .theme-btn:hover {background:rgba(255,255,255,.1)}
 .breast .topbar .bell {position:relative; width:30px; height:30px; border-radius:999px;
-  display:flex; align-items:center; justify-content:center; font-size:15px; color:#fff}
+  display:flex; align-items:center; justify-content:center; font-size:calc(15px * var(--ft)); color:#fff}
 .breast .topbar .bell:hover {background:rgba(255,255,255,.1)}
 .breast .topbar .bell .dot {position:absolute; top:5px; right:6px; width:6px; height:6px;
   border-radius:50%; background:var(--danger); border:1.5px solid var(--ink)}
-.breast .topbar .clock {font-family:var(--font-mono); font-size:12.5px; color:rgba(255,255,255,.75);
+.breast .topbar .clock {font-family:var(--font-mono); font-size:calc(12.5px * var(--ft)); color:rgba(255,255,255,.75);
   font-variant-numeric:tabular-nums; white-space:nowrap}
 
 /* 내 정보·설정으로 가는 버튼 — 상단바 우측 끝, 아바타+이름 칩 */
 .breast .topbar .who-btn {display:flex; align-items:center; gap:8px; padding:5px 8px 5px 5px;
   border-radius:999px}
 .breast .topbar .who-btn:hover {background:rgba(255,255,255,.1)}
-.breast .topbar .who {font-size:13px; text-align:right; line-height:1.25; white-space:nowrap}
+.breast .topbar .who {font-size:calc(13px * var(--ft)); text-align:right; line-height:1.25; white-space:nowrap}
 .breast .topbar .who b {display:block; font-weight:600}
-.breast .topbar .who span {color:rgba(255,255,255,.6); font-size:11.5px}
+.breast .topbar .who span {color:rgba(255,255,255,.6); font-size:calc(11.5px * var(--ft))}
 
 .breast .workspace {flex:1; min-height:0; overflow:auto; background:var(--bg)}
 
@@ -111,10 +111,10 @@
   padding:20px 24px 0}
 .breast .shead .back-btn {flex:none; width:32px; height:32px; border-radius:999px;
   display:flex; align-items:center; justify-content:center;
-  font-size:19px; line-height:1; color:var(--ink-2); margin-top:-2px}
+  font-size:calc(19px * var(--ft)); line-height:1; color:var(--ink-2); margin-top:-2px}
 .breast .shead .back-btn:hover {background:var(--line-2); color:var(--ink)}
-.breast .shead h1 {font-size:20px; font-weight:700; letter-spacing:-.01em}
-.breast .shead p {margin-top:4px; color:var(--muted); font-size:13px}
+.breast .shead h1 {font-size:calc(20px * var(--ft)); font-weight:700; letter-spacing:-.01em}
+.breast .shead p {margin-top:4px; color:var(--muted); font-size:calc(13px * var(--ft))}
 .breast .shead .right {margin-left:auto; display:flex; gap:8px; flex:none}
 
 .breast .pane {padding:24px}
@@ -124,11 +124,11 @@
   border-radius:var(--radius); padding:var(--card-pad); box-shadow:var(--card-shadow)}
 .breast .card.flag {border-color:var(--soot); background:var(--soot); color:var(--soot-ink)}
 .breast .card + .card {margin-top:12px}
-.breast .card h3 {font-size:14px; font-weight:700; margin-bottom:10px}
+.breast .card h3 {font-size:calc(14px * var(--ft)); font-weight:700; margin-bottom:10px}
 
 .breast .empty {display:flex; flex-direction:column; align-items:center;
   justify-content:center; gap:8px; padding:48px 0; color:var(--muted)}
-.breast .empty .ic {font-size:22px}
+.breast .empty .ic {font-size:calc(22px * var(--ft))}
 
 /* 단추 — hospital .btn 과 같은 모양(pill). 채움은 시안, ghost 는 선 */
 .breast .btn {display:inline-flex; align-items:center; justify-content:center; gap:6px;
@@ -144,7 +144,7 @@
 .breast .btn:disabled {opacity:var(--off)}
 
 .breast .pill {display:inline-flex; align-items:center; height:22px; padding:0 9px;
-  border-radius:999px; font-size:12px; font-weight:600; line-height:1}
+  border-radius:999px; font-size:calc(12px * var(--ft)); font-weight:600; line-height:1}
 /* 상태는 모양으로 — 할 일이 남음(danger · warn)은 soot 채움, 끝남(ok)은
    선, 기다림(wait)은 옅은 바탕. 색을 따로 들이지 않는다 */
 .breast .pill.wait {background:var(--line-2); color:var(--ink-2)}
@@ -157,28 +157,28 @@
 .breast .discordance-summary .card-head {align-items:flex-start; margin-bottom:14px}
 .breast .discordance-summary .card-head h3 {margin:8px 0 0}
 .breast .discordance-patient-info {display:flex; flex-wrap:wrap; gap:8px 20px;
-  color:var(--muted); font-size:12.5px}
+  color:var(--muted); font-size:calc(12.5px * var(--ft))}
 .breast .discordance-patient-info b {margin-left:5px; color:var(--ink); font-weight:600}
 .breast .discordance-compare {display:grid; grid-template-columns:1fr auto 1fr; align-items:center;
   gap:12px; margin-top:16px; padding:14px; border-radius:var(--radius-sm);
   background:var(--danger-weak); border:1px solid color-mix(in srgb, var(--danger) 35%, var(--line))}
 .breast .discordance-grade {display:flex; flex-direction:column; gap:3px; min-width:0}
 .breast .discordance-grade:first-child {text-align:right}
-.breast .discordance-grade span {font-size:12px; color:var(--ink-2); font-weight:600}
-.breast .discordance-grade b {font-size:21px; color:var(--danger); letter-spacing:-.02em}
-.breast .discordance-vs {font-size:22px; color:var(--danger); font-weight:700}
-.breast .discordance-reason {display:flex; flex-direction:column; gap:4px; margin-top:14px; font-size:13px}
-.breast .discordance-reason span {font-size:12px; color:var(--muted); font-weight:600}
+.breast .discordance-grade span {font-size:calc(12px * var(--ft)); color:var(--ink-2); font-weight:600}
+.breast .discordance-grade b {font-size:calc(21px * var(--ft)); color:var(--danger); letter-spacing:-.02em}
+.breast .discordance-vs {font-size:calc(22px * var(--ft)); color:var(--danger); font-weight:700}
+.breast .discordance-reason {display:flex; flex-direction:column; gap:4px; margin-top:14px; font-size:calc(13px * var(--ft))}
+.breast .discordance-reason span {font-size:calc(12px * var(--ft)); color:var(--muted); font-weight:600}
 .breast .discordance-reason b {font-weight:500}
 @media (max-width:560px) {
   .breast .discordance-compare {gap:8px; padding:12px}
-  .breast .discordance-grade b {font-size:17px}
+  .breast .discordance-grade b {font-size:calc(17px * var(--ft))}
 }
 
 /* ── 표 ────────────────────────────────────── */
-.breast table.list {width:100%; border-collapse:collapse; font-size:13px}
+.breast table.list {width:100%; border-collapse:collapse; font-size:calc(13px * var(--ft))}
 .breast table.list th {text-align:left; color:var(--muted); font-weight:600;
-  font-size:12px; padding:8px 12px; border-bottom:1px solid var(--line)}
+  font-size:calc(12px * var(--ft)); padding:8px 12px; border-bottom:1px solid var(--line)}
 .breast table.list td {padding:10px 12px; border-bottom:1px solid var(--line-2)}
 .breast table.list tbody tr {cursor:pointer}
 .breast table.list tbody tr:hover {background:var(--surface-2)}
@@ -213,14 +213,14 @@
 
 /* ── 폼 ────────────────────────────────────── */
 .breast .field {display:flex; flex-direction:column; gap:6px; margin-bottom:14px}
-.breast .field label {font-size:12.5px; font-weight:600; color:var(--ink-2)}
+.breast .field label {font-size:calc(12.5px * var(--ft)); font-weight:600; color:var(--ink-2)}
 .breast .field input, .breast .field select, .breast .field textarea {
   border:1px solid var(--line); border-radius:var(--radius-sm);
-  padding:8px 10px; background:var(--surface); font-size:13.5px}
+  padding:8px 10px; background:var(--surface); font-size:calc(13.5px * var(--ft))}
 .breast .field textarea {resize:vertical; min-height:72px}
 .breast .field input:disabled {background:var(--surface-2); color:var(--muted)}
 .breast .field .req {color:var(--danger)}
-.breast .field .err {color:var(--danger); font-size:12px}
+.breast .field .err {color:var(--danger); font-size:calc(12px * var(--ft))}
 
 /* ── 모달 ──────────────────────────────────── */
 .breast .modal-backdrop {position:fixed; inset:0; background:rgba(12,10,9,.42);
@@ -231,8 +231,8 @@
 .breast .modal.wide {max-width:840px}
 .breast .modal-head {display:flex; align-items:center; gap:10px; padding:16px 20px;
   border-bottom:1px solid var(--line)}
-.breast .modal-head h2 {font-size:16px; font-weight:700}
-.breast .modal-head button {margin-left:auto; color:var(--muted); font-size:18px}
+.breast .modal-head h2 {font-size:calc(16px * var(--ft)); font-weight:700}
+.breast .modal-head button {margin-left:auto; color:var(--muted); font-size:calc(18px * var(--ft))}
 .breast .modal-body {padding:18px 20px; overflow:auto}
 .breast .modal-foot {display:flex; justify-content:flex-end; gap:8px;
   padding:14px 20px; border-top:1px solid var(--line)}
@@ -300,13 +300,13 @@
   flex:1; min-height:0; overflow-y:auto}
 
 .breast .side-collapsed-label {writing-mode:vertical-rl; text-orientation:mixed;
-  font-size:12px; font-weight:600; color:var(--muted); letter-spacing:.02em;
+  font-size:calc(12px * var(--ft)); font-weight:600; color:var(--muted); letter-spacing:.02em;
   padding-top:4px}
 
 .breast .side-toggle {position:absolute; top:50%; transform:translateY(-50%);
   z-index:5; width:20px; height:52px; padding:0;
   border:1px solid var(--line); border-radius:var(--radius-sm);
-  background:var(--surface); color:var(--muted); font-size:15px; line-height:1;
+  background:var(--surface); color:var(--muted); font-size:calc(15px * var(--ft)); line-height:1;
   cursor:pointer}
 .breast .side-toggle:hover {color:var(--ink); border-color:var(--accent)}
 .breast .side-toggle.left {right:-10px}
@@ -320,21 +320,21 @@
 .breast .timeline .row:last-child::before {display:none}
 .breast .timeline .row .dot {position:absolute; left:-3px; top:2px; width:8px; height:8px;
   border-radius:50%; background:var(--accent)}
-.breast .timeline .row .label {font-size:13px; font-weight:600}
-.breast .timeline .row .at {font-size:11.5px; color:var(--muted); margin-top:1px; font-variant-numeric:tabular-nums}
-.breast .timeline .row .detail {font-size:12.5px; color:var(--ink-2); margin-top:2px}
+.breast .timeline .row .label {font-size:calc(13px * var(--ft)); font-weight:600}
+.breast .timeline .row .at {font-size:calc(11.5px * var(--ft)); color:var(--muted); margin-top:1px; font-variant-numeric:tabular-nums}
+.breast .timeline .row .detail {font-size:calc(12.5px * var(--ft)); color:var(--ink-2); margin-top:2px}
 
 .breast .tabs {display:flex; gap:4px; border-bottom:1px solid var(--line); margin-bottom:14px; flex-wrap:wrap}
-.breast .tabs button {padding:8px 10px; font-size:12.5px; font-weight:600; color:var(--muted);
+.breast .tabs button {padding:8px 10px; font-size:calc(12.5px * var(--ft)); font-weight:600; color:var(--muted);
   border-bottom:2px solid transparent; margin-bottom:-1px}
 .breast .tabs button.on {color:var(--accent); border-color:var(--accent)}
 .breast .tabs button:hover:not(.on) {color:var(--ink)}
 
 .breast .other-report + .other-report {margin-top:12px; padding-top:12px; border-top:1px solid var(--line-2)}
-.breast .other-report .dept {font-size:12px; font-weight:700; color:var(--accent)}
-.breast .other-report .author {font-size:11.5px; color:var(--muted); margin-left:6px}
-.breast .other-report .summary {font-size:13.5px; margin-top:4px}
-.breast .other-report .at {font-size:11px; color:var(--muted); margin-top:4px}
+.breast .other-report .dept {font-size:calc(12px * var(--ft)); font-weight:700; color:var(--accent)}
+.breast .other-report .author {font-size:calc(11.5px * var(--ft)); color:var(--muted); margin-left:6px}
+.breast .other-report .summary {font-size:calc(13.5px * var(--ft)); margin-top:4px}
+.breast .other-report .at {font-size:calc(11px * var(--ft)); color:var(--muted); margin-top:4px}
 
 /* 검사 종합 확인 · 오른쪽 리포트 — **스크롤은 한 칸에 하나다.**
  *
@@ -354,7 +354,7 @@
 .breast .report-block {display:flex; flex-direction:column}
 .breast .report-block + .report-block {border-top:1px solid var(--line)}
 .breast .report-block h4 {position:sticky; top:0; z-index:1;
-  margin:0; padding:9px 0; font-size:12.5px; font-weight:700;
+  margin:0; padding:9px 0; font-size:calc(12.5px * var(--ft)); font-weight:700;
   background:var(--surface); color:var(--ink-2)}
 .breast .report-block-body {padding:0 0 14px}
 
@@ -368,11 +368,11 @@
 
 .breast .viewer-shell {background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden}
 .breast .viewer-tabs {display:flex; gap:4px; padding:10px; border-bottom:1px solid var(--line); background:var(--surface-2)}
-.breast .viewer-tabs button {padding:6px 12px; font-size:12.5px; border-radius:6px; color:var(--ink-2)}
+.breast .viewer-tabs button {padding:6px 12px; font-size:calc(12.5px * var(--ft)); border-radius:6px; color:var(--ink-2)}
 .breast .viewer-tabs button.on {background:var(--accent-weak); color:var(--accent); font-weight:600}
 .breast .viewer-body {min-height:420px; display:flex; align-items:center; justify-content:center;
   flex-direction:column; gap:6px; color:var(--muted); padding:24px; text-align:center}
-.breast .viewer-body .ic {font-size:26px}
+.breast .viewer-body .ic {font-size:calc(26px * var(--ft))}
 
 /* 실제 슬라이스 이미지 — 916x330류 "원본·정답·예측" 3분할 비교 그림에서
    왼쪽(원본) 패널만 잘라 보여준다(ReviewViewer.jsx 주석 참고). 비율은
@@ -384,40 +384,40 @@
 .breast .mri-bbox {position:absolute; border:2px solid #ff5a5f; border-radius:2px;
   box-shadow:0 0 0 1px rgba(0,0,0,.4)}
 .breast .mri-bbox .tag {position:absolute; top:-20px; left:-2px; background:#ff5a5f; color:#fff;
-  font-size:10.5px; font-weight:600; padding:1px 5px; border-radius:3px; white-space:nowrap}
+  font-size:calc(10.5px * var(--ft)); font-weight:600; padding:1px 5px; border-radius:3px; white-space:nowrap}
 
 .breast .card-head {display:flex; align-items:baseline; gap:8px; margin-bottom:10px}
 .breast .card-head h3 {margin-bottom:0}
-.breast .card-head .meta {margin-left:auto; font-size:12px; color:var(--muted)}
-.breast .card-head .edit-btn {margin-left:auto; font-size:12.5px; font-weight:600; color:var(--accent)}
+.breast .card-head .meta {margin-left:auto; font-size:calc(12px * var(--ft)); color:var(--muted)}
+.breast .card-head .edit-btn {margin-left:auto; font-size:calc(12.5px * var(--ft)); font-weight:600; color:var(--accent)}
 .breast .card-head .edit-btn:hover {text-decoration:underline}
 
-.breast .section-label {font-size:11.5px; font-weight:700; color:var(--muted);
+.breast .section-label {font-size:calc(11.5px * var(--ft)); font-weight:700; color:var(--muted);
   text-transform:uppercase; letter-spacing:.04em; margin:14px 0 6px}
 .breast .section-label:first-child {margin-top:0}
-.breast .card-text {font-size:13.5px; line-height:1.55}
+.breast .card-text {font-size:calc(13.5px * var(--ft)); line-height:1.55}
 .breast .bullets {margin:0; padding-left:18px; display:flex; flex-direction:column; gap:4px}
-.breast .bullets li {font-size:13.5px; line-height:1.5}
+.breast .bullets li {font-size:calc(13.5px * var(--ft)); line-height:1.5}
 
 .breast .radio-group {display:flex; flex-direction:column; gap:8px; margin-bottom:14px}
-.breast .radio-row {display:flex; align-items:center; gap:9px; font-size:13.5px;
+.breast .radio-row {display:flex; align-items:center; gap:9px; font-size:calc(13.5px * var(--ft));
   border:1px solid var(--line); border-radius:var(--radius-sm); padding:9px 12px; cursor:pointer}
 .breast .radio-row:has(input:checked) {border-color:var(--accent); background:var(--accent-weak)}
 .breast .radio-row input {accent-color:var(--accent)}
-.breast .check-row {display:flex; align-items:center; gap:8px; font-size:13px; margin:10px 0 14px}
+.breast .check-row {display:flex; align-items:center; gap:8px; font-size:calc(13px * var(--ft)); margin:10px 0 14px}
 .breast .check-row input {accent-color:var(--accent); width:15px; height:15px}
 
 .breast .card-foot {display:flex; justify-content:flex-end; margin-top:4px}
 .breast .card-foot.split {justify-content:space-between; align-items:center}
-.breast .card-foot .note {font-size:12px; color:var(--muted)}
+.breast .card-foot .note {font-size:calc(12px * var(--ft)); color:var(--muted)}
 
 /* 수술 결정 화면의 처방 초안. API가 붙으면 같은 입력값을 처방 생성
    요청으로 보내고, 환자 앱 복약 관리에는 서버가 저장한 처방만 보인다. */
 .breast .prescription-draft .card-head {align-items:flex-start}
 .breast .prescription-draft .card-head .meta {display:block; margin:4px 0 0; line-height:1.4}
 .breast .prescription-drug {padding:14px 0; border-top:1px solid var(--line-2)}
-.breast .prescription-drug-head {display:flex; align-items:center; margin-bottom:12px; font-size:13px}
-.breast .prescription-drug-head .edit-btn {margin-left:auto; font-size:12px; font-weight:600; color:var(--danger)}
+.breast .prescription-drug-head {display:flex; align-items:center; margin-bottom:12px; font-size:calc(13px * var(--ft))}
+.breast .prescription-drug-head .edit-btn {margin-left:auto; font-size:calc(12px * var(--ft)); font-weight:600; color:var(--danger)}
 .breast .prescription-grid {display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:0 10px}
 .breast .prescription-actions {gap:8px}
 
@@ -435,9 +435,9 @@
   border-radius:var(--radius-sm); cursor:pointer;
 }
 .breast .drug-suggest-list li.on {background:var(--accent-weak)}
-.breast .drug-suggest-name {font-size:13px; color:var(--ink); overflow-wrap:anywhere}
-.breast .drug-suggest-maker {font-size:11.5px; color:var(--muted)}
-.breast .drug-suggest-list .drug-suggest-empty {cursor:default; font-size:12.5px; color:var(--muted)}
+.breast .drug-suggest-name {font-size:calc(13px * var(--ft)); color:var(--ink); overflow-wrap:anywhere}
+.breast .drug-suggest-maker {font-size:calc(11.5px * var(--ft)); color:var(--muted)}
+.breast .drug-suggest-list .drug-suggest-empty {cursor:default; font-size:calc(12.5px * var(--ft)); color:var(--muted)}
 .breast .prescription-actions .note {margin-left:auto; text-align:right}
 @media (max-width:760px) {
   .breast .prescription-grid {grid-template-columns:1fr}
@@ -453,12 +453,12 @@
 .breast .lock-icon {width:40px; height:40px; border-radius:50%; background:var(--line-2);
   color:var(--ink-2); display:flex; align-items:center; justify-content:center; margin-bottom:10px}
 .breast .lock-panel.unlocked .lock-icon {background:var(--ok-weak); color:var(--ok)}
-.breast .lock-panel .status {font-size:13px; font-weight:700; margin-bottom:14px}
+.breast .lock-panel .status {font-size:calc(13px * var(--ft)); font-weight:700; margin-bottom:14px}
 .breast .lock-panel .cond-list {width:100%; display:flex; flex-direction:column; gap:10px; text-align:left}
-.breast .cond-row {display:flex; align-items:center; justify-content:space-between; font-size:13px}
+.breast .cond-row {display:flex; align-items:center; justify-content:space-between; font-size:calc(13px * var(--ft))}
 .breast .cond-row .check {color:var(--ok); font-weight:700}
 .breast .lock-panel .btn {width:100%; margin-top:16px}
-.breast .lock-panel .hint {font-size:11.5px; color:var(--muted); margin-top:8px}
+.breast .lock-panel .hint {font-size:calc(11.5px * var(--ft)); color:var(--muted); margin-top:8px}
 
 /* 치료 방침 화면 오른쪽의 환자 리포트 요약. 환자 정보·결정 기록과
    같은 열에 두어 결정 전에 확인해야 할 결과를 한 번에 읽게 한다. */
@@ -466,24 +466,24 @@
 .breast .patient-report-card .card-head {align-items:center}
 .breast .patient-report-body {display:flex; flex-direction:column; gap:10px}
 .breast .report-meta-row {display:flex; justify-content:space-between; gap:12px;
-  padding-bottom:8px; border-bottom:1px solid var(--line-2); font-size:12px; color:var(--muted)}
+  padding-bottom:8px; border-bottom:1px solid var(--line-2); font-size:calc(12px * var(--ft)); color:var(--muted)}
 .breast .report-meta-row b {color:var(--ink); font-weight:600; text-align:right}
 .breast .patient-report-card .section-label {margin-top:2px}
 .breast .patient-report-card .report-lock-note {padding-top:8px; border-top:1px solid var(--line-2)}
-.breast .bullets.compact {margin:0; padding-left:18px; font-size:12.5px; line-height:1.5}
+.breast .bullets.compact {margin:0; padding-left:18px; font-size:calc(12.5px * var(--ft)); line-height:1.5}
 .breast .report-stage-list {display:flex; flex-direction:column; gap:8px}
 .breast .report-stage-row {display:flex; flex-direction:column; gap:2px; padding:9px 10px;
   border:1px solid var(--line-2); border-radius:var(--radius-sm); background:var(--surface-2)}
-.breast .report-stage-row b {font-size:12.5px}
-.breast .report-stage-row span {font-size:12px; color:var(--ink-2); line-height:1.45}
+.breast .report-stage-row b {font-size:calc(12.5px * var(--ft))}
+.breast .report-stage-row span {font-size:calc(12px * var(--ft)); color:var(--ink-2); line-height:1.45}
 
 /* ── VS 레이아웃 (불일치 처분) ─────────────── */
 .breast .vs {display:grid; grid-template-columns:1fr auto 1fr; gap:16px; align-items:stretch}
 .breast .vs .side {background:var(--surface); border:1px solid var(--line);
   border-radius:var(--radius); padding:16px}
-.breast .vs .side h3 {font-size:13px; color:var(--muted); margin-bottom:8px}
+.breast .vs .side h3 {font-size:calc(13px * var(--ft)); color:var(--muted); margin-bottom:8px}
 .breast .vs .mid {display:flex; align-items:center; justify-content:center;
-  font-weight:800; color:var(--muted); font-size:13px}
+  font-weight:800; color:var(--muted); font-size:calc(13px * var(--ft))}
 @media (max-width:720px) {.breast .vs {grid-template-columns:1fr}}
 
 /* 대기 화면 2단 — 목록 1 : 상세 2 (2026-09-18 레이아웃 설계) */
@@ -503,8 +503,8 @@
 .breast .b-dash-body {flex:1; overflow-y:auto}
 
 .breast .kv {display:flex; flex-direction:column; gap:2px}
-.breast .kv .k {color:var(--muted); font-size:12px}
-.breast .kv .v {font-size:14px}
+.breast .kv .k {color:var(--muted); font-size:calc(12px * var(--ft))}
+.breast .kv .v {font-size:calc(14px * var(--ft))}
 
 /* ── 현재 환자 카드 ─────────────────────────── */
 .breast .pt-card-head {display:flex; align-items:center; margin-bottom:14px}
@@ -513,33 +513,33 @@
 
 .breast .pt-head {display:flex; align-items:center; gap:12px}
 .breast .avatar {flex:none; width:40px; height:40px; border-radius:50%;
-  background:var(--accent-weak); color:var(--accent); font-weight:700; font-size:15px;
+  background:var(--accent-weak); color:var(--accent); font-weight:700; font-size:calc(15px * var(--ft));
   display:flex; align-items:center; justify-content:center}
-.breast .avatar.sm {width:26px; height:26px; font-size:11.5px}
-.breast .pt-head .name {font-size:16px; font-weight:700}
-.breast .pt-head .sub {color:var(--muted); font-size:12.5px; margin-top:1px}
+.breast .avatar.sm {width:26px; height:26px; font-size:calc(11.5px * var(--ft))}
+.breast .pt-head .name {font-size:calc(16px * var(--ft)); font-weight:700}
+.breast .pt-head .sub {color:var(--muted); font-size:calc(12.5px * var(--ft)); margin-top:1px}
 
 /* 작성자 표시 — 아바타 + 이름 + 소속을 한 줄 칩으로 */
 .breast .person-chip {display:flex; align-items:center; gap:8px}
 .breast .person-chip .id {display:flex; flex-direction:column; line-height:1.3}
-.breast .person-chip .id b {font-size:12.5px; font-weight:700}
-.breast .person-chip .id span {font-size:11px; color:var(--muted)}
+.breast .person-chip .id b {font-size:calc(12.5px * var(--ft)); font-weight:700}
+.breast .person-chip .id span {font-size:calc(11px * var(--ft)); color:var(--muted)}
 
 /* 환자마다 항목 수가 같은 고정 목록 — 라벨 칸 너비를 맞춰 두면
    자세히 적어도 한눈에 훑어 읽힌다 */
 .breast .pt-info {display:flex; flex-direction:column; gap:9px; margin-top:14px}
-.breast .pt-info .row {display:flex; gap:14px; font-size:13.5px}
+.breast .pt-info .row {display:flex; gap:14px; font-size:calc(13.5px * var(--ft))}
 .breast .pt-info .row .k {flex:none; width:76px; color:var(--muted)}
 .breast .pt-info .row .v {flex:1}
 
 /* 항상 떠 있는 알림 박스 — 사항이 있을 때만 내용이 붉게 바뀐다.
    카드 자체가 나타났다 사라졌다 하지 않는다(레이아웃이 흔들리지 않게). */
 .breast .notice {display:flex; gap:10px; align-items:flex-start; border-radius:var(--radius-sm);
-  padding:11px 12px; background:var(--surface-2); border:1px solid var(--line); font-size:13px}
-.breast .notice .ic {flex:none; font-size:14px; line-height:1.3}
-.breast .notice b {display:block; font-size:12.5px; margin-bottom:2px}
+  padding:11px 12px; background:var(--surface-2); border:1px solid var(--line); font-size:calc(13px * var(--ft))}
+.breast .notice .ic {flex:none; font-size:calc(14px * var(--ft)); line-height:1.3}
+.breast .notice b {display:block; font-size:calc(12.5px * var(--ft)); margin-bottom:2px}
 .breast .notice.danger {background:var(--soot); border-color:var(--soot); color:var(--soot-ink)}
-.breast .notice.danger .hint {color:var(--v-warm); font-size:12px; margin-top:4px}
+.breast .notice.danger .hint {color:var(--v-warm); font-size:calc(12px * var(--ft)); margin-top:4px}
 .breast .notice.muted {color:var(--muted)}
 
 /* 버튼 줄 — 다음 환자는 왼쪽, 나머지 동작은 오른쪽에 몰아서 고정.
@@ -598,7 +598,7 @@
 .bf-steps.col .bf-step:last-child::before{bottom:auto; height:12px}
 .bf-steps.col .bf-step i{position:absolute; left:0; top:7px; z-index:1; width:14px; height:14px;
   border-radius:50%; display:flex; align-items:center; justify-content:center;
-  font-size:8px; line-height:1; background:var(--card); color:var(--warm);
+  font-size:calc(8px * var(--ft)); line-height:1; background:var(--card); color:var(--warm);
   box-shadow:inset 0 0 0 2px var(--border)}
 .bf-steps.col .bf-step small{margin-left:auto}
 .bf-steps.col .bf-step.done::before{background:var(--soot)}
@@ -724,7 +724,7 @@ button.bf-chip.on{box-shadow:inset 0 0 0 var(--focus-w) var(--cyan); color:var(-
    네 변을 1px cyan 으로 두른다(한쪽 띠는 쓰지 않는다) */
 .breast .bf-sc-n{flex:none; width:22px; height:22px; border-radius:50%;
   display:inline-flex; align-items:center; justify-content:center;
-  font-size:12px; font-weight:700; color:var(--muted);
+  font-size:calc(12px * var(--ft)); font-weight:700; color:var(--muted);
   box-shadow:inset 0 0 0 1px var(--line)}
 .breast .bf-sc.done .bf-sc-n{background:var(--ink); color:var(--surface); box-shadow:none}
 .breast .bf-sc.now{border-color:var(--cyan)}
@@ -737,7 +737,7 @@ button.bf-chip.on{box-shadow:inset 0 0 0 var(--focus-w) var(--cyan); color:var(-
 .breast .bf-block{margin-top:12px; padding-top:12px; border-top:1px solid var(--line-2)}
 .breast .bf-sc > .card-head + .bf-block,
 .breast .bf-sc > .card-head + div > .bf-block{margin-top:0; padding-top:0; border-top:none}
-.breast .bf-block .edit-btn{font-size:12.5px; font-weight:600; color:var(--accent)}
+.breast .bf-block .edit-btn{font-size:calc(12.5px * var(--ft)); font-weight:600; color:var(--accent)}
 .breast .bf-block .edit-btn:hover{text-decoration:underline}
 .breast .bf-sum{display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:var(--gap)}
 .breast .bf-sum > div{display:flex; flex-direction:column; gap:8px; min-width:0}
@@ -749,12 +749,12 @@ button.bf-chip.on{box-shadow:inset 0 0 0 var(--focus-w) var(--cyan); color:var(-
 .breast .bf-seg .radio-row{flex:1; min-width:9em}
 .breast .bf-phr{display:flex; flex-wrap:wrap; gap:6px 14px}
 .breast .bf-phr-g{display:flex; flex-wrap:wrap; align-items:center; gap:4px}
-.breast .bf-phr-g small{font-size:11px; font-weight:600; color:var(--muted); margin-right:2px}
+.breast .bf-phr-g small{font-size:calc(11px * var(--ft)); font-weight:600; color:var(--muted); margin-right:2px}
 .breast .bf-rx{list-style:none; margin:10px 0; padding:0; display:flex; flex-direction:column; gap:8px}
 .breast .bf-rx li{display:flex; flex-direction:column; gap:3px; padding:8px 10px;
   border:1px solid var(--line); border-radius:var(--radius-sm)}
-.breast .bf-rx-h{display:flex; align-items:baseline; gap:8px; font-size:12.5px}
-.breast .bf-rx-d{font-size:13px; color:var(--ink-2)}
+.breast .bf-rx-h{display:flex; align-items:baseline; gap:8px; font-size:calc(12.5px * var(--ft))}
+.breast .bf-rx-d{font-size:calc(13px * var(--ft)); color:var(--ink-2)}
 .breast .bf-rx-d b{color:var(--ink); margin-right:6px}
 .breast .bf-rail-facts{display:flex; flex-wrap:wrap; gap:6px; margin-top:12px}
 .breast .bf-rail-next{display:flex; flex-direction:column; gap:6px; margin-top:12px;
@@ -773,13 +773,13 @@ button.bf-chip.on{box-shadow:inset 0 0 0 var(--focus-w) var(--cyan); color:var(-
 .breast .bf-sc-head h3{flex:1; min-width:0; margin:0}
 .breast .bf-sc-t{display:flex; flex-direction:column; align-items:flex-start; gap:2px; width:100%;
   padding:0; border:0; background:none; text-align:left; color:inherit; font:inherit; cursor:pointer}
-.breast .bf-sc-title{font-size:14px; font-weight:700; color:var(--ink)}
-.breast .bf-sc-sum{max-width:100%; font-size:12.5px; font-weight:500; color:var(--muted);
+.breast .bf-sc-title{font-size:calc(14px * var(--ft)); font-weight:700; color:var(--ink)}
+.breast .bf-sc-sum{max-width:100%; font-size:calc(12.5px * var(--ft)); font-weight:500; color:var(--muted);
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 .breast .bf-sc-t:hover .bf-sc-title{text-decoration:underline}
 .breast .bf-sc-t:focus-visible{outline:2px solid var(--cyan); outline-offset:3px; border-radius:4px}
 .breast .bf-sc-head > .edit-btn{margin-left:0}
-.breast .bf-sc-fold{flex:none; font-size:11.5px; color:var(--muted); min-width:2.5em; text-align:right}
+.breast .bf-sc-fold{flex:none; font-size:calc(11.5px * var(--ft)); color:var(--muted); min-width:2.5em; text-align:right}
 .breast .bf-sc-body[hidden]{display:none}
 /* 레일이 상단바 · 환자 띠(sticky) 밑으로 들어가 목차 첫 줄이 가렸다 */
 @media (min-width:1081px){
@@ -810,11 +810,11 @@ button.bf-chip.on{box-shadow:inset 0 0 0 var(--focus-w) var(--cyan); color:var(-
 .breast .bf-idx-i.done .bf-sc-n{background:var(--ink); color:var(--surface); box-shadow:none}
 .breast .bf-idx-i.now .bf-sc-n{background:var(--cyan); color:var(--cyan-ink); box-shadow:none}
 .breast .bf-idx-t{display:flex; flex-direction:column; gap:1px; min-width:0}
-.breast .bf-idx-t b{font-size:13px; font-weight:600; color:var(--ink);
+.breast .bf-idx-t b{font-size:calc(13px * var(--ft)); font-weight:600; color:var(--ink);
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
-.breast .bf-idx-t small{font-size:11.5px; color:var(--muted); line-height:1.35;
+.breast .bf-idx-t small{font-size:calc(11.5px * var(--ft)); color:var(--muted); line-height:1.35;
   display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden}
-.breast .bf-idx-i .pill{height:20px; padding:0 7px; font-size:11px}
+.breast .bf-idx-i .pill{height:20px; padding:0 7px; font-size:calc(11px * var(--ft))}
 .breast .bf-idx-i.lock .bf-idx-t b,.breast .bf-idx-i.todo .bf-idx-t b{color:var(--ink-2); font-weight:500}
 
 /* 잠금 조건 — 조건 한 줄 + 안 채운 까닭 · 할 일 */
@@ -823,10 +823,10 @@ button.bf-chip.on{box-shadow:inset 0 0 0 var(--focus-w) var(--cyan); color:var(-
   padding:8px 10px; border:1px solid var(--line); border-radius:var(--radius-sm)}
 .breast .cond-list .cond-row.met{background:var(--surface-2)}
 .breast .cond-h{display:flex; align-items:center; justify-content:space-between; gap:8px;
-  font-size:13px; font-weight:600}
+  font-size:calc(13px * var(--ft)); font-weight:600}
 .breast .cond-why{display:flex; align-items:baseline; justify-content:space-between; gap:8px;
-  font-size:12px; color:var(--ink-2); line-height:1.45}
-.breast .cond-why .edit-btn{flex:none; font-size:12px; font-weight:600; color:var(--accent);
+  font-size:calc(12px * var(--ft)); color:var(--ink-2); line-height:1.45}
+.breast .cond-why .edit-btn{flex:none; font-size:calc(12px * var(--ft)); font-weight:600; color:var(--accent);
   background:none; border:0; padding:0; cursor:pointer}
 .breast .cond-why .edit-btn:hover{text-decoration:underline}
 .breast .cond-list.compact .cond-row{padding:6px 8px}
@@ -841,19 +841,19 @@ button.bf-chip.on{box-shadow:inset 0 0 0 var(--focus-w) var(--cyan); color:var(-
 /* 처방 — 복용 횟수 칩 + 시각 칸들 */
 .breast .rx-times-field{display:flex; flex-direction:column; gap:8px}
 .breast .rx-freq{display:flex; flex-wrap:wrap; align-items:center; gap:6px}
-.breast .rx-freq .bf-chip small{font-size:10.5px; font-weight:700; color:var(--muted); margin-left:2px}
-.breast .rx-freq-own{font-size:12px; color:var(--muted)}
+.breast .rx-freq .bf-chip small{font-size:calc(10.5px * var(--ft)); font-weight:700; color:var(--muted); margin-left:2px}
+.breast .rx-freq-own{font-size:calc(12px * var(--ft)); color:var(--muted)}
 .breast .rx-times{margin:0; padding:0; list-style:none; display:flex; flex-wrap:wrap; align-items:center; gap:8px}
 .breast .rx-time{display:inline-flex; align-items:center; gap:6px; padding:4px 6px 4px 10px;
   border:1px solid var(--line); border-radius:var(--radius-sm)}
-.breast .rx-time label{font-size:12px; font-weight:600; color:var(--muted)}
+.breast .rx-time label{font-size:calc(12px * var(--ft)); font-weight:600; color:var(--muted)}
 .breast .field .rx-time input{border:0; padding:2px 0; font-variant-numeric:tabular-nums; background:none}
 .breast .field .rx-time input[aria-invalid="true"]{color:var(--danger)}
 .breast .rx-time-x{width:22px; height:22px; border:0; border-radius:50%; background:none;
-  color:var(--muted); font-size:15px; line-height:1; cursor:pointer}
+  color:var(--muted); font-size:calc(15px * var(--ft)); line-height:1; cursor:pointer}
 .breast .rx-time-x:hover{background:var(--surface-2); color:var(--danger)}
-.breast .rx-times .edit-btn{font-size:12.5px; font-weight:600; color:var(--accent); background:none; border:0; cursor:pointer}
-.breast .rx-times-field .err{color:var(--danger); font-size:12px}
+.breast .rx-times .edit-btn{font-size:calc(12.5px * var(--ft)); font-weight:600; color:var(--accent); background:none; border:0; cursor:pointer}
+.breast .rx-times-field .err{color:var(--danger); font-size:calc(12px * var(--ft))}
 
 /* ── 판정 불일치 — 왼쪽 아래 「처분 기다리는 불일치」 (Discordance.jsx) ──
    비어 있던 아래 칸을 목록이 받는다. 남는 높이를 다 쓰고 안에서 굴린다 */
@@ -871,8 +871,8 @@ button.bf-chip.on{box-shadow:inset 0 0 0 var(--focus-w) var(--cyan); color:var(-
 
 /* ── 전체 환자 — 오른쪽 요약(Patients.jsx). 단계 줄 + 결과 한 줄 ── */
 .breast .bf-pl-h{display:flex; align-items:baseline; flex-wrap:wrap; gap:6px 10px}
-.breast .bf-pl-h b{font-size:16px; font-weight:700}
-.breast .bf-pl-brief{margin:8px 0 10px; font-size:13px; line-height:1.5; color:var(--ink-2)}
+.breast .bf-pl-h b{font-size:calc(16px * var(--ft)); font-weight:700}
+.breast .bf-pl-brief{margin:8px 0 10px; font-size:calc(13px * var(--ft)); line-height:1.5; color:var(--ink-2)}
 .breast .bf-pl-next{display:flex; align-items:center; gap:8px; margin:10px 0 14px;
   padding:8px 10px; border:1px solid var(--line); border-radius:var(--radius-sm)}
 /* 쪽을 뷰포트에 가둔다 — 오른쪽 요약에 단계 줄이 들어오며 길어져서, 안
@@ -888,7 +888,7 @@ button.bf-chip.on{box-shadow:inset 0 0 0 var(--focus-w) var(--cyan); color:var(-
 .page.breast > .pane{padding:0}
 .page.breast .phead{align-items:center}
 .page.breast .phead-back{display:inline-flex; align-items:center; justify-content:center;
-  width:32px; height:32px; border-radius:var(--round); font-size:20px; color:var(--ink-2)}
+  width:32px; height:32px; border-radius:var(--round); font-size:calc(20px * var(--ft)); color:var(--ink-2)}
 .page.breast .phead-back:hover{background:var(--line-2); color:var(--ink)}
 .breast .bf-rail > *{flex:none}
 .breast .bf-rail{scrollbar-width:thin}
@@ -972,22 +972,22 @@ button.bf-chip.on{box-shadow:inset 0 0 0 var(--focus-w) var(--cyan); color:var(-
    (.warnline)과 같은 soot 채움, 주의는 테두리만, 나머지는 흐린 한 줄 */
 .breast .rx-dur{display:flex; flex-direction:column; gap:var(--gap-xs);
   padding:var(--gap-sm) 0; border-top:1px solid var(--line-2)}
-.breast .rx-dur-line{margin:0; font-size:12.5px; color:var(--muted);
+.breast .rx-dur-line{margin:0; font-size:calc(12.5px * var(--ft)); color:var(--muted);
   display:flex; align-items:center; gap:8px; flex-wrap:wrap}
 .breast .rx-dur-retry{border:0; background:none; padding:0; cursor:pointer;
-  font-size:12.5px; font-weight:600; color:var(--accent)}
+  font-size:calc(12.5px * var(--ft)); font-weight:600; color:var(--accent)}
 .breast .rx-dur-taboo,.breast .rx-dur-caution{display:flex; flex-direction:column; gap:6px;
   padding:var(--gap-sm) var(--card-pad-sm); border-radius:var(--radius-sm)}
 .breast .rx-dur-taboo{background:var(--soot); color:var(--soot-ink)}
 .breast .rx-dur-caution{border:1px solid var(--line); color:var(--ink-2)}
-.breast .rx-dur-h{font-size:12.5px; font-weight:700}
+.breast .rx-dur-h{font-size:calc(12.5px * var(--ft)); font-weight:700}
 .breast .rx-dur-taboo ul,.breast .rx-dur-caution ul{margin:0; padding:0; list-style:none;
   display:flex; flex-direction:column; gap:6px}
-.breast .rx-dur-taboo li,.breast .rx-dur-caution li{display:flex; flex-direction:column; gap:2px; font-size:13px}
-.breast .rx-dur-taboo li span{font-size:12px; opacity:.8}
+.breast .rx-dur-taboo li,.breast .rx-dur-caution li{display:flex; flex-direction:column; gap:2px; font-size:calc(13px * var(--ft))}
+.breast .rx-dur-taboo li span{font-size:calc(12px * var(--ft)); opacity:.8}
 .breast .rx-dur-caution li b{font-weight:600; color:var(--ink)}
-.breast .rx-dur-caution li span{font-size:12px; color:var(--muted)}
-.breast .rx-dur-src{margin:0; font-size:11.5px; color:var(--muted); line-height:1.5}
+.breast .rx-dur-caution li span{font-size:calc(12px * var(--ft)); color:var(--muted)}
+.breast .rx-dur-src{margin:0; font-size:calc(11.5px * var(--ft)); color:var(--muted); line-height:1.5}
 .breast .check-row.rx-dur-ack{margin:4px 0 0; font-weight:600; color:var(--ink)}
 
 /* 저장된 처방 머리의 [복약 안내문] — 오른쪽 끝 */
@@ -996,10 +996,10 @@ button.bf-chip.on{box-shadow:inset 0 0 0 var(--focus-w) var(--cyan); color:var(-
 /* 복약 안내문 — 팝업은 body 에 포털로 붙어 .breast 밖이다. 그래서 여기만
    .breast 없이 rxh- 머리로 가둔다.
    ⚠ --muted · --line 은 .breast 안에서만 선다 — 여기서는 --warm · --border */
-.rxh{display:flex; flex-direction:column; gap:var(--gap-sm); color:var(--ink); font-size:13.5px; line-height:1.6}
-.rxh h2{margin:0; font-size:18px}
-.rxh h3{margin:0 0 6px; font-size:15px}
-.rxh h4{margin:10px 0 2px; font-size:12.5px; font-weight:700; color:var(--ink-2)}
+.rxh{display:flex; flex-direction:column; gap:var(--gap-sm); color:var(--ink); font-size:calc(13.5px * var(--ft)); line-height:1.6}
+.rxh h2{margin:0; font-size:calc(18px * var(--ft))}
+.rxh h3{margin:0 0 6px; font-size:calc(15px * var(--ft))}
+.rxh h4{margin:10px 0 2px; font-size:calc(12.5px * var(--ft)); font-weight:700; color:var(--ink-2)}
 .rxh-head{display:flex; flex-direction:column; gap:6px; padding-bottom:var(--gap-sm);
   border-bottom:1px solid var(--border)}
 .rxh-meta,.rxh-facts{margin:0; display:flex; flex-wrap:wrap; gap:4px 20px}
@@ -1009,17 +1009,17 @@ button.bf-chip.on{box-shadow:inset 0 0 0 var(--focus-w) var(--cyan); color:var(-
 .rxh-drug{padding:var(--gap-sm) 0; border-bottom:1px solid var(--line-2)}
 .rxh-text{margin:0; white-space:pre-line}
 .rxh-watch{font-weight:600}
-.rxh-muted{margin:0; color:var(--warm); font-size:12.5px}
+.rxh-muted{margin:0; color:var(--warm); font-size:calc(12.5px * var(--ft))}
 /* ② 식약처 참고 — 처방 설명과 한눈에 갈라 보이게 테를 두른다 */
 .rxh-ref{margin-top:var(--gap-sm); padding:var(--gap-sm) var(--card-pad-sm);
-  border:1px dashed var(--border); border-radius:var(--radius-sm); font-size:12.5px}
+  border:1px dashed var(--border); border-radius:var(--radius-sm); font-size:calc(12.5px * var(--ft))}
 .rxh-ref h4{margin:0 0 4px; color:var(--warm)}
 .rxh-ref-item{margin:0 0 4px; color:var(--ink-2); font-weight:600}
 .rxh-ref-dl{margin:0; display:flex; flex-direction:column; gap:6px}
 .rxh-ref-dl dt{font-weight:600; color:var(--ink-2)}
 .rxh-ref-dl dd{margin:0; white-space:pre-line; color:var(--ink-2)}
-.rxh-src{margin:6px 0 0; font-size:11px; color:var(--warm)}
-.rxh-foot{font-size:12px; color:var(--warm)}
+.rxh-src{margin:6px 0 0; font-size:calc(11px * var(--ft)); color:var(--warm)}
+.rxh-foot{font-size:calc(12px * var(--ft)); color:var(--warm)}
 
 /* 인쇄 — 안내문 팝업이 떠 있을 때만 그것만 A4 에.
    ⚠ Dialog 가 body 에 overflow:hidden 을 걸고 팝업 몸통이 스크롤 칸이다.
