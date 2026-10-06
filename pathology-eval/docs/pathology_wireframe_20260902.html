@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>병리과 화면 와이어프레임</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1c1c22; --muted: #6b6b78; --faint: #9b9ba8; --line: #d9d9e0;
+    --page: #f4f4f7; --panel: #ffffff; --wire: #eef0f4; --wire-line: #c7cbd6;
+    --accent: #3b5bdb; --accent-wash: #eef1fd;
+    --amber: #a15c00; --amber-wash: #fff4e0; --amber-line: #e8c07a;
+    --green: #1a7a4c; --green-wash: #e8f6ee;
+    --red: #b3261e; --red-wash: #fdecea;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--page); color:var(--ink); font-family:'IBM Plex Sans KR',sans-serif; line-height:1.6; }
+  .wrap { max-width:1180px; margin:0 auto; padding:64px 32px 120px; }
+  code, .mono { font-family:'IBM Plex Mono',monospace; font-size:0.86em; }
+
+  h1 { font-size:32px; font-weight:700; margin:0 0 6px; letter-spacing:-0.02em; }
+  .sub { color:var(--muted); font-size:15px; margin:0 0 6px; }
+  .meta { color:var(--faint); font-size:13px; margin:0 0 48px; padding-bottom:28px; border-bottom:1px solid var(--line); }
+
+  .screen-block { margin-bottom:76px; }
+  .screen-num { display:inline-flex; align-items:center; gap:10px; font-size:13px; color:var(--faint); font-weight:600; margin-bottom:8px; }
+  .screen-num .n { width:22px; height:22px; border-radius:50%; background:var(--ink); color:#fff; display:flex; align-items:center; justify-content:center; font-size:12px; }
+  .screen-title { font-size:22px; font-weight:700; margin:0 0 4px; }
+  .screen-desc { color:var(--muted); font-size:14px; margin:0 0 20px; max-width:70ch; }
+
+  .layout { display:grid; grid-template-columns:minmax(0,1.35fr) minmax(0,1fr); gap:24px; align-items:start; }
+
+  .frame { background:var(--panel); border:1px solid var(--line); border-radius:10px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.04); }
+  .frame-bar { background:#e9e9ee; padding:8px 14px; display:flex; gap:6px; align-items:center; border-bottom:1px solid var(--line); }
+  .frame-bar span { width:8px; height:8px; border-radius:50%; background:#c9c9d2; }
+  .frame-body { padding:18px 20px; }
+
+  .queue-tabs { display:flex; gap:6px; margin-bottom:14px; flex-wrap:wrap; }
+  .tab { font-size:12px; padding:5px 11px; border-radius:20px; background:var(--wire); border:1px solid var(--wire-line); color:var(--muted); }
+  .tab.active { background:var(--ink); color:#fff; border-color:var(--ink); }
+
+  .row { display:flex; align-items:center; justify-content:space-between; padding:10px 12px; background:var(--wire); border:1px solid var(--wire-line); border-radius:6px; margin-bottom:8px; font-size:13px; }
+  .row.dim { opacity:0.45; }
+  .row .label { font-weight:500; }
+  .row .tag { font-size:11px; color:var(--faint); }
+
+  .field-block { margin-bottom:12px; }
+  .field-label { font-size:11px; color:var(--faint); margin-bottom:4px; font-weight:500; }
+  .field-input { height:32px; background:var(--wire); border:1px solid var(--wire-line); border-radius:5px; display:flex; align-items:center; padding:0 10px; font-size:12px; color:var(--faint); }
+  .field-input.filled { color:var(--ink); background:#fff; }
+  .field-readonly { height:32px; background:#f3f3f0; border:1px dashed var(--wire-line); border-radius:5px; display:flex; align-items:center; padding:0 10px; font-size:12px; color:var(--muted); }
+
+  .btn-row { display:flex; gap:8px; margin-top:14px; flex-wrap:wrap; }
+  .btn { font-size:12.5px; padding:9px 16px; border-radius:6px; font-weight:600; border:1px solid var(--wire-line); background:#fff; color:var(--ink); }
+  .btn.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .btn.ghost { background:transparent; border-style:dashed; color:var(--muted); }
+  .btn.disabled { background:#f0f0f0; border-color:var(--wire-line); color:var(--faint); }
+
+  .overlay-toggle { display:flex; gap:6px; margin-bottom:14px; }
+  .chip { font-size:11px; padding:4px 10px; border-radius:5px; border:1px solid var(--wire-line); background:#fff; color:var(--muted); }
+  .chip.on { background:var(--accent-wash); border-color:var(--accent); color:var(--accent); }
+
+  .panel-readonly-badge { display:inline-block; font-size:10.5px; color:var(--faint); border:1px solid var(--wire-line); border-radius:4px; padding:1px 6px; margin-left:8px; }
+
+  .mask-viz { display:flex; gap:6px; margin-bottom:14px; height:70px; }
+  .mask-viz .zone { flex:1; border-radius:5px; display:flex; align-items:flex-end; padding:6px; font-size:10px; color:#fff; font-weight:600; }
+  .zone.tumor { background:#c0684f; }
+  .zone.stroma { background:#7fa87f; }
+  .zone.other { background:#b7b7c2; }
+
+  .kv-line { display:flex; justify-content:space-between; font-size:12.5px; padding:6px 0; border-bottom:1px solid var(--wire-line); }
+  .kv-line span:first-child { color:var(--muted); }
+  .kv-line span:last-child { font-weight:600; }
+
+  .annot { display:flex; flex-direction:column; gap:10px; }
+  .annot-item { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:12px 14px; font-size:13px; }
+  .annot-item .btnname { font-weight:700; font-size:13px; margin-bottom:4px; }
+  .annot-item .flow { color:var(--muted); font-size:12.5px; margin-bottom:6px; }
+  .annot-item .db { background:var(--wire); border-radius:5px; padding:6px 9px; font-size:11.5px; color:var(--ink); line-height:1.55; }
+  .annot-item .result { font-size:11.5px; color:var(--green); margin-top:6px; font-weight:600; }
+
+  .note { border-radius:8px; padding:14px 16px; font-size:13px; margin-top:10px; }
+  .note.warn { background:var(--amber-wash); border:1px solid var(--amber-line); }
+  .note.warn .t { color:var(--amber); font-weight:700; font-size:12.5px; margin-bottom:5px; }
+  .note.warn p { margin:0 0 5px; color:#5c4a1f; line-height:1.55; }
+  .note.warn p:last-child { margin-bottom:0; }
+  .note.info { background:var(--wire); border:1px solid var(--wire-line); }
+  .note.info .t { font-weight:700; font-size:12.5px; margin-bottom:5px; }
+  .note.info p { margin:0; color:var(--muted); line-height:1.55; }
+
+  .connector { width:100%; height:1px; background:var(--line); margin:76px 0; }
+
+  .summary-table { width:100%; border-collapse:collapse; font-size:13px; }
+  .summary-table th { text-align:left; font-size:11.5px; color:var(--faint); font-weight:600; padding:0 10px 8px 0; border-bottom:2px solid var(--ink); }
+  .summary-table td { padding:10px 10px 10px 0; border-bottom:1px solid var(--line); vertical-align:top; }
+
+  .checklist { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:10px; }
+  .checklist li { display:flex; gap:10px; align-items:flex-start; font-size:13.5px; }
+  .checklist li::before { content:"—"; color:var(--faint); flex-shrink:0; }
+
+  .footer-note { color:var(--faint); font-size:12.5px; font-style:italic; margin-top:40px; padding-top:20px; border-top:1px solid var(--line); }
+
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; }
+    .wrap { padding: 40px 18px 90px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>병리과 화면 와이어프레임</h1>
+  <p class="sub">화면 목업 + 버튼별 DB·API 연결 주석</p>
+  <p class="meta">작성 2026-09-02 · 담당 정다희 · 근거: 확정_사양서.docx 3-7·7장·19-5 + 라이브 DB 스키마(EMPATHO_CDSS_DB_2026-09-02) · 표기 규칙은 영상의학과 화면 상세명세서(서정은)와 통일</p>
+
+  <div class="screen-block">
+    <div class="screen-num"><span class="n">1</span>대시보드</div>
+    <h2 class="screen-title">대시보드</h2>
+    <p class="screen-desc">병리과 로그인 첫 화면. 검체를 상태별 큐로 분류해 보여준다.</p>
+    <div class="layout">
+      <div class="frame">
+        <div class="frame-bar"><span></span><span></span><span></span></div>
+        <div class="frame-body">
+          <div class="queue-tabs">
+            <div class="tab active">미접수 검체 (7)</div>
+            <div class="tab">AI 분석 중 (2)</div>
+            <div class="tab">판독 미확정 (4)</div>
+          </div>
+          <div class="row"><div><div class="label">S-000118 · core_needle</div><div class="tag">2026-09-02 접수 대기</div></div><div class="tag">bound</div></div>
+          <div class="row"><div><div class="label">S-000119 · surgical</div><div class="tag">2026-09-02 접수 대기</div></div><div class="tag">bound</div></div>
+          <div class="row dim"><div><div class="label">S-000120 · core_needle</div><div class="tag">병변 미연결</div></div><div class="tag">unbound</div></div>
+        </div>
+      </div>
+      <div class="annot">
+        <div class="annot-item">
+          <div class="btnname">검체 카드 클릭</div>
+          <div class="flow">specimen.accession_status 를 보고 ②~⑦ 중 적절한 화면으로 라우팅</div>
+          <div class="db">DB 변경 없음 · 화면 전환만</div>
+        </div>
+        <div class="note info">
+          <div class="t">큐 판별 조건</div>
+          <p>미접수 = accession_status='bound' · AI 진행 = ai_result.run_status ∈ {requested,running} · 미확정 = pathology_result.finalized_at IS NULL</p>
+        </div>
+        <div class="note warn">
+          <div class="t">unbound 검체는 클릭 차단</div>
+          <p>목록에는 노출하되 흐리게 처리하고 클릭을 막는다 — 사양서 3-7 병리과 대시보드 규칙.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="connector"></div>
+
+  <div class="screen-block">
+    <div class="screen-num"><span class="n">2</span>검체 접수</div>
+    <h2 class="screen-title">검체 접수</h2>
+    <p class="screen-desc">도착한 검체를 확인하고 접수 처리한다.</p>
+    <div class="layout">
+      <div class="frame">
+        <div class="frame-bar"><span></span><span></span><span></span></div>
+        <div class="frame-body">
+          <div class="field-block"><div class="field-label">검체 라벨</div><div class="field-input filled">S-000118</div></div>
+          <div class="field-block"><div class="field-label">검체 유형</div><div class="field-readonly">core_needle</div></div>
+          <div class="field-block"><div class="field-label">채취 방식 · 일시</div><div class="field-readonly">ultrasound · 2026-08-30 14:20</div></div>
+          <div class="field-block"><div class="field-label">바인딩 수행자</div><div class="field-readonly">간호사 김OO</div></div>
+          <div class="btn-row"><div class="btn primary">접수 확인</div></div>
+        </div>
+      </div>
+      <div class="annot">
+        <div class="annot-item">
+          <div class="btnname">접수 확인</div>
+          <div class="flow">검체 도착 확인 후 접수 처리</div>
+          <div class="db">specimen.accession_status: bound → accessioned<br>accessioned_at = now()</div>
+          <div class="result">→ 슬라이드 업로드 화면 진입 허용</div>
+        </div>
+        <div class="note info">
+          <div class="t">Hard Stop은 DB 레벨에서 이미 구현됨</div>
+          <p>CHECK 3값(unbound/bound/accessioned). unbound 상태로 접수 시도 시 409 SPECIMEN_NOT_BOUND — 접수 성공 자체가 바인딩 완료의 증거.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="connector"></div>
+
+  <div class="screen-block">
+    <div class="screen-num"><span class="n">3</span>슬라이드 업로드 · AI 요청</div>
+    <h2 class="screen-title">슬라이드 업로드 · AI 요청</h2>
+    <p class="screen-desc">WSI 파일을 올리고 조직 분할·세포 검출 분석을 요청한다.</p>
+    <div class="layout">
+      <div class="frame">
+        <div class="frame-bar"><span></span><span></span><span></span></div>
+        <div class="frame-body">
+          <div class="row"><div class="label">HE_S000118_01.svs</div><div class="tag">2.1 GB · 업로드 완료</div></div>
+          <div class="field-block"><div class="field-label">염색 유형</div><div class="field-input filled">HE</div></div>
+          <div class="field-block"><div class="field-label">스캔 배율</div><div class="field-input filled">40x</div></div>
+          <div class="btn-row">
+            <div class="btn ghost">+ WSI 업로드</div>
+            <div class="btn primary">AI 분석 요청</div>
+          </div>
+        </div>
+      </div>
+      <div class="annot">
+        <div class="annot-item">
+          <div class="btnname">WSI 업로드</div>
+          <div class="flow">슬라이드 이미지 청크 전송</div>
+          <div class="db">storage_object insert →<br>pathology_slide insert(specimen_id, stain_type, scan_magnification, mpp)</div>
+          <div class="result">→ image_pyramid.build_status: pending → building</div>
+        </div>
+        <div class="annot-item">
+          <div class="btnname">AI 분석 요청</div>
+          <div class="flow">조직 분할(소켓1) + 세포 검출·분류(소켓2) 실행</div>
+          <div class="db">ai_result insert(pathology_slide_id, socket_name, run_status: requested→completed)<br>→ 소켓1 결과는 ai_mask(mask_type ∈ tumor/stroma/immune) 로 저장</div>
+          <div class="result">→ AI 판독 확인 화면 진입 허용</div>
+        </div>
+        <div class="note warn">
+          <div class="t">뷰어 오픈 조건</div>
+          <p>image_pyramid.build_status가 ready가 아니면(pending/building/failed) 슬라이드 확대 진입 시 409 PYRAMID_NOT_READY. 업로드 직후 바로 다음 화면으로 넘어가지 않도록 "타일 생성 중" 로딩 상태 표시 필요.</p>
+        </div>
+        <div class="note warn">
+          <div class="t">API 명세서 확인 필요</div>
+          <p>v3의 7.5는 POST /pathology-results/{id}/slides 인데, DB의 pathology_slide.specimen_id 는 pathology_result_id 대신 specimen_id 를 참조하도록 이미 바뀌었다 — "스캔이 판독보다 먼저"라서다. 엔드포인트도 /specimens/{id}/slides 로 정정 필요 가능성 — API팀(윤수용) 확인.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="connector"></div>
+
+  <div class="screen-block">
+    <div class="screen-num"><span class="n">4</span>영상 참조 패널</div>
+    <h2 class="screen-title">영상 참조 패널<span class="panel-readonly-badge">읽기 전용 · 우측 고정</span></h2>
+    <p class="screen-desc">판독 중 언제든 참조할 수 있는 영상의학과 결과 요약. 이 패널 자체에서 발생하는 DB 변경은 없다.</p>
+    <div class="layout">
+      <div class="frame">
+        <div class="frame-bar"><span></span><span></span><span></span></div>
+        <div class="frame-body">
+          <div class="kv-line"><span>확정 BI-RADS</span><span>4b</span></div>
+          <div class="kv-line"><span>병변 위치</span><span>Rt, 2시, 유두 3.2cm</span></div>
+          <div class="kv-line"><span>크기</span><span>1.4 cm</span></div>
+          <div class="field-block" style="margin-top:12px"><div class="field-label">병변 썸네일</div>
+            <div style="height:90px;background:var(--wire);border:1px dashed var(--wire-line);border-radius:6px;display:flex;align-items:center;justify-content:center;color:var(--faint);font-size:11px;">image_instance thumbnail</div>
+          </div>
+        </div>
+      </div>
+      <div class="annot">
+        <div class="annot-item">
+          <div class="btnname">API 7.7</div>
+          <div class="flow">GET /pathology-results/{id}/reference-images</div>
+          <div class="db">assessment.category (read_stage='final')<br>lesion.laterality / clock_position / size_mm<br>image_instance → storage_object 썸네일</div>
+        </div>
+        <div class="note info">
+          <div class="t">병리의는 이 패널을 통해서만 영상 결과를 본다</div>
+          <p>영상의학과의 1차 판독 잠금(AI 대조 전 게이트)과 달리, 병리 화면에는 그런 잠금이 없다 — "병리 편향 통제는 만들지 않는다. 병리의 판단이 기준"(사양서 8-2). 의도된 비대칭이다.</p>
+        </div>
+        <div class="note info">
+          <div class="t">참조 패널 뷰어 = Cornerstone3D (병리 WSI 뷰어와 별개)</div>
+          <p>이 패널은 영상의학과 판독 화면과 같은 Cornerstone3D + DICOMweb으로 맘모·초음파·MRI 영상을 렌더링한다. ⑧의 병리 WSI 뷰어(OpenSeadragon + DZI)와는 별개의 뷰어 라이브러리이며, 하나의 병리 화면 안에서 두 라이브러리가 공존한다 — WSI는 OpenSeadragon, 우측 영상 참조 패널은 Cornerstone3D. 데이터 소스도 좌표계도 서로 독립적이다.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="connector"></div>
+
+  <div class="screen-block">
+    <div class="screen-num"><span class="n">5</span>AI 판독 확인</div>
+    <h2 class="screen-title">AI 판독 확인 — sTIL · TSR</h2>
+    <p class="screen-desc">조직 분할 오버레이와 정량값을 확인한다. 이 화면에는 기권 게이트가 없다.</p>
+    <div class="layout">
+      <div class="frame">
+        <div class="frame-bar"><span></span><span></span><span></span></div>
+        <div class="frame-body">
+          <div class="overlay-toggle">
+            <div class="chip on">tumor</div><div class="chip on">stroma</div><div class="chip">immune</div>
+          </div>
+          <div class="mask-viz">
+            <div class="zone tumor">tumor</div>
+            <div class="zone stroma">stroma</div>
+            <div class="zone other">other</div>
+          </div>
+          <div class="kv-line"><span>sTIL</span><span>7.6% <span style="color:var(--faint);font-weight:400">[7.2–7.7]</span></span></div>
+          <div class="kv-line"><span>TSR</span><span>확인 필요</span></div>
+          <div class="kv-line"><span>평가 ROI</span><span>타일 214개</span></div>
+          <div class="btn-row"><div class="btn">정량 분석 재요청</div></div>
+        </div>
+      </div>
+      <div class="annot">
+        <div class="annot-item">
+          <div class="btnname">정량 분석 요청</div>
+          <div class="flow">sTIL·TSR 계산 (조직 분할 면적 ÷ 세포 검출·분류 결과 결합)</div>
+          <div class="db">pathology_result upsert — stil_percent, stil_interval_low/high, tsr_percent, stil_source='ai'</div>
+        </div>
+        <div class="note info">
+          <div class="t">기권 없음</div>
+          <p>ai_result.abstained 필드는 테이블 구조상 존재하나 병리 소켓에는 적용하지 않는다 — "병리의 판단이 기준"(사양서 3-7). 대신 오차범위(stil_interval_low/high)로 불확실성을 전달한다.</p>
+        </div>
+        <div class="note warn">
+          <div class="t">stil_percent 절대값 표기 주의</div>
+          <p>병리의사 스코어 82건 대조 결과 순위는 일치하나(ρ=0.798) 절대값은 임상 스케일 대비 약 1/12. 캘리브레이션 반영 여부를 백엔드팀과 확정 후 화면 값 결정 필요 — docs/stil_pipeline_limitations.md 참조.</p>
+        </div>
+        <div class="note warn">
+          <div class="t">tsr_percent 정의 확인 필요</div>
+          <p>DB 컬럼 설명엔 "§0-3에 근거"라 되어 있으나, 사양서 7장엔 여전히 "정의 미확정(Q6)"으로 남아있음 — 최일운님 확인 후 화면에 한 방향으로 확정 표시.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="connector"></div>
+
+  <div class="screen-block">
+    <div class="screen-num"><span class="n">6</span>확진 · B분류</div>
+    <h2 class="screen-title">확진 · B분류</h2>
+    <p class="screen-desc">AI는 양성/악성만 제안하고, B분류는 병리의가 직접 고른다.</p>
+    <div class="layout">
+      <div class="frame">
+        <div class="frame-bar"><span></span><span></span><span></span></div>
+        <div class="frame-body">
+          <div class="field-block"><div class="field-label">AI 제안 (참고용)</div><div class="field-readonly">malignant</div></div>
+          <div class="field-block"><div class="field-label">B분류 — 직접 선택</div><div class="field-input">선택하세요</div></div>
+          <div class="field-block"><div class="field-label">확진 코드</div><div class="field-input">입력</div></div>
+          <div class="field-block"><div class="field-label">조직학적 유형 · Nottingham grade</div><div class="field-input">입력</div></div>
+          <div class="field-block"><div class="field-label">ER / PR / HER2 / Ki-67</div><div class="field-input">입력</div></div>
+          <div class="btn-row"><div class="btn primary">확진 저장</div></div>
+        </div>
+      </div>
+      <div class="annot">
+        <div class="annot-item">
+          <div class="btnname">확진 저장</div>
+          <div class="flow">AI 양성/악성 제안을 참고해 병리의가 B분류·확진 코드를 직접 선택</div>
+          <div class="db">pathology_result update — b_category(직접 선택), diagnosis_code, histologic_type, nottingham_grade, er/pr/her2_status, ki67_percent</div>
+        </div>
+        <div class="note info">
+          <div class="t">B분류는 반드시 사람이 고른다</div>
+          <p>"B분류는 병리의가 직접 고른다. AI는 양성/악성만 낸다"(사양서 3-7) — AI 제안값으로 자동 채우는 UI를 만들지 않는다.</p>
+        </div>
+        <div class="note warn">
+          <div class="t">허용값 확인 필요</div>
+          <p>diagnosis(benign/malignant), b_category(b1~b5)는 사양서 텍스트엔 값 범위가 있으나 DB엔 CHECK 제약이 없음 — 프론트 강제 or DB CHECK 추가, DB팀(최일운) 확인.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="connector"></div>
+
+  <div class="screen-block">
+    <div class="screen-num"><span class="n">7</span>소견서 · FINAL</div>
+    <h2 class="screen-title">소견서 · 판독 확정 (FINAL)</h2>
+    <p class="screen-desc">확정 순간 자동 대조 엔진(SYS-4)이 즉시 트리거된다. 정정 경로는 없다.</p>
+    <div class="layout">
+      <div class="frame">
+        <div class="frame-bar"><span></span><span></span><span></span></div>
+        <div class="frame-body">
+          <div class="field-block"><div class="field-label">소견서 본문</div>
+            <div style="height:80px;background:var(--wire);border:1px solid var(--wire-line);border-radius:6px;padding:8px 10px;font-size:12px;color:var(--faint)">finding_note...</div>
+          </div>
+          <div class="btn-row"><div class="btn primary">FINAL 확정</div></div>
+        </div>
+      </div>
+      <div class="annot">
+        <div class="annot-item">
+          <div class="btnname">FINAL 확정</div>
+          <div class="flow">병리 판독 결과 확정</div>
+          <div class="db">pathology_result update — finding_note 저장, finalized_at = now(), reported_by_staff_id = 병리의</div>
+          <div class="result">→ 자동 대조(SYS-4) 즉시 트리거</div>
+        </div>
+        <div class="note info">
+          <div class="t">대조 실행 API는 없다</div>
+          <p>"트리거는 사람의 요청이 아니라 finalized_at 이라는 상태 변화"(사양서 4-4). 확정 순간 discordance_flag가 규칙 5종(rule1~rule5)으로 자동 평가된다.</p>
+        </div>
+        <div class="note warn">
+          <div class="t">report 연결 확인 필요</div>
+          <p>영상의학과는 FINAL 시 report(report_type='imaging')를 별도 insert. 병리도 동일한지 문서상 불명확 — API팀 확인 필요.</p>
+        </div>
+        <div class="note warn">
+          <div class="t">정정 경로 없음</div>
+          <p>"확정 후 오류는 새 검체로 처리한다"(사양서 8-2). finalized_at이 찍힌 행은 다시 열리지 않는다.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="connector"></div>
+
+  <div class="screen-block">
+    <div class="screen-num"><span class="n">8</span>WSI 뷰어</div>
+    <h2 class="screen-title">WSI 뷰어</h2>
+    <p class="screen-desc">슬라이드 확대 열람. 판독 화면(③·⑤)에서 슬라이드를 클릭하면 이 세션이 열린다. API 7.9 GET /pathology-slides/{id}/viewer — DZI 메타 + 타일 티켓 + sTIL 오버레이.</p>
+    <div class="layout">
+      <div class="frame">
+        <div class="frame-bar"><span></span><span></span><span></span></div>
+        <div class="frame-body">
+          <div class="overlay-toggle">
+            <div class="chip on">tumor</div><div class="chip on">stroma</div><div class="chip">immune</div>
+          </div>
+          <div style="height:150px;background:var(--wire);border:1px dashed var(--wire-line);border-radius:6px;display:flex;align-items:center;justify-content:center;color:var(--faint);font-size:11px;text-align:center;padding:0 12px;">OpenSeadragon 뷰포트 · DZI 타일 + AI 마스크 오버레이</div>
+          <div class="kv-line"><span>타일 메타</span><span>tile_size / level_count / mpp_x·y</span></div>
+          <div class="kv-line"><span>오버레이 타일</span><span>/svc/v1/pyramid/{id}/overlay/…png</span></div>
+        </div>
+      </div>
+      <div class="annot">
+        <div class="annot-item">
+          <div class="btnname">API 7.9</div>
+          <div class="flow">GET /pathology-slides/{id}/viewer</div>
+          <div class="db">image_pyramid.tile_size / level_count / max_width / max_height / mpp_x / mpp_y<br>AI 마스크 오버레이는 원본과 같은 좌표계</div>
+        </div>
+        <div class="note info">
+          <div class="t">뷰어 프로토콜 — 병리 WSI는 통일 대상이 아니다</div>
+          <p style="margin:0 0 6px">병리 WSI 판독 화면은 <b>OpenSeadragon + DZI</b>(Deep Zoom Image)를 쓴다. 영상의학과(맘모·초음파·MRI)는 <b>Cornerstone3D + DICOMweb</b>으로 통일, 병리 WSI만 OpenSeadragon + DZI로 예외 — WSI 규모(장당 수 GB·기가픽셀 피라미드) 때문이다.</p>
+          <p style="margin:0 0 6px">이 화면과 별개로, 병리 화면 우측 영상 참조 패널(④)은 Cornerstone3D로 영상을 렌더링한다 — 한 병리 화면 안에서 병리 WSI 뷰어(OpenSeadragon)와 영상 참조 뷰어(Cornerstone3D) 두 라이브러리가 공존한다.</p>
+          <p style="margin:0">build_status가 ready가 아니면 이 화면 자체가 409 PYRAMID_NOT_READY로 열리지 않는다 (③ 참조).</p>
+        </div>
+        <div class="note warn">
+          <div class="t">사양서 19-5 갱신 필요</div>
+          <p>19-5 표는 맘모·초음파를 OpenSeadragon/DZI로 적고 있으나 낡은 내용 — 공식 정정 대상 (서정은 확인 2026-09-02). 착수 전 확인 필요 사항 참조.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="connector"></div>
+
+  <div class="screen-block">
+    <div class="screen-num"><span class="n">9</span>상태 전이 요약</div>
+    <h2 class="screen-title">상태 전이 요약</h2>
+    <table class="summary-table">
+      <tr><th>컬럼</th><th>전이</th><th>비고</th></tr>
+      <tr><td><code>specimen.accession_status</code></td><td><code>unbound → bound → accessioned</code></td><td>CHECK 3값(G4). unbound 접수 시도는 409</td></tr>
+      <tr><td><code>image_pyramid.build_status</code></td><td><code>pending → building → ready/failed</code></td><td>ready 아니면 뷰어 409 PYRAMID_NOT_READY</td></tr>
+      <tr><td><code>ai_result.run_status</code></td><td><code>requested → running → completed</code></td><td>슬라이드 업로드 직후 소켓1·2 각각 실행</td></tr>
+      <tr><td><code>pathology_result.finalized_at</code></td><td><code>NULL → timestamp</code></td><td>= 자동 대조 시작 신호. 정정 경로 없음</td></tr>
+      <tr><td><code>report.lock_status</code></td><td>기본 'locked', 언락은 result_explanation 트리거</td><td>병리 화면 범위 밖</td></tr>
+    </table>
+  </div>
+
+  <div class="screen-block">
+    <h2 class="screen-title">착수 전 확인 필요 사항</h2>
+    <ul class="checklist">
+      <li>API 명세서 7.5 슬라이드 등록 엔드포인트 경로 — pathology-results 기준인지 specimens 기준인지 (③ 참조)</li>
+      <li>diagnosis · b_category — CHECK 허용값이 DB에 없어 프론트 구현 전 확정 필요 (⑥ 참조)</li>
+      <li>tsr_percent 정의 방향 — §0-3 원문 위치 및 최종 확정값 확인 (⑤ 참조)</li>
+      <li>병리 FINAL 확정 시 report(report_type='pathology') 생성 여부 (⑦ 참조)</li>
+      <li>stil_percent 캘리브레이션 반영 여부 — 화면 노출 전 백엔드·병리 소켓팀 합의 필요 (⑤ 참조)</li>
+      <li>사양서 19-5 뷰어 스택 표 갱신 필요 — 맘모·초음파를 OpenSeadragon/DZI로 적은 것은 낡은 내용. 최종 결정은 영상의학과(맘모·초음파·MRI) Cornerstone3D + DICOMweb 통일 / 병리 WSI만 OpenSeadragon + DZI 예외. 공식 정정 대상 (서정은 확인 2026-09-02) (④·⑧ 참조)</li>
+    </ul>
+    <p class="footer-note">본 문서는 「확정_사양서.docx」 3-7·7장·19-5의 화면 흐름을 실제 DB 스키마(EMPATHO_CDSS_DB_2026-09-02)에 대응시킨 구현 명세이며, 위 확인 사항이 해소되면 최종본으로 갱신되어야 한다. 표 형태 버전은 「병리과_화면_상세명세서_20260902.docx」 참조.</p>
+  </div>
+
+</div>
+</body>
+</html>

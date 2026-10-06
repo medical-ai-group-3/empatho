@@ -1,0 +1,48 @@
+logging:
+  mode: offline
+  project: empatho-pathology
+  notes: tiger-til-binary-samh-tiled-weighted
+  log_comment: tiger-til-binary-samh-tiled-weighted
+  wandb_dir: ./logs_local
+  log_dir: ./logs_local
+  level: Debug
+random_seed: 19
+gpu: 0
+data:
+  dataset: DetectionDataset
+  dataset_path: /home/wsuser/data/tiger/cellvit_detection
+  input_shape: [512, 512]
+  normalize_stains_train: false
+  normalize_stains_val: false
+  num_classes: 2
+  train_filelist: /home/wsuser/data/tiger/cellvit_detection/splits/fold_0/train.csv
+  val_filelist: /home/wsuser/data/tiger/cellvit_detection/splits/fold_0/val.csv
+  label_map:
+    0: nonTIL
+    1: TIL
+cellvit_path: /home/wsuser/models/cellvitpp/checkpoints/CellViT-SAM-H-x40-AMP.pth
+model:
+  hidden_dim: 256
+training:
+  cache_cell_dataset: true
+  batch_size: 32
+  epochs: 30
+  # 과적합 대응: dropout 0.1 -> 0.5, weight_decay 1.85e-5 -> 1e-3
+  drop_rate: 0.5
+  # 가중 CE 손실: class_weights = [1/weight_factor, 1] = [0.2, 1.0]
+  # 새 캐시 학습셋 TIL 비율 17.7% (nonTIL:TIL = 4.66:1) -> weight_factor 5 는 역빈도에
+  # 근접하며, TIL 을 약간 더 눌러줘 sTIL 분자(면역세포) recall 에 유리.
+  weighted_sampling: true
+  weight_factor: 5
+  optimizer: AdamW
+  optimizer_hyperparameter:
+    betas:
+    - 0.85
+    - 0.9
+    lr: 0.0002609902875925979
+    weight_decay: 1.0e-3
+  early_stopping_patience: 7
+  mixed_precision: true
+  eval_every: 1
+  scheduler:
+    scheduler_type: exponential
