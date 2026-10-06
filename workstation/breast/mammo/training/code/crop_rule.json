@@ -1,0 +1,27 @@
+{
+  "split": "train",
+  "n": 235,
+  "mode": "fixed",
+  "margin_px": 20.0,
+  "ratio": 1.1473341473341474,
+  "centered": true,
+  "margin_p10": 20.0,
+  "margin_p90": 20.0,
+  "pixel_identical": 6,
+  "pixel_total": 235,
+  "norm_p99_median": 2.5898218154907227e-05,
+  "norm_ok": 235,
+  "match_median": 0.999993622303009,
+  "per_kind": {
+    "mass": {
+      "n": 116,
+      "margin_px": 20.0,
+      "ratio": 1.1388888888888888
+    },
+    "calc": {
+      "n": 119,
+      "margin_px": 20.0,
+      "ratio": 1.1606425702811245
+    }
+  }
+}

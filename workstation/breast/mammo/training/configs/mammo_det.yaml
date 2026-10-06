@@ -1,0 +1,361 @@
+# 맘모 병변 검출 — 동결 본체 + LoRA
+#
+# ★ 에폭 6 을 최종본으로 확정했다 (2026-08-31). 재학습하지 않는다.
+#   가중치  training/ckpt/last_lora.pt  (사본 ckpt/ep6/)  — chmod 444 로 잠금
+#   운영점  겹침 합치기 wbf@0.3  +  조직 마스크 필터 0.5
+#           측정용   영상·종류당 상위 2개 (끝단 민감도를 잴 때)
+#           운영용   점수 임계값 석회 0.594 · 종괴 0.767 (FROC 오탐 1개/영상)
+#
+#   ! 종괴는 오탐 0.25개/영상 지점(임계값 0.822)이 모델 점수 상한(0.816)보다
+#     높다. 그 설정에서는 종괴 검출이 0건이 된다. 1개/영상을 쓴다.
+#   끝단    조직검사 대상 병변의 61.7% 를 스스로 찾아 판단 (위치를 주면 90.0%)
+#   FROC    오탐 1개/영상 · 중심 명중   석회 57.9% · 종괴 56.4%
+#
+#   에폭 12 재학습은 16시간이 들고 검증 손실이 오르는 중이라 개선 보장이 없어
+#   접었다. 대신 재학습 없이 후처리만 바꿔 끝단 52.5% -> 61.7% 를 얻었다.
+#     52.5%  출발 (nms@0.3 · 필터 없음)
+#     55.3%  겹침 합치기를 wbf@0.3 으로
+#     61.7%  + 조직 밖 박스를 거름  (박스의 20.6% 가 조직 밖이었다)
+#
+# 이 파일의 값은 2026-08-28 학습에 실제로 쓰인 설정이다.
+# train_mammo_det.py 와 eval_mammo_det.py 가 mammo_cfg.lora_args() 라는 같은
+# 함수로 이 파일을 읽는다. 명령줄로 준 값이 이 파일보다 우선한다.
+#
+# 왜 하나로 모으나
+#   학습과 평가가 같은 LoRA 설정으로 모델을 세워야 한다. 두 스크립트에 같은
+#   인자를 각각 타이핑하면 하나라도 어긋났을 때 평가가 다른 모델을 세우고,
+#   그러면 성능이 아니라 구성 오류를 재게 된다. 조용히 틀리는 종류다.
+#   일치를 보장하는 것은 이 파일이 아니라 그 함수다 — 잘못 읽어도 양쪽이
+#   똑같이 잘못 읽는다.
+
+model:
+  # 어텐션 분리형. 초음파 파트와 같은 파일이다.
+  # 통합형(_fused.pt)은 옛 하이드라 학습 전용이었고 지금은 안 쓴다.
+  checkpoint: medsam3/ckpt/medsam3_merged.pt
+  merge_config: medsam3/configs/medsam3_v1.yaml
+
+  # probe_unified.py 로 실측한 값. 바꾸면 RoPE 표와 안 맞아 순전파가 죽는다.
+  resolution: 1008          # 패치 14 · 격자 72² = 5184 토큰
+  num_queries: 200          # pred_boxes (B, 200, 4)
+  mask_resolution: 288      # pred_masks (B, 200, 288, 288) — 쓰지 않는다
+
+lora:
+  rank: 16
+  alpha: 32
+  dropout: 0.05
+
+  # 이름은 모델의 실제 선형 계층에서 세어 골랐다 (추측하지 않았다).
+  #   q_proj·k_proj·v_proj·out_proj  61개씩  MultiheadAttention 교체분
+  #   qkv·proj·fc1·fc2               32개씩  시각 백본 트렁크
+  #   linear1·linear2                15개씩  DETR 인코더·디코더
+  target_modules:
+    - q_proj
+    - k_proj
+    - v_proj
+    - out_proj
+    - qkv
+    - proj
+    - fc1
+    - fc2
+    - linear1
+    - linear2
+
+  apply_to:
+    vision_encoder: true
+    text_encoder: false     # 프롬프트가 두 문자열로 고정이라 학습할 이유가 없다
+    geometry_encoder: false
+    detr_encoder: true
+    detr_decoder: true
+    mask_decoder: false     # 마스크를 쓰지 않는다
+
+  # 시작 전 확인. 범위를 벗어나면 학습을 시작하지 않는다.
+  # lr=0 으로 얼렸다고 착각했다가 838M 전부가 학습 대상이었던 적이 있다.
+  trainable_pct_min: 0.05
+  trainable_pct_max: 5.0
+  trainable_pct_actual: 1.287    # 10,960,896 / 851,470,646
+
+data:
+  root: data/det_tile1008
+  train_split: train
+  val_split: val
+  # 타일 생성 조건 (make_tiles.py)
+  tile: 1008
+  overlap: 256
+  min_keep: 0.6            # 박스가 이 비율 이상 들어와야 라벨로 인정
+  min_tissue: 0.7          # 음성 타일이 되려면 조직이 이만큼 차 있어야 한다
+  neg_per_image: 2
+  clip_percentile: 99.9
+  # 결과: train 타일 7,857 (병변 4,204) · val 타일 2,129 (병변 1,094)
+
+  categories:              # 번호와 이름은 기존 det/ 와 같아야 한다.
+    1: mass                # 어긋나면 평가기를 잘못 겨눴을 때 종류가 뒤바뀐다.
+    2: calcification
+
+training:
+  epochs: 6                # 기준선과 영상 제시 횟수를 맞춘 값
+  batch_size: 2            # 1008² 에서 메모리 17.9GB. 4는 넘친다
+  lr: 1.0e-4
+  weight_decay: 1.0e-4
+  warmup_steps: 300
+  grad_clip: 1.0
+  amp: bf16
+  augment: hflip           # 좌우 반전만. 상하 반전은 흉벽 위치를 바꾼다
+  val_batches: 200
+
+  # 선택이 아니다. /dev/shm 이 64MB 라 워커를 쓰면 배치를 못 넘기고
+  # 오류 없이 멈춘다. 그 상태로 8시간을 날린 적이 있다.
+  num_workers: 0
+
+# 손실 — 초음파 파트 build_loss 를 그대로 옮겼다.
+# 임의로 정하면 두 파트가 다른 조건이 되어 나중에 비교가 안 된다.
+loss:
+  boxes:
+    loss_bbox: 5.0
+    loss_giou: 2.0
+  iabce_mdetr:
+    pos_weight: 10.0
+    loss_ce: 20.0
+    presence_loss: 20.0
+    alpha: 0.25
+    gamma: 2
+    use_presence: true
+    pad_n_queries: 200
+  masks: null              # 타일에 마스크 정답이 없다
+  matcher:
+    cost_class: 2.0
+    cost_bbox: 5.0
+    cost_giou: 2.0
+    focal: true
+  o2m_matcher:
+    alpha: 0.3
+    threshold: 0.4
+    topk: 4
+    weight: 2.0
+  normalization: local
+  normalize_by_valid_object_num: false
+
+eval:
+  split: test
+  tile: 1008
+  overlap: 256
+  score_threshold: 0.05
+  nms_iou: 0.3
+  iou_hit: 0.3             # 느슨한 편. 임상 CAD 관행에 맞춘다
+  fp_points: [0.25, 0.5, 1.0, 2.0, 4.0]
+  # 평가는 유방 전체를 훑는다 — 영상당 약 31 타일.
+  # 학습용 타일(영상당 3.5장)로 평가하면 오탐이 과소평가된다.
+
+# ── 실측 기록 ────────────────────────────────────────────────────────────
+results:
+  train_2026_08_28:
+    epoch_loss:            # 학습 / 검증
+      0: [60.585, 5.038]   # 검증 최저 — 이후 오르지 않았다
+      1: [50.777, 9.237]
+      2: [46.028, 5.319]
+      3: [39.961, 5.719]
+      4: [34.191, 6.916]
+      5: [31.078, 7.146]
+    minutes_per_epoch: 65
+    checkpoint_mb: 42
+
+    # 체크포인트 선택 — last_lora.pt 다. best_lora.pt 는 검증 손실로 골랐는데
+    # 그 기준이 틀렸다. 손실이 오르는 동안 검출은 계속 좋아졌다(에폭 0 대 5 를
+    # 같은 200장에서 실측: 석회 34.1 대 48.9 · 종괴 34.4 대 54.2).
+    # 손실은 presence_loss(가중치 20 × 보조 6단계)가 대부분이고 FROC 은 그것을
+    # 보지 않는다. 두 지표가 다른 것을 잰다.
+    select: last_lora.pt
+
+    # 598장 · 유방 전체 훑기(영상당 31타일) · 중심 명중
+    froc_center_1fp: {mass: 0.483, calcification: 0.502}
+    froc_center_4fp: {mass: 0.750, calcification: 0.842}
+    froc_iou03_1fp:  {mass: 0.459, calcification: 0.277}
+    froc_iou03_4fp:  {mass: 0.709, calcification: 0.572}
+
+    # tile_map.py 로 측정. 좌표계는 유방 영역 기준이지만 IoU 는 배율에
+    # 무관하므로 아래 기준선과 그대로 비교된다.
+    map:   {mass: 0.041, calcification: 0.007, all: 0.024}
+    ap50:  {mass: 0.117, calcification: 0.032, all: 0.074}
+    ap75:  {mass: 0.022, calcification: 0.001, all: 0.012}
+    ar100: {mass: 0.335, calcification: 0.185, all: 0.260}
+
+  baseline:                # 비교 대상 — 1008 축소 전체 영상 · 전체 미세조정 838M
+    epochs: 20
+    froc_center_1fp: {mass: 0.573, calcification: 0.186}
+    froc_center_4fp: {mass: 0.613, calcification: 0.373}
+    froc_iou03_1fp:  {mass: 0.570, calcification: 0.129}
+    froc_iou03_4fp:  {mass: 0.610, calcification: 0.257}
+    map:   {mass: 0.157, calcification: 0.002, all: 0.080}
+    ap50:  {mass: 0.370, calcification: 0.008, all: 0.189}
+    ap75:  {mass: 0.088, calcification: 0.000, all: 0.044}
+    ar100: {mass: 0.337, calcification: 0.162, all: 0.250}
+
+  # 끝에서 끝까지 — eval_end2end.py · 598장 · 병변 655건
+  # 검출 JSON(tile_dets_last.json)을 그대로 쓴다. 추론을 다시 하지 않는다.
+  end2end_2026_08_30:
+    topk: 2                  # 영상·종류당 서술어에 넘길 박스 수
+    match: center            # 중심이 정답 상자 안이면 명중
+    crop_rule: {mode: fixed, margin_px: 20, norm_match: "235/235"}
+
+    # 조직검사 대상 병변 중 끝까지 도달한 비율
+    oracle_box:              # ① 위치를 알려줬을 때
+      calcification: {need: 216, caught: 212, sens: 0.981}
+      mass:          {need: 243, caught: 201, sens: 0.827}
+      all:           {need: 459, caught: 413, sens: 0.900}
+    detected_box:            # ② 스스로 찾았을 때
+      calcification: {need: 216, caught: 141, sens: 0.653}
+      mass:          {need: 243, caught: 100, sens: 0.412}
+      all:           {need: 459, caught: 241, sens: 0.525}
+
+    # 손실 분해 — 근사가 아니라 항등식이다.
+    #   끝단 민감도 = find(조직검사 대상 중 검출) × call(검출된 것 중 옳게 판단)
+    # 전체 병변 검출률로 곱하면 '조직검사 대상의 검출률이 전체와 같다'는 가정이
+    # 끼어들어 잔차가 topk 에 따라 0.6%p~3.6%p 로 흔들렸다. 그래서 이렇게 잰다.
+    split:
+      calcification: {find: 0.713, call: 0.916}   # 154/216 · 141/154
+      mass:          {find: 0.560, call: 0.735}   # 136/243 · 100/136
+      all:           {find: 0.632, call: 0.831}   # 290/459 · 241/290
+    # 90.0% ──검출 -33.1%p──▶ 56.9% ──박스 -4.4%p──▶ 52.5%
+    # 손실의 88%가 검출 단계에서 생긴다.
+
+    # 정답 박스 대신 검출 박스를 넣었을 때 서술어가 잃는 몫.
+    # 종괴가 더 약하다 — 모양·경계는 윤곽의 기하라 박스가 어긋나면 달라 보인다.
+    # 석회의 형태·분포는 질감의 성질이라 몇십 화소 밀려도 남는다.
+    box_penalty: {calcification: -0.065, mass: -0.092}
+
+    # 검출기가 위험한 병변을 더 놓치지는 않는다 (조직검사 대상 쪽이 오히려 높다)
+    find_rate_all_lesions: {calcification: 0.672, mass: 0.549}
+
+    # 규칙표 자체의 상한 — 정답 서술어를 넣었을 때 (eval_e2e.py ① 경로)
+    # 종괴 민감도가 낮은 주된 이유가 모델이 아니라 규칙표라는 근거다.
+    # 서술어를 완벽히 알려줘도 85.2% 가 상한이고 모델은 2.4%p 만 더 잃는다.
+    rule_ceiling:
+      calcification: {sens: 1.000, acc: 0.903, spec: 0.677, n: 309}
+      mass:          {sens: 0.852, acc: 0.788, spec: 0.634, n: 345}
+    descriptor_model:        # ② 예측 서술어 (eval_e2e.py)
+      calcification: {sens: 0.982, acc: 0.853, spec: 0.558, n: 313,
+                      all_biopsy_baseline: 0.696}
+      mass:          {sens: 0.828, acc: 0.733, spec: 0.505, n: 345,
+                      all_biopsy_baseline: 0.707}
+    # ! 종괴 정확도 73.3% 는 '전부 조직검사' 70.7% 를 2.6%p 밖에 안 넘는다.
+    #   불균형 데이터라 정확도가 나쁜 지표다. 균형 정확도는 66.7% 대 50.0%.
+    #   특이도 50.5% 이므로 실제로 층화하고 있다. 발표에서 먼저 말할 것.
+
+    # 사슬 전체
+    #   92.2% ──서술어 예측 -2.2%p──▶ 90.0% ──검출 -37.5%p──▶ 52.5%
+    #   세 단계 중 서술어가 가장 작다. 남은 여지는 규칙표(못 고침)와 검출.
+
+    # 두 코드 경로가 독립적으로 같은 답을 냈다 — 자르기 재현의 두 번째 확인
+    #   eval_e2e (CBIS ROI 파일)   석회 98.2% · 종괴 82.8%
+    #   eval_end2end (원본에서 자름) 석회 98.1% · 종괴 82.7%
+
+    # 박스를 몇 개 띄울 것인가 (미세석회)
+    topk_tradeoff:
+      1: {find: 0.466, sens: 0.421, fp_per_image: 0.76, fp_biopsy_per_image: 0.48}
+      2: {find: 0.672, sens: 0.653, fp_per_image: 1.65, fp_biopsy_per_image: 1.07}
+    # ! 위 오탐 수치는 넘길 박스 수가 정한 값이지 모델의 오탐률이 아니다.
+    #   topk 2 에서는 모든 영상이 정확히 2개를 낸다 (209 + 987 = 598 x 2).
+    #   발표용 오탐률은 --topk 0 --score <FROC 임계값> 으로 다시 재야 한다.
+
+  # 시연에서 드러난 한계 — 집계 지표에 안 잡히던 것들 (predict.py · 6장)
+  #   측정치가 병변이 있는 영상에서만 잰 값이라 그렇다. 병변이 없거나 양성인
+  #   영상에 무엇을 내놓는지는 재지 않았다.
+  demo_findings_2026_08_31:
+    n_images: 6                    # 석회 3 · 종괴 3
+    always_biopsy: true            # 6/6 조직검사 권고. 정답 등급 2 인 것 포함
+    # 원인: 서술어 모델이 조직검사 확정 병변으로만 학습돼 '소견 없음' 출력이
+    # 없다. 어떤 조각을 넣어도 이상 소견 어휘 중 하나를 고른다.
+    # 해결: 타일 작업의 정상 조직 3,897장을 '소견 없음' 클래스로 넣어 재학습.
+    #       데이터는 이미 있다. 검출기는 그대로 쓴다.
+    class_confusion: true          # 종괴 3장 모두에서 석회 질의가 종괴 위에 떴다
+    # 위치는 맞히고 종류를 틀린다 -> 잘못된 서술어 모델로 들어간다.
+    outside_tissue_fp: 3           # 6장 중 3장. 각인 글자 · 피부 마커 · 가장자리
+    # 해결하고 정량화했다 — 아래 tissue_filter_2026_08_31 참조.
+    #   전체 박스의 20.6% 가 조직 밖이었고, 거르니 끝단이 55.3% -> 61.7%.
+
+  # 조직 마스크 필터 — 오늘 가장 큰 개선. 재학습 없다.
+  #   박스 면적의 50% 이상이 조직이어야 남긴다. 합치기 '전' 에 거른다
+  #   (합친 뒤면 각인 박스가 이미 가중평균 좌표를 오염시킨 뒤다).
+  tissue_filter_2026_08_31:
+    frac: 0.5
+    dropped: {calcification: 28758, mass: 45308, total_pct: 0.206}
+    # FROC 중심 명중 · wbf@0.3 기준. 필터 전 -> 후
+    froc_center_1fp: {calcification: [0.505, 0.579], mass: [0.488, 0.564]}
+    froc_center_4fp: {calcification: [0.842, 0.833], mass: [0.753, 0.799]}
+    froc_iou03_1fp:  {calcification: [0.315, 0.376], mass: [0.474, 0.547]}
+    map_mass:  {mAP: 0.059, AP50: 0.177, AP75: 0.019, AR100: 0.308}
+    map_calc:  {mAP: 0.009, AP50: 0.037, AP75: 0.001, AR100: 0.166}
+    # 끝단 (eval_end2end.py · topk 2)
+    end2end:
+      calcification: {find: 0.745, call: 0.975, sens: 0.727}   # 161/216 · 157/161
+      mass:          {find: 0.663, call: 0.783, sens: 0.519}   # 161/243 · 126/161
+      all:           {find: 0.702, call: 0.879, sens: 0.617}   # 322/459 · 283/322
+    # 90.0% ──검출 -26.8%p──▶ 63.2% ──박스 -1.5%p──▶ 61.7%
+    #
+    # ! 정탐도 조금 잃는다. AR100 종괴 0.317->0.308 · 석회 0.172->0.166,
+    #   석회 4FP 84.2%->83.3%. 조직 경계에 걸친 병변이 걸린다.
+    #   낮은 오탐 구간의 +7%p 에 비하면 작지만 공짜는 아니다.
+    #
+    # ! 종괴가 기준선(1FP 57.3%)과 같아졌다(56.4%). 이전에 "타일이 맥락을
+    #   잘라내서 종괴가 나빠졌다"고 적었는데 주된 원인이 아니었다.
+    #   각인 글자·피부 마커가 낮은 오탐 예산을 잡아먹고 있었다.
+
+  # 겹침 합치는 방식 — merge_boxes.py · 같은 파일에서 잰 값이라 줄끼리 비교된다
+  # 지금 NMS 는 겹친 박스 중 점수 최고 하나만 남긴다. wbf 는 덩어리의 좌표를
+  # 점수로 가중 평균한다. 덩어리의 절반 이상이 박스 4개 이상이라 평균낼 거리가
+  # 충분했다. union(합집합)은 전부 나빠졌다 — 오탐끼리 뭉쳐 커진다.
+  merge_2026_08_31:
+    source: tile_raw_ep6.json     # 영상·종류당 상위 300개
+    nms_0.3:                      # 현행
+      mass: {mAP: 0.041, AP50: 0.117, AP75: 0.022, AR100: 0.327,
+             froc_iou_1fp: 0.459, froc_center_1fp: 0.483}
+      calcification: {mAP: 0.007, AP50: 0.031, AP75: 0.001, AR100: 0.179,
+                      froc_iou_1fp: 0.277, froc_center_1fp: 0.502}
+    wbf_0.3:                      # 후보. 어느 칸도 나빠지지 않는다
+      mass: {mAP: 0.048, AP50: 0.144, AP75: 0.016, AR100: 0.317,
+             froc_iou_1fp: 0.474, froc_center_1fp: 0.488}
+      calcification: {mAP: 0.008, AP50: 0.031, AP75: 0.001, AR100: 0.172,
+                      froc_iou_1fp: 0.315, froc_center_1fp: 0.505}
+    # AP75 만 내려간다(0.022 -> 0.016). 평균이 박스를 덩어리 중심으로 끌어당겨
+    # 느슨한 겹침에서는 더 맞고 빡빡한 겹침에서는 흐려진다. 우리는 박스에 20px
+    # 를 붙여 잘라 1008 로 늘려 쓰므로 AP50 이 맞는 지표다.
+    #
+    # wbf@0.2 가 석회 froc_iou_1fp 0.350 으로 더 높지만 @0.3 을 고른다.
+    #   · 현행과 NMS 문턱이 같아 바뀌는 변수가 합치는 규칙 하나다
+    #   · 종류별로 다른 문턱을 고르면 테스트셋을 보고 고르는 것이 된다.
+    #     분할이 하나뿐이라 그건 선택 편향이다.
+    #
+    # 끝단에서 확인됐다 — eval_end2end.py 를 wbf@0.3 검출로 다시 돌린 결과.
+    # 검출기 몫은 거의 안 변했는데(63.2 -> 63.6%) 서술어 몫이 올랐다.
+    # 병변을 더 찾은 게 아니라 찾은 병변의 박스가 정확해진 것이다.
+    end2end_wbf03:
+      calcification: {find: 0.718, call: 0.968, sens: 0.694}   # 155/216 · 150/155
+      mass:          {find: 0.564, call: 0.759, sens: 0.428}   # 137/243 · 104/137
+      all:           {find: 0.636, call: 0.870, sens: 0.553}   # 292/459 · 254/292
+    # 서술어 몫 비교 (nms@0.3 -> wbf@0.3 -> 정답 박스)
+    #   석회  91.6% -> 96.8% -> 98.1%    정답 박스와 1.3%p 차이까지 붙었다
+    #   종괴  73.5% -> 75.9% -> 82.7%    아직 6.8%p 남아 있다
+    # 박스 때문에 잃던 몫 4.4%p -> 1.9%p. 재학습 없이 얻은 개선이다.
+    #
+    # -> 운영점을 wbf@0.3 으로 확정한다.
+
+# ── 읽는 법 ──────────────────────────────────────────────────────────────
+# 미세석회는 전 지표에서 올랐다. AP50 4배 · FROC 1FP 2.7배.
+#
+# 종괴는 AP50 이 0.370 → 0.117 로 내려갔다. 좌표계 탓이 아니다 — IoU 는
+# 배율에 무관하다. 다만 AR100 이 0.337 → 0.335 로 같다. 찾아내는 양은 안
+# 줄었고 순위와 박스 정확도가 나빠진 것이며, AP75 가 4분의 1인 것이 근거다.
+#
+# 원인 셋과 대응
+#   1. 타일마다 점수를 독립적으로 매겨 서로 비교가 안 된다.
+#      FROC 4FP 는 올랐는데 mAP 는 내려간 이유. mAP 는 곡선 전체를 적분한다.
+#      -> 타일 내 순위로 점수를 정규화한다.
+#   2. 종괴(200~600px)가 타일 경계에서 잘린다. 겹침이 256px 이고 NMS 가
+#      점수 최대만 남기므로 잘린 박스가 살아남을 수 있다.
+#      -> 겹침 합치기를 점수 최대 대신 박스 합집합으로 바꾼다.
+#   3. 학습 예산이 다르다. 838M 20에폭 대 LoRA 11M 6에폭.
+#      -> 에폭 12 재학습으로 답한다.
+#
+# ! 1번과 2번은 '합치기 전' 박스가 있어야 실험된다. --save-json 은 NMS 를
+#   통과한 것만 담으므로 그것만으로는 안 된다. 에폭 12 평가에 --save-raw 를
+#   붙여 tile_raw_ep12.json 을 남긴다. 그 파일이 있으면 CPU 몇 분,
+#   없으면 추론 83분을 다시 써야 한다.
