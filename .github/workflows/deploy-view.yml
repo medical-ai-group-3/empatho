@@ -1,8 +1,8 @@
-name: deploy
+name: deploy-view
 
+# deploy.yml 이 view/ 변경 때 부른다(app 배포 뒤). 손으로도 돌릴 수 있다.
 on:
-  push:
-    branches: [main]
+  workflow_call:
   workflow_dispatch:
 
 # 화면을 놓는 자리. empatho-app 의 nginx 가 이 폴더를 그대로 서빙한다.
@@ -11,11 +11,14 @@ on:
 # 앱 저장소 안(web-dist/)에 두면 서버를 배포할 때마다 화면이 사라진다.
 # 09-17 에 인증서가 그렇게 없어져 nginx 가 죽었다.
 env:
-  WEB_DIST: /home/runner/empatho-web
+  WEB_DIST: ${{ vars.WEB_DIST || '/home/runner/empatho-web' }}
 
 jobs:
   deploy:
-    runs-on: self-hosted
+    runs-on: [self-hosted, empatho-app]
+    defaults:
+      run:
+        working-directory: view
     steps:
       - uses: actions/checkout@v4
 
@@ -25,6 +28,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: view/package-lock.json
 
       # ci 는 package-lock.json 을 그대로 받는다. install 과 달리 잠금을
       # 고쳐 쓰지 않아서, 사람 PC 와 서버가 같은 것을 받는다.

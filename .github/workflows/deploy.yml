@@ -1,0 +1,49 @@
+name: deploy
+
+# main push = 운영 배포. 바뀐 폴더의 배포만 부른다.
+#   app/       → deploy-app.yml       (앱 서버 러너)
+#   view/      → deploy-view.yml      (앱 서버 러너, app 배포 뒤)
+#   inference/ → deploy-inference.yml (GPU 러너)
+# 손으로 돌리면(workflow_dispatch) 셋 다 배포한다.
+on:
+  push:
+    branches: [main]
+    paths: ['app/**', 'view/**', 'inference/**', '.github/workflows/**']
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      app: ${{ github.event_name == 'workflow_dispatch' || steps.f.outputs.app == 'true' }}
+      view: ${{ github.event_name == 'workflow_dispatch' || steps.f.outputs.view == 'true' }}
+      inference: ${{ github.event_name == 'workflow_dispatch' || steps.f.outputs.inference == 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: f
+        with:
+          filters: |
+            app: ['app/**', '.github/workflows/deploy-app.yml']
+            view: ['view/**', '.github/workflows/deploy-view.yml']
+            inference: ['inference/**', '.github/workflows/deploy-inference.yml']
+
+  app:
+    needs: changes
+    if: needs.changes.outputs.app == 'true'
+    uses: ./.github/workflows/deploy-app.yml
+
+  # 화면 확인 단계가 app 의 nginx 를 본다. app 이 돌면 끝난 뒤에, 실패했으면 건너뛴다.
+  view:
+    needs: [changes, app]
+    if: always() && needs.changes.outputs.view == 'true' && needs.app.result != 'failure'
+    uses: ./.github/workflows/deploy-view.yml
+
+  inference:
+    needs: changes
+    if: needs.changes.outputs.inference == 'true'
+    uses: ./.github/workflows/deploy-inference.yml

@@ -1,8 +1,8 @@
-name: deploy
+name: deploy-app
 
+# deploy.yml 이 app/ 변경 때 부른다. 손으로도 돌릴 수 있다.
 on:
-  push:
-    branches: [main]
+  workflow_call:
   workflow_dispatch:
 
 # 세 파일을 매번 -f 로 넘기면 길어지고 한 곳만 빠뜨리기 쉽다.
@@ -11,12 +11,16 @@ env:
   COMPOSE_FILE: compose.server.yml:compose.app.yml:compose.proxy.yml
   # 런타임 상태는 체크아웃 밖에 둔다. checkout 이 git clean -ffdx 로
   # 무시된 파일까지 지우기 때문에, 안에 두면 배포마다 사라진다
-  CONF: /home/runner/empatho-conf
-  WEB_DIST: /home/runner/empatho-web
+  # 서버 경로는 레포 변수(Settings → Variables)로 바꾼다. 없으면 기본값
+  CONF: ${{ vars.CONF_DIR || '/home/runner/empatho-conf' }}
+  WEB_DIST: ${{ vars.WEB_DIST || '/home/runner/empatho-web' }}
 
 jobs:
   deploy:
-    runs-on: self-hosted
+    runs-on: [self-hosted, empatho-app]
+    defaults:
+      run:
+        working-directory: app
     steps:
       - uses: actions/checkout@v4
       

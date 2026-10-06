@@ -65,7 +65,6 @@ AI 산출은 모두 제안 · 후보이며, 최종 판정은 의사가 합니다
 | `workstation/` | (git 기록 없음) | GPU 워크스테이션에만 있던 모델 학습 · 후처리 코드, MedSAM3 수정본 |
 
 네 레포는 커밋 기록과 작성자를 유지한 채 각 폴더로 합쳤습니다. 원래 레포는 그대로 남아 있습니다.
-각 폴더의 `.github/workflows` 는 원래 레포 기준이라 이 레포에서는 실행되지 않습니다.
 모델 가중치와 학습 데이터는 포함하지 않습니다.
 
 ## 팀 구성과 담당
@@ -87,6 +86,25 @@ AI 산출은 모두 제안 · 후보이며, 최종 판정은 의사가 합니다
 | ilunee | Django, Django REST Framework, PostgreSQL, PyJWT, PyTorch, React |
 | da-hee-da | Django, Django REST Framework, PyTorch, Virchow2, React |
 | jungeun | PyTorch, React, Three.js, Cornerstone.js, nifti-reader-js, Vite |
+
+## 배포
+
+`main` push 가 운영 배포입니다. `.github/workflows/deploy.yml` 이 바뀐 폴더를 보고 파트별 배포를 부릅니다.
+
+| 워크플로 | 대상 | 러너 라벨 | 내용 |
+|---|---|---|---|
+| `deploy.yml` | — | GitHub 호스트 | 변경 폴더 판별 후 아래 셋을 호출. 수동 실행 시 전체 배포 |
+| `deploy-app.yml` | `app/` | `self-hosted, empatho-app` | Docker Compose 빌드 · 기동, 마이그레이션, nginx 검사, 경로 확인 |
+| `deploy-view.yml` | `view/` | `self-hosted, empatho-app` | 화면 빌드 후 nginx 정적 폴더로 복사(app 배포 뒤) |
+| `deploy-inference.yml` | `inference/` | `self-hosted, empatho-gpu` | git pull, supervisor 재시작, 상태 확인 · 점검, 실패 시 이전 커밋으로 롤백 |
+
+처음 한 번 준비할 것:
+
+1. 앱 서버와 GPU 서버에 이 레포용 self-hosted 러너를 등록하고 위 라벨을 붙입니다.
+2. 레포 변수(Settings → Variables)를 서버 경로에 맞춥니다. 없으면 기본값을 씁니다.
+   - `CONF_DIR` 앱 서버 설정 폴더 · `WEB_DIST` 화면 폴더 · `INFERENCE_REPO` GPU 서버의 이 레포 clone 위치
+3. GPU 서버에 이 레포를 clone 하고, 가중치 링크 `models/` 와 `replay/` 를 `inference/` 안에 둡니다.
+4. 앱 서버 설정 파일(`conf/*.env` 등)은 git 에 없으므로 `CONF_DIR` 에 따로 둡니다.
 
 ## 각 폴더 실행
 
