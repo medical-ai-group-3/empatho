@@ -1,0 +1,229 @@
+"""종합 소견서(소켓 7) — 검사별 소견문을 한 벌로 묶는다.
+
+    초음파 · 맘모 · MRI · 병리 판독  ─▶  소켓 7  ─┬─▶ 의사용
+                                                └─▶ 환자용
+
+문장을 여기서 새로 쓰지 않는다. 각 모달리티 프롬프트의 facts() · plain() · numbers()
+를 그대로 부른다 — 베끼면 모달리티가 늘 때마다 두 곳을 고쳐야 하고, 두 곳이 어긋나면
+종합 소견서만 조용히 옛 규칙으로 쓰인다.
+
+받는 모양
+    {"stages":   [{"socket": "5", "result": {...}}, ...],
+     "audience": "clinician" | "patient"}
+
+  stages 를 무엇으로 채울지는 앱 서버가 정한다 — 유방외과 의사가 고른 판독문들이다.
+
+청중이 둘이다
+    clinician  지금까지와 같다. 수치를 그대로 옮기고 **보존**을 검사한다
+    patient    수치와 전문 용어를 걷어낸다. 검사가 반대다 — 수치가 **남아 있으면** 버린다
+
+⚠ 환자용은 어디서도 facts() 를 쓰지 않는다 — 모델 입력도 뼈대도 plain() 이다.
+  facts() 에는 수치와 전문 용어가 들어 있고, 모델은 모르는 말을 아는 말로 바꾼다.
+  간질(stroma)이 간(liver)이 되어 「암세포가 간에 침투」로 나갔다(2026-09-20 실측).
+"""
+from prompts import base
+
+# 2026-09-19.a  신규
+# 2026-09-20.a  환자용은 facts() 가 아니라 plain() 을 넘긴다
+# 2026-09-20.b  환자용 뼈대도 plain() 으로 · must_keep() — 등급 문장 보존
+# 2026-09-21.a  등급 문장을 「· 그대로」 줄로 따로 넘긴다 — 매번 되돌아가던 것
+# 2026-09-29.a  환자용 — 검사별 문단 배열로 받고 등급 문장 · 맺음말은 코드가 붙인다.
+#               「· 그대로」 표시가 본문에 새어 나갔다(리포트 163). 어미 반복 규칙 추가
+VERSION = "summary-2026-09-29.a"
+
+# 뼈대를 잇는 문자 — 검사마다 문단(빈 줄). 앱은 빈 줄로 문단을 나눈다
+JOIN = "\n\n"
+CLOSING = "자세한 내용은 담당 의사의 설명으로 확인해 주십시오."
+
+SOCKET_IDS = {"7"}
+REQUIRED = ("stages",)
+
+# 소켓 → 검사 이름. 의사용과 환자용의 부르는 말이 다르다.
+NAME = {"5": "초음파", "4b": "유방촬영", "3": "유방 MRI", "1": "조직검사"}
+PLAIN = {"5": "초음파 검사", "4b": "유방 엑스레이 검사",
+         "3": "유방 MRI 검사", "1": "조직 검사"}
+
+SYSTEM_PATIENT = """
+아래 검사 결과를 환자에게 보여줄 안내문으로 쓴다.
+읽는 사람은 의학을 모르는 사람이다.
+
+지키는 것
+  구체적인 수치를 쓰지 않는다. 크기 · 개수 · 비율 · 등급 번호를 글에 남기지 않는다.
+  BI-RADS 같은 분류 기호를 쓰지 않는다.
+  전문 용어는 쉬운 말로 바꾼다. 바꿀 수 없으면 괄호로 풀어 준다.
+  판독값에 없는 소견을 지어내지 않는다.
+  「없다」 · 「정상이다」로 단정하지 않는다. 확인되지 않은 것과 다르다.
+  장기 이름을 바꿔 쓰지 않는다. 모르는 용어는 옮기지 말고 빼라.
+  악성 여부를 말하지 않는다. 진단하지 않고 치료를 권하지 않는다.
+  존댓말로 쓴다. 머리말 없이 내용부터 쓴다. 맺음말은 쓰지 않는다.
+  같은 어미를 연달아 쓰지 않는다. 「~입니다」만 반복하지 말고
+  「~있었습니다」 「~보였습니다」 「~확인되었습니다」처럼 섞어 쓴다.
+
+쓰는 모양
+  「문단」 배열에 검사 하나당 문단 하나를 판독값의 순서대로 넣는다.
+  한 문단은 두세 문장으로 쓴다. 검사 이름으로 문단을 시작한다.
+"""
+
+# 환자용 응답 — 검사별 문단. 문단 수가 검사 수와 다르면 text() 가 버린다
+SCHEMA_PATIENT = {
+    "type": "object",
+    "properties": {"문단": {"type": "array", "items": {"type": "string"}}},
+    "required": ["문단"],
+}
+
+NOTES = {
+    "SU-N01": "검사별 소견문을 묶은 것입니다. 각 검사의 수치는 해당 판독 화면에서 확인하십시오.",
+    "SU-N02": "최종 판정은 담당 의사가 합니다.",
+    "SU-P01": "이 안내문은 검사 결과를 쉽게 정리한 것입니다. 정확한 내용은 담당 의사의 설명을 따르십시오.",
+}
+
+
+def _patient(r) :
+    return r.get("audience") == "patient"
+
+
+def _stages(r) :
+    """아는 소켓만 남긴다. 모르는 번호가 섞여도 나머지는 쓴다."""
+    from prompts import PROMPTS          # 순환 참조를 피해 부를 때 가져온다
+    out = []
+    for s in (r.get("stages") or []) :
+        p = PROMPTS.get(s.get("socket"))
+        if p is not None and isinstance(s.get("result"), dict) :
+            out.append((s["socket"], p, s["result"]))
+    return out
+
+
+def _plain(p, res) :
+    """환자용 문장. plain() 이 없는 소켓은 유무조차 말하지 않는다 —
+    facts() 로 되돌리면 수치와 전문 용어가 그대로 나간다."""
+    return p.plain(res) if hasattr(p, "plain") else ["결과가 나왔습니다."]
+
+def _split_band(p, res) :
+    """환자용 문장을 「풀어 써도 되는 것」과 「그대로 옮겨야 하는 것」으로 가른다.
+
+    등급 문장만 후자다. 한 덩어리로 주면 「쉽게 풀어 써라」와 「그대로 옮겨라」가
+    같은 줄에 걸려서 모델이 매번 풀어 쓴다 — 「추가 확인이 시급한 정도입니다」를
+    「추가적으로 확인이 필요할 것으로 보입니다」로 바꿨다(2026-09-20 실측).
+    표를 나눠 주면 어느 줄이 고정인지 모델이 구분할 수 있다.
+    """
+    bands = set(base.BIRADS_PLAIN.values())
+    free, fixed = [], []
+    for s in _plain(p, res) :
+        (fixed if s.rstrip(".") in bands else free).append(s)
+    return free, fixed
+
+def values(r) :
+    """모델에 넘길 표. 청중에 따라 **넘기는 값 자체가** 다르다.
+
+    환자용에 facts() 를 넘기면 안 된다. 전문 용어가 들어 있고, 모델은 모르는
+    말을 아는 말로 바꾼다 — 간질(stroma)이 간(liver)이 되어 「암세포가 간에
+    침투한 림프구」로 나갔다(2026-09-20 실측). 수치 검사는 숫자만 보므로
+    이런 것을 하나도 못 잡는다. 그래서 순화를 모델이 아니라 모달리티가 한다.
+
+    환자용은 한 검사가 두 줄이 될 수 있다. 「· 그대로」가 붙은 줄은 손대면
+    안 되는 문장이다 — must_keep() 이 그 줄을 지키는지 검사한다.
+    """
+    out = []
+    for socket, p, res in _stages(r) :
+        name = (PLAIN if _patient(r) else NAME).get(socket, socket)
+        if not _patient(r) :
+            out.append((name, " ".join(p.facts(res))))
+            continue
+        # 등급 문장(fixed)은 넘기지 않는다 — text() 가 문단 끝에 붙인다.
+        # 「· 그대로」 줄로 넘겼더니 모델이 표시까지 본문에 옮겼다(09-29)
+        free, _fixed = _split_band(p, res)
+        out.append((name, " ".join(free) or "결과가 나왔습니다."))
+    return out or [("검사", "묶을 판독 결과가 없습니다.")]
+
+def facts(r) :
+    """뼈대. 모델이 실패하거나 검사에 걸리면 이것이 그대로 나간다."""
+    if _patient(r) :
+        # 모델에 넘긴 것과 같은 문장을 쓴다. 뼈대가 모델 입력보다 적게 말하면,
+        # 되돌림이 일어날 때마다 환자가 받는 정보가 조용히 줄어든다.
+        out = [f"{PLAIN.get(socket, socket)} — " + " ".join(_plain(p, res))
+               for socket, p, res in _stages(r)]
+        if not out :
+            return ["묶을 검사 결과가 없습니다."]
+        out.append(CLOSING)
+        return out
+
+    out = []
+    for socket, p, res in _stages(r) :
+        out.append(f"[{NAME.get(socket, socket)}] " + " ".join(p.facts(res)))
+    return out or ["묶을 판독 결과가 없습니다."]
+
+
+def notes(r) :
+    if _patient(r) :
+        return [base.note(NOTES, "SU-P01")]
+    return [base.note(NOTES, "SU-N01"), base.note(NOTES, "SU-N02")]
+
+
+def numbers(r) :
+    """각 검사가 지키라고 한 수치의 합집합. 순서는 유지하고 중복만 뺀다.
+
+    의사용은 이것이 「남아 있어야 하는」 목록이고,
+    환자용은 같은 목록이 「나타나면 안 되는」 목록이 된다(forbidden).
+    """
+    out, seen = [], set()
+    for _socket, p, res in _stages(r) :
+        for n in p.numbers(res) :
+            if n not in seen :
+                seen.add(n)
+                out.append(n)
+    return out
+
+
+def forbidden(r) :
+    """참이면 report.py 가 검사 방향을 뒤집는다."""
+    return _patient(r)
+
+
+def must_keep(r) :
+    """글자 그대로 남아 있어야 하는 문장. 바뀌면 모델 출력을 버린다.
+
+    수치 검사로는 못 잡는 구멍을 막는다. BI-RADS 4~5 라서 코드가 넘긴
+    「추가 확인이 시급한 정도입니다」를 모델이 「추가적으로 확인이 필요할
+    것으로 보입니다」로 낮춰 쓴 것을 확인했다(2026-09-20). 숫자가 아니니
+    숫자 검사에 걸리지 않고, 환자를 안심시키는 방향이라 위험한 쪽이다.
+
+    등급 문장만 본다. 나머지는 모델이 다시 써도 뜻이 안 바뀐다 —
+    이 문장은 「얼마나 급한가」 하나만 싣고 있어서 바꿔 쓸 여지가 없다.
+    """
+    if not _patient(r) :
+        return []
+    out = []
+    for _socket, p, res in _stages(r) :
+        for s in _split_band(p, res)[1] :
+            s = s.rstrip(".")
+            if s not in out :
+                out.append(s)
+    return out
+
+
+def system(r) :
+    return SYSTEM_PATIENT if _patient(r) else base.SYSTEM
+
+
+def schema(r) :
+    return SCHEMA_PATIENT if _patient(r) else base.SCHEMA
+
+
+def text(r, out) :
+    """모델 응답 → 본문. 의사용은 「소견」 그대로다.
+
+    환자용은 검사마다 문단을 하나씩 받아, 문단 끝에 그 검사의 등급 문장을
+    코드가 붙이고 맺음말을 따로 한 문단으로 둔다. 문단 수가 검사 수와
+    다르면 어느 문단이 어느 검사인지 모르므로 버린다(→ 뼈대).
+    """
+    if not _patient(r) :
+        return out.get("소견") or ""
+    paras = [str(s).strip() for s in (out.get("문단") or [])]
+    stages = _stages(r)
+    if len(paras) != len(stages) or not all(paras) :
+        raise ValueError(f"문단 {len(paras)}개 · 검사 {len(stages)}개")
+    body = []
+    for para, (_socket, p, res) in zip(paras, stages) :
+        fixed = _split_band(p, res)[1]
+        body.append(" ".join([para] + fixed))
+    return JOIN.join(body + [CLOSING])
