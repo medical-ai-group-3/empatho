@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">EMPATHO</string>
+    <string name="title_activity_main">EMPATHO</string>
+    <string name="package_name">kr.empatho.patient</string>
+    <string name="custom_url_scheme">kr.empatho.patient</string>
+</resources>

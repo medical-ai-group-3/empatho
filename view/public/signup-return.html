@@ -1,0 +1,4 @@
+<!doctype html><meta charset="utf-8">
+<!-- 앱(APK) 본인인증 복귀용. 인증 페이지의 서버 리다이렉트는 앱이 가로채지
+     못해 https://localhost 로 바로 못 돌아온다 — 여기서 스크립트로 넘긴다. -->
+<script>location.replace("https://localhost/signup" + location.search);</script>

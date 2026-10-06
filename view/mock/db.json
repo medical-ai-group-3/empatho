@@ -1,0 +1,1047 @@
+{
+  "__README": [
+    "가짜 API 의 응답이자 Django 에 줄 규격이다.",
+    "화면이 이 모양대로 만들어지므로, Django 가 생길 때 여기와 같아야 한다.",
+    "키는 \"METHOD /경로\" 다. 고치면 새로고침만으로 반영된다.",
+    "",
+    "값의 근거 — DB 스키마 v10",
+    "  report      report_type='final' · study_id=null · audience='patient'",
+    "              lock_status 가 locked 면 본문(narrative_text)을 주지 않는다",
+    "  exam_order  order_status='requested' 는 modality 가 비어 있다",
+    "              환자는 날짜·시간만 신청한다",
+    "  lesion      ai_size_px 가 null 일 수 있다. 0 이 아니다",
+    "",
+    "주민등록번호는 여기에도, 앱 어디에도 저장하지 않는다.",
+    "  본인 확인 요청 한 번에만 실려 가고 화면 상태에서 바로 지운다.",
+    "",
+    "primary_staff_name — 담당 주치의. 판독의(issued_by_name)와 **다른 사람**이다.",
+    "  주치의는 진료를 보는 의사, 판독의는 사진을 읽은 의사다.",
+    "  환자에게 붙는 값이라 예약·결과지 어디서나 같다.",
+    "",
+    "required_questions — 예약 신청과 함께 받는 문항.",
+    "  전체 문진(5)이 아니라 **촬영 방법을 바꾸는 것(critical)만** 온다.",
+    "  병원이 requested → ordered 로 확정하며 검사 종류를 정하는데,",
+    "  임신·보형물·조영제를 그때 알아야 한 번에 제대로 잡는다.",
+    "  answer 에 지난번 답이 실려 온다 — 다시 쓰게 하지 않는다.",
+    "",
+    "문진을 보내는 모양 — jsonb 한 칸에 들어간다.",
+    "  { \"answers\": { \"pregnancy\": \"no\", \"implant\": \"yes\" } }",
+    "  값은 선택지 id 다. 안 고른 문항은 키를 빼고 보낸다.",
+    "  answered_at · form_version 은 서버가 찍는다. 앱은 안 보낸다."
+  ],
+  "POST /api/v1/login": {
+    "ok": true,
+    "patient_id": 1029304,
+    "display_name": "이수진"
+  },
+  "POST /api/v1/logout": {
+    "ok": true
+  },
+  "GET /api/v1/me": {
+    "patient_id": 1029304,
+    "display_name": "이수진",
+    "login_id": "soojin78",
+    "phone": "01012345678",
+    "primary_staff_name": "박지훈",
+    "primary_staff_dept": "surgery",
+    "patient_number": "E_1029304",
+    "birth_date": "1978-04-21",
+    "visit_count": 3,
+    "last_visit_at": "2026-09-03T10:20:00+09:00",
+    "last_visit_dept": "영상의학과",
+    "questionnaire_status": "in_progress",
+    "questionnaire_progress": {
+      "answered": 3,
+      "total": 5
+    }
+  },
+  "POST /api/v1/signup/verify-phone": {
+    "ok": true,
+    "expires_in_sec": 180,
+    "detail": "인증번호를 보냈습니다"
+  },
+  "POST /api/v1/signup/link": {
+    "ok": true,
+    "patient_id": 1029304,
+    "display_name": "이수진",
+    "detail": "가입이 끝났습니다"
+  },
+  "GET /api/v1/home": {
+    "display_name": "이수진",
+    "visit_count": 3,
+    "primary_staff_name": "박지훈",
+    "primary_staff_dept": "surgery",
+    "last_visit_at": "2026-09-03T10:20:00+09:00",
+    "last_visit_dept": "영상의학과",
+    "questionnaire": {
+      "status": "in_progress",
+      "required": true,
+      "answered": 3,
+      "total": 5,
+      "hint": "검사 전에 마쳐 주세요"
+    },
+    "new_reports": [
+      {
+        "report_id": "R-2026-0903",
+        "title": "2026.09.03 내원 검사 안내",
+        "issued_at": "2026-09-08T14:22:00+09:00",
+        "issued_by_name": "김서연",
+        "lock_status": "unlocked",
+        "unlocked_at": "2026-09-08T14:22:00+09:00"
+      }
+    ],
+    "next_reservation": {
+      "exam_order_id": 77021,
+      "order_status": "ordered",
+      "scheduled_at": "2026-09-20T14:00:00+09:00",
+      "modality": "us",
+      "modality_label": "유방초음파",
+      "place": "영상의학과 3번"
+    },
+    "today_visit": {
+      "active": true,
+      "next_location": "3층 유방외과 2진료실",
+      "note": "호출 전까지 대기해 주세요."
+    },
+    "calendar": {
+      "month": "2026-09",
+      "marks": [
+        {
+          "date": "2026-09-03",
+          "kind": "done",
+          "label": "검사 완료"
+        },
+        {
+          "date": "2026-09-20",
+          "kind": "confirmed",
+          "label": "유방초음파 14:00"
+        },
+        {
+          "date": "2026-09-22",
+          "kind": "requested",
+          "label": "방문 신청 · 확인 중"
+        },
+        {
+          "date": "2026-09-30",
+          "kind": "followup",
+          "label": "추적 예정"
+        }
+      ]
+    }
+  },
+  "GET /api/v1/questionnaire": {
+    "status": "in_progress",
+    "required": true,
+    "answered": 3,
+    "total": 5,
+    "sections": [
+      {
+        "id": "contrast_allergy",
+        "critical": true,
+        "question": "조영제 알레르기가 있으신가요?",
+        "choices": [
+          {
+            "id": "no",
+            "label": "없다"
+          },
+          {
+            "id": "yes",
+            "label": "있다 · 두드러기"
+          },
+          {
+            "id": "unknown",
+            "label": "모르겠다"
+          }
+        ],
+        "answer": "yes"
+      },
+      {
+        "id": "family_history",
+        "critical": false,
+        "question": "가족 중 유방암 진단을 받은 분이 있나요?",
+        "choices": [
+          {
+            "id": "mother",
+            "label": "있다 — 어머니"
+          },
+          {
+            "id": "none",
+            "label": "없다"
+          }
+        ],
+        "answer": "mother"
+      },
+      {
+        "id": "menopause",
+        "critical": false,
+        "question": "현재 폐경 상태인가요?",
+        "choices": [
+          {
+            "id": "post",
+            "label": "폐경 이후"
+          },
+          {
+            "id": "pre",
+            "label": "폐경 전"
+          }
+        ],
+        "answer": "post"
+      },
+      {
+        "id": "implant",
+        "critical": true,
+        "question": "가슴에 보형물이나 삽입물이 있으신가요?",
+        "hint": "촬영 방법이 달라져서 미리 알아야 합니다",
+        "choices": [
+          {
+            "id": "no",
+            "label": "없다"
+          },
+          {
+            "id": "yes",
+            "label": "있다"
+          },
+          {
+            "id": "unknown",
+            "label": "모르겠다"
+          }
+        ],
+        "answer": null
+      },
+      {
+        "id": "pregnancy",
+        "critical": true,
+        "question": "임신 중이거나 임신 가능성이 있으신가요?",
+        "hint": "해당되시면 촬영을 미루거나 다른 검사를 합니다",
+        "choices": [
+          {
+            "id": "no",
+            "label": "아니다"
+          },
+          {
+            "id": "yes",
+            "label": "그렇다"
+          },
+          {
+            "id": "unknown",
+            "label": "모르겠다"
+          }
+        ],
+        "answer": null
+      }
+    ]
+  },
+  "PUT /api/v1/questionnaire": {
+    "ok": true,
+    "answered": 4,
+    "total": 5,
+    "detail": "저장했습니다"
+  },
+  "GET /api/v1/me/reservations": {
+    "items": [
+      {
+        "exam_order_id": 77021,
+        "order_status": "ordered",
+        "status_label": "확정",
+        "scheduled_at": "2026-09-15T14:00:00+09:00",
+        "modality": "us",
+        "modality_label": "유방초음파",
+        "place": "영상의학과 3번",
+        "can_cancel": true
+      },
+      {
+        "exam_order_id": 77044,
+        "order_status": "requested",
+        "status_label": "확인 중",
+        "scheduled_at": "2026-09-22T09:00:00+09:00",
+        "modality": null,
+        "modality_label": null,
+        "place": null,
+        "can_cancel": true,
+        "hint": "병원에서 확인하면 검사 종류와 시간이 확정됩니다"
+      }
+    ],
+    "primary_staff_name": "박지훈",
+    "primary_staff_dept": "surgery",
+    "required_questions": [
+      {
+        "id": "contrast_allergy",
+        "critical": true,
+        "question": "조영제 알레르기가 있으신가요?",
+        "choices": [
+          {
+            "id": "no",
+            "label": "없다"
+          },
+          {
+            "id": "yes",
+            "label": "있다 · 두드러기"
+          },
+          {
+            "id": "unknown",
+            "label": "모르겠다"
+          }
+        ],
+        "answer": "yes"
+      },
+      {
+        "id": "implant",
+        "critical": true,
+        "question": "가슴에 보형물이나 삽입물이 있으신가요?",
+        "hint": "촬영 방법이 달라져서 미리 알아야 합니다",
+        "choices": [
+          {
+            "id": "no",
+            "label": "없다"
+          },
+          {
+            "id": "yes",
+            "label": "있다"
+          },
+          {
+            "id": "unknown",
+            "label": "모르겠다"
+          }
+        ],
+        "answer": null
+      },
+      {
+        "id": "pregnancy",
+        "critical": true,
+        "question": "임신 중이거나 임신 가능성이 있으신가요?",
+        "hint": "해당되시면 촬영을 미루거나 다른 검사를 합니다",
+        "choices": [
+          {
+            "id": "no",
+            "label": "아니다"
+          },
+          {
+            "id": "yes",
+            "label": "그렇다"
+          },
+          {
+            "id": "unknown",
+            "label": "모르겠다"
+          }
+        ],
+        "answer": null
+      }
+    ],
+    "required_note": "촬영 방법이 달라지는 것들입니다. 미리 알면 병원이 검사를 한 번에 정할 수 있습니다.",
+    "open_slots": [
+      {
+        "date": "2026-09-17",
+        "times": [
+          "09:30",
+          "10:00",
+          "11:00",
+          "15:30",
+          "16:00"
+        ]
+      },
+      {
+        "date": "2026-09-18",
+        "times": [
+          "09:30",
+          "14:00"
+        ]
+      },
+      {
+        "date": "2026-09-22",
+        "times": [
+          "10:00",
+          "11:00",
+          "16:00"
+        ]
+      }
+    ],
+    "hospital_phone": "02-000-0000",
+    "note": "어떤 검사를 받으실지는 병원에서 정합니다."
+  },
+  "POST /api/v1/me/reservations/77021/cancel": {
+    "ok": true,
+    "exam_order_id": 77021,
+    "order_status": "cancelled",
+    "detail": "예약을 취소했습니다"
+  },
+  "POST /api/v1/me/reservations/77044/cancel": {
+    "ok": true,
+    "exam_order_id": 77044,
+    "order_status": "cancelled",
+    "detail": "방문 신청을 취소했습니다"
+  },
+  "POST /api/v1/me/reservations/77051/cancel": {
+    "ok": true,
+    "exam_order_id": 77051,
+    "order_status": "cancelled",
+    "detail": "방문 신청을 취소했습니다"
+  },
+  "POST /api/v1/me/reservation-requests": {
+    "exam_order_id": 77051,
+    "order_status": "requested",
+    "status_label": "확인 중",
+    "scheduled_at": "2026-09-17T10:00:00+09:00",
+    "modality": null,
+    "detail": "방문 신청이 접수되었습니다. 병원에서 확인 후 알려 드립니다."
+  },
+  "GET /api/v1/reports": {
+    "items": [
+      {
+        "report_id": "R-2026-0903",
+        "visit_date": "2026-09-03",
+        "title": "내원 검사 안내",
+        "studies": [
+          {
+            "study_id": 51201,
+            "modality": "mammo",
+            "label": "유방촬영술"
+          },
+          {
+            "study_id": 51202,
+            "modality": "us",
+            "label": "유방초음파"
+          },
+          {
+            "study_id": 51203,
+            "modality": "lab",
+            "label": "혈액검사"
+          }
+        ],
+        "lock_status": "unlocked",
+        "read_at": null,
+        "issued_by_name": "김서연",
+        "issued_at": "2026-09-08T14:22:00+09:00"
+      },
+      {
+        "report_id": "R-2026-0314",
+        "visit_date": "2026-03-14",
+        "title": "내원 검사 안내",
+        "studies": [
+          {
+            "study_id": 50877,
+            "modality": "mammo",
+            "label": "유방촬영술"
+          }
+        ],
+        "lock_status": "unlocked",
+        "read_at": "2026-03-20T09:10:00+09:00",
+        "issued_by_name": "김서연",
+        "issued_at": "2026-03-19T16:40:00+09:00"
+      },
+      {
+        "report_id": "R-2025-0902",
+        "visit_date": "2025-09-02",
+        "title": "내원 검사 안내",
+        "studies": [
+          {
+            "study_id": 49510,
+            "modality": "mammo",
+            "label": "유방촬영술"
+          }
+        ],
+        "lock_status": "locked",
+        "read_at": null,
+        "issued_by_name": null,
+        "issued_at": null,
+        "locked_hint": "아직 열람할 수 없습니다 — 진료 때 설명을 들으신 뒤 열립니다"
+      }
+    ],
+    "note": "내원 한 번에 안내문 하나입니다. 그날 받으신 검사를 병원에서 묶어 발행합니다."
+  },
+  "GET /api/v1/reports/R-2026-0903": {
+    "report_id": "R-2026-0903",
+    "report_type": "final",
+    "audience": "patient",
+    "visit_date": "2026-09-03",
+    "title": "2026.09.03 내원 안내",
+    "studies": [
+      {
+        "study_id": 51201,
+        "modality": "mammo",
+        "label": "유방촬영술"
+      },
+      {
+        "study_id": 51202,
+        "modality": "us",
+        "label": "유방초음파"
+      },
+      {
+        "study_id": 51203,
+        "modality": "lab",
+        "label": "혈액검사"
+      }
+    ],
+    "lock_status": "unlocked",
+    "explained_by_name": "김서연",
+    "explained_at": "2026-09-08T14:22:00+09:00",
+    "issued_by_name": "김서연",
+    "issued_at": "2026-09-08T14:22:00+09:00",
+    "primary_staff_name": "박지훈",
+    "primary_staff_dept": "surgery",
+    "narrative_text": "9월 3일에 받으신 유방촬영술 · 유방초음파 · 혈액검사 결과를 함께 말씀드립니다.\n\n유방촬영술에서 오른쪽 가슴 바깥 위쪽에 미세한 석회질이 모여 있는 부분이 보였습니다. 이런 소견은 양성인 경우도 많지만, 모양을 보아 조직검사로 확인하는 것이 좋겠다고 판단했습니다.\n\n유방초음파에서는 같은 자리에 뚜렷한 덩어리가 보이지 않았습니다. 혈액검사는 특별히 짚을 점이 없었습니다.\n\n다음 진료 때 조직검사 일정을 함께 정하겠습니다. 그때까지 특별히 하실 일은 없습니다.",
+    "notes": [
+      {
+        "id": "MG-N06",
+        "text": "최종 판정은 의사가 합니다."
+      }
+    ],
+    "pdf_available": true,
+    "disclaimer": "이 안내문은 진단서가 아닙니다. 최종 판단은 진료 때 의료진이 합니다."
+  },
+  "GET /api/v1/reports/R-2026-0314": {
+    "report_id": "R-2026-0314",
+    "report_type": "final",
+    "audience": "patient",
+    "visit_date": "2026-03-14",
+    "title": "2026.03.14 내원 안내",
+    "studies": [
+      {
+        "study_id": 50877,
+        "modality": "mammo",
+        "label": "유방촬영술"
+      }
+    ],
+    "lock_status": "unlocked",
+    "explained_by_name": "김서연",
+    "explained_at": "2026-03-19T16:40:00+09:00",
+    "issued_by_name": "김서연",
+    "issued_at": "2026-03-19T16:40:00+09:00",
+    "primary_staff_name": "박지훈",
+    "primary_staff_dept": "surgery",
+    "narrative_text": "3월 14일에 받으신 유방촬영술 결과를 말씀드립니다.\n\n양쪽 가슴 모두에서 특별히 짚어야 할 부분은 보이지 않았습니다. 지난번과 견주어 달라진 곳도 없었습니다.\n\n다음 검진은 1년 뒤로 안내드립니다. 그 전이라도 만져지는 것이 생기거나 불편한 곳이 있으면 진료를 보러 오시면 됩니다.",
+    "notes": [],
+    "pdf_available": true,
+    "disclaimer": "이 안내문은 진단서가 아닙니다. 최종 판단은 진료 때 의료진이 합니다."
+  },
+  "GET /api/v1/reports/R-2025-0902": {
+    "report_id": "R-2025-0902",
+    "lock_status": "locked",
+    "locked_hint": "아직 열람할 수 없습니다 — 진료 때 설명을 들으신 뒤 열립니다",
+    "narrative_text": null,
+    "notes": [],
+    "pdf_available": false
+  },
+  "POST /api/v1/chat": {
+    "__README": "질문에 든 낱말로 고른다(mock 전용). vite.config.js 의 가짜 API 가 요청 본문의 question 을 보고 __match 를 위에서부터 훑어, when 의 낱말이 하나라도 들어 있으면 그 답을 준다. 아무것도 안 걸리면 answer 를 준다. Django 는 이 규칙을 몰라도 되고, 응답 모양(answer · disclaimer · stored)만 같으면 된다.",
+    "__match": [
+      {
+        "when": [
+          "미세석회",
+          "석회",
+          "칼슘"
+        ],
+        "answer": "유방 조직 안에 아주 작은 칼슘 알갱이가 생긴 것을 말합니다. 대부분은 나이가 들면서 자연히 생기는 것이라 문제가 없습니다.\n\n다만 알갱이의 모양과 모여 있는 형태에 따라 조금 더 살펴보기도 합니다. 어떤 쪽인지는 사진을 본 의료진이 판단합니다."
+      },
+      {
+        "when": [
+          "조직검사",
+          "생검",
+          "아픈",
+          "아파",
+          "아프"
+        ],
+        "answer": "가는 바늘로 조직을 조금 떼어 내어 살펴보는 검사입니다. 그 자리를 마취하고 하므로 검사 중에는 대개 아프지 않습니다.\n\n끝난 뒤 며칠은 누르면 뻐근할 수 있습니다. 멍이 드는 분도 있는데 대부분 저절로 가라앉습니다."
+      },
+      {
+        "when": [
+          "양성",
+          "악성",
+          "괜찮"
+        ],
+        "answer": "양성은 «암이 아니다»라는 뜻입니다. 그대로 두고 지켜보는 경우가 많습니다.\n\n다만 «양성으로 보인다»와 «양성으로 확인되었다»는 다릅니다. 회원님이 어느 쪽인지는 이 대화로 알 수 없으니, 진료 때 담당 주치의에게 확인해 주세요."
+      },
+      {
+        "when": [
+          "초음파",
+          "유방촬영",
+          "맘모",
+          "엑스레이",
+          "방사선"
+        ],
+        "answer": "유방촬영술은 가슴을 살짝 눌러 편 뒤 엑스선으로 찍는 검사입니다. 누르는 동안 잠깐 불편할 수 있지만 몇 초면 끝납니다.\n\n유방초음파는 젤을 바르고 기구를 대어 보는 검사라 아프지 않고 방사선도 쓰지 않습니다. 두 검사는 보이는 것이 서로 달라 함께 하는 경우가 많습니다."
+      },
+      {
+        "when": [
+          "치료",
+          "수술",
+          "항암",
+          "방사선 치료",
+          "완치",
+          "예후",
+          "생존율",
+          "병기",
+          "전이"
+        ],
+        "answer": "치료 방법과 앞으로의 계획은 **담당 주치의가 정합니다.**\n\n이곳에서는 안내문에 나온 낱말의 뜻을 풀어 드립니다. 치료·수술·예후에 대한 것은 진료 때 직접 여쭤 주세요 — 회원님의 상태를 모두 보고 판단해야 하는 일이라, 이 대화로는 정확히 말씀드릴 수 없습니다."
+      },
+      {
+        "when": [
+          "검사",
+          "무슨 검사",
+          "어떤 검사"
+        ],
+        "answer": "안내문에 나온 검사는 보통 이런 것들입니다.\n\n· 유방촬영술(맘모그래피) — 엑스선으로 찍습니다\n· 유방초음파 — 젤을 바르고 기구를 대어 봅니다\n· 조직검사 — 바늘로 조직을 조금 떼어 현미경으로 봅니다\n\n어느 검사가 궁금하신지 낱말로 물어봐 주시면 더 자세히 풀어 드리겠습니다."
+      },
+      {
+        "when": [
+          "재검",
+          "다시 검사",
+          "추적",
+          "경과관찰",
+          "경과 관찰",
+          "6개월"
+        ],
+        "answer": "«추적검사»나 «경과관찰»은 지금 바로 무엇을 하기보다 시간을 두고 변화를 보자는 뜻입니다.\n\n기간이나 다음에 무엇을 할지는 회원님의 결과에 따라 다릅니다. 예약은 «다음 일정 확인하기»에서 보실 수 있습니다."
+      },
+      {
+        "when": [
+          "결절",
+          "종괴",
+          "혹",
+          "덩어리",
+          "낭종",
+          "물혹"
+        ],
+        "answer": "«결절»과 «종괴»는 조직에 생긴 덩어리를 가리키는 말입니다. «낭종(물혹)»은 그중 물이 찬 주머니를 말합니다.\n\n덩어리가 있다는 것 자체가 암을 뜻하지는 않습니다. 모양·크기·경계에 따라 판단이 달라지는데, 회원님의 경우가 어느 쪽인지는 진료 때 담당 주치의에게 확인해 주세요."
+      },
+      {
+        "when": [
+          "BI-RADS",
+          "birads",
+          "카테고리",
+          "범주",
+          "분류"
+        ],
+        "answer": "BI-RADS 는 유방 영상 판독 결과를 정리하는 국제 분류입니다. 0부터 6까지 있고, 숫자가 «점수»가 아니라 «다음에 무엇을 할지»를 가리킵니다.\n\n회원님이 어느 범주인지와 그 뜻은 담당 주치의의 설명으로 들어 주세요."
+      }
+    ],
+    "answer": "죄송합니다. 그 질문에는 아직 답을 드리기 어렵습니다.\n\n이곳은 안내문에 나온 낱말의 뜻을 풀어 드리는 곳입니다. 회원님의 검사 결과에 대한 것은 진료 때 담당 주치의에게 문의해 주세요.",
+    "disclaimer": "이 답변은 진단이 아닙니다. 최종 판단은 진료 때 의료진이 합니다.",
+    "stored": false
+  },
+  "GET /api/v1/notifications/": {
+    "items": [
+      {
+        "notification_id": 90311,
+        "notification_type": "report_ready",
+        "message": "검사 안내문이 도착했습니다",
+        "detail": "2026.09.03 내원 검사",
+        "ref_type": "report",
+        "ref_id": "R-2026-0903",
+        "sent_at": "2026-09-09T10:24:00+09:00",
+        "acknowledged_at": null
+      },
+      {
+        "notification_id": 90288,
+        "notification_type": "reservation_requested",
+        "message": "9월 22일 오전 방문 신청",
+        "detail": "병원에서 확인 중입니다",
+        "ref_type": null,
+        "ref_id": null,
+        "sent_at": "2026-09-08T18:02:00+09:00",
+        "acknowledged_at": null
+      },
+      {
+        "notification_id": 90240,
+        "notification_type": "reservation_changed",
+        "message": "예약이 변경되었습니다",
+        "detail": "9/12(금) 10:00 → 9/15(월) 14:00",
+        "ref_type": "exam_order",
+        "ref_id": 77021,
+        "sent_at": "2026-09-08T09:15:00+09:00",
+        "acknowledged_at": "2026-09-08T09:40:00+09:00"
+      },
+      {
+        "notification_id": 90101,
+        "notification_type": "followup",
+        "message": "추적 검사 안내",
+        "detail": "9월 말 방문 예정입니다",
+        "ref_type": null,
+        "ref_id": null,
+        "sent_at": "2026-09-01T11:00:00+09:00",
+        "acknowledged_at": "2026-09-01T20:12:00+09:00"
+      }
+    ]
+  },
+  "PATCH /api/v1/notifications/90311/": {
+    "notification_id": 90311,
+    "acknowledged_at": "2026-09-10T14:05:00+09:00"
+  },
+  "PATCH /api/v1/notifications/90288/": {
+    "notification_id": 90288,
+    "acknowledged_at": "2026-09-10T14:05:00+09:00"
+  },
+  "PATCH /api/v1/notifications/90240/": {
+    "notification_id": 90240,
+    "acknowledged_at": "2026-09-10T14:05:00+09:00"
+  },
+  "PATCH /api/v1/notifications/90101/": {
+    "notification_id": 90101,
+    "acknowledged_at": "2026-09-10T14:05:00+09:00"
+  },
+  "GET /api/v1/consents": {
+    "items": [
+      {
+        "kind": "tos",
+        "label": "서비스 이용약관",
+        "required": true,
+        "agreed_at": "2026-09-01T09:02:00+09:00",
+        "channel": "app",
+        "withdrawn_at": null,
+        "can_withdraw": false
+      },
+      {
+        "kind": "privacy",
+        "label": "개인정보 수집·이용",
+        "required": true,
+        "agreed_at": "2026-09-01T09:02:00+09:00",
+        "channel": "app",
+        "withdrawn_at": null,
+        "can_withdraw": false
+      },
+      {
+        "kind": "marketing",
+        "label": "마케팅 정보 수신",
+        "required": false,
+        "agreed_at": "2026-09-01T09:40:00+09:00",
+        "channel": "desk",
+        "withdrawn_at": null,
+        "can_withdraw": true
+      }
+    ],
+    "push_settings": [
+      {
+        "kind": "report_ready",
+        "label": "안내문 도착",
+        "enabled": true
+      },
+      {
+        "kind": "reservation",
+        "label": "예약 변경",
+        "enabled": true
+      },
+      {
+        "kind": "screening",
+        "label": "검진 안내",
+        "enabled": false
+      }
+    ]
+  },
+  "POST /api/v1/signup/verify-code": {
+    "ok": true,
+    "verify_token": "vt_9f3a2c1b",
+    "detail": "본인 확인이 끝났습니다"
+  },
+  "GET /api/v1/signup/check-id": {
+    "available": true,
+    "detail": "쓰실 수 있는 아이디입니다"
+  },
+  "PUT /api/v1/notifications/settings/report_ready": {
+    "ok": true,
+    "kind": "report_ready",
+    "detail": "설정을 저장했습니다"
+  },
+  "PUT /api/v1/notifications/settings/reservation": {
+    "ok": true,
+    "kind": "reservation",
+    "detail": "설정을 저장했습니다"
+  },
+  "PUT /api/v1/notifications/settings/screening": {
+    "ok": true,
+    "kind": "screening",
+    "detail": "설정을 저장했습니다"
+  },
+  "POST /api/v1/consents/marketing/withdraw": {
+    "ok": true,
+    "kind": "marketing",
+    "withdrawn_at": "2026-09-10T10:40:00+09:00",
+    "detail": "마케팅 정보 수신 동의를 철회했습니다"
+  },
+  "POST /api/v1/me/medications/{id}/log": {
+    "log_id": "LG-77099",
+    "taken_at": "2026-09-17T16:55:00+09:00"
+  },
+  "DELETE /api/v1/me/medications/{id}/log/{logId}": {
+    "ok": true
+  },
+  "GET /api/v1/hospitals": {
+    "__why": "병원 찾기(screens/Hospitals.jsx). 실제 서버는 core/api/hospitals.py 가 국립중앙의료원 전국 병·의원 찾기 서비스(XML)를 받아 이 모양으로 준다. 앞의 세 건은 진짜 응답을 그대로 옮긴 것이다. 협력 병원이 아니라 전국 병·의원이고 note 가 그 말을 싣는다. 거르기(q·region)는 서버가 하므로 가짜 API 는 질의를 보지 않는다. 마지막 한 건은 전화도 좌표도 없는 기관이다 — 실제로 섞여 오고, 화면이 단추를 안 내는 것을 여기서 본다.",
+    "items": [
+      {
+        "hospital_id": "A1124992",
+        "name": "강동세브란스내과의원",
+        "dept": "의원",
+        "address": "서울특별시 강동구 성내로 19, (주)서경산업개발 2층 201,202호 (성내동)",
+        "phone": "02-6953-0111",
+        "region": "서울",
+        "hours": "평일 08:30~18:00 · 토 08:30~13:30",
+        "etc": "휴게시간 13:00~14:00",
+        "lat": 37.5303607386477,
+        "lng": 127.122830787843
+      },
+      {
+        "hospital_id": "A2109623",
+        "name": "금촌세브란스치과의원",
+        "dept": "치과의원",
+        "address": "경기도 파주시 중앙로 271, 1,2호 (금촌동, 광장빌딩)",
+        "phone": "031-944-8589",
+        "region": "경기",
+        "hours": "평일 10:00~18:30 · 토 10:00~14:00",
+        "etc": "2017년9월 부터 토요일1,3주 휴진합니다. (병원사정에 따라 변경 될수도 있습니다.)",
+        "lat": 37.76001108644558,
+        "lng": 126.77715154514041
+      },
+      {
+        "hospital_id": "A1301183",
+        "name": "대구세브란스피부과의원",
+        "dept": "의원",
+        "address": "대구광역시 수성구 달구벌대로 2557-1, 9,10층 (만촌동)",
+        "phone": "053-784-0555",
+        "region": "대구",
+        "hours": "월 09:30~18:30 · 화 09:30~18:30 · 수 09:30~18:30 · 목 09:30~18:30 · 금 09:30~19:30 · 토 09:30~13:00",
+        "etc": null,
+        "lat": 35.8592463,
+        "lng": 128.6426174
+      },
+      {
+        "hospital_id": "X0000000",
+        "name": "한빛의원",
+        "dept": "의원",
+        "address": "경기도 성남시 분당구 판교로 256",
+        "phone": null,
+        "region": "경기",
+        "hours": null,
+        "etc": null,
+        "lat": null,
+        "lng": null
+      }
+    ],
+    "count": 4,
+    "page": 1,
+    "page_size": 20,
+    "regions": [
+      "전체",
+      "서울",
+      "경기",
+      "인천",
+      "부산",
+      "대구",
+      "대전",
+      "울산",
+      "세종",
+      "광주·전남",
+      "강원",
+      "충북",
+      "충남",
+      "전북",
+      "경북",
+      "경남",
+      "제주"
+    ],
+    "source": "국립중앙의료원 전국 병·의원 찾기 서비스",
+    "note": "국립중앙의료원이 공개한 전국 병·의원 정보입니다. 우리 병원의 협력 기관 목록이 아니며, 진료 시간과 휴무는 방문 전에 해당 기관에 확인해 주세요."
+  },
+  "GET /api/v1/me/prescriptions": {
+    "note": "처방 내용은 병원 기록을 그대로 옮긴 것입니다. 복용 중 궁금한 점은 담당 주치의나 접수처에 문의해 주세요.",
+    "items": [
+      {
+        "prescription_id": 4101,
+        "issued_on": "2026-03-14",
+        "prescriber": "박지훈",
+        "dept": "외과",
+        "hospital": "미래 대학병원",
+        "days": 90,
+        "status": "active",
+        "drugs": [
+          {
+            "drug_id": 9001,
+            "name": "타목시펜정",
+            "ingredient": "타목시펜시트르산염 20mg",
+            "dose": "1정",
+            "route": "oral",
+            "form": "정제",
+            "times": [
+              "09:00"
+            ],
+            "per_day": 1,
+            "purpose": "호르몬 수용체가 있는 유방암이 다시 자라지 않도록 억제합니다.",
+            "how": "매일 같은 시각에 물과 함께 드세요. 씹거나 쪼개지 마세요.",
+            "watch": "다리가 붓거나 아프고, 숨이 차거나, 질 출혈이 있으면 바로 알려 주세요.",
+            "today": [],
+            "days": 90,
+            "ends_on": "2026-06-11"
+          },
+          {
+            "drug_id": 9002,
+            "name": "칼디비타정",
+            "ingredient": "탄산칼슘 500mg · 콜레칼시페롤 400IU",
+            "dose": "1정",
+            "times": [
+              "09:00",
+              "19:00"
+            ],
+            "per_day": 2,
+            "purpose": "호르몬 치료 중에 뼈가 약해지는 것을 막아 줍니다.",
+            "how": "식사 직후에 드시면 속이 덜 불편합니다.",
+            "watch": "변비가 심하거나 속이 계속 불편하면 말씀해 주세요.",
+            "today": [],
+            "days": 30,
+            "ends_on": "2026-04-12"
+          }
+        ],
+        "note": null
+      },
+      {
+        "prescription_id": 4102,
+        "issued_on": "2026-09-01",
+        "prescriber": "김서연",
+        "dept": "외과",
+        "hospital": "미래 대학병원",
+        "days": 365,
+        "status": "active",
+        "drugs": [
+          {
+            "drug_id": 9003,
+            "name": "페마라정",
+            "ingredient": "레트로졸 2.5mg",
+            "dose": "1정",
+            "route": "oral",
+            "form": "필름코팅정",
+            "times": [
+              "21:00"
+            ],
+            "per_day": 1,
+            "purpose": "폐경 후 호르몬을 줄여 암이 다시 생기는 것을 막습니다.",
+            "how": "매일 저녁 같은 시각에 드세요. 식사와 상관없습니다.",
+            "watch": "관절이 뻣뻣하거나 열감·식은땀이 잦으면 진료 때 말씀해 주세요.",
+            "today": [
+              {
+                "time": "21:00",
+                "log_id": null
+              }
+            ],
+            "days": 365,
+            "ends_on": "2027-08-31"
+          },
+          {
+            "drug_id": 9005,
+            "name": "후시딘연고",
+            "ingredient": "푸시드산나트륨",
+            "dose": "적당량",
+            "route": "topical",
+            "form": "연고제",
+            "times": [
+              "09:00",
+              "21:00"
+            ],
+            "per_day": 2,
+            "purpose": "수술 부위 상처에 균이 자라지 않도록 막아 줍니다.",
+            "how": "상처를 깨끗이 한 뒤 얇게 펴 바르세요. 바른 뒤에는 손을 씻어 주세요.",
+            "watch": "바른 자리가 붓거나 진물이 늘면 알려 주세요.",
+            "today": [
+              {
+                "time": "09:00",
+                "log_id": null
+              },
+              {
+                "time": "21:00",
+                "log_id": null
+              }
+            ],
+            "days": 30,
+            "ends_on": "2026-09-30"
+          }
+        ],
+        "note": null
+      },
+      {
+        "prescription_id": 4088,
+        "issued_on": "2025-11-20",
+        "prescriber": "박지훈",
+        "dept": "외과",
+        "hospital": "미래 대학병원",
+        "days": 14,
+        "status": "ended",
+        "drugs": [
+          {
+            "drug_id": 9004,
+            "name": "세프라딘캡슐",
+            "ingredient": "세프라딘 500mg",
+            "dose": "1캡슐",
+            "route": "oral",
+            "form": "캡슐제",
+            "times": [
+              "08:00",
+              "20:00"
+            ],
+            "per_day": 2,
+            "purpose": "조직검사 자리에 균이 들어가지 않도록 예방했습니다.",
+            "how": "처방 기간을 다 채워 드셨습니다.",
+            "watch": null,
+            "today": [],
+            "days": 14,
+            "ends_on": "2025-12-03"
+          }
+        ],
+        "note": null
+      }
+    ],
+    "__why": "복약 관리(screens/Meds.jsx). 실제 서버는 core/views/prescription.py 의 MyPrescriptionView 가 이 모양으로 준다. 일수(days)와 종료일(ends_on)은 **약마다** 있고, 처방전의 days 는 그중 가장 긴 것이다. 기간이 지났거나 종료된 처방의 약에는 today(오늘 회차)를 싣지 않는다 — 화면이 그것으로 회차 단추를 그릴지 가른다."
+  },
+  "GET /api/v1/drugs": {
+    "__why": "약 정보 찾기(screens/Drugs.jsx). 실제로는 Django 가 식약처 e약은요 공공데이터를 받아 이 모양으로 바꿔 준다 — 아래 두 건은 진짜 응답을 그대로 옮긴 것이다. 가짜 API 는 질의(q)를 보지 않으므로 무엇을 찾아도 같은 두 건이 나온다. 모양을 맞추는 것이 목적이지 검색을 흉내 내려는 것이 아니다.",
+    "items": [
+      {
+        "item_seq": "202005623",
+        "name": "어린이타이레놀산160밀리그램(아세트아미노펜)",
+        "maker": "켄뷰코리아판매유한회사",
+        "image": null,
+        "efficacy": "이 약은 감기로 인한 발열 및 동통(통증), 두통, 신경통, 근육통, 월경통, 염좌통(삔 통증), 치통, 관절통, 류마티양 동통(통증)에 사용합니다.",
+        "how_to_use": "만 7~12세 소아는 1회 권장용량을 4~6시간마다 필요시 물 없이 혀에 직접 복용합니다.\n이 약은 가능한 최단기간동안 최소 유효용량으로 복용하며, 1일 5회(75 mg/kg)를 초과하여 복용하지 않습니다.\n몸무게를 아는 경우 몸무게에 따른 용량(10~15 mg/kg)으로 복용하는 것이 더 적절합니다.\n연령대별 용량은 허가사항을 참고하십시오.",
+        "warning": "매일 세잔 이상 정기적 음주자가 이 약 또는 다른 해열진통제를 복용할 때는 의사 또는 약사와 상의하십시오. 간손상을 일으킬 수 있습니다.\n매우 드물게 치명적일 수 있는 급성전신발진고름물집증, 스티븐스-존슨증후군, 독성표피괴사용해와 같은 중대한 피부반응이 보고되었고 이 약 복용 후 피부발진 또는 다른 과민반응의 징후가 나타나는 경우 즉시 복용을 중단하십시오.\n아세트아미노펜으로 일일 최대 용량(4,000 mg)을 초과하여 복용하지 마십시오. 간손상을 일으킬 수 있습니다. 아세트아미노펜을 포함하는 다른 제품과 함께 복용하지 마십시오.",
+        "caution": "이 약에 과민증 환자, 소화성궤양, 심한 혈액 이상, 심한 간장애, 심한 신장(콩팥)장애, 심한 심장기능저하 환자, 아스피린 천식(비스테로이드성 소염(항염)제에 의한 천식발작 유발) 또는 경험자는 이 약을 복용하지 마십시오.\n이 약을 복용하기 전에 간장애 또는 경험자, 신장(콩팥)장애 또는 경험자, 소화성궤양 경험자, 혈액이상 또는 경험자, 출혈경향, 심장기능이상, 과민증 경험자, 기관지 천식 환자, 고령자(노인), 만 2세 미만 소아, 임부 또는 수유부, 글루타치온 보유량이 낮은 상태 환자는 의사 또는 약사와 상의하십시오.\n의사 또는 약사의 지시없이 통증에 10일 이상(성인)또는 5일 이상(소아) 복용하지 않고 발열에 3일 이상 복용하지 마십시오.",
+        "interaction": "바르비탈계 약물, 삼환계 항우울제, 알코올, 다른 소염(항염)진통제와 함께 복용하지 마십시오.\n와파린, 플루클록사실린과 함께 복용 시 의사 또는 약사와 상의하십시오.",
+        "side_effect": "쇽 증상(호흡곤란, 온몸이 붉어짐, 혈관부기, 두드러기 등), 천식발작, 혈소판 감소, 과립구감소, 용혈성(적혈구파괴성)빈혈, 메트헤모글로빈혈증, 혈소판기능 저하(출혈시간 연장), 청색증, 과민증상(얼굴부기, 호흡곤란, 땀이 남, 저혈압, 쇽), 구역, 구토, 식욕부진, 장기복용 시 위장출혈, 소화성궤양, 천공(뚫림) 등의 위장관계 이상, 발진, 알레르기 반응, 피부점막안증후군(스티븐스-존슨증후군), 독성표피괴사용해(리엘증후군), AST 상승, ALT 상승, 고정발진 등, 통증이나 발열 증상이 지속되거나 악화될 경우 또는 새로운 증상이 나타나는 경우 복용을 즉각 중지하고 의사 또는 약사와 상의하십시오.",
+        "storage": "실온에서 보관하십시오.\n어린이의 손이 닿지 않는 곳에 보관하십시오.",
+        "updated_at": "2024-12-20"
+      },
+      {
+        "item_seq": "202106092",
+        "name": "타이레놀정500밀리그람(아세트아미노펜)",
+        "maker": "켄뷰코리아판매유한회사",
+        "image": "https://nedrug.mfds.go.kr/pbp/cmn/itemImageDownload/1OKRXo9l4D5",
+        "efficacy": "이 약은 감기로 인한 발열 및 동통(통증), 두통, 신경통, 근육통, 월경통, 염좌통(삔 통증), 치통, 관절통, 류마티양 동통(통증)에 사용합니다",
+        "how_to_use": "만 12세 이상 소아 및 성인은 1회 1~2정씩, 1일 3~4회(4~6시간 마다) 필요시 복용합니다.\n이 약은 가능한 최단기간동안 최소 유효용량으로 복용하며, 1일 최대 8정(4 g)을 초과하여 복용하지 않습니다.",
+        "warning": "매일 세 잔 이상 정기적 음주자가 이 약 또는 다른 해열진통제를 복용할 때는 의사 또는 약사와 상의하십시오. 간손상을 일으킬 수 있습니다.\n매우 드물게 치명적일 수 있는 급성 전신성 발진성 고름물집증, 스티븐스-존슨 증후군, 독성 표피 괴사용해와 같은 중대한 피부반응이 보고되었고 이 약 복용후 피부발진 또는 다른 과민반응의 징후가 나타나는 경우 즉시 복용을 중단하십시오.\n아세트아미노펜으로 일일 최대 용량(4,000 mg)을 초과하여 복용하지 마십시오. 간손상을 일으킬 수 있습니다. 아세트아미노펜을 포함하는 다른 제품과 함께 복용하지 마십시오.",
+        "caution": "이 약에 과민증, 소화성궤양, 심한 혈액 이상, 간장애, 신장(콩팥)장애, 심장기능저하 환자, 아스피린 천식(비스테로이드성 소염(항염)제에 의한 천식발작 유발) 환자 또는 경험자, 바르비탈계 약물 또는 삼환계 항우울제 복용한 환자, 알코올을 복용한 사람, 12세 미만의 소아는 이 약을 복용하지 마십시오.\n이 약을 복용하기 전에 과민증 경험자, 간장애, 신장(콩팥)장애, 소화성궤양, 혈액이상 환자 또는 경험자, 출혈경향, 심장기능이상이 있는 환자, 기관지천식 환자, 고령자(노인), 임부 또는 수유부, 글루타치온 보유량이 낮은 상태의 환자는 의사 또는 약사와 상의하십시오.\n복용 중에 음주하지 마십시오.",
+        "interaction": "바르비탈계 약물, 삼환계 항우울제 및 알코올을 투여한 환자, 와파린, 플루클록사실린을 복용하는 환자는 의사 또는 약사와 상의하십시오.",
+        "side_effect": "쇽 증상(호흡곤란, 온몸이 붉어짐, 혈관부기, 두드러기 등), 천식발작, 혈소판감소, 과립구감소, 용혈성빈혈, 메트헤모글로빈혈증, 혈소판기능 저하(출혈시간 연장), 청색증, 과민증상(얼굴부기, 땀이 남, 저혈압), 구역, 구토, 식욕부진, 위장출혈, 소화성궤양, 천공(뚦림), 발진, 알레르기 반응, 피부점막안증후군(스티븐스-존슨증후군), 독성표피괴사증(리엘증후군), AST 상승, ALT 상승, 고정발진 등이 나타나는 경우 복용을 즉각 중지하고 의사 또는 약사와 상의하십시오.",
+        "storage": "실온에서 보관하십시오.\n어린이의 손이 닿지 않는 곳에 보관하십시오.",
+        "updated_at": "2026-06-29"
+      }
+    ],
+    "count": 2,
+    "page": 1,
+    "page_size": 10,
+    "source": "식품의약품안전처 의약품개요정보(e약은요)",
+    "disclaimer": "식품의약품안전처가 공개한 의약품 정보입니다. 처방받으신 약의 복용법은 처방전과 담당 의료진의 안내를 따라 주세요."
+  },
+  "GET /api/v1/drugs/{itemSeq}": {
+    "item": {
+      "item_seq": "202005623",
+      "name": "어린이타이레놀산160밀리그램(아세트아미노펜)",
+      "maker": "켄뷰코리아판매유한회사",
+      "image": null,
+      "efficacy": "이 약은 감기로 인한 발열 및 동통(통증), 두통, 신경통, 근육통, 월경통, 염좌통(삔 통증), 치통, 관절통, 류마티양 동통(통증)에 사용합니다.",
+      "how_to_use": "만 7~12세 소아는 1회 권장용량을 4~6시간마다 필요시 물 없이 혀에 직접 복용합니다.\n이 약은 가능한 최단기간동안 최소 유효용량으로 복용하며, 1일 5회(75 mg/kg)를 초과하여 복용하지 않습니다.\n몸무게를 아는 경우 몸무게에 따른 용량(10~15 mg/kg)으로 복용하는 것이 더 적절합니다.\n연령대별 용량은 허가사항을 참고하십시오.",
+      "warning": "매일 세잔 이상 정기적 음주자가 이 약 또는 다른 해열진통제를 복용할 때는 의사 또는 약사와 상의하십시오. 간손상을 일으킬 수 있습니다.\n매우 드물게 치명적일 수 있는 급성전신발진고름물집증, 스티븐스-존슨증후군, 독성표피괴사용해와 같은 중대한 피부반응이 보고되었고 이 약 복용 후 피부발진 또는 다른 과민반응의 징후가 나타나는 경우 즉시 복용을 중단하십시오.\n아세트아미노펜으로 일일 최대 용량(4,000 mg)을 초과하여 복용하지 마십시오. 간손상을 일으킬 수 있습니다. 아세트아미노펜을 포함하는 다른 제품과 함께 복용하지 마십시오.",
+      "caution": "이 약에 과민증 환자, 소화성궤양, 심한 혈액 이상, 심한 간장애, 심한 신장(콩팥)장애, 심한 심장기능저하 환자, 아스피린 천식(비스테로이드성 소염(항염)제에 의한 천식발작 유발) 또는 경험자는 이 약을 복용하지 마십시오.\n이 약을 복용하기 전에 간장애 또는 경험자, 신장(콩팥)장애 또는 경험자, 소화성궤양 경험자, 혈액이상 또는 경험자, 출혈경향, 심장기능이상, 과민증 경험자, 기관지 천식 환자, 고령자(노인), 만 2세 미만 소아, 임부 또는 수유부, 글루타치온 보유량이 낮은 상태 환자는 의사 또는 약사와 상의하십시오.\n의사 또는 약사의 지시없이 통증에 10일 이상(성인)또는 5일 이상(소아) 복용하지 않고 발열에 3일 이상 복용하지 마십시오.",
+      "interaction": "바르비탈계 약물, 삼환계 항우울제, 알코올, 다른 소염(항염)진통제와 함께 복용하지 마십시오.\n와파린, 플루클록사실린과 함께 복용 시 의사 또는 약사와 상의하십시오.",
+      "side_effect": "쇽 증상(호흡곤란, 온몸이 붉어짐, 혈관부기, 두드러기 등), 천식발작, 혈소판 감소, 과립구감소, 용혈성(적혈구파괴성)빈혈, 메트헤모글로빈혈증, 혈소판기능 저하(출혈시간 연장), 청색증, 과민증상(얼굴부기, 호흡곤란, 땀이 남, 저혈압, 쇽), 구역, 구토, 식욕부진, 장기복용 시 위장출혈, 소화성궤양, 천공(뚫림) 등의 위장관계 이상, 발진, 알레르기 반응, 피부점막안증후군(스티븐스-존슨증후군), 독성표피괴사용해(리엘증후군), AST 상승, ALT 상승, 고정발진 등, 통증이나 발열 증상이 지속되거나 악화될 경우 또는 새로운 증상이 나타나는 경우 복용을 즉각 중지하고 의사 또는 약사와 상의하십시오.",
+      "storage": "실온에서 보관하십시오.\n어린이의 손이 닿지 않는 곳에 보관하십시오.",
+      "updated_at": "2024-12-20"
+    },
+    "source": "식품의약품안전처 의약품개요정보(e약은요)",
+    "disclaimer": "식품의약품안전처가 공개한 의약품 정보입니다. 처방받으신 약의 복용법은 처방전과 담당 의료진의 안내를 따라 주세요."
+  }
+}

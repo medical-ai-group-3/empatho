@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>로그인</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:'IBM Plex Sans KR',system-ui,sans-serif;background:#f5f4f2;color:#0c0a09}
+a{color:#1d6fa8}a:hover{color:#155a8a}
+button,input{font-family:inherit}
+:focus-visible{outline:2px solid #3ba6f1;outline-offset:2px}
+@keyframes ep-sweep{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+@keyframes ep-pulse{0%{transform:scale(.92);opacity:.0}35%{opacity:1}100%{transform:scale(1.18);opacity:0}}
+@keyframes ep-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+@keyframes ep-orbit{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+@keyframes ep-counter{from{transform:rotate(0deg)}to{transform:rotate(-360deg)}}
+@keyframes ep-rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+@keyframes ep-blink{0%,100%{opacity:1}50%{opacity:.35}}
+.ep-sweep{animation:ep-sweep 7s linear infinite}
+.ep-pulse{animation:ep-pulse 4.2s ease-out infinite}
+.ep-float{animation:ep-float 6s ease-in-out infinite}
+.ep-orbit{animation:ep-orbit 60s linear infinite}
+.ep-counter{animation:ep-counter 60s linear infinite}
+.ep-rise{opacity:0;animation:ep-rise .7s cubic-bezier(.2,.7,.2,1) forwards}
+.ep-blink{animation:ep-blink 1.6s ease-in-out infinite}
+.ep-btn{transition:background-color .15s ease, transform .15s ease}
+.ep-btn:hover{background-color:#155a8a !important;color:#ffffff !important}
+.ep-btn:active{transform:translateY(1px)}
+.ep-input{transition:border-color .15s ease, box-shadow .15s ease}
+.ep-input:focus{border-color:#3ba6f1 !important;box-shadow:0 0 0 3px rgba(59,166,241,.18);outline:none}
+@media (prefers-reduced-motion: reduce){.ep-sweep,.ep-pulse,.ep-float,.ep-orbit,.ep-counter,.ep-blink{animation:none}.ep-rise{animation:none;opacity:1}}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; display: flex; overflow: hidden; background: #fafaf9;">
+
+  <section style="width: 820px; height: 900px; position: relative; overflow: hidden; background: #141210; color: #fafaf9; flex-shrink: 0;" aria-label="EMPATHO 소개">
+
+    <div style="position: absolute; left: 70px; top: 130px; width: 640px; height: 640px;">
+      <div style="position: absolute; inset: 0; border-radius: 50%; border: 1px solid rgba(250,250,249,0.07);"></div>
+      <div style="position: absolute; inset: 80px; border-radius: 50%; border: 1px solid rgba(250,250,249,0.09);"></div>
+      <div style="position: absolute; inset: 160px; border-radius: 50%; border: 1px solid rgba(250,250,249,0.11);"></div>
+      <div style="position: absolute; inset: 240px; border-radius: 50%; border: 1px solid rgba(250,250,249,0.14);"></div>
+
+      <div class="ep-pulse" style="position: absolute; inset: 200px; border-radius: 50%; border: 1px solid rgba(222,147,155,0.55);"></div>
+      <div class="ep-pulse" style="position: absolute; inset: 200px; border-radius: 50%; border: 1px solid rgba(222,147,155,0.55); animation-delay: 1.4s;"></div>
+      <div class="ep-pulse" style="position: absolute; inset: 200px; border-radius: 50%; border: 1px solid rgba(222,147,155,0.55); animation-delay: 2.8s;"></div>
+
+      <div class="ep-sweep" style="position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(from 0deg, rgba(59,166,241,0) 0deg, rgba(59,166,241,0) 300deg, rgba(59,166,241,0.10) 345deg, rgba(59,166,241,0.28) 359deg, rgba(59,166,241,0) 360deg);"></div>
+
+      <div class="ep-orbit" style="position: absolute; inset: 0;">
+        <div class="ep-counter" style="position: absolute; left: 294px; top: -14px; padding: 5px 11px; border-radius: 999px; background: #1c1917; border: 1px solid #44403c; font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.12em; color: #d6d3d1;">MG</div>
+        <div class="ep-counter" style="position: absolute; left: 616px; top: 306px; padding: 5px 11px; border-radius: 999px; background: #1c1917; border: 1px solid #44403c; font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.12em; color: #d6d3d1;">US</div>
+        <div class="ep-counter" style="position: absolute; left: 290px; top: 626px; padding: 5px 11px; border-radius: 999px; background: #1c1917; border: 1px solid #44403c; font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.12em; color: #d6d3d1;">MRI</div>
+        <div class="ep-counter" style="position: absolute; left: -26px; top: 306px; padding: 5px 11px; border-radius: 999px; background: #1c1917; border: 1px solid #44403c; font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.12em; color: #d6d3d1;">PATH</div>
+      </div>
+
+      <div class="ep-float" style="position: absolute; left: 250px; top: 250px; width: 140px; height: 140px; border-radius: 50%; background: #fafaf9; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 10px rgba(250,250,249,0.04), 0 24px 60px rgba(0,0,0,0.45);">
+        <img src="/_blob/8b72413df6cbff803f5c0794f04a2a3f" alt="EMPATHO 로고" style="width: 104px; height: 104px;">
+      </div>
+    </div>
+
+    <div style="position: absolute; left: 64px; top: 56px; display: flex; align-items: center; gap: 10px; font-size: 13px; color: #a8a29e;">
+      <span class="ep-blink" style="width: 7px; height: 7px; border-radius: 50%; background: #4ade80;"></span>
+      <span>미래 대학병원 · 의료진 전용</span>
+    </div>
+
+    <div style="position: absolute; left: 64px; bottom: 64px; display: flex; flex-direction: column; gap: 14px;">
+      <h1 class="ep-rise" style="margin: 0; font-size: 64px; line-height: 1; font-weight: 700; letter-spacing: 0.06em; animation-delay: .1s;">EMPATHO</h1>
+      <p class="ep-rise" style="margin: 0; font-size: 20px; font-weight: 500; color: #e7e5e4; animation-delay: .25s;">유방암 진단 보조 시스템</p>
+      <p class="ep-rise" style="margin: 0; font-size: 14px; line-height: 1.6; color: #a8a29e; max-width: 460px; animation-delay: .4s;">맘모그래피 · 초음파 · MRI · 병리를 한 환자 흐름으로 잇습니다. 접수부터 판독, 수술 결정까지.</p>
+    </div>
+  </section>
+
+  <main style="flex-grow: 1; height: 900px; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative;">
+    <form style="width: 380px; display: flex; flex-direction: column; gap: 18px;" aria-label="로그인">
+      <div class="ep-rise" style="display: flex; flex-direction: column; gap: 6px; animation-delay: .15s;">
+        <h2 style="margin: 0; font-size: 30px; font-weight: 700; letter-spacing: -0.02em;">로그인</h2>
+        <p style="margin: 0; font-size: 14px; color: #57534e;">의료진 계정으로 들어갑니다. 권한에 맞는 과 화면이 열립니다.</p>
+      </div>
+
+      <sc-if value="{{showPending}}" hint-placeholder-val="{{ false }}">
+        <div role="alert" style="display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 8px; background: #fef3c7; color: #78350f; font-size: 13px; line-height: 1.5;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink: 0; margin-top: 1px;"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
+          <span><b>승인 대기 중인 계정입니다.</b><br>관리자가 승인하면 바로 들어올 수 있습니다. 비밀번호를 다시 입력하지 않아도 됩니다.</span>
+        </div>
+      </sc-if>
+
+      <label class="ep-rise" style="display: flex; flex-direction: column; gap: 7px; font-size: 13px; font-weight: 600; color: #292524; animation-delay: .25s;">
+        아이디
+        <input class="ep-input" type="text" name="login_id" autocomplete="username" placeholder="예: rad1234" style="height: 46px; padding: 0 14px; border: 1px solid #d6d3d1; border-radius: 8px; background: #ffffff; font-size: 15px; color: #0c0a09; box-sizing: border-box;">
+      </label>
+
+      <label class="ep-rise" style="display: flex; flex-direction: column; gap: 7px; font-size: 13px; font-weight: 600; color: #292524; animation-delay: .35s;">
+        비밀번호
+        <input class="ep-input" type="password" name="password" autocomplete="current-password" placeholder="비밀번호" style="height: 46px; padding: 0 14px; border: 1px solid #d6d3d1; border-radius: 8px; background: #ffffff; font-size: 15px; color: #0c0a09; box-sizing: border-box;">
+      </label>
+
+      <div class="ep-rise" style="display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: #57534e; animation-delay: .45s;">
+        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;"><input type="checkbox" style="width: 16px; height: 16px; accent-color: #1d7fc2;">아이디 기억</label>
+        <a href="#" style="text-decoration: none;">비밀번호를 잊었어요</a>
+      </div>
+
+      <a class="ep-btn ep-rise" href="ReceptionHome.dc.html" style="height: 50px; border-radius: 8px; background: #1d7fc2; color: #ffffff; font-size: 15px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; animation-delay: .55s;">
+        로그인
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+      </a>
+
+      <p class="ep-rise" style="margin: 4px 0 0; font-size: 13px; color: #57534e; text-align: center; animation-delay: .65s;">계정이 없으신가요? <a href="Signup.dc.html" style="font-weight: 600; text-decoration: none;">직원 회원가입</a></p>
+    </form>
+
+    <div style="position: absolute; bottom: 28px; left: 0; right: 0; display: flex; justify-content: center; gap: 18px; font-size: 12px; color: #78716c;">
+      <span>© 미래 대학병원 · EMPATHO</span>
+      <span aria-hidden="true">·</span>
+      <span>가입 후 관리자 승인이 끝나야 로그인됩니다</span>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"showPending":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { showPending: this.props.showPending ?? false };
+  }
+}
+</script>
+</body>
+</html>

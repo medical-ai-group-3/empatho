@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>병리과 · 전체 목록</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:'IBM Plex Sans KR',system-ui,sans-serif;background:#f5f4f2;color:#0c0a09}
+a{color:#1d6fa8}a:hover{color:#155a8a}
+header a:hover{color:#fafaf9}
+button,input,select,textarea{font-family:inherit}
+:focus-visible{outline:2px solid #3ba6f1;outline-offset:2px}
+.ep-primary:hover{background:#155a8a !important}
+.ep-row:hover{background:#fafaf9}
+.ep-chip:hover{border-color:#a8a29e !important}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; display: flex; flex-direction: column; background: #f5f4f2; overflow: hidden; position: relative;">
+
+  <header style="height: 52px; flex-shrink: 0; background: #1c1917; color: #fafaf9; display: flex; align-items: center; gap: 18px; padding: 0 16px; box-sizing: border-box;">
+    <a href="Main.dc.html" style="display: flex; align-items: center; gap: 10px; text-decoration: none; color: #fafaf9;">
+      <img src="/_blob/8b72413df6cbff803f5c0794f04a2a3f" alt="" style="width: 28px; height: 28px; background: #fafaf9; border-radius: 7px; padding: 2px; box-sizing: border-box;">
+      <span style="font-weight: 700; letter-spacing: 0.08em; font-size: 14px;">EMPATHO</span>
+    </a>
+    <span style="width: 1px; height: 18px; background: #44403c;"></span>
+    <nav aria-label="과" style="display: flex; height: 52px;">
+      <a href="ReceptionHome.dc.html" style="display: flex; align-items: center; gap: 7px; padding: 0 14px; height: 52px; box-sizing: border-box; text-decoration: none; font-size: 13px; font-weight: 500; color: #a8a29e; border-bottom: 2px solid transparent;">원무 <span style="font-size: 11px; min-width: 18px; height: 18px; border-radius: 9px; background: #44403c; color: #fafaf9; display: inline-flex; align-items: center; justify-content: center; padding: 0 5px; box-sizing: border-box;">4</span></a>
+      <a href="NursingHome.dc.html" style="display: flex; align-items: center; gap: 7px; padding: 0 14px; height: 52px; box-sizing: border-box; text-decoration: none; font-size: 13px; font-weight: 500; color: #a8a29e; border-bottom: 2px solid transparent;">간호 <span style="font-size: 11px; min-width: 18px; height: 18px; border-radius: 9px; background: #44403c; color: #fafaf9; display: inline-flex; align-items: center; justify-content: center; padding: 0 5px; box-sizing: border-box;">5</span></a>
+      <a href="RadiologyHome.dc.html" style="display: flex; align-items: center; gap: 7px; padding: 0 14px; height: 52px; box-sizing: border-box; text-decoration: none; font-size: 13px; font-weight: 500; color: #a8a29e; border-bottom: 2px solid transparent;">영상의학 <span style="font-size: 11px; min-width: 18px; height: 18px; border-radius: 9px; background: #44403c; color: #fafaf9; display: inline-flex; align-items: center; justify-content: center; padding: 0 5px; box-sizing: border-box;">7</span></a>
+      <a href="PathologyHome.dc.html" aria-current="page" style="display: flex; align-items: center; gap: 7px; padding: 0 14px; height: 52px; box-sizing: border-box; text-decoration: none; font-size: 13px; font-weight: 600; color: #fafaf9; border-bottom: 2px solid #3ba6f1;">병리 <span style="font-size: 11px; min-width: 18px; height: 18px; border-radius: 9px; background: #1d7fc2; display: inline-flex; align-items: center; justify-content: center; padding: 0 5px; box-sizing: border-box;">5</span></a>
+      <a href="SurgeryHome.dc.html" style="display: flex; align-items: center; gap: 7px; padding: 0 14px; height: 52px; box-sizing: border-box; text-decoration: none; font-size: 13px; font-weight: 500; color: #a8a29e; border-bottom: 2px solid transparent;">유방외과 <span style="font-size: 11px; min-width: 18px; height: 18px; border-radius: 9px; background: #44403c; color: #fafaf9; display: inline-flex; align-items: center; justify-content: center; padding: 0 5px; box-sizing: border-box;">6</span></a>
+    </nav>
+    <div style="flex-grow: 1;"></div>
+    <label style="display: flex; align-items: center; gap: 8px; width: 340px; height: 34px; padding: 0 12px; border-radius: 8px; background: #292524; border: 1px solid #44403c; box-sizing: border-box; color: #a8a29e;">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+      <span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);">환자 검색</span>
+      <input type="search" placeholder="환자 이름 · 환자번호" style="flex-grow: 1; min-width: 0; background: transparent; border: none; color: #fafaf9; font-size: 13px; outline: none;">
+      <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #78716c; border: 1px solid #44403c; border-radius: 4px; padding: 1px 5px;">/</span>
+    </label>
+    <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #a8a29e;">09-21 (월) 14:32</span>
+    <button type="button" aria-label="알림 3건" style="position: relative; width: 34px; height: 34px; border-radius: 8px; border: none; background: transparent; color: #d6d3d1; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 1112 0c0 7 3 8 3 8H3s3-1 3-8"></path><path d="M10 20a2 2 0 004 0"></path></svg>
+      <span style="position: absolute; top: 6px; right: 7px; width: 7px; height: 7px; border-radius: 50%; background: #f87171;"></span>
+    </button>
+    <a href="Me.dc.html" style="display: flex; align-items: center; gap: 8px; text-decoration: none; color: #fafaf9;">
+      <span style="width: 28px; height: 28px; border-radius: 50%; background: #44403c; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700;">병</span>
+      <span style="display: flex; flex-direction: column; line-height: 1.2;"><span style="font-size: 12px; font-weight: 600;">시연병리</span><span style="font-size: 11px; color: #a8a29e;">병리과 · 교수</span></span>
+    </a>
+  </header>
+
+  <div style="flex-shrink: 0; background: #ffffff; border-bottom: 1px solid #e7e5e4; padding: 13px 18px; display: flex; align-items: center; gap: 14px;">
+    <div style="display: flex; flex-direction: column; gap: 3px;">
+      <span style="font-size: 12px; color: #78716c;">병리과</span>
+      <div style="display: flex; align-items: baseline; gap: 10px;">
+        <h1 style="margin: 0; font-size: 19px; font-weight: 700;">전체 검체 목록</h1>
+        <span style="font-size: 13px; color: #57534e;">지난 검체까지 전부 찾아보는 자리입니다</span>
+      </div>
+    </div>
+    <div style="flex-grow: 1;"></div>
+      <a href="Pathology.dc.html" style="height: 36px; padding: 0 14px; border-radius: 8px; border: 1px solid #d6d3d1; background: #ffffff; color: #292524; font-size: 13px; cursor: pointer; display: flex; align-items: center; text-decoration: none;">검체 대기로</a>
+  </div>
+
+  <div style="flex-shrink: 0; padding: 12px 18px 0; display: flex; align-items: center; gap: 8px;">
+    <button type="button" class="ep-chip" style="height: 30px; padding: 0 12px; border-radius: 999px; font-size: 12.5px; cursor: pointer; border: 1px solid #1c1917; background: #1c1917; color: #fafaf9; font-weight: 600;">전체</button><button type="button" class="ep-chip" style="height: 30px; padding: 0 12px; border-radius: 999px; font-size: 12.5px; cursor: pointer; border: 1px solid #e7e5e4; background: #ffffff; color: #57534e;">내가 판독</button><button type="button" class="ep-chip" style="height: 30px; padding: 0 12px; border-radius: 999px; font-size: 12.5px; cursor: pointer; border: 1px solid #e7e5e4; background: #ffffff; color: #57534e;">확정</button><button type="button" class="ep-chip" style="height: 30px; padding: 0 12px; border-radius: 999px; font-size: 12.5px; cursor: pointer; border: 1px solid #e7e5e4; background: #ffffff; color: #57534e;">작성 중 2</button><button type="button" class="ep-chip" style="height: 30px; padding: 0 12px; border-radius: 999px; font-size: 12.5px; cursor: pointer; border: 1px solid #e7e5e4; background: #ffffff; color: #57534e;">악성</button>
+    <div style="flex-grow: 1;"></div>
+    <label style="display: flex; align-items: center; gap: 8px; width: 280px; height: 34px; padding: 0 12px; border: 1px solid #d6d3d1; border-radius: 8px; background: #ffffff; box-sizing: border-box; color: #78716c;">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+      <span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);">검색</span>
+      <input type="search" placeholder="이름 · 환자번호 · 검체번호" style="flex-grow: 1; min-width: 0; border: none; outline: none; font-size: 13px; color: #0c0a09;">
+    </label>
+    
+  </div>
+
+  <div style="flex-grow: 1; min-height: 0; padding: 12px 18px 18px; box-sizing: border-box; display: flex; flex-direction: column; gap: 12px;">
+    <section style="background: #ffffff; border: 1px solid #e7e5e4; border-radius: 10px; flex-grow: 1; display: flex; flex-direction: column; min-height: 0; overflow: hidden;">
+      <div style="flex-grow: 1; overflow: auto;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+          <thead><tr style="background: #fafaf9; color: #57534e; font-size: 11.5px; position: sticky; top: 0;"><th style="padding: 9px 12px; font-weight: 600; text-align: left; width: 10%;">채취일</th><th style="padding: 9px 12px; font-weight: 600; text-align: left; width: 12%;">이름</th><th style="padding: 9px 12px; font-weight: 600; text-align: left; width: 9%;">환자번호</th><th style="padding: 9px 12px; font-weight: 600; text-align: left; width: 12%;">검체</th><th style="padding: 9px 12px; font-weight: 600; text-align: left; width: 7%;">종류</th><th style="padding: 9px 12px; font-weight: 600; text-align: left; width: 15%;">진단</th><th style="padding: 9px 12px; font-weight: 600; text-align: left; width: 7%;">분류</th><th style="padding: 9px 12px; font-weight: 600; text-align: left; width: 8%;">판독의</th><th style="padding: 9px 12px; font-weight: 600; text-align: left; width: 8%;">상태</th><th style="padding: 9px 12px; font-weight: 600; text-align: right; width: auto;"></th></tr></thead>
+          <tbody><tr class="ep-row" style="border-top: 1px solid #f5f5f4;"><td style="padding: 10px 12px; text-align: left;font-family: 'IBM Plex Mono', monospace;">2026-09-21</td><td style="padding: 10px 12px; text-align: left;"><b>시연환자01</b></td><td style="padding: 10px 12px; text-align: left;font-family: 'IBM Plex Mono', monospace;">P-0001</td><td style="padding: 10px 12px; text-align: left;font-family: 'IBM Plex Mono', monospace;">S-2026-0037</td><td style="padding: 10px 12px; text-align: left;"><span style="font-size: 11px; padding: 2px 7px; border-radius: 4px; background:#1c1917;color:#fafaf9;">CNB</span></td><td style="padding: 10px 12px; text-align: left;">침윤성 유관암</td><td style="padding: 10px 12px; text-align: left;"><span style="font-size: 11px; padding: 2px 7px; border-radius: 4px; background:#fee2e2;color:#991b1b;">B5</span></td><td style="padding: 10px 12px; text-align: left;">박민재</td><td style="padding: 10px 12px; text-align: left;"><span style="font-size: 11px; padding: 2px 7px; border-radius: 4px; background:#dcfce7;color:#166534;">확정</span></td><td style="padding: 10px 12px; text-align: right;"><a href="PathologyRead.dc.html" style="height: 32px; padding: 0 12px; border-radius: 8px; border: 1px solid #d6d3d1; background: #ffffff; color: #292524; font-size: 13px; cursor: pointer; display: flex; align-items: center; text-decoration: none;">열기</a></td></tr><tr class="ep-row" style="border-top: 1px solid #f5f5f4;"><td style="padding: 10px 12px; text-align: left;font-family: 'IBM Plex Mono', monospace;">2026-09-21</td><td style="padding: 10px 12px; text-align: left;"><b>시연환자13</b></td><td style="padding: 10px 12px; text-align: left;font-family: 'IBM Plex Mono', monospace;">P-0013</td><td style="padding: 10px 12px; text-align: left;font-family: 'IBM Plex Mono', monospace;">S-2026-0036</td><td style="padding: 10px 12px; text-align: left;"><span style="font-size: 11px; padding: 2px 7px; border-radius: 4px; background:#1c1917;color:#fafaf9;">VAB</span></td><td style="padding: 10px 12px; text-align: left;">관상피내암</td><td style="padding: 10px 12px; text-align: left;"><span style="font-size: 11px; padding: 2px 7px; border-radius: 4px; background:#fee2e2;color:#991b1b;">B5</span></td><td style="padding: 10px 12px; text-align: left;">박민재</td><td style="padding: 10px 12px; text-align: left;"><span style="font-size: 11px; padding: 2px 7px; border-radius: 4px; background:#dcfce7;color:#166534;">확정</span></td><td style="padding: 10px 12px; text-align: right;"><a href="PathologyRead.dc.html" style="height: 32px; padding: 0 12px; border-radius: 8px; border: 1px solid #d6d3d1; background: #ffffff; color: #292524; font-size: 13px; cursor: pointer; display: flex; align-items: center; text-decoration: none;">열기</a></td></tr><tr class="ep-row" style="border-top: 1px solid #f5f5f4;"><td style="padding: 10px 12px; text-align: left;font-family: 'IBM Plex Mono', monospace;">2026-09-21</td><td style="padding: 10px 12px; text-align: left;"><b>시연환자08</b></td><td style="padding: 10px 12px; text-align: left;font-family: 'IBM Plex Mono', monospace;">P-0008</td><td style="padding: 10px 12px; text-align: left;font-family: 'IBM Plex Mono', monospace;">S-2026-0035</td><td style="padding: 10px 12px; text-align: left;"><span style="font-size: 11px; padding: 2px 7px; border-radius: 4px; background:#1c1917;color:#fafaf9;">CNB</span></td><td style="padding: 10px 12px; text-align: left;">섬유선종</td><td style="padding: 10px 12px; text-align: left;"><span style="font-size: 11px; padding: 2px 7px; border-radius: 4px; background:#dcfce7;color:#166534;">B2</span></td><td style="padding: 10px 12px; text-align: left;">박민재</td><td style="padding: 10px 12px; text-align: left;"><span style="font-size: 11px; padding: 2px 7px; border-radius: 4px; background:#fef3c7;color:#78350f;">작성 중</span></td><td style="padding: 10px 12px; text-align: right;"><a href="PathologyRead.dc.html" class="ep-primary" style="height: 32px; padding: 0 14px; border-radius: 8px; border: none; background: #1d7fc2; color: #ffffff; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; text-decoration: none;">이어 쓰기</a></td></tr><tr class="ep-row" style="border-top: 1px solid #f5f5f4;"><td style="padding: 10px 12px; text-align: left;font-family: 'IBM Plex Mono', monospace;">2026-09-21</td><td style="padding: 10px 12px; text-align: left;"><b>시연환자05</b></td><td style="padding: 10px 12px; text-align: left;font-family: 'IBM Plex Mono', monospace;">P-0005</td><td style="padding: 10px 12px; text-align: left;font-family: 'IBM Plex Mono', monospace;">S-2026-0038</td><td style="padding: 10px 12px; text-align: left;"><span style="font-size: 11px; padding: 2px 7px; border-radius: 4px; background:#1c1917;color:#fafaf9;">CNB</span></td><td style="padding: 10px 12px; text-align: left;">—</td><td style="padding: 10px 12px; text-align: left;"><span style="font-size: 11px; padding: 2px 7px; border-radius: 4px; background:#f5f5f4;color:#57534e;">판독 전</span></td><td style="padding: 10px 12px; text-align: left;">—</td><td style="padding: 10px 12px; text-align: left;"><span style="font-size: 11px; padding: 2px 7px; border-radius: 4px; background:#f5f5f4;color:#57534e;">대기</span></td><td style="padding: 10px 12px; text-align: right;"><a href="Pathology.dc.html" style="height: 32px; padding: 0 12px; border-radius: 8px; border: 1px solid #d6d3d1; background: #ffffff; color: #292524; font-size: 13px; cursor: pointer; display: flex; align-items: center; text-decoration: none;">열기</a></td></tr><tr class="ep-row" style="border-top: 1px solid #f5f5f4;"><td style="padding: 10px 12px; text-align: left;font-family: 'IBM Plex Mono', monospace;">2023-05-08</td><td style="padding: 10px 12px; text-align: left;"><b>시연환자12</b></td><td style="padding: 10px 12px; text-align: left;font-family: 'IBM Plex Mono', monospace;">P-0012</td><td style="padding: 10px 12px; text-align: left;font-family: 'IBM Plex Mono', monospace;">S-2023-0112</td><td style="padding: 10px 12px; text-align: left;"><span style="font-size: 11px; padding: 2px 7px; border-radius: 4px; background:#1c1917;color:#fafaf9;">CNB</span></td><td style="padding: 10px 12px; text-align: left;">섬유선종</td><td style="padding: 10px 12px; text-align: left;"><span style="font-size: 11px; padding: 2px 7px; border-radius: 4px; background:#dcfce7;color:#166534;">B2</span></td><td style="padding: 10px 12px; text-align: left;">박민재</td><td style="padding: 10px 12px; text-align: left;"><span style="font-size: 11px; padding: 2px 7px; border-radius: 4px; background:#dcfce7;color:#166534;">확정</span></td><td style="padding: 10px 12px; text-align: right;"><a href="PathologyRead.dc.html" style="height: 32px; padding: 0 12px; border-radius: 8px; border: 1px solid #d6d3d1; background: #ffffff; color: #292524; font-size: 13px; cursor: pointer; display: flex; align-items: center; text-decoration: none;">열기</a></td></tr></tbody>
+        </table>
+      </div>
+      <div style="padding: 10px 14px; font-size: 12px; color: #78716c; border-top: 1px solid #f0efee;">병리는 판독 정정이 없습니다 — 확정 후 오류는 새 검체로 처리합니다 (확정 사양서 §8-2).</div>
+    </section>
+
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
