@@ -1,0 +1,108 @@
+# 초음파(경로 B) 1차 시험 학습 — BUS-BRA lesion 분할
+# 1차 범위는 분할만. CORAL 헤드/SAM3-UNet/마스크 유도 어텐션은 미포함.
+
+model:
+  checkpoint: /home/wsuser/workspace/MedSAM3/ckpt/medsam3_merged.pt
+  merge_lora_config: /home/wsuser/workspace/MedSAM3/configs/medsam3_v1.yaml
+  medsam3_repo: /home/wsuser/workspace/MedSAM3
+
+data:
+  root: /home/wsuser/workspace/breast/us/data
+  train_split: train
+  val_split: valid
+  num_classes: 1
+  class_names: ["lesion"]
+  resolution: 1008        # [판단] SAM3 네이티브 해상도
+
+lora:
+  rank: 16
+  alpha: 32
+  dropout: 0.1
+  target_modules:
+    - "q_proj"
+    - "k_proj"
+    - "v_proj"
+    - "out_proj"
+    - "qkv"
+    - "proj"
+    - "fc1"
+    - "fc2"
+    - "c_fc"
+    - "c_proj"
+    - "linear1"
+    - "linear2"
+  apply_to_vision_encoder: true
+  apply_to_text_encoder: true
+  apply_to_geometry_encoder: true
+  apply_to_detr_encoder: true
+  apply_to_detr_decoder: true
+  apply_to_mask_decoder: true
+
+training:
+  num_epochs: 30
+  batch_size: 3                     # 4 는 OOM 실측 (backward 에서 3.21GiB 부족).
+  gradient_accumulation_steps: 5    # GPU 에 회수되지 않은 7.4GB 가 상주해 가용 25GB.
+                                    # 유효 배치 15 — 16 에서 1 줄지만 동역학 차이는 없다.
+  num_workers: 0                    # /dev/shm 이 64MB 뿐이라 워커 사용 불가 (실측)
+  learning_rate: 5.0e-5
+  weight_decay: 0.01
+  max_grad_norm: 1.0
+  amp_dtype: bfloat16
+  seed: 42
+  trainable_pct_min: 1.0            # [판단] 벗어나면 학습 중단
+  trainable_pct_max: 3.0            # [판단] 실측 2.153% (MedSAM3 자체 LoRA와 동일 규모)
+
+# 2차 — BI-RADS 등급(CORAL) + 악성 확률 헤드. enabled: false 면 1차와 동일 동작.
+heads:
+  enabled: true
+  in_dim: 256           # 실측 — out["queries"] 는 (B, 200, 256)
+  hidden: null          # null 이면 LayerNorm+Linear 만 (1,540개). 값을 주면 MLP
+  dropout: 0.0
+
+  # 손실 가중치. 실측 core_loss = 77.61 (batch 2, 3배치 평균),
+  # 헤드 초기값은 L_coral = 3·ln2 = 2.08, L_malig = ln2 = 0.69.
+  # [판단] "헤드 우세" — 분할은 Dice 0.898 로 이미 풀렸고 2차 목적은 등급이다.
+  #        동등 기여라면 w_coral 37 / w_malig 112 인데, 등급 쪽을 더 실어
+  #        coral 40 · malig 60 으로 둔다. malig 를 동등치보다 낮춘 이유는
+  #        악성 확률이 화면에 노출되지 않는 참고값이라 등급보다 우선순위가 낮고,
+  #        BUS-BRA 악성 비율(32.4%)이 실제 검진 발견율(0.6%)과 50배 달라
+  #        절대값을 신뢰할 수 없기 때문이다.
+  #        초기 기여 비율 → seg 77.6 : coral 83.2 : malig 41.6
+  w_seg: 1.0
+  w_coral: 40.0
+  w_malig: 60.0
+
+# 1,495장이 근본적으로 적어 증강이 가장 유력한 개선 수단이다.
+# 배치마다 즉석 변환이라 train/valid 로 같은 사진의 변형이 새어갈 수 없다.
+# 상하 반전은 넣지 않는다 — 후방음영은 언제나 병변 아래에 생기므로
+# 뒤집으면 초음파에 존재하지 않는 영상이 된다. 회전도 같은 이유로 ±10°.
+augment:
+  # ⚠ 이 값은 현재 코드에 반영되지 않는다 (2026-08-27 확인).
+  #    train_us_lora.py 는 cfg["augment"] 를 읽지 않고 self.augment = False 로
+  #    하드코딩돼 있다(약 280행). true 로 바꿔도 증강은 켜지지 않는다.
+  #    다시 쓰려면 그 대입을 이 값과 연결해야 한다.
+  #    _sample_aug() 구현(좌우반전·아핀 ±10°·광도)은 그대로 남아 있다.
+  enabled: false        # ④ 는 디코더 구조 하나만 격리한다. 증강은 어제 실험에서
+                        # 등급에 도움이 되지 않는 것으로 나와(acc -0.037) 껐다.
+
+# ④ UNet 픽셀 디코더 — segmentation_head.pixel_decoder 내부만 교체.
+# 마스크 경로 · 쿼리 200개 · 등급 헤드 · 손실 항 수는 그대로다.
+#   original  기존 PixelDecoder (고정덧셈 + nearest)
+#   fuse      bilinear + 학습 가능한 1x1 융합. warm start 로 원본과 동일하게 출발
+#   light     bilinear + LightBlock 잔차(gamma=0 게이트, BatchNorm→GroupNorm)
+# 해상도는 288² 유지 — pred_masks 가 (B,200,H,W) 라 504² 로 올리면 +2~4GB.
+pixel_decoder:
+  block_type: fuse
+  warm_start: true
+
+output:
+  ckpt_dir: /home/wsuser/workspace/breast/us/ckpt
+  best_name: us_lora_best.pt
+  last_name: us_lora_last.pt
+  best_heads_name: us_heads_best.pt
+  last_heads_name: us_heads_last.pt
+  # 새 픽셀 디코더는 Conv2d 라 save_lora_weights 가 저장하지 않는다. 따로 둔다.
+  best_pd_name: us_pd_best.pt
+  last_pd_name: us_pd_last.pt
+  # 이어받기용 옵티마이저 상태 (약 165MB). last 에만 저장한다.
+  last_state_name: us_state_last.pt

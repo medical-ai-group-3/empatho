@@ -1,0 +1,65 @@
+# 초음파 추론 — 서빙 전용 설정
+#
+# 학습 항목(training · lora · augment 등)은 뺐다. 재학습은 training/ 쪽 설정을 쓴다.
+# 경로는 전부 절대경로다. 다른 서버로 옮기면 model.* 세 줄을 반드시 고칠 것.
+
+model:
+  # 세 모달리티 공유 동결 인코더. us/ 밖에 둔다.
+  checkpoint: /home/wsuser/workspace/MedSAM3/ckpt/medsam3_merged.pt
+  # 병합본 구조를 복원하는 LoRA 스펙. 학습용 lora 설정과는 별개다.
+  merge_lora_config: /home/wsuser/workspace/MedSAM3/configs/medsam3_v1.yaml
+  medsam3_repo: /home/wsuser/workspace/MedSAM3
+
+data:
+  resolution: 1008          # 바꾸지 말 것 — 학습 해상도와 같아야 한다
+  num_classes: 1
+  class_names: ["lesion"]
+
+# 병합본에 주입할 LoRA 구조. us_lora_best.pt 를 만든 설정과 **정확히 같아야** 한다.
+# 다르면 키가 어긋나 load_lora_weights 가 strict=False 로 조용히 넘어간다(README 참조).
+lora:
+  rank: 16
+  alpha: 32
+  dropout: 0.0              # 추론에서는 항상 0
+  target_modules:
+    - "q_proj"
+    - "k_proj"
+    - "v_proj"
+    - "out_proj"
+    - "qkv"
+    - "proj"
+    - "fc1"
+    - "fc2"
+    - "c_fc"
+    - "c_proj"
+    - "linear1"
+    - "linear2"
+  apply_to_vision_encoder: true
+  apply_to_text_encoder: true
+  apply_to_geometry_encoder: true
+  apply_to_detr_encoder: true
+  apply_to_detr_decoder: true
+  apply_to_mask_decoder: true
+
+pixel_decoder:              # us_pd_best.pt 의 구조와 일치해야 한다
+  block_type: fuse
+  warm_start: false         # 추론에서는 가중치를 덮어쓰므로 무의미
+
+# ── 운영에서 조정하는 값 ────────────────────────────────────────────────
+# 임계값과 확신도 경계는 임상 운영 정책이다. 근거와 선택지는 README 참조.
+inference:
+  threshold: 0.5            # 어느 쿼리를 병변으로 볼지
+  mask_threshold: 0.5       # 어느 화소를 병변으로 볼지
+  polygon_epsilon: 0.5      # 폴리곤 단순화(px). 키우면 경계 요철이 사라진다
+  single_query: true        # 마스크도 argmax 쿼리 하나만 (등급과 같은 쿼리)
+  t2: 0.50                  # ↓ 조정 가능. t2·t3 는 두고 t4 만 움직이는 것을 권함
+  t3: 0.50
+  t4: 0.45                  # 올리면 4 정확도↑ 5 재현율↓ (과소평가 위험)
+  conf_lo: 0.10             # 확신도 낮음/보통 경계
+  conf_hi: 0.30             # 확신도 보통/높음 경계
+
+output:
+  ckpt_dir: /home/wsuser/app/models/us/ckpt
+  best_name: us_lora_best.pt
+  best_pd_name: us_pd_best.pt
+  heads_name: us_heads_ensemble.pt

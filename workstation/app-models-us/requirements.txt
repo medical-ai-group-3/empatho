@@ -1,0 +1,18 @@
+# 초음파 추론 서빙 — 실제로 필요한 것만.
+#
+#   pip install -r requirements.txt
+#
+# CUDA 13.0 휠. 다른 CUDA 버전이면 아래 URL 의 cu130 을 바꾼다(cu126 · cu128 등).
+--extra-index-url https://download.pytorch.org/whl/cu130
+
+torch==2.13.0+cu130
+torchvision==0.28.0+cu130
+
+numpy==2.5.1
+PyYAML==6.0.3
+Pillow==12.3.0
+opencv-python-headless==5.0.0.93   # 폴리곤 추출. 서버라 headless 판
+
+# MedSAM3 의 sam3/ 를 import 하려면 필요하다
+iopath==0.1.10
+pycocotools==2.0.11
