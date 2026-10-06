@@ -1,0 +1,109 @@
+{% extends "admin/base_site.html" %}
+
+{% block bodyclass %}{{ block.super }} e-full{% endblock %}
+
+{% comment %}
+  시안: empatho-view/docs/admin-redesign/Status.dc.html
+
+  자동 갱신. 스크립트를 안 쓰는 이유 — 이 화면은 서버가 그리고 끝이라
+  붙일 것이 새로고침 하나뿐이고, meta 는 CSP 나 정적파일에 걸리지 않는다.
+{% endcomment %}
+{% block extrahead %}{{ block.super }}
+<meta http-equiv="refresh" content="{{ refresh_sec }}">
+{% endblock %}
+
+{% comment %}
+  Django 의 content_title 은 <h1> 하나만 그린다. 시안은 눈썹줄 · 제목 ·
+  오른쪽 손잡이가 한 줄이라 블록째 바꾼다.
+{% endcomment %}
+{% block content_title %}
+<div class="e-head">
+  <div>
+    <span class="e-eyebrow">시스템 · web 컨테이너에서 확인</span>
+    <h1>서버 상태</h1>
+  </div>
+  <div class="e-head-right">
+    <span>{{ checked_at }} 확인 · {{ refresh_sec }}초마다 갱신</span>
+    {# 캐시를 버리고 다시 찌른다. 고치고 나서 30초를 기다리면 고쳐졌는지를 못 본다 #}
+    <a class="e-btn" href="?refresh=1">지금 다시 확인</a>
+  </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<section class="e-summary{% if not summary.all_ok %} bad{% endif %}"
+         aria-label="요약">
+  <span class="e-summary-icon" aria-hidden="true">
+    {% if summary.all_ok %}
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke-width="3"
+           stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg>
+    {% else %}
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke-width="3"
+           stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v7"/><path d="M12 17.5v.5"/></svg>
+    {% endif %}
+  </span>
+
+  <div class="e-summary-text">
+    {% if summary.all_ok %}
+      <b>모든 서비스가 정상입니다</b>
+    {% else %}
+      <b>{{ summary.down }}개가 응답하지 않습니다</b>
+    {% endif %}
+    <span>{{ summary.total }}개 중 {{ summary.ok }}개 응답 ·
+      celery 워커는 브로커(redis)를 거쳐 확인</span>
+  </div>
+
+  {% comment %}
+    가장 느린 것을 따로 뺀다. 같이 평균 내면 celery 2초가 나머지 열 배를
+    끌어올려 전부 느려 보인다 — 실제로 느린 것은 하나다
+  {% endcomment %}
+  <dl class="e-summary-nums">
+    <div>
+      <dt>가장 느린 응답</dt>
+      <dd{% if summary.slowest_slow %} class="slow"{% endif %}>
+        {% if summary.slowest_ms is not None %}{{ summary.slowest_ms }} ms{% else %}—{% endif %}
+      </dd>
+    </div>
+    <div>
+      <dt>나머지 평균</dt>
+      <dd>{% if summary.rest_avg_ms is not None %}≈ {{ summary.rest_avg_ms }} ms{% else %}—{% endif %}</dd>
+    </div>
+  </dl>
+</section>
+
+<section class="e-probes" aria-label="서비스별 상태">
+  {% for p in probes %}
+    <div class="e-probe-card{% if not p.ok %} down{% elif p.slow %} slow{% endif %}">
+      <div class="e-probe-top">
+        <span class="e-probe-name">
+          <b>{{ p.name }}</b>
+          {% if p.subtitle %}<span>{{ p.subtitle }}</span>{% endif %}
+        </span>
+        <span class="e-state{% if not p.ok %} down{% elif p.slow %} slow{% endif %}">
+          <i aria-hidden="true"></i>{% if not p.ok %}실패{% elif p.slow %}느림{% else %}정상{% endif %}
+        </span>
+      </div>
+
+      <div class="e-probe-ms">
+        {% if p.ms is not None %}
+          <b class="{% if not p.ok %}down{% elif p.slow %}slow{% endif %}">{{ p.ms }}</b>
+          <span>ms</span>
+        {% else %}
+          <b class="{% if not p.ok %}down{% endif %}">—</b>
+        {% endif %}
+      </div>
+
+      <span class="e-probe-detail">
+        {{ p.detail }}
+        {% if p.hint %}<span class="e-hint">{{ p.hint }}</span>{% endif %}
+      </span>
+    </div>
+  {% endfor %}
+
+  {# 안 찌르는 것도 적어 둔다. 빈칸으로 두면 «빠뜨린 것»으로 읽힌다 #}
+  <div class="e-probe-none">
+    <b>확인하지 않는 것</b>
+    <span>redis — celery 확인에 포함<br>tunnel — 포트를 내보내지 않아 확인 불가</span>
+  </div>
+</section>
+{% endblock %}

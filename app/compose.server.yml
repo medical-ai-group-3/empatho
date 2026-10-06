@@ -1,0 +1,53 @@
+name: empatho-server
+
+services:
+  garage:
+    image: dxflrs/garage:v2.3.0
+    container_name: garage
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3900:3900"
+      - "127.0.0.1:3903:3903"
+    # 설정은 파일이 아니라 폴더째 붙인다. Docker Desktop 이 재시작하면 파일 하나를
+    # 붙인 마운트가 끊겨 컨테이너가 안 뜬다(2026-09-14 · 1시간 장애). 폴더 마운트는 안 끊겼다.
+    environment:
+      GARAGE_CONFIG_FILE: /etc/garage/garage.toml
+    volumes:
+      - garage-meta:/var/lib/garage/meta
+      - garage-data:/var/lib/garage/data
+      - ${CONF:-./conf}/garage:/etc/garage:ro
+
+  orthanc:
+    image: orthancteam/orthanc:26.8.1
+    container_name: orthanc
+    restart: unless-stopped
+    env_file:
+      - ${CONF:-./conf}/orthanc.env
+    ports:
+      - "127.0.0.1:8042:8042"
+    volumes:
+      - orthanc-index:/var/lib/orthanc/index
+      - orthanc-storage:/var/lib/orthanc/storage
+
+  postgres: 
+    image: postgres:17
+    container_name: postgres
+    restart: unless-stopped
+    env_file:
+      - ${CONF:-./conf}/postgres.env
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  garage-meta:
+  garage-data:
+  orthanc-index:
+  orthanc-storage:
+  postgres-data: 

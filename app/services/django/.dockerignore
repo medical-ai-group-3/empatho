@@ -1,0 +1,25 @@
+# 빌드 컨텍스트에 들어가면 안 되는 것.
+# .env 는 conf/web.env 로 대체됐지만, 로컬 개발용으로 만든 것이 섞여 들어가면
+# 이미지에 비밀값이 박힌다.
+.env
+venv/
+.venv/
+__pycache__/
+*.pyc
+staticfiles/
+media/
+*.log
+db.sqlite3
+
+# 스키마 덤프 · 변경 SQL · 사양서 요약. 런타임이 읽지 않는다.
+# core/migrations 는 제외하지 않는다 — 배포가 manage.py migrate 를 돌린다.
+db/
+docs/
+*.md
+*.docx
+
+.pytest_cache/
+.git/
+
+# 운영에서 안쓰는 테스트 코드. CI에서 이미지 안의 테스트 돌릴거면 빼야한다.
+core/tests/

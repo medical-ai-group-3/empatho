@@ -1,0 +1,54 @@
+# 문진 문항 v1
+#
+# ⚠ 간호과 확인 전입니다. 아래 네 문항은 DB 스키마 v9 문서의
+#   patient.questionnaire 예시에서 임시로 옮긴 것이고, 실제 문항 구성은
+#   간호과에서 받아야 합니다. 받기 전까지 이 파일로 화면을 만들지 마세요.
+#
+# 표를 만들지 않고 파일로 두는 이유 — 명세 §18 의 thresholds.yaml 과 같은
+# 방식입니다. 문항이 바뀌면 판을 올리고, 답변에 그 판을 함께 저장해 과거
+# 문진의 뜻이 바뀌지 않게 합니다.
+#
+# **선택지 id 는 한 번 정하면 바꾸지 않습니다.** 답변이 id 로 저장되므로
+# id 를 바꾸면 이미 저장된 답의 뜻이 달라집니다. 문항을 그만 쓸 때는
+# 지우지 말고 active: false 로 둡니다.
+#
+# 답변 저장 모양
+#   {"form_version": "v1", "answers": {"has_symptom": "yes"}}
+#   form_version 은 서버가 찍습니다. 앱은 answers 만 보냅니다.
+
+form_version: v1
+
+questions:
+  # ── 이번 검사 관련 — exam_order 로 갈 후보 ─────────────────────────
+  - code: has_symptom
+    text: 지금 느껴지는 증상이 있습니까?
+    active: true
+    options:
+      - {id: "yes", text: 있다}
+      - {id: "no", text: 없다}
+
+  # ── 환자 속성 — patient 에 남길 후보 ──────────────────────────────
+  # 방문마다 바뀌는 값이 아니라 나누는 것을 검토 중입니다.
+  # 지금은 통째로 exam_order 에 담고 patient 는 캐시로 둡니다.
+  - code: family_history
+    text: 직계 가족 중 유방암 병력이 있습니까?
+    active: true
+    options:
+      - {id: "yes", text: 있다}
+      - {id: "no", text: 없다}
+      - {id: "unknown", text: 모른다}
+
+  - code: past_history
+    text: 유방 관련 수술이나 시술을 받은 적이 있습니까?
+    active: true
+    options:
+      - {id: "yes", text: 있다}
+      - {id: "no", text: 없다}
+
+  - code: menopause_status
+    text: 폐경 상태를 골라 주세요.
+    active: true
+    options:
+      - {id: "pre", text: 폐경 전}
+      - {id: "peri", text: 폐경 이행기}
+      - {id: "post", text: 폐경 후}

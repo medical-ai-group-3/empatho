@@ -1,0 +1,150 @@
+{% extends "admin/base_site.html" %}
+
+{% block bodyclass %}{{ block.super }} e-full{% endblock %}
+
+{% comment %}
+  시안: empatho-view/docs/admin-redesign/Main.dc.html
+
+  핵심 지표 넉 장 → 진료 흐름 + 서비스 → 역할별 계정.
+  숫자만 낸다. 환자 이름도 소견도 안 나온다 — 관리자는 시스템 관리자다.
+{% endcomment %}
+
+{% block content_title %}
+<div class="e-head">
+  <div>
+    <span class="e-eyebrow">미래 대학병원 · {{ dash.date_label }}</span>
+    <h1>대시보드</h1>
+  </div>
+  <div class="e-head-right">
+    <a class="e-pill{% if not dash.service.all_ok %} bad{% endif %}"
+       href="{% url 'admin:empatho_status' %}">
+      <i aria-hidden="true"></i>
+      {% if dash.service.all_ok %}
+        서비스 {{ dash.service.total }}개 정상
+      {% else %}
+        서비스 {{ dash.service.total }}개 중 {{ dash.service.down }}개 응답 없음
+      {% endif %}
+    </a>
+    <a class="e-btn" href="{{ e_hospital_url }}">병원 웹으로</a>
+    {% comment %}
+      시안에는 아바타가 그림으로만 있다. 머리띠를 걷어서 로그아웃이 갈 데가
+      여기밖에 없다 — Django 5 부터 로그아웃은 POST 라 form 이어야 한다.
+    {% endcomment %}
+    <form class="e-avatar-form" method="post" action="{% url 'admin:logout' %}">
+      {% csrf_token %}
+      <button class="e-avatar" type="submit" title="로그아웃">관</button>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<section class="e-kpis" aria-label="핵심 지표">
+  <a class="e-kpi" href="{{ dash.url_pending }}">
+    <span class="e-kpi-label">승인 대기 직원</span>
+    <span class="e-kpi-num">{{ dash.pending_staff }}</span>
+    {% if dash.pending_staff %}
+      <span class="e-kpi-sub warn">승인해야 로그인할 수 있습니다</span>
+    {% else %}
+      <span class="e-kpi-sub ok">밀린 승인 없음</span>
+    {% endif %}
+  </a>
+
+  <a class="e-kpi" href="{{ dash.url_orders }}">
+    <span class="e-kpi-label">검사 오더</span>
+    <span class="e-kpi-num">{{ dash.orders }}</span>
+    {# 최근 5일. 0 인 날도 칸을 남긴다 — 빈 날이 보이는 것이 목적이다 #}
+    <span class="e-kpi-spark" aria-hidden="true">
+      {% for d in dash.order_spark %}
+        <i class="{% if forloop.last %}now{% endif %}" style="height: {{ d.pct }}%"></i>
+      {% endfor %}
+    </span>
+  </a>
+
+  <a class="e-kpi" href="{{ dash.url_ai }}">
+    <span class="e-kpi-label">AI 결과</span>
+    <span class="e-kpi-num">{{ dash.ai_results }}</span>
+    <span class="e-kpi-sub">병변 {{ dash.lesions }} · 판정 {{ dash.assessments }}</span>
+  </a>
+
+  {# 미해소 불일치는 어느 큐에도 안 남는다. 색을 갈라 눈에 걸리게 둔다 #}
+  <a class="e-kpi pink" href="{{ dash.url_flags }}">
+    <span class="e-kpi-label">열린 판정 불일치</span>
+    <span class="e-kpi-num">{{ dash.open_flags }}</span>
+    <span class="e-kpi-sub pink">유방외과 처분 대기 →</span>
+  </a>
+</section>
+
+{% comment %}
+  시안에는 없지만 되살렸다(2026-09-25). 여기가 **막힌 데를 보는 유일한
+  자리**라, 빼 두면 워커가 죽거나 큐가 밀린 것을 아무도 모른다.
+{% endcomment %}
+<section class="e-working" aria-label="진행 중">
+  {% for c in dash.working %}
+    <a class="e-work{% if c.warn %} warn{% endif %}{% if not c.count %} zero{% endif %}"
+       href="{{ c.url }}">
+      <b>{{ c.count }}</b><span>{{ c.label }}</span>
+    </a>
+  {% endfor %}
+</section>
+
+<div class="e-dash-grid">
+  <section class="e-panel wide" aria-label="진료 흐름">
+    <div class="e-panel-head">
+      <h2>진료 흐름 · 단계별 건수</h2>
+      <span class="e-panel-note">DB 행 수 기준</span>
+    </div>
+    <div class="e-flow">
+      {% for row in dash.flow %}
+        <a class="e-flow-row" href="{{ row.url }}">
+          <span class="e-flow-label">{{ row.label }}</span>
+          <span class="e-flow-bar">
+            {% if row.n %}<i class="t-{{ row.tone }}" style="width: {{ row.pct }}%"></i>{% endif %}
+          </span>
+          <b class="{% if not row.n %}zero{% endif %}">{{ row.n }}</b>
+        </a>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="e-panel" aria-label="서비스 상태 요약">
+    <div class="e-panel-head">
+      <h2>서비스</h2>
+      <a href="{% url 'admin:empatho_status' %}">자세히 →</a>
+    </div>
+
+    {# 고리는 서버 상태 화면과 같은 값을 쓴다(15초 캐시) #}
+    <div class="e-ring-wrap">
+      <svg class="e-ring" width="150" height="150" viewBox="0 0 150 150"
+           role="img"
+           aria-label="{{ dash.service.total }}개 중 {{ dash.service.ok }}개 정상">
+        <circle cx="75" cy="75" r="60" fill="none" class="track" stroke-width="14"/>
+        <circle cx="75" cy="75" r="60" fill="none" class="arc" stroke-width="14"
+                stroke-linecap="round" transform="rotate(-90 75 75)"
+                stroke-dasharray="{{ dash.service.ring }} 377"/>
+        <text x="75" y="72" text-anchor="middle" class="big"
+              >{{ dash.service.ok }}/{{ dash.service.total }}</text>
+        <text x="75" y="96" text-anchor="middle" class="cap">정상</text>
+      </svg>
+    </div>
+
+    <div class="e-ring-list">
+      {% for s in dash.service.names %}
+        <span class="{% if not s.ok %}down{% elif s.slow %}slow{% endif %}">
+          <i aria-hidden="true"></i>{{ s.name }}</span>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+
+<section class="e-roles" aria-label="역할별 계정">
+  <h2>계정 {{ dash.accounts_total }}</h2>
+  <div class="e-role-chips">
+    {% for r in dash.roles %}
+      <a class="e-role-chip{% if not r.n %} zero{% endif %}" href="{{ r.url }}"
+        >{{ r.label }} {{ r.n }}</a>
+    {% endfor %}
+  </div>
+  <a class="e-roles-more" href="{{ dash.url_accounts }}">계정 관리 →</a>
+</section>
+{% endblock %}

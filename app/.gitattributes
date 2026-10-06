@@ -1,0 +1,4 @@
+# 컨테이너 안에서 실행되는 셸 스크립트는 반드시 LF 여야 한다.
+# Windows 에서 클론하면 CRLF 로 바뀌고 리눅스 셸이 "bad interpreter" 로 죽는다.
+*.sh text eol=lf
+services/tunnel/entrypoint.sh text eol=lf

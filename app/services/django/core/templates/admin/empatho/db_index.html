@@ -1,0 +1,98 @@
+{% extends "admin/base_site.html" %}
+
+{% block bodyclass %}{{ block.super }} e-full{% endblock %}
+
+{% comment %}
+  시안: empatho-view/docs/admin-redesign/Database.dc.html
+
+  표 하나가 한 줄이고, 행 수는 막대로 견준다. 값은 안 나온다 — 여기는
+  «무엇이 얼마나 쌓였나»를 보는 자리고, 안을 보는 것은 [보기] 다.
+{% endcomment %}
+
+{% block content_title %}
+<div class="e-head">
+  <div>
+    <span class="e-eyebrow">데이터 · 표 {{ summary.total }}개 중 {{ summary.shown }}개 표시</span>
+    <h1>DB 조회</h1>
+  </div>
+  {# 서버에서 거른다. 이 화면에 스크립트를 들이지 않으려는 것이다 #}
+  <form class="e-head-right" method="get" role="search">
+    <label class="e-sr" for="dbq">표 검색</label>
+    <input class="e-input" id="dbq" name="q" type="search"
+           value="{{ q }}" placeholder="표 이름 검색">
+    {% if q %}<a class="e-btn" href="{{ request.path }}">지우기</a>{% endif %}
+  </form>
+</div>
+{% endblock %}
+
+{% block content %}
+<section class="e-sum4" aria-label="요약">
+  <div class="e-sum-card">
+    <span class="e-sum-label">표</span>
+    <span class="e-sum-num">{{ summary.total }}</span>
+  </div>
+  <div class="e-sum-card">
+    <span class="e-sum-label">가장 큰 표</span>
+    <span class="e-sum-big">{{ summary.biggest_name }}
+      <span class="e-sum-accent">{{ summary.biggest_rows }}</span></span>
+  </div>
+  {# 가린 표는 분홍이다. 「조심할 것」이 한 색으로 모여야 눈에 걸린다 #}
+  <div class="e-sum-card pink">
+    <span class="e-sum-label">값을 가린 표</span>
+    <span class="e-sum-list pink">{{ summary.hidden }}</span>
+  </div>
+  <div class="e-sum-card">
+    <span class="e-sum-label">비어 있는 표</span>
+    <span class="e-sum-list amber">{{ summary.empty }}</span>
+  </div>
+</section>
+
+<section class="e-table" aria-label="표 목록">
+  <div class="e-table-head">
+    <span>표</span><span>이름</span><span>행 수</span>
+    <span class="right">칸</span><span class="right">동작</span>
+  </div>
+
+  {% for t in tables %}
+    <div class="e-table-row">
+      <span class="e-code">{{ t.table }}</span>
+
+      <span class="e-table-name">{{ t.name }}
+        {% if t.hidden %}
+          {# 색만으로 가르지 않는다 — 자물쇠와 「가림」 글자가 같이 선다 #}
+          <span class="e-lock">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2.4" stroke-linecap="round"
+                 stroke-linejoin="round" aria-hidden="true">
+              <rect x="5" y="11" width="14" height="10" rx="2"/>
+              <path d="M8 11V7a4 4 0 018 0v4"/>
+            </svg>가림</span>
+        {% endif %}
+      </span>
+
+      <span class="e-rows">
+        <span class="e-bar"><i style="width: {{ t.pct }}%"></i></span>
+        <b>{{ t.rows }}</b>
+      </span>
+
+      <span class="e-cols">{{ t.columns }}칸</span>
+
+      <span class="e-acts">
+        {# 가린 표는 값을 안 보여주므로 「보기」가 아니라 「구조」다 #}
+        <a class="e-act" href="{{ t.url }}">{% if t.hidden %}구조{% else %}보기{% endif %}</a>
+        {% if t.admin_url %}<a class="e-act ghost" href="{{ t.admin_url }}">수정</a>{% endif %}
+      </span>
+    </div>
+  {% empty %}
+    <div class="e-empty">
+      <span class="e-empty-mark" aria-hidden="true">
+        <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke-width="2.2"
+             stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="7"/><path d="M20 20l-4.3-4.3"/></svg>
+      </span>
+      <b>«{{ q }}» 에 맞는 표가 없습니다</b>
+      <span>표 이름(account)으로도 한글 이름(계정)으로도 찾을 수 있습니다</span>
+    </div>
+  {% endfor %}
+</section>
+{% endblock %}

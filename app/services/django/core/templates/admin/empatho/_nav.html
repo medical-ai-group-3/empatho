@@ -1,0 +1,69 @@
+{% comment %}
+admin 왼쪽 내비 — 전 화면 공통. 항목은 core/adminsite.py 의 _nav().
+시안: empatho-view/docs/admin-redesign/ 네 장의 <nav> (넷이 같다)
+
+⚠ **조각으로 뺀 이유** — 두 곳이 같은 것을 그려야 한다.
+    base_site.html          거의 모든 화면
+    empatho/index.html      /admin/ 만. Django 의 index.html 이 이 블록을
+                            비워서(자기 app_list 를 본문에 그린다) block.super
+                            가 빈 값이라 다시 넣어야 한다.
+
+  Django 의 nav_sidebar.html 은 덮지 않는다 — 블록으로 갈음한다.
+
+⚠ 아이콘은 여기 둔다. 파이썬에 두면 색을 바꿀 때마다 파이썬을 고치게 된다.
+  stroke 를 currentColor 로 두어 지금 있는 자리(.on)에서 강조색이 되게 한다.
+
+⚠ 주석은 comment 태그로 쓴다. {# #} 는 한 줄짜리라 두 줄로 쓰면 화면에
+  그대로 찍힌다.
+{% endcomment %}
+<button class="sticky toggle-nav-sidebar" id="toggle-nav-sidebar"
+        aria-label="메뉴 접기"></button>
+<nav class="sticky e-nav" id="nav-sidebar" aria-label="관리자 메뉴">
+
+  <div class="e-brand">
+    <span class="e-brand-mark" aria-hidden="true">E</span>
+    <span class="e-brand-text">
+      <b>EMPATHO</b>
+      <span>ADMIN CONSOLE</span>
+    </span>
+  </div>
+
+  <ul>
+    {% for item in e_nav %}
+      <li>
+        <a href="{{ item.url }}"{% if item.on %} class="on" aria-current="page"{% endif %}>
+          <span class="e-nav-icon" aria-hidden="true">
+            {% if item.key == "dashboard" %}
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                   stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+            {% elif item.key == "status" %}
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                   stroke-linejoin="round"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>
+            {% elif item.key == "accounts" %}
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                   stroke-linejoin="round"><circle cx="9" cy="8" r="4"/><path d="M2 21c0-4 3-6 7-6s7 2 7 6"/><path d="M16 11l2 2 4-4"/></svg>
+            {% elif item.key == "db" %}
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                   stroke-linejoin="round"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg>
+            {% else %}
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                   stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg>
+            {% endif %}
+          </span>
+          <span class="e-nav-label">{{ item.label }}</span>
+          {% if item.badge %}<i class="e-badge">{{ item.badge }}</i>{% endif %}
+        </a>
+      </li>
+    {% endfor %}
+  </ul>
+
+  {% comment %}
+    맨 아래 「접속 경로 · 학원 내부망 전용」 안내 상자는 뺐다(2026-09-25).
+    접속 경로 제한은 nginx 가 그대로 막는다 — 화면에서 문구만 지운 것이다.
+  {% endcomment %}
+</nav>

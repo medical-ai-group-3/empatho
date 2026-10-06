@@ -1,0 +1,1180 @@
+"""원무과(reception) view."""
+
+from datetime import datetime, time, timedelta
+
+from django.db import IntegrityError, transaction
+from django.db.models import Exists, OuterRef, Q, Subquery
+from django.shortcuts import get_object_or_404
+from django.utils import timezone
+from django.utils.dateparse import parse_date, parse_datetime
+from rest_framework import generics, status, viewsets
+from rest_framework import mixins as drf_mixins
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from core.api.errors import ApiError
+from core.api.permissions import (
+    CanRegisterPatient,
+    IsAuthenticatedAccount,
+    MatrixPermission,
+    OwnedOnlyMixin,
+)
+
+from .. import models, serializers
+from ..mixins import AuditMixin
+
+
+def _is_date(value):
+    from datetime import date
+    try:
+        date.fromisoformat(value)
+        return True
+    except (ValueError, TypeError):
+        return False
+
+
+def _bad_param(name, message):
+    # 쿼리 문자열이 틀리면 ORM 이 ValidationError · ValueError · FieldError 를
+    # 던지고 그것이 봉투 밖 500 이 됐다. 400 으로 돌려준다.
+    raise ApiError("VALIDATION_ERROR", message, details={name: [message]})
+
+
+def _param_date(name, value):
+    d = parse_date(value) if value else None
+    if d is None:
+        _bad_param(name, "날짜는 YYYY-MM-DD 로 보내야 합니다.")
+    return d
+
+
+def _param_bound(name, value, end=False):
+    """scheduled_from / scheduled_to 경계.
+
+    날짜만 오면(YYYY-MM-DD) from 은 그날 00:00, to 는 **다음 날 00:00 미만**
+    으로 본다 — 예전에는 to=2026-09-30 이 「30일 00:00 이하」라 그 달 마지막
+    날 예약이 통째로 빠졌다(프론트가 T23:59:59 를 붙여 피하고 있었다).
+    시각이 붙어 오면 예전과 같이 그 시각 그대로(이하) 쓴다.
+    시간대가 없으면 서버 시간대(Asia/Seoul)로 본다.
+    반환: (경계 datetime, 미만으로 걸어야 하는가)
+    """
+    # ⚠ 요즘 Django 의 parse_datetime 은 날짜만 온 것도 자정으로 받아 준다 —
+    #   날짜만인지는 T/공백이 있는지로 먼저 가른다.
+    date_only = value and "T" not in value and " " not in value
+    try:
+        dt = None if date_only else parse_datetime(value)
+    except ValueError:
+        dt = None
+    if dt is None:
+        try:
+            d = parse_date(value) if value else None
+        except ValueError:
+            d = None
+        if d is None:
+            _bad_param(name, "날짜(YYYY-MM-DD) 또는 날짜시각(ISO 8601)이어야 합니다.")
+        if end:
+            d = d + timedelta(days=1)
+        return timezone.make_aware(datetime.combine(d, time.min)), end
+    if timezone.is_naive(dt):
+        dt = timezone.make_aware(dt)
+    return dt, False
+
+
+# 방문 중(오늘 내원했고 아직 끝나지 않은) 오더의 상태
+_OPEN_VISIT_STATUSES = ("requested", "scheduled", "ordered", "accepted", "in_progress")
+    
+    
+class PatientViewSet(AuditMixin, OwnedOnlyMixin, viewsets.ModelViewSet):
+
+    resource = "patient"
+    permission_classes = [MatrixPermission]
+    queryset = models.Patient.objects.select_related("pii", "primary_staff").all()
+    
+    def create(self, request, *args, **kwargs) :
+        raise ApiError("ROLE_FORBIDDEN", "환자 등록은 /patients/register 로 합니다.")
+
+    def get_queryset(self):
+        # 아직 처분 안 한 판정 불일치가 있는가 — 목록 행에 한 칸으로 얹는다.
+        #
+        # ⚠ 화면(유방외과 「대기 환자」)은 진작 has_open_discordance 를 읽고
+        #   있었는데 **어느 응답에도 그런 칸이 없었다**(09-23 확인). 늘
+        #   undefined 라 「판정 불일치」 탭이 어떤 환자도 못 세고, 줄의 경고
+        #   점도 안 켜졌다 — 엇갈린 것을 안 엇갈렸다고 말하는 쪽이다.
+        #
+        # 행마다 세지 않고 Exists 로 얹는다 — 있는지만 알면 된다.
+        qs = super().get_queryset().annotate(
+            has_open_discordance=Exists(
+                models.DiscordanceFlag.objects.filter(
+                    lesion__patient_id=OuterRef("patient_id"),
+                    closed_at__isnull=True,
+                )
+            ),
+            # 09-28 — 간호 환자 목록의 「최근 내원 · 다음 예약」 칸. 행마다
+            # 오더를 다시 부르지 않게 서브쿼리 둘로 얹는다
+            last_visit_at=Subquery(
+                models.ExamOrder.objects.filter(
+                    patient_id=OuterRef("patient_id"), visited_at__isnull=False)
+                .exclude(order_status="cancelled")
+                .order_by("-visited_at").values("visited_at")[:1]),
+            next_visit_at=Subquery(
+                models.ExamOrder.objects.filter(
+                    patient_id=OuterRef("patient_id"), visited_at__isnull=True,
+                    order_status__in=("requested", "scheduled"),
+                    scheduled_at__gte=timezone.now())
+                .order_by("scheduled_at").values("scheduled_at")[:1]),
+        )
+
+        # retrieve · update · partial_update · destroy 는 pk 로 단건을
+        # 찾는다 — 목록 유출 방지용 필터(q/status 없으면 빈 쿼리셋)를 걸면
+        # 안 된다. 그 필터는 list 에서 「전체 환자를 실수로 긁는 것」을
+        # 막으려는 것이라 list 에만 건다.
+        if self.action != "list":
+            return qs
+
+        p = self.request.query_params
+        q = p.get("q", "").strip()
+        status_param = p.get("status")
+        primary_staff_param = p.get("primary_staff")
+
+        # 09-27 — primary_staff 는 me 말고 직원 번호(staff_id)와 none(미배정)도
+        # 받는다. 예전에는 me 면 **여기서 바로 돌아가 status 를 안 봤다** —
+        # 유방외과 waiting() 과 patients() 가 같은 줄을 받던 까닭.
+        result = qs
+        handed_staff_id = None   # status=waiting 에서 인계받은 사람으로 거를 staff
+        if primary_staff_param:
+            if primary_staff_param == "me":
+                staff = getattr(self.request.user, "staff", None)
+                if staff is None:
+                    return qs.none()
+                result = result.filter(primary_staff=staff)
+                handed_staff_id = staff.pk
+            elif primary_staff_param == "none":
+                result = result.filter(primary_staff__isnull=True)
+            elif primary_staff_param.isdigit():
+                result = result.filter(primary_staff_id=int(primary_staff_param))
+                handed_staff_id = int(primary_staff_param)
+            else:
+                _bad_param("primary_staff", "me · none · 직원 번호 중 하나여야 합니다.")
+        elif not q and not status_param:
+            # primary_staff 가 없으면 예전처럼 q/status 가 있어야 목록을 준다
+            return qs.none()
+
+        # status=waiting — 오늘 내원했고 아직 끝나지 않은 오더가 있는 환자.
+        # 다른 값(all 등)은 예전처럼 거르지 않는다 — 간호 환자 목록이
+        # status=all 을 「전체 목록 열쇠」로 쓰고 있다.
+        #
+        # 09-27 — primary_staff(me · 번호)와 같이 오면 **그 오더가 그 선생님께
+        # 인계됐어야**(handed_to) 한다. 주치의가 이미 있는 재진 환자가 간호가
+        # 보내기 전부터 유방외과 대기에 뜨던 것을 막는다.
+        # ⚠ 동작 변경 — 0024 이전에 보낸 오늘 오더(handed_at 이 빈 것)는 더
+        #   이상 유방외과 대기에 안 뜬다. 간호가 한 번 더 보내면 뜬다.
+        if status_param == "waiting":
+            open_today = models.ExamOrder.objects.filter(
+                patient_id=OuterRef("patient_id"),
+                visited_at__date=timezone.localdate(),
+                order_status__in=_OPEN_VISIT_STATUSES,
+            )
+            if handed_staff_id is not None:
+                open_today = open_today.filter(handed_to_id=handed_staff_id)
+            result = result.filter(Exists(open_today))
+
+        if q:
+            cond = (Q(patient_number=q) |
+                    Q(pii__name__icontains=q) |
+                    Q(pii__phone__icontains=q))
+            # ⚠ 예전에는 날짜가 아닌 검색어에도 Q(pii__birth_date=None) 을
+            #   붙여서 「생년월일이 비어 있는 환자」가 어떤 검색에도 다 걸렸다.
+            if _is_date(q):
+                cond |= Q(pii__birth_date=q)
+            result = result.filter(cond)
+        # 순서가 없으면 페이지를 넘길 때 줄이 겹치거나 빠진다
+        return result.order_by("patient_id")
+    
+    def owned_queryset(self, queryset, account):
+        return queryset.filter(account=account)
+
+    def is_owned_by(self, obj, account):
+        return obj.account_id == account.account_id
+
+    def get_serializer_class(self):
+        if self.action == "create":
+            return serializers.PatientCreateSerializer
+        if self.action == "retrieve":
+            return serializers.PatientDetailSerializer
+        if self.action == "list":
+            return serializers.PatientListSerializer
+        return serializers.PatientSerializer
+
+    # def create(self, request, *args, **kwargs):
+    #     serializer = self.get_serializer(data=request.data)
+    #     serializer.is_valid(raise_exception=True)
+    #     self.perform_create(serializer)
+    #     out = serializers.PatientDetailSerializer(serializer.instance)
+    #     return Response(out.data, status=status.HTTP_201_CREATED)
+
+
+def _notify_booked(order, verb):
+    """예약이 서거나 날짜가 바뀌면 커밋 뒤 바로 환자에게 알린다.
+
+    09-29 — 창구 예약 · 앱 신청 확정 · 날짜 변경에 알림이 없어서, 한 시간마다
+    도는 「하루 전 안내」(reservation_reminders)가 몇 분 ~ 한 시간 뒤에 대신
+    나갔다. 앱 알림과 문자가 늦게 온다고 보인 것이 그것이다.
+    """
+    from .. import notify
+    when = timezone.localtime(order.scheduled_at)
+    notify.send(patient=order.patient, type="reservation_created",
+                message=f"{when:%m월 %d일 %H시 %M분} 검사 예약이 {verb}되었습니다.",
+                ref_type="exam_order", ref_id=order.pk, severity="normal")
+
+
+class ReservationViewSet(AuditMixin, OwnedOnlyMixin, viewsets.ViewSet):
+    """§5-3 예약 생성. exam_order 로 1:N 생성.
+
+    POST /reservations/   {patient_id, scheduled_at, orders: [{exam_purpose, modality}, ...]}
+    """
+
+    resource = "reservation"
+    permission_classes = [MatrixPermission]
+
+    def owned_queryset(self, queryset, account):
+        return queryset.filter(patient__account=account)
+
+    def is_owned_by(self, obj, account):
+        return obj.patient.account_id == account.account_id
+
+    def create(self, request):
+        if getattr(request.user, "patient", None) is not None :
+            raise ApiError("ROLE_FORBIDDEN", "예약 신청은 /me/reservation-request로 하세요")
+        patient = getattr(request.user, "patient", None)
+        payload = request.data
+        if patient is not None:
+            payload = {**request.data, "patient_id": patient.patient_id}
+        serializer = serializers.ReservationCreateSerializer(data=payload)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        rows = serializer.instance
+        out_serializer_class = (
+            serializers.PatientExamOrderSerializer if patient is not None
+            else serializers.ExamOrderSerializer
+        )
+        if rows :
+            from .. import notify
+            when = timezone.localtime(rows[0].scheduled_at)
+            notify.send(
+                patient=rows[0].patient, 
+                type="reservation_created",
+                message=f"{when:%m월 %d일 %H시} 검사 예약이 확정되었습니다.", 
+                ref_type="exam_order",
+                ref_id=rows[0].pk,
+                severity="normal",
+            )
+        out = out_serializer_class(rows, many=True)
+        return Response(out.data, status=status.HTTP_201_CREATED)
+
+
+class ReservationRequestViewSet(AuditMixin, viewsets.ViewSet):
+    """§7 환자 예약 신청.
+
+    POST /me/reservation-requests   {scheduled_at}
+    """
+
+    resource = "reservation"
+    permission_classes = [MatrixPermission]
+
+    def get_serializer_class(self):
+        return serializers.ReservationRequestCreateSerializer
+
+    def create(self, request):
+        patient = getattr(request.user, "patient", None)
+        if patient is None:
+            raise ApiError("VALIDATION_ERROR", "환자 계정이 아닙니다.")
+        from datetime import datetime
+
+        from core.api import questionnaire as qm
+        date = (request.data or {}).get("date")
+        time = (request.data or {}).get("time")
+        if not date or not time:
+            raise ApiError("VALIDATION_ERROR", "날짜와 시간이 필요합니다.",
+                            details={"required": ["date", "time"]})
+        try:
+            naive = datetime.fromisoformat("%sT%s" % (date, time))
+        except ValueError:
+            raise ApiError("VALIDATION_ERROR", "날짜/시간 형식이 올바르지 않습니다.")
+        scheduled = timezone.make_aware(naive, timezone.get_current_timezone())
+        # 지금 시간대까지는 안 받는다 — 15시 몇 분이면 15:00 · 15:30 도 불가
+        from datetime import timedelta
+        next_hour = (timezone.localtime().replace(minute=0, second=0, microsecond=0)
+                     + timedelta(hours=1))
+        if scheduled < next_hour:
+            raise ApiError("VALIDATION_ERROR", "지금 시간대 이전은 예약할 수 없습니다.")
+        # 09-28 — 그날 이미 예약(신청 · 확정 · 내원)이 있으면 또 세우지 않는다.
+        #   앱에서 신청을 두 번 보내면 원무 예약 판에 같은 사람이 두 줄로 섰다.
+        with transaction.atomic():
+            _lock_patient(patient.pk)
+            _refuse_same_day(patient.pk, scheduled)
+            order = models.ExamOrder.objects.create(
+                patient=patient, scheduled_at=scheduled, order_status="requested",
+                modality=None, exam_purpose=None, ordered_by=None,
+                created_by=request.user, updated_by=request.user,
+            )
+        q = (request.data or {}).get("questionnaire") or {}
+        answers = q.get("answers")
+        if isinstance(answers, dict) and answers:
+            patient.questionnaire = qm.validate(answers)  # ponytail: 환자 캐시에만 저장(방문별 exam_order.questionnaire 는 추후)
+            patient.updated_by = request.user
+            patient.save(update_fields=["questionnaire", "updated_at"])
+        out = serializers.PatientExamOrderSerializer(order)
+        return Response(out.data, status=status.HTTP_201_CREATED)
+
+class ReservationRequestQueueView(generics.ListAPIView):
+    """§7 원무 큐 — order_status='requested' 만 노출.
+
+    GET /reservation-requests
+    """
+
+    resource = "exam_order"
+    permission_classes = [MatrixPermission]
+    serializer_class = serializers.ExamOrderSerializer
+    # 행마다 patient · pii · 주치의를 따로 읽지 않게 한 번에 붙인다(N+1)
+    # 09-27 — 창구 접수(walk-in)와 내원 처리된 예약도 requested 라, visited_at 이
+    # 빈 것(아직 안 온 앱 신청)만 남긴다. 예전에는 접수 환자가 신청 큐에 섞였다.
+    queryset = (models.ExamOrder.objects.filter(order_status="requested",
+                                                visited_at__isnull=True)
+                .select_related("patient__pii", "patient__primary_staff")
+                .order_by("scheduled_at", "exam_order_id"))
+
+
+class ExamOrderConfirmView(AuditMixin, viewsets.ViewSet):
+    """§7 원무 확정 — 날짜만 정한다.
+
+    검사 종류(modality·exam_purpose·ordered_by)는 원무가 아니라 유방외과가
+    나중에 정한다 — 0015 로 order_status='scheduled' 가 생겨(09-17 팀 확정),
+    원무는 requested → scheduled 로만 옮긴다. ordered 전환은 별도 경로(유방외과)
+    가 맡는다.
+
+    PATCH /exam-orders/{id}/confirm   {scheduled_at}
+    """
+
+    resource = "exam_order"
+    permission_classes = [MatrixPermission]
+
+    def partial_update(self, request, pk=None):
+        from django.db import transaction
+
+        with transaction.atomic():
+            # .get() 은 없는 번호에 DoesNotExist 로 500 이었다 → 404
+            pid = (models.ExamOrder.objects.filter(pk=pk)
+                   .values_list("patient_id", flat=True).first())
+            if pid is not None:
+                _lock_patient(pid)   # 환자 → 오더 차례(_refuse_same_day 주석)
+            order = get_object_or_404(
+                models.ExamOrder.objects.select_for_update(), pk=pk)
+
+            if order.order_status != "requested":
+                raise ApiError("ALREADY_CONFIRMED")
+
+            serializer = serializers.ExamOrderConfirmSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+
+            # 09-28 — 확정할 날에 이 환자의 다른 예약이 있으면 409. 신청을
+            # 그날로 확정하면 같은 사람이 한 날에 둘이 선다.
+            _refuse_same_day(order.patient_id, serializer.validated_data["scheduled_at"],
+                             exclude_pk=order.pk)
+            order.scheduled_at = serializer.validated_data["scheduled_at"]
+            order.order_status = "scheduled"
+            order.updated_by = self._current_account()
+            order.save()
+            _notify_booked(order, "확정")
+
+        out = serializers.ExamOrderSerializer(order)
+        return Response(out.data, status=status.HTTP_200_OK)
+
+class ExamOrderQueryView(
+    drf_mixins.ListModelMixin,
+    drf_mixins.RetrieveModelMixin,
+    viewsets.GenericViewSet,
+):
+    """GET /exam-orders — 여러 화면이 공유하는 유연한 목록 조회.
+    GET /exam-orders/{id} — 단건 조회.
+
+    지원 쿼리:
+      status, visited(yes/none), scheduled_on(today/YYYY-MM-DD),
+      visited_on(today/YYYY-MM-DD), scheduled_from, scheduled_to, patient,
+      assigned(none/yes — 환자 주치의 배정 여부),
+      handed(none/yes — 이 오더를 유방외과로 보냈는가), ordering
+    """
+
+    resource = "exam_order"
+    permission_classes = [MatrixPermission]
+    serializer_class = serializers.ExamOrderSerializer
+
+    # 정렬 허용 칸. 아무 문자열이나 order_by 에 넘기면 FieldError 로 500 이었다.
+    ORDERING_FIELDS = ("visited_at", "scheduled_at", "ordered_at", "exam_order_id",
+                       "created_at", "updated_at")
+
+    def get_queryset(self):
+        # 목록 한 줄이 patient · pii · 주치의를 읽는다 — 붙여 두지 않으면
+        # 간호 큐(page_size 200)가 줄마다 쿼리를 서너 번씩 더 쐈다(N+1).
+        qs = models.ExamOrder.objects.select_related(
+            "patient__pii", "patient__primary_staff", "handed_to")
+        if self.action == "retrieve":
+            # 단건은 pk 로 찾는다 — 목록용 거르기를 걸면 ?status= 같은
+            # 꼬리 하나로 멀쩡한 오더가 404 가 된다.
+            return qs
+        p = self.request.query_params
+
+        if p.get("status"):
+            qs = qs.filter(order_status=p["status"])
+
+        visited = p.get("visited")
+        if visited == "yes":
+            qs = qs.filter(visited_at__isnull=False)
+        elif visited == "none":
+            qs = qs.filter(visited_at__isnull=True)
+
+        scheduled_on = p.get("scheduled_on")
+        if scheduled_on == "today":
+            qs = qs.filter(scheduled_at__date=timezone.localdate())
+        elif scheduled_on:
+            qs = qs.filter(scheduled_at__date=_param_date("scheduled_on", scheduled_on))
+
+        # 09-27 — 오늘 내원한 것만. visited=yes 만으로는 **어제 접수하고 안
+        # 끝난 오더**까지 오늘 대기 줄에 섞였다.
+        visited_on = p.get("visited_on")
+        if visited_on == "today":
+            qs = qs.filter(visited_at__date=timezone.localdate())
+        elif visited_on:
+            qs = qs.filter(visited_at__date=_param_date("visited_on", visited_on))
+
+        if p.get("scheduled_from"):
+            bound, _ = _param_bound("scheduled_from", p["scheduled_from"])
+            qs = qs.filter(scheduled_at__gte=bound)
+        if p.get("scheduled_to"):
+            bound, exclusive = _param_bound("scheduled_to", p["scheduled_to"], end=True)
+            qs = qs.filter(**{"scheduled_at__lt" if exclusive else "scheduled_at__lte": bound})
+
+        if p.get("patient"):
+            if not p["patient"].isdigit():
+                _bad_param("patient", "환자 번호(patient_id)는 숫자여야 합니다.")
+            qs = qs.filter(patient_id=int(p["patient"]))
+
+        # 09-27 — 유방외과로 보냈는가(환자 주치의가 있는가). 간호 「내원 대기」
+        # 가 assigned=none 을 붙이면 보낸 환자가 줄에서 빠진다. 보내기는
+        # 환자의 primary_staff 만 바꾸고 오더 상태는 requested 그대로라
+        # 서버가 이 칸 말고는 가를 방법이 없었다.
+        assigned = p.get("assigned")
+        if assigned == "none":
+            qs = qs.filter(patient__primary_staff__isnull=True)
+        elif assigned == "yes":
+            qs = qs.filter(patient__primary_staff__isnull=False)
+        elif assigned:
+            _bad_param("assigned", "none 또는 yes 여야 합니다.")
+
+        # 09-27 — 이 방문을 유방외과로 보냈는가(오더의 handed_at). assigned 는
+        # 환자 값이라 재진 환자는 보내기 전부터 yes 다 — 간호 대기는 이쪽을 쓴다.
+        handed = p.get("handed")
+        if handed == "none":
+            qs = qs.filter(handed_at__isnull=True)
+        elif handed == "yes":
+            qs = qs.filter(handed_at__isnull=False)
+        elif handed:
+            _bad_param("handed", "none 또는 yes 여야 합니다.")
+
+        ordering = p.get("ordering", "visited_at")
+        if ordering.lstrip("-") not in self.ORDERING_FIELDS:
+            _bad_param("ordering", "정렬은 %s 중 하나여야 합니다." % ", ".join(self.ORDERING_FIELDS))
+        # 같은 시각끼리 페이지를 넘길 때 줄이 겹치거나 빠지지 않게 pk 로 한 번 더
+        return qs.order_by(ordering, "exam_order_id")
+
+
+class StaffListView(generics.ListAPIView):
+    """GET /staff?role= — 배정 팝업용 직원 목록."""
+
+    resource = "patient"  # 별도 리소스 없어 patient 권한으로 간주(간호가 조회)
+    permission_classes = [MatrixPermission]
+    serializer_class = serializers.StaffSerializer
+
+    def get_queryset(self):
+        if getattr(self.request.user, "staff", None) is None:
+            raise ApiError("ROLE_FORBIDDEN", "의료진만 조회할 수 있습니다.")
+        qs = models.Staff.objects.select_related("account").all()
+        role = self.request.query_params.get("role")
+        if role:
+            qs = qs.filter(account__role=role)
+        return qs
+
+
+class PatientTodayStatusView(viewsets.ViewSet):
+    """GET /patients/today-status — 방문 환자 모니터링(§1)."""
+
+    resource = "patient"
+    permission_classes = [MatrixPermission]
+
+    # stage 는 예전 문자열 그대로 둔다(화면 dept/home.js STAGE 가 이 글자로
+    # 찾는다). 09-27 — 「접수 대기」 하나로 뭉쳐 있던 것을 가르려고
+    # stage_code · stage_detail 을 **더한다.**
+    #   nursing                간호·문진 — 접수했고 아직 유방외과로 안 보냄
+    #   outpatient             외래 진료 — 간호가 이 오더를 유방외과로 보냄
+    #                          (handed_at), 검사 지시 전. ⚠ 예전에는 환자의
+    #                          primary_staff 로 봐서 재진 환자가 보내기 전부터 여기 떴다
+    #   radiology_wait         영상의학과 대기
+    #   radiology_in_progress  영상의학과 촬영중
+    #   ai_analysis            AI 분석중
+    #   cancelled              취소
+    #   그 밖                  order_status 그대로
+    @staticmethod
+    def _stage(o):
+        if o.order_status in ("requested", "scheduled"):
+            if o.handed_at is not None:
+                return "접수 대기", "outpatient", "외래 진료"
+            return "접수 대기", "nursing", "간호·문진"
+        if o.order_status == "cancelled":
+            return "cancelled", "cancelled", "취소"
+        if o.order_status == "ordered" and not o.assigned_to_id:
+            return "영상의학과 대기", "radiology_wait", "영상의학과 대기"
+        if o.assigned_to_id:
+            if getattr(o, "has_study", False):
+                # 화면 표시(stage_detail)만 띄어 쓴다 — stage 는 화면이 칸을 가르는
+                # 열쇠(dept/home.js STAGE · StageBoard)라 그대로 둔다
+                return "AI 분석중", "ai_analysis", "AI 분석 중"
+            return "영상의학과 촬영중", "radiology_in_progress", "영상의학과 촬영 중"
+        return o.order_status, o.order_status, o.order_status
+
+    def list(self, request):
+        if getattr(request.user, "staff", None) is None:
+            raise ApiError("ROLE_FORBIDDEN", "의료진만 조회할 수 있습니다.")
+        today = timezone.localdate()
+        # 촬영 여부를 줄마다 exists() 로 묻던 것을 한 번에 얹는다(N+1)
+        orders = (models.ExamOrder.objects
+                  .filter(visited_at__date=today)
+                  .select_related("patient__pii", "patient__primary_staff")
+                  .annotate(has_study=Exists(models.Study.objects.filter(
+                      exam_order_id=OuterRef("pk"))))
+                  .order_by("visited_at", "exam_order_id"))
+
+        result = []
+        for o in orders:
+            stage, code, detail = self._stage(o)
+            pii = getattr(o.patient, "pii", None)
+            primary_staff = o.patient.primary_staff
+            result.append({
+                "exam_order_id": o.exam_order_id,
+                "patient_id": o.patient_id,
+                "patient_name": pii.name if pii else None,
+                "stage": stage,
+                "stage_code": code,
+                "stage_detail": detail,
+                "order_status": o.order_status,
+                "visited_at": o.visited_at,
+                "primary_staff": o.patient.primary_staff_id,
+                "primary_staff_name": primary_staff.full_name if primary_staff else None,
+                "handed_at": o.handed_at,
+                "handed_to": o.handed_to_id,
+            })
+        return Response(result)
+    
+class PatientRegisterView(AuditMixin, viewsets.ViewSet):
+    """§1 [+] 등록 — POST /patients/register. (기존 PatientCreateSerializer 와 별개 — 간소화된 접수용)
+
+    CanRegisterPatient — patient 매트릭스(원무만 CRUD)는 그대로 두고
+    간호에게 이 endpoint 하나만 연다. 정식 등록(POST /patients/,
+    PatientViewSet)은 여전히 원무 단독이다."""
+    resource = "patient"
+    permission_classes = [CanRegisterPatient]
+    
+    def create(self, request):
+        serializer = serializers.PatientRegisterSerializer(data = request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            # patient 와 pii 를 한 트랜잭션으로 — pii 가 실패하면 번호만 있는
+            # 환자가 남았다.
+            with transaction.atomic():
+                patient = serializer.save(
+                    created_by = self._current_account(),
+                    updated_by=self._current_account(),
+                )
+        except IntegrityError:
+            # validate 와 저장 사이에 같은 전화가 먼저 들어온 경우(동시 등록).
+            # 예전에는 500 이었다.
+            msg = "이미 다른 환자에게 등록된 전화번호입니다."
+            raise ApiError("VALIDATION_ERROR", msg, details={"phone": [msg]})
+        created = serializer.created
+        out = serializers.PatientDetailSerializer(patient)
+        data = {**out.data, "created": created}
+        return Response(data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+    
+# ── 같은 날 예약은 하나 ──────────────────────────────────────────────
+# 09-28 — 예약 판에서 **이미 내원한 예약을 눌러 [예약]** 을 누르면 같은
+# 날 · 같은 시각에 새 예약이 또 섰다. 예전 검사(ea6b2c4)는 「안 온 예약」
+# 만 봐서 내원한 것(visited_at 이 찬 requested · completed)은 못 막았다.
+# 이제 **취소 안 된 오더가 그날 scheduled_at 으로 하나라도 있으면** 새로
+# 세우지도, 그날로 옮기지도 않는다. 날짜를 바꾸려면 그 예약을 고친다
+# (PATCH /exam-orders/{id}/reschedule).
+#
+# ⚠ 부르기 전에 환자 행을 select_for_update 로 잠가야 한다 — 두 요청이
+#   동시에 와도 하나만 선다. 잠그는 차례는 늘 **환자 → 오더**(CheckInView
+#   와 같다). 반대로 잡으면 서로를 기다리다 교착된다.
+def _local_day(when):
+    return timezone.localtime(when).date() if timezone.is_aware(when) else when.date()
+
+
+def _same_day_order(patient_id, when, exclude_pk=None):
+    """그날(병원 시간대) 이 환자의 취소 안 된 예약 오더. 없으면 None."""
+    qs = (models.ExamOrder.objects
+          .filter(patient_id=patient_id, scheduled_at__date=_local_day(when))
+          .exclude(order_status="cancelled"))
+    if exclude_pk is not None:
+        qs = qs.exclude(pk=exclude_pk)
+    return qs.order_by("scheduled_at", "exam_order_id").first()
+
+
+def _refuse_same_day(patient_id, when, exclude_pk=None):
+    """그날 이미 예약(또는 내원 기록)이 있으면 409 DUPLICATE_RESERVATION.
+
+    details 에 그 오더 번호를 싣는다 — 화면이 새로 만들지 않고 그 예약을
+    고치는 자리로 넘어갈 수 있게."""
+    dup = _same_day_order(patient_id, when, exclude_pk=exclude_pk)
+    if dup is None:
+        return
+    at = timezone.localtime(dup.scheduled_at).strftime("%H:%M")
+    live = dup.visited_at is None and dup.order_status in ("requested", "scheduled")
+    if live:
+        msg = f"이 환자는 그날 {at} 에 이미 예약이 있습니다. 바꾸려면 그 예약을 고쳐 주세요."
+    else:
+        msg = f"이 환자는 그날 {at} 예약으로 이미 내원했습니다. 다른 날을 골라 주세요."
+    raise ApiError("DUPLICATE_RESERVATION", msg, details={
+        "exam_order_id": dup.exam_order_id,
+        "scheduled_at": timezone.localtime(dup.scheduled_at).isoformat(),
+        "order_status": dup.order_status,
+        "visited": dup.visited_at is not None,
+        "editable": live,
+    })
+
+
+def _lock_patient(patient_id):
+    return models.Patient.objects.select_for_update().filter(pk=patient_id).first()
+
+
+def _todays_booking(patient_id, now):
+    """오늘 날짜로 잡혀 있고 아직 안 온 예약. 없으면 None."""
+    return (models.ExamOrder.objects
+            .select_for_update()
+            .filter(patient_id=patient_id,
+                    order_status__in=("requested", "scheduled"),
+                    visited_at__isnull=True,
+                    scheduled_at__date=timezone.localdate(now))
+            .order_by("scheduled_at", "exam_order_id").first())
+
+
+def mark_visited(order, now, account):
+    """예약 오더를 내원 처리한다 — 접수(CheckInView) · 오늘 방문(VisitToday) 공용.
+
+    처음 온 시각을 지킨다(이미 visited_at 이 있으면 안 덮는다).
+    scheduled 는 **requested 로 돌린다** — 간호 「내원 대기」가
+    status=requested&visited=yes 로 부르므로 scheduled 로 두면 온 환자가
+    줄에 안 선다. 창구 접수(walk-in)와 같은 상태가 된다.
+    exam_order_requested_fields_ck 는 requested 에 빈 검사 칸을 허용하므로
+    scheduled → requested 는 제약에 걸리지 않는다.
+    반환: 바뀌었는가
+    """
+    if order.visited_at is not None:
+        return False
+    fields = ["visited_at", "updated_by", "updated_at"]
+    order.visited_at = now
+    if order.order_status == "scheduled":
+        order.order_status = "requested"
+        fields.append("order_status")
+    order.updated_by = account
+    order.save(update_fields=fields)
+    return True
+
+
+def _stamp_first_visit(patient, now, account):
+    # 초진 시각은 오더의 visited_at 과 같은 값이어야 한다(visit_type 판정)
+    if not patient.first_visited_at:
+        patient.first_visited_at = now
+        patient.updated_by = account
+        patient.save(update_fields=["first_visited_at", "updated_by", "updated_at"])
+
+
+class CheckInView(AuditMixin, viewsets.ViewSet):
+    """§1 [접수하기] — POST /exam-orders (requested + visited_at)."""
+    
+    resource = "exam_order"
+    permission_classes = [MatrixPermission]
+    
+    def create(self, request):
+        serializer = serializers.CheckInSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        patient_id = serializer.validated_data["patient_id"]
+        now = timezone.now()
+
+        with transaction.atomic():
+            patient = models.Patient.objects.select_for_update().get(pk=patient_id)
+
+            # 같은 환자를 오늘 이미 접수했고 아직 requested 면 그 오더를 200 으로
+            # 돌려준다. [접수하기] 를 두 번 누르면 내원 대기 줄에 같은 사람이
+            # 두 번 섰다.
+            existing = (models.ExamOrder.objects
+                        .filter(patient_id=patient_id, order_status="requested",
+                                visited_at__date=timezone.localdate(now))
+                        .order_by("visited_at").first())
+            if existing is not None:
+                out = serializers.ExamOrderSerializer(existing)
+                return Response(out.data, status=status.HTTP_200_OK)
+
+            # 09-27 — 오늘 예약(scheduled · 아직 확정 전 requested)이 있고 아직
+            # 안 왔으면 **그 예약을 내원 처리한다.** 예전에는 새 오더를 또 만들어
+            # 예약은 visited_at 이 빈 채 「노쇼」로 남고, 환자 한 명이 두 줄이 됐다.
+            booking = _todays_booking(patient_id, now)
+            if booking is not None:
+                mark_visited(booking, now, self._current_account())
+                _stamp_first_visit(patient, now, self._current_account())
+                out = serializers.ExamOrderSerializer(booking)
+                return Response(out.data, status=status.HTTP_200_OK)
+
+            order = models.ExamOrder.objects.create(
+                patient_id=patient_id,
+                order_status="requested",
+                visited_at=now,
+                created_by=self._current_account(),
+                updated_by=self._current_account()
+            )
+
+            # 초진 시각은 오더의 visited_at 과 **같은 값**이어야 한다 — now() 를
+            # 따로 두 번 부르면 몇 μs 어긋나 visit_type 판정이 흔들린다.
+            if not patient.first_visited_at:
+                patient.first_visited_at = now
+                patient.updated_by = self._current_account()
+                patient.save(update_fields=["first_visited_at", "updated_by", "updated_at"])
+
+        out = serializers.ExamOrderSerializer(order)
+        return Response(out.data, status= status.HTTP_201_CREATED)
+    
+class ExamOrderScheduleView(AuditMixin, viewsets.ViewSet):
+    """§3 [예약 완료] — POST /exam-orders (원무가 날짜만 정함, 검사종류는 안 정함)."""
+    resource = "exam_order"
+    permission_classes = [MatrixPermission]
+    
+    def create(self, request):
+        from django.db import transaction
+
+        serializer = serializers.ExamOrderScheduleSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        # ⚠ **같은 날 예약이 있으면 새로 안 만든다.** [예약] 을 여러 번
+        #   누르면(연타 · 다시 골라 또 누름 · 내원한 예약을 눌러 또 누름) 같은
+        #   예약이 계속 쌓였고, 그 사람이 접수해도 나머지가 「안 오심」 으로
+        #   남았다(09-28). 날짜를 바꾸려면 PATCH /exam-orders/{id}/reschedule.
+        #   환자 행을 잠가 두 요청이 동시에 와도 하나만 선다.
+        with transaction.atomic():
+            _lock_patient(data["patient_id"])
+            _refuse_same_day(data["patient_id"], data["scheduled_at"])
+            order = self._create_booking(data)
+            _notify_booked(order, "확정")
+        out = serializers.ExamOrderSerializer(order)
+        return Response(out.data, status = status.HTTP_201_CREATED)
+
+    def _create_booking(self, data):
+        return models.ExamOrder.objects.create(
+            patient_id=data["patient_id"],
+            scheduled_at = data["scheduled_at"],
+            # 09-27 — 창구가 날짜를 정한 예약은 **처음부터 확정**이다. requested 로
+            # 세우면 앱 신청과 섞여 「예약 신청」 큐에 또 뜨고, 예약 판에서
+            # 「미확정」으로 보였다. 앱 신청을 확정한 것(confirm)과 같은 상태다
+            order_status= "scheduled",
+            ordered_at = timezone.now(),
+            # 09-28 — 추적 회차에서 잡은 예약(선택). 같은 환자인지는 serializer 가 봤다
+            followup_id = data.get("followup_id"),
+            created_by = self._current_account(),
+            updated_by = self._current_account(),
+        )
+    
+class ExamOrderRescheduleView(AuditMixin, viewsets.ViewSet):
+    """09-27 예약 변경 · 취소 — 새 예약을 또 만들지 않고 **있는 것을 고친다.**
+
+    PATCH /exam-orders/{id}/reschedule   {scheduled_at}   날짜·시각만 바꾼다
+    POST  /exam-orders/{id}/cancel                        order_status → cancelled
+
+    ⚠ **지우지 않는다.** 취소는 상태만 바꾼다 — 행을 지우면 「안 오신 적
+      n번」 같은 이력이 같이 사라진다.
+    ⚠ 바꿀 수 있는 것은 **아직 안 온 예약**뿐이다(requested · scheduled 이고
+      visited_at 이 빈 것). 내원했거나 검사로 넘어간 오더는 409.
+    """
+
+    resource = "exam_order"
+    permission_classes = [MatrixPermission]
+
+    EDITABLE = ("requested", "scheduled")
+
+    def _locked_order(self, pk):
+        order = get_object_or_404(models.ExamOrder.objects.select_for_update(), pk=pk)
+        if order.order_status not in self.EDITABLE or order.visited_at is not None:
+            raise ApiError("RESERVATION_LOCKED")
+        return order
+
+    def partial_update(self, request, pk=None):
+        from django.db import transaction
+
+        serializer = serializers.ExamOrderConfirmSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        when = serializer.validated_data["scheduled_at"]
+        with transaction.atomic():
+            # 환자 → 오더 차례로 잠근다(_refuse_same_day 주석). 옮겨 갈 날에
+            # 이 환자의 다른 예약이 있으면 409 — 옮기다가 한 날에 둘이 선다.
+            _lock_patient(self._patient_of(pk))
+            order = self._locked_order(pk)
+            _refuse_same_day(order.patient_id, when, exclude_pk=order.pk)
+            order.scheduled_at = when
+            order.updated_by = self._current_account()
+            order.save(update_fields=["scheduled_at", "updated_by", "updated_at"])
+            _notify_booked(order, "변경")
+        return Response(serializers.ExamOrderSerializer(order).data)
+
+    @staticmethod
+    def _patient_of(pk):
+        pid = (models.ExamOrder.objects.filter(pk=pk)
+               .values_list("patient_id", flat=True).first())
+        if pid is None:
+            raise ApiError("NOT_FOUND")
+        return pid
+
+    def cancel(self, request, pk=None):
+        from django.db import transaction
+
+        with transaction.atomic():
+            order = self._locked_order(pk)
+            order.order_status = "cancelled"
+            order.updated_by = self._current_account()
+            order.save(update_fields=["order_status", "updated_by", "updated_at"])
+        return Response(serializers.ExamOrderSerializer(order).data)
+
+
+class ExamOrderHandoffView(AuditMixin, viewsets.ViewSet):
+    """09-27 간호 → 유방외과 인계 — PATCH /exam-orders/{id}/handoff {staff_id}
+
+    오더에 handed_at · handed_to 를 남기고 환자의 primary_staff 도 같이 바꾼다.
+    예전에는 PATCH /patients/{id}/ {primary_staff} 만 불러 「이번 방문을
+    보냈나」가 어디에도 안 남았다 — 간호 대기는 브라우저 localStorage 로
+    가렸고(다른 PC 에서는 다시 떴다), 재진 환자는 보내기 전부터 유방외과
+    대기에 떴다.
+
+    ⚠ 취소 · 완료된 오더는 409(HANDOFF_NOT_ALLOWED). 다시 보내기(다른
+      선생님으로 바꾸기)는 막지 않는다 — 덮어쓴다.
+    """
+
+    resource = "exam_order"
+    permission_classes = [MatrixPermission]
+
+    CLOSED = ("cancelled", "completed")
+
+    def partial_update(self, request, pk=None):
+        serializer = serializers.ExamOrderHandoffSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        staff = serializer.validated_data["staff"]
+        with transaction.atomic():
+            order = get_object_or_404(
+                models.ExamOrder.objects.select_for_update(), pk=pk)
+            if order.order_status in self.CLOSED:
+                raise ApiError("HANDOFF_NOT_ALLOWED")
+            account = self._current_account()
+            order.handed_at = timezone.now()
+            order.handed_to = staff
+            order.updated_by = account
+            order.save(update_fields=["handed_at", "handed_to", "updated_by", "updated_at"])
+            patient = models.Patient.objects.select_for_update().get(pk=order.patient_id)
+            patient.primary_staff = staff
+            patient.updated_by = account
+            patient.save(update_fields=["primary_staff", "updated_by", "updated_at"])
+        order = (models.ExamOrder.objects
+                 .select_related("patient__pii", "patient__primary_staff", "handed_to")
+                 .get(pk=order.pk))
+        return Response(serializers.ExamOrderSerializer(order).data)
+
+
+class MeView(viewsets.ViewSet):
+    """GET /me"""
+
+    permission_classes = [IsAuthenticatedAccount]  # core.api.permissions 에서 import
+
+    def list(self, request):
+        # 환자와 의료진이 같은 문으로 들어오고 role 로만 갈린다.
+        # 내보낼 것이 서로 겹치지 않아서 여기서 가른다.
+        if request.user.role == "patient":
+            out = serializers.MePatientSerializer(request.user)
+        else:
+            out = serializers.MeSerializer(request.user)
+        return Response(out.data)
+    
+class PushTokenView(viewsets.ViewSet):
+    """PATCH /me/push-token — 앱이 받은 FCM 토큰을 자기 계정에 붙인다.
+
+    빈 문자열을 보내면 지운다. 로그아웃할 때 앱이 그렇게 부른다 —
+    안 지우면 그 기기를 쓰는 다음 사람에게 남의 알림이 간다.
+
+    대상이 요청 본문이 아니라 토큰에서 나온다. 남의 계정에 붙일 길이 없다.
+    """
+
+    permission_classes = [IsAuthenticatedAccount]
+
+    def partial_update(self, request, pk=None):
+        serializer = serializers.PushTokenSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        account = request.user
+        account.push_token = serializer.validated_data["push_token"] or None
+        account.save(update_fields=["push_token"])
+        return Response({"push_token": account.push_token})
+    
+class NotificationViewSet(AuditMixin, OwnedOnlyMixin, viewsets.ModelViewSet):
+    """GET /notifications/ · PATCH /notifications/{id}/ — 내 알림.
+
+    격자가 전 역할에 RU(own_only) 를 준다. 만드는 것은 시스템이라 사람에게
+    C 가 없고 DELETE 도 없다 — 매트릭스가 알아서 403 을 낸다.
+    """
+
+    resource = "notification"
+    permission_classes = [MatrixPermission]
+    queryset = models.Notification.objects.all()
+    serializer_class = serializers.NotificationSerializer
+
+    def owned_queryset(self, queryset, account):
+        # 수신자는 환자 아니면 의료진 하나다. 계정에 딸린 쪽으로 건다.
+        staff = getattr(account, "staff", None)
+        if staff is not None:
+            return queryset.filter(staff=staff)
+        return queryset.filter(patient__account=account)
+
+    def is_owned_by(self, obj, account):
+        staff = getattr(account, "staff", None)
+        if staff is not None:
+            return obj.staff_id == staff.pk
+        return obj.patient is not None and obj.patient.account_id == account.account_id
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        if self.request.query_params.get("unread") == "true":
+            qs = qs.filter(acknowledged_at__isnull=True)
+        ntype = self.request.query_params.get("type")
+        if ntype:
+            qs = qs.filter(notification_type=ntype)
+        return qs.order_by("-created_at")
+
+    def update(self, request, *args, **kwargs):
+        # 확인 처리만 연다. 본문·수신자·종류는 시스템이 쓴 그대로 둔다 —
+        # 기본 동작에 맡기면 매트릭스 U 하나로 message 까지 고쳐진다.
+        note = self.get_object()
+        if request.data.get("acknowledged") is True and note.acknowledged_at is None:
+            note.acknowledged_at = timezone.now()
+            note.updated_by = self._current_account()
+            note.save(update_fields=["acknowledged_at", "updated_by", "updated_at"])
+        return Response(serializers.NotificationSerializer(note).data)
+    
+def question_defs():
+    """화면이 그릴 문항(답 없음). 환자 앱 · 의료진 문진 폼(QuestionnaireFormView) 공용."""
+    from core.api import questionnaire as qm
+    return [{
+        "id": q["code"], "question": q["text"],
+        "choices": [{"id": o["id"], "label": o["text"]} for o in q["options"]],
+        "critical": False, "hint": "",   # ponytail: v1.yaml 에 critical 없음 — 전부 False
+    } for q in qm.active_questions()]
+
+
+def _sections(patient):
+    wrapper = patient.questionnaire if isinstance(patient.questionnaire, dict) else {}
+    answers = wrapper.get("answers") if isinstance(wrapper.get("answers"), dict) else {}
+    answers = answers or {}
+    # 키 순서를 예전 그대로(id · question · choices · answer · critical · hint)
+    return [{"id": q["id"], "question": q["question"], "choices": q["choices"],
+             "answer": answers.get(q["id"]), "critical": q["critical"], "hint": q["hint"]}
+            for q in question_defs()]
+
+
+class PatientHomeView(APIView):
+    """GET /home — 환자 홈 집계."""
+    permission_classes = [IsAuthenticatedAccount]
+
+    def get(self, request):
+        patient = getattr(request.user, "patient", None)
+        if patient is None:
+            raise ApiError("VALIDATION_ERROR", "환자 계정이 아닙니다.")
+        from core.api import questionnaire as qm
+        now = timezone.now()
+        pii = getattr(patient, "pii", None)
+        orders = models.ExamOrder.objects.filter(patient=patient)
+        visited = orders.filter(visited_at__isnull=False).order_by("-visited_at")
+        last = visited.first()
+
+        wrapper = patient.questionnaire if isinstance(patient.questionnaire, dict) else {}
+        answers = wrapper.get("answers") if isinstance(wrapper.get("answers"), dict) else {}
+        answers = answers or {}
+        total = len(qm.active_questions())
+        answered = len([k for k in answers if not k.startswith("_")])
+        q_status = "not_started" if not answers else ("done" if total and answered >= total else "in_progress")
+
+        upcoming = (orders.filter(scheduled_at__gte=now)
+                    .exclude(order_status="cancelled").order_by("scheduled_at").first())
+        next_res = None
+        if upcoming:
+            next_res = {"scheduled_at": upcoming.scheduled_at, "place": None,
+                        "modality": upcoming.modality, "modality_label": None}
+
+        # 「새」 안내문만. 잠긴 것(설명 전)과, 풀렸는데 아직 안 연 것이다.
+        # 안 연 것은 「결과 도착」 알림이 아직 확인 전인 것으로 센다 — 환자가
+        # 안내문을 열면 그 알림이 확인된다(SurgeryReportViewSet.retrieve).
+        # 전에는 조건 없이 전부 내보내서 읽어도 「새 안내」가 안 없어졌다.
+        unread = models.Notification.objects.filter(
+            patient=patient, ref_type="report", acknowledged_at__isnull=True,
+        ).values_list("ref_id", flat=True)
+        reports = models.Report.objects.filter(
+            Q(lock_status="locked") | Q(report_id__in=unread),
+            patient=patient, report_type="final", audience="patient").order_by("-report_id")
+        new_reports = [{
+            "report_id": r.report_id, "lock_status": r.lock_status,
+            "title": "검사 결과 안내",
+            "issued_at": r.explained_at or r.created_at,
+            "issued_by_name": getattr(r.issued_by, "full_name", None),
+        } for r in reports]
+
+        return Response({
+            "display_name": pii.name if pii else None,
+            "visit_count": visited.count(),
+            "questionnaire": {"status": q_status, "answered": answered,
+                              "total": total, "required": False, "hint": ""},
+            "next_reservation": next_res,
+            "new_reports": new_reports,
+            "today_visit": {"active": False},  # ponytail: 당일 동선 소스 없음
+            "calendar": None,                   # ponytail: 달력 마커 소스 없음
+            "last_visit_at": last.visited_at if last else None,
+            "last_visit_dept": ("영상의학과" if (last and last.modality) else None),
+        })
+
+
+class PatientQuestionnaireView(APIView):
+    """GET/PUT /questionnaire — 환자 문진."""
+    permission_classes = [IsAuthenticatedAccount]
+
+    def get(self, request):
+        patient = getattr(request.user, "patient", None)
+        if patient is None:
+            raise ApiError("VALIDATION_ERROR", "환자 계정이 아닙니다.")
+        secs = _sections(patient)
+        return Response({"sections": secs, "total": len(secs)})
+
+    def put(self, request):
+        patient = getattr(request.user, "patient", None)
+        if patient is None:
+            raise ApiError("VALIDATION_ERROR", "환자 계정이 아닙니다.")
+        from core.api import questionnaire as qm
+        answers = (request.data or {}).get("answers")
+        if not isinstance(answers, dict):
+            raise ApiError("VALIDATION_ERROR", "answers 객체가 필요합니다.")
+        patient.questionnaire = qm.validate(answers)  # 미상 code/option 이면 400
+        patient.updated_by = request.user
+        patient.save(update_fields=["questionnaire", "updated_at"])
+        return Response({"detail": "저장했습니다."})
+
+
+#: 하루에 여는 시간대. 점심(12~14시)은 비운다.
+OPEN_TIMES = ["09:00", "09:30", "10:00", "10:30", "11:00", "11:30",
+              "14:00", "14:30", "15:00", "15:30", "16:00", "16:30"]
+
+
+def _open_slots(weekdays=10):
+    """예약 가능 자리 — 오늘부터 평일 기준 2주치.
+
+    09-29 — 당일 예약을 연다. 오늘은 시간을 다 주고, 지금 시간대까지는
+    화면이 막고 서버가 거절한다. 남은 시간대가 없으면 오늘은 빠진다.
+
+    ponytail: 병원 일정표(슬롯) 모델이 없다. 화면이 달력·시간칸을 그리려면
+    [{date, times[]}] 가 있어야 해서 여기서 만들어 준다 — 일정표가 생기면
+    이 함수만 쿼리로 바꾸면 화면은 그대로 돈다.
+    """
+    from datetime import timedelta
+    now = timezone.localtime()
+    out, day = [], now.date() - timedelta(days=1)
+    while len(out) < weekdays:
+        day += timedelta(days=1)
+        if day.weekday() >= 5:          # 토·일은 안 연다
+            continue
+        if day == now.date() and not any(int(t[:2]) > now.hour for t in OPEN_TIMES):
+            continue
+        out.append({"date": day.isoformat(), "times": list(OPEN_TIMES)})
+    return out
+
+
+class PatientReservationsView(APIView):
+    """GET /me/reservations — 내 예약 + 신청용 문항."""
+    permission_classes = [IsAuthenticatedAccount]
+    CANCELLABLE = {"requested", "scheduled", "ordered"}
+
+    def get(self, request):
+        patient = getattr(request.user, "patient", None)
+        if patient is None:
+            raise ApiError("VALIDATION_ERROR", "환자 계정이 아닙니다.")
+        orders = (models.ExamOrder.objects
+                  .filter(patient=patient)
+                  .exclude(order_status__in=["cancelled", "completed"])
+                  # 온 예약(visited_at)과 날짜가 지난 예약은 「내 예약」이 아니다.
+                  # 진료만 보고 가면 오더가 completed 로 안 넘어가 계속 남았다(09-28)
+                  .filter(visited_at__isnull=True)
+                  .exclude(scheduled_at__date__lt=timezone.localdate())
+                  .order_by("-scheduled_at"))
+        items = [{
+            "exam_order_id": o.exam_order_id, "scheduled_at": o.scheduled_at,
+            "modality": o.modality, "modality_label": None,
+            "hint": (None if o.modality else "병원에서 검사 종류를 정합니다"),
+            "place": None, "order_status": o.order_status, "status_label": None,
+            "can_cancel": o.order_status in self.CANCELLABLE,
+        } for o in orders]
+        ps = patient.primary_staff
+        return Response({
+            "items": items,
+            "open_slots": _open_slots(),
+            "required_questions": _sections(patient),
+            "required_note": "검사 전 확인이 필요한 문항입니다.",
+            "primary_staff_name": getattr(ps, "full_name", None),
+            "primary_staff_dept": getattr(getattr(ps, "account", None), "role", None),
+            "hospital_phone": None,
+            "note": "예약은 병원 확인 후 확정됩니다.",
+        })
+
+
+class PatientReservationCancelView(APIView):
+    """POST /me/reservations/{id}/cancel — 본인 예약 취소."""
+    permission_classes = [IsAuthenticatedAccount]
+
+    def post(self, request, pk=None):
+        patient = getattr(request.user, "patient", None)
+        if patient is None:
+            raise ApiError("VALIDATION_ERROR", "환자 계정이 아닙니다.")
+        order = models.ExamOrder.objects.filter(pk=pk, patient=patient).first()
+        if order is None:
+            raise ApiError("NOT_FOUND", "예약을 찾을 수 없습니다.")
+        # 09-27 — 예전에는 상태를 안 봐서 촬영 중 · 완료된 오더도 환자가
+        # cancelled 로 덮을 수 있었다. 목록의 can_cancel 과 같은 기준으로 막는다.
+        if (order.order_status not in PatientReservationsView.CANCELLABLE
+                or order.visited_at is not None):
+            raise ApiError("RESERVATION_LOCKED")
+        order.order_status = "cancelled"
+        order.cancelled_by = None
+        order.updated_by = request.user
+        order.save(update_fields=["order_status", "cancelled_by", "updated_at"])
+        return Response({"detail": "예약을 취소했습니다."})
+    
+# ── 09-21 여기 있던 임시 두 뷰를 뺐다 ─────────────────────────────────
+#
+# PatientPrescriptionsView · HospitalListView(+HOSPITALS_TEMP). 둘 다 「표가
+# 아직 없어서」 둔 임시본이었고, 그 표가 생겨 진짜 구현으로 넘어갔다.
+#
+#   처방  → core/views/prescription.py 의 MyPrescriptionView
+#           임시본은 복약 기록 표가 없어 log_id 가 늘 null 이었다 —
+#           환자가 「먹었다」를 눌러도 새로고침하면 사라졌다. 이제
+#           medication_log 에 실제로 남는다.
+#           약도 content(jsonb) 안의 **차례**로 가리키고 있었다(enumerate
+#           의 i). 의사가 약을 하나 지우면 그 뒤로 지난 기록이 전부 다른
+#           약을 가리킨다 — PrescriptionDrug 행을 판 이유가 그것이다.
+#
+#   병원  → core/api/hospitals.py 의 HospitalSearchView
+#           임시본은 하드코딩 네 건이었다(「미래 대학병원」…). 이제
+#           국립중앙의료원 공공데이터에서 전국 79,013 건을 부른다.
+#
+# 두 임시본의 주석이 「모델이 생기면 바꾼다」고 적어 둔 그대로 한 것이다.
