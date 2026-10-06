@@ -1,0 +1,65 @@
+# MRI(경로 C) 1차 시험 학습 — 종양분할(MAMA-MIA) + 유방밀도(Duke) + 양성/악성병변(AMBL)
+# 5개 클래스를 텍스트 쿼리로 동시 학습. 초음파 LoRA와 별개 가중치.
+
+model:
+  checkpoint: /home/wsuser/workspace/MedSAM3/ckpt/medsam3_merged.pt
+  merge_lora_config: /home/wsuser/workspace/MedSAM3/configs/medsam3_v1.yaml
+  medsam3_repo: /home/wsuser/workspace/MedSAM3
+
+data:
+  root: /home/wsuser/workspace/breast/data/mri/coco_2d
+  train_split: train
+  val_split: val
+  num_classes: 5
+  class_names: ["tumor", "breast", "dense tissue", "benign lesion", "malignant lesion"]
+  resolution: 1008        # us_lora.yaml과 동일 (SAM3 네이티브 해상도)
+
+lora:
+  rank: 16
+  alpha: 32
+  dropout: 0.1
+  target_modules:
+    - "q_proj"
+    - "k_proj"
+    - "v_proj"
+    - "out_proj"
+    - "qkv"
+    - "proj"
+    - "fc1"
+    - "fc2"
+    - "c_fc"
+    - "c_proj"
+    - "linear1"
+    - "linear2"
+  apply_to_vision_encoder: true
+  apply_to_text_encoder: true
+  apply_to_geometry_encoder: true
+  apply_to_detr_encoder: true
+  apply_to_detr_decoder: true
+  apply_to_mask_decoder: true
+
+training:
+  num_epochs: 2                     # 1epoch째 캐시(.pt) 생성 후 2epoch째부터 PIL/마스크 재계산 없이
+                                     # 훨씬 빨라지므로, 캐시 투자 대비 결과물을 얻기 위해 2로 상향
+  batch_size: 1                    # [임시] GPU 공유 경합이 심해 batch=2도 OOM.
+                                     # 유효배치(16)는 accum으로 그대로 유지.
+                                     # 경합 해소되면 2로 되돌릴 것.
+  gradient_accumulation_steps: 16   # 유효 배치 16 (batch 1 x accum 16)
+  num_workers: 0                    # /dev/shm이 64MB뿐이라 멀티프로세스 자체가 불가능
+                                     # (file_system 전략도 내부적으로 결국 shm 사용 - 우회 안 됨)
+                                     # 관리자에게 컨테이너 --shm-size 증설 요청 전까지는 0 고정
+  learning_rate: 5.0e-5
+  weight_decay: 0.01
+  max_grad_norm: 1.0
+  amp_dtype: bfloat16
+  seed: 42
+  use_negative_sampling: true       # 2차 학습 신규 - 헷갈리는 클래스를 "없음" 질문으로 추가
+  max_negatives_per_image: 1        # GPU 여유 부족(공유서버)으로 1:1 대신 사진당 최대 1개로 캡
+  trainable_pct_min: 1.0
+  trainable_pct_max: 3.0            # us_lora와 동일 LoRA 구성이라 같은 실측 비율(~2.15%) 기대
+
+output:
+  ckpt_dir: /home/wsuser/workspace/breast/mri/serving/ckpt
+  best_name: mri_lora_best.pt
+  last_name: mri_lora_last.pt
+  balance_ambl_subclass: false
