@@ -1,0 +1,66 @@
+{
+  "decisions": {
+    "merge_lobulated_into_oval": true,
+    "merge_regional_and_diffuse": true,
+    "drop_assessment_0": true,
+    "missing_distribution": "all-zero (해당 없음)"
+  },
+  "axes": {
+    "shape": [
+      "OVAL",
+      "IRREGULAR",
+      "ROUND"
+    ],
+    "margin": [
+      "CIRCUMSCRIBED",
+      "INDISTINCT",
+      "SPICULATED",
+      "OBSCURED",
+      "MICROLOBULATED"
+    ],
+    "finding": [
+      "ARCHITECTURAL_DISTORTION",
+      "LYMPH_NODE",
+      "FOCAL_ASYMMETRIC_DENSITY",
+      "ASYMMETRIC_BREAST_TISSUE"
+    ],
+    "calctype": [
+      "PLEOMORPHIC",
+      "PUNCTATE",
+      "LUCENT_CENTER",
+      "AMORPHOUS",
+      "ROUND_AND_REGULAR",
+      "FINE_LINEAR_BRANCHING",
+      "VASCULAR",
+      "COARSE",
+      "BENIGN_TYPICAL"
+    ],
+    "calcdist": [
+      "CLUSTERED",
+      "SEGMENTAL",
+      "LINEAR",
+      "REGIONAL_OR_DIFFUSE"
+    ]
+  },
+  "mappings": {
+    "shape": {
+      "LOBULATED": "OVAL"
+    },
+    "margin": {
+      "ILL_DEFINED": "INDISTINCT"
+    },
+    "calctype": {
+      "LUCENT_CENTERED": "LUCENT_CENTER",
+      "EGGSHELL": "BENIGN_TYPICAL",
+      "DYSTROPHIC": "BENIGN_TYPICAL",
+      "LARGE_RODLIKE": "BENIGN_TYPICAL",
+      "SKIN": "BENIGN_TYPICAL",
+      "MILK_OF_CALCIUM": "BENIGN_TYPICAL"
+    },
+    "calcdist": {
+      "DIFFUSELY_SCATTERED": "REGIONAL_OR_DIFFUSE",
+      "REGIONAL": "REGIONAL_OR_DIFFUSE"
+    }
+  },
+  "loss": "축별 sigmoid + BCE (다중 라벨). softmax 아님."
+}

@@ -1,0 +1,31 @@
+lora:
+  rank: 16
+  alpha: 0
+  dropout: 0.0
+  target_modules:
+  - q_proj
+  - k_proj
+  - v_proj
+  - out_proj
+  - qkv
+  - proj
+  - fc1
+  - fc2
+  - c_fc
+  - c_proj
+  - linear1
+  - linear2
+  - points_direct_project
+  - points_pool_project
+  - points_pos_enc_project
+  - boxes_direct_project
+  - boxes_pos_enc_project
+  - final_proj
+  - prompt_proj
+  - hs_proj
+  apply_to_vision_encoder: true
+  apply_to_text_encoder: true
+  apply_to_geometry_encoder: true
+  apply_to_detr_encoder: true
+  apply_to_detr_decoder: true
+  apply_to_mask_decoder: true

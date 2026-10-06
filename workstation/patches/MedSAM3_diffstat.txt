@@ -1,0 +1,57 @@
+ Machinery.zip                               |  Bin 13123256 -> 0 bytes
+ PROJECT_STRUCTURE.txt                       |  351 --------
+ README.md                                   |  118 ---
+ analyze_loss.py                             |  100 ---
+ asset/Screenshot 2568-12-06 at 07.00.16.png |  Bin 3121246 -> 0 bytes
+ asset/Screenshot 2568-12-10 at 08.20.20.png |  Bin 405124 -> 0 bytes
+ asset/combined_comparison_all.jpg           |  Bin 1695148 -> 0 bytes
+ asset/output.png                            |  Bin 751026 -> 0 bytes
+ check_text_encoding.py                      |  154 ----
+ compare_lora_base.py                        |  366 --------
+ compare_lora_base_batch.py                  |  368 --------
+ convert_roboflow_to_coco.py                 |  122 ---
+ infer_sam.py                                |  540 -----------
+ inference.py                                |  251 ------
+ loral.yaml                                  |    4 -
+ prepare_data.py                             |  346 -------
+ prepare_data_split.py                       |   65 --
+ quick_start.sh                              |   60 --
+ quickstart.sh                               |   66 --
+ run_5_image_comparison.sh                   |   51 --
+ sam3_lora/__init__.py                       |   19 -
+ sam3_lora/data/__init__.py                  |    3 -
+ sam3_lora/data/dataset.py                   |  200 -----
+ sam3_lora/lora/__init__.py                  |   22 -
+ sam3_lora/lora/lora_layer.py                |  178 ----
+ sam3_lora/lora/lora_utils.py                |  277 ------
+ sam3_lora/model/__init__.py                 |    9 -
+ sam3_lora/model/simple_models.py            |  174 ----
+ sam3_lora/train/__init__.py                 |    5 -
+ sam3_lora/train/native_trainer.py           | 1261 --------------------------
+ sam3_lora/train/trainer.py                  |  237 -----
+ sam3_lora/utils/__init__.py                 |    5 -
+ sam3_lora/utils/training_utils.py           |   31 -
+ sam3_lora_configs/lora_base.yaml            |  437 ---------
+ sam3_lora_configs/lora_full.yaml            |   46 -
+ sam3_lora_configs/lora_minimal.yaml         |   41 -
+ src/__init__.py                             |    1 -
+ src/configs/lora_config_example.yaml        |  139 ---
+ src/data/__init__.py                        |    3 -
+ src/data/dataset.py                         |  200 -----
+ src/lora/__init__.py                        |   10 -
+ src/lora/lora_layer.py                      |  335 -------
+ src/lora/lora_utils.py                      |  358 --------
+ src/train/__init__.py                       |    3 -
+ src/train/train_lora.py                     |  404 ---------
+ test_aux_outputs.py                         |  111 ---
+ test_lora_injection.py                      |  144 ---
+ train.py                                    |  232 -----
+ train_native.py                             |  339 -------
+ train_sam3_lora.py                          |  538 -----------
+ train_sam3_lora_native.py                   | 1298 ---------------------------
+ train_sam3_lora_with_categories.py          |  434 ---------
+ train_simple.py                             |  181 ----
+ train_standalone.py                         |  178 ----
+ validate_sam3_lora.py                       | 1177 ------------------------
+ verify_gt_transforms.py                     |  201 -----
+ 56 files changed, 12193 deletions(-)

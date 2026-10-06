@@ -1,0 +1,57 @@
+====================================================================================================
+체크포인트 지표  (13개)
+====================================================================================================
+  파일                                                   종류      ep      검증    테스트F1    top1
+  ------------------------------------------------------------------------------------------------
+  mammo_calc_head.pt                                   calc    28       -   0.5649       -
+  mammo_mass_all_gapmax_head.pt                        mass    28       -   0.4876       -
+  mammo_mass_blocks_all_gap_head.pt                    mass    30  0.5429   0.5173  0.5753
+  mammo_mass_head.pt                                   mass    30       -   0.5039       -
+  mammo_mass_last_gap_head.pt                          mass    34       -   0.5038       -
+  mammo_mass_last_grid2_head.pt                        mass    18       -   0.5369       -
+  mammo_mass_trunk_last_grid2_head.pt                  mass    32  0.5551   0.5221  0.5987
+  mammo_mass_trunk_last_grid2_pad1_clip999_head.pt     mass    20  0.5502   0.5093  0.5901
+  mammo_mass_trunk_last_grid4_head.pt                  mass    25  0.5870   0.5458  0.6032
+  mammo_mass_trunk_last_grid4_pad0_clip999_head.pt     mass    31  0.5941   0.5526  0.6221
+  mammo_mass_trunk_last_grid4_pad0_clip999_lora.pt     mass    12  0.6058   0.5579  0.6278  [LoRA]
+  mammo_mass_trunk_last_grid4_pad1_clip999_head.pt     mass    27  0.5818   0.5397  0.6239
+  mammo_mass_vb_all_grid2_head.pt                      mass    25  0.5358   0.4914  0.5814
+
+====================================================================================================
+설정
+====================================================================================================
+  mammo_calc_head.pt
+      rank=16  lr=0.0001  epochs=40
+      ! 검증셋 도입 전이라 테스트로 에폭을 골랐다. 이 수치는 낙관 편향이 있다
+  mammo_mass_all_gapmax_head.pt
+      levels=all  pool=gapmax  rank=16  lr=0.0001  epochs=40
+      ! 검증셋 도입 전이라 테스트로 에폭을 골랐다. 이 수치는 낙관 편향이 있다
+  mammo_mass_blocks_all_gap_head.pt
+      src=blocks  levels=all  pool=gap  grid=2  rank=16  lr=0.0001  epochs=40  val=0.15
+  mammo_mass_head.pt
+      rank=16  lr=0.0001  epochs=40
+      ! 검증셋 도입 전이라 테스트로 에폭을 골랐다. 이 수치는 낙관 편향이 있다
+  mammo_mass_last_gap_head.pt
+      levels=last  pool=gap  rank=16  lr=0.0001  epochs=40
+      ! 검증셋 도입 전이라 테스트로 에폭을 골랐다. 이 수치는 낙관 편향이 있다
+  mammo_mass_last_grid2_head.pt
+      levels=last  pool=grid2  rank=16  lr=0.0001  epochs=40
+      ! 검증셋 도입 전이라 테스트로 에폭을 골랐다. 이 수치는 낙관 편향이 있다
+  mammo_mass_trunk_last_grid2_head.pt
+      src=trunk  levels=last  pool=grid  grid=2  rank=16  lr=0.0001  epochs=40  val=0.15
+  mammo_mass_trunk_last_grid2_pad1_clip999_head.pt
+      src=trunk  levels=last  pool=grid  grid=2  clip=99.9  rank=16  lr=0.0001  epochs=40  val=0.15
+  mammo_mass_trunk_last_grid4_head.pt
+      src=trunk  levels=last  pool=grid  grid=4  rank=16  lr=0.0001  epochs=40  val=0.15
+  mammo_mass_trunk_last_grid4_pad0_clip999_head.pt
+      src=trunk  levels=last  pool=grid  grid=4  no_pad=True  clip=99.9  rank=16  lr=0.0001  epochs=40  val=0.15
+  mammo_mass_trunk_last_grid4_pad0_clip999_lora.pt
+      src=trunk  levels=last  pool=grid  grid=4  no_pad=True  clip=99.9  lora=True  rank=16  lr=5e-05  lora_lr=1e-05  epochs=30  val=0.15  init_head=ckpt/mammo_mass_trunk_last_grid4_pad0_clip999_head.pt
+  mammo_mass_trunk_last_grid4_pad1_clip999_head.pt
+      src=trunk  levels=last  pool=grid  grid=4  clip=99.9  rank=16  lr=0.0001  epochs=40  val=0.15
+  mammo_mass_vb_all_grid2_head.pt
+      src=vb  levels=all  pool=grid  grid=2  rank=16  lr=0.0001  epochs=40  val=0.15
+
+====================================================================================================
+  검증 열이 '-' 인 것은 구 프로토콜이다. 보고용으로 쓰지 마라.
+  가중치를 지워도 이 표만 남기면 실험 기록은 보존된다.

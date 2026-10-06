@@ -1,0 +1,43 @@
+{
+  "Name": "EMPATHO-MRI-Orthanc",
+
+  "StorageDirectory": "/var/lib/orthanc/db",
+  "IndexDirectory": "/var/lib/orthanc/db",
+
+  "HttpPort": 8042,
+  "DicomPort": 4242,
+
+  "RemoteAccessAllowed": true,
+  "AuthenticationEnabled": true,
+
+  "RegisteredUsers": {
+    "yoonsy": "Passw0rd@1",
+    "parkgm": "Passw0rd@1",
+    "seoje": "Passw0rd@1",
+    "choiiw": "Passw0rd@1",
+    "jeongdh": "Passw0rd@1"
+  },
+
+  "DicomWeb": {
+    "Enable": true,
+    "Root": "/dicom-web/",
+    "EnableWado": true,
+    "WadoRoot": "/wado",
+    "Ssl": false,
+    "StowMaxInstances": 10,
+    "StowMaxSize": 100
+  },
+
+  "Plugins": [
+    "/usr/share/orthanc/plugins"
+  ],
+
+  "DicomAet": "EMPATHO_ORTHANC",
+  "DicomCheckModalityHost": false,
+
+  "OverwriteInstances": false,
+  "MaximumStorageSize": 0,
+  "MaximumPatientCount": 0,
+
+  "LogLevel": "default"
+}
